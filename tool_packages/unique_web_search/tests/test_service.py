@@ -143,6 +143,44 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         assert "V2 system prompt with 5" in result
 
     @pytest.mark.ai
+    def test_tool_description_for_system_prompt__rewrites_legacy_max_steps_placeholder__when_mode_is_v2(
+        self,
+        mock_web_search_config_v2: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify legacy V2 prompts using the pre-Jinja ``$max_steps``
+        placeholder still get max_steps substituted after the move to
+        Jinja-based rendering.
+        Why this matters: V2 prompts persisted in the database before the
+        Jinja migration must keep working without manual config updates.
+        Setup summary: Mock V2 config with the legacy ``$max_steps`` syntax.
+        """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+
+        mock_web_search_config_v2.web_search_mode_config.tool_description_for_system_prompt = "Legacy V2 system prompt — must not exceed $max_steps steps."
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v2
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
+
+        result: str = tool.tool_description_for_system_prompt()
+
+        assert isinstance(result, str)
+        assert "must not exceed 5 steps" in result
+        assert "$max_steps" not in result
+
+    @pytest.mark.ai
     def test_tool_description_for_system_prompt__renders_jinja__when_mode_is_v3(
         self,
         mock_web_search_config_v3: Mock,

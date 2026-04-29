@@ -74,7 +74,7 @@ class TestBraveSearchConfig:
 
     def test_model_config_title(self):
         config = BraveSearchConfig()
-        assert config.model_config.get("title") == "Brave Search Engine"
+        assert config.model_config.get("title") == "Brave Search"
 
 
 @pytest.fixture

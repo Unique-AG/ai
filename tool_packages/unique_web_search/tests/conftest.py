@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from unique_web_search.services.executors.configs import WebSearchMode
+from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.search_engine.schema import WebSearchResult
