@@ -22,8 +22,8 @@ from unique_sdk.api_resources._agentic_table import (
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.app.schemas import (
+    AssistantWebhookEvent,
     BaseEventPayload,
-    ChatEvent,
     ChatEventAssistantMessage,
     ChatEventUserMessage,
 )
@@ -251,7 +251,7 @@ PayloadTypes = (
 MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]
 
 
-class MagicTableEvent(ChatEvent[MagicTablePayloadTypes, MagicTableEventTypes]):
+class MagicTableEvent(AssistantWebhookEvent[MagicTablePayloadTypes, MagicTableEventTypes]):
     """Magic-table webhooks: payload union + event names as :class:`MagicTableEventTypes`."""
 
 

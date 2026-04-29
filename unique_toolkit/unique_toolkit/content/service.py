@@ -8,7 +8,12 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Correlation, Event
+from unique_toolkit.app.schemas import (
+    AssistantWebhookEvent,
+    BaseEvent,
+    Correlation,
+    Event,
+)
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
@@ -46,7 +51,9 @@ class ContentService:
         "Use __init__ with company_id, user_id and chat_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent[Any, Any]): ...
+    def __init__(
+        self, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any]
+    ): ...
 
     """
         Initialize the ContentService with an event (deprecated)
@@ -83,7 +90,7 @@ class ContentService:
         if event:
             self._company_id: str = event.company_id
             self._user_id: str = event.user_id
-            if isinstance(event, (ChatEvent, Event)):
+            if isinstance(event, AssistantWebhookEvent):
                 self._metadata_filter = event.payload.metadata_filter
                 self._chat_id: str | None = event.payload.chat_id
         else:
@@ -94,7 +101,9 @@ class ContentService:
             self._metadata_filter = metadata_filter
 
     @classmethod
-    def from_event(cls, event: Event | ChatEvent | BaseEvent[Any, Any]):
+    def from_event(
+        cls, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any]
+    ):
         """Initialize the ContentService with an event.
 
         When the event has a correlation (e.g. subagent run), delegates to
@@ -110,7 +119,7 @@ class ContentService:
                 correlation is present, the parent chat.
         """
         if (
-            isinstance(event, (ChatEvent, Event))
+            isinstance(event, AssistantWebhookEvent)
             and getattr(event.payload, "correlation", None) is not None
         ):
             if event.payload.correlation is None:
@@ -126,7 +135,7 @@ class ContentService:
         chat_id = None
         metadata_filter = None
 
-        if isinstance(event, (ChatEvent | Event)):
+        if isinstance(event, AssistantWebhookEvent):
             chat_id = event.payload.chat_id
             metadata_filter = event.payload.metadata_filter
 

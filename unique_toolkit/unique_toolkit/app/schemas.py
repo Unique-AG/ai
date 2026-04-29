@@ -4,7 +4,7 @@ import json
 from enum import StrEnum
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Generic, Optional, cast, override
+from typing import Any, Generic, Optional, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
@@ -21,8 +21,8 @@ from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 FilterOptionsT = TypeVar("FilterOptionsT", bound=BaseSettings)
 
 # Event name typing: wire values are strings; subclasses specialize (e.g. StrEnum).
-# Defaults to plain ``str`` so no ``# pyright: ignore`` on concrete subclasses — use
-# ``ChatEvent[PayloadType, NarrowEventEnum]``.
+# Defaults to plain ``str`` so no ``# pyright: ignore`` on generic definitions — use
+# ``AssistantWebhookEvent[PayloadType, NarrowEventEnum]`` for parameterized envelopes.
 EventNameT = TypeVar("EventNameT", bound=str, default=str)
 
 # set config to convert camelCase to snake_case
@@ -319,10 +319,12 @@ class EventPayload(ChatEventPayload):
 PayloadT = TypeVar("PayloadT", bound=BaseEventPayload, default=ChatEventPayload)
 
 
-class ChatEvent(
+class AssistantWebhookEvent(
     BaseEvent[UniqueChatEventFilterOptions, EventNameT],
     Generic[PayloadT, EventNameT],
 ):
+    """Inbound assistant webhook envelope shared by chat and magic-table (and related) flows."""
+
     model_config = model_config
 
     payload: PayloadT
@@ -340,14 +342,6 @@ class ChatEvent(
         )
 
         model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
-
-    @classmethod
-    def from_json_file(cls, file_path: Path) -> ChatEvent[ChatEventPayload, str]:
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
-        with file_path.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-        return cast(ChatEvent[ChatEventPayload, str], cls.model_validate(data))
 
     def get_initial_debug_info(self) -> dict[str, Any]:
         """Return a small dict for tooling / first-message debug overlays.
@@ -377,7 +371,7 @@ class ChatEvent(
     def filter(self) -> bool:
         """Filter the chat event based on the assistant id and reference in code."""
 
-        options = ChatEvent.FilterOptions()
+        options = AssistantWebhookEvent.FilterOptions()
 
         # Empty lists mean "do not filter by this criterion" (same as filter_event).
         if (
@@ -428,11 +422,23 @@ class ChatEvent(
         return super().filter_event(filter_options=filter_options)
 
 
+class ChatEvent(AssistantWebhookEvent[ChatEventPayload, str]):
+    """Inbound chat webhook (`ChatEventPayload` + plain string ``event`` field)."""
+
+    @classmethod
+    def from_json_file(cls, file_path: Path) -> ChatEvent:
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.model_validate(data)
+
+
 @deprecated(
     """Use the more specific `ChatEvent` instead that has the same properties. \
 This class will be removed in the next major version."""
 )
-class Event(ChatEvent[ChatEventPayload]):
+class Event(ChatEvent):
     pass
     # The below should only affect type hints
     # event: EventName T
