@@ -40,7 +40,7 @@ class LanguageModelService:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any]): ...
+    def __init__(self, event: AssistantWebhookEvent[Any, Any] | BaseEvent[Any]): ...
 
     """
         Initialize the LanguageModelService with an event (deprecated)
@@ -55,7 +55,7 @@ class LanguageModelService:
 
     def __init__(
         self,
-        event: AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any] | None = None,
+        event: AssistantWebhookEvent[Any, Any] | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         **kwargs: dict[str, Any],  # only here for backward compatibility
@@ -81,7 +81,7 @@ class LanguageModelService:
             self._assistant_id: str | None = None
 
     @classmethod
-    def from_event(cls, event: BaseEvent[Any, Any]):
+    def from_event(cls, event: BaseEvent[Any]):
         """
         Initialize the LanguageModelService with an event.
         """
@@ -106,7 +106,7 @@ class LanguageModelService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent[Any, Any] | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 

@@ -52,7 +52,7 @@ class ContentService:
     )
     @overload
     def __init__(
-        self, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any]
+        self, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any]
     ): ...
 
     """
@@ -75,7 +75,7 @@ class ContentService:
 
     def __init__(
         self,
-        event: Event | BaseEvent[Any, Any] | None = None,
+        event: Event | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
@@ -102,7 +102,7 @@ class ContentService:
 
     @classmethod
     def from_event(
-        cls, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any]
+        cls, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any]
     ):
         """Initialize the ContentService with an event.
 
@@ -201,7 +201,7 @@ class ContentService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent[Any, Any] | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 

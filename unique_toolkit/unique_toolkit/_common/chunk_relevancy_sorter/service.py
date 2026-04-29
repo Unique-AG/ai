@@ -54,7 +54,7 @@ class ChunkRelevancySorter:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: BaseEvent[Any, Any]):
+    def __init__(self, event: BaseEvent[Any]):
         """
         Initialize the ChunkRelevancySorter with an event (deprecated)
         """
@@ -67,7 +67,7 @@ class ChunkRelevancySorter:
 
     def __init__(
         self,
-        event: BaseEvent[Any, Any] | None = None,
+        event: BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
     ):
@@ -82,7 +82,7 @@ class ChunkRelevancySorter:
         self.logger = logging.getLogger(f"{module_name}.{__name__}")
 
     @classmethod
-    def from_event(cls, event: BaseEvent[Any, Any]):
+    def from_event(cls, event: BaseEvent[Any]):
         return cls(company_id=event.company_id, user_id=event.user_id)
 
     @classmethod

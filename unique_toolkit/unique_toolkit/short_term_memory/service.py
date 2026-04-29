@@ -24,7 +24,9 @@ class ShortTermMemoryService:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any]): ...
+    def __init__(
+        self, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any]
+    ): ...
 
     """
         Initialize the ShortTermMemoryService with an event (deprecated)
@@ -46,7 +48,7 @@ class ShortTermMemoryService:
 
     def __init__(
         self,
-        event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any, Any] | None = None,
+        event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any] | None = None,
         user_id: str | None = None,
         company_id: str | None = None,
         chat_id: str | None = None,
@@ -86,7 +88,7 @@ class ShortTermMemoryService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent[Any, Any] | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 

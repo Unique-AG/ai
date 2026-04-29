@@ -9,7 +9,7 @@ from typing import Any, Generic, Optional, override
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 from pydantic_settings import BaseSettings
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import Self, TypeVar, deprecated
 
 from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit.app.chat_event_filter_options_settings import (
@@ -56,7 +56,7 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT, EventNameT]):
     company_id: str
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> BaseEvent[Any, Any]:
+    def from_json_file(cls, file_path: Path) -> Self:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
@@ -323,13 +323,22 @@ class AssistantWebhookEvent(
     BaseEvent[UniqueChatEventFilterOptions, EventNameT],
     Generic[PayloadT, EventNameT],
 ):
-    """Inbound assistant webhook envelope shared by chat and magic-table (and related) flows."""
+    """Inbound assistant webhook envelope shared by chat and magic-table (and related) flows.
+
+    Chat-specific behavior (env-driven assistant/module filtering, debug overlays) lives
+    on :class:`ChatEvent`. Subclasses that don't opt in inherit :class:`BaseEvent`'s
+    no-op :meth:`filter` / :meth:`filter_event` defaults.
+    """
 
     model_config = model_config
 
     payload: PayloadT
     created_at: Optional[int] = None
     version: Optional[str] = None
+
+
+class ChatEvent(AssistantWebhookEvent[ChatEventPayload, str]):
+    """Inbound chat webhook (`ChatEventPayload` + plain string ``event`` field)."""
 
     class FilterOptions(BaseSettings):
         assistant_ids: list[str] = Field(
@@ -347,7 +356,7 @@ class AssistantWebhookEvent(
     def filter(self) -> bool:
         """Filter the chat event based on the assistant id and reference in code."""
 
-        options = AssistantWebhookEvent.FilterOptions()
+        options = ChatEvent.FilterOptions()
 
         # Empty lists mean "do not filter by this criterion" (same as filter_event).
         if (
@@ -396,10 +405,6 @@ class AssistantWebhookEvent(
             return True
 
         return super().filter_event(filter_options=filter_options)
-
-
-class ChatEvent(AssistantWebhookEvent[ChatEventPayload, str]):
-    """Inbound chat webhook (`ChatEventPayload` + plain string ``event`` field)."""
 
     def get_initial_debug_info(self) -> dict[str, Any]:
         """Return a small dict for tooling / first-message debug overlays.
