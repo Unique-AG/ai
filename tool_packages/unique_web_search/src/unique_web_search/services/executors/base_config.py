@@ -23,7 +23,7 @@ class WebSearchMode(StrEnum):
         return [
             "V1 — Simple keyword searches with optional query refinement",
             "V2 — AI-planned multi-step research (search and read pages in sequence)",
-            "V3 (Experimental) — Two-command tool: 'search' returns SERP snippets, 'read_urls' fetches full pages; the model chains calls per task",
+            "V3 (Experimental) — Agent-driven research: chains cheap snippet searches with on-demand full-page reads, deciding each step per task",
         ]
 
     @classmethod
