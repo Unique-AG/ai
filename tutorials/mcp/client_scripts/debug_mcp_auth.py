@@ -14,6 +14,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import base64
+import binascii
+import hashlib
 import json
 import logging
 import os
@@ -21,6 +24,7 @@ import re
 import sys
 from collections.abc import AsyncGenerator, Iterable, Iterator, Sequence
 from contextlib import aclosing, contextmanager
+from datetime import datetime, timezone
 from types import TracebackType
 from typing import Literal, Protocol, TypeAlias, cast, override
 from urllib.parse import urljoin, urlparse
@@ -107,6 +111,112 @@ def body_preview(content: bytes, limit: int, *, content_type: str | None = None)
     return preview.replace("\n", "\\n") + suffix
 
 
+_JWT_DECODE_SEEN: set[str] = set()
+
+
+def _decode_jwt_segment(segment: str) -> JsonObject | None:
+    """Decode a single base64url JWT segment to a JSON object, if it parses."""
+    try:
+        padding = "=" * (-len(segment) % 4)
+        raw = base64.urlsafe_b64decode(segment + padding)
+    except (ValueError, binascii.Error):
+        return None
+    try:
+        decoded = cast(object, json.loads(raw.decode("utf-8", errors="replace")))
+    except json.JSONDecodeError:
+        return None
+    return cast(JsonObject, decoded) if isinstance(decoded, dict) else None
+
+
+def _format_epoch(value: object) -> str | None:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    try:
+        return datetime.fromtimestamp(float(value), tz=timezone.utc).isoformat()
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def _jwt_fingerprint(token: str) -> str:
+    return hashlib.sha256(token.encode("ascii", errors="replace")).hexdigest()[:16]
+
+
+def _print_decoded_jwt(token: str, label: str) -> None:
+    """Pretty-print a JWT's header + claims, with timestamp claims humanised."""
+    parts = token.split(".")
+    if len(parts) != 3:
+        print(f"  {label}: <opaque, {len(token)} chars>")
+        return
+    header = _decode_jwt_segment(parts[0])
+    claims = _decode_jwt_segment(parts[1])
+    if header is None and claims is None:
+        print(f"  {label}: <not a JWT, {len(token)} chars>")
+        return
+    if header is not None:
+        print(f"  {label} header:")
+        print(json.dumps(header, indent=2, sort_keys=True))
+    if claims is not None:
+        print(f"  {label} claims:")
+        print(json.dumps(claims, indent=2, sort_keys=True))
+        for key in ("iat", "nbf", "exp", "auth_time"):
+            human = _format_epoch(claims.get(key))
+            if human is not None:
+                print(f"  {label} {key}: {claims[key]} ({human})")
+
+
+def print_jwt_once(token: str, label: str) -> None:
+    """Decode and pretty-print a JWT the first time we see it; otherwise note the fingerprint."""
+    fingerprint = _jwt_fingerprint(token)
+    if fingerprint in _JWT_DECODE_SEEN:
+        print(f"  {label}: <same JWT as previously decoded, fp={fingerprint}>")
+        return
+    _JWT_DECODE_SEEN.add(fingerprint)
+    print(f"  {label} fp: {fingerprint}")
+    _print_decoded_jwt(token, label)
+
+
+def print_request_bearer_decoded(request: httpx.Request) -> None:
+    """If the outgoing request carries Authorization: Bearer <jwt>, decode it."""
+    auth_header = cast(str | None, request.headers.get("authorization"))
+    if not auth_header or not auth_header.lower().startswith("bearer "):
+        return
+    token = auth_header[len("bearer "):].strip()
+    if not token:
+        return
+    print("decoded request bearer token:")
+    print_jwt_once(token, "access_token")
+
+
+def print_token_response_decoded(response: httpx.Response) -> None:
+    """If this is a successful /token response, decode access_token / id_token from the body."""
+    if not response.request.url.path.endswith("/token"):
+        return
+    if response.status_code != 200:
+        return
+    try:
+        body = cast(object, response.json())
+    except (ValueError, json.JSONDecodeError):
+        return
+    if not isinstance(body, dict):
+        return
+    body_obj = cast(JsonObject, body)
+    print("decoded /token response:")
+    for key in ("token_type", "scope", "expires_in", "refresh_expires_in", "session_state"):
+        if key in body_obj:
+            print(f"  {key}: {body_obj[key]}")
+    for key in ("access_token", "id_token"):
+        value = body_obj.get(key)
+        if isinstance(value, str) and value:
+            print_jwt_once(value, key)
+    refresh = body_obj.get("refresh_token")
+    if isinstance(refresh, str) and refresh:
+        parts = refresh.split(".")
+        if len(parts) == 3 and _decode_jwt_segment(parts[1]) is not None:
+            print_jwt_once(refresh, "refresh_token")
+        else:
+            print(f"  refresh_token: <opaque, {len(refresh)} chars, fp={_jwt_fingerprint(refresh)}>")
+
+
 def print_http_exchange(response: httpx.Response, *, body_preview_chars: int) -> None:
     request = response.request
     request_content_type = cast(str | None, request.headers.get("content-type"))
@@ -125,6 +235,8 @@ def print_http_exchange(response: httpx.Response, *, body_preview_chars: int) ->
         print_kv("redirect location", location)
     print("response body:")
     print(body_preview(response.content, body_preview_chars, content_type=response_content_type))
+    print_request_bearer_decoded(request)
+    print_token_response_decoded(response)
 
 
 def print_http_response_head(response: httpx.Response, *, body_preview_chars: int) -> None:
@@ -142,6 +254,7 @@ def print_http_response_head(response: httpx.Response, *, body_preview_chars: in
     if location:
         print_kv("redirect location", location)
     print("response body: <streaming body not read>")
+    print_request_bearer_decoded(request)
 
 
 async def print_auth_flow_response(response: httpx.Response, *, body_preview_chars: int) -> None:
