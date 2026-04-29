@@ -5,10 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2026.20.0.dev8] - 2026-04-29
-### Changed
-- Relax `tokenizers` constraint from `>=0.21.0,<0.22` to `>=0.21.0,<0.23` to allow `tokenizers==0.22.2` required by `litellm>=1.83.5` (security advisories GHSA — SQL injection, SSTI, RCE).
-
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v1.82.0...unique-toolkit-v2026.18.0) (2026-04-23)
 
 
