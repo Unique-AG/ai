@@ -4,7 +4,7 @@ from typing import Any
 
 from typing_extensions import deprecated
 
-from unique_toolkit.app.schemas import ChatEvent, Correlation, Event
+from unique_toolkit.app.schemas import AssistantWebhookEvent, Correlation
 from unique_toolkit.chat.functions import (
     modify_message,
 )
@@ -13,7 +13,7 @@ from unique_toolkit.chat.functions import (
 class ChatServiceDeprecated:
     def __init__(
         self,
-        event: ChatEvent | Event,
+        event: AssistantWebhookEvent[Any, Any],
         content_scope_chat_id: str | None = None,
     ):
         """Initialize the chat service from an event.
@@ -47,7 +47,9 @@ class ChatServiceDeprecated:
                 self._content_scope_chat_id = event.payload.chat_id
 
     @classmethod
-    def from_chat_event(cls, event: ChatEvent | Event) -> ChatServiceDeprecated:
+    def from_chat_event(
+        cls, event: AssistantWebhookEvent[Any, Any]
+    ) -> ChatServiceDeprecated:
         """Create a chat service from an event.
 
         When the event has a correlation (e.g. subagent run), delegates to
@@ -73,7 +75,7 @@ class ChatServiceDeprecated:
     def from_correlation(
         cls,
         correlation: Correlation,
-        event: ChatEvent | Event,
+        event: AssistantWebhookEvent[Any, Any],
     ) -> ChatServiceDeprecated:
         """Create a chat service for a subagent using parent chat for content.
 
@@ -95,11 +97,11 @@ class ChatServiceDeprecated:
     @deprecated(
         "The event property is deprecated and will be removed in a future version.",
     )
-    def event(self) -> Event | ChatEvent:
+    def event(self) -> AssistantWebhookEvent[Any, Any]:
         """Get the event object (deprecated).
 
         Returns:
-            Event | BaseEvent | None: The event object.
+            AssistantWebhookEvent[Any, Any]: The event object.
 
         """
         return self._event

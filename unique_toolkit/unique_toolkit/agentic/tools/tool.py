@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
+from typing import Any, Generic, TypeVar, overload
 
 from typing_extensions import deprecated
 
@@ -14,18 +14,11 @@ from unique_toolkit.agentic.tools.schemas import (
     ToolPrompts,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import AssistantWebhookEvent
 from unique_toolkit.language_model import LanguageModelToolDescription
-
-if TYPE_CHECKING:
-    pass
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
 )
-
-if TYPE_CHECKING:
-    from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-    from unique_toolkit.app.schemas import ChatEvent
 
 ConfigType = TypeVar("ConfigType", bound=BaseToolConfig)
 
@@ -162,14 +155,14 @@ class Tool(ABC, Generic[ConfigType]):
     def __init__(
         self,
         config: ConfigType,
-        event: ChatEvent,
+        event: AssistantWebhookEvent[Any, Any],
         tool_progress_reporter: ToolProgressReporter | None = ...,
     ) -> None: ...
 
     def __init__(
         self,
         config: ConfigType,
-        event: ChatEvent | None = None,
+        event: AssistantWebhookEvent[Any, Any] | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
     ) -> None:
         """Initialize the tool.
@@ -209,7 +202,7 @@ class Tool(ABC, Generic[ConfigType]):
     @deprecated(
         "Never reuse event. Dangerous. Prefer Tool(config) and inject context in run()."
     )
-    def event(self) -> ChatEvent:
+    def event(self) -> AssistantWebhookEvent[Any, Any]:
         if not hasattr(self, "_event"):
             raise AttributeError(
                 "event not available (tool was initialized with config only). "
