@@ -50,6 +50,7 @@ from unique_toolkit.experimental.components.internal_search.base import (
     TInternalSearchDeps,
 )
 from unique_toolkit.experimental.components.internal_search.chat import (
+    ChatInternalSearchConfig,
     ChatInternalSearchDeps,
     ChatInternalSearchService,
 )
@@ -77,6 +78,7 @@ __all__ = [
     "SearchStringResult",
     "TInternalSearchDeps",
     # chat
+    "ChatInternalSearchConfig",
     "ChatInternalSearchDeps",
     "ChatInternalSearchService",
     # knowledge base
