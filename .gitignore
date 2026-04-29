@@ -193,3 +193,6 @@ monorepo-ref
 
 # Stray test scripts with secrets
 test_code_interpreter_retry.py
+
+# Local SDK smoke scripts (credentials go here — do not commit)
+unique_sdk/examples/briefing_manual_smoke.py
