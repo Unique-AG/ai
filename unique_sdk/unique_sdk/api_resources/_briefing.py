@@ -64,58 +64,12 @@ def _validate_prompts(raw: Any) -> list[dict[str, str]]:
     return out
 
 
-def _finalize_upsert_request_params(params: Mapping[str, Any]) -> dict[str, Any]:
-    """Build JSON matching OpenAPI ``PublicUpsertBriefingRequestDto``.
+class _PublicUpsertBriefingWire(TypedDict):
+    """Exact JSON keys for ``PUT`` body (`PublicUpsertBriefingRequestDto`)."""
 
-    ``params`` matches :class:`Briefing.UpsertForAssistantParams` at the type level;
-    transport keys from :class:`~unique_sdk._request_options.RequestOptions` are
-    removed here so they are never sent as JSON.
-    """
-    kw = dict(params)
-    for key in _REQUEST_OPTION_KEYS:
-        kw.pop(key, None)
-
-    text: Any | None = None
-    if "text" in kw and kw["text"] is not None:
-        text = kw["text"]
-    elif kw.get("markdown") is not None:
-        text = kw["markdown"]
-    elif kw.get("content") is not None:
-        text = kw["content"]
-
-    for key in ("text", "markdown", "content"):
-        kw.pop(key, None)
-
-    if text is None:
-        raise ValueError(
-            "Briefing upsert requires text= with the briefing (max "
-            f"{_MAX_TEXT_LEN} chars). Legacy keywords markdown= or "
-            "content= are also accepted."
-        )
-    if not isinstance(text, str):
-        raise TypeError(f"Briefing text must be a string, got {type(text)!r}")
-    if not text.strip():
-        raise ValueError("Briefing text must not be empty or whitespace-only")
-    if len(text) > _MAX_TEXT_LEN:
-        raise ValueError(
-            f"Briefing text must be at most {_MAX_TEXT_LEN} characters "
-            f"(got {len(text)})"
-        )
-
-    generated_raw = kw.pop("generatedAt", None)
-    if generated_raw is None or (
-        isinstance(generated_raw, str) and not generated_raw.strip()
-    ):
-        ga = _utc_iso8601_now()
-    elif isinstance(generated_raw, str):
-        ga = generated_raw.strip()
-    else:
-        ga = generated_raw
-
-    prompts_raw = kw.pop("prompts", None)
-    prompts = _validate_prompts(prompts_raw)
-
-    return {"text": text, "generatedAt": ga, "prompts": prompts}
+    text: str
+    generatedAt: str
+    prompts: list[dict[str, str]]
 
 
 class Briefing(APIResource["Briefing"]):
@@ -141,6 +95,61 @@ class Briefing(APIResource["Briefing"]):
         prompts: list["Briefing.BriefingPromptItem"]
         markdown: NotRequired[str]
         content: NotRequired[str]
+
+    @classmethod
+    def _wire_json_from_upsert_params(
+        cls, params: Mapping[str, Any]
+    ) -> _PublicUpsertBriefingWire:
+        """Reduce :class:`UpsertForAssistantParams` kwargs to wire JSON keys only."""
+        kw = dict(params)
+        for key in _REQUEST_OPTION_KEYS:
+            kw.pop(key, None)
+
+        text_raw = kw.get("text")
+        md_raw = kw.get("markdown")
+        content_raw = kw.get("content")
+        if text_raw is not None:
+            text: Any | None = text_raw
+        elif md_raw is not None:
+            text = md_raw
+        elif content_raw is not None:
+            text = content_raw
+        else:
+            text = None
+        kw.pop("text", None)
+        kw.pop("markdown", None)
+        kw.pop("content", None)
+
+        if text is None:
+            raise ValueError(
+                "Briefing upsert requires text= with the briefing (max "
+                f"{_MAX_TEXT_LEN} chars). Legacy keywords markdown= or "
+                "content= are also accepted."
+            )
+        if not isinstance(text, str):
+            raise TypeError(f"Briefing text must be a string, got {type(text)!r}")
+        if not text.strip():
+            raise ValueError("Briefing text must not be empty or whitespace-only")
+        if len(text) > _MAX_TEXT_LEN:
+            raise ValueError(
+                f"Briefing text must be at most {_MAX_TEXT_LEN} characters "
+                f"(got {len(text)})"
+            )
+
+        generated_raw = kw.pop("generatedAt", None)
+        if generated_raw is None or (
+            isinstance(generated_raw, str) and not generated_raw.strip()
+        ):
+            ga = _utc_iso8601_now()
+        elif isinstance(generated_raw, str):
+            ga = generated_raw.strip()
+        else:
+            ga = generated_raw
+
+        prompts_raw = kw.pop("prompts", None)
+        prompts_list = _validate_prompts(prompts_raw)
+
+        return {"text": text, "generatedAt": ga, "prompts": prompts_list}
 
     id: str
     object: str
@@ -169,7 +178,7 @@ class Briefing(APIResource["Briefing"]):
         ``PUT /public/briefings/{assistantId}`` on the upstream OpenAPI surface).
         """
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(assistant_id))
-        payload = _finalize_upsert_request_params(params)
+        payload = cls._wire_json_from_upsert_params(params)
         return cast(
             "Briefing",
             cls._static_request("put", url, user_id, company_id, payload),
@@ -186,7 +195,7 @@ class Briefing(APIResource["Briefing"]):
     ) -> "Briefing":
         """Async variant of :meth:`upsert_for_assistant`."""
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(assistant_id))
-        payload = _finalize_upsert_request_params(params)
+        payload = cls._wire_json_from_upsert_params(params)
         return cast(
             "Briefing",
             await cls._static_request_async("put", url, user_id, company_id, payload),
