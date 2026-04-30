@@ -22,7 +22,7 @@ From that we produce:
         ``calver_dev_dependency_pin.dev_dependency_pin`` (excludes sibling RCs).
       - package is a sibling in this push   -> pinned at new cycle dev floor
       - cycle already has a dev on PyPI     -> pinned at highest existing ``dev<N>``
-      - otherwise (pyproject-stable)        -> ``>=<stable>`` unchanged
+      - otherwise (no ``*.devN`` in this cycle for that package yet) -> ``>=<stable>`` unchanged
 
 Both maps key cross-package names by their PEP 503 normalized form so
 ``rewrite-pyproject-pre-release.py`` can match regardless of whether the

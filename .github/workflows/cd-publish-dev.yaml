@@ -29,9 +29,8 @@ name: "[CD] Publish dev builds to PyPI"
 #     - CalVer cycle sibling ``*.devN`` (publishing now or existing on PyPI)
 #         ``>=V,<YYY.WW.Prc0`` — admits later dev builds on that patch triple
 #         but excludes sibling RC releases (they sort above dev under PEP 440).
-#     - legacy pyproject stable fallback (pre-CalVer packages) ``>=<stable>`` only.
-#         (a fresh cycle with no dev wheels yet; the dep has not changed
-#          since its last stable, so that is the honest floor)
+#     - stable-only floor when no ``*.devN`` exists in this cycle yet for that
+#         package: ``>=<stable>`` only (dep unchanged since last stable).
 #
 # Serialization
 # =============

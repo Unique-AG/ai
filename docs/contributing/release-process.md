@@ -50,8 +50,8 @@ On each qualifying push the workflow:
 1. Detects which packages changed (same logic as PR CI).
 2. Queries PyPI for the highest `.devN` already published for each changed package in the current cycle, increments, and emits `YYYY.WW.0.dev(N+1)`.
 3. Rewrites cross-package AI dependencies in each wheel's `Requires-Dist` (via `rewrite-pyproject-pre-release.py` and pins from `resolve-dev-versions.py`):
-   - **CalVer cycle sibling** (`YYYY.WW.P.devN`) — ``>=V,<YYY.WW.Prc0``: admits later `.dev*` builds on the same patch triple but excludes sibling **RC** releases (PEP 440 ranks RC above dev on that line).
-   - **Legacy pyproject fallback** (no cycle dev yet, pre-CalVer or stable-only floor) → ``>=<last stable>`` only.
+   - **Cycle dev sibling** (`YYYY.WW.P.devN`) — ``>=V,<YYY.WW.Prc0``: admits later `.dev*` builds on the same patch triple but excludes sibling **RC** releases (PEP 440 ranks RC above dev on that line).
+   - **No cycle dev yet** for that package (unchanged since last stable; honest floor is still the stable line) → ``>=<last stable>`` only.
 4. Builds and publishes to PyPI under the `publish-prerelease` concurrency group (serialized, no races).
 5. Tags the head SHA as `dev-cut-<SHORT_SHA>` and creates a GitHub pre-release listing every package version produced.
 
