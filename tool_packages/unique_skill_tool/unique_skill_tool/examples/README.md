@@ -6,9 +6,13 @@ These `.md` files are example skills for the SkillTool. To use them:
 2. Upload these `.md` files directly into those scopes. Sub-folders are
    not traversed automatically — add each sub-folder's scope ID to
    `scope_ids` if you want its skills loaded.
-3. Add every scope ID to `skill_tool_config.scope_ids` in the space
-   configuration (the field accepts a list — click "Add Item" for each).
-4. Set `skill_tool_config.enabled` to `true`.
+3. Add the `Skill` tool to `space.tools` (alongside `InternalSearch`,
+   `WebSearch`, etc.) and add every scope ID to its
+   `configuration.scope_ids` list (the field accepts a list — click
+   "Add Item" for each).
+4. Make sure the SkillTool entry has `is_enabled: true` (the standard
+   per-tool toggle on `ToolBuildConfig` — there is no separate
+   `enabled` flag on `SkillToolConfig`).
 
 The SkillTool fetches all `.md` files from the configured scopes. Only the
 scopes listed in `scope_ids` are queried — sub-folders are not traversed

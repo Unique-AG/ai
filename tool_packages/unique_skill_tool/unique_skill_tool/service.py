@@ -7,6 +7,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.language_model.schemas import (
@@ -37,16 +38,22 @@ class SkillTool(Tool[SkillToolConfig]):
 
     def __init__(
         self,
-        event: ChatEvent,
-        skill_registry: dict[str, SkillDefinition],
         config: SkillToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *args: object,
+        **kwargs: object,
     ) -> None:
-        super().__init__(config, event)
-        self._skill_registry = skill_registry
+        super().__init__(config, event, tool_progress_reporter)
+        self._skill_registry: dict[str, SkillDefinition] = {}
 
     @property
     def skill_registry(self) -> dict[str, SkillDefinition]:
         return self._skill_registry
+
+    @skill_registry.setter
+    def skill_registry(self, value: dict[str, SkillDefinition]) -> None:
+        self._skill_registry = value
 
     @override
     def display_name(self) -> str:

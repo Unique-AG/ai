@@ -40,13 +40,15 @@ from __future__ import annotations
 
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import frontmatter
 from pydantic import ValidationError
+from unique_skill_tool.config import SkillToolConfig
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import extract_prefix_skills
+from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import Content, ContentInfo
 from unique_toolkit.content.smart_rules import (
@@ -68,6 +70,16 @@ if TYPE_CHECKING:
     from unique_toolkit.content.service import ContentService
 
     from unique_orchestrator.config import UniqueAIConfig
+
+
+def _find_skill_tool_build_config(
+    tools: list[ToolBuildConfig],
+) -> ToolBuildConfig | None:
+    """Return the SkillTool entry from ``space.tools`` if present."""
+    for tool in tools:
+        if tool.name == SkillTool.name:
+            return tool
+    return None
 
 
 _SUBTREE_PAGE_SIZE = 100
@@ -294,21 +306,39 @@ async def configure_skill_tool(
     content_service: ContentService,
     tool_manager: ToolManager | ResponsesApiToolManager,
 ) -> None:
-    """Register the SkillTool if enabled in the config.
+    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
 
-    Lists all ``.md`` files in the configured ``scope_ids`` (and every
-    sub-folder reachable from them), downloads each one concurrently,
-    and registers the SkillTool with the parsed skills.
+    The SkillTool is integrated like every other tool: it lives as a
+    ``ToolBuildConfig`` entry in ``config.space.tools`` and is built by
+    :class:`ToolFactory` when the :class:`ToolManager` is constructed.
+    This function only handles the runtime concern of loading the skill
+    definitions from the knowledge base and injecting them into the
+    already-constructed tool instance.
+
+    The tool is treated as "active" only when both:
+
+    * an entry with name ``SkillTool.name`` is present in
+      ``config.space.tools`` and its
+      :attr:`~ToolBuildConfig.is_enabled` flag is ``True``, **and**
+    * the resulting skill registry contains at least one skill.
+
+    When either is not the case the SkillTool is excluded from the
+    manager so it is never advertised to the model. Its system prompt
+    claims HIGHEST PRIORITY and would otherwise waste iterations or
+    provoke hallucinated skill names when no skills exist.
     """
-    skill_config = config.agent.experimental.skill_tool_config
-    if not skill_config.enabled:
+    skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
+    if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
         return
+
+    skill_config = cast(SkillToolConfig, skill_tool_build_config.configuration)
 
     if not skill_config.scope_ids:
         logger.warning(
             "SkillTool is enabled but no scope_ids are configured — "
             "no skills will be loaded."
         )
+        tool_manager.exclude_tool(SkillTool.name)
         return
 
     knowledge_base_service = KnowledgeBaseService(
@@ -324,18 +354,20 @@ async def configure_skill_tool(
     )
 
     if not skill_registry:
-        logger.info(
-            "SkillTool has an empty skill registry — tool will not be registered."
+        logger.info("SkillTool has an empty skill registry — tool will be excluded.")
+        tool_manager.exclude_tool(SkillTool.name)
+        return
+
+    skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
+    if not isinstance(skill_tool, SkillTool):
+        logger.warning(
+            "SkillTool is configured in space.tools but the manager did "
+            "not produce a SkillTool instance — skills will not be "
+            "available."
         )
         return
 
-    tool_manager.add_tool(
-        SkillTool(
-            event=event,
-            skill_registry=skill_registry,
-            config=skill_config,
-        )
-    )
+    skill_tool.skill_registry = skill_registry
 
 
 async def preload_invoked_skills(
