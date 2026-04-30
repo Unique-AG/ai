@@ -4,8 +4,6 @@ from typing import Any
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from unique_toolkit._common.pydantic_helpers import dict_of
-
 model_config = ConfigDict(
     alias_generator=camelize,
     populate_by_name=True,
@@ -23,7 +21,8 @@ class ShortTermMemory(BaseModel):
     data: str | dict[str, Any] | int | float | bool | list[Any] | None = Field(
         deprecated=True
     )
-    value: str | dict[str, Any] = Field(default_factory=dict_of(str, Any))
+    # dict, not dict_of(str, Any): pyright rejects type[Any] for dict_of's value parameter.
+    value: str | dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def _data_to_value(self) -> "ShortTermMemory":
