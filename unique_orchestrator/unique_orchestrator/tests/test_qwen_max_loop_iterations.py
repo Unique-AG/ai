@@ -98,7 +98,7 @@ class TestUniqueAIAgentConfigMaxLoopIterations:
         Setup summary: Provide value above LIMIT_MAX_LOOP_ITERATIONS, assert clipped to maximum.
         """
         # Arrange
-        value_above_max: int = 100
+        value_above_max: int = env_settings.limit_max_loop_iterations + 10
 
         # Act
         config: UniqueAIAgentConfig = UniqueAIAgentConfig(
