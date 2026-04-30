@@ -288,7 +288,7 @@ class ConfigValidator:
             # Get the old value from original JSON
             old_value = None
             try:
-                current = original_json
+                current: Any = original_json
                 for key in loc:
                     if isinstance(current, dict) and isinstance(key, str):
                         current = current.get(key)
