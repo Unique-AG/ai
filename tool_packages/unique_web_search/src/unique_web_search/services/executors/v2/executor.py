@@ -13,12 +13,7 @@ from unique_web_search.metrics import (
     search_errors,
     search_total,
 )
-from unique_web_search.schema import (
-    Step,
-    StepDebugInfo,
-    StepType,
-    WebSearchPlan,
-)
+from unique_web_search.schema import StepDebugInfo
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -27,6 +22,11 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.executors.v2.schema import (
+    Step,
+    StepType,
+    WebSearchPlan,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -34,7 +34,7 @@ from unique_web_search.services.search_engine.schema import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class WebSearchV2Executor(BaseWebSearchExecutor):
+class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
     """Executes research plans step by step."""
 
     def __init__(
@@ -54,7 +54,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             tool_parameters=tool_parameters,
         )
 
-        self.tool_parameters = tool_parameters
         self.max_steps = max_steps
 
     async def run(self) -> list[ContentChunk]:
@@ -265,28 +264,22 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         Returns:
             List of approved steps with elicited search queries and original read URL steps
         """
-        # Partition steps by type in a single pass
         search_steps, read_url_steps = [], []
         for step in steps:
             if step.step_type == StepType.SEARCH:
                 search_steps.append(step)
-            else:  # StepType.READ_URL
+            else:
                 read_url_steps.append(step)
 
-        # Early return if no search steps require elicitation
         if not search_steps:
             return read_url_steps
 
-        # Extract queries and elicit user approval/modifications
         search_queries = [step.query_or_url for step in search_steps]
         elicited_queries = await self._ff_elicitate_queries(search_queries)
 
-        # Reconstruct search steps with elicited queries
-        # Note: Objectives are cleared as elicitation may have changed query intent
         elicited_search_steps = [
             Step(step_type=StepType.SEARCH, query_or_url=query, objective="")
             for query in elicited_queries
         ]
 
-        # Return elicited search steps followed by unchanged read URL steps
         return elicited_search_steps + read_url_steps

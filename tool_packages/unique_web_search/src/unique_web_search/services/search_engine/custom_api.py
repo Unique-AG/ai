@@ -8,6 +8,7 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
+    SearchEngineMode,
     SearchEngineType,
     get_search_engine_model_config,
 )
@@ -73,6 +74,11 @@ class CustomAPIConfig(BaseSearchEngineConfig[SearchEngineType.CUSTOM_API]):
         ApiAdditionalBodyParamsField
     )
     api_request_method: ApiRequestMethodType = ApiRequestMethodField  # type: ignore (Dynamic type generation)
+    search_engine_mode: SearchEngineMode = Field(
+        default=SearchEngineMode.STANDARD,
+        title="Search Engine Mode",
+        description="Whether this custom API behaves as a standard search engine or an agent-based one.",
+    )
     requires_scraping: bool = Field(
         default=False, description="Whether the search engine requires scraping"
     )
