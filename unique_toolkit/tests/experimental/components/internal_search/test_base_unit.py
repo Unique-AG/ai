@@ -91,15 +91,15 @@ def test_config_defaults():
 
 
 @pytest.mark.ai
-def test_config_legacy_field_remapping():
+def test_config_legacy_field_is_ignored_in_experimental_config():
     """
-    Purpose: Verifies that the deprecated ftsSearchLanguage key is migrated to searchLanguage.
-    Why this matters: Old tool configs stored the legacy key; dropping support would silently revert
-        language to the default without an error.
-    Setup summary: Construct config dict with ftsSearchLanguage; assert search_language is set.
+    Purpose: Verifies that experimental config no longer remaps the legacy ftsSearchLanguage key.
+    Why this matters: The old tool owns its legacy config compatibility; the experimental config
+        intentionally accepts breaking changes.
+    Setup summary: Construct config dict with only the legacy key; assert default language remains.
     """
     cfg = InternalSearchConfig.model_validate({"ftsSearchLanguage": "german"})
-    assert cfg.search_language == "german"
+    assert cfg.search_language == "english"
 
 
 # ---------------------------------------------------------------------------

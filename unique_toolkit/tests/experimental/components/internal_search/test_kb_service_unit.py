@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from unique_toolkit._common.metadata_filter_scope import build_folder_id_scope_clause
 from unique_toolkit.experimental.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
 )
@@ -28,7 +29,9 @@ def _make_service(
     chat_context: MagicMock | None = None,
 ) -> tuple[KnowledgeBaseInternalSearchService, MagicMock]:
     """Return (service, mock_kb_service)."""
-    cfg = config or KnowledgeBaseInternalSearchConfig(scope_ids=["scope-1"])
+    cfg = config or KnowledgeBaseInternalSearchConfig(
+        metadata_filter=build_folder_id_scope_clause(["scope-1"]),
+    )
     svc = KnowledgeBaseInternalSearchService.from_config(cfg)
 
     mock_kb_svc = AsyncMock()
@@ -140,22 +143,60 @@ def test_effective_metadata_filter__unset_no_chat_uses_config_filter():
 
 
 @pytest.mark.ai
-async def test_search_single_query__uses_scope_ids_when_set(make_chunk):
+def test_config__folds_scope_ids_into_metadata_filter() -> None:
     """
-    Purpose: Verifies that scope_ids are passed to KB search when present in config.
-    Why this matters: scope_ids are the primary isolation mechanism; not passing them
-        would return results from unintended knowledge bases.
-    Setup summary: Config with scope_ids; mock KB service; assert search called with scope_ids.
+    Purpose: Verifies deprecated scope_ids are normalized into metadata_filter.
+    Why this matters: The KB search path now relies on metadata_filter only.
+    Setup summary: Build config with scope_ids and assert metadata_filter contains folderId/in.
     """
-    cfg = KnowledgeBaseInternalSearchConfig(scope_ids=["kb-1", "kb-2"])
+    with pytest.deprecated_call(match="scope_ids"):
+        cfg = KnowledgeBaseInternalSearchConfig(scope_ids=["kb-1", "kb-2"])
+
+    assert cfg.scope_ids is None
+    assert cfg.metadata_filter == build_folder_id_scope_clause(["kb-1", "kb-2"])
+
+
+@pytest.mark.ai
+def test_config__and_merges_scope_ids_with_existing_metadata_filter() -> None:
+    """
+    Purpose: Verifies deprecated scope_ids narrow an existing metadata_filter via AND.
+    Why this matters: Scope migration must preserve the agreed narrowing semantics.
+    Setup summary: Build config with scope_ids + metadata_filter and assert merged filter.
+    """
+    with pytest.deprecated_call(match="scope_ids"):
+        cfg = KnowledgeBaseInternalSearchConfig(
+            scope_ids=["kb-1"],
+            metadata_filter={"type": "policy"},
+        )
+
+    assert cfg.scope_ids is None
+    assert cfg.metadata_filter == {
+        "and": [
+            build_folder_id_scope_clause(["kb-1"]),
+            {"type": "policy"},
+        ]
+    }
+
+
+@pytest.mark.ai
+async def test_search_single_query__uses_folded_metadata_filter(make_chunk):
+    """
+    Purpose: Verifies folded scope_ids reach KB search through metadata_filter only.
+    Why this matters: The KB service path no longer sends scope_ids to the lower layer.
+    Setup summary: Config with deprecated scope_ids; assert search called with metadata_filter.
+    """
+    with pytest.deprecated_call(match="scope_ids"):
+        cfg = KnowledgeBaseInternalSearchConfig(scope_ids=["kb-1", "kb-2"])
     svc, mock_kb_svc = _make_service(config=cfg)
     mock_kb_svc.search_content_chunks_async = AsyncMock(return_value=[make_chunk("x")])
 
     await svc._search_single_query(query="hello")
 
     call_kwargs = mock_kb_svc.search_content_chunks_async.call_args.kwargs
-    assert call_kwargs["scope_ids"] == ["kb-1", "kb-2"]
-    assert "metadata_filter" not in call_kwargs
+    assert call_kwargs["metadata_filter"] == build_folder_id_scope_clause(
+        ["kb-1", "kb-2"]
+    )
+    assert "scope_ids" not in call_kwargs
     assert "content_ids" not in call_kwargs
 
 
@@ -216,7 +257,7 @@ async def test_search_single_query__raises_when_neither_scope_ids_nor_filter():
     cfg = KnowledgeBaseInternalSearchConfig(scope_ids=None, metadata_filter=None)
     svc, _ = _make_service(config=cfg, chat_context=None)
 
-    with pytest.raises(RuntimeError, match="scope_ids or metadata_filter"):
+    with pytest.raises(RuntimeError, match="requires a metadata filter"):
         await svc._search_single_query(query="unrestricted")
 
 

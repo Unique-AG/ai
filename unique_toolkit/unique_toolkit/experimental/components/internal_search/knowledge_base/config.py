@@ -1,8 +1,11 @@
-from typing import Annotated
+from typing import Annotated, cast
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.metadata_filter_scope import (
+    fold_deprecated_scope_ids_in_config_data,
+)
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit.content.schemas import ContentRerankerConfig
 from unique_toolkit.experimental.components.internal_search.base.config import (
@@ -12,12 +15,13 @@ from unique_toolkit.experimental.components.internal_search.base.config import (
 
 @register_config()
 class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
-    scope_ids: Annotated[list[str], Field(title="Active")] | DeactivatedNone = Field(
+    scope_ids: list[str] | DeactivatedNone = Field(
         default=None,
+        title="Active",
+        deprecated=True,
         description=(
-            "Knowledge-base scope IDs to restrict the search to. "
-            "When set, takes precedence over metadata_filter — the two are "
-            "mutually exclusive at the API level (scope_ids OR metadata_filter)."
+            "Deprecated. Use ``metadata_filter`` with a ``folderId`` ``in`` clause instead. "
+            "When set, values are merged into ``metadata_filter`` at validation time."
         ),
     )
     metadata_filter: dict[str, object] | None = Field(
@@ -37,6 +41,15 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
             "client-side chunk_relevancy_sort_config in PostProcessorConfig."
         ),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_scope_ids_into_metadata_filter(cls, data: object) -> object:
+        if isinstance(data, dict):
+            return fold_deprecated_scope_ids_in_config_data(
+                cast("dict[str, object]", data)
+            )
+        return data
 
 
 __all__ = ["KnowledgeBaseInternalSearchConfig"]

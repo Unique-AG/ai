@@ -52,27 +52,14 @@ class KnowledgeBaseInternalSearchService(
         return {"metadataFilter": self._effective_metadata_filter}
 
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
-        # The KB search API accepts mutually exclusive filter combinations:
-        # - scope_ids alone (no metadata_filter or content_ids)
-        # - metadata_filter alone, or metadata_filter + content_ids
+        # KB search uses metadata_filter (UniqueQL) only; config folds deprecated
+        # scope_ids into metadata_filter at validation time.
         kb = self._dependencies.knowledge_base_service
 
-        scope_ids = self._config.scope_ids
         metadata_filter = self._effective_metadata_filter
         content_ids = self._state.content_ids
 
-        if scope_ids is not None:
-            _logger.debug("scope_ids set; ignoring metadata_filter for this query.")
-            chunks = await kb.search_content_chunks_async(
-                search_string=query,
-                search_type=self._config.search_type,
-                limit=self._config.limit,
-                search_language=self._config.search_language,
-                score_threshold=self._config.score_threshold,
-                reranker_config=self._config.reranker_config,
-                scope_ids=scope_ids,
-            )
-        elif metadata_filter is not None:
+        if metadata_filter is not None:
             if content_ids is not None:
                 chunks = await kb.search_content_chunks_async(
                     search_string=query,
@@ -96,9 +83,9 @@ class KnowledgeBaseInternalSearchService(
                 )
         else:
             raise RuntimeError(
-                "KBSearchService requires either scope_ids or metadata_filter. "
-                "Set scope_ids or metadata_filter in config, or ensure the chat "
-                "context provides a filter."
+                "KnowledgeBaseInternalSearchService requires a metadata filter "
+                "(config.metadata_filter, chat context metadata_filter, or state override). "
+                "content_ids alone is not supported without a metadata filter."
             )
 
         return SearchStringResult(query=query, chunks=chunks)
