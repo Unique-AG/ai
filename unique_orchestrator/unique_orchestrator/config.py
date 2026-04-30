@@ -352,13 +352,13 @@ class ExperimentalConfig(BaseToolConfig):
 
     open_file_tool_config: OpenFileToolConfig = OpenFileToolConfig()
 
+    retrieve_search_scope_config: RetrieveSearchScopeConfig = (
+        RetrieveSearchScopeConfig()
+    )
+
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
-    )
-
-    retrieve_search_scope_config: RetrieveSearchScopeConfig = (
-        RetrieveSearchScopeConfig()
     )
 
 
