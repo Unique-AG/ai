@@ -26,13 +26,10 @@ name: "[CD] Publish dev builds to PyPI"
 # =============================================
 #   Computed once in `resolve` and stamped into every wheel's
 #   Requires-Dist by `rewrite-pyproject-pre-release.py`:
-#     - dep IS publishing in this push          -> `>=<its new_version>`
-#         (floor matches the co-published version; pip can still upgrade
-#          to a later dev or stable)
-#     - dep has a dev wheel in the current cycle -> `>=<highest dev>`
-#         (older locally-installed dev wheels do not satisfy the floor,
-#          so `pip install -U` correctly upgrades them)
-#     - otherwise                                -> `>=<last stable>`
+#     - CalVer cycle sibling ``*.devN`` (publishing now or existing on PyPI)
+#         ``>=V,<YYY.WW.Prc0`` — admits later dev builds on that patch triple
+#         but excludes sibling RC releases (they sort above dev under PEP 440).
+#     - legacy pyproject stable fallback (pre-CalVer packages) ``>=<stable>`` only.
 #         (a fresh cycle with no dev wheels yet; the dep has not changed
 #          since its last stable, so that is the honest floor)
 #
