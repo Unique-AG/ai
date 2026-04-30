@@ -12,6 +12,7 @@ from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
 from unique_toolkit._common.exception import ConfigurationException
+from unique_toolkit._common.pydantic_helpers import list_of
 from unique_toolkit.app.chat_event_filter_options_settings import (
     CHAT_EVENT_FILTER_OPTIONS_SETTINGS,
 )
@@ -186,8 +187,12 @@ class ChatEventAdditionalParameters(BaseModel):
     translate_to_language: Optional[str] = None
     content_id_to_translate: Optional[str] = None
     user_space_instructions: str
-    uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
-    selected_uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
+    uploaded_files: list[UploadedFileInfo] = Field(
+        default_factory=list_of(UploadedFileInfo)
+    )
+    selected_uploaded_files: list[UploadedFileInfo] = Field(
+        default_factory=list_of(UploadedFileInfo)
+    )
 
     @property
     def uploaded_file_ids(self) -> list[str]:

@@ -16,6 +16,7 @@ from unique_toolkit._common.experimental.endpoint_builder import (
     QueryParamsType,
     ResponseType,
 )
+from unique_toolkit._common.pydantic_helpers import dict_of
 
 # Paramspecs
 CombinedParamsSpec = ParamSpec("CombinedParamsSpec")
@@ -29,7 +30,7 @@ ResponseT_co = TypeVar("ResponseT_co", bound=BaseModel, covariant=True)
 
 class RequestContext(BaseModel):
     base_url: str
-    headers: dict[str, str] = Field(default_factory=dict)
+    headers: dict[str, str] = Field(default_factory=dict_of(str, str))
 
 
 def _verify_url(url: str) -> None:

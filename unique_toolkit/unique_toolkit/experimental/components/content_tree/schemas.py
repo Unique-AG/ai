@@ -14,8 +14,9 @@ in the SDK/HTTP stack used by :mod:`unique_toolkit.experimental.components.conte
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Self
 
+from unique_toolkit._common.pydantic_helpers import dict_of, list_of
 from unique_toolkit.content.schemas import ContentInfo
 
 MatchTarget = Literal["key", "path", "both"]
@@ -31,8 +32,8 @@ MatchTarget = Literal["key", "path", "both"]
 class PathTrieNode:
     """Nested directory structure; ``files`` are basenames in this directory."""
 
-    children: dict[str, PathTrieNode] = field(default_factory=dict)
-    files: list[str] = field(default_factory=list)
+    children: dict[str, Self] = field(default_factory=dict_of(str, Self))
+    files: list[str] = field(default_factory=list_of(str))
 
     def walk_trie_nodes(self) -> list[PathTrieNode]:
         out: list[PathTrieNode] = [self]

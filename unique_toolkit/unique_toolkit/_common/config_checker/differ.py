@@ -9,6 +9,7 @@ from deepdiff import DeepDiff
 from pydantic import BaseModel, Field
 
 from unique_toolkit._common.config_checker.models import DefaultChange
+from unique_toolkit._common.pydantic_helpers import list_of
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ class DefaultChangeReport(BaseModel):
     """Report of detected default changes."""
 
     config_name: str
-    changes: list[DefaultChange] = Field(default_factory=list)
+    changes: list[DefaultChange] = Field(default_factory=list_of(DefaultChange))
 
     def has_changes(self) -> bool:
         """Check if there are any changes."""
