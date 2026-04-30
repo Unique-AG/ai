@@ -50,6 +50,7 @@ members = [
     "unique-swot",
     "unique-toolkit",
     "unique-web-search",
+    "uqadm",
 ]
 constraints = [
     { name = "aiohttp", specifier = ">=3.13.4" },
@@ -6359,6 +6360,24 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = []
+
+[[package]]
+name = "uqadm"
+version = "0.1.0"
+source = { editable = "uqadm" }
+dependencies = [
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
+    { name = "click", version = "8.3.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-docs' or extra != 'group-11-ai-monorepo-dev'" },
+    { name = "python-dotenv" },
+    { name = "unique-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.1.0,<9" },
+    { name = "python-dotenv", specifier = ">=1.0.0,<2" },
+    { name = "unique-sdk", editable = "unique_sdk" },
+]
 
 [[package]]
 name = "uritemplate"

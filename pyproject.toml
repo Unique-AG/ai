@@ -110,10 +110,12 @@ constraint-dependencies = [
 "langchain-core" = "2026-05-06"
 
 [tool.uv.sources]
+unique-sdk = { workspace = true }
 unique-toolkit = { workspace = true }
 
 [tool.uv.workspace]
 members = [
+    "uqadm",
     "unique_sdk",
     "unique_toolkit",
     "unique_mcp",
