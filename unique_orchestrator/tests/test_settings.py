@@ -334,9 +334,7 @@ class TestGetSettings:
         Setup summary: Replace ``sys.modules`` with a copy that excludes the
             ``pytest`` key, call ``get_settings``, assert the type.
         """
-        modules_without_pytest = {
-            k: v for k, v in sys.modules.items() if k != "pytest"
-        }
+        modules_without_pytest = {k: v for k, v in sys.modules.items() if k != "pytest"}
         monkeypatch.setattr(sys, "modules", modules_without_pytest)
 
         assert "pytest" not in sys.modules

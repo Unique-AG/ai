@@ -181,7 +181,9 @@ class ModelSpecificConfig(BaseToolConfig):
 class LoopConfiguration(BaseToolConfig):
     max_tool_calls_per_iteration: Annotated[
         int,
-        *ClipInt(min_value=1, max_value=env_settings.limit_max_tool_calls_per_iteration),
+        *ClipInt(
+            min_value=1, max_value=env_settings.limit_max_tool_calls_per_iteration
+        ),
     ] = 10
 
     planning_config: (

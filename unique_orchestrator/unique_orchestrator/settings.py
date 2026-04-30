@@ -56,7 +56,7 @@ class Base(BaseSettings):
 
 def get_model_config(env: Literal["test", "dev"] = "dev") -> SettingsConfigDict:
     base_path = Path(os.getcwd())
-    
+
     if env == "test":
         env_file = base_path / "tests/test.env"
     else:

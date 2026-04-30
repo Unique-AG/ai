@@ -651,8 +651,7 @@ class UniqueAI:
         # step. The Skill tool emits its own message log entry per invocation
         # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
         # redundant and noisy to also list it here.
-        
-        
+
         ### BLOCK TO REVIEW -- BEGIN
         suppress_step_entry = any(
             getattr(getattr(tool, "config", None), "show_triggered_tool_calls", True)
