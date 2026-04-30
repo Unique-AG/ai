@@ -55,15 +55,8 @@ from unique_orchestrator._builders.inject_tool_reminders import (
 )
 from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.settings import env_settings
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
-
-EMPTY_MESSAGE_WARNING = (
-    "⚠️ **The language model was unable to produce an output.**\n"
-    "It did not generate any content or perform a tool call in response to your request. "
-    "This is a limitation of the language model itself.\n\n"
-    "**Please try adapting or simplifying your prompt.** "
-    "Rewording your input can often help the model respond successfully."
-)
 
 
 class UniqueAI:
@@ -380,7 +373,7 @@ class UniqueAI:
         if loop_response.is_empty():
             self._logger.debug("Empty model response, exiting loop.")
             await self._chat_service.modify_assistant_message_async(
-                content=EMPTY_MESSAGE_WARNING
+                content=env_settings.empty_message_warning
             )
             return True
 

@@ -51,6 +51,8 @@ from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabili
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
+from unique_orchestrator.settings import env_settings
+
 DeactivatedNone = Annotated[
     None,
     Field(title="Deactivated", description="None"),
@@ -137,8 +139,6 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 
 UniqueAISpaceConfig.model_rebuild()
 
-LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
-LIMIT_MAX_LOOP_ITERATIONS = 50
 
 _MODEL_FAMILIES = ("qwen", "mistral")
 
@@ -155,7 +155,7 @@ class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
 
     max_loop_iterations: Annotated[
-        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+        int, *ClipInt(min_value=1, max_value=env_settings.limit_max_loop_iterations)
     ] = Field(
         default=QWEN_MAX_LOOP_ITERATIONS,
         description="Maximum number of agentic loop iterations for Qwen models.",
@@ -181,7 +181,7 @@ class ModelSpecificConfig(BaseToolConfig):
 class LoopConfiguration(BaseToolConfig):
     max_tool_calls_per_iteration: Annotated[
         int,
-        *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
+        *ClipInt(min_value=1, max_value=env_settings.limit_max_tool_calls_per_iteration),
     ] = 10
 
     planning_config: (
@@ -364,7 +364,7 @@ class ExperimentalConfig(BaseToolConfig):
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
-        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+        int, *ClipInt(min_value=1, max_value=env_settings.limit_max_loop_iterations)
     ] = 20
 
     input_token_distribution: HistoryConfig = Field(
