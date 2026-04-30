@@ -78,26 +78,31 @@ The File I/O utilities simplify:
 
 ??? example "`unique_sdk.utils.file_io.download_content` - Download files from knowledge base"
 
-    Download a file from the knowledge base and save it to a temporary directory.
+    Download a file from the knowledge base. By default the bytes are written to a fresh `/tmp/<rand>/<filename>` path; pass `target_path` to control the destination explicitly.
 
     **Parameters:**
 
     - `companyId` (required) - Company ID
     - `userId` (required) - User ID
     - `content_id` (required) - Content ID to download
-    - `filename` (required) - Filename to save as
+    - `filename` (required) - Filename used when falling back to the auto-generated `/tmp` directory; ignored when `target_path` is set
     - `chat_id` (optional) - Chat ID if file is in a chat
+    - `target_path` (optional) - `str | Path` destination; parent directories are created on demand. When omitted, the bytes land in `/tmp/<rand>/<filename>` (legacy behaviour)
 
     **Returns:**
 
-    - `Path` object pointing to the downloaded file in `/tmp`
+    - `Path` object pointing to the downloaded file (either `target_path` or the `/tmp` fallback)
+
+    **Raises:**
+
+    - `Exception` if the HTTP response is non-200. The destination is only created after a successful response, so a 404/5xx never leaves a half-written file behind when `target_path` is supplied.
 
     **Example:**
 
     ```python
     from unique_sdk.utils.file_io import download_content
 
-    # Download from scope
+    # Download from scope (legacy /tmp fallback)
     file_path = download_content(
         companyId=company_id,
         userId=user_id,
@@ -106,7 +111,6 @@ The File I/O utilities simplify:
     )
 
     print(f"Downloaded to: {file_path}")
-    # Use the file
     with open(file_path, "rb") as f:
         content = f.read()
     ```
@@ -120,6 +124,20 @@ The File I/O utilities simplify:
         content_id="cont_xyz789",
         filename="document.pdf",
         chat_id="chat_abc123"
+    )
+    ```
+
+    **Example - Caller-controlled destination:**
+
+    ```python
+    from pathlib import Path
+
+    file_path = download_content(
+        companyId=company_id,
+        userId=user_id,
+        content_id="cont_abc123",
+        filename="report.pdf",  # ignored, ``target_path`` wins
+        target_path=Path("/var/data/reports/report.pdf"),
     )
     ```
 

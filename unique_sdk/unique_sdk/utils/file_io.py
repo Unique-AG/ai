@@ -242,7 +242,34 @@ def download_content(
     content_id: str,
     filename: str,
     chat_id: str | None = None,
-):
+    target_path: str | Path | None = None,
+) -> Path:
+    """Download a Knowledge Base content row to disk.
+
+    Args:
+        companyId: Tenant id.
+        userId: Acting user id.
+        content_id: Knowledge Base content id to download.
+        filename: Filename used when falling back to the auto-generated
+            ``/tmp`` directory. Ignored when ``target_path`` is set.
+        chat_id: Optional chat id (forwarded as the ``chatId`` query
+            parameter so chat-scoped content is resolvable).
+        target_path: Optional caller-controlled destination path. When
+            provided, the file is written there (parent directories are
+            created on demand) and that path is returned. When ``None``
+            (the default), we fall back to ``/tmp/<rand>/<filename>`` to
+            preserve backwards compatibility with existing callers.
+
+    Returns:
+        Absolute path the bytes were written to.
+
+    Raises:
+        ValueError: ``content_id`` is not a string.
+        Exception: HTTP response was non-200. We surface this *before*
+            creating the destination so a 404/5xx never leaves a
+            half-written file behind for callers that pass
+            ``target_path``.
+    """
     # Guard for callers without a type checker: f-string would silently coerce None to "None" otherwise.
     if not isinstance(content_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("content_id must be a string.")  # pyright: ignore[reportUnreachable]
@@ -250,13 +277,6 @@ def download_content(
     if chat_id:
         url = f"{url}?chatId={chat_id}"
 
-    # Create a random directory inside /tmp
-    random_dir = tempfile.mkdtemp(dir="/tmp")
-
-    # Create the full file path
-    file_path = Path(random_dir) / filename
-
-    # Download the file and save it to the random directory
     headers = {
         "x-api-version": unique_sdk.api_version,
         "x-app-id": unique_sdk.app_id,
@@ -265,12 +285,22 @@ def download_content(
         "Authorization": "Bearer %s" % (unique_sdk.api_key,),
     }
 
+    # Issue the request before resolving the destination. A non-200
+    # response should never leave a half-created directory or empty
+    # file behind for callers who supplied ``target_path``.
     response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        with open(file_path, "wb") as file:
-            file.write(response.content)
-    else:
+    if response.status_code != 200:
         raise Exception(f"Error downloading file: Status code {response.status_code}")
+
+    if target_path is not None:
+        file_path = Path(target_path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        random_dir = tempfile.mkdtemp(dir="/tmp")
+        file_path = Path(random_dir) / filename
+
+    with open(file_path, "wb") as file:
+        file.write(response.content)
 
     return file_path
 
