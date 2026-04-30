@@ -652,12 +652,13 @@ class UniqueAI:
         # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
         # redundant and noisy to also list it here.
 
-        ### BLOCK TO REVIEW -- BEGIN
         suppress_step_entry = any(
             getattr(getattr(tool, "config", None), "show_triggered_tool_calls", True)
             is False
             for tool in self._tool_manager.available_tools
         )
+        if suppress_step_entry:
+            return
 
         tool_names_not_to_log: set[str] = {"DeepResearch", "Skill"}
 
@@ -666,10 +667,6 @@ class UniqueAI:
             self._history_manager.add_tool_call(tool_call)
             if tool_call.name in all_tools_dict:
                 used_tools[tool_call.name] = used_tools.get(tool_call.name, 0) + 1
-
-        if suppress_step_entry:
-            return
-        ### BLOCK TO REVIEW -- END
 
         tool_calls_logs = []
         for tool_name, count in used_tools.items():
