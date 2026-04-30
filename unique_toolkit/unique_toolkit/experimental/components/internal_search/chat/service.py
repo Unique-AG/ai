@@ -45,10 +45,10 @@ class ChatInternalSearchService(InternalSearchBaseService[ChatInternalSearchDeps
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
         chunks = await self._dependencies.chat_service.search_content_chunks_async(
             search_string=query,
-            search_type=self._config.search_type,
-            limit=self._config.limit,
-            search_language=self._config.search_language,
-            score_threshold=self._config.score_threshold,
+            search_type=self._config.search.search_type,
+            limit=self._config.filtering.limit,
+            search_language=self._config.search.search_language,
+            score_threshold=self._config.filtering.score_threshold,
             reranker_config=self._config.reranker_config,
             content_ids=self._state.content_ids,
         )

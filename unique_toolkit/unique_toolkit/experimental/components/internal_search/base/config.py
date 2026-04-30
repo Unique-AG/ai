@@ -11,13 +11,9 @@ from unique_toolkit.content.schemas import ContentSearchType
 DEFAULT_LIMIT = 200
 
 
-@register_config()
-class InternalSearchConfig(BaseModel):
-    """Retrieval-only config. Token budgeting, reranking and sorting live in PostProcessorConfig."""
-
+class InternalSearchSearchConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    # ── Retrieval ─────────────────────────────────────────────────────────────
     search_type: ContentSearchType = Field(
         default=ContentSearchType.COMBINED,
         description="The type of search to perform. Two possible values: `COMBINED` or `VECTOR`.",
@@ -26,6 +22,16 @@ class InternalSearchConfig(BaseModel):
         default="english",
         description="The language to use for the search.",
     )
+    max_search_strings: int = Field(
+        default=10,
+        ge=1,
+        description="The maximum number of search strings to perform in a single tool call.",
+    )
+
+
+class InternalSearchFilterConfig(BaseModel):
+    model_config = get_configuration_dict()
+
     score_threshold: float = Field(
         default=0.0,
         ge=0.0,
@@ -41,19 +47,26 @@ class InternalSearchConfig(BaseModel):
         ),
     )
 
-    # ── Multi-query ───────────────────────────────────────────────────────────
-    max_search_strings: int = Field(
-        default=10,
-        ge=1,
-        description="The maximum number of search strings to perform in a single tool call.",
+
+@register_config()
+class InternalSearchConfig(BaseModel):
+    """Retrieval-only config. Token budgeting, reranking and sorting live in PostProcessorConfig."""
+
+    model_config = get_configuration_dict()
+
+    search: InternalSearchSearchConfig = Field(
+        default_factory=InternalSearchSearchConfig,
+        description="Search-related configuration such as query mode, language, and multi-query settings.",
     )
-    enable_multiple_search_strings_execution: bool = Field(
-        default=True,
-        description="Allow execution of multiple search strings in one call.",
+    filtering: InternalSearchFilterConfig = Field(
+        default_factory=InternalSearchFilterConfig,
+        description="Result filtering configuration such as retrieval limit and score threshold.",
     )
 
 
 __all__ = [
     "InternalSearchConfig",
     "DEFAULT_LIMIT",
+    "InternalSearchFilterConfig",
+    "InternalSearchSearchConfig",
 ]

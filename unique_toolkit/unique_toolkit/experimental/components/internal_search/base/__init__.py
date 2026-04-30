@@ -1,4 +1,9 @@
-from .config import DEFAULT_LIMIT, InternalSearchConfig
+from .config import (
+    DEFAULT_LIMIT,
+    InternalSearchConfig,
+    InternalSearchFilterConfig,
+    InternalSearchSearchConfig,
+)
 from .schemas import (
     InternalSearchProgressMessage,
     InternalSearchResult,
@@ -20,8 +25,10 @@ __all__ = [
     "DEFAULT_LIMIT",
     "InternalSearchBaseService",
     "InternalSearchConfig",
+    "InternalSearchFilterConfig",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
+    "InternalSearchSearchConfig",
     "InternalSearchStage",
     "InternalSearchState",
     "interleave_search_results_round_robin",

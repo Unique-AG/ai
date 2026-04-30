@@ -11,6 +11,7 @@ from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.experimental.components.internal_search.base.config import (
     DEFAULT_LIMIT,
     InternalSearchConfig,
+    InternalSearchSearchConfig,
 )
 from unique_toolkit.experimental.components.internal_search.base.schemas import (
     SearchStringResult,
@@ -84,10 +85,10 @@ def test_config_defaults():
     Setup summary: Instantiate with no args; spot-check key fields.
     """
     cfg = InternalSearchConfig()
-    assert cfg.search_language == "english"
-    assert cfg.max_search_strings >= 1
-    assert cfg.score_threshold == 0.0
-    assert cfg.limit == DEFAULT_LIMIT
+    assert cfg.search.search_language == "english"
+    assert cfg.search.max_search_strings >= 1
+    assert cfg.filtering.score_threshold == 0.0
+    assert cfg.filtering.limit == DEFAULT_LIMIT
 
 
 @pytest.mark.ai
@@ -99,7 +100,7 @@ def test_config_legacy_field_is_ignored_in_experimental_config():
     Setup summary: Construct config dict with only the legacy key; assert default language remains.
     """
     cfg = InternalSearchConfig.model_validate({"ftsSearchLanguage": "german"})
-    assert cfg.search_language == "english"
+    assert cfg.search.search_language == "english"
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +165,9 @@ def test_normalise_queries__respects_max_search_strings():
     Why this matters: Exceeding the cap could overwhelm the search backend or hit rate limits.
     Setup summary: Config with max_search_strings=2 and three distinct queries; assert only 2 returned.
     """
-    cfg = InternalSearchConfig(max_search_strings=2)
+    cfg = InternalSearchConfig(
+        search=InternalSearchSearchConfig(max_search_strings=2),
+    )
     svc = _make_service(cfg)
     result = svc._normalise_queries(["alpha", "beta", "gamma"])
     assert result == ["alpha", "beta"]

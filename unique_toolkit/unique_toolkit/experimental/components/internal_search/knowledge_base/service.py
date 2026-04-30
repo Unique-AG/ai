@@ -63,10 +63,10 @@ class KnowledgeBaseInternalSearchService(
             if content_ids is not None:
                 chunks = await kb.search_content_chunks_async(
                     search_string=query,
-                    search_type=self._config.search_type,
-                    limit=self._config.limit,
-                    search_language=self._config.search_language,
-                    score_threshold=self._config.score_threshold,
+                    search_type=self._config.search.search_type,
+                    limit=self._config.filtering.limit,
+                    search_language=self._config.search.search_language,
+                    score_threshold=self._config.filtering.score_threshold,
                     reranker_config=self._config.reranker_config,
                     metadata_filter=metadata_filter,
                     content_ids=content_ids,
@@ -74,10 +74,10 @@ class KnowledgeBaseInternalSearchService(
             else:
                 chunks = await kb.search_content_chunks_async(
                     search_string=query,
-                    search_type=self._config.search_type,
-                    limit=self._config.limit,
-                    search_language=self._config.search_language,
-                    score_threshold=self._config.score_threshold,
+                    search_type=self._config.search.search_type,
+                    limit=self._config.filtering.limit,
+                    search_language=self._config.search.search_language,
+                    score_threshold=self._config.filtering.score_threshold,
                     reranker_config=self._config.reranker_config,
                     metadata_filter=metadata_filter,
                 )

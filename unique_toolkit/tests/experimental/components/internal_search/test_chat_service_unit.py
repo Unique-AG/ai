@@ -7,6 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unique_toolkit.content.schemas import ContentSearchType
+from unique_toolkit.experimental.components.internal_search.base.config import (
+    InternalSearchFilterConfig,
+    InternalSearchSearchConfig,
+)
 from unique_toolkit.experimental.components.internal_search.base.schemas import (
     InternalSearchState,
     SearchStringResult,
@@ -96,10 +100,14 @@ async def test_search_single_query__calls_chat_service_with_correct_args(make_ch
     Setup summary: Mock chat service returns two chunks; assert called with config values.
     """
     cfg = ChatInternalSearchConfig(
-        search_type=ContentSearchType.VECTOR,
-        limit=50,
-        search_language="german",
-        score_threshold=0.3,
+        search=InternalSearchSearchConfig(
+            search_type=ContentSearchType.VECTOR,
+            search_language="german",
+        ),
+        filtering=InternalSearchFilterConfig(
+            limit=50,
+            score_threshold=0.3,
+        ),
     )
     svc, mock_chat_svc = _make_service(config=cfg)
 

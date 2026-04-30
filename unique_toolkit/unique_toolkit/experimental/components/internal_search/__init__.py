@@ -17,11 +17,15 @@ Typical usage::
     from unique_toolkit.experimental.components.internal_search import (
         KnowledgeBaseInternalSearchService,
         KnowledgeBaseInternalSearchConfig,
+        InternalSearchFilterConfig,
         InternalSearchPostProcessor,
         PostProcessorConfig,
     )
 
-    search_config = KnowledgeBaseInternalSearchConfig(limit=200, ...)
+    search_config = KnowledgeBaseInternalSearchConfig(
+        filtering=InternalSearchFilterConfig(limit=200),
+        ...,
+    )
     post_config = PostProcessorConfig(max_tokens_for_sources=30_000, ...)
 
     search_service = KnowledgeBaseInternalSearchService.from_config(search_config)

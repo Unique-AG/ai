@@ -121,7 +121,7 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
             self.logger.warning(
                 "%d query/queries cleaned to empty string and dropped", dropped
             )
-        return non_empty[: self._config.max_search_strings]
+        return non_empty[: self._config.search.max_search_strings]
 
     def _collect_results(
         self, results: Sequence[SearchStringResult | BaseException], queries: list[str]
@@ -159,7 +159,7 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
         # Capture per-query structure before interleaving — the post-processor needs this.
         search_string_results = list(found)
 
-        if self._config.enable_multiple_search_strings_execution and len(found) > 1:
+        if len(found) > 1:
             found = interleave_search_results_round_robin(found)
 
         chunks: list[ContentChunk] = [
