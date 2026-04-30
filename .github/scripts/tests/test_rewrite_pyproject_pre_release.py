@@ -90,9 +90,8 @@ class RewriteTests(unittest.TestCase):
         self.assertIn('"pydantic>=2.0"', out)
         self.assertIn('"prometheus-client>=0.17"', out)
 
-    def test_accepts_legacy_stable_fallback_pin(self) -> None:
-        # Last-stable fallback for unchanged deps may be pre-CalVer
-        # (e.g. unique-mcp 0.3.3). The rewriter must pass it through.
+    def test_accepts_stable_only_fallback_pin(self) -> None:
+        # Last-stable fallback for unchanged deps: plain ``>=`` floor only.
         out = self._run(
             {
                 "unique-sdk": ">=2026.18.0.dev3,<2026.18.0rc0",

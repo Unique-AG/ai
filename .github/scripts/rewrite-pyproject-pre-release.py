@@ -27,7 +27,8 @@ The pin map is computed upstream by either ``resolve-dev-versions.py``
 or ``resolve-rc-versions.py``:
 
   * Dev publish (``resolve-dev-versions.py``) emits ``>=V,<YYY.WW.Prc0``
-    pins for CalVer ``*.devN`` siblings; legacy fallbacks stay ``>=`` only.
+    pins for cycle ``*.devN`` siblings; when there is no cycle dev yet,
+    pins stay a plain ``>=`` floor at last stable.
   * RC publish (``resolve-rc-versions.py``) emits ``>=<version>`` pins,
     floored at the shared ``{cycle}.0rcN`` so customers can upgrade
     freely to later rcs or the final stable.
@@ -63,7 +64,7 @@ _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
 # stamped by release-please, never by this script.
 _VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d+(\.dev\d+|rc\d+)$")
 # Dep pins from resolvers: ``>=`` with optional ``,<YYY.WW.Prc0`` for dev
-# siblings, ``==`` for rc cuts, or legacy ``>=`` only.
+# siblings, ``==`` for rc cuts, or plain ``>=`` only (stable floor).
 
 
 def normalize(name: str) -> str:

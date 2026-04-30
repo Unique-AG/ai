@@ -18,8 +18,8 @@ _CALVER_PATCH_DEV_RE = re.compile(
     r"^(?P<release>\d{4}\.\d{2}\.\d+)\.(?P<dev>dev\d+)$",
 )
 # Validates dep-pin strings passed into rewrite-pyproject-pre-release.py /
-# workflows: legacy ``>=/==VERSION`` siblings, or cycle dev sibling with RC cap.
-_PIN_LEGACY_OK = re.compile(r"^(>=|==)\d+(\.\d+)*(\.dev\d+|rc\d+)?$")
+# workflows: plain ``>=`` / ``==`` specs, or cycle ``*.devN`` sibling with RC cap.
+_PIN_SIMPLE_SPEC = re.compile(r"^(>=|==)\d+(\.\d+)*(\.dev\d+|rc\d+)?$")
 _PIN_GE_DEV_RC_CAP = re.compile(
     r"^>=(?P<rel>\d{4}\.\d{2}\.\d+)\.(?P<idev>dev\d+),\s*"
     r"<(?P<cap>\d{4}\.\d{2}\.\d+)rc\d+$",
@@ -30,7 +30,7 @@ def is_valid_rewrite_dep_pin(pin: str) -> bool:
     mc = _PIN_GE_DEV_RC_CAP.match(pin)
     if mc:
         return mc.group("rel") == mc.group("cap")
-    return bool(_PIN_LEGACY_OK.match(pin))
+    return bool(_PIN_SIMPLE_SPEC.match(pin))
 
 
 def dev_dependency_pin(lower_version: str) -> str:
