@@ -24,19 +24,6 @@ MAX_LISTING_DESC_CHARS = 250
 class SkillToolConfig(BaseToolConfig):
     """Configuration for the Skill tool."""
 
-    enabled: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Master switch for the Skill tool. When disabled, the tool "
-                "is not registered and skills are not available to the agent."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Enable the Skill tool.",
-    )
-
     tool_description: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(rows=3),
