@@ -7,10 +7,8 @@ Each call performs **one** operation. Drive multi-part tasks by chaining calls.
 
 ### Fields
 
-- **`command`** — `"search"` or `"read_urls"`.
-- **`objective`** — One concise sentence: what this call is meant to accomplish.
-- **`payload`** — Shape depends on `command`:
-  - For `"search"`: `{ "gap": <what this query is meant to fill>, "query": <search engine query> }`.
-  - For `"read_urls"`: `{ "urls": [<HTTP(S) URLs to crawl>] }`. Use only URLs returned by a prior search or pasted by the user — never invent URLs.
+{{ tool_parameters_schema }}
+
+Never invent URLs.
 
 For a deeper playbook on when to search vs fetch (snippet hedging, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns), activate the `web-search-v3` skill before/while using this tool.

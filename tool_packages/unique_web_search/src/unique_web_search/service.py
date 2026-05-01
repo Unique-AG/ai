@@ -137,6 +137,11 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         tool_description = self.config.web_search_mode_config.tool_description
 
+        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
+            tool_description = Template(tool_description).render(
+                tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(),
+            )
+
         return LanguageModelToolDescription(
             name=self.name,
             description=tool_description,

@@ -27,14 +27,6 @@ Use it when:
 
 **Current date:** {{ date_string }}
 
-### Fields
-
-- **`command`** (string, per call) — `"search"` or `"read_urls"`.
-- **`objective`** (string, per call) — One concise sentence: what this call is meant to accomplish.
-- **`payload`** (object, per call) — Shape depends on `command`:
-  - For `"search"`: `{ "gap": <what this query is meant to fill>, "query": <focused 3-8 keyword query; query operators allowed> }`. For time-sensitive topics you may incorporate **{{ date_string }}** (year or month) in the query.
-  - For `"read_urls"`: `{ "urls": [<HTTP(S) URLs to crawl>] }`. Use only URLs returned by a prior search or pasted by the user — **never invent URLs**.
-
 ### Balance exploration and exploitation
 
 - **Explore first.** Start with `command: "search"` to get a cheap, high-level read of candidate pages. Cover one `gap` per call.
