@@ -34,6 +34,7 @@ from unique_web_search.services.executors import (
     WebSearchModeConfig,
     WebSearchV1Config,
     WebSearchV2Config,
+    WebSearchV3Config,
     get_default_web_search_mode_config,
 )
 from unique_web_search.services.query_elicitation import QueryElicitationConfig
@@ -172,6 +173,11 @@ class WebSearchConfig(BaseToolConfig):
         title="Search Mode V2 Settings",
         description="Settings for the advanced AI-planned search mode (V2), including step limits and tool behavior.",
     )
+    web_search_mode_config_v3: WebSearchV3Config = Field(
+        default_factory=WebSearchV3Config,
+        title="Search Mode V3 Settings (Experimental)",
+        description="Settings for the agent-driven search mode (V3): the model itself chains snippet-only `search` calls with on-demand full-page `read_urls` calls per task.",
+    )
 
     # Todo [UN-17655] RJSF Tags don't function properly when using union + dscriminator
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
@@ -253,6 +259,8 @@ class WebSearchConfig(BaseToolConfig):
     def web_search_mode_config(self) -> WebSearchModeConfig:
         if self.web_search_active_mode == WebSearchMode.V1:
             return self.web_search_mode_config_v1
+        if self.web_search_active_mode == WebSearchMode.V3:
+            return self.web_search_mode_config_v3
         return self.web_search_mode_config_v2
 
     @field_validator("web_search_active_mode", mode="before")

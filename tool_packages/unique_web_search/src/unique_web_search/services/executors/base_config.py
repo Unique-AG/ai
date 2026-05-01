@@ -12,6 +12,7 @@ from unique_web_search.services.helpers import (
 class WebSearchMode(StrEnum):
     V1 = "v1"
     V2 = "v2"
+    V3 = "v3"
 
     @staticmethod
     def get_enum_names() -> list[str]:
@@ -22,6 +23,7 @@ class WebSearchMode(StrEnum):
         return [
             "V1 — Simple keyword searches with optional query refinement",
             "V2 — AI-planned multi-step research (search and read pages in sequence)",
+            "V3 (Experimental) — Agent-driven research: chains cheap snippet searches with on-demand full-page reads, deciding each step per task",
         ]
 
     @classmethod
