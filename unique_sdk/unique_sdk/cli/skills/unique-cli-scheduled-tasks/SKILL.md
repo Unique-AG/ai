@@ -5,9 +5,11 @@ description: >-
   recurring tasks, create a cron job, or anything involving timed /
   periodic execution.  Do NOT use the local system crontab — scheduled
   tasks are stored on the Unique AI Platform and executed by a
-  Kubernetes CronJob, not locally.  This skill covers creating,
-  listing, updating, enabling, disabling, and deleting scheduled tasks
-  via the unique-cli schedule command.
+  Kubernetes CronJob, not locally.  Scheduled tasks always run on the
+  current assistant (`$UNIQUE_ASSISTANT_ID`); never ask the user which
+  assistant to use, neither in chat nor via `unique-cli elicit ask`.
+  This skill covers creating, listing, updating, enabling, disabling,
+  and deleting scheduled tasks via the unique-cli schedule command.
 ---
 
 # Unique CLI -- Scheduled Tasks
@@ -69,10 +71,20 @@ Manage cron-tab style scheduled tasks that trigger an assistant on a recurring s
 
 ## Agent workflow for creating a task
 
-Before running `schedule create`, **ask the user**:
+!!! danger "Never ask the user which assistant to schedule"
+    The scheduled task **must always run on the current assistant** — the same
+    assistant the user is talking to right now. **Never** prompt the user for
+    an assistant ID, neither in chat nor via `unique-cli elicit ask`. Read the
+    `UNIQUE_ASSISTANT_ID` environment variable and pass it as `--assistant`
+    verbatim. If `UNIQUE_ASSISTANT_ID` is unset, stop and tell the user the
+    environment is missing — do **not** fall back to asking them.
 
-1. **Timezone** — If not already known, ask for it first. You need this to convert times correctly.
-2. **Which assistant?** — The user must supply an assistant ID (starts with `assistant_`). If unknown, run `unique-cli schedule list` to show existing tasks or ask the user.
+Before running `schedule create`, **resolve / ask the user**:
+
+1. **Assistant** — Use `$UNIQUE_ASSISTANT_ID` (the current assistant). Do not
+   ask. Do not run `unique-cli schedule list` to "find" one. Do not start an
+   elicitation. If the env var is missing, surface that as an error and stop.
+2. **Timezone** — If not already known, ask for it first. You need this to convert times correctly.
 3. **New chat or existing chat?**
    - **New chat each run** (default) — omit `--chat-id`. Each execution creates a fresh chat.
    - **Continue an existing chat** — the user must provide a chat ID (starts with `chat_`). Pass it via `--chat-id`.
@@ -80,6 +92,11 @@ Before running `schedule create`, **ask the user**:
 5. **Prompt text** — what the assistant should do on each trigger.
 
 Only pass `--chat-id` when the user explicitly wants to continue a specific chat. Otherwise leave it out.
+
+!!! tip "Confirming the assistant in plain language"
+    When you confirm the schedule back to the user, just say "this assistant"
+    (or its display name if you already know it from the chat context). Do
+    **not** read the raw `assistant_…` ID back to the user.
 
 ## ID formats
 
@@ -106,12 +123,16 @@ Shows full details of a single task including all fields.
 
 ## Create a Scheduled Task
 
+Always pass `--assistant "$UNIQUE_ASSISTANT_ID"` so the task runs on the
+current assistant. Do not substitute a literal `assistant_…` ID and do not
+ask the user to provide one.
+
 ### New chat each run (default — no `--chat-id`)
 
 ```bash
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
-  --assistant assistant_cvj3fd7x8hpt1hfp0akqu1rq \
+  --assistant "$UNIQUE_ASSISTANT_ID" \
   --prompt "Generate the daily sales report and email it to the team"
 ```
 
@@ -120,7 +141,7 @@ unique-cli schedule create \
 ```bash
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
-  --assistant assistant_cvj3fd7x8hpt1hfp0akqu1rq \
+  --assistant "$UNIQUE_ASSISTANT_ID" \
   --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
   --prompt "Append today's numbers to the running report"
 ```
@@ -130,7 +151,7 @@ unique-cli schedule create \
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
 | `--cron` | `-c` | Yes | 5-field cron expression |
-| `--assistant` | `-a` | Yes | Assistant ID to execute (starts with `assistant_`) |
+| `--assistant` | `-a` | Yes | Assistant ID to execute (starts with `assistant_`). **Always pass `"$UNIQUE_ASSISTANT_ID"`** — never ask the user. |
 | `--prompt` | `-p` | Yes | Prompt text sent each run |
 | `--chat-id` | | No | Continue an existing chat (starts with `chat_`; **omit for new chat each run**) |
 | `--disabled` | | No | Create in disabled state |
@@ -213,34 +234,34 @@ Agent (if timezone unknown): "What timezone are you in?"
 
 User: "Zurich"
 
-Agent thinks: Europe/Zurich, currently CEST (UTC+2), so 9:00 AM local = 7:00 AM UTC → cron `0 7 * * 1-5`
+Agent thinks: Europe/Zurich, currently CEST (UTC+2), so 9:00 AM local = 7:00 AM UTC → cron `0 7 * * 1-5`. The assistant is the current one (`$UNIQUE_ASSISTANT_ID`); no need to ask.
 
 Run:
 ```bash
 unique-cli schedule create \
   -c "0 7 * * 1-5" \
-  -a assistant_cvj3fd7x8hpt1hfp0akqu1rq \
+  -a "$UNIQUE_ASSISTANT_ID" \
   -p "Generate the daily sales report and email it to the team"
 ```
 
-Respond: "Done — your daily sales report is scheduled to run **every weekday (Mon–Fri) at 9:00 AM your time (Europe/Zurich)**. That's 7:00 AM UTC. A new chat will be created for each run. Note: when clocks change for daylight saving, the task will shift by one hour in your local time."
+Respond: "Done — I scheduled **this assistant** to run your daily sales report **every weekday (Mon–Fri) at 9:00 AM your time (Europe/Zurich)**. That's 7:00 AM UTC. A new chat will be created for each run. Note: when clocks change for daylight saving, the task will shift by one hour in your local time."
 
 ### Set up a recurring task that continues the same chat
 
 User: "I want to add daily numbers to an existing report chat at 9 AM"
 
-Agent thinks: Already know timezone is Europe/Zurich (CEST), 9 AM local = 7 AM UTC
+Agent thinks: Already know timezone is Europe/Zurich (CEST), 9 AM local = 7 AM UTC. Assistant is the current one (`$UNIQUE_ASSISTANT_ID`).
 
 Run:
 ```bash
 unique-cli schedule create \
   -c "0 7 * * 1-5" \
-  -a assistant_cvj3fd7x8hpt1hfp0akqu1rq \
+  -a "$UNIQUE_ASSISTANT_ID" \
   --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
   -p "Append today's numbers to the running report"
 ```
 
-Respond: "Done — scheduled to run **every weekday (Mon–Fri) at 9:00 AM your time** (7:00 AM UTC), continuing chat `chat_b7ze6mpv0edy324yhjj1d92t`."
+Respond: "Done — scheduled **this assistant** to run **every weekday (Mon–Fri) at 9:00 AM your time** (7:00 AM UTC), continuing chat `chat_b7ze6mpv0edy324yhjj1d92t`."
 
 ### Pause and resume a task
 
@@ -343,10 +364,14 @@ All methods have `*_async` variants for async usage.
 Requires these environment variables:
 
 ```bash
-UNIQUE_USER_ID    # User ID (required)
-UNIQUE_COMPANY_ID # Company ID (required)
-UNIQUE_API_KEY    # API key — optional on localhost / secured cluster
-UNIQUE_APP_ID     # App ID — optional on localhost / secured cluster
+UNIQUE_USER_ID      # User ID (required)
+UNIQUE_COMPANY_ID   # Company ID (required)
+UNIQUE_ASSISTANT_ID # Current assistant ID — required when an agent uses this
+                    # skill. Always pass it as --assistant on schedule create
+                    # so the task runs on the same assistant the user is
+                    # currently chatting with.
+UNIQUE_API_KEY      # API key — optional on localhost / secured cluster
+UNIQUE_APP_ID       # App ID — optional on localhost / secured cluster
 ```
 
 Install: `pip install unique-sdk`
