@@ -241,9 +241,7 @@ class TestLoadConfigIngestionUpload:
         {
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
-            "INGESTION_UPLOAD_API_URL_INTERNAL": (
-                "  http://node-ingestion/upload  "
-            ),
+            "INGESTION_UPLOAD_API_URL_INTERNAL": ("  http://node-ingestion/upload  "),
         },
         clear=True,
     )
