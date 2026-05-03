@@ -66,6 +66,12 @@ def _apply_ingestion_upload_url_override(write_url: str) -> str:
     base = unique_sdk.ingestion_upload_api_url_internal
     if not base or not base.strip():
         return write_url
+    # Strip trailing slashes so an operator who sets
+    # ``INGESTION_UPLOAD_API_URL_INTERNAL=http://node-ingestion/upload/``
+    # does not end up PUTting to ``…/upload/?key=…`` (which the
+    # ingestion service routes differently from ``…/upload?key=…``).
+    # Mirrors ``unique_toolkit.content.utils`` so SDK and toolkit agree.
+    base = base.rstrip("/")
     query = urlparse(write_url).query
     return f"{base}?{query}" if query else base
 
