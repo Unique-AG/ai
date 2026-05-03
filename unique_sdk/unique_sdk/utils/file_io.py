@@ -3,6 +3,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, TypedDict
+from urllib.parse import urlparse
 
 import requests
 
@@ -42,6 +43,37 @@ def download_file(url: str, filename: str):
 
 
 _PREVIEW_PDF_MIME_TYPE = "application/pdf"
+
+
+def _apply_ingestion_upload_url_override(write_url: str) -> str:
+    """Rewrite the host+path of *write_url* to the in-cluster ingestion
+    base when ``unique_sdk.ingestion_upload_api_url_internal`` is set.
+
+    The platform mints a public upload URL shaped like
+    ``<host>/scoped/ingestion/upload?key=<id>``. Pods running inside
+    the same cluster can short-circuit the public ingress by PUTting
+    to the in-cluster service URL instead — only the host+path swaps,
+    the original query string (which carries the upload ``key``) is
+    preserved verbatim because the service identifies the target blob
+    by that key.
+
+    A ``None`` or empty/whitespace override (the wiring layer in
+    ``cli/config.py`` already collapses those to ``None``, but we
+    re-check here so direct ``unique_sdk.ingestion_upload_api_url_internal = ""``
+    assignments outside the CLI also no-op) leaves *write_url*
+    unchanged.
+    """
+    base = unique_sdk.ingestion_upload_api_url_internal
+    if not base or not base.strip():
+        return write_url
+    # Strip trailing slashes so an operator who sets
+    # ``INGESTION_UPLOAD_API_URL_INTERNAL=http://node-ingestion/upload/``
+    # does not end up PUTting to ``…/upload/?key=…`` (which the
+    # ingestion service routes differently from ``…/upload?key=…``).
+    # Mirrors ``unique_toolkit.content.utils`` so SDK and toolkit agree.
+    base = base.rstrip("/")
+    query = urlparse(write_url).query
+    return f"{base}?{query}" if query else base
 
 
 def _put_preview_pdf(write_url: str, preview_pdf_path: str) -> None:
@@ -148,9 +180,14 @@ def upload_file(
     )
 
     # Step 2 — PUT the original bytes to the SAS URL minted by Step 1.
+    # When ``ingestion_upload_api_url_internal`` is configured, swap
+    # the public host+path for the in-cluster service URL while
+    # preserving the ``?key=...`` query string the server identifies
+    # the target blob by.
     uploadUrl = createdContent.writeUrl
     if uploadUrl is None:  # guard: writeUrl is Optional, basedpyright needs narrowing
         raise ValueError("createdContent.writeUrl is None")
+    uploadUrl = _apply_ingestion_upload_url_override(uploadUrl)
     with open(path_to_file, "rb") as file:
         requests.put(
             uploadUrl,
@@ -231,7 +268,10 @@ def upload_file(
                 "node-ingestion expose previewPdfFileName on the upsert "
                 "mutation."
             )
-        _put_preview_pdf(preview_write_url, preview_pdf_path)
+        _put_preview_pdf(
+            _apply_ingestion_upload_url_override(preview_write_url),
+            preview_pdf_path,
+        )
 
     return createdContent
 
