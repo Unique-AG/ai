@@ -13,6 +13,7 @@ api_base: str = "https://gateway.unique.app/public/chat-gen2"
 api_version: str = ApiVersion.CURRENT
 api_verify_mode: bool = True
 default_http_client: "HTTPClient | None" = None
+ingestion_upload_api_url_internal: str | None = None
 
 # Set to either 'debug' or 'info', controls console logging
 log: Literal["debug", "info"] | None = None

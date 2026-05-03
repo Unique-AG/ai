@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from unittest.mock import patch
 
 import pytest
@@ -12,6 +13,25 @@ from unique_sdk.cli.config import Config, load_config
 
 # Stable fake gateway root for UNIQUE_API_BASE tests (not a real hostname).
 _TEST_PUBLIC_CHAT_BASE = "https://test-api-base.example/public/chat-gen2"
+
+
+@pytest.fixture(autouse=True)
+def _reset_sdk_ingestion_setting() -> Generator[None, None, None]:
+    """Snapshot/restore ``unique_sdk.ingestion_upload_api_url_internal``
+    around every CLI config test.
+
+    ``load_config`` writes onto the SDK module global as a side effect
+    (same shape as ``unique_sdk.api_key`` / ``api_base`` /``app_id``).
+    Without a per-test reset, a test that exercises the env-var path
+    would leak its value into sibling tests that expect the global to
+    start at ``None``, producing order-dependent failures.
+    """
+    original = unique_sdk.ingestion_upload_api_url_internal
+    try:
+        unique_sdk.ingestion_upload_api_url_internal = None
+        yield
+    finally:
+        unique_sdk.ingestion_upload_api_url_internal = original
 
 
 class TestConfig:
@@ -28,6 +48,25 @@ class TestConfig:
         assert c.api_key == "key"
         assert c.app_id == "app"
         assert c.api_base == "https://example.com"
+        # Default for the new field — kwarg is optional and falls back
+        # to ``None`` so existing call sites that build a ``Config``
+        # without it continue to compile.
+        assert c.ingestion_upload_api_url_internal is None
+
+    def test_config_stores_ingestion_upload_url(self) -> None:
+        c = Config(
+            user_id="u1",
+            company_id="c1",
+            api_key="key",
+            app_id="app",
+            api_base="https://example.com",
+            ingestion_upload_api_url_internal=(
+                "http://node-ingestion.test.svc.cluster.local:8091/scoped/upload"
+            ),
+        )
+        assert c.ingestion_upload_api_url_internal == (
+            "http://node-ingestion.test.svc.cluster.local:8091/scoped/upload"
+        )
 
 
 class TestLoadConfig:
@@ -116,3 +155,107 @@ class TestLoadConfig:
     def test_all_vars_missing_exits(self) -> None:
         with pytest.raises(SystemExit):
             load_config()
+
+
+class TestLoadConfigIngestionUpload:
+    """``INGESTION_UPLOAD_API_URL_INTERNAL`` env var → SDK module global.
+
+    The CLI is the only place the env var is read; the SDK proper does
+    not auto-init from the environment (mirrors the way ``api_key`` is
+    surfaced — applications either set ``unique_sdk.api_key`` directly
+    or call ``load_config()`` to pull it from the env). These tests pin
+    that the wiring writes onto BOTH the returned ``Config`` and the
+    package-level ``unique_sdk.ingestion_upload_api_url_internal``
+    attribute, with the same empty/whitespace-disable semantics that
+    the consumer (``_apply_ingestion_upload_url_override``) uses on the
+    read side.
+    """
+
+    @patch.dict(
+        os.environ,
+        {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+            "INGESTION_UPLOAD_API_URL_INTERNAL": (
+                "http://node-ingestion.test.svc.cluster.local:8091/scoped/upload"
+            ),
+        },
+        clear=True,
+    )
+    def test_env_var_is_wired_onto_sdk_global(self) -> None:
+        config = load_config()
+        expected = "http://node-ingestion.test.svc.cluster.local:8091/scoped/upload"
+        assert config.ingestion_upload_api_url_internal == expected
+        assert unique_sdk.ingestion_upload_api_url_internal == expected
+
+    @patch.dict(
+        os.environ,
+        {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+        },
+        clear=True,
+    )
+    def test_unset_env_var_leaves_global_at_none(self) -> None:
+        config = load_config()
+        assert config.ingestion_upload_api_url_internal is None
+        assert unique_sdk.ingestion_upload_api_url_internal is None
+
+    @patch.dict(
+        os.environ,
+        {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+            "INGESTION_UPLOAD_API_URL_INTERNAL": "",
+        },
+        clear=True,
+    )
+    def test_empty_env_var_collapses_to_none(self) -> None:
+        # Empty string in a Helm overlay is a deliberate "disable the
+        # rewrite" knob; the operator should not have to ``unset`` the
+        # env var entirely. ``load_config`` collapses it to ``None``
+        # so the consumer's ``if not base`` check fires.
+        config = load_config()
+        assert config.ingestion_upload_api_url_internal is None
+        assert unique_sdk.ingestion_upload_api_url_internal is None
+
+    @patch.dict(
+        os.environ,
+        {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+            "INGESTION_UPLOAD_API_URL_INTERNAL": "   ",
+        },
+        clear=True,
+    )
+    def test_whitespace_env_var_collapses_to_none(self) -> None:
+        # Same contract as the empty-string case: whitespace-only is
+        # treated as "disabled" rather than as a literal URL fragment
+        # that would later 400 on the upload PUT.
+        config = load_config()
+        assert config.ingestion_upload_api_url_internal is None
+        assert unique_sdk.ingestion_upload_api_url_internal is None
+
+    @patch.dict(
+        os.environ,
+        {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+            "INGESTION_UPLOAD_API_URL_INTERNAL": (
+                "  http://node-ingestion/upload  "
+            ),
+        },
+        clear=True,
+    )
+    def test_surrounding_whitespace_is_trimmed(self) -> None:
+        # Operators paste URLs with trailing newlines / spaces all the
+        # time; trimming on the wiring layer keeps the URL clean
+        # without forcing the override helper to do per-call cleanup.
+        config = load_config()
+        assert config.ingestion_upload_api_url_internal == (
+            "http://node-ingestion/upload"
+        )
+        assert (
+            unique_sdk.ingestion_upload_api_url_internal
+            == "http://node-ingestion/upload"
+        )
