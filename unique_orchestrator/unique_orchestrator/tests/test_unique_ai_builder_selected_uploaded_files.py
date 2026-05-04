@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -54,16 +54,14 @@ class TestBuildCommonSelectedUploadedFiles:
     """Tests for the selected_uploaded_files filtering in _build_common (lines 181-189)."""
 
     @pytest.mark.ai
-    async def test_filters_uploaded_documents_when_flag_enabled_and_selection_present(
+    def test_filters_uploaded_documents_when_flag_enabled_and_selection_present(
         self, monkeypatch: pytest.MonkeyPatch, _patch_constructors: None
     ) -> None:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b"), _make_doc("c")]
         mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
+        mock_content_service.get_documents_uploaded_to_chat.return_value = docs
         monkeypatch.setattr(
             f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
         )
@@ -77,22 +75,20 @@ class TestBuildCommonSelectedUploadedFiles:
         additional.selected_uploaded_file_ids = ["a", "c"]
         event = _make_event(additional_parameters=additional)
 
-        result = await _build_common(event, MagicMock(), UniqueAIConfig())
+        result = _build_common(event, MagicMock(), UniqueAIConfig())
 
         result_ids = [doc.id for doc in result.uploaded_documents]
         assert result_ids == ["a", "c"]
 
     @pytest.mark.ai
-    async def test_keeps_all_documents_when_additional_parameters_is_none(
+    def test_keeps_all_documents_when_additional_parameters_is_none(
         self, monkeypatch: pytest.MonkeyPatch, _patch_constructors: None
     ) -> None:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b"), _make_doc("c")]
         mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
+        mock_content_service.get_documents_uploaded_to_chat.return_value = docs
         monkeypatch.setattr(
             f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
         )
@@ -103,22 +99,20 @@ class TestBuildCommonSelectedUploadedFiles:
 
         event = _make_event(additional_parameters=None)
 
-        result = await _build_common(event, MagicMock(), UniqueAIConfig())
+        result = _build_common(event, MagicMock(), UniqueAIConfig())
 
         result_ids = [doc.id for doc in result.uploaded_documents]
         assert result_ids == ["a", "b", "c"]
 
     @pytest.mark.ai
-    async def test_returns_no_documents_when_selected_uploaded_files_is_empty(
+    def test_returns_no_documents_when_selected_uploaded_files_is_empty(
         self, monkeypatch: pytest.MonkeyPatch, _patch_constructors: None
     ) -> None:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b")]
         mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
+        mock_content_service.get_documents_uploaded_to_chat.return_value = docs
         monkeypatch.setattr(
             f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
         )
@@ -132,22 +126,20 @@ class TestBuildCommonSelectedUploadedFiles:
         additional.selected_uploaded_file_ids = []
         event = _make_event(additional_parameters=additional)
 
-        result = await _build_common(event, MagicMock(), UniqueAIConfig())
+        result = _build_common(event, MagicMock(), UniqueAIConfig())
 
         result_ids = [doc.id for doc in result.uploaded_documents]
         assert result_ids == []
 
     @pytest.mark.ai
-    async def test_keeps_all_documents_when_feature_flag_disabled(
+    def test_keeps_all_documents_when_feature_flag_disabled(
         self, monkeypatch: pytest.MonkeyPatch, _patch_constructors: None
     ) -> None:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b"), _make_doc("c")]
         mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
+        mock_content_service.get_documents_uploaded_to_chat.return_value = docs
         monkeypatch.setattr(
             f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
         )
@@ -161,22 +153,20 @@ class TestBuildCommonSelectedUploadedFiles:
         additional.selected_uploaded_file_ids = ["a"]
         event = _make_event(additional_parameters=additional)
 
-        result = await _build_common(event, MagicMock(), UniqueAIConfig())
+        result = _build_common(event, MagicMock(), UniqueAIConfig())
 
         result_ids = [doc.id for doc in result.uploaded_documents]
         assert result_ids == ["a", "b", "c"]
 
     @pytest.mark.ai
-    async def test_filters_to_single_selected_document(
+    def test_filters_to_single_selected_document(
         self, monkeypatch: pytest.MonkeyPatch, _patch_constructors: None
     ) -> None:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("x"), _make_doc("y"), _make_doc("z")]
         mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
+        mock_content_service.get_documents_uploaded_to_chat.return_value = docs
         monkeypatch.setattr(
             f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
         )
@@ -190,7 +180,7 @@ class TestBuildCommonSelectedUploadedFiles:
         additional.selected_uploaded_file_ids = ["y"]
         event = _make_event(additional_parameters=additional)
 
-        result = await _build_common(event, MagicMock(), UniqueAIConfig())
+        result = _build_common(event, MagicMock(), UniqueAIConfig())
 
         result_ids = [doc.id for doc in result.uploaded_documents]
         assert result_ids == ["y"]
