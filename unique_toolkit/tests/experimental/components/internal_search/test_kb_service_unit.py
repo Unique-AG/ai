@@ -6,7 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from unique_toolkit._common.metadata_filter_scope import build_folder_id_scope_clause
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_path_scope_clause,
+)
 from unique_toolkit.experimental.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
 )
@@ -30,7 +32,7 @@ def _make_service(
 ) -> tuple[KnowledgeBaseInternalSearchService, MagicMock]:
     """Return (service, mock_kb_service)."""
     cfg = config or KnowledgeBaseInternalSearchConfig(
-        metadata_filter=build_folder_id_scope_clause(["scope-1"]),
+        metadata_filter=build_folder_id_path_scope_clause(["uniquepathid://scope-1"]),
     )
     svc = KnowledgeBaseInternalSearchService.from_config(cfg)
 
@@ -143,25 +145,29 @@ def test_effective_metadata_filter__unset_no_chat_uses_config_filter():
 
 
 @pytest.mark.ai
-def test_config__folds_scope_ids_into_metadata_filter() -> None:
+def test_config__preserves_scope_ids_for_runtime_resolution() -> None:
     """
-    Purpose: Verifies deprecated scope_ids are normalized into metadata_filter.
-    Why this matters: The KB search path now relies on metadata_filter only.
-    Setup summary: Build config with scope_ids and assert metadata_filter contains folderId/in.
+    Purpose: Verifies deprecated scope_ids stay on the config for runtime folder-path resolution.
+    Why this matters: Exact folderIdPath filters require folder ancestry lookups that are not
+        available during config validation.
+    Setup summary: Build config with scope_ids and assert scope_ids are preserved while
+        metadata_filter remains unset.
     """
     with pytest.deprecated_call(match="scope_ids"):
         cfg = KnowledgeBaseInternalSearchConfig(scope_ids=["kb-1", "kb-2"])
 
-    assert cfg.scope_ids is None
-    assert cfg.metadata_filter == build_folder_id_scope_clause(["kb-1", "kb-2"])
+    assert cfg.scope_ids == ["kb-1", "kb-2"]
+    assert cfg.metadata_filter is None
 
 
 @pytest.mark.ai
-def test_config__and_merges_scope_ids_with_existing_metadata_filter() -> None:
+def test_config__keeps_existing_metadata_filter_when_scope_ids_are_present() -> None:
     """
-    Purpose: Verifies deprecated scope_ids narrow an existing metadata_filter via AND.
-    Why this matters: Scope migration must preserve the agreed narrowing semantics.
-    Setup summary: Build config with scope_ids + metadata_filter and assert merged filter.
+    Purpose: Verifies deprecated scope_ids no longer mutate metadata_filter during validation.
+    Why this matters: Runtime folder lookups are needed before scope_ids can be converted into
+        exact UI-style folderIdPath predicates.
+    Setup summary: Build config with scope_ids + metadata_filter and assert both inputs are
+        preserved separately.
     """
     with pytest.deprecated_call(match="scope_ids"):
         cfg = KnowledgeBaseInternalSearchConfig(
@@ -169,33 +175,43 @@ def test_config__and_merges_scope_ids_with_existing_metadata_filter() -> None:
             metadata_filter={"type": "policy"},
         )
 
-    assert cfg.scope_ids is None
-    assert cfg.metadata_filter == {
-        "and": [
-            build_folder_id_scope_clause(["kb-1"]),
-            {"type": "policy"},
-        ]
-    }
+    assert cfg.scope_ids == ["kb-1"]
+    assert cfg.metadata_filter == {"type": "policy"}
 
 
 @pytest.mark.ai
-async def test_search_single_query__uses_folded_metadata_filter(make_chunk):
+async def test_search_single_query__resolves_scope_ids_before_calling_kb(make_chunk):
     """
-    Purpose: Verifies folded scope_ids reach KB search through metadata_filter only.
-    Why this matters: The KB service path no longer sends scope_ids to the lower layer.
-    Setup summary: Config with deprecated scope_ids; assert search called with metadata_filter.
+    Purpose: Verifies runtime-resolved scope_ids reach KB search through metadata_filter only.
+    Why this matters: Internal search should mirror UI folder filters without forwarding
+        deprecated scope_ids to the lower layer.
+    Setup summary: Config with deprecated scope_ids; mock KB resolution helper and assert
+        search is called with only the final metadata_filter.
     """
     with pytest.deprecated_call(match="scope_ids"):
         cfg = KnowledgeBaseInternalSearchConfig(scope_ids=["kb-1", "kb-2"])
     svc, mock_kb_svc = _make_service(config=cfg)
+    expected_filter = build_folder_id_path_scope_clause(
+        ["uniquepathid://root/kb-1", "uniquepathid://root/kb-2"]
+    )
+    mock_kb_svc._merge_deprecated_scope_ids_into_metadata_filter_async = AsyncMock(
+        return_value=expected_filter
+    )
     mock_kb_svc.search_content_chunks_async = AsyncMock(return_value=[make_chunk("x")])
 
     await svc._search_single_query(query="hello")
 
-    call_kwargs = mock_kb_svc.search_content_chunks_async.call_args.kwargs
-    assert call_kwargs["metadata_filter"] == build_folder_id_scope_clause(
-        ["kb-1", "kb-2"]
+    mock_kb_svc._merge_deprecated_scope_ids_into_metadata_filter_async.assert_awaited_once_with(
+        ["kb-1", "kb-2"],
+        None,
+        deprecation_message=(
+            "KnowledgeBaseInternalSearchConfig.scope_ids is deprecated; "
+            "use metadata_filter with folderIdPath operator 'contains' instead."
+        ),
+        warn=False,
     )
+    call_kwargs = mock_kb_svc.search_content_chunks_async.call_args.kwargs
+    assert call_kwargs["metadata_filter"] == expected_filter
     assert "scope_ids" not in call_kwargs
     assert "content_ids" not in call_kwargs
 

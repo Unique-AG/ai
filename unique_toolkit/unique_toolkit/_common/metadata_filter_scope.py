@@ -1,26 +1,58 @@
-"""UniqueQL helpers for folding KB ``scope_ids`` into ``metadata_filter``.
-
-Uses string operators/combinators compatible with :mod:`unique_sdk` UniqueQL
-(see ``unique_sdk._unique_ql``) without importing ``unique_sdk`` from callers
-that must stay import-linter clean.
-"""
+"""UniqueQL helpers for KB ``folderIdPath`` / ``metadata_filter`` scoping."""
 
 from __future__ import annotations
 
 import warnings
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
+
+from unique_toolkit.content.smart_rules import Operator, OrStatement, Statement
 
 _UQL_AND = "and"
 
+# Shared with ``KnowledgeBaseService`` wire-format folder paths (folderIdPath ``contains``).
+FOLDER_ID_PATH_VALUE_PREFIX = "uniquepathid://"
 
-def build_folder_id_scope_clause(scope_ids: list[str]) -> dict[str, Any]:
-    """UniqueQL: ``folderId`` in the given scope id list (OR of folders)."""
-    return {
-        "path": ["folderId"],
-        "operator": "in",
-        "value": list(scope_ids),  # better safe than sorry
-    }
+
+def _validate_folder_id_path_values(folder_id_paths: list[str]) -> None:
+    if not folder_id_paths:
+        raise ValueError("folder_id_paths must be a non-empty list")
+    prefix = FOLDER_ID_PATH_VALUE_PREFIX
+    for raw in folder_id_paths:
+        if not isinstance(raw, str):
+            raise TypeError(
+                f"each folderIdPath value must be a str, got {type(raw).__name__}"
+            )
+        if not raw:
+            raise ValueError("each folderIdPath value must be a non-empty str")
+        if not raw.startswith(prefix):
+            raise ValueError(
+                f"folderIdPath value must start with {prefix!r} "
+                f"(root-to-leaf scope id path), got {raw!r}"
+            )
+        rest = raw[len(prefix) :]
+        segments = [s for s in rest.split("/") if s]
+        if not segments:
+            raise ValueError(
+                "folderIdPath value must include at least one scope id segment "
+                f"after the prefix, got {raw!r}"
+            )
+
+
+def build_folder_id_path_scope_clause(folder_id_paths: list[str]) -> dict[str, Any]:
+    """UniqueQL for selected folders using UI-style ``folderIdPath contains`` rules."""
+    _validate_folder_id_path_values(folder_id_paths)
+    clauses = [
+        Statement(
+            operator=Operator.CONTAINS,
+            path=["folderIdPath"],
+            value=folder_id_path,
+        )
+        for folder_id_path in folder_id_paths
+    ]
+    if len(clauses) == 1:
+        return clauses[0].model_dump(mode="json")
+    return OrStatement(or_list=clauses).model_dump(mode="json")
 
 
 def merge_scope_clause_into_metadata_filter(
@@ -44,7 +76,7 @@ def merge_deprecated_scope_ids_into_filter(
     deprecation_message: str,
     stacklevel: int = 2,
 ) -> dict[str, Any] | None:
-    """Fold non-empty *scope_ids* into *metadata_filter*; emit ``DeprecationWarning``."""
+    """Merge **already-resolved** ``uniquepathid://`` paths for legacy call sites; warns."""
     if not scope_ids:
         return metadata_filter
     warnings.warn(
@@ -52,44 +84,12 @@ def merge_deprecated_scope_ids_into_filter(
         DeprecationWarning,
         stacklevel=stacklevel,
     )
-    clause = build_folder_id_scope_clause(scope_ids)
+    clause = build_folder_id_path_scope_clause(scope_ids)
     return merge_scope_clause_into_metadata_filter(clause, metadata_filter)
 
 
-def fold_deprecated_scope_ids_in_config_data(data: dict[str, Any]) -> dict[str, Any]:
-    """``model_validator(mode='before')`` body for KB internal search config."""
-    scope_raw = data.get("scope_ids")
-    if scope_raw is None and "scopeIds" in data:
-        scope_raw = data.get("scopeIds")
-    if not scope_raw:
-        return data
-
-    meta = data.get("metadata_filter")
-    if meta is None and "metadataFilter" in data:
-        meta = data.get("metadataFilter")
-    meta_dict = cast("dict[str, Any] | None", meta if isinstance(meta, dict) else None)
-
-    merged = merge_deprecated_scope_ids_into_filter(
-        list(scope_raw),
-        meta_dict,
-        deprecation_message=(
-            "KnowledgeBaseInternalSearchConfig.scope_ids is deprecated; "
-            "use metadata_filter (e.g. folderId with operator 'in') instead."
-        ),
-        stacklevel=3,
-    )
-    out = dict(data)
-    out["scope_ids"] = None
-    out.pop("scopeIds", None)
-    out["metadata_filter"] = merged
-    if "metadataFilter" in out:
-        out["metadataFilter"] = merged
-    return out
-
-
 __all__ = [
-    "build_folder_id_scope_clause",
-    "fold_deprecated_scope_ids_in_config_data",
+    "build_folder_id_path_scope_clause",
     "merge_deprecated_scope_ids_into_filter",
     "merge_scope_clause_into_metadata_filter",
 ]

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import Any, Self, cast
 
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
@@ -19,8 +18,6 @@ from unique_toolkit.experimental.components.internal_search.knowledge_base.schem
     KnowledgeBaseInternalSearchState,
 )
 from unique_toolkit.services import UniqueServiceFactory
-
-_logger = logging.getLogger(__name__)
 
 
 class KnowledgeBaseInternalSearchService(
@@ -49,43 +46,52 @@ class KnowledgeBaseInternalSearchService(
         )
 
     def _extra_debug_info(self) -> dict[str, Any]:
-        return {"metadataFilter": self._effective_metadata_filter}
+        debug_info: dict[str, Any] = {"metadataFilter": self._effective_metadata_filter}
+        if self._effective_scope_ids is not None:
+            debug_info["scopeIds"] = self._effective_scope_ids
+        return debug_info
 
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
-        # KB search uses metadata_filter (UniqueQL) only; config folds deprecated
-        # scope_ids into metadata_filter at validation time.
         kb = self._dependencies.knowledge_base_service
 
         metadata_filter = self._effective_metadata_filter
+        scope_ids = self._effective_scope_ids
         content_ids = self._state.content_ids
 
+        if scope_ids is not None:
+            metadata_filter = await kb._merge_deprecated_scope_ids_into_metadata_filter_async(
+                scope_ids,
+                metadata_filter,
+                deprecation_message=(
+                    "KnowledgeBaseInternalSearchConfig.scope_ids is deprecated; "
+                    "use metadata_filter with folderIdPath operator 'contains' instead."
+                ),
+                warn=False,
+            )
+
         if metadata_filter is not None:
+            search_kw = dict(
+                search_string=query,
+                search_type=self._config.search.search_type,
+                limit=self._config.filtering.limit,
+                search_language=self._config.search.search_language,
+                score_threshold=self._config.filtering.score_threshold,
+                reranker_config=self._config.reranker_config,
+                metadata_filter=metadata_filter,
+            )
             if content_ids is not None:
                 chunks = await kb.search_content_chunks_async(
-                    search_string=query,
-                    search_type=self._config.search.search_type,
-                    limit=self._config.filtering.limit,
-                    search_language=self._config.search.search_language,
-                    score_threshold=self._config.filtering.score_threshold,
-                    reranker_config=self._config.reranker_config,
-                    metadata_filter=metadata_filter,
+                    **search_kw,
                     content_ids=content_ids,
                 )
             else:
-                chunks = await kb.search_content_chunks_async(
-                    search_string=query,
-                    search_type=self._config.search.search_type,
-                    limit=self._config.filtering.limit,
-                    search_language=self._config.search.search_language,
-                    score_threshold=self._config.filtering.score_threshold,
-                    reranker_config=self._config.reranker_config,
-                    metadata_filter=metadata_filter,
-                )
+                chunks = await kb.search_content_chunks_async(**search_kw)
         else:
             raise RuntimeError(
                 "KnowledgeBaseInternalSearchService requires a metadata filter "
-                "(config.metadata_filter, chat context metadata_filter, or state override). "
-                "content_ids alone is not supported without a metadata filter."
+                "(config.metadata_filter, deprecated config.scope_ids, chat context "
+                "metadata_filter, or state override). content_ids alone is not "
+                "supported without a metadata filter."
             )
 
         return SearchStringResult(query=query, chunks=chunks)
@@ -97,6 +103,14 @@ class KnowledgeBaseInternalSearchService(
         if self._context.chat is not None:
             return self._context.chat.metadata_filter
         return self._config.metadata_filter
+
+    @property
+    def _effective_scope_ids(self) -> list[str] | None:
+        if self._state.metadata_filter_override is not UNSET:
+            return None
+        if self._context.chat is not None:
+            return None
+        return self._config.scope_ids
 
 
 __all__ = ["KnowledgeBaseInternalSearchService"]

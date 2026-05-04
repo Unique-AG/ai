@@ -1,11 +1,11 @@
-from typing import Annotated, cast
+from __future__ import annotations
+
+import warnings
+from typing import Annotated, Self
 
 from pydantic import Field, model_validator
 
 from unique_toolkit._common.config_checker import register_config
-from unique_toolkit._common.metadata_filter_scope import (
-    fold_deprecated_scope_ids_in_config_data,
-)
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit.content.schemas import ContentRerankerConfig
 from unique_toolkit.experimental.components.internal_search.base.config import (
@@ -20,8 +20,11 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
         title="Active",
         deprecated=True,
         description=(
-            "Deprecated. Use ``metadata_filter`` with a ``folderId`` ``in`` clause instead. "
-            "When set, values are merged into ``metadata_filter`` at validation time."
+            "Not accepted for new configs. Use ``metadata_filter`` with "
+            "``folderIdPath`` / operator ``contains`` and "
+            "``uniquepathid://…`` values. If set, a deprecation warning is emitted "
+            "and values are resolved to full folder paths at search time via the "
+            "folder API (scope id → root-to-leaf path)."
         ),
     )
     metadata_filter: dict[str, object] | None = Field(
@@ -42,14 +45,18 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
         ),
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def _fold_scope_ids_into_metadata_filter(cls, data: object) -> object:
-        if isinstance(data, dict):
-            return fold_deprecated_scope_ids_in_config_data(
-                cast("dict[str, object]", data)
+    @model_validator(mode="after")
+    def _warn_deprecated_scope_ids(self) -> Self:
+        if self.scope_ids:
+            warnings.warn(
+                (
+                    "KnowledgeBaseInternalSearchConfig.scope_ids is deprecated; "
+                    "use metadata_filter with folderIdPath operator 'contains' instead."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
             )
-        return data
+        return self
 
 
 __all__ = ["KnowledgeBaseInternalSearchConfig"]

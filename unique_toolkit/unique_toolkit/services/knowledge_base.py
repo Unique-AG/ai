@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
+import warnings
 from pathlib import Path, PurePath
 from typing import TYPE_CHECKING, Any, Callable, Self, overload
 
@@ -11,7 +12,9 @@ import unique_sdk
 from typing_extensions import deprecated
 
 from unique_toolkit._common.metadata_filter_scope import (
-    merge_deprecated_scope_ids_into_filter,
+    FOLDER_ID_PATH_VALUE_PREFIX,
+    build_folder_id_path_scope_clause,
+    merge_scope_clause_into_metadata_filter,
 )
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
@@ -196,7 +199,7 @@ class KnowledgeBaseService:
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
             scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
-                (``folderId`` / ``in``); do not use for new code.
+                (``folderIdPath`` / ``contains``); do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -212,12 +215,13 @@ class KnowledgeBaseService:
             metadata_filter = self._metadata_filter
 
         if scope_ids:
-            metadata_filter = merge_deprecated_scope_ids_into_filter(
+            metadata_filter = self._merge_deprecated_scope_ids_into_metadata_filter(
                 scope_ids,
                 metadata_filter,
                 deprecation_message=(
                     "Passing scope_ids to KnowledgeBaseService.search_content_chunks is "
-                    "deprecated; use metadata_filter with folderId operator 'in' instead."
+                    "deprecated; use metadata_filter with folderIdPath operator "
+                    "'contains' instead."
                 ),
                 stacklevel=3,
             )
@@ -293,7 +297,7 @@ class KnowledgeBaseService:
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
             scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
-                (``folderId`` / ``in``); do not use for new code.
+                (``folderIdPath`` / ``contains``); do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -308,12 +312,13 @@ class KnowledgeBaseService:
             metadata_filter = self._metadata_filter
 
         if scope_ids:
-            metadata_filter = merge_deprecated_scope_ids_into_filter(
+            metadata_filter = await self._merge_deprecated_scope_ids_into_metadata_filter_async(
                 scope_ids,
                 metadata_filter,
                 deprecation_message=(
                     "Passing scope_ids to KnowledgeBaseService.search_content_chunks_async is "
-                    "deprecated; use metadata_filter with folderId operator 'in' instead."
+                    "deprecated; use metadata_filter with folderIdPath operator "
+                    "'contains' instead."
                 ),
                 stacklevel=3,
             )
@@ -803,6 +808,109 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
+    @staticmethod
+    def _dedupe_redundant_scope_id_paths(
+        scope_id_paths: list[list[str]],
+    ) -> list[list[str]]:
+        """Drop strict descendant paths; comparison is segment-wise, not string prefix."""
+        if not scope_id_paths:
+            return []
+        unique_in_order: list[list[str]] = []
+        seen: set[tuple[str, ...]] = set()
+        for path in scope_id_paths:
+            key = tuple(path)
+            if key not in seen:
+                seen.add(key)
+                unique_in_order.append(path)
+
+        def _is_ancestor_path(ancestor: list[str], maybe_desc: list[str]) -> bool:
+            if len(ancestor) > len(maybe_desc):
+                return False
+            return maybe_desc[: len(ancestor)] == ancestor
+
+        by_depth = sorted(unique_in_order, key=lambda p: (len(p), tuple(p)))
+        kept_segs: list[list[str]] = []
+        for segs in by_depth:
+            if any(_is_ancestor_path(ks, segs) for ks in kept_segs):
+                continue
+            kept_segs.append(segs)
+
+        kept_set = {tuple(ks) for ks in kept_segs}
+        return [p for p in unique_in_order if tuple(p) in kept_set]
+
+    def _resolve_scope_ids_to_folder_id_paths(
+        self, *, scope_ids: list[str]
+    ) -> list[str]:
+        scope_paths = [
+            self.get_scope_id_path(scope_id=scope_id) for scope_id in scope_ids
+        ]
+        deduped = KnowledgeBaseService._dedupe_redundant_scope_id_paths(scope_paths)
+        return [f"{FOLDER_ID_PATH_VALUE_PREFIX}{'/'.join(p)}" for p in deduped]
+
+    async def _resolve_scope_ids_to_folder_id_paths_async(
+        self, *, scope_ids: list[str]
+    ) -> list[str]:
+        scope_id_paths = await asyncio.gather(
+            *(
+                self._get_scope_id_path_async(scope_id=scope_id)
+                for scope_id in scope_ids
+            )
+        )
+        deduped = KnowledgeBaseService._dedupe_redundant_scope_id_paths(
+            list(scope_id_paths)
+        )
+        return [f"{FOLDER_ID_PATH_VALUE_PREFIX}{'/'.join(p)}" for p in deduped]
+
+    def _merge_deprecated_scope_ids_into_metadata_filter(
+        self,
+        scope_ids: list[str] | None,
+        metadata_filter: dict[str, Any] | None,
+        *,
+        deprecation_message: str,
+        stacklevel: int = 2,
+        warn: bool = True,
+    ) -> dict[str, Any] | None:
+        if not scope_ids:
+            return metadata_filter
+
+        if warn:
+            warnings.warn(
+                deprecation_message,
+                DeprecationWarning,
+                stacklevel=stacklevel,
+            )
+
+        folder_id_paths = self._resolve_scope_ids_to_folder_id_paths(
+            scope_ids=scope_ids
+        )
+        scope_clause = build_folder_id_path_scope_clause(folder_id_paths)
+        return merge_scope_clause_into_metadata_filter(scope_clause, metadata_filter)
+
+    async def _merge_deprecated_scope_ids_into_metadata_filter_async(
+        self,
+        scope_ids: list[str] | None,
+        metadata_filter: dict[str, Any] | None,
+        *,
+        deprecation_message: str,
+        stacklevel: int = 2,
+        warn: bool = True,
+    ) -> dict[str, Any] | None:
+        if not scope_ids:
+            return metadata_filter
+
+        if warn:
+            warnings.warn(
+                deprecation_message,
+                DeprecationWarning,
+                stacklevel=stacklevel,
+            )
+
+        folder_id_paths = await self._resolve_scope_ids_to_folder_id_paths_async(
+            scope_ids=scope_ids
+        )
+        scope_clause = build_folder_id_path_scope_clause(folder_id_paths)
+        return merge_scope_clause_into_metadata_filter(scope_clause, metadata_filter)
+
     # File Tree Resolution
     # ------------------------------------------------------------------------------------------------
 
@@ -826,7 +934,9 @@ class KnowledgeBaseService:
             ):
                 scope_ids.update(
                     sid
-                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
+                    for sid in folder_id_path.replace(
+                        FOLDER_ID_PATH_VALUE_PREFIX, ""
+                    ).split("/")
                     if sid
                 )
         return scope_ids
@@ -907,7 +1017,9 @@ class KnowledgeBaseService:
             ):
                 file_path = [
                     scope_id_to_folder_name.get(sid, sid)
-                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
+                    for sid in folder_id_path.replace(
+                        FOLDER_ID_PATH_VALUE_PREFIX, ""
+                    ).split("/")
                     if sid
                 ]
             else:
@@ -1240,11 +1352,34 @@ class KnowledgeBaseService:
             return PurePath("/" + folder_info.name), list_of_scope_ids
 
         while folder_info.parent_id is not None:
-            folder_info = self.get_folder_info(scope_id=folder_info.parent_id)
+            parent_scope_id = folder_info.parent_id
+            folder_info = self.get_folder_info(scope_id=parent_scope_id)
             list_of_folder_names.append(folder_info.name)
+            list_of_scope_ids.append(folder_info.id)
 
         list_of_scope_ids.reverse()
         return PurePath("/" + "/".join(list_of_folder_names[::-1])), list_of_scope_ids
+
+    async def _get_scope_id_path_async(self, *, scope_id: str) -> list[str]:
+        """
+        Get the list of scope ids from root to the folder asynchronously.
+
+        Args:
+            scope_id (str): The scope id of the folder.
+
+        Returns:
+            list[str]: The list of scope ids from root to the folder.
+        """
+        list_of_scope_ids: list[str] = []
+        folder_info = await self.get_folder_info_async(scope_id=scope_id)
+        list_of_scope_ids.append(folder_info.id)
+        while folder_info.parent_id is not None:
+            parent_scope_id = folder_info.parent_id
+            folder_info = await self.get_folder_info_async(scope_id=parent_scope_id)
+            list_of_scope_ids.append(folder_info.id)
+
+        list_of_scope_ids.reverse()
+        return list_of_scope_ids
 
     # Utility Functions
     # ------------------------------------------------------------------------------------------------
