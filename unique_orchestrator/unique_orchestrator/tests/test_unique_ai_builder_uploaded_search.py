@@ -16,6 +16,7 @@ from unique_toolkit.content.schemas import Content
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai_builder import (
+    _build_completions,
     _build_responses,
     _CommonComponents,
     _configure_uploaded_search_tool,
@@ -488,3 +489,99 @@ async def test_build_responses_calls_handle_uploaded_file_tool_choices_when_open
     )
 
     assert len(handle_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_build_responses_passes_uploaded_documents_to_unique_ai(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    uploaded_doc = Content(expired_at=None)
+    common_components = _make_common_components([uploaded_doc])
+    event = _make_event(tool_choices=[])
+    config = UniqueAIConfig()
+
+    fake_client = MagicMock()
+    fake_client.copy.return_value = fake_client
+
+    _FakeResponsesApiToolManager.instances.clear()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.get_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.OpenAIBuiltInToolManager.build_manager",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesApiToolManager",
+        _FakeResponsesApiToolManager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+
+    result = await _build_responses(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    assert result["uploaded_documents"] == [uploaded_doc]
+
+
+@pytest.mark.asyncio
+async def test_build_completions_passes_uploaded_documents_to_unique_ai(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    uploaded_doc = Content(
+        expired_at=None,
+        applied_ingestion_config={"uniqueIngestionMode": "INGESTION"},
+    )
+    common_components = _make_common_components([uploaded_doc])
+    event = _make_event(tool_choices=[])
+    config = UniqueAIConfig()
+
+    fake_tool_manager = MagicMock()
+    fake_tool_manager.add_forced_tool = MagicMock()
+
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ToolManager",
+        lambda **kwargs: fake_tool_manager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.configure_skill_tool",
+        AsyncMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder._add_sub_agents_postprocessor",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder._add_sub_agents_evaluation",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+
+    result = await _build_completions(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    assert result["uploaded_documents"] == [uploaded_doc]
