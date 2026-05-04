@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "2026.20.0.dev8"
+version = "2026.20.0.dev21"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
