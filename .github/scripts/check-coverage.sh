@@ -63,7 +63,8 @@ DESCRIPTION:
     3. Ensuring new/changed code meets minimum coverage threshold
 
 ENVIRONMENT:
-    CHECK_COVERAGE_PYTEST_ARGS   Optional extra arguments for pytest (word-split like CI test_args)
+    CHECK_COVERAGE_PYTEST_ARGS   Optional extra arguments for pytest. Parsed with shell quoting
+                                 rules (so e.g. -m "not integration" stays as two tokens).
 
 ARGUMENTS:
     package_name          Name of the package directory (e.g., unique_toolkit)
@@ -341,12 +342,22 @@ if [ "$SKIP_TESTS" = false ]; then
 
     # Match CI test job: pytest from package root with default discovery (no path args).
     print_info "Running pytest with default collection (parity with CI test job)"
-    # shellcheck disable=SC2086
+
+    # Parse CHECK_COVERAGE_PYTEST_ARGS with shell quoting rules so values like
+    # `-m "not integration"` survive as two tokens. Naive ${VAR} expansion
+    # word-splits on whitespace and would emit `-m`, `"not`, `integration"`,
+    # leaving pytest to treat `integration"` as a missing test path.
+    EXTRA_PYTEST_ARGS=()
+    if [ -n "${CHECK_COVERAGE_PYTEST_ARGS:-}" ]; then
+        # shellcheck disable=SC2294
+        eval "EXTRA_PYTEST_ARGS=( ${CHECK_COVERAGE_PYTEST_ARGS} )"
+    fi
+
     $RUNNER pytest \
         --cov="$PACKAGE_NAME" \
         --cov-report=xml \
         --cov-report=term \
-        ${CHECK_COVERAGE_PYTEST_ARGS:-} || {
+        "${EXTRA_PYTEST_ARGS[@]}" || {
         print_warning "Some tests failed, but continuing with coverage check..."
     }
 fi
