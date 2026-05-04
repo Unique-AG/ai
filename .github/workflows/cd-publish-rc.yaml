@@ -320,15 +320,14 @@ jobs:
     # pre-release. We do not block on tag-release for PyPI: even if
     # tagging fails, the wheels are already shipped.
     #
-    # Runs on gh-static-ip-slim under the `release-workflow` environment
-    # so the tag and pre-release are authored by the Release Workflow
-    # App. App-authored tags / releases are not subject to GitHub's
-    # anti-recursion rule, which keeps the rc tag visible to any
-    # downstream automation that listens on `release: prereleased`.
+    # Runs on gh-static-ip-slim (the Release Workflow App is
+    # IP-origin-bound) so the tag and pre-release are authored by the
+    # Release Workflow App. App-authored tags / releases are not subject
+    # to GitHub's anti-recursion rule, which keeps the rc tag visible to
+    # any downstream automation that listens on `release: prereleased`.
     needs: [resolve, publish]
     if: needs.publish.result == 'success'
     runs-on: gh-static-ip-slim
-    environment: release-workflow
     permissions:
       contents: write
     steps:
@@ -336,7 +335,7 @@ jobs:
         id: app-token
         uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
         with:
-          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
