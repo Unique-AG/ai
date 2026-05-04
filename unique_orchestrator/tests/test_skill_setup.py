@@ -1,11 +1,13 @@
 """Tests for the preload_invoked_skills helper.
 
-The preloader runs before the first LLM iteration. When the user message
-starts with ``/skill-name`` tokens, it activates each matching skill via
-the exact same path the model would take mid-loop (SkillTool.run +
+The preloader runs before the first LLM iteration. When the user
+message contains one or more ``/skill-name`` tokens — at the start,
+inline within prose, or at the end — it activates each matching skill
+via the exact same path the model would take mid-loop (SkillTool.run +
 history_manager.add_tool_call_results), and returns the user message
 with the matched ``/skill-name`` tokens stripped so the caller can
-render the turn showing only the actual query.
+render the turn showing only the actual query. Unknown ``/...`` tokens
+are left as ordinary text.
 """
 
 from __future__ import annotations
@@ -171,10 +173,11 @@ class TestPreloadInvokedSkills:
         assert "BAR" in responses[1].content
 
     @pytest.mark.asyncio
-    async def test_unknown_prefix_noop(self, logger: Logger) -> None:
+    async def test_unknown_token_is_left_in_text(self, logger: Logger) -> None:
+        """Known tokens are still preloaded; unknown ones stay as text."""
         event = _make_event("/unknown /foo question")
         history_manager = MagicMock()
-        skill_tool = _make_skill_tool([_make_skill("foo")])
+        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
         stripped_text = await preload_invoked_skills(
@@ -184,9 +187,30 @@ class TestPreloadInvokedSkills:
             logger=logger,
         )
 
-        assert stripped_text is None
-        assert event.payload.user_message.text == "/unknown /foo question"
-        history_manager.add_tool_call.assert_not_called()
+        assert stripped_text == "/unknown question"
+        history_manager.add_tool_call.assert_called_once()
+        synthetic_call = history_manager.add_tool_call.call_args.args[0]
+        assert synthetic_call.arguments == {"skill_name": "foo"}
+
+    @pytest.mark.asyncio
+    async def test_inline_token_is_preloaded(self, logger: Logger) -> None:
+        """``/skill-name`` works inline, not just at the start of the message."""
+        event = _make_event("please run /foo and tell me about it")
+        history_manager = MagicMock()
+        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
+        tool_manager = _FakeToolManager(skill_tool=skill_tool)
+
+        stripped_text = await preload_invoked_skills(
+            event=event,
+            tool_manager=tool_manager,  # type: ignore[arg-type]
+            history_manager=history_manager,
+            logger=logger,
+        )
+
+        assert stripped_text == "please run and tell me about it"
+        history_manager.add_tool_call.assert_called_once()
+        synthetic_call = history_manager.add_tool_call.call_args.args[0]
+        assert synthetic_call.arguments == {"skill_name": "foo"}
 
 
 class TestBuildSkill:

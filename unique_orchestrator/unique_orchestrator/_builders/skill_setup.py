@@ -48,7 +48,7 @@ from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
-from unique_skill_tool.utils import extract_prefix_skills
+from unique_skill_tool.utils import extract_invoked_skills
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import Content, ContentInfo
@@ -385,13 +385,16 @@ async def preload_invoked_skills(
     history_manager: HistoryManager,
     logger: Logger,
 ) -> str | None:
-    """Preload skills invoked as ``/skill-name`` prefix(es) in the user message.
+    """Preload skills invoked as ``/skill-name`` tokens in the user message.
 
     Mirrors the normal mid-loop activation path so preloaded skills are
     indistinguishable from skills the model activates itself:
 
-    1. Parses consecutive ``/skill-name`` tokens from the start of the
-       user message.
+    1. Pulls every ``/skill-name`` token out of the user message —
+       whether at the start, between words, or at the end — as long as
+       it is properly word-boundaried so URLs and file paths are not
+       mistaken for invocations. Unknown tokens are left as ordinary
+       text.
     2. For each matched skill, synthesizes a ``LanguageModelFunction``
        and runs it through the already-registered ``SkillTool`` — the
        exact same code path ``UniqueAI._handle_tool_calls`` uses.
@@ -409,7 +412,7 @@ async def preload_invoked_skills(
 
     original_text = event.payload.user_message.text or ""
 
-    skills, stripped_text = extract_prefix_skills(
+    skills, stripped_text = extract_invoked_skills(
         original_text, skill_tool.skill_registry
     )
     if not skills:
