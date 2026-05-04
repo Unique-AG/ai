@@ -294,7 +294,7 @@ class ConfigValidator:
                         node = node.get(key)
                     elif isinstance(node, list) and isinstance(key, int):
                         try:
-                            node = node[key]  # pyright: ignore[reportArgumentType]
+                            node = node[key]
                         except (IndexError, TypeError):
                             node = None
                             break
