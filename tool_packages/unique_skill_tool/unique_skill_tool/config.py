@@ -14,6 +14,7 @@ from unique_skill_tool.prompts import (
     DEFAULT_TOOL_PARAMETER_SKILL_NAME_DESCRIPTION,
     DEFAULT_TOOL_SYSTEM_REMINDER_FOR_USER_MESSAGE,
 )
+from unique_skill_tool.schemas import SelectableSkill
 
 CHARS_PER_TOKEN = 4
 DEFAULT_CHAR_BUDGET = 8_000
@@ -88,6 +89,15 @@ class SkillToolConfig(BaseToolConfig):
             "under it (at any depth) is loaded. Top-level and nested "
             "folder scope IDs are both supported."
         ),
+    )
+
+    selectable_skills: Annotated[
+        list[SelectableSkill],
+        RJSFMetaTag.SpecialWidget.hidden(),
+    ] = Field(
+        default_factory=list,
+        title="Selectable Skills",
+        description=("Individual skill selected from the knowledge base."),
     )
 
     max_listing_desc_chars: int = Field(

@@ -13,7 +13,13 @@ from unique_skill_tool.schemas import (
 
 MIN_DESC_LENGTH = 20
 
-_SKILL_PREFIX_TOKEN_RE = re.compile(r"\A\s*/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z)")
+# Matches a ``/skill-name`` token that is properly word-boundaried:
+# preceded by start-of-string (optionally followed by whitespace) or by
+# whitespace, and followed by whitespace or end-of-string. The leading
+# ``\A\s*|\s`` is consumed (not a lookbehind) so that, on replacement, we
+# also remove the single whitespace character that immediately preceded
+# the token and avoid leaving double spaces in the remaining text.
+_SKILL_TOKEN_RE = re.compile(r"(\A\s*|\s)/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z)")
 
 
 def get_char_budget(
@@ -96,38 +102,42 @@ def normalize_skill_name(skill: str) -> str:
     return skill
 
 
-def extract_prefix_skills(
+def extract_invoked_skills(
     user_text: str,
     skill_registry: dict[str, SkillDefinition],
 ) -> tuple[list[SkillDefinition], str]:
-    """Pull consecutive ``/skill-name`` tokens from the very start of *user_text*.
+    """Pull every ``/skill-name`` invocation out of *user_text*.
 
-    Matches only tokens at the beginning of the message (after optional
-    leading whitespace). Matching stops at the first non-token or unknown
-    skill name, so ``/``-prefixed words appearing mid-message (URLs, code,
-    prose) are ignored.
+    Tokens are recognised wherever they appear in the message — at the
+    start, after a previous skill, or inline within prose — as long as
+    they are properly word-boundaried (preceded by start-of-string or
+    whitespace, and followed by whitespace or end-of-string). This means
+    ``/``-prefixed segments inside URLs (``https://example.com/api``) or
+    file paths (``src/foo.py``) are never matched.
 
-    Duplicates are dropped while preserving first-occurrence order.
+    Only tokens whose name resolves to a registered skill are activated;
+    unknown ``/...`` tokens are left in place as ordinary text so that
+    typos and incidental prose are preserved instead of being silently
+    swallowed. Duplicates are dropped while preserving first-occurrence
+    order.
 
-    Returns ``(ordered_skills, remaining_text)`` where *remaining_text* is
-    the original message with the matched prefix tokens stripped and
-    leading whitespace removed.
+    Returns ``(ordered_skills, remaining_text)`` where *remaining_text*
+    is the original message with the matched tokens removed and any
+    surrounding whitespace tidied up so the final string reads naturally
+    to a downstream LLM.
     """
-    remaining = user_text
     ordered: list[SkillDefinition] = []
     seen: set[str] = set()
 
-    while True:
-        match = _SKILL_PREFIX_TOKEN_RE.match(remaining)
-        if match is None:
-            break
-        name = match.group(1)
+    def _replace(match: re.Match[str]) -> str:
+        name = match.group(2)
         skill = skill_registry.get(name)
         if skill is None:
-            break
+            return match.group(0)
         if name not in seen:
             seen.add(name)
             ordered.append(skill)
-        remaining = remaining[match.end() :]
+        return ""
 
-    return ordered, remaining.lstrip()
+    remaining = _SKILL_TOKEN_RE.sub(_replace, user_text)
+    return ordered, remaining.strip()
