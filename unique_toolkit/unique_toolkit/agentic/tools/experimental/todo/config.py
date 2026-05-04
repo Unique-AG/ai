@@ -13,6 +13,18 @@ from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 
 class TodoConfig(BaseToolConfig):
+    enabled: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Enable the Todo tool. When enabled, the agent can track tasks and update their status."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Enable the Todo tool.",
+    )
+
     display_name: str = Field(
         default="Progress",
         description="Human-readable label for task tracking shown in the Steps panel.",
