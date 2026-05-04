@@ -4,6 +4,10 @@ from unique_stock_ticker.config import StockTickerConfig
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
+from unique_toolkit.agentic.tools.experimental.todo import (
+    TodoConfig,
+    TodoWriteTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
@@ -335,3 +339,88 @@ class TestUniqueAIConfigGpt55ResponsesApiValidator:
         )
 
         assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+
+class TestUniqueAIConfigInjectTodoToolValidator:
+    """Test suite for UniqueAIConfig.inject_todo_tool validator.
+
+    The validator bridges the experimental ``todo_config`` flag with the
+    declarative ``space.tools`` list that ``ToolManager`` iterates over.
+    Without it, toggling ``todo_config.enabled = True`` is a no-op because
+    ``ToolManager._init__tools`` only builds tools listed in
+    ``config.space.tools``.
+
+    Mirrors the established ``inject_retrieve_search_scope_tool`` precedent.
+    """
+
+    def _todo_entries(self, config: UniqueAIConfig) -> list[ToolBuildConfig]:
+        return [t for t in config.space.tools if t.name == TodoWriteTool.name]
+
+    def test_appends_todo_tool_when_enabled(self):
+        """When ``todo_config.enabled=True`` and TodoWrite is not in
+        ``space.tools``, the validator must append a ``ToolBuildConfig``
+        entry carrying the same ``TodoConfig`` so the factory can build it."""
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[],
+            ),
+            agent={"experimental": {"todo_config": TodoConfig(enabled=True)}},
+        )
+
+        entries = self._todo_entries(config)
+        assert len(entries) == 1
+        assert entries[0].name == TodoWriteTool.name
+        assert isinstance(entries[0].configuration, TodoConfig)
+        assert entries[0].configuration.enabled is True
+        assert entries[0].display_name == TodoConfig().display_name
+
+    def test_removes_todo_tool_when_disabled(self):
+        """When ``todo_config.enabled=False`` but TodoWrite is already in
+        ``space.tools`` (e.g. inherited from a previous run), the validator
+        must strip it so the LLM never sees the description."""
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[
+                    ToolBuildConfig(
+                        name=TodoWriteTool.name,
+                        configuration=TodoConfig(enabled=False),
+                    )
+                ],
+            ),
+            agent={"experimental": {"todo_config": TodoConfig(enabled=False)}},
+        )
+
+        assert self._todo_entries(config) == []
+
+    def test_does_not_duplicate_when_already_present(self):
+        """When ``todo_config.enabled=True`` and TodoWrite is already in
+        ``space.tools``, the validator must be idempotent — no second entry
+        is appended (which would surface duplicate tool definitions to the
+        model)."""
+        existing = ToolBuildConfig(
+            name=TodoWriteTool.name,
+            configuration=TodoConfig(enabled=True),
+        )
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[existing],
+            ),
+            agent={"experimental": {"todo_config": TodoConfig(enabled=True)}},
+        )
+
+        assert len(self._todo_entries(config)) == 1
+
+    def test_no_op_when_disabled_and_not_present(self):
+        """When ``todo_config.enabled=False`` and TodoWrite is not in
+        ``space.tools``, the validator must leave ``space.tools`` untouched
+        so existing defaults (InternalSearch, WebSearch, …) are preserved."""
+        default_tools = UniqueAISpaceConfig(
+            language_model=_make_model(supports_responses_api=True)
+        ).tools
+        config = _make_config(tools=default_tools)
+
+        assert self._todo_entries(config) == []
+        assert [t.name for t in config.space.tools] == [t.name for t in default_tools]
