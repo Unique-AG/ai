@@ -125,6 +125,9 @@ class LanguageModelName(StrEnum):
     LITELLM_DEEPSEEK_V3 = "litellm:deepseek-v3-1"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
+    VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
+    VERTEX_CLAUDE_OPUS_4_6 = "litellm:vertex-claude-opus-4-6"
+    VERTEX_CLAUDE_OPUS_4_7 = "litellm:vertex-claude-opus-4-7"
 
 
 class EncoderName(StrEnum):
@@ -1503,7 +1506,10 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 9, 29),
                     supported_reasoning_efforts=[],
                 )
-            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6:
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6
+                | LanguageModelName.VERTEX_CLAUDE_SONNET_4_6
+            ):
                 return cls(
                     name=model_name,
                     capabilities=[
@@ -1587,7 +1593,10 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 11, 13),
                     supported_reasoning_efforts=[],
                 )
-            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6:
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6
+                | LanguageModelName.VERTEX_CLAUDE_OPUS_4_6
+            ):
                 return cls(
                     name=model_name,
                     capabilities=[
@@ -1608,7 +1617,10 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 2, 5),
                     supported_reasoning_efforts=[],
                 )
-            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7:
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7
+                | LanguageModelName.VERTEX_CLAUDE_OPUS_4_7
+            ):
                 return cls(
                     name=model_name,
                     capabilities=[

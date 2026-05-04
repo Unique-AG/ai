@@ -9,9 +9,6 @@ from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
-from unique_skill_tool.config import (
-    SkillToolConfig,
-)
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.validators import (
@@ -39,6 +36,10 @@ from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServic
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
+from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool import (
+    RetrieveSearchScopeConfig,
+    RetrieveSearchScopeTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
@@ -46,9 +47,11 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
-from unique_toolkit.language_model.infos import ModelCapabilities
+from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
+
+from unique_orchestrator.settings import env_settings
 
 DeactivatedNone = Annotated[
     None,
@@ -117,11 +120,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         cls, tools: list[ToolBuildConfig], info: ValidationInfo
     ) -> list[ToolBuildConfig]:
         for tool in tools:
-            if tool.name == InternalSearchTool.name:
-                tool.configuration.language_model_max_input_tokens = (  # type: ignore
-                    info.data["language_model"].token_limits.token_limit_input
-                )
-            elif tool.name == WebSearchTool.name:
+            if tool.name in (
+                InternalSearchTool.name,
+                WebSearchTool.name,
+                RetrieveSearchScopeTool.name,
+            ):
                 tool.configuration.language_model_max_input_tokens = (  # type: ignore
                     info.data["language_model"].token_limits.token_limit_input
                 )
@@ -136,8 +139,6 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 
 UniqueAISpaceConfig.model_rebuild()
 
-LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
-LIMIT_MAX_LOOP_ITERATIONS = 50
 
 _MODEL_FAMILIES = ("qwen", "mistral")
 
@@ -154,7 +155,7 @@ class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
 
     max_loop_iterations: Annotated[
-        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+        int, *ClipInt(min_value=1, max_value=env_settings.limit_max_loop_iterations)
     ] = Field(
         default=QWEN_MAX_LOOP_ITERATIONS,
         description="Maximum number of agentic loop iterations for Qwen models.",
@@ -180,7 +181,9 @@ class ModelSpecificConfig(BaseToolConfig):
 class LoopConfiguration(BaseToolConfig):
     max_tool_calls_per_iteration: Annotated[
         int,
-        *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
+        *ClipInt(
+            min_value=1, max_value=env_settings.limit_max_tool_calls_per_iteration
+        ),
     ] = 10
 
     planning_config: (
@@ -351,7 +354,9 @@ class ExperimentalConfig(BaseToolConfig):
 
     open_file_tool_config: OpenFileToolConfig = OpenFileToolConfig()
 
-    skill_tool_config: SkillToolConfig = SkillToolConfig()
+    retrieve_search_scope_config: RetrieveSearchScopeConfig = (
+        RetrieveSearchScopeConfig()
+    )
 
     use_responses_api: bool = Field(
         default=False,
@@ -361,7 +366,7 @@ class ExperimentalConfig(BaseToolConfig):
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
-        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+        int, *ClipInt(min_value=1, max_value=env_settings.limit_max_loop_iterations)
     ] = 20
 
     input_token_distribution: HistoryConfig = Field(
@@ -417,6 +422,24 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
+    def enable_responses_api_for_gpt_55_and_gpt_55_pro(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API for GPT-5.5 (AZURE_GPT_55_2026_0424) and GPT-5.5-Pro (AZURE_GPT_55_PRO_2026_0424).
+
+        TEMP FIX: gpt-5.5-2026-04-24 and gpt-5.5-pro-2026-04-24 reject requests that combine `tools` with
+        `reasoning_effort` on /v1/chat/completions and demands /v1/responses.
+        Forcing the Responses API here avoids the OpenAI 400 error until the
+        runner can pick the right transport based on model capabilities.
+        Tracked in Jira: UN-20123.
+        """
+        if (
+            self.space.language_model.name == LanguageModelName.AZURE_GPT_55_2026_0424
+            or self.space.language_model.name
+            == LanguageModelName.AZURE_GPT_55_PRO_2026_0424
+        ):
+            self.agent.experimental.responses_api_config.use_responses_api = True
+        return self
+
+    @model_validator(mode="after")
     def validate_open_file_tool_requires_responses_api(self) -> "UniqueAIConfig":
         uses_responses_api = (
             self.agent.experimental.responses_api_config.use_responses_api
@@ -429,6 +452,30 @@ class UniqueAIConfig(BaseToolConfig):
             raise ValueError(
                 "open_file_tool_config.enabled requires the Responses API to be enabled."
             )
+        return self
+
+    @model_validator(mode="after")
+    def inject_retrieve_search_scope_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = RetrieveSearchScopeTool.name in tool_names
+        config = self.agent.experimental.retrieve_search_scope_config
+
+        if config.enabled and not has_tool:
+            config.language_model_max_input_tokens = (
+                self.space.language_model.token_limits.token_limit_input
+            )
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=RetrieveSearchScopeTool.name,
+                    display_name=RetrieveSearchScopeTool.default_display_name,
+                    configuration=config,
+                )
+            )
+        elif not config.enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools if t.name != RetrieveSearchScopeTool.name
+            ]
+
         return self
 
     @property

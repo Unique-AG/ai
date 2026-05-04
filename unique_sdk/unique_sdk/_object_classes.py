@@ -7,4 +7,5 @@ OBJECT_CLASSES = {
     unique_sdk.Message.OBJECT_NAME: unique_sdk.Message,
     unique_sdk.ChatCompletion.OBJECT_NAME: unique_sdk.ChatCompletion,
     unique_sdk.ScheduledTask.OBJECT_NAME: unique_sdk.ScheduledTask,
+    unique_sdk.Briefing.OBJECT_NAME: unique_sdk.Briefing,
 }

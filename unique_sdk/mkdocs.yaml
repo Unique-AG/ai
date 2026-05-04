@@ -61,6 +61,7 @@ nav:
     - Overview: api_resources/index.md
     - Agentic Table: api_resources/agentic_table.md
     - Benchmarking: api_resources/benchmarking.md
+    - Briefing: api_resources/briefing.md
     - ChatCompletion: api_resources/chat_completion.md
     - Content: api_resources/content.md
     - Embeddings: api_resources/embeddings.md
@@ -72,6 +73,7 @@ nav:
     - Message Assessment: api_resources/message_assessment.md
     - Message Execution: api_resources/message_execution.md
     - Message Log: api_resources/message_log.md
+    - MCP: api_resources/mcp.md
     - ScheduledTask: api_resources/scheduled_task.md
     - Search: api_resources/search.md
     - SearchString: api_resources/search_string.md

@@ -2,13 +2,13 @@
 
 !!! warning "Experimental"
 
-    :class:`~unique_toolkit.experimental.content_tree.service.ContentTree` lives
+    :class:`~unique_toolkit.experimental.components.content_tree.service.ContentTree` lives
     under :mod:`unique_toolkit.experimental` and is **not** wired into
     :class:`~unique_toolkit.services.factory.UniqueServiceFactory`. The API may
     change between minor releases — import it explicitly from its experimental
     subpackage and pin your toolkit version if you depend on its current shape.
 
-The :class:`~unique_toolkit.experimental.content_tree.service.ContentTree` builds a **filesystem-style tree** of knowledge-base **content the acting user can see**. It is **not** the full folder hierarchy from :class:`~unique_toolkit.content.folder.service.ContentFolder`—only folders that appear on visible content paths (via ``folderIdPath`` metadata) show up.
+The :class:`~unique_toolkit.experimental.components.content_tree.service.ContentTree` builds a **filesystem-style tree** of knowledge-base **content the acting user can see**. It is **not** the full folder hierarchy from :class:`~unique_toolkit.content.folder.service.ContentFolder`—only folders that appear on visible content paths (via ``folderIdPath`` metadata) show up.
 
 Rendering follows **GNU/Linux ``tree(1)``** conventions: sorted directories and files, UTF-8 box-drawing characters, and an optional **depth limit** (like ``tree -L``).
 
@@ -16,7 +16,7 @@ Beyond rendering, the same loaded snapshot powers **flat listing**, **client-sid
 
 !!! note "Environment"
 
-    Use the same SDK / :class:`~unique_toolkit.app.unique_settings.UniqueSettings` setup as other toolkit examples (`UNIQUE_API_KEY`, `UNIQUE_APP_ID`, user and company context). The sample script uses :meth:`~unique_toolkit.experimental.content_tree.service.ContentTree.from_settings`.
+    Use the same SDK / :class:`~unique_toolkit.app.unique_settings.UniqueSettings` setup as other toolkit examples (`UNIQUE_API_KEY`, `UNIQUE_APP_ID`, user and company context). The sample script uses :meth:`~unique_toolkit.experimental.components.content_tree.service.ContentTree.from_settings`.
 
 ## What you get
 
@@ -28,14 +28,14 @@ Content without a ``folderIdPath`` is grouped under a synthetic ``_no_folder_pat
 
 ## Full tree and depth limit
 
-Use :meth:`~unique_toolkit.experimental.content_tree.service.ContentTree.render_visible_tree_async`. Pass ``max_depth=None`` for an unlimited tree, or an integer for **``tree -L``-style** truncation: depth ``1`` shows only top-level folders and files; deeper levels are summarized as a single “…” line with counts when cut off.
+Use :meth:`~unique_toolkit.experimental.components.content_tree.service.ContentTree.render_visible_tree_async`. Pass ``max_depth=None`` for an unlimited tree, or an integer for **``tree -L``-style** truncation: depth ``1`` shows only top-level folders and files; deeper levels are summarized as a single “…” line with counts when cut off.
 
 ```{.python #kb-tree-imports}
 from __future__ import annotations
 
 import asyncio
 
-from unique_toolkit.experimental.content_tree import ContentTree
+from unique_toolkit.experimental.components.content_tree import ContentTree
 ```
 
 ```{.python #kb-tree-async-main}
@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
 ## Flat listing and filtering
 
-If you want the raw list of visible files (not a tree), use :meth:`~unique_toolkit.experimental.content_tree.service.ContentTree.list_visible_files_async`. For predicates the server-side ``metadata_filter`` can't express — arbitrary Python over :class:`~unique_toolkit.content.schemas.ContentInfo` — use :meth:`~unique_toolkit.experimental.content_tree.service.ContentTree.filter_visible_files_async`:
+If you want the raw list of visible files (not a tree), use :meth:`~unique_toolkit.experimental.components.content_tree.service.ContentTree.list_visible_files_async`. For predicates the server-side ``metadata_filter`` can't express — arbitrary Python over :class:`~unique_toolkit.content.schemas.ContentInfo` — use :meth:`~unique_toolkit.experimental.components.content_tree.service.ContentTree.filter_visible_files_async`:
 
 ```python
 # Every visible file, flat
@@ -85,7 +85,7 @@ Both calls share the same cached snapshot as ``render_visible_tree_async``, so t
 
 ## Fuzzy file search
 
-:meth:`~unique_toolkit.experimental.content_tree.service.ContentTree.search_visible_files_fuzzy_async` matches a query against the file basename, the joined folder path, or both. Scoring uses stdlib :class:`difflib.SequenceMatcher`; matching is **case-insensitive by default**. Results come back as :class:`~unique_toolkit.experimental.content_tree.schemas.FuzzyMatch` records sorted by descending score:
+:meth:`~unique_toolkit.experimental.components.content_tree.service.ContentTree.search_visible_files_fuzzy_async` matches a query against the file basename, the joined folder path, or both. Scoring uses stdlib :class:`difflib.SequenceMatcher`; matching is **case-insensitive by default**. Results come back as :class:`~unique_toolkit.experimental.components.content_tree.schemas.FuzzyMatch` records sorted by descending score:
 
 ```python
 hits = await tree_svc.search_visible_files_fuzzy_async(

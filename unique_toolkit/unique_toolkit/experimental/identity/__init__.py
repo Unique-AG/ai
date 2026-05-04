@@ -1,37 +1,27 @@
-"""``unique_toolkit.experimental.identity`` — user and group directory management.
+"""Barrel for the :class:`Identity` facade and related types.
 
-.. warning::
-
-    **Experimental.** This subpackage is exposed under
-    :mod:`unique_toolkit.experimental` and its public API may change without
-    notice. It is not covered by the toolkit's normal stability guarantees.
-
-A thin, Linux-inspired wrapper around :mod:`unique_sdk.User` and
-:mod:`unique_sdk.Group`. The package exposes:
-
-- :class:`Identity` — facade that bundles both sub-services behind
-  ``.users`` and ``.groups``.
-- :class:`Users` — CRUD-style API for users (``list``, ``get``,
-  ``update_configuration``) plus ``groups_of`` / ``is_member``.
-- :class:`Groups` — CRUD-style API for groups (``list``, ``create``,
-  ``delete``, ``rename``, ``update_configuration``) plus
-  ``add_members`` / ``remove_members``.
-
-The Pydantic response schemas (``UserInfo``, ``GroupInfo``, ...) are also
-re-exported here for convenience.
+The implementation lives in
+:mod:`unique_toolkit.experimental.resources.facades.identity`; this package
+re-exports the same public names for a shorter import path.
 """
 
-from unique_toolkit.experimental.identity.schemas import (
+from __future__ import annotations
+
+from unique_toolkit.experimental.resources.facades.identity.service import Identity
+from unique_toolkit.experimental.resources.group import (
     GroupDeleted,
     GroupInfo,
     GroupMember,
     GroupMembership,
+    Groups,
     GroupWithConfiguration,
+)
+from unique_toolkit.experimental.resources.user import (
     UserGroupMembership,
     UserInfo,
+    Users,
     UserWithConfiguration,
 )
-from unique_toolkit.experimental.identity.service import Groups, Identity, Users
 
 __all__ = [
     "GroupDeleted",

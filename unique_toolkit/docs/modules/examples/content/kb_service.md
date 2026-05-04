@@ -87,7 +87,7 @@ self.chat_service.modify_assistant_message(
 
 ### Mirror a local folder (structure + files, no ingestion)
 
-You can recreate a directory tree in the knowledge base by creating the corresponding **folder paths** with :class:`~unique_toolkit.experimental.content_folder.service.ContentFolder`, then uploading each file into the **leaf scope** for its directory with ``skip_ingestion=True``. Files are stored but not sent through the ingestion pipeline (no chunking / vector index for search).
+You can recreate a directory tree in the knowledge base by creating the corresponding **folder paths** with :class:`~unique_toolkit.experimental.resources.content_folder.service.ContentFolder`, then uploading each file into the **leaf scope** for its directory with ``skip_ingestion=True``. Files are stored but not sent through the ingestion pipeline (no chunking / vector index for search).
 
 !!! warning "Scope and paths"
 
@@ -99,7 +99,7 @@ from __future__ import annotations
 import mimetypes
 from pathlib import Path
 
-from unique_toolkit.experimental.content_folder import ContentFolder
+from unique_toolkit.experimental.resources.content_folder import ContentFolder
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 ```
 
@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
 !!! tip "Verify the result"
 
-    To inspect the resulting folder layout after a mirror, use :class:`~unique_toolkit.experimental.content_tree.service.ContentTree` from the experimental ``content_tree`` subpackage — see the [content tree example](../experimental/content_tree.md). A combined mirror + verify example will follow in a small follow-up PR.
+    To inspect the resulting folder layout after a mirror, use :class:`~unique_toolkit.experimental.components.content_tree.service.ContentTree` from the experimental ``content_tree`` subpackage — see the [content tree example](../experimental/content_tree.md). A combined mirror + verify example will follow in a small follow-up PR.
 
 ## Content Download
 

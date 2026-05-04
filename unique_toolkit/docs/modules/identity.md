@@ -14,13 +14,28 @@
     ```
 
     `Identity` is a thin facade — it wires two CRUD-style sub-services,
-    [`Users`](#unique_toolkit.experimental.identity.service.Users) and
-    [`Groups`](#unique_toolkit.experimental.identity.service.Groups), behind
+    `Users` and `Groups`, behind
     `identity.users` and `identity.groups` respectively. Constructors are
     keyword-only, so callers always write `Identity(user_id=..., company_id=...)`.
 
 ### Service
-::: unique_toolkit.experimental.identity.service
+::: unique_toolkit.experimental.resources.facades.identity.service
 
 ### Schemas
-::: unique_toolkit.experimental.identity.schemas
+::: unique_toolkit.experimental.resources.user.schemas
+    options:
+      inherited_members: false
+      members:
+        - UserInfo
+        - UserWithConfiguration
+        - UserGroupMembership
+
+::: unique_toolkit.experimental.resources.group.schemas
+    options:
+      inherited_members: false
+      members:
+        - GroupMember
+        - GroupInfo
+        - GroupWithConfiguration
+        - GroupMembership
+        - GroupDeleted

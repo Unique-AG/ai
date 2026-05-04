@@ -16,14 +16,16 @@ From that we produce:
     (or ``dev0`` when nothing is in the cycle yet). Per-package
     contiguous counter, no gaps.
 
-  * ``dep_pins``: for every publishable AI package, the PEP 440 spec
+  * ``dep_pins``: for every publishable AI package, the PEP 508 spec
     suffix downstream wheels should use for it:
-      - package is a sibling in this push   -> ``>=<new version>``
-      - cycle already has a dev on PyPI     -> ``>={cycle}.0.dev<N>``
-      - otherwise                           -> ``>=<pyproject version>``
+      - CalVer cycle ``*.devN`` sibling     -> ``>=V,<YYY.WW.Prc0`` via
+        ``calver_dev_dependency_pin.dev_dependency_pin`` (excludes sibling RCs).
+      - package is a sibling in this push   -> pinned at new cycle dev floor
+      - cycle already has a dev on PyPI     -> pinned at highest existing ``dev<N>``
+      - otherwise (no ``*.devN`` in this cycle for that package yet) -> ``>=<stable>`` unchanged
 
 Both maps key cross-package names by their PEP 503 normalized form so
-``rewrite-pyproject-for-dev.py`` can match regardless of whether the
+``rewrite-pyproject-pre-release.py`` can match regardless of whether the
 requirement spells the name with ``-``, ``_`` or ``.``.
 """
 
@@ -32,9 +34,16 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
+from calver_dev_dependency_pin import dev_dependency_pin  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PACKAGE_CONFIG = (
@@ -132,13 +141,13 @@ def resolve(
             next_n = 0 if dev_n is None else dev_n + 1
             version = f"{cycle}.0.dev{next_n}"
             new_versions[pkg["id"]] = version
-            dep_pins[key] = f">={version}"
+            dep_pins[key] = dev_dependency_pin(version)
             all_current_versions[pkg["id"]] = version
             if sh := pkg.get("shorthand"):
                 branch_parts.append(f"{sh}-{next_n}")
         elif dev_n is not None:
             version = f"{cycle}.0.dev{dev_n}"
-            dep_pins[key] = f">={version}"
+            dep_pins[key] = dev_dependency_pin(version)
             all_current_versions[pkg["id"]] = version
             if sh := pkg.get("shorthand"):
                 branch_parts.append(f"{sh}-{dev_n}")

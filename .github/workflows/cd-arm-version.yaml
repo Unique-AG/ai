@@ -14,12 +14,16 @@ name: "[CD] Release · Arm Version"
 #   - shipping off-cadence (e.g. cut 2026.19.0 a week early),
 #   - correcting a miscomputed CalVer.
 #
-# It pushes an empty `Release-As: YYYY.WW.0` commit to `main`. Each
-# trailer overrides the previous one; no cleanup is needed.
+# It pushes an empty `Release-As: YYYY.WW.0` commit directly to `main`.
+# Each trailer overrides the previous one; no cleanup is needed.
+#
+# Runs on gh-static-ip-slim under the `release-workflow` environment so
+# `prepare-next-cycle.sh` can authenticate as the Release Workflow App,
+# which is a bypass actor on the main-branch ruleset and the only
+# identity allowed to push directly to `main`.
 
 permissions:
   contents: write
-  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -31,7 +35,8 @@ on:
 
 jobs:
   arm:
-    runs-on: ubuntu-latest
+    runs-on: gh-static-ip-slim
+    environment: release-workflow
     timeout-minutes: 5
     steps:
       - name: Ensure workflow runs from main
@@ -42,16 +47,24 @@ jobs:
             exit 1
           fi
 
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Arm cycle
         env:
           YEAR_WEEK: ${{ inputs.year_week }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           if [[ -n "$YEAR_WEEK" ]]; then
             ./.github/scripts/prepare-next-cycle.sh --year-week "$YEAR_WEEK"

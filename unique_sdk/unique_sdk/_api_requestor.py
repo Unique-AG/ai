@@ -62,6 +62,24 @@ def _build_api_url(url, query):
     return urlunsplit((scheme, netloc, path, query, fragment))
 
 
+def _abs_api_url(api_base: str, path: str) -> str:
+    """Combine ``unique_sdk.api_base`` with a route path avoiding ``//`` holes.
+
+    Callers normally pass routes like ``/content/infos`` or ``/briefings/{id}``. If
+    ``api_base`` ends with a slash (often from env), naive ``%s%s`` concatenation
+    would produce ``.../chat-gen2//content/...`` and some gateways mis-route.
+
+    Surrounding ``'`` / ``"`` from ``.env`` or shell copy‑paste are stripped so a
+    value like ``'https://.../chat-gen2'`` resolves correctly (avoids malformed
+    hosts such as ``.../infos'`` leaking into paths).
+    """
+    base = api_base.strip().strip("'\"").rstrip("/")
+    segment = path.strip().strip("'\"")
+    if not segment.startswith("/"):
+        segment = "/" + segment
+    return base + segment
+
+
 class APIRequestor(object):
     api_key: str | None
     app_id: str | None
@@ -145,7 +163,7 @@ class APIRequestor(object):
             "Authorization": "Bearer %s" % (api_key,),
         }
 
-        if method == "post" or method == "patch":
+        if method == "post" or method == "patch" or method == "put":
             headers["Content-Type"] = "application/json"
 
         if self.user_id:
@@ -278,7 +296,7 @@ class APIRequestor(object):
                 "questions."
             )
 
-        abs_url = "%s%s" % (self.api_base, url)
+        abs_url = _abs_api_url(self.api_base, url)
 
         encoded_params = urlencode(list(_api_encode(params or {})))
 
@@ -291,7 +309,7 @@ class APIRequestor(object):
             if params:
                 abs_url = _build_api_url(abs_url, encoded_params)
             post_data = None
-        elif method == "post" or method == "patch":
+        elif method == "post" or method == "patch" or method == "put":
             post_data = params
         else:
             raise _error.APIConnectionError(

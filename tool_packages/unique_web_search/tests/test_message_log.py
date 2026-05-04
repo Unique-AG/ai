@@ -94,7 +94,7 @@ class TestWebSearchMessageLoggerInit:
         )
 
         # Assert
-        assert logger._progress_message == ""
+        assert logger._message == ""
 
     @pytest.mark.ai
     def test_init__stores_tool_display_name__on_creation(
@@ -249,7 +249,7 @@ class TestWebSearchMessageLoggerFinished:
         await logger.finished()
 
         # Assert
-        assert logger._progress_message == ""
+        assert logger._message == ""
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -277,7 +277,7 @@ class TestWebSearchMessageLoggerFinished:
         await logger.finished()
 
         # Assert
-        assert logger._progress_message == ""
+        assert logger._message == ""
         call_kwargs = (
             mock_message_step_logger.create_or_update_message_log_async.call_args.kwargs
         )
@@ -370,7 +370,7 @@ class TestWebSearchMessageLoggerFailed:
         await logger.failed()
 
         # Assert
-        assert logger._progress_message == "_Search failed_"
+        assert logger._message == "_Search failed_"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -398,7 +398,7 @@ class TestWebSearchMessageLoggerFailed:
         await logger.failed()
 
         # Assert
-        assert logger._progress_message == "_Search failed_"
+        assert logger._message == "_Search failed_"
         call_kwargs = (
             mock_message_step_logger.create_or_update_message_log_async.call_args.kwargs
         )
@@ -433,7 +433,7 @@ class TestWebSearchMessageLoggerLogProgress:
         await logger.log_progress("Searching web...")
 
         # Assert
-        assert logger._progress_message == "Searching web..."
+        assert logger._message == "Searching web..."
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -492,7 +492,7 @@ class TestWebSearchMessageLoggerLogProgress:
         await logger.log_progress("Step 2")
 
         # Assert
-        assert logger._progress_message == "Step 2"
+        assert logger._message == "Step 2"
         assert (
             mock_message_step_logger.create_or_update_message_log_async.call_count == 2
         )
@@ -801,7 +801,7 @@ class TestWebSearchMessageLoggerIntegration:
         assert logger._status == MessageLogStatus.COMPLETED
         assert len(logger._details.data) == 1
         assert len(logger._references) == 2
-        assert logger._progress_message == ""
+        assert logger._message == ""
         assert (
             mock_message_step_logger.create_or_update_message_log_async.call_count == 4
         )
@@ -835,7 +835,7 @@ class TestWebSearchMessageLoggerIntegration:
         # Assert
         assert logger._status == MessageLogStatus.FAILED
         assert len(logger._details.data) == 1
-        assert logger._progress_message == "_Search failed_"
+        assert logger._message == "_Search failed_"
         assert (
             mock_message_step_logger.create_or_update_message_log_async.call_count == 3
         )

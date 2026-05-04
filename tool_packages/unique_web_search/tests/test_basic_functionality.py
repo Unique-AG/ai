@@ -1,13 +1,9 @@
 import pytest
 
-from unique_web_search.schema import (
-    Step,
-    StepType,
-    WebSearchPlan,
-    WebSearchToolParameters,
-)
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.google import GoogleConfig
 from unique_web_search.utils import query_params_to_human_string

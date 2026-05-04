@@ -25,23 +25,29 @@ name: "[CD] Publish dev builds to PyPI"
 # Dep pins (cross-package AI deps, per publish)
 # =============================================
 #   Computed once in `resolve` and stamped into every wheel's
-#   Requires-Dist by `rewrite-pyproject-for-dev.py`:
-#     - dep IS publishing in this push          -> `==<its new_version>`
-#         (siblings are locked together so `pip install` always pulls a
-#          mutually-consistent set)
-#     - dep has a dev wheel in the current cycle -> `>=<highest dev>`
-#         (older locally-installed dev wheels do not satisfy the floor,
-#          so `pip install -U` correctly upgrades them)
-#     - otherwise                                -> `>=<last stable>`
-#         (a fresh cycle with no dev wheels yet; the dep has not changed
-#          since its last stable, so that is the honest floor)
+#   Requires-Dist by `rewrite-pyproject-pre-release.py`:
+#     - CalVer cycle sibling ``*.devN`` (publishing now or existing on PyPI)
+#         ``>=V,<YYY.WW.Prc0`` — admits later dev builds on that patch triple
+#         but excludes sibling RC releases (they sort above dev under PEP 440).
+#     - stable-only floor when no ``*.devN`` exists in this cycle yet for that
+#         package: ``>=<stable>`` only (dep unchanged since last stable).
 #
 # Serialization
 # =============
-#   The workflow runs under a global `publish-dev` concurrency group
-#   with `cancel-in-progress: false`, so two pushes never race on the
-#   same PyPI write. Each run observes the previous run's published
-#   versions before computing its own devN counters.
+#   The workflow runs under a global `publish-prerelease` concurrency
+#   group with `cancel-in-progress: false`, so two pushes never race on
+#   the same PyPI write. The same group is shared with `cd-publish-rc.yaml`
+#   so dev and rc publishes also serialize against each other. Each run
+#   observes the previous run's published versions before computing its
+#   own devN counters.
+#
+# Cut tagging
+# ===========
+#   After a successful publish, the workflow tags the head SHA as
+#   `dev-cut-<SHORT_SHA>` and creates a matching GitHub pre-release that
+#   lists every package version produced by the run. This gives `cd-publish-rc`
+#   a stable, reproducible promotion target — pick a `dev-cut-*` tag and
+#   republish that exact set of packages as `{cycle}.0rcN`.
 
 on:
   push:
@@ -52,7 +58,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-dev
+  group: publish-prerelease
   cancel-in-progress: false
 
 jobs:
@@ -70,7 +76,7 @@ jobs:
       branch_suffix: ${{ steps.resolve_versions.outputs.branch_suffix }}
       cycle: ${{ steps.calver.outputs.cycle }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Enough history for paths-filter to diff before..after.
           fetch-depth: 0
@@ -87,7 +93,7 @@ jobs:
           # auto-detect mode (selected='').
           INVALIDATORS=(
             ".github/workflows/cd-publish-dev.yaml"
-            ".github/scripts/rewrite-pyproject-for-dev.py"
+            ".github/scripts/rewrite-pyproject-pre-release.py"
             ".github/scripts/resolve-dev-versions.py"
             ".github/scripts/compute-calver.sh"
             ".github/actions/get-packages-matrix/package_configuration.json"
@@ -151,7 +157,7 @@ jobs:
 
       - name: Install uv
         if: fromJson(steps.publishable.outputs.matrix).include[0] != null
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: '0.11.5'
 
@@ -203,15 +209,15 @@ jobs:
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
     name: publish-dev-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: '0.11.5'
 
@@ -222,7 +228,7 @@ jobs:
           PYPROJECT: ${{ matrix.dir }}/pyproject.toml
         run: |
           uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
-            python3 .github/scripts/rewrite-pyproject-for-dev.py \
+            python3 .github/scripts/rewrite-pyproject-pre-release.py \
               "$PYPROJECT" \
               --own-version "$OWN_VERSION" \
               --dep-pins "$DEP_PINS"
@@ -265,6 +271,92 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
 
+  tag-cut:
+    # Tag every successful dev publish so it can later be promoted to an
+    # rc release by `cd-publish-rc.yaml`. The Git tag (`dev-cut-<SHORT_SHA>`)
+    # plus the matching GitHub pre-release lock down what the cut actually
+    # contained — which packages were rebuilt, at what versions, and with
+    # which sibling pins — without anyone having to scrape PyPI by date.
+    #
+    # Runs on gh-static-ip-slim: the Release Workflow GitHub App is
+    # IP-origin-bound and only accepts requests from this runner's static IP.
+    needs: [resolve, publish]
+    if: needs.publish.result == 'success'
+    runs-on: gh-static-ip-slim
+    environment: release-workflow
+    permissions:
+      contents: write
+    outputs:
+      short: ${{ steps.tag.outputs.short }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Tag and notes target the commit the dev wheels were built from,
+          # not whatever main looks like by the time this job runs.
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Tag dev cut
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          SHORT="$(git rev-parse --short=12 "$SHA")"
+          TAG="dev-cut-${SHORT}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG" "$SHA"
+          git push origin "$TAG"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+        id: tag
+
+      - name: Create GitHub pre-release for cut
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          NEW_VERSIONS: ${{ needs.resolve.outputs.new_versions }}
+          DEP_PINS: ${{ needs.resolve.outputs.dep_pins }}
+          CYCLE: ${{ needs.resolve.outputs.cycle }}
+          SHA: ${{ github.sha }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          SHORT: ${{ steps.tag.outputs.short }}
+        run: |
+          BODY_FILE="$(mktemp)"
+          {
+            echo "Dev cut from \`${SHA}\` (cycle \`${CYCLE}\`)."
+            echo
+            echo "## Packages published in this cut"
+            echo
+            echo "| package | version |"
+            echo "| --- | --- |"
+            jq -r 'to_entries | sort_by(.key) | .[] | "| `\(.key)` | `\(.value)` |"' <<<"$NEW_VERSIONS"
+            echo
+            echo "## Sibling dependency pins stamped into wheel METADATA"
+            echo
+            echo "These are the pins \`rewrite-pyproject-pre-release.py\` injected into every"
+            echo "rebuilt package. \`==\` means the sibling was published in the same run;"
+            echo "\`>=\` means it was reused from PyPI (current cycle dev or last stable)."
+            echo
+            echo '```json'
+            jq -S . <<<"$DEP_PINS"
+            echo '```'
+          } > "$BODY_FILE"
+
+          gh release create "$TAG" \
+            --prerelease \
+            --target "$SHA" \
+            --title "dev cut ${SHORT}" \
+            --notes-file "$BODY_FILE"
+
   open-dev-bump-pr:
     # Opens (or replaces) a PR that writes the latest dev versions into every
     # package's pyproject.toml.  Purpose: mixed-source local development —
@@ -275,9 +367,15 @@ jobs:
     # (e.g. chore/bump-dev-2026.18-tk-5-sdk-4-orch-3) so each publish run
     # creates a unique, auditable branch.  Any older open dev-bump PR is
     # closed first to avoid stale branches accumulating.
-    needs: [resolve, publish]
-    if: needs.publish.result == 'success'
-    runs-on: ubuntu-latest
+    #
+    # Uses the Release Workflow GitHub App token so that the opened PR
+    # triggers pull_request: CI workflows. GITHUB_TOKEN-created PRs are
+    # subject to GitHub's anti-recursion rule and do not fire CI.
+    # Runs on gh-static-ip-slim: the App is IP-origin-bound.
+    needs: [resolve, publish, tag-cut]
+    if: needs.publish.result == 'success' && needs.tag-cut.result == 'success'
+    runs-on: gh-static-ip-slim
+    environment: release-workflow
     permissions:
       contents: write
       pull-requests: write
@@ -285,18 +383,27 @@ jobs:
       BRANCH: chore/bump-dev-${{ needs.resolve.outputs.cycle }}-${{ needs.resolve.outputs.branch_suffix }}
       CYCLE: ${{ needs.resolve.outputs.cycle }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: main
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: '0.11.5'
 
       - name: Ensure dev-version-bump label exists
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh label create "dev-version-bump" \
             --description "Automated PR that bumps dev version pins for local development" \
@@ -305,7 +412,7 @@ jobs:
 
       - name: Close previous dev-bump PRs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh pr list --state open --label "dev-version-bump" --json number \
             | jq -r '.[].number' \
@@ -330,7 +437,7 @@ jobs:
                 fi
                 echo "Rewriting $dir/pyproject.toml → version=$version"
                 uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
-                  python3 .github/scripts/rewrite-pyproject-for-dev.py \
+                  python3 .github/scripts/rewrite-pyproject-pre-release.py \
                     "$dir/pyproject.toml" \
                     --own-version "$version" \
                     --dep-pins "$DEP_PINS"
@@ -358,7 +465,7 @@ jobs:
       - name: Open PR
         if: steps.commit.outputs.pushed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ALL_CURRENT_VERSIONS: ${{ needs.resolve.outputs.all_current_versions }}
         run: |
           BODY_FILE="$(mktemp)"
@@ -388,7 +495,7 @@ jobs:
             >> "$BODY_FILE"
 
           gh pr create \
-            --title "chore: bump dev versions ($CYCLE / ${{ needs.resolve.outputs.branch_suffix }})" \
+            --title "chore: pin dev-cut ${{ needs.tag-cut.outputs.short }}" \
             --body-file "$BODY_FILE" \
             --head "$BRANCH" \
             --base main \

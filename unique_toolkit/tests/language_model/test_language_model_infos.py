@@ -102,6 +102,9 @@ class TestLanguageModelInfos:
             LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH,
             LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO,
+            LanguageModelName.VERTEX_CLAUDE_SONNET_4_6,
+            LanguageModelName.VERTEX_CLAUDE_OPUS_4_6,
+            LanguageModelName.VERTEX_CLAUDE_OPUS_4_7,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)

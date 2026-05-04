@@ -3,6 +3,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, TypedDict
+from urllib.parse import urlparse
 
 import requests
 
@@ -42,6 +43,37 @@ def download_file(url: str, filename: str):
 
 
 _PREVIEW_PDF_MIME_TYPE = "application/pdf"
+
+
+def _apply_ingestion_upload_url_override(write_url: str) -> str:
+    """Rewrite the host+path of *write_url* to the in-cluster ingestion
+    base when ``unique_sdk.ingestion_upload_api_url_internal`` is set.
+
+    The platform mints a public upload URL shaped like
+    ``<host>/scoped/ingestion/upload?key=<id>``. Pods running inside
+    the same cluster can short-circuit the public ingress by PUTting
+    to the in-cluster service URL instead — only the host+path swaps,
+    the original query string (which carries the upload ``key``) is
+    preserved verbatim because the service identifies the target blob
+    by that key.
+
+    A ``None`` or empty/whitespace override (the wiring layer in
+    ``cli/config.py`` already collapses those to ``None``, but we
+    re-check here so direct ``unique_sdk.ingestion_upload_api_url_internal = ""``
+    assignments outside the CLI also no-op) leaves *write_url*
+    unchanged.
+    """
+    base = unique_sdk.ingestion_upload_api_url_internal
+    if not base or not base.strip():
+        return write_url
+    # Strip trailing slashes so an operator who sets
+    # ``INGESTION_UPLOAD_API_URL_INTERNAL=http://node-ingestion/upload/``
+    # does not end up PUTting to ``…/upload/?key=…`` (which the
+    # ingestion service routes differently from ``…/upload?key=…``).
+    # Mirrors ``unique_toolkit.content.utils`` so SDK and toolkit agree.
+    base = base.rstrip("/")
+    query = urlparse(write_url).query
+    return f"{base}?{query}" if query else base
 
 
 def _put_preview_pdf(write_url: str, preview_pdf_path: str) -> None:
@@ -148,9 +180,14 @@ def upload_file(
     )
 
     # Step 2 — PUT the original bytes to the SAS URL minted by Step 1.
+    # When ``ingestion_upload_api_url_internal`` is configured, swap
+    # the public host+path for the in-cluster service URL while
+    # preserving the ``?key=...`` query string the server identifies
+    # the target blob by.
     uploadUrl = createdContent.writeUrl
     if uploadUrl is None:  # guard: writeUrl is Optional, basedpyright needs narrowing
         raise ValueError("createdContent.writeUrl is None")
+    uploadUrl = _apply_ingestion_upload_url_override(uploadUrl)
     with open(path_to_file, "rb") as file:
         requests.put(
             uploadUrl,
@@ -231,7 +268,10 @@ def upload_file(
                 "node-ingestion expose previewPdfFileName on the upsert "
                 "mutation."
             )
-        _put_preview_pdf(preview_write_url, preview_pdf_path)
+        _put_preview_pdf(
+            _apply_ingestion_upload_url_override(preview_write_url),
+            preview_pdf_path,
+        )
 
     return createdContent
 
@@ -242,7 +282,34 @@ def download_content(
     content_id: str,
     filename: str,
     chat_id: str | None = None,
-):
+    target_path: str | Path | None = None,
+) -> Path:
+    """Download a Knowledge Base content row to disk.
+
+    Args:
+        companyId: Tenant id.
+        userId: Acting user id.
+        content_id: Knowledge Base content id to download.
+        filename: Filename used when falling back to the auto-generated
+            ``/tmp`` directory. Ignored when ``target_path`` is set.
+        chat_id: Optional chat id (forwarded as the ``chatId`` query
+            parameter so chat-scoped content is resolvable).
+        target_path: Optional caller-controlled destination path. When
+            provided, the file is written there (parent directories are
+            created on demand) and that path is returned. When ``None``
+            (the default), we fall back to ``/tmp/<rand>/<filename>`` to
+            preserve backwards compatibility with existing callers.
+
+    Returns:
+        Absolute path the bytes were written to.
+
+    Raises:
+        ValueError: ``content_id`` is not a string.
+        Exception: HTTP response was non-200. We surface this *before*
+            creating the destination so a 404/5xx never leaves a
+            half-written file behind for callers that pass
+            ``target_path``.
+    """
     # Guard for callers without a type checker: f-string would silently coerce None to "None" otherwise.
     if not isinstance(content_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("content_id must be a string.")  # pyright: ignore[reportUnreachable]
@@ -250,13 +317,6 @@ def download_content(
     if chat_id:
         url = f"{url}?chatId={chat_id}"
 
-    # Create a random directory inside /tmp
-    random_dir = tempfile.mkdtemp(dir="/tmp")
-
-    # Create the full file path
-    file_path = Path(random_dir) / filename
-
-    # Download the file and save it to the random directory
     headers = {
         "x-api-version": unique_sdk.api_version,
         "x-app-id": unique_sdk.app_id,
@@ -265,12 +325,22 @@ def download_content(
         "Authorization": "Bearer %s" % (unique_sdk.api_key,),
     }
 
+    # Issue the request before resolving the destination. A non-200
+    # response should never leave a half-created directory or empty
+    # file behind for callers who supplied ``target_path``.
     response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        with open(file_path, "wb") as file:
-            file.write(response.content)
-    else:
+    if response.status_code != 200:
         raise Exception(f"Error downloading file: Status code {response.status_code}")
+
+    if target_path is not None:
+        file_path = Path(target_path)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        random_dir = tempfile.mkdtemp(dir="/tmp")
+        file_path = Path(random_dir) / filename
+
+    with open(file_path, "wb") as file:
+        file.write(response.content)
 
     return file_path
 

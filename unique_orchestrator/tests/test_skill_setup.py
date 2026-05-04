@@ -670,18 +670,59 @@ class TestLoadSkillsFromKnowledgeBase:
 
 class TestConfigureSkillTool:
     def _build_config(
-        self, *, enabled: bool, scope_ids: list[str] | None = None
+        self,
+        *,
+        is_enabled: bool | None,
+        scope_ids: list[str] | None = None,
     ) -> MagicMock:
+        """Build a mocked ``UniqueAIConfig`` whose ``space.tools`` either
+        contains a SkillTool entry (with the requested ``is_enabled`` flag
+        and scopes) or no SkillTool entry at all when ``is_enabled is None``.
+        """
         from unique_skill_tool.config import SkillToolConfig
+        from unique_toolkit.agentic.tools.config import ToolBuildConfig
 
-        skill_config = SkillToolConfig(enabled=enabled, scope_ids=scope_ids or [])
+        tools: list[ToolBuildConfig] = []
+        if is_enabled is not None:
+            tools.append(
+                ToolBuildConfig(
+                    name=SkillTool.name,
+                    configuration=SkillToolConfig(scope_ids=scope_ids or []),
+                    is_enabled=is_enabled,
+                )
+            )
+
         config = MagicMock()
-        config.agent.experimental.skill_tool_config = skill_config
+        config.space.tools = tools
         return config
+
+    def _make_skill_tool(self) -> SkillTool:
+        """Build a real SkillTool instance bypassing the deprecated chat
+        wiring inside the parent ``Tool.__init__``.
+        """
+        tool = SkillTool.__new__(SkillTool)
+        tool._skill_registry = {}  # type: ignore[attr-defined]
+        return tool
+
+    @pytest.mark.asyncio
+    async def test_no_skill_tool_entry_is_noop(self, logger: Logger) -> None:
+        config = self._build_config(is_enabled=None)
+        tool_manager = MagicMock()
+
+        await configure_skill_tool(
+            config=config,
+            event=MagicMock(),
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=tool_manager,
+        )
+
+        tool_manager.exclude_tool.assert_not_called()
+        tool_manager.get_tool_by_name.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_disabled_is_noop(self, logger: Logger) -> None:
-        config = self._build_config(enabled=False)
+        config = self._build_config(is_enabled=False)
         tool_manager = MagicMock()
 
         await configure_skill_tool(
@@ -692,11 +733,12 @@ class TestConfigureSkillTool:
             tool_manager=tool_manager,
         )
 
-        tool_manager.add_tool.assert_not_called()
+        tool_manager.exclude_tool.assert_not_called()
+        tool_manager.get_tool_by_name.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_enabled_without_scopes_is_noop(self, logger: Logger) -> None:
-        config = self._build_config(enabled=True, scope_ids=[])
+    async def test_enabled_without_scopes_excludes_tool(self, logger: Logger) -> None:
+        config = self._build_config(is_enabled=True, scope_ids=[])
         tool_manager = MagicMock()
 
         await configure_skill_tool(
@@ -707,18 +749,19 @@ class TestConfigureSkillTool:
             tool_manager=tool_manager,
         )
 
-        tool_manager.add_tool.assert_not_called()
+        tool_manager.exclude_tool.assert_called_once_with(SkillTool.name)
+        tool_manager.get_tool_by_name.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_empty_registry_does_not_register_tool(
+    async def test_empty_registry_excludes_tool(
         self, logger: Logger, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """If the skill registry ends up empty (KB error, no .md files, or all
-        malformed), the SkillTool must not be registered. Its system prompt
-        claims HIGHEST PRIORITY and would otherwise waste iterations or
-        provoke hallucinated skill names when no skills exist.
+        malformed), the SkillTool must be excluded from the manager. Its
+        system prompt claims HIGHEST PRIORITY and would otherwise waste
+        iterations or provoke hallucinated skill names when no skills exist.
         """
-        config = self._build_config(enabled=True, scope_ids=["scope-1"])
+        config = self._build_config(is_enabled=True, scope_ids=["scope-1"])
         tool_manager = MagicMock()
 
         import unique_orchestrator._builders.skill_setup as skill_setup
@@ -751,16 +794,18 @@ class TestConfigureSkillTool:
             tool_manager=tool_manager,
         )
 
-        tool_manager.add_tool.assert_not_called()
+        tool_manager.exclude_tool.assert_called_once_with(SkillTool.name)
+        tool_manager.get_tool_by_name.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_registers_tool_when_enabled_and_scoped(
+    async def test_injects_skill_registry_when_enabled_and_scoped(
         self, logger: Logger, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        config = self._build_config(enabled=True, scope_ids=["scope-1"])
+        config = self._build_config(is_enabled=True, scope_ids=["scope-1"])
+        skill_tool = self._make_skill_tool()
         tool_manager = MagicMock()
+        tool_manager.get_tool_by_name.return_value = skill_tool
 
-        # Stub out the knowledge-base client so no network / auth is needed.
         import unique_orchestrator._builders.skill_setup as skill_setup
 
         fake_kb_service = MagicMock()
@@ -791,7 +836,50 @@ class TestConfigureSkillTool:
             tool_manager=tool_manager,
         )
 
-        tool_manager.add_tool.assert_called_once()
-        registered = tool_manager.add_tool.call_args.args[0]
-        assert isinstance(registered, SkillTool)
-        assert "foo" in registered.skill_registry
+        tool_manager.get_tool_by_name.assert_called_once_with(SkillTool.name)
+        tool_manager.exclude_tool.assert_not_called()
+        assert "foo" in skill_tool.skill_registry
+
+    @pytest.mark.asyncio
+    async def test_missing_factory_built_instance_is_noop(
+        self, logger: Logger, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If for any reason the manager has no SkillTool instance (e.g. it
+        was filtered out by tool_choices) we don't crash — we just log and
+        leave the manager untouched.
+        """
+        config = self._build_config(is_enabled=True, scope_ids=["scope-1"])
+        tool_manager = MagicMock()
+        tool_manager.get_tool_by_name.return_value = None
+
+        import unique_orchestrator._builders.skill_setup as skill_setup
+
+        fake_kb_service = MagicMock()
+        monkeypatch.setattr(
+            skill_setup,
+            "KnowledgeBaseService",
+            lambda **kwargs: fake_kb_service,
+        )
+
+        async def _fake_load(**kwargs: object) -> dict[str, SkillDefinition]:
+            return {"foo": SkillDefinition(name="foo", description="d", content="c")}
+
+        monkeypatch.setattr(
+            skill_setup,
+            "load_skills_from_knowledge_base",
+            _fake_load,
+        )
+
+        event = MagicMock()
+        event.company_id = "co-1"
+        event.user_id = "u-1"
+
+        await configure_skill_tool(
+            config=config,
+            event=event,
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=tool_manager,
+        )
+
+        tool_manager.exclude_tool.assert_not_called()

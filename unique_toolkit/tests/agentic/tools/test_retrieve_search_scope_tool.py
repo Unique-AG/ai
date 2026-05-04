@@ -1,0 +1,562 @@
+import logging
+from datetime import datetime
+from logging import getLogger
+from unittest.mock import AsyncMock, Mock
+
+import pytest
+from pytest_mock import MockerFixture
+
+from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
+    DisplayMode,
+    RetrieveSearchScopeConfig,
+)
+from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool import (
+    RetrieveSearchScopeTool,
+)
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.content.schemas import ContentInfo
+from unique_toolkit.language_model.schemas import LanguageModelFunction
+
+_TOOL_MODULE = (
+    "unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool"
+)
+_KB_SERVICE_PATH = f"{_TOOL_MODULE}.UniqueServiceFactory.knowledge_base_service"
+_SETTINGS_PATH = f"{_TOOL_MODULE}.UniqueSettings.from_chat_event"
+_DEFAULT_TOKEN_LIMIT = 100_000
+
+
+def _make_content_info(key: str, **kwargs) -> ContentInfo:
+    defaults = {
+        "id": f"id_{key}",
+        "object": "content_info",
+        "key": key,
+        "byte_size": 1024,
+        "mime_type": "application/pdf",
+        "owner_id": "owner_1",
+        "created_at": datetime(2026, 1, 1),
+        "updated_at": datetime(2026, 1, 1),
+    }
+    defaults.update(kwargs)
+    return ContentInfo(**defaults)
+
+
+@pytest.fixture
+def mock_chat_event() -> ChatEvent:
+    event: ChatEvent = Mock(spec=ChatEvent)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
+    payload = Mock()
+    payload.chat_id = "chat_123"
+    event.payload = payload
+    return event
+
+
+@pytest.fixture
+def tool(mock_chat_event: ChatEvent, mocker: MockerFixture) -> RetrieveSearchScopeTool:
+    config = RetrieveSearchScopeConfig(
+        language_model_max_input_tokens=_DEFAULT_TOKEN_LIMIT
+    )
+
+    def setup_tool(self, configuration, event, *args, **kwargs):
+        setattr(self, "_event", event)
+        setattr(self, "logger", getLogger("test"))
+        setattr(self, "_message_step_logger", None)
+        setattr(self, "_tool_progress_reporter", None)
+        setattr(self, "config", configuration)
+        setattr(self, "debug_info", {})
+        settings_mock = Mock()
+        settings_mock.display_name = ""
+        setattr(self, "settings", settings_mock)
+
+    mocker.patch(f"{_TOOL_MODULE}.Tool.__init__", setup_tool)
+    return RetrieveSearchScopeTool(config, mock_chat_event)
+
+
+@pytest.fixture
+def mock_tool_call() -> LanguageModelFunction:
+    tool_call: LanguageModelFunction = Mock(spec=LanguageModelFunction)
+    tool_call.id = "call_123"
+    tool_call.arguments = {}
+    return tool_call
+
+
+def _stub_kb(
+    mocker: MockerFixture,
+    content_infos=None,
+    resolved_paths=None,
+    side_effect=None,
+    space_metadata_filter=None,
+):
+    mocker.patch(_SETTINGS_PATH)
+    mock_kb = Mock()
+    mock_kb._metadata_filter = space_metadata_filter
+    if side_effect:
+        mock_kb.get_content_infos_async = AsyncMock(side_effect=side_effect)
+        mock_kb.resolve_visible_file_paths_async = AsyncMock(side_effect=side_effect)
+    else:
+        mock_kb.get_content_infos_async = AsyncMock(
+            return_value=content_infos if content_infos is not None else []
+        )
+        mock_kb.resolve_visible_file_paths_async = AsyncMock(
+            return_value=resolved_paths if resolved_paths is not None else []
+        )
+    mocker.patch(_KB_SERVICE_PATH, return_value=mock_kb)
+    return mock_kb
+
+
+@pytest.mark.unit
+class TestRetrieveSearchScopeToolRun:
+    async def test_returns_empty_message_when_no_files(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        _stub_kb(mocker, [])
+        response = await tool.run(mock_tool_call)
+
+        assert response.successful
+        assert "No files found" in response.content
+
+    async def test_lists_duplicate_names_individually_with_content_ids(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        content_infos = [
+            _make_content_info("report.pdf", id="id_1"),
+            _make_content_info("report.pdf", id="id_2"),
+            _make_content_info("other.pdf"),
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+
+        assert "3 of 3 files" in response.content
+        assert "report.pdf (id_1)" in response.content
+        assert "report.pdf (id_2)" in response.content
+        assert "other.pdf (id_other.pdf)" in response.content
+
+    async def test_passes_space_metadata_filter(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        space_filter = {
+            "operator": "equals",
+            "value": "finance",
+            "path": ["department"],
+        }
+        mock_kb = _stub_kb(mocker, [], space_metadata_filter=space_filter)
+        await tool.run(mock_tool_call)
+
+        mock_kb.get_content_infos_async.assert_called_once_with(
+            metadata_filter=space_filter,
+        )
+
+    async def test_same_filename_same_content_id_deduplicated(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        content_infos = [
+            _make_content_info("report.pdf", id="cont_1"),
+            _make_content_info("report.pdf", id="cont_1"),
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+
+        assert response.content.count("report.pdf (cont_1)") == 1
+        assert "Listing 1 of 2" in response.content
+
+    async def test_non_openable_same_name_deduplicated(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        content_infos = [
+            _make_content_info("page.html", mime_type="text/html", id="cont_3"),
+            _make_content_info("page.html", mime_type="text/html", id="cont_4"),
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+
+        assert response.content.count("page.html") == 1
+        assert "Listing 1 of 2" in response.content
+
+    async def test_returns_error_on_kb_failure(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        mocker.patch(_SETTINGS_PATH, side_effect=RuntimeError("connection failed"))
+        response = await tool.run(mock_tool_call)
+
+        assert not response.successful
+        assert "Failed to retrieve" in response.error_message
+
+
+@pytest.mark.unit
+class TestContentIdForOpenableFiles:
+    @pytest.mark.parametrize(
+        "filename, mime_type",
+        [
+            ("doc.pdf", "application/pdf"),
+            (
+                "doc.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
+            ("doc.doc", "application/msword"),
+            (
+                "slides.pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ),
+            ("slides.ppt", "application/vnd.ms-powerpoint"),
+        ],
+    )
+    async def test_openable_mime_types_include_content_id(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+        filename: str,
+        mime_type: str,
+    ):
+        content_infos = [
+            _make_content_info(filename, mime_type=mime_type, id="cont_123")
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+        assert f"{filename} (cont_123)" in response.content
+
+    async def test_openable_file_without_id_does_not_append_content_id(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        content_infos = [
+            _make_content_info("doc.pdf", mime_type="application/pdf", id="")
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+        file_section = response.content.split("\n\n", 1)[1]
+        assert file_section.strip() == "doc.pdf"
+
+    @pytest.mark.parametrize(
+        "filename, mime_type",
+        [
+            (
+                "data.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            ("notes.txt", "text/plain"),
+        ],
+    )
+    async def test_non_openable_mime_types_exclude_content_id(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+        filename: str,
+        mime_type: str,
+    ):
+        content_infos = [
+            _make_content_info(
+                filename, mime_type=mime_type, id="cont_should_not_appear"
+            )
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+        file_section = response.content.split("\n\n", 1)[1]
+        assert file_section.strip() == filename
+
+
+@pytest.mark.unit
+class TestTokenTruncation:
+    async def test_truncates_when_exceeding_token_budget(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.language_model_max_input_tokens = 20
+        tool.config.context_window_fraction_for_file_list = 0.5
+
+        content_infos = [
+            _make_content_info(f"file_{i}.txt", mime_type="text/plain")
+            for i in range(100)
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+
+        assert response.successful
+        assert "omitted due to token budget" in response.content
+        assert "100 files in search scope" in response.content
+
+    async def test_max_input_tokens_none_returns_error(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.language_model_max_input_tokens = None
+        _stub_kb(mocker, [_make_content_info("file.txt", mime_type="text/plain")])
+        response = await tool.run(mock_tool_call)
+
+        assert not response.successful
+        assert "Max_input_tokens not set" in response.error_message
+
+    async def test_extreme_truncation_returns_token_limit_message(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.language_model_max_input_tokens = 1
+        _stub_kb(
+            mocker,
+            [
+                _make_content_info(
+                    "some_file.docx", mime_type="application/msword", id="cont_1"
+                )
+            ],
+        )
+        response = await tool.run(mock_tool_call)
+
+        assert response.successful
+        assert "Token limit to low to display search scope" in response.content
+
+    async def test_no_truncation_when_within_budget(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        content_infos = [
+            _make_content_info("small.txt", mime_type="text/plain"),
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
+
+        assert response.successful
+        assert "1 of 1 files" in response.content
+        assert "omitted" not in response.content
+
+
+@pytest.mark.unit
+class TestHistoryGuard:
+    async def test_short_circuits_when_prior_response_in_history(
+        self, tool: RetrieveSearchScopeTool, mock_tool_call: LanguageModelFunction
+    ):
+        prior_msg = Mock()
+        prior_msg.role = "tool"
+        prior_msg.name = "RetrieveSearchScope"
+
+        mock_chat_service = Mock()
+        mock_chat_service.get_full_history_async = AsyncMock(return_value=[prior_msg])
+        tool._chat_service = mock_chat_service
+
+        response = await tool.run(mock_tool_call)
+
+        assert response.successful
+        assert "already been called" in response.content
+
+    async def test_proceeds_when_no_prior_response_in_history(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        user_msg = Mock()
+        user_msg.role = "user"
+        user_msg.name = None
+
+        mock_chat_service = Mock()
+        mock_chat_service.get_full_history_async = AsyncMock(return_value=[user_msg])
+        tool._chat_service = mock_chat_service
+
+        _stub_kb(mocker, [])
+        response = await tool.run(mock_tool_call)
+
+        assert response.successful
+        assert "No files found" in response.content
+
+    async def test_proceeds_when_history_check_fails(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        mock_chat_service = Mock()
+        mock_chat_service.get_full_history_async = AsyncMock(
+            side_effect=RuntimeError("service unavailable")
+        )
+        tool._chat_service = mock_chat_service
+
+        _stub_kb(mocker, [])
+        response = await tool.run(mock_tool_call)
+
+        assert response.successful
+        assert "No files found" in response.content
+
+    async def test_history_check_failure_logs_warning(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        mock_chat_service = Mock()
+        mock_chat_service.get_full_history_async = AsyncMock(
+            side_effect=RuntimeError("service unavailable")
+        )
+        tool._chat_service = mock_chat_service
+
+        _stub_kb(mocker, [])
+        with caplog.at_level(
+            logging.DEBUG,
+            logger="unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool",
+        ):
+            await tool.run(mock_tool_call)
+
+        assert "Could not check history for prior tool response" in caplog.text
+
+
+@pytest.mark.unit
+class TestTreeMode:
+    async def test_files_with_folder_paths(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("report.pdf", id="cont_1")
+        _stub_kb(mocker, resolved_paths=[(ci, ["Documents", "Reports", "report.pdf"])])
+        response = await tool.run(mock_tool_call)
+
+        assert "Documents/Reports/report.pdf (cont_1)" in response.content
+
+    async def test_file_without_folder_path_has_no_prefix(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("orphan.txt", mime_type="text/plain")
+        _stub_kb(mocker, resolved_paths=[(ci, ["_no_folder_path", "orphan.txt"])])
+        response = await tool.run(mock_tool_call)
+
+        file_section = response.content.split("\n\n", 1)[1]
+        assert file_section.strip() == "orphan.txt"
+        assert "_no_folder_path" not in response.content
+
+    async def test_openable_file_with_folder_path_includes_content_id(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("doc.pdf", id="cont_123")
+        _stub_kb(mocker, resolved_paths=[(ci, ["Folder", "doc.pdf"])])
+        response = await tool.run(mock_tool_call)
+
+        assert "Folder/doc.pdf (cont_123)" in response.content
+
+    async def test_single_element_path_has_no_folder_prefix(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("lonely.txt", mime_type="text/plain")
+        _stub_kb(mocker, resolved_paths=[(ci, ["lonely.txt"])])
+        response = await tool.run(mock_tool_call)
+
+        file_section = response.content.split("\n\n", 1)[1]
+        assert file_section.strip() == "lonely.txt"
+        assert "/" not in file_section.strip()
+
+    async def test_same_folder_same_name_different_ids_both_kept(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci_1 = _make_content_info("report.pdf", id="cont_1")
+        ci_2 = _make_content_info("report.pdf", id="cont_2")
+        _stub_kb(
+            mocker,
+            resolved_paths=[
+                (ci_1, ["Docs", "report.pdf"]),
+                (ci_2, ["Docs", "report.pdf"]),
+            ],
+        )
+        response = await tool.run(mock_tool_call)
+
+        assert "Docs/report.pdf (cont_1)" in response.content
+        assert "Docs/report.pdf (cont_2)" in response.content
+
+    async def test_calls_resolve_visible_file_paths_async(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        space_filter = {"key": {"eq": "val"}}
+        mock_kb = _stub_kb(
+            mocker, resolved_paths=[], space_metadata_filter=space_filter
+        )
+        await tool.run(mock_tool_call)
+
+        mock_kb.resolve_visible_file_paths_async.assert_called_once_with(
+            metadata_filter=space_filter,
+        )
+        mock_kb.get_content_infos_async.assert_not_called()
+
+
+@pytest.mark.unit
+class TestModeBranching:
+    async def test_flat_mode_calls_get_content_infos_async(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.flat
+        space_filter = {"key": {"eq": "val"}}
+        mock_kb = _stub_kb(mocker, content_infos=[], space_metadata_filter=space_filter)
+        await tool.run(mock_tool_call)
+
+        mock_kb.get_content_infos_async.assert_called_once_with(
+            metadata_filter=space_filter,
+        )
+        mock_kb.resolve_visible_file_paths_async.assert_not_called()
+
+
+@pytest.mark.unit
+class TestDisplayName:
+    def test_returns_default_when_settings_display_name_empty(
+        self, tool: RetrieveSearchScopeTool
+    ):
+        tool.settings.display_name = ""
+        assert tool.display_name() == "Retrieve Search Scope"
+
+    def test_returns_custom_display_name_from_settings(
+        self, tool: RetrieveSearchScopeTool
+    ):
+        tool.settings.display_name = "KB File List"
+        assert tool.display_name() == "KB File List"
+
+    def test_default_display_name_class_attribute(self):
+        assert RetrieveSearchScopeTool.default_display_name == "Retrieve Search Scope"

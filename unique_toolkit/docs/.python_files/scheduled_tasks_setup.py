@@ -28,7 +28,7 @@ from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_imports>>[init]
-from unique_toolkit.experimental.scheduled_task import (
+from unique_toolkit.experimental.resources.scheduled_task import (
     Cron,
     ScheduledTasks,
 )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from unique_toolkit.experimental.scheduled_task import Cron
+from unique_toolkit.experimental.resources.scheduled_task import Cron
 
 
 def test_AI_cron_enum_members_are_str_subclasses() -> None:

@@ -5,7 +5,9 @@ This section contains documentation for all API resources available in the Uniqu
 ## Available Resources
 
 - [Agentic Table API](agentic_table.md) - AI-powered interactive tables with activity tracking
+- [Analytics Order API](analytics_order.md) - Async analytics report generation and CSV download
 - [Benchmarking API](benchmarking.md) - Benchmarking spreadsheet upload and downloads
+- [Briefing API](briefing.md) - Assistant briefing upsert (PUT by assistant id)
 - [ChatCompletion API](chat_completion.md) - Chat completion functionality
 - [Content API](content.md) - Content management operations
 - [Embeddings API](embeddings.md) - Vector embeddings for semantic search
@@ -16,10 +18,11 @@ This section contains documentation for all API resources available in the Uniqu
 - [Message Assessment API](message_assessment.md) - Message assessment functionality
 - [Message Execution API](message_execution.md) - Message execution operations
 - [Message Log API](message_log.md) - Message logging and history
+- [MCP API](mcp.md) - Call MCP tools from assistants
 - [ScheduledTask API](scheduled_task.md) - Cron-based recurring task scheduling
 - [Search API](search.md) - Search functionality
 - [SearchString API](search_string.md) - String-based search operations
 - [Short Term Memory API](short_term_memory.md) - Short-term memory management
 - [Space API](space.md) - Space management operations
-- [Tool API](tool.md) - Tool call invocation persistence and retrieval
+- [MessageTool API](message_tool.md) - Tool call invocation persistence and retrieval
 - [User API](user.md) - User management operations

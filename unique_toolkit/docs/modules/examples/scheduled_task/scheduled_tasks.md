@@ -1,7 +1,7 @@
 # Scheduled Tasks - Examples (experimental)
 
 !!! warning "Experimental"
-    `ScheduledTasks` lives under `unique_toolkit.experimental.scheduled_task`.
+    `ScheduledTasks` lives under `unique_toolkit.experimental.resources.scheduled_task`.
     The public API, method names, and argument shapes may change without
     notice and are **not** covered by the toolkit's normal stability
     guarantees. Pin the toolkit version if you depend on a specific shape.
@@ -17,7 +17,7 @@ For the broader experimental surface see
 
 <!--
 ```{.python #scheduled_tasks_imports}
-from unique_toolkit.experimental.scheduled_task import (
+from unique_toolkit.experimental.resources.scheduled_task import (
     Cron,
     ScheduledTasks,
 )

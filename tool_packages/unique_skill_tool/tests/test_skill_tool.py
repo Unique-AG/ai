@@ -58,10 +58,12 @@ def _make_tool(
     if skill_registry is None:
         skill_registry = _make_skill_registry(_make_skill())
     if config is None:
-        config = SkillToolConfig(enabled=True)
+        config = SkillToolConfig()
 
     event = MagicMock()
-    return SkillTool(event=event, skill_registry=skill_registry, config=config)
+    tool = SkillTool(config=config, event=event)
+    tool.skill_registry = skill_registry
+    return tool
 
 
 def _make_tool_call(
@@ -285,7 +287,6 @@ class TestSkillToolUserPrompt:
 
     def test_returns_config_value_verbatim(self) -> None:
         config = SkillToolConfig(
-            enabled=True,
             tool_description_for_user_prompt="extra prompt text",
         )
         tool = _make_tool(config=config)
@@ -347,7 +348,7 @@ class TestSkillToolSystemReminder:
         assert tool.tool_system_reminder_for_user_prompt() == ""
 
     def test_empty_reminder_template_returns_empty(self) -> None:
-        config = SkillToolConfig(enabled=True, tool_system_reminder_for_user_message="")
+        config = SkillToolConfig(tool_system_reminder_for_user_message="")
         tool = _make_tool(config=config)
 
         assert tool.tool_system_reminder_for_user_prompt() == ""

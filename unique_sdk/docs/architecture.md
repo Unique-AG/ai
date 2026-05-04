@@ -21,6 +21,7 @@ API Resources are the primary interface for interacting with the Unique AI platf
 - **[ChatCompletion](api_resources/chat_completion.md)**: Generate AI completions
 - **[Embeddings](api_resources/embeddings.md)**: Generate vector embeddings
 - **[Space](api_resources/space.md)**: Manage conversational spaces
+- **[Briefing](api_resources/briefing.md)**: Upsert briefing text for an assistant (by assistant id)
 - **[Folder](api_resources/folder.md)**: Organize knowledge base content
 - **[User](api_resources/user.md) & [Group](api_resources/group.md)**: Manage users and permissions
 - **[AgenticTable](api_resources/agentic_table.md)**: Work with AI-powered tables

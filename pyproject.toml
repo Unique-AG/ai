@@ -24,6 +24,7 @@ dev = [
     "pytest-cov>=7.0.0,<8",
     "pytest-mock>=3.14.0,<4",
     "deptry>=0.24.0,<0.25",
+    "import-linter>=2.0,<3",
     "poethepoet>=0.32.0,<0.33",
     # migrated from per-package dev groups
     "python-dotenv>=1.1.0,<2",
@@ -38,7 +39,9 @@ docs = [
     "mkdocs-include-markdown-plugin>=7.1.8",
     "mkdocs-callouts>=1.16.0",
     "mkdocstrings-python>=1.16.10",
-    "entangled-cli>=2.1.13",
+    # mkdocs-entangled-plugin 0.6.0 still calls entangled.config.read_config()
+    # without the filesystem argument added in entangled-cli 2.4.2.
+    "entangled-cli>=2.4,<2.4.2",
     "mkdocs-entangled-plugin>=0.4.0",
     "mkdocs-codeinclude-plugin>=0.2.1",
     "mkdocs-include-dir-to-nav>=1.2.0",
@@ -47,15 +50,35 @@ docs = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
+# `docs` pins entangled-cli<2.4.2 (which requires click>=8.3.0), but `dev` (via
+# opik → litellm) requires click==8.1.8. They are never installed together,
+# so declare them mutually exclusive to let uv resolve each independently.
+conflicts = [
+    [
+        { group = "dev" },
+        { group = "docs" },
+    ],
+]
 constraint-dependencies = [
     "aiohttp>=3.13.4",
+    "authlib>=1.6.11",
     "copier>=9.14.1",
     "cryptography>=46.0.7",
     "deepdiff>=8.6.2",
     "fastmcp>=3.2.0",
-    "langchain-core>=1.2.28",
+    "langchain-core>=1.2.31",
+    # NOTE: langchain-openai 1.1.14 (SSRF DNS-rebinding fix, GHSA-???) requires
+    # openai>=2.26.0, but litellm 1.83.x hard-pins openai==2.24.0. Cannot
+    # bump to 1.1.14 until litellm relaxes its openai pin. The advisory is
+    # severity LOW and tracked in Dependabot alert #741.
     "langsmith>=0.7.31",
-    "litellm>=1.83.0",
+    # litellm 1.83.5–1.83.13 hard-pin python-dotenv==1.0.1 (upstream regression);
+    # 1.83.14 relaxes it. Both satisfy the GHSA security advisory (>=1.83.7).
+    "litellm>=1.83.14",
+    # NOTE: lxml is pinned to 5.x by crawl4ai (used by unique-web-search).
+    # Cannot upgrade to 6.1.0 (XXE fix, GHSA-pp9p-pjj9-77w7) until
+    # crawl4ai relaxes lxml~=5.3. Re-evaluate when a newer crawl4ai
+    # release supports lxml>=6. Tracked in Dependabot alert #742.
     "lxml>=5.0.0",
     "pillow>=12.2.0",
     "pytest>=9.0.3",
@@ -78,11 +101,10 @@ constraint-dependencies = [
 "unique-six" = false
 "unique-search-proxy" = false
 "unique-quartr" = false
-"cryptography" = "2026-04-09"
-"langchain-core" = "2026-04-09"
+"authlib" = "2026-04-17"
+"langchain-core" = "2026-04-17"
 "langsmith" = "2026-04-15"
-"pytest" = "2026-04-08"
-"python-multipart" = "2026-04-11"
+"litellm" = "2026-04-27"
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }
@@ -98,3 +120,10 @@ members = [
     "connectors/*",
     "tutorials/mcp/mcp_test",
 ]
+
+# Root-level poe tasks. Individual workspace packages own their own
+# [tool.poe.tasks] blocks; only forward-to-package passthroughs belong here,
+# so `uv run poe <task>` works from the repository root as well as from each
+# package directory.
+[tool.poe.tasks]
+check-imports = "lint-imports --config unique_toolkit/pyproject.toml"
