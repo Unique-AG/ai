@@ -5,10 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-### Removed
-- **`unique-websearch` CLI** (added in `1.16.0`) and its `click` dependency. The CLI surface now lives in the `unique-sdk` package as `unique-cli web-search`, which talks to the platform's `/web-search-api/{search,crawl}` endpoints directly. This means users no longer need to install `unique_web_search` (and its heavy crawler dependencies) just to run web searches from the shell — the SDK CLI is the single supported entry point. The previous CLI files (`unique_web_search/cli/`), the `unique-websearch` console script entry, the `click` dependency, the `unique-websearch-cli` agent skill, and the `tests/test_cli.py` suite are all removed. Migration: `pip install unique-sdk` → `unique-cli web-search search "..."` / `unique-cli web-search crawl ...`. Config files written for the old CLI (`~/.unique-websearch.json`, `$UNIQUE_WEBSEARCH_CONFIG`) are accepted verbatim by the new one.
-
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v1.17.0...unique-web-search-v2026.18.0) (2026-04-23)
 
 
