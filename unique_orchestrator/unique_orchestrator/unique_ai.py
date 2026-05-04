@@ -71,7 +71,6 @@ class UniqueAI:
         config: UniqueAIConfig,
         chat_service: ChatService,
         content_service: ContentService,
-        uploaded_documents: list[Content],
         debug_info_manager: DebugInfoManager,
         streaming_handler: SupportCompleteWithReferences,
         reference_manager: ReferenceManager,
@@ -83,6 +82,8 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -94,7 +95,6 @@ class UniqueAI:
         config: UniqueAIConfig,
         chat_service: ChatService,
         content_service: ContentService,
-        uploaded_documents: list[Content],
         debug_info_manager: DebugInfoManager,
         streaming_handler: ResponsesSupportCompleteWithReferences,
         reference_manager: ReferenceManager,
@@ -107,6 +107,7 @@ class UniqueAI:
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -116,7 +117,6 @@ class UniqueAI:
         config: UniqueAIConfig,
         chat_service: ChatService,
         content_service: ContentService,
-        uploaded_documents: list[Content],
         debug_info_manager: DebugInfoManager,
         streaming_handler: ResponsesSupportCompleteWithReferences
         | SupportCompleteWithReferences,
@@ -130,13 +130,14 @@ class UniqueAI:
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
         self._config = config
         self._chat_service = chat_service
         self._content_service = content_service
-        self._uploaded_documents = uploaded_documents
+        self._uploaded_documents = uploaded_documents or []
 
         self._debug_info_manager = debug_info_manager
         self._reference_manager = reference_manager
