@@ -1807,7 +1807,7 @@ class ChatService(ChatServiceDeprecated):
                 return
 
             active = rate_limit_log_box[0]
-            if active is None or active.message_log_id is None:
+            if active is None or active.message_log_id is None:  # pyright: ignore[reportUnnecessaryComparison]
                 return
 
             log_id = active.message_log_id
