@@ -4,9 +4,10 @@
 share the same sequence so user-visible steps and rate-limit banners interleave with
 correct ``order`` values.
 
-This module does not import ``ChatService`` or ``chat.service``, so
-``unique_toolkit.services.chat_service`` can import :func:`next_message_log_order` at
-module load time without circular imports.
+This module lives outside the ``message_log_manager`` package intentionally: importing
+``message_log_manager`` triggers its ``__init__.py`` which pulls in ``ChatService``,
+creating a circular import. Placing this module one level up breaks the cycle while
+keeping the counters accessible to both callers.
 """
 
 from collections import defaultdict

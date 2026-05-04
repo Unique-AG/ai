@@ -6,9 +6,7 @@ Target of the method is to extend the step tracking on all levels of the tool.
 
 from logging import getLogger
 
-from unique_toolkit.agentic.message_log_manager.message_log_order import (
-    next_message_log_order,
-)
+from unique_toolkit.agentic.message_log_order import next_message_log_order
 from unique_toolkit.chat.schemas import (
     MessageLog,
     MessageLogDetails,

@@ -93,7 +93,7 @@ def reset_message_order_counters():
     Why this matters: Prevents test interference from shared module-level state.
     Setup summary: Clear shared message-log order counters before each test.
     """
-    from unique_toolkit.agentic.message_log_manager.message_log_order import (
+    from unique_toolkit.agentic.message_log_order import (
         reset_message_log_order_counters,
     )
 

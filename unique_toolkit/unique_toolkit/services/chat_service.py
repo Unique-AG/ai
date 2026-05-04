@@ -20,9 +20,7 @@ from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.message_log_manager.message_log_order import (
-    next_message_log_order,
-)
+from unique_toolkit.agentic.message_log_order import next_message_log_order
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
