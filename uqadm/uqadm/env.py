@@ -1,9 +1,10 @@
-"""Load per-slot `.{{slot}}.env` files and apply SDK CLI config."""
+"""Load per-slot env files (hidden or visible name) and apply SDK CLI config."""
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse, urlunparse
 
 from dotenv import load_dotenv
 from unique_sdk.cli.config import Config, load_config
@@ -16,26 +17,166 @@ UNIQUE_ENV_KEYS = (
     "UNIQUE_API_BASE",
 )
 
+# Toolkit UniqueAuth-style keys (unique_toolkit UniqueAuth); cleared with UNIQUE_* on slot switch.
+TOOLKIT_AUTH_ENV_KEYS = (
+    "unique_auth_user_id",
+    "unique_auth_company_id",
+    "UNIQUE_AUTH_USER_ID",
+    "UNIQUE_AUTH_COMPANY_ID",
+)
+
+# Toolkit UniqueApp / UniqueApi (unique_toolkit); cleared on slot switch. Avoid generic KEY/BASE_URL.
+TOOLKIT_APP_ENV_KEYS = (
+    "unique_app_id",
+    "unique_app_key",
+    "UNIQUE_APP_KEY",
+    "unique_app_endpoint_secret",
+    "UNIQUE_APP_ENDPOINT_SECRET",
+)
+TOOLKIT_API_ENV_KEYS = (
+    "unique_api_base_url",
+    "UNIQUE_API_BASE_URL",
+    "unique_api_version",
+    "UNIQUE_API_VERSION",
+)
+
+
+class MissingSlotEnvFileError(FileNotFoundError):
+    """Raised when neither ``.{slot}.env`` nor ``{slot}.env`` exists for a slot."""
+
+
+def _format_missing_slot_env_help(
+    slot: str, base: Path, hidden: Path, visible: Path
+) -> str:
+    """Human-oriented explanation of what was searched and what to do next."""
+    abs_base = base.resolve()
+    return (
+        f"uqadm: no credentials file found for slot {slot!r}.\n\n"
+        "Searched in this directory (absolute path):\n"
+        f"  {abs_base}\n\n"
+        "Looked for exactly these filenames (must be regular files, not directories):\n"
+        f"  1. {hidden.name}\n"
+        "       — tried first; if this file exists it is always used\n"
+        f"  2. {visible.name}\n"
+        f"       — used only when {hidden.name} does not exist\n\n"
+        "Neither file was found. Create one of them. Minimum contents (either naming style):\n"
+        "  UNIQUE_USER_ID=<your user id>   OR   unique_auth_user_id=<your user id>\n"
+        "     (also accepted: UNIQUE_AUTH_USER_ID)\n"
+        "  UNIQUE_COMPANY_ID=<your company id>   OR   unique_auth_company_id=<your company id>\n"
+        "     (also accepted: UNIQUE_AUTH_COMPANY_ID)\n"
+        "If both UNIQUE_* and toolkit-style names are set, UNIQUE_* wins.\n"
+        "Optional API lines (SDK or toolkit naming):\n"
+        "  UNIQUE_API_KEY / UNIQUE_APP_ID / UNIQUE_API_BASE\n"
+        "  OR unique_app_key / unique_app_id / unique_api_base_url\n"
+        "     (also: UNIQUE_APP_KEY, UNIQUE_API_BASE_URL)\n"
+        "  From unique_api_base_url / UNIQUE_API_BASE_URL: host-only URLs get /public/chat\n"
+        "  appended; if a path is already present, UNIQUE_API_BASE is that value unchanged.\n\n"
+        "If the file is not in your current working directory, point uqadm at the "
+        "folder that contains it (before the subcommand), for example:\n"
+        "  uqadm --cwd /path/to/folder/with/env/files space list <slot>\n\n"
+        'For a full example, see the README section "Credential slots and env files".'
+    )
+
+
+def _sdk_api_base_from_toolkit_api_base_url(raw: str) -> str:
+    """Derive ``UNIQUE_API_BASE`` from toolkit ``UniqueApi.base_url`` / ``UNIQUE_API_BASE_URL``.
+
+    **Host-only** (no path, or path ``/`` only): append ``/public/chat``.
+    **Any non-root path** (e.g. ``/public``, ``/public/chat-gen2``): return the value
+    unchanged (after stripping whitespace and surrounding quotes).
+    """
+    cleaned = raw.strip().strip("'\"")
+    parsed = urlparse(cleaned)
+    path = parsed.path or ""
+    if path in ("", "/"):
+        scheme = parsed.scheme or "https"
+        netloc = parsed.netloc
+        return urlunparse((scheme, netloc, "/public/chat", "", "", ""))
+    return cleaned
+
+
+def _first_nonempty_env(*keys: str) -> str | None:
+    for key in keys:
+        raw = os.environ.get(key)
+        if raw is not None and raw.strip():
+            return raw.strip()
+    return None
+
+
+def _sync_sdk_env_from_toolkit_aliases() -> None:
+    """Copy toolkit-style env names into ``UNIQUE_*`` when those SDK vars are unset.
+
+    Aligns with unique_toolkit ``UniqueAuth``, ``UniqueApp``, and ``UniqueApi``
+    env naming (see ``unique_settings.py``). Skips highly ambiguous names such
+    as bare ``KEY`` / ``API_KEY`` / ``BASE_URL``.
+    """
+    if not _first_nonempty_env("UNIQUE_USER_ID"):
+        alt = _first_nonempty_env("unique_auth_user_id", "UNIQUE_AUTH_USER_ID")
+        if alt is not None:
+            os.environ["UNIQUE_USER_ID"] = alt
+    if not _first_nonempty_env("UNIQUE_COMPANY_ID"):
+        alt = _first_nonempty_env(
+            "unique_auth_company_id",
+            "UNIQUE_AUTH_COMPANY_ID",
+        )
+        if alt is not None:
+            os.environ["UNIQUE_COMPANY_ID"] = alt
+
+    if not _first_nonempty_env("UNIQUE_API_KEY"):
+        alt = _first_nonempty_env("unique_app_key", "UNIQUE_APP_KEY")
+        if alt is not None:
+            os.environ["UNIQUE_API_KEY"] = alt
+
+    if not _first_nonempty_env("UNIQUE_APP_ID"):
+        alt = _first_nonempty_env("unique_app_id")
+        if alt is not None:
+            os.environ["UNIQUE_APP_ID"] = alt
+
+    if not _first_nonempty_env("UNIQUE_API_BASE"):
+        alt = _first_nonempty_env("unique_api_base_url", "UNIQUE_API_BASE_URL")
+        if alt is not None:
+            os.environ["UNIQUE_API_BASE"] = _sdk_api_base_from_toolkit_api_base_url(alt)
+
 
 def env_file_for_slot(slot: str, cwd: Path | None = None) -> Path:
-    """Resolve ``.{slot}.env`` under ``cwd`` (default: process cwd)."""
+    """Resolve the env file path for ``slot`` if it exists.
+
+    Tries ``.{slot}.env`` first, then ``{slot}.env`` under ``cwd`` (default:
+    process cwd). If both exist, the hidden file wins.
+
+    Raises:
+        MissingSlotEnvFileError: If neither file exists (subclass of ``FileNotFoundError``).
+    """
     base = cwd or Path.cwd()
-    return base / f".{slot}.env"
+    hidden = base / f".{slot}.env"
+    visible = base / f"{slot}.env"
+    if hidden.is_file():
+        return hidden
+    if visible.is_file():
+        return visible
+    raise MissingSlotEnvFileError(
+        _format_missing_slot_env_help(slot, base, hidden, visible)
+    )
 
 
 def clear_unique_env_vars() -> None:
-    """Remove UNIQUE_* keys so switching slots does not leak prior values."""
+    """Remove UNIQUE_* and toolkit env keys so switching slots does not leak."""
     for key in UNIQUE_ENV_KEYS:
+        os.environ.pop(key, None)
+    for key in TOOLKIT_AUTH_ENV_KEYS:
+        os.environ.pop(key, None)
+    for key in TOOLKIT_APP_ENV_KEYS:
+        os.environ.pop(key, None)
+    for key in TOOLKIT_API_ENV_KEYS:
         os.environ.pop(key, None)
 
 
 def load_slot(slot: str, cwd: Path | None = None) -> Path:
-    """Load ``.{slot}.env`` into ``os.environ`` (override=True), return path."""
+    """Load the resolved slot env file into ``os.environ`` (override=True)."""
     path = env_file_for_slot(slot, cwd)
-    if not path.is_file():
-        raise FileNotFoundError(f"Missing env file: {path}")
     clear_unique_env_vars()
     _: bool = load_dotenv(path, override=True)
+    _sync_sdk_env_from_toolkit_aliases()
     return path
 
 

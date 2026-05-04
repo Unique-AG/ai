@@ -10,7 +10,9 @@ from typing import Any
 
 import click
 from unique_sdk import Space
+from unique_sdk.cli.config import Config
 
+from uqadm.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.endpoint import EndpointParseError, parse_source_endpoint
 from uqadm.env import config_for_slot
 
@@ -28,13 +30,6 @@ def _strip_volatile(obj: Any) -> Any:
     return obj
 
 
-def _fetch_space(spec: str, cwd: Path | None) -> dict[str, Any]:
-    slot, space_id = parse_source_endpoint(spec)
-    cfg = config_for_slot(slot, cwd=cwd)
-    row = Space.get_space(cfg.user_id, cfg.company_id, space_id)
-    return dict(row)
-
-
 def _canonical_lines(payload: dict[str, Any]) -> list[str]:
     text = json.dumps(payload, indent=2, sort_keys=True, default=str)
     return text.splitlines()
@@ -48,14 +43,40 @@ def cmd_diff(
     cwd: Path | None,
 ) -> None:
     """Load two spaces and print unified diff of canonical JSON."""
+    cfg_a: Config | None = None
     try:
-        a_raw = _fetch_space(spec_a, cwd=cwd)
-        b_raw = _fetch_space(spec_b, cwd=cwd)
+        slot_a, space_id_a = parse_source_endpoint(spec_a)
+        cfg_a = config_for_slot(slot_a, cwd=cwd)
+        a_raw = dict(
+            Space.get_space(cfg_a.user_id, cfg_a.company_id, space_id_a),
+        )
     except EndpointParseError as exc:
         click.echo(str(exc), err=True)
         sys.exit(2)
     except Exception as exc:
-        click.echo(f"diff failed: {exc}", err=True)
+        click.echo(f"diff failed fetching first space ({spec_a!r}): {exc}", err=True)
+        if cfg_a is not None:
+            echo_credential_debug_if_auth_failure(
+                cfg_a, exc, label=f"space diff side a ({spec_a!r})"
+            )
+        sys.exit(1)
+
+    cfg_b: Config | None = None
+    try:
+        slot_b, space_id_b = parse_source_endpoint(spec_b)
+        cfg_b = config_for_slot(slot_b, cwd=cwd)
+        b_raw = dict(
+            Space.get_space(cfg_b.user_id, cfg_b.company_id, space_id_b),
+        )
+    except EndpointParseError as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(2)
+    except Exception as exc:
+        click.echo(f"diff failed fetching second space ({spec_b!r}): {exc}", err=True)
+        if cfg_b is not None:
+            echo_credential_debug_if_auth_failure(
+                cfg_b, exc, label=f"space diff side b ({spec_b!r})"
+            )
         sys.exit(1)
 
     a_payload = _strip_volatile(a_raw) if ignore_timestamps else a_raw

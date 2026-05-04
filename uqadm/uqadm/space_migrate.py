@@ -8,7 +8,9 @@ from typing import Any
 
 import click
 from unique_sdk import Space
+from unique_sdk.cli.config import Config
 
+from uqadm.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.endpoint import EndpointParseError, parse_endpoint, parse_source_endpoint
 from uqadm.env import config_for_slot, normalize_api_base
 
@@ -97,6 +99,7 @@ def _sync_assistant_access(
     assistant_access: list[dict[str, Any]],
     *,
     dry_run: bool,
+    debug_cfg: Config | None = None,
 ) -> None:
     if dry_run or not assistant_access:
         return
@@ -118,6 +121,10 @@ def _sync_assistant_access(
             f"Warning: could not sync space access entries: {exc}",
             err=True,
         )
+        if debug_cfg is not None:
+            echo_credential_debug_if_auth_failure(
+                debug_cfg, exc, label="space migrate add_space_access"
+            )
 
 
 def cmd_migrate(
@@ -148,6 +155,9 @@ def cmd_migrate(
         )
     except Exception as exc:
         click.echo(f"Error fetching source space {src_space_id!r}: {exc}", err=True)
+        echo_credential_debug_if_auth_failure(
+            src_cfg, exc, label="space migrate source get_space"
+        )
         sys.exit(1)
 
     click.echo(f"Loading destination slot {dst_slot!r} …")
@@ -223,6 +233,9 @@ def cmd_migrate(
             )
         except Exception as exc:
             click.echo(f"create_space failed: {exc}", err=True)
+            echo_credential_debug_if_auth_failure(
+                dst_cfg, exc, label="space migrate create_space"
+            )
             sys.exit(1)
         new_id = created["id"]
         click.echo(f"Created space {new_id}")
@@ -232,14 +245,25 @@ def cmd_migrate(
             new_id,
             assistant_access,
             dry_run=dry_run,
+            debug_cfg=dst_cfg,
         )
         return
 
-    dest_space = Space.get_space(
-        dst_cfg.user_id,
-        dst_cfg.company_id,
-        dst_space_id,
-    )
+    try:
+        dest_space = Space.get_space(
+            dst_cfg.user_id,
+            dst_cfg.company_id,
+            dst_space_id,
+        )
+    except Exception as exc:
+        click.echo(
+            f"Error fetching destination space {dst_space_id!r}: {exc}",
+            err=True,
+        )
+        echo_credential_debug_if_auth_failure(
+            dst_cfg, exc, label="space migrate destination get_space"
+        )
+        sys.exit(1)
     pairs, unmatched = _match_modules_by_name(
         list(src_space.get("modules") or []),
         list(dest_space.get("modules") or []),
@@ -289,6 +313,9 @@ def cmd_migrate(
         )
     except Exception as exc:
         click.echo(f"update_space failed: {exc}", err=True)
+        echo_credential_debug_if_auth_failure(
+            dst_cfg, exc, label="space migrate update_space"
+        )
         sys.exit(1)
 
     click.echo(f"Updated space {dst_space_id}")
@@ -298,4 +325,5 @@ def cmd_migrate(
         dst_space_id,
         assistant_access,
         dry_run=dry_run,
+        debug_cfg=dst_cfg,
     )

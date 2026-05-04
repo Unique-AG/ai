@@ -3,24 +3,36 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import click
 
 from uqadm import __version__
-from uqadm.env import config_for_slot
+from uqadm.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.space_diff import cmd_diff as cmd_space_diff
 from uqadm.space_export import cmd_export as cmd_space_export
 from uqadm.space_list import cmd_list
 from uqadm.space_migrate import cmd_migrate
 
 
-@click.group()
+class UqadmMainGroup(click.Group):
+    """Catch missing slot env files and exit with instructions (no traceback)."""
+
+    def invoke(self, ctx: click.Context) -> Any:
+        try:
+            return super().invoke(ctx)
+        except MissingSlotEnvFileError as exc:
+            click.echo(str(exc), err=True)
+            ctx.exit(2)
+
+
+@click.group(cls=UqadmMainGroup)
 @click.version_option(version=__version__, prog_name="uqadm")
 @click.option(
     "--cwd",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
-    help="Directory for .{slot}.env files (default: current directory).",
+    help="Directory for per-slot env files (.{slot}.env or {slot}.env; default: cwd).",
 )
 @click.pass_context
 def main(ctx: click.Context, cwd: Path | None) -> None:
@@ -50,11 +62,11 @@ def space_list(
     name_filter: str | None,
     as_json: bool,
 ) -> None:
-    """List spaces for credentials in ``.{SLOT}.env``."""
+    """List spaces for credentials in ``.{SLOT}.env`` or ``{SLOT}.env``."""
     state = ctx.ensure_object(dict)
     cwd: Path | None = state.get("cwd")
     cfg = config_for_slot(slot, cwd=cwd)
-    cmd_list(cfg.user_id, cfg.company_id, name_filter=name_filter, as_json=as_json)
+    cmd_list(cfg, name_filter=name_filter, as_json=as_json)
 
 
 @space.command("export")
@@ -68,7 +80,10 @@ def space_list(
     "--output",
     type=click.Path(path_type=Path, dir_okay=False, writable=True),
     default=None,
-    help="Write JSON to this file instead of stdout.",
+    help=(
+        "Write snapshot to this file; suffix must be .json, .yaml, or .yml "
+        "(format follows extension). Omit for JSON on stdout."
+    ),
 )
 @click.pass_context
 def space_export(
@@ -76,7 +91,7 @@ def space_export(
     spec: str,
     output: Path | None,
 ) -> None:
-    """Export one space as sorted JSON (``Space.get_space`` snapshot)."""
+    """Export one space (``Space.get_space``): JSON on stdout, or JSON/YAML to -o by extension."""
     state = ctx.ensure_object(dict)
     cwd: Path | None = state.get("cwd")
     cmd_space_export(spec, output=output, cwd=cwd)

@@ -1,8 +1,8 @@
 # uqadm
 
-Admin CLI for the Unique platform: **list** spaces, **export** a space to JSON, **diff** two spaces, and **migrate** space (assistant) configuration between environments defined by per-slot env files. It is separate from `unique-cli` (the agent-oriented file explorer).
+Admin CLI for the Unique platform: **list** spaces, **export** a space to JSON or YAML, **diff** two spaces, and **migrate** space (assistant) configuration between environments defined by per-slot env files. It is separate from `unique-cli` (the agent-oriented file explorer).
 
-Configuration uses the same **`UNIQUE_*`** variables and **`unique_sdk.cli.config.load_config()`** path as `unique-cli`, so behavior matches the SDK CLI.
+Configuration is normalized into the same **`UNIQUE_*`** variables that **`unique_sdk.cli.config.load_config()`** expects (same path as `unique-cli`). You may mix **SDK** names with **toolkit** names from `unique_toolkit` settings: **`unique_auth_*`** (user/company), **`unique_app_key`** / **`unique_app_id`** (API key / app id, same as `UniqueApp`), and **`unique_api_base_url`** (gateway base, same as `UniqueApi`). Uppercase variants like **`UNIQUE_APP_KEY`** and **`UNIQUE_API_BASE_URL`** are also accepted. If both a `UNIQUE_*` variable and its toolkit alias are set, **`UNIQUE_*` wins**. Bare names like `KEY` or `BASE_URL` are **not** read (too ambiguous).
 
 ## Installation
 
@@ -20,27 +20,37 @@ Or install the `uqadm` package in any environment that already has `unique-sdk` 
 
 Commands refer to an environment by **slot** — a short label you choose (e.g. `1`, `qa`, `prod`).
 
-For slot `<slot>`, credentials are read from a file named:
+For slot `<slot>`, credentials are read from **one** of these files under the chosen directory (see resolution order below):
 
 ```text
 .{slot}.env
+{slot}.env
 ```
 
 Resolved relative to the **current working directory**, unless you pass **`uqadm --cwd <DIR>`** (see below).
 
-Before loading a slot file, `uqadm` **clears** these variables from the process environment so values from a previous slot do not leak:
+**Which file is used:** if **`.{slot}.env`** exists, it is loaded; otherwise if **`{slot}.env`** exists, that is loaded. If **both** exist, the **hidden** file (`.{slot}.env`) wins. If neither exists, `uqadm` prints a short guide to **stderr** (which directory was searched, the exact filenames, required variables, and how to use `--cwd`) and exits with code **2** — no Python traceback.
+
+Before loading a slot file, `uqadm` **clears** SDK `UNIQUE_*` variables, optional `UNIQUE_API_*` / `UNIQUE_APP_ID`, and toolkit keys (`unique_auth_*`, `unique_app_*`, `unique_api_*`, plus selected `UNIQUE_*` toolkit aliases) so values from a previous slot do not leak.
 
 | Variable | Purpose |
 |----------|---------|
-| `UNIQUE_USER_ID` | **Required.** User id for API calls. |
-| `UNIQUE_COMPANY_ID` | **Required.** Company id for API calls. |
+| `UNIQUE_USER_ID` | **Required** for API calls (unless you set one of the aliases below). |
+| `unique_auth_user_id` or `UNIQUE_AUTH_USER_ID` | Alternative to `UNIQUE_USER_ID` (same meaning as in `unique_toolkit` `UniqueAuth`). Ignored if `UNIQUE_USER_ID` is set. |
+| `UNIQUE_COMPANY_ID` | **Required** for API calls (unless you set one of the aliases below). |
+| `unique_auth_company_id` or `UNIQUE_AUTH_COMPANY_ID` | Alternative to `UNIQUE_COMPANY_ID`. Ignored if `UNIQUE_COMPANY_ID` is set. |
 | `UNIQUE_API_KEY` | Optional (not needed on localhost / secured cluster per SDK docs). |
+| `unique_app_key` or `UNIQUE_APP_KEY` | Alternative to `UNIQUE_API_KEY` (`UniqueApp.key`). Ignored if `UNIQUE_API_KEY` is set. |
 | `UNIQUE_APP_ID` | Optional (same as SDK docs). |
+| `unique_app_id` | Alternative to `UNIQUE_APP_ID` (`UniqueApp.id`). Ignored if `UNIQUE_APP_ID` is set. |
 | `UNIQUE_API_BASE` | Optional; default applied inside `load_config()` if unset. |
+| `unique_api_base_url` or `UNIQUE_API_BASE_URL` | Alternative to `UNIQUE_API_BASE` (`UniqueApi.base_url`). Ignored if `UNIQUE_API_BASE` is set. **Host-only** URLs (no path, or `/` only) get **`/public/chat`** appended (e.g. `https://gateway.example` → `https://gateway.example/public/chat`). If the URL **already includes a path** (e.g. `http://localhost:8092/public` or `…/public/chat-gen2`), it is copied to **`UNIQUE_API_BASE` unchanged**. |
 
 The file is loaded with **`python-dotenv`** (`override=True`) so keys in the file replace any existing values for that load.
 
-Example **`.1.env`**:
+If an API call fails with something that looks like **authentication** (HTTP **401**, `AuthenticationError`, or messages containing **“unauthorized”** / **“401”**), `uqadm` prints an extra **credential snapshot** to **stderr**: resolved `UNIQUE_USER_ID`, `UNIQUE_COMPANY_ID`, `UNIQUE_APP_ID`, `UNIQUE_API_BASE`, and a **redacted** description of `UNIQUE_API_KEY` (never the full key), plus HTTP status / `Request-Id` when the SDK exposes them. This matches what was passed into the SDK after env normalization.
+
+Example **`.1.env`** (or non-hidden **`1.env`** with the same contents):
 
 ```bash
 UNIQUE_USER_ID=user_...
@@ -48,6 +58,16 @@ UNIQUE_COMPANY_ID=company_...
 UNIQUE_API_KEY=ukey_...
 UNIQUE_APP_ID=app_...
 UNIQUE_API_BASE=https://gateway.unique.app/public/chat-gen2
+```
+
+Or the same credentials using toolkit-style names (no `UNIQUE_*` lines required except where you prefer them):
+
+```bash
+unique_auth_user_id=user_...
+unique_auth_company_id=company_...
+unique_app_key=ukey_...
+unique_app_id=app_...
+unique_api_base_url=https://gateway.unique.app/public/chat-gen2
 ```
 
 ## Global options
@@ -58,7 +78,7 @@ These apply to all subcommands (they must appear **before** the subcommand group
 |--------|-------------|
 | `--help` | Show help and exit. |
 | `--version` | Print `uqadm` version and exit. |
-| `--cwd DIRECTORY` | Directory in which `.{slot}.env` files are resolved. Default: process current working directory. Must be an existing directory. |
+| `--cwd DIRECTORY` | Directory in which per-slot env files (`.{slot}.env` or `{slot}.env`) are resolved. Default: process current working directory. Must be an existing directory. |
 
 **Examples:**
 
@@ -77,7 +97,7 @@ uqadm space --help
 
 ### `uqadm space list`
 
-Lists spaces visible to the credentials in `.{SLOT}.env`. Uses **`Space.get_spaces`** with pagination (`take` up to 1000 per page) until all pages are fetched.
+Lists spaces visible to the credentials in `.{SLOT}.env` or `{SLOT}.env` (see **Credential slots and env files**). Uses **`Space.get_spaces`** with pagination (`take` up to 1000 per page) until all pages are fetched.
 
 **Syntax:**
 
@@ -87,7 +107,7 @@ uqadm [GLOBAL_OPTS...] space list SLOT [OPTIONS]
 
 | Argument / option | Required | Description |
 |-------------------|----------|---------------|
-| `SLOT` | Yes | Slot name; loads `.{SLOT}.env` (under `--cwd` if set). |
+| `SLOT` | Yes | Slot name; loads `.{SLOT}.env` or `{SLOT}.env` (under `--cwd` if set). |
 | `--name TEXT` | No | Case-insensitive **partial** filter on space name; forwarded to the API. |
 | `--json` | No | Print the full result list as JSON instead of a text table. |
 
@@ -105,7 +125,14 @@ uqadm space list prod --json
 
 ### `uqadm space export`
 
-Fetches a single space via **`Space.get_space`** and prints **canonical JSON** (`indent=2`, sorted keys, values serialized with `default=str`).
+Fetches a single space via **`Space.get_space`**. The payload is normalized the same way for every output path: **`json.dumps(..., sort_keys=True, default=str)`** then **`json.loads`**, so values match canonical JSON semantics before writing.
+
+- **No `-o`**: prints **canonical JSON** to stdout (`indent=2`, sorted keys).
+- **With `-o PATH`**: the file **suffix** selects the format (case-insensitive):
+  - **`.json`** — canonical JSON (`indent=2`, sorted keys).
+  - **`.yaml`** or **`.yml`** — YAML for easier editing of long prompts. Multi-line strings are written as **literal block scalars** (`|`), similar to the internal **config-converter** tool, so **Jinja**-style `{{` / `{%` in text stays readable. The same heuristic as config-converter turns literal two-character `\` + `n` sequences into newlines and trims spaces before newlines when choosing block style; if you must preserve a literal `\n` in a string, be aware of that edge case.
+
+If `-o` is set but the suffix is **missing** or **not** one of `.json`, `.yaml`, or `.yml`, the command **exits with code 2** and prints an error listing the allowed suffixes.
 
 **Syntax:**
 
@@ -116,13 +143,14 @@ uqadm [GLOBAL_OPTS...] space export SPEC [-o PATH|--output PATH]
 | Argument / option | Required | Description |
 |-------------------|----------|-------------|
 | `SPEC` | Yes | Same endpoint forms as **`migrate --source`**: `slot:space_id` or `slot:https://...` with a path containing `/space/<id>` (or `custom-space` / `swappable-intelligence-space`). A **space id is required**. |
-| `-o`, `--output PATH` | No | Write JSON to this file. Parent directories are created if needed. Default: **stdout**. |
+| `-o`, `--output PATH` | No | Write the snapshot to this file; suffix must be **`.json`**, **`.yaml`**, or **`.yml`**. Parent directories are created if needed. Default: **stdout** (JSON only). |
 
 **Examples:**
 
 ```bash
 uqadm space export "1:space_abc123"
 uqadm space export "qa:https://example.com/app/space/space_xyz" -o backup.json
+uqadm space export "qa:space_xyz" -o backup.yaml
 ```
 
 ---
@@ -181,7 +209,7 @@ uqadm [GLOBAL_OPTS...] space migrate --source SPEC --destination SPEC [OPTIONS]
 
 The spec string selects:
 
-1. Which **`.{slot}.env`** file to load (`slot`).
+1. Which **slot env file** to load (`slot`): `.{slot}.env` or `{slot}.env` (same resolution as elsewhere).
 2. Optionally which **space id** to use (`space_id`).
 
 **Parsing rules:**
@@ -195,10 +223,10 @@ The spec string selects:
 
 | Spec | Slot | Space id | Meaning |
 |------|------|----------|---------|
-| `1` | `1` | *(none)* | Destination: create new space using `.1.env`. |
+| `1` | `1` | *(none)* | Destination: create new space using slot `1` env (`.1.env` or `1.env`). |
 | `2:` | `2` | *(none)* | Same as above. |
-| `1:space_abc123` | `1` | `space_abc123` | Space `space_abc123` in env `.1.env`. |
-| `prod:https://host/app/space/space_xyz` | `prod` | `space_xyz` | Credentials from `.prod.env`; id parsed from URL path. |
+| `1:space_abc123` | `1` | `space_abc123` | Space `space_abc123` using slot `1` credentials. |
+| `prod:https://host/app/space/space_xyz` | `prod` | `space_xyz` | Credentials from slot `prod` env; id parsed from URL path. |
 
 **Supported URL path shapes** (segment after the marker must not be `create`):
 

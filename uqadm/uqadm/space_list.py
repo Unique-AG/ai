@@ -8,6 +8,9 @@ from typing import Any
 
 import click
 from unique_sdk import Space
+from unique_sdk.cli.config import Config
+
+from uqadm.auth_debug import echo_credential_debug_if_auth_failure
 
 PAGE_SIZE = 1000
 
@@ -65,16 +68,16 @@ def print_spaces_json(rows: list[dict[str, Any]]) -> None:
 
 
 def cmd_list(
-    user_id: str,
-    company_id: str,
+    cfg: Config,
     *,
     name_filter: str | None,
     as_json: bool,
 ) -> None:
     try:
-        rows = fetch_all_spaces(user_id, company_id, name_filter=name_filter)
+        rows = fetch_all_spaces(cfg.user_id, cfg.company_id, name_filter=name_filter)
     except Exception as exc:
         click.echo(f"Error listing spaces: {exc}", err=True)
+        echo_credential_debug_if_auth_failure(cfg, exc, label="space list")
         sys.exit(1)
     if as_json:
         print_spaces_json(rows)
