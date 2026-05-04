@@ -347,9 +347,7 @@ async def load_selectable_skills(
 
     download_results = await asyncio.gather(
         *(
-            content_service.download_content_to_bytes_async(
-                content_id=entry.content_id
-            )
+            content_service.download_content_to_bytes_async(content_id=entry.content_id)
             for entry in valid_entries
         ),
         return_exceptions=True,

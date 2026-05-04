@@ -229,7 +229,12 @@ class TestBuildSkill:
         content.key = "summarize.md"
         content.id = "c1"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is not None
         assert skill.name == "summarize"
@@ -246,7 +251,12 @@ class TestBuildSkill:
         content.key = "empty.md"
         content.id = "c2"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is not None
         assert skill.name == "empty"
@@ -260,7 +270,12 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c3"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is None
 
@@ -270,7 +285,12 @@ class TestBuildSkill:
         content.key = "plain.md"
         content.id = "c4"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is None
 
@@ -279,7 +299,12 @@ class TestBuildSkill:
         content.key = "empty.md"
         content.id = "c5"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text="   \n\n", logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text="   \n\n",
+            logger=logger,
+        )
 
         assert skill is None
 
@@ -289,7 +314,12 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c6"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is None
 
@@ -300,7 +330,12 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c7"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is None
 
@@ -311,7 +346,12 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c8"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is None
 
@@ -341,7 +381,12 @@ class TestBuildSkill:
         content.key = "bad-name.md"
         content.id = "c-bad"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is None
         logger.warning.assert_called_once()  # type: ignore[attr-defined]
@@ -365,7 +410,12 @@ class TestBuildSkill:
         content.key = "ok.md"
         content.id = "c-ok"
 
-        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=content.id,
+            content_key=content.key,
+            file_text=file_text,
+            logger=logger,
+        )
 
         assert skill is not None
         assert skill.name == good_name
@@ -783,9 +833,7 @@ class TestLoadSelectableSkills:
         content_service.download_content_to_bytes_async.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_entries_without_content_id_are_skipped(
-        self, logger: Logger
-    ) -> None:
+    async def test_entries_without_content_id_are_skipped(self, logger: Logger) -> None:
         """Admin UIs often leave a blank row as a placeholder — it must
         not trigger a download nor crash the loader.
         """
@@ -888,9 +936,7 @@ class TestLoadSelectableSkills:
             try:
                 await asyncio.sleep(0)
                 await asyncio.sleep(0)
-                return (
-                    f"---\nname: s{content_id}\ndescription: d\n---\nbody\n".encode()
-                )
+                return f"---\nname: s{content_id}\ndescription: d\n---\nbody\n".encode()
             finally:
                 in_flight -= 1
 
@@ -991,9 +1037,7 @@ class TestConfigureSkillTool:
         """When neither ``scope_ids`` nor ``selectable_skills`` is set, the
         tool is excluded — there's nothing to load.
         """
-        config = self._build_config(
-            is_enabled=True, scope_ids=[], selectable_skills=[]
-        )
+        config = self._build_config(is_enabled=True, scope_ids=[], selectable_skills=[])
         tool_manager = MagicMock()
 
         await configure_skill_tool(
@@ -1019,9 +1063,7 @@ class TestConfigureSkillTool:
             is_enabled=True,
             scope_ids=["scope-1"],
             selectable_skills=[
-                SelectableSkill(
-                    scope_id="scope-1", content_id="c1", name="My Skill"
-                ),
+                SelectableSkill(scope_id="scope-1", content_id="c1", name="My Skill"),
             ],
         )
         skill_tool = self._make_skill_tool()
