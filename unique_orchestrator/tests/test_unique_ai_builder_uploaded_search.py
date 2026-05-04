@@ -76,7 +76,8 @@ async def test_build_responses_adds_and_forces_uploaded_search_without_tool_choi
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     event = _make_event(tool_choices=[])
-    uploaded_document = MagicMock(expired_at=None)
+    uploaded_document = MagicMock()
+    uploaded_document.is_expired.return_value = False
     common_components = _make_common_components([uploaded_document])
     config = UniqueAIConfig()
     logger = MagicMock()
@@ -132,7 +133,8 @@ async def test_build_responses_appends_uploaded_search_to_existing_tool_choices(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     event = _make_event(tool_choices=["InternalSearch"])
-    uploaded_document = MagicMock(expired_at=None)
+    uploaded_document = MagicMock()
+    uploaded_document.is_expired.return_value = False
     common_components = _make_common_components([uploaded_document])
     config = UniqueAIConfig()
 
@@ -181,7 +183,8 @@ async def test_build_responses_keeps_uploaded_search_when_code_interpreter_is_au
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     event = _make_event(tool_choices=[])
-    uploaded_document = MagicMock(expired_at=None)
+    uploaded_document = MagicMock()
+    uploaded_document.is_expired.return_value = False
     common_components = _make_common_components([uploaded_document])
     config = UniqueAIConfig()
     config.space.tools.append(

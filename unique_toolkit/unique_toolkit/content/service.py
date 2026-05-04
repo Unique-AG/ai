@@ -779,6 +779,22 @@ class ContentService:
 
         return content
 
+    async def get_documents_uploaded_to_chat_async(self) -> list[Content]:
+        chat_contents = await self.search_contents_async(
+            where={
+                "ownerId": {
+                    "equals": self._chat_id,
+                },
+            },
+        )
+
+        content: list[Content] = []
+        for c in chat_contents:
+            if self.is_file_content(c.key):
+                content.append(c)
+
+        return content
+
     def get_images_uploaded_to_chat(self) -> list[Content]:
         chat_contents = self.search_contents(
             where={

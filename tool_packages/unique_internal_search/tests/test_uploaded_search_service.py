@@ -23,19 +23,12 @@ def mock_uploaded_documents_valid() -> list[Content]:
     now = datetime.now(timezone.utc)
     future_expiry = now + timedelta(days=7)
 
-    doc1 = Mock(spec=Content)
-    doc1.id = "doc_1"
-    doc1.title = "Q2 Financial Report"
-    doc1.key = "q2_report.pdf"
-    doc1.expired_at = None
-    doc1.created_at = now - timedelta(days=1)
-
-    doc2 = Mock(spec=Content)
-    doc2.id = "doc_2"
-    doc2.title = None
-    doc2.key = "policy_document.pdf"
-    doc2.expired_at = future_expiry
-    doc2.created_at = now - timedelta(days=2)
+    doc1 = Content(
+        id="doc_1", key="q2_report.pdf", title="Q2 Financial Report", expired_at=None
+    )
+    doc2 = Content(
+        id="doc_2", key="policy_document.pdf", title=None, expired_at=future_expiry
+    )
 
     return [doc1, doc2]
 
@@ -46,12 +39,12 @@ def mock_uploaded_documents_expired() -> list[Content]:
     now = datetime.now(timezone.utc)
     past_expiry = now - timedelta(days=1)
 
-    doc1 = Mock(spec=Content)
-    doc1.id = "doc_expired_1"
-    doc1.title = "Old Report"
-    doc1.key = "old_report.pdf"
-    doc1.expired_at = past_expiry
-    doc1.created_at = now - timedelta(days=30)
+    doc1 = Content(
+        id="doc_expired_1",
+        key="old_report.pdf",
+        title="Old Report",
+        expired_at=past_expiry,
+    )
 
     return [doc1]
 
@@ -63,26 +56,18 @@ def mock_uploaded_documents_mixed() -> list[Content]:
     future_expiry = now + timedelta(days=7)
     past_expiry = now - timedelta(days=1)
 
-    doc1 = Mock(spec=Content)
-    doc1.id = "doc_valid_1"
-    doc1.title = "Valid Document"
-    doc1.key = "valid.pdf"
-    doc1.expired_at = None
-    doc1.created_at = now - timedelta(days=1)
-
-    doc2 = Mock(spec=Content)
-    doc2.id = "doc_valid_2"
-    doc2.title = None
-    doc2.key = "another_valid.pdf"
-    doc2.expired_at = future_expiry
-    doc2.created_at = now - timedelta(days=2)
-
-    doc3 = Mock(spec=Content)
-    doc3.id = "doc_expired_1"
-    doc3.title = "Expired Document"
-    doc3.key = "expired.pdf"
-    doc3.expired_at = past_expiry
-    doc3.created_at = now - timedelta(days=30)
+    doc1 = Content(
+        id="doc_valid_1", key="valid.pdf", title="Valid Document", expired_at=None
+    )
+    doc2 = Content(
+        id="doc_valid_2", key="another_valid.pdf", title=None, expired_at=future_expiry
+    )
+    doc3 = Content(
+        id="doc_expired_1",
+        key="expired.pdf",
+        title="Expired Document",
+        expired_at=past_expiry,
+    )
 
     return [doc1, doc2, doc3]
 
@@ -289,13 +274,9 @@ class TestUploadedSearchTool:
         Setup summary: Mock ContentService with documents without titles, verify key is used.
         """
         # Arrange
-        now = datetime.now(timezone.utc)
-        doc_without_title = Mock(spec=Content)
-        doc_without_title.id = "doc_1"
-        doc_without_title.title = None
-        doc_without_title.key = "important_file.pdf"
-        doc_without_title.expired_at = None
-        doc_without_title.created_at = now
+        doc_without_title = Content(
+            id="doc_1", key="important_file.pdf", title=None, expired_at=None
+        )
 
         with (
             patch(
@@ -335,13 +316,12 @@ class TestUploadedSearchTool:
         Setup summary: Mock ContentService with documents with titles, verify title is used.
         """
         # Arrange
-        now = datetime.now(timezone.utc)
-        doc_with_title = Mock(spec=Content)
-        doc_with_title.id = "doc_1"
-        doc_with_title.title = "Annual Report 2024"
-        doc_with_title.key = "report_2024.pdf"
-        doc_with_title.expired_at = None
-        doc_with_title.created_at = now
+        doc_with_title = Content(
+            id="doc_1",
+            key="report_2024.pdf",
+            title="Annual Report 2024",
+            expired_at=None,
+        )
 
         with (
             patch(
@@ -386,20 +366,20 @@ class TestUploadedSearchTool:
         now = datetime.now(timezone.utc)
 
         # Document that expired 1 second ago
-        doc_just_expired = Mock(spec=Content)
-        doc_just_expired.id = "doc_just_expired"
-        doc_just_expired.title = "Just Expired"
-        doc_just_expired.key = "just_expired.pdf"
-        doc_just_expired.expired_at = now - timedelta(seconds=1)
-        doc_just_expired.created_at = now - timedelta(days=1)
+        doc_just_expired = Content(
+            id="doc_just_expired",
+            key="just_expired.pdf",
+            title="Just Expired",
+            expired_at=now - timedelta(seconds=1),
+        )
 
         # Document that expires in 1 second
-        doc_still_valid = Mock(spec=Content)
-        doc_still_valid.id = "doc_still_valid"
-        doc_still_valid.title = "Still Valid"
-        doc_still_valid.key = "still_valid.pdf"
-        doc_still_valid.expired_at = now + timedelta(seconds=1)
-        doc_still_valid.created_at = now - timedelta(days=1)
+        doc_still_valid = Content(
+            id="doc_still_valid",
+            key="still_valid.pdf",
+            title="Still Valid",
+            expired_at=now + timedelta(seconds=1),
+        )
 
         with (
             patch(
@@ -562,3 +542,158 @@ class TestUploadedSearchTool:
         # Act & Assert
         assert UploadedSearchTool._display_name == "Uploaded Search"
         assert hasattr(UploadedSearchTool, "_display_name")
+
+
+@pytest.mark.ai
+class TestToolDescriptionForSystemPromptIngestionFilter:
+    """Tests for ingestion filtering in tool_description_for_system_prompt.
+
+    Docs whose is_ingested() returns False (e.g. SKIP_INGESTION mode) must be
+    excluded from both the valid and expired document lists in the system prompt.
+    """
+
+    def _make_tool(
+        self,
+        documents: list[Content],
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event,
+        mock_tool_progress_reporter,
+    ) -> UploadedSearchTool:
+        with patch(
+            "unique_internal_search.uploaded_search.service.ContentService"
+        ) as mock_content_service_class:
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service.get_documents_uploaded_to_chat = Mock(
+                return_value=documents
+            )
+            mock_content_service_class.from_event.return_value = mock_content_service
+            tool = UploadedSearchTool(
+                config=uploaded_search_config,
+                event=mock_chat_event,
+                tool_progress_reporter=mock_tool_progress_reporter,
+            )
+        return tool
+
+    @pytest.mark.ai
+    def test_skip_ingestion_doc_excluded_from_valid_section(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event,
+        mock_tool_progress_reporter,
+    ) -> None:
+        """
+        Purpose: Verify that a doc with SKIP_INGESTION mode does not appear in
+                 the valid documents section of the system prompt.
+        Why this matters: Non-ingested docs cannot be searched, so surfacing them
+                          as "valid" would mislead the model into attempting searches
+                          that would return no results.
+        Setup summary: Create a Content with SKIP_INGESTION applied_ingestion_config
+                       and expired_at=None; assert neither the doc name nor the valid
+                       section header appears in the rendered prompt.
+        """
+        skip_doc = Content(
+            id="skip_1",
+            key="skip_doc.pdf",
+            title="Skipped Document",
+            expired_at=None,
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_INGESTION"},
+        )
+
+        tool = self._make_tool(
+            [skip_doc],
+            uploaded_search_config,
+            mock_chat_event,
+            mock_tool_progress_reporter,
+        )
+        result = tool.tool_description_for_system_prompt()
+
+        assert "Skipped Document" not in result
+        assert (
+            "**The currently uploaded and valid documents are the following**"
+            not in result
+        )
+
+    @pytest.mark.ai
+    def test_skip_ingestion_doc_excluded_from_expired_section(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event,
+        mock_tool_progress_reporter,
+    ) -> None:
+        """
+        Purpose: Verify that a doc with SKIP_INGESTION mode does not appear in
+                 the expired documents section even when its expired_at is in the past.
+        Why this matters: Docs skipped from ingestion should be invisible in all
+                          sections of the system prompt regardless of their expiry state.
+        Setup summary: Create a Content with SKIP_INGESTION and a past expired_at;
+                       assert the doc name and the expired section header are absent.
+        """
+        now = datetime.now(timezone.utc)
+        past_expiry = now - timedelta(days=1)
+
+        skip_expired_doc = Content(
+            id="skip_expired_1",
+            key="skip_expired.pdf",
+            title="Skipped Expired Document",
+            expired_at=past_expiry,
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_INGESTION"},
+        )
+
+        tool = self._make_tool(
+            [skip_expired_doc],
+            uploaded_search_config,
+            mock_chat_event,
+            mock_tool_progress_reporter,
+        )
+        result = tool.tool_description_for_system_prompt()
+
+        assert "Skipped Expired Document" not in result
+        assert (
+            "**The currently uploaded and expired documents are the following**"
+            not in result
+        )
+
+    @pytest.mark.ai
+    def test_ingested_doc_still_appears_when_mixed_with_skip_ingestion_doc(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event,
+        mock_tool_progress_reporter,
+    ) -> None:
+        """
+        Purpose: Verify that ingested docs still appear in the prompt when mixed
+                 with non-ingested (SKIP_INGESTION) docs.
+        Why this matters: The ingestion filter must only suppress non-ingested docs —
+                          valid ingested docs must remain visible.
+        Setup summary: Mix one SKIP_INGESTION doc with one normally-ingested doc
+                       (applied_ingestion_config=None); assert only the ingested doc
+                       appears in the valid section.
+        """
+        skip_doc = Content(
+            id="skip_2",
+            key="skip_file.pdf",
+            title="Skipped File",
+            expired_at=None,
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_INGESTION"},
+        )
+        ingested_doc = Content(
+            id="ingested_1",
+            key="ingested_file.pdf",
+            title="Ingested File",
+            expired_at=None,
+            applied_ingestion_config=None,
+        )
+
+        tool = self._make_tool(
+            [skip_doc, ingested_doc],
+            uploaded_search_config,
+            mock_chat_event,
+            mock_tool_progress_reporter,
+        )
+        result = tool.tool_description_for_system_prompt()
+
+        assert "Ingested File (content_id: ingested_1)" in result
+        assert "Skipped File" not in result
+        assert (
+            "**The currently uploaded and valid documents are the following**" in result
+        )

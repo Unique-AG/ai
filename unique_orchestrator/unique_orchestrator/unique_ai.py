@@ -1,6 +1,6 @@
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from logging import Logger
 from typing import Any, cast, overload
 
@@ -38,6 +38,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
@@ -56,7 +57,6 @@ from unique_orchestrator._builders.inject_tool_reminders import (
 from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.settings import env_settings
-from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
 
 class UniqueAI:
@@ -82,6 +82,8 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -105,6 +107,7 @@ class UniqueAI:
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -127,12 +130,14 @@ class UniqueAI:
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
         self._config = config
         self._chat_service = chat_service
         self._content_service = content_service
+        self._uploaded_documents = uploaded_documents or []
 
         self._debug_info_manager = debug_info_manager
         self._reference_manager = reference_manager
@@ -499,25 +504,8 @@ class UniqueAI:
             use_sub_agent_references = False
             sub_agent_referencing_instructions = None
 
-        uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
-        additional_parameters = (
-            self._event.payload.additional_parameters
-            if (
-                hasattr(self._event.payload, "additional_parameters")
-                and self._event.payload.additional_parameters
-            )
-            else None
-        )
-        uploaded_documents = filter_uploaded_documents_by_selection(
-            documents=uploaded_documents,
-            additional_parameters=additional_parameters,
-            company_id=self._event.company_id,
-        )
         uploaded_documents_expired = [
-            doc
-            for doc in uploaded_documents
-            if doc.expired_at is not None
-            and doc.expired_at <= datetime.now(timezone.utc)
+            doc for doc in self._uploaded_documents if doc.is_expired()
         ]
 
         # Combine custom instructions and user instructions
@@ -810,6 +798,7 @@ class UniqueAIResponsesApi(UniqueAI):
         config: UniqueAIConfig,
         chat_service: ChatService,
         content_service: ContentService,
+        uploaded_documents: list[Content],
         debug_info_manager: DebugInfoManager,
         streaming_handler: ResponsesSupportCompleteWithReferences,
         reference_manager: ReferenceManager,
@@ -828,6 +817,7 @@ class UniqueAIResponsesApi(UniqueAI):
             config=config,
             chat_service=chat_service,
             content_service=content_service,
+            uploaded_documents=uploaded_documents,
             debug_info_manager=debug_info_manager,
             streaming_handler=streaming_handler,
             reference_manager=reference_manager,

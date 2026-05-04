@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
@@ -81,16 +79,16 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             documents = [
                 doc for doc in documents if doc.id in self._selected_uploaded_files
             ]
-        now = datetime.now(timezone.utc)
 
-        valid_documents = [
-            doc for doc in documents if doc.expired_at is None or doc.expired_at > now
-        ]
-        expired_documents = [
-            doc
-            for doc in documents
-            if doc.expired_at is not None and doc.expired_at <= now
-        ]
+        valid_documents = []
+        expired_documents = []
+        for doc in documents:
+            if not doc.is_ingested(default_if_unknown=True):
+                continue
+            if doc.is_expired():
+                expired_documents.append(doc)
+            else:
+                valid_documents.append(doc)
 
         system_prompt_valid_documents = ""
         system_prompt_expired_documents = ""

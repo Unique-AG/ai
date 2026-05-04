@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Optional
 
@@ -178,6 +178,11 @@ class Content(BaseModel):
             return not (mime_type.is_xlsx or mime_type.is_csv)
 
         return True
+
+    def is_expired(self) -> bool:
+        return self.expired_at is not None and self.expired_at <= datetime.now(
+            timezone.utc
+        )
 
 
 class ContentReference(BaseModel):

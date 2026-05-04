@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from logging import Logger
 from typing import Any, NamedTuple, cast
 
@@ -127,7 +126,7 @@ async def build_unique_ai(
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    common_components = _build_common(event, logger, config)
+    common_components = await _build_common(event, logger, config)
 
     if (
         config.agent.experimental.responses_api_config.use_responses_api
@@ -170,7 +169,7 @@ class _CommonComponents(NamedTuple):
     mcp_servers: list[McpServer]
 
 
-def _build_common(
+async def _build_common(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
@@ -181,7 +180,7 @@ def _build_common(
 
     content_service = ContentService.from_event(event)
 
-    uploaded_documents = content_service.get_documents_uploaded_to_chat()
+    uploaded_documents = await content_service.get_documents_uploaded_to_chat_async()
     uploaded_documents = filter_uploaded_documents_by_selection(
         documents=uploaded_documents,
         additional_parameters=event.payload.additional_parameters,
@@ -472,6 +471,7 @@ async def _build_responses(
         logger=logger,
         chat_service=common_components.chat_service,
         content_service=common_components.content_service,
+        uploaded_documents=common_components.uploaded_documents,
         tool_manager=tool_manager,
         thinking_manager=common_components.thinking_manager,
         streaming_handler=streaming_handler,
@@ -548,6 +548,7 @@ async def _build_completions(
         logger=logger,
         chat_service=common_components.chat_service,
         content_service=common_components.content_service,
+        uploaded_documents=common_components.uploaded_documents,
         tool_manager=tool_manager,
         thinking_manager=common_components.thinking_manager,
         history_manager=common_components.history_manager,
@@ -568,22 +569,15 @@ def _configure_uploaded_search_tool(
     common_components: _CommonComponents,
 ) -> tuple[bool, bool]:
     """Mirror uploaded-file bootstrapping across completions and Responses API."""
-    now = datetime.now(timezone.utc)
-    uploaded_and_ingested_documents = [
-        doc
-        for doc in common_components.uploaded_documents
-        if doc.is_ingested(default_if_unknown=True)
-    ]
-    valid_uploaded_documents = [
-        doc
-        for doc in uploaded_and_ingested_documents
-        if (doc.expired_at is None or doc.expired_at > now)
-    ]
-    expired_uploaded_documents = [
-        doc
-        for doc in uploaded_and_ingested_documents
-        if doc.expired_at is not None and doc.expired_at <= now
-    ]
+    valid_uploaded_documents: list[Content] = []
+    expired_uploaded_documents: list[Content] = []
+    for doc in common_components.uploaded_documents:
+        if not doc.is_ingested(default_if_unknown=True):
+            continue
+        if doc.is_expired():
+            expired_uploaded_documents.append(doc)
+        else:
+            valid_uploaded_documents.append(doc)
     has_tool_choices = len(event.payload.tool_choices) > 0
 
     if expired_uploaded_documents:
