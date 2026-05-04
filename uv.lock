@@ -12,21 +12,21 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-04-20T12:54:38.58945254Z"
+exclude-newer = "2026-04-20T19:38:20.864329Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-langchain-core = "2026-04-18T00:00:00Z"
+langchain-core = "2026-04-18T04:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-mcp = false
-authlib = "2026-04-18T00:00:00Z"
-litellm = "2026-04-28T00:00:00Z"
+authlib = "2026-04-18T04:00:00Z"
+litellm = "2026-04-28T04:00:00Z"
 unique-orchestrator = false
 unique-follow-up-questions = false
-langsmith = "2026-04-16T00:00:00Z"
+langsmith = "2026-04-16T04:00:00Z"
 unique-six = false
 unique-quartr = false
 unique-web-search = false
@@ -6294,8 +6294,6 @@ dependencies = [
     { name = "azure-core" },
     { name = "azure-identity" },
     { name = "certifi" },
-    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
-    { name = "click", version = "8.3.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-docs' or extra != 'group-11-ai-monorepo-dev'" },
     { name = "crawl4ai" },
     { name = "fake-useragent" },
     { name = "firecrawl" },
@@ -6322,7 +6320,6 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.36.0,<2" },
     { name = "azure-identity", specifier = ">=1.25.0,<2" },
     { name = "certifi", specifier = ">=2025.11.12" },
-    { name = "click", specifier = ">=8.1.0,<9" },
     { name = "crawl4ai", specifier = ">=0.6.3,<1" },
     { name = "fake-useragent", specifier = ">=2.2.0,<3" },
     { name = "firecrawl", specifier = ">=3.3.2,<4" },
