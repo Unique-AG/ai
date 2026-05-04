@@ -91,7 +91,10 @@ class SkillToolConfig(BaseToolConfig):
         ),
     )
 
-    selectable_skills: list[SelectableSkill] = Field(
+    selectable_skills: Annotated[
+        list[SelectableSkill],
+        RJSFMetaTag.SpecialWidget.hidden(),
+    ] = Field(
         default_factory=list,
         title="Selectable Skills",
         description=("Individual skill selected from the knowledge base."),

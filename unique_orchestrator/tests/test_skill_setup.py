@@ -16,7 +16,7 @@ from logging import Logger
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -27,6 +27,7 @@ from unique_orchestrator._builders.skill_setup import (
     _is_skill_entrypoint,
     _parse_frontmatter,
     configure_skill_tool,
+    load_selectable_skills,
     load_skills_from_knowledge_base,
     preload_invoked_skills,
 )
@@ -228,7 +229,7 @@ class TestBuildSkill:
         content.key = "summarize.md"
         content.id = "c1"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is not None
         assert skill.name == "summarize"
@@ -245,7 +246,7 @@ class TestBuildSkill:
         content.key = "empty.md"
         content.id = "c2"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is not None
         assert skill.name == "empty"
@@ -259,7 +260,7 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c3"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is None
 
@@ -269,7 +270,7 @@ class TestBuildSkill:
         content.key = "plain.md"
         content.id = "c4"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is None
 
@@ -278,7 +279,7 @@ class TestBuildSkill:
         content.key = "empty.md"
         content.id = "c5"
 
-        skill = _build_skill(content=content, file_text="   \n\n", logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text="   \n\n", logger=logger)
 
         assert skill is None
 
@@ -288,7 +289,7 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c6"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is None
 
@@ -299,7 +300,7 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c7"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is None
 
@@ -310,7 +311,7 @@ class TestBuildSkill:
         content.key = "broken.md"
         content.id = "c8"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is None
 
@@ -340,7 +341,7 @@ class TestBuildSkill:
         content.key = "bad-name.md"
         content.id = "c-bad"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is None
         logger.warning.assert_called_once()  # type: ignore[attr-defined]
@@ -364,7 +365,7 @@ class TestBuildSkill:
         content.key = "ok.md"
         content.id = "c-ok"
 
-        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+        skill = _build_skill(content_id=content.id, content_key=content.key, file_text=file_text, logger=logger)
 
         assert skill is not None
         assert skill.name == good_name
@@ -762,12 +763,162 @@ class TestLoadSkillsFromKnowledgeBase:
         assert knowledge_base_service.get_paginated_content_infos.call_count == 2
 
 
+class TestLoadSelectableSkills:
+    """The fast path: explicit ``content_id`` references bypass the
+    ``/content/infos`` pagination entirely and just fan out downloads.
+    """
+
+    @pytest.mark.asyncio
+    async def test_empty_list_returns_empty(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock()
+
+        result = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=[],
+            logger=logger,
+        )
+
+        assert result == {}
+        content_service.download_content_to_bytes_async.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_entries_without_content_id_are_skipped(
+        self, logger: Logger
+    ) -> None:
+        """Admin UIs often leave a blank row as a placeholder — it must
+        not trigger a download nor crash the loader.
+        """
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock()
+
+        result = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=[
+                SelectableSkill(scope_id="", content_id="", name=""),
+            ],
+            logger=logger,
+        )
+
+        assert result == {}
+        content_service.download_content_to_bytes_async.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_downloads_each_content_id_once(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=[
+                b"---\nname: foo\ndescription: d1\n---\nFOO\n",
+                b"---\nname: bar\ndescription: d2\n---\nBAR\n",
+            ]
+        )
+
+        result = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=[
+                SelectableSkill(scope_id="s1", content_id="c1", name="Foo"),
+                SelectableSkill(scope_id="s1", content_id="c2", name="Bar"),
+            ],
+            logger=logger,
+        )
+
+        assert set(result.keys()) == {"foo", "bar"}
+        assert result["foo"].content == "FOO"
+        assert result["bar"].content == "BAR"
+        assert content_service.download_content_to_bytes_async.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_download_failure_skips_entry(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=[
+                RuntimeError("download failed"),
+                b"---\nname: bar\ndescription: d\n---\nBAR\n",
+            ]
+        )
+
+        result = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=[
+                SelectableSkill(scope_id="s1", content_id="c1", name="Foo"),
+                SelectableSkill(scope_id="s1", content_id="c2", name="Bar"),
+            ],
+            logger=logger,
+        )
+
+        assert set(result.keys()) == {"bar"}
+
+    @pytest.mark.asyncio
+    async def test_duplicate_names_keep_first(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=[
+                b"---\nname: dup\ndescription: first\n---\nFIRST\n",
+                b"---\nname: dup\ndescription: second\n---\nSECOND\n",
+            ]
+        )
+
+        result = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=[
+                SelectableSkill(scope_id="s1", content_id="c1", name="First"),
+                SelectableSkill(scope_id="s1", content_id="c2", name="Second"),
+            ],
+            logger=logger,
+        )
+
+        assert set(result.keys()) == {"dup"}
+        assert result["dup"].content == "FIRST"
+
+    @pytest.mark.asyncio
+    async def test_downloads_run_concurrently(self, logger: Logger) -> None:
+        """All downloads must be fanned out concurrently via
+        ``asyncio.gather`` — otherwise the per-request latency scales
+        with the number of selectable skills.
+        """
+        import asyncio
+
+        in_flight = 0
+        peak_in_flight = 0
+
+        async def fake_download(*, content_id: str) -> bytes:
+            nonlocal in_flight, peak_in_flight
+            in_flight += 1
+            peak_in_flight = max(peak_in_flight, in_flight)
+            try:
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+                return (
+                    f"---\nname: s{content_id}\ndescription: d\n---\nbody\n".encode()
+                )
+            finally:
+                in_flight -= 1
+
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=fake_download
+        )
+
+        result = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=[
+                SelectableSkill(scope_id="s1", content_id=f"c{i}", name=f"S{i}")
+                for i in range(10)
+            ],
+            logger=logger,
+        )
+
+        assert len(result) == 10
+        assert peak_in_flight == 10
+
+
 class TestConfigureSkillTool:
     def _build_config(
         self,
         *,
         is_enabled: bool | None,
         scope_ids: list[str] | None = None,
+        selectable_skills: list[SelectableSkill] | None = None,
     ) -> MagicMock:
         """Build a mocked ``UniqueAIConfig`` whose ``space.tools`` either
         contains a SkillTool entry (with the requested ``is_enabled`` flag
@@ -781,7 +932,10 @@ class TestConfigureSkillTool:
             tools.append(
                 ToolBuildConfig(
                     name=SkillTool.name,
-                    configuration=SkillToolConfig(scope_ids=scope_ids or []),
+                    configuration=SkillToolConfig(
+                        scope_ids=scope_ids or [],
+                        selectable_skills=selectable_skills or [],
+                    ),
                     is_enabled=is_enabled,
                 )
             )
@@ -831,8 +985,15 @@ class TestConfigureSkillTool:
         tool_manager.get_tool_by_name.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_enabled_without_scopes_excludes_tool(self, logger: Logger) -> None:
-        config = self._build_config(is_enabled=True, scope_ids=[])
+    async def test_enabled_without_scopes_or_selectables_excludes_tool(
+        self, logger: Logger
+    ) -> None:
+        """When neither ``scope_ids`` nor ``selectable_skills`` is set, the
+        tool is excluded — there's nothing to load.
+        """
+        config = self._build_config(
+            is_enabled=True, scope_ids=[], selectable_skills=[]
+        )
         tool_manager = MagicMock()
 
         await configure_skill_tool(
@@ -845,6 +1006,78 @@ class TestConfigureSkillTool:
 
         tool_manager.exclude_tool.assert_called_once_with(SkillTool.name)
         tool_manager.get_tool_by_name.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_selectable_skills_take_precedence_over_scope_ids(
+        self, logger: Logger, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """When ``selectable_skills`` is set, the KB subtree listing path
+        is skipped entirely — we never instantiate ``KnowledgeBaseService``
+        or call ``load_skills_from_knowledge_base``.
+        """
+        config = self._build_config(
+            is_enabled=True,
+            scope_ids=["scope-1"],
+            selectable_skills=[
+                SelectableSkill(
+                    scope_id="scope-1", content_id="c1", name="My Skill"
+                ),
+            ],
+        )
+        skill_tool = self._make_skill_tool()
+        tool_manager = MagicMock()
+        tool_manager.get_tool_by_name.return_value = skill_tool
+
+        import unique_orchestrator._builders.skill_setup as skill_setup
+
+        def _kb_factory_fail(**kwargs: object) -> object:
+            raise AssertionError(
+                "KnowledgeBaseService must not be constructed on "
+                "the selectable_skills fast path."
+            )
+
+        monkeypatch.setattr(skill_setup, "KnowledgeBaseService", _kb_factory_fail)
+
+        async def _fake_kb_load(**kwargs: object) -> dict[str, SkillDefinition]:
+            raise AssertionError(
+                "load_skills_from_knowledge_base must not be called on "
+                "the selectable_skills fast path."
+            )
+
+        monkeypatch.setattr(
+            skill_setup, "load_skills_from_knowledge_base", _fake_kb_load
+        )
+
+        captured: dict[str, object] = {}
+
+        async def _fake_selectable_load(
+            **kwargs: object,
+        ) -> dict[str, SkillDefinition]:
+            captured.update(kwargs)
+            return {"foo": SkillDefinition(name="foo", description="d", content="c")}
+
+        monkeypatch.setattr(
+            skill_setup, "load_selectable_skills", _fake_selectable_load
+        )
+
+        event = MagicMock()
+        event.company_id = "co-1"
+        event.user_id = "u-1"
+
+        await configure_skill_tool(
+            config=config,
+            event=event,
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=tool_manager,
+        )
+
+        assert captured["selectable_skills"] == [
+            SelectableSkill(scope_id="scope-1", content_id="c1", name="My Skill")
+        ]
+        tool_manager.get_tool_by_name.assert_called_once_with(SkillTool.name)
+        tool_manager.exclude_tool.assert_not_called()
+        assert "foo" in skill_tool.skill_registry
 
     @pytest.mark.asyncio
     async def test_empty_registry_excludes_tool(

@@ -46,7 +46,7 @@ from typing import TYPE_CHECKING, Any, cast
 import frontmatter
 from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import extract_invoked_skills
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
@@ -148,7 +148,8 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
 
 def _build_skill(
     *,
-    content: Content | ContentInfo,
+    content_id: str,
+    content_key: str,
     file_text: str,
     logger: Logger,
 ) -> SkillDefinition | None:
@@ -158,6 +159,9 @@ def _build_skill(
     ``name`` (non-kebab-case, contains whitespace/punctuation, too long)
     is rejected by ``SkillDefinition`` rather than silently flowing into
     the OpenAI tool enum where the model could never emit it verbatim.
+
+    ``content_id`` and ``content_key`` are used only for log messages so
+    operators can locate the offending file in the knowledge base.
     """
     if not file_text.strip():
         return None
@@ -170,8 +174,8 @@ def _build_skill(
     if not name or not description:
         logger.warning(
             "Skipping '%s' (%s): wrong skill format.",
-            content.key,
-            content.id,
+            content_key,
+            content_id,
         )
         return None
 
@@ -184,8 +188,8 @@ def _build_skill(
     except ValidationError as exc:
         logger.warning(
             "Skipping '%s' (%s): invalid skill definition: %s",
-            content.key,
-            content.id,
+            content_key,
+            content_id,
             exc.errors(include_url=False),
         )
         return None
@@ -292,7 +296,12 @@ async def load_skills_from_knowledge_base(
             )
             continue
 
-        skill = _build_skill(content=info, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=info.id,
+            content_key=info.key,
+            file_text=file_text,
+            logger=logger,
+        )
         if skill is None:
             logger.debug(
                 "Skipping '%s' (%s): empty file.",
@@ -318,6 +327,88 @@ async def load_skills_from_knowledge_base(
     return skill_registry
 
 
+async def load_selectable_skills(
+    *,
+    content_service: ContentService,
+    selectable_skills: list[SelectableSkill],
+    logger: Logger,
+) -> dict[str, SkillDefinition]:
+    """Load skills from an explicit list of ``SelectableSkill`` references.
+
+    Entries with an empty ``content_id`` are skipped (admin UIs commonly
+    leave a blank row as a placeholder). Failures are logged and do not
+    abort the rest of the registry so one broken entry cannot hide the
+    rest of the skill list.
+    """
+    valid_entries = [entry for entry in selectable_skills if entry.content_id]
+    if not valid_entries:
+        logger.info("SkillTool has no selectable_skills with a content_id set.")
+        return {}
+
+    download_results = await asyncio.gather(
+        *(
+            content_service.download_content_to_bytes_async(
+                content_id=entry.content_id
+            )
+            for entry in valid_entries
+        ),
+        return_exceptions=True,
+    )
+
+    skill_registry: dict[str, SkillDefinition] = {}
+    for entry, result in zip(valid_entries, download_results, strict=True):
+        label = entry.name or entry.content_id
+        if isinstance(result, BaseException):
+            logger.warning(
+                "Failed to download selectable skill '%s' (%s) — skipping.",
+                label,
+                entry.content_id,
+                exc_info=result,
+            )
+            continue
+
+        try:
+            file_text = result.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning(
+                "Failed to decode selectable skill '%s' (%s) as UTF-8 — skipping.",
+                label,
+                entry.content_id,
+                exc_info=True,
+            )
+            continue
+
+        skill = _build_skill(
+            content_id=entry.content_id,
+            content_key=label,
+            file_text=file_text,
+            logger=logger,
+        )
+        if skill is None:
+            logger.debug(
+                "Skipping selectable skill '%s' (%s): empty or invalid file.",
+                label,
+                entry.content_id,
+            )
+            continue
+
+        if skill.name in skill_registry:
+            logger.warning(
+                "Duplicate skill name '%s' from selectable_skills — "
+                "keeping the first occurrence.",
+                skill.name,
+            )
+            continue
+
+        skill_registry[skill.name] = skill
+
+    logger.info(
+        "Loaded %d skill(s) from selectable_skills.",
+        len(skill_registry),
+    )
+    return skill_registry
+
+
 async def configure_skill_tool(
     *,
     config: UniqueAIConfig,
@@ -328,12 +419,16 @@ async def configure_skill_tool(
 ) -> None:
     """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
 
-    Lists every ``SKILL.md`` entrypoint reachable from the configured
-    ``scope_ids`` (and every sub-folder under them), downloads each one
-    concurrently, and registers the SkillTool with the parsed skills.
-    Each skill folder follows the official Agent Skills protocol layout
-    (``<skill>/SKILL.md`` plus optional ``scripts/``, ``references/``,
-    ``assets/``).
+    Two loading strategies are supported (second one will be removed once first is working):
+
+    1. ``selectable_skills`` (fast path): an explicit list of
+       ``SKILL.md`` content references. Skips the subtree listing
+       entirely and just downloads the specified ``content_id``s.
+       Useful to curate a small, fixed set of skills and to avoid
+       paying the ``/content/infos`` pagination cost on every request.
+    2. ``scope_ids`` (discovery path): lists every ``SKILL.md`` reachable
+       from the configured scopes (and every sub-folder under them)
+       and downloads them concurrently.
     """
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
@@ -341,25 +436,30 @@ async def configure_skill_tool(
 
     skill_config = cast(SkillToolConfig, skill_tool_build_config.configuration)
 
-    if not skill_config.scope_ids:
+    if not skill_config.selectable_skills and not skill_config.scope_ids:
         logger.warning(
-            "SkillTool is enabled but no scope_ids are configured — "
-            "no skills will be loaded."
+            "SkillTool is enabled but no skills are configured — no skills will be loaded."
         )
         tool_manager.exclude_tool(SkillTool.name)
         return
 
-    knowledge_base_service = KnowledgeBaseService(
-        company_id=event.company_id,
-        user_id=event.user_id,
-    )
-
-    skill_registry = await load_skills_from_knowledge_base(
-        content_service=content_service,
-        knowledge_base_service=knowledge_base_service,
-        scope_ids=skill_config.scope_ids,
-        logger=logger,
-    )
+    if skill_config.selectable_skills:
+        skill_registry = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=skill_config.selectable_skills,
+            logger=logger,
+        )
+    else:
+        knowledge_base_service = KnowledgeBaseService(
+            company_id=event.company_id,
+            user_id=event.user_id,
+        )
+        skill_registry = await load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=skill_config.scope_ids,
+            logger=logger,
+        )
 
     if not skill_registry:
         logger.info("SkillTool has an empty skill registry — tool will be excluded.")
