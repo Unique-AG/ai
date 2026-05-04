@@ -193,20 +193,67 @@ def test_collect_results__filters_out_exceptions(make_chunk):
 
 
 @pytest.mark.ai
-def test_collect_results__all_failures_returns_empty():
+def test_collect_results__all_failures_raises_first():
     """
-    Purpose: Verifies that all-failed results produce an empty list rather than a crash.
-    Why this matters: Downstream code must handle empty found list gracefully.
-    Setup summary: Two exception results; assert empty list returned.
+    Purpose: Verifies that when every query fails, the first exception is raised.
+    Why this matters: Callers should surface a real error instead of a silent empty result.
+    Setup summary: Two exception results; assert first ValueError is raised.
     """
     svc = _make_service()
-    result = svc._collect_results([ValueError("x"), ValueError("y")], ["q1", "q2"])
-    assert result == []
+    first = ValueError("first failure")
+    second = ValueError("second failure")
+    with pytest.raises(ValueError, match="first failure"):
+        svc._collect_results([first, second], ["q1", "q2"])
+
+
+@pytest.mark.ai
+def test_collect_results__single_failure_raises():
+    """
+    Purpose: A single query that raised must surface that exception (not an empty list).
+    Why this matters: Multi-query and single-query code paths share _collect_results.
+    """
+    svc = _make_service()
+    err = RuntimeError("only query failed")
+    with pytest.raises(RuntimeError, match="only query failed"):
+        svc._collect_results([err], ["q1"])
+
+
+@pytest.mark.ai
+def test_collect_results__failure_then_success_returns_partial(make_chunk):
+    """
+    Purpose: Exception before a successful result still yields partial successes.
+    Why this matters: Order of asyncio.gather results must not lose good queries after a bad one.
+    """
+    svc = _make_service()
+    bad = RuntimeError("first query failed")
+    good = SearchStringResult(query="q2", chunks=[make_chunk("x")])
+    assert svc._collect_results([bad, good], ["q1", "q2"]) == [good]
 
 
 # ---------------------------------------------------------------------------
 # InternalSearchBaseService.run — full pipeline (mocked _search_single_query)
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+async def test_run__raises_first_exception_when_all_queries_fail():
+    """
+    Purpose: End-to-end run() propagates when every _search_single_query fails.
+    Why this matters: Callers must see the root error instead of an empty InternalSearchResult.
+    """
+    svc = _make_service()
+    svc._state.search_queries = ["a", "b"]
+
+    async def fail_queries(*, query: str) -> SearchStringResult:
+        if query == "a":
+            raise ValueError("query a failed")
+        raise RuntimeError("should not reach")
+
+    svc._search_single_query = fail_queries  # type: ignore[method-assign]
+
+    with patch.object(svc, "post_progress_message", new=AsyncMock()):
+        with pytest.raises(ValueError, match="query a failed"):
+            await svc.run()
 
 
 @pytest.mark.ai

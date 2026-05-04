@@ -125,13 +125,15 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
 
     def _collect_results(
         self, results: Sequence[SearchStringResult | BaseException], queries: list[str]
-    ):
+    ) -> list[SearchStringResult]:
         successful: list[SearchStringResult] = []
+        failures: list[BaseException] = []
         for i, result in enumerate(results, start=1):
             if isinstance(result, BaseException):
                 self.logger.error(
                     "Search failed for query #%d/%d", i, len(queries), exc_info=result
                 )
+                failures.append(result)
             else:
                 self.logger.info(
                     "Found %d chunks (query %d/%d)",
@@ -140,6 +142,8 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
                     len(queries),
                 )
                 successful.append(result)
+        if failures and not successful:
+            raise failures[0]
         return successful
 
     async def _finalize_run(
