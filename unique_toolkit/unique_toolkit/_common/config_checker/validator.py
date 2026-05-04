@@ -288,20 +288,20 @@ class ConfigValidator:
             # Get the old value from original JSON
             old_value = None
             try:
-                current: Any = original_json
+                node: Any = original_json
                 for key in loc:
-                    if isinstance(current, dict) and isinstance(key, str):
-                        current = current.get(key)
-                    elif isinstance(current, list) and isinstance(key, int):
+                    if isinstance(node, dict) and isinstance(key, str):
+                        node = node.get(key)
+                    elif isinstance(node, list) and isinstance(key, int):
                         try:
-                            current = current[key]
+                            node = node[key]
                         except (IndexError, TypeError):
-                            current = None
+                            node = None
                             break
                     else:
-                        current = None
+                        node = None
                         break
-                old_value = current
+                old_value = node
             except Exception:
                 pass
 
