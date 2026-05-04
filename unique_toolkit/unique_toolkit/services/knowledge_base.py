@@ -1128,8 +1128,7 @@ class KnowledgeBaseService:
         content_id: str | None = None,
         file_path: str | None = None,
     ) -> DeleteContentResponse:
-        """Delete content by id, file path or metadata filter"""
-
+        """Delete content by id, file path or metadata filter."""
         return delete_content(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -1142,7 +1141,7 @@ class KnowledgeBaseService:
         *,
         metadata_filter: dict[str, Any],
     ) -> list[DeleteContentResponse]:
-        """Delete all content matching the metadata filter"""
+        """Delete all content matching the metadata filter."""
         resp: list[DeleteContentResponse] = []
 
         if metadata_filter:
@@ -1193,7 +1192,7 @@ class KnowledgeBaseService:
         *,
         metadata_filter: dict[str, Any],
     ) -> list[DeleteContentResponse]:
-        """Delete all content matching the metadata filter"""
+        """Delete all content matching the metadata filter."""
         if not metadata_filter:
             return []
 
