@@ -1,0 +1,69 @@
+name: Debug App Token
+
+# Minimal repro for the "A JSON web token could not be decoded" 401 we hit on the
+# release-workflow App in this repo. This workflow has no checkout, no git push,
+# no release-please — only the App token generation step and a probe call. If
+# this fails, the cause is in vars.RELEASE_WORKFLOW_CLIENT_ID, the env-scoped
+# secret RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64, or the App's server-side public
+# key set; nothing else can be at fault.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  via-wrapper:
+    name: Generate token via unique-ag/actions wrapper
+    runs-on: ubuntu-latest
+    environment: release-workflow
+    timeout-minutes: 5
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          repositories: ai
+
+      - name: Probe App identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh api /installation/repositories --jq '.repositories[].full_name'
+
+  via-upstream:
+    name: Generate token via actions/create-github-app-token directly
+    runs-on: ubuntu-latest
+    environment: release-workflow
+    timeout-minutes: 5
+    steps:
+      - name: Decode base64 private key
+        id: decode
+        env:
+          BASE64_ENCODED_PRIVATE_KEY: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          set +x
+          DECODED=$(echo -n "$BASE64_ENCODED_PRIVATE_KEY" | base64 -d)
+          echo "::add-mask::$DECODED"
+          {
+            echo "private_key<<__EOF__"
+            echo "$DECODED"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate GitHub App token (no wrapper)
+        id: app-token
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
+        with:
+          app-id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          private-key: ${{ steps.decode.outputs.private_key }}
+          repositories: ai
+
+      - name: Probe App identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh api /installation/repositories --jq '.repositories[].full_name'
