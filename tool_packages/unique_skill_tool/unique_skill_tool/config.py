@@ -83,10 +83,10 @@ class SkillToolConfig(BaseToolConfig):
         default_factory=list,
         title="Scope IDs",
         description=(
-            "Knowledge base scope IDs to load skills from. Only the "
-            "scopes listed here are queried — sub-folders are not "
-            "traversed automatically, so add each scope you want "
-            "searched explicitly."
+            "Knowledge base scope IDs to load skills from. Each scope "
+            "acts as a subtree root — every ``SKILL.md`` reachable "
+            "under it (at any depth) is loaded. Top-level and nested "
+            "folder scope IDs are both supported."
         ),
     )
 
