@@ -17,11 +17,10 @@ name: "[CD] Release · Arm Version"
 # It pushes an empty `Release-As: YYYY.WW.0` commit directly to `main`.
 # Each trailer overrides the previous one; no cleanup is needed.
 #
-# Runs on gh-static-ip-slim because the Release Workflow App is
-# IP-origin-bound to that runner pool. `prepare-next-cycle.sh`
-# authenticates as the Release Workflow App, which is a bypass actor on
-# the main-branch ruleset and the only identity allowed to push directly
-# to `main`.
+# Runs on gh-static-ip-slim under the `release-workflow` environment so
+# `prepare-next-cycle.sh` can authenticate as the Release Workflow App,
+# which is a bypass actor on the main-branch ruleset and the only
+# identity allowed to push directly to `main`.
 
 permissions:
   contents: write
@@ -37,6 +36,7 @@ on:
 jobs:
   arm:
     runs-on: gh-static-ip-slim
+    environment: release-workflow
     timeout-minutes: 5
     steps:
       - name: Ensure workflow runs from main
@@ -51,7 +51,7 @@ jobs:
         id: app-token
         uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
         with:
-          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 

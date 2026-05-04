@@ -28,11 +28,9 @@ name: "[CD] Release Pipeline"
 #          - the new `release/YYYY.WW` branch push triggers `cd-release`
 #            and `ci-pull-request.yaml` like any human-authored push.
 #
-#   Jobs that need the App token run on `gh-static-ip-slim` because the
-#   App is IP-origin-bound to that runner pool. They read the App
-#   credentials from the repo-level `RELEASE_WORKFLOW_APP_ID` variable
-#   and `RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64` secret (managed by
-#   Infra-as-Code).
+#   Jobs that need the App token declare `environment: release-workflow`
+#   so the env-scoped credentials resolve, and run on `gh-static-ip-slim`
+#   because the App is IP-origin-bound to that runner pool.
 #
 # Concurrency
 # ===========
@@ -69,6 +67,7 @@ jobs:
     # needed) and lets the App's bypass rights cover the tag push on
     # protected branches.
     runs-on: gh-static-ip-slim
+    environment: release-workflow
     outputs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
     steps:
@@ -76,7 +75,7 @@ jobs:
         id: app-token
         uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
         with:
-          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
@@ -107,12 +106,13 @@ jobs:
     needs: release-please
     if: needs.release-please.outputs.releases_created != 'true'
     runs-on: gh-static-ip-slim
+    environment: release-workflow
     steps:
       - name: Generate GitHub App token
         id: app-token
         uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
         with:
-          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
@@ -178,19 +178,21 @@ jobs:
   #
   # Runs on gh-static-ip-slim: the Release Workflow GitHub App is
   # IP-origin-bound and only accepts requests from this runner's static IP.
+  # The `release-workflow` environment scopes the App credentials.
   cut-and-arm:
     needs: release-please
     if: >-
       needs.release-please.outputs.releases_created == 'true'
       && github.ref == 'refs/heads/main'
     runs-on: gh-static-ip-slim
+    environment: release-workflow
     timeout-minutes: 5
     steps:
       - name: Generate GitHub App token
         id: app-token
         uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
         with:
-          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           repositories: ai
 
