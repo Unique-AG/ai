@@ -589,7 +589,12 @@ async def _trigger_upload_content_async(
         "X-Ms-Blob-Type": "BlockBlob",
     }
     # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
-    async with httpx.AsyncClient() as client:
+    # Use generous write/read timeouts: multi-MB HTML files (e.g. Plotly bundles) can
+    # exhaust the default 5 s ceiling while waiting for the Azure Blob commit response.
+    _blob_upload_timeout = httpx.Timeout(
+        connect=10.0, read=120.0, write=120.0, pool=10.0
+    )
+    async with httpx.AsyncClient(timeout=_blob_upload_timeout) as client:
         if isinstance(content, bytes):
             response = await client.put(
                 url=write_url,
