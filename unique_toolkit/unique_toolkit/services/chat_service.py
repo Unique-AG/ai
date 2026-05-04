@@ -20,6 +20,9 @@ from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.message_log_manager.message_log_order import (
+    next_message_log_order,
+)
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
@@ -1742,8 +1745,9 @@ class ChatService(ChatServiceDeprecated):
         reasoning: Reasoning | None = None,
         other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
-        from unique_toolkit.agentic.message_log_manager.service import _request_counters
-
+        # UN-19878: rate-limit retry UX via message logs. After the streaming refactor
+        # (UN-20053) merges and is adopted, this should be integrated with the shared
+        # streaming layer instead of living on ChatService.
         # Single-element box so nested callbacks and finally see assignments (pyright).
         rate_limit_log_box: list[MessageLog | None] = [None]
         _ticker_task: asyncio.Task[None] | None = None
@@ -1780,8 +1784,7 @@ class ChatService(ChatServiceDeprecated):
 
             try:
                 if rate_limit_log_box[0] is None:
-                    _request_counters[msg_id] += 1
-                    order = _request_counters[msg_id]
+                    order = next_message_log_order(message_id=msg_id)
                     rate_limit_log_box[0] = await self.create_message_log_async(
                         message_id=msg_id,
                         text=initial,

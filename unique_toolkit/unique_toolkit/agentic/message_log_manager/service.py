@@ -4,9 +4,11 @@ Logger Service for Unique Agentic tools.
 Target of the method is to extend the step tracking on all levels of the tool.
 """
 
-from collections import defaultdict
 from logging import getLogger
 
+from unique_toolkit.agentic.message_log_manager.message_log_order import (
+    next_message_log_order,
+)
 from unique_toolkit.chat.schemas import (
     MessageLog,
     MessageLogDetails,
@@ -17,10 +19,6 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
 
 _LOGGER = getLogger(__name__)
-
-# Per-request counters for message log ordering - keyed by message_id
-# This is a mandatory global variable since we have in the system a bug which makes it impossible to use it as a proper class variable.
-_request_counters = defaultdict(int)
 
 
 class MessageStepLogger:
@@ -55,8 +53,7 @@ class MessageStepLogger:
             Next order number for this specific request
         """
 
-        _request_counters[message_id] += 1
-        return _request_counters[message_id]
+        return next_message_log_order(message_id=message_id)
 
     def create_message_log_entry(
         self,
