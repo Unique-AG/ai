@@ -288,20 +288,20 @@ class ConfigValidator:
             # Get the old value from original JSON
             old_value = None
             try:
-                node: Any = original_json
+                current = original_json
                 for key in loc:
-                    if isinstance(node, dict) and isinstance(key, str):
-                        node = node.get(key)
-                    elif isinstance(node, list) and isinstance(key, int):
+                    if isinstance(current, dict) and isinstance(key, str):
+                        current = current.get(key)
+                    elif isinstance(current, list) and isinstance(key, int):
                         try:
-                            node = node[key]
+                            current = current[key]  # pyright: ignore[reportArgumentType]
                         except (IndexError, TypeError):
-                            node = None
+                            current = None
                             break
                     else:
-                        node = None
+                        current = None
                         break
-                old_value = node
+                old_value = current
             except Exception:
                 pass
 
