@@ -18,9 +18,7 @@ class SelectableSkill(BaseModel):
 
     name: str = Field(
         default="",
-        description=(
-            "Skill name"
-        ),
+        description=("Skill name"),
     )
     scope_id: str = Field(
         default="",
