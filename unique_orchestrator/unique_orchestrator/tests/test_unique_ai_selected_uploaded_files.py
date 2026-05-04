@@ -17,8 +17,14 @@ def _make_expired_doc(doc_id: str) -> MagicMock:
     return doc
 
 
-class TestRenderSystemPromptSelectedUploadedFiles:
-    """Tests for the selected_uploaded_files filtering in _render_system_prompt (lines 482-487)."""
+class TestRenderSystemPromptUploadedDocumentsExpired:
+    """Tests for uploaded_documents_expired rendering in _render_system_prompt.
+
+    _render_system_prompt builds uploaded_documents_expired by filtering
+    self._uploaded_documents through doc.is_expired(). These tests verify
+    that the Jinja template variable reflects the correct count based on
+    what is stored in _uploaded_documents.
+    """
 
     @pytest.fixture
     def mock_unique_ai(self, monkeypatch: pytest.MonkeyPatch) -> UniqueAI:
@@ -59,7 +65,6 @@ class TestRenderSystemPromptSelectedUploadedFiles:
         mock_history_manager.get_tool_calls.return_value = []
 
         mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat.return_value = []
 
         ua = UniqueAI(
             logger=mock_logger,
@@ -67,6 +72,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
             config=mock_config,
             chat_service=MagicMock(),
             content_service=mock_content_service,
+            uploaded_documents=[],
             debug_info_manager=MagicMock(),
             streaming_handler=MagicMock(),
             reference_manager=MagicMock(),
@@ -83,107 +89,101 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_filters_uploaded_documents_to_selected_ids(
+    async def test_expired_docs_in_uploaded_documents_are_counted(
         self, mock_unique_ai: UniqueAI
     ) -> None:
+        """
+        Purpose: Verify that expired docs in _uploaded_documents are included in
+                 uploaded_documents_expired passed to the system prompt template.
+        Why this matters: The template uses uploaded_documents_expired to render expiry
+                          warnings — every expired document must be counted.
+        Setup summary: Assign three MagicMock docs (all expired via truthy is_expired())
+                       to _uploaded_documents; assert the template renders "3".
+        """
         docs = [_make_expired_doc("a"), _make_expired_doc("b"), _make_expired_doc("c")]
-        mock_unique_ai._content_service.get_documents_uploaded_to_chat.return_value = (
-            docs
-        )
-
-        from unique_orchestrator.utils import feature_flags
-
-        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-
-        additional = MagicMock()
-        additional.selected_uploaded_files = [MagicMock(id="a"), MagicMock(id="c")]
-        additional.selected_uploaded_file_ids = ["a", "c"]
-        mock_unique_ai._event.payload.additional_parameters = additional
-
-        result = await mock_unique_ai._render_system_prompt()
-        assert result == "2"
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_no_filtering_when_additional_parameters_is_none(
-        self, mock_unique_ai: UniqueAI
-    ) -> None:
-        docs = [_make_expired_doc("a"), _make_expired_doc("b"), _make_expired_doc("c")]
-        mock_unique_ai._content_service.get_documents_uploaded_to_chat.return_value = (
-            docs
-        )
-
-        from unique_orchestrator.utils import feature_flags
-
-        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-
-        mock_unique_ai._event.payload.additional_parameters = None
+        mock_unique_ai._uploaded_documents = docs
 
         result = await mock_unique_ai._render_system_prompt()
         assert result == "3"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_filters_all_when_selected_uploaded_files_is_empty(
+    async def test_empty_uploaded_documents_yields_zero_expired(
         self, mock_unique_ai: UniqueAI
     ) -> None:
-        docs = [_make_expired_doc("a"), _make_expired_doc("b")]
-        mock_unique_ai._content_service.get_documents_uploaded_to_chat.return_value = (
-            docs
-        )
-
-        from unique_orchestrator.utils import feature_flags
-
-        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-
-        additional = MagicMock()
-        additional.selected_uploaded_files = []
-        additional.selected_uploaded_file_ids = []
-        mock_unique_ai._event.payload.additional_parameters = additional
+        """
+        Purpose: Verify that an empty _uploaded_documents list results in zero
+                 expired documents in the template.
+        Why this matters: When no documents are uploaded, the template must render "0"
+                          rather than failing or returning stale data.
+        Setup summary: Leave _uploaded_documents as [] (set in fixture); assert "0".
+        """
+        mock_unique_ai._uploaded_documents = []
 
         result = await mock_unique_ai._render_system_prompt()
         assert result == "0"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_no_filtering_when_feature_flag_disabled(
+    async def test_non_expired_docs_are_not_counted(
         self, mock_unique_ai: UniqueAI
     ) -> None:
-        docs = [_make_expired_doc("a"), _make_expired_doc("b"), _make_expired_doc("c")]
-        mock_unique_ai._content_service.get_documents_uploaded_to_chat.return_value = (
-            docs
-        )
-
-        from unique_orchestrator.utils import feature_flags
-
-        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
-
-        additional = MagicMock()
-        additional.selected_uploaded_files = [MagicMock(id="a")]
-        additional.selected_uploaded_file_ids = ["a"]
-        mock_unique_ai._event.payload.additional_parameters = additional
+        """
+        Purpose: Verify that docs whose is_expired() returns False are excluded from
+                 the uploaded_documents_expired list.
+        Why this matters: Valid (non-expired) documents must not inflate the expired
+                          count seen by the template.
+        Setup summary: Assign one MagicMock configured to return False from is_expired()
+                       to _uploaded_documents; assert template renders "0".
+        """
+        non_expired_doc = MagicMock()
+        non_expired_doc.id = "valid_doc"
+        non_expired_doc.is_expired.return_value = False
+        mock_unique_ai._uploaded_documents = [non_expired_doc]
 
         result = await mock_unique_ai._render_system_prompt()
-        assert result == "3"
+        assert result == "0"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_filters_to_single_selected_document(
+    async def test_only_expired_docs_counted_in_mixed_list(
         self, mock_unique_ai: UniqueAI
     ) -> None:
-        docs = [_make_expired_doc("x"), _make_expired_doc("y"), _make_expired_doc("z")]
-        mock_unique_ai._content_service.get_documents_uploaded_to_chat.return_value = (
-            docs
-        )
+        """
+        Purpose: Verify that only expired docs are counted when _uploaded_documents
+                 contains a mix of expired and valid documents.
+        Why this matters: The template must accurately reflect how many documents have
+                          expired, not the total document count.
+        Setup summary: Assign two expired MagicMock docs and one non-expired MagicMock
+                       doc to _uploaded_documents; assert template renders "2".
+        """
+        expired_doc_1 = _make_expired_doc("x")
+        expired_doc_2 = _make_expired_doc("y")
+        non_expired_doc = MagicMock()
+        non_expired_doc.id = "z"
+        non_expired_doc.is_expired.return_value = False
+        mock_unique_ai._uploaded_documents = [
+            expired_doc_1,
+            expired_doc_2,
+            non_expired_doc,
+        ]
 
-        from unique_orchestrator.utils import feature_flags
+        result = await mock_unique_ai._render_system_prompt()
+        assert result == "2"
 
-        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-
-        additional = MagicMock()
-        additional.selected_uploaded_files = [MagicMock(id="y")]
-        additional.selected_uploaded_file_ids = ["y"]
-        mock_unique_ai._event.payload.additional_parameters = additional
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_single_expired_doc_in_uploaded_documents(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """
+        Purpose: Verify boundary case of exactly one expired document.
+        Why this matters: Single-item lists are a common edge case that could expose
+                          off-by-one bugs in the filter comprehension.
+        Setup summary: Assign one expired MagicMock doc to _uploaded_documents;
+                       assert template renders "1".
+        """
+        mock_unique_ai._uploaded_documents = [_make_expired_doc("only")]
 
         result = await mock_unique_ai._render_system_prompt()
         assert result == "1"
