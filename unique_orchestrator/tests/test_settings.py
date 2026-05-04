@@ -13,9 +13,9 @@ These tests exercise:
 * The module-level ``env_settings`` singleton, which is the entry point
   every other module in the package uses.
 
-Lives under the top-level ``tests/`` directory so the CI coverage runner
-(``check-coverage.sh``) picks it up — collection in CI starts at
-``tests/`` and does not descend into ``unique_orchestrator/tests/``.
+Lives under the top-level ``tests/`` directory; CI test and coverage both run
+pytest from the package root with default discovery, so inner-package tests are
+collected too.
 """
 
 from __future__ import annotations
