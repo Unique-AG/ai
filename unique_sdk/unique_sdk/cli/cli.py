@@ -1087,6 +1087,13 @@ def elicit_respond(
 # -- Web Search ------------------------------------------------------------
 
 
+# Key under which the `web-search` group stashes its `--config` path on
+# `ctx.meta`, so subcommands can read it back via
+# ``_resolve_web_search_config_path``. Kept as a module-level constant so the
+# writer (group) and reader (subcommand helper) cannot drift.
+_WEB_SEARCH_GROUP_CONFIG_KEY = "web_search_config_path"
+
+
 @main.group("web-search")
 @click.version_option(version=__version__, prog_name="unique-cli web-search")
 @click.option(
@@ -1130,10 +1137,7 @@ def web_search_group(ctx: click.Context, config_path: str | None) -> None:
       crawl     Crawl a list of URLs and print their content
     """
     if config_path is not None:
-        ctx.meta["web_search_config_path"] = config_path
-
-
-_WEB_SEARCH_GROUP_CONFIG_KEY = "web_search_config_path"
+        ctx.meta[_WEB_SEARCH_GROUP_CONFIG_KEY] = config_path
 
 
 def _resolve_web_search_config_path(
