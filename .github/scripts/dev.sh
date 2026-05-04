@@ -204,7 +204,7 @@ cmd_coverage() {
         # Check if the CI script exists
         SCRIPT_PATH="$(git rev-parse --show-toplevel)/.github/scripts/check-coverage.sh"
         if [[ -f "$SCRIPT_PATH" ]]; then
-            bash "$SCRIPT_PATH" "$PACKAGE_DIR" --base-ref "$BASE_REF" --runner "$RUN" "${EXTRA_ARGS[@]}"
+            CHECK_COVERAGE_PYTEST_ARGS="${EXTRA_ARGS[*]}" bash "$SCRIPT_PATH" "$PACKAGE_DIR" --base-ref "$BASE_REF" --runner "$RUN"
         else
             print_warn "CI script not found, falling back to simple coverage"
             $RUN pytest --cov="$PACKAGE_NAME" --cov-report=term-missing "${EXTRA_ARGS[@]}"

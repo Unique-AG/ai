@@ -8,9 +8,8 @@ which tools are configured.
 
 Tracked in Jira: UN-20123.
 
-These tests live in the top-level ``tests/`` directory so the CI coverage
-script (``check-coverage.sh``) picks them up — pytest's collection in CI
-starts at ``tests/`` and does not descend into ``unique_orchestrator/tests/``.
+These tests live in the top-level ``tests/`` directory; CI test and coverage use
+the same pytest discovery from the package root.
 """
 
 from __future__ import annotations
