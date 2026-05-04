@@ -40,6 +40,10 @@ from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool import
     RetrieveSearchScopeConfig,
     RetrieveSearchScopeTool,
 )
+from unique_toolkit.agentic.tools.experimental.todo import (
+    TodoConfig,
+    TodoWriteTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
@@ -357,6 +361,11 @@ class ExperimentalConfig(BaseToolConfig):
     retrieve_search_scope_config: RetrieveSearchScopeConfig = (
         RetrieveSearchScopeConfig()
     )
+    todo_config: TodoConfig = Field(
+        title="Todo Tool",
+        description="Configuration for the todo tool",
+        default_factory=TodoConfig,
+    )
 
     use_responses_api: bool = Field(
         default=False,
@@ -474,6 +483,27 @@ class UniqueAIConfig(BaseToolConfig):
         elif not config.enabled and has_tool:
             self.space.tools = [
                 t for t in self.space.tools if t.name != RetrieveSearchScopeTool.name
+            ]
+
+        return self
+
+    @model_validator(mode="after")
+    def inject_todo_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = TodoWriteTool.name in tool_names
+        config = self.agent.experimental.todo_config
+
+        if config.enabled and not has_tool:
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=TodoWriteTool.name,
+                    display_name=config.display_name,
+                    configuration=config,
+                )
+            )
+        elif not config.enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools if t.name != TodoWriteTool.name
             ]
 
         return self
