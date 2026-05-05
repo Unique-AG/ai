@@ -1,63 +1,30 @@
-"""UniqueQL helpers for KB ``folderIdPath`` / ``metadata_filter`` scoping."""
+"""UniqueQL helpers for KB ``folderId`` / ``metadata_filter`` scoping."""
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Mapping
 from typing import Any
 
 from unique_toolkit.content.smart_rules import (
-    AndStatement,
     Operator,
-    OrStatement,
     Statement,
 )
 
 _UQL_AND = "and"
 
-# Shared with ``KnowledgeBaseService`` wire-format folder paths (folderIdPath ``contains``).
-FOLDER_ID_PATH_VALUE_PREFIX = "uniquepathid://"
 
+def build_folder_id_in_clause(scope_ids: list[str]) -> dict[str, Any]:
+    """UniqueQL for selected folders using ``folderId in [scope_ids]``.
 
-def _validate_folder_id_path_values(folder_id_paths: list[str]) -> None:
-    if not folder_id_paths:
-        raise ValueError("folder_id_paths must be a non-empty list")
-    prefix = FOLDER_ID_PATH_VALUE_PREFIX
-    for raw in folder_id_paths:
-        if not isinstance(raw, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise TypeError(
-                f"each folderIdPath value must be a str, got {type(raw).__name__}"
-            )
-        if not raw:
-            raise ValueError("each folderIdPath value must be a non-empty str")
-        if not raw.startswith(prefix):
-            raise ValueError(
-                f"folderIdPath value must start with {prefix!r} "
-                f"(root-to-leaf scope id path), got {raw!r}"
-            )
-        rest = raw[len(prefix) :]
-        segments = [s for s in rest.split("/") if s]
-        if not segments:
-            raise ValueError(
-                "folderIdPath value must include at least one scope id segment "
-                f"after the prefix, got {raw!r}"
-            )
-
-
-def build_folder_id_path_scope_clause(folder_id_paths: list[str]) -> dict[str, Any]:
-    """UniqueQL for selected folders using UI-style ``folderIdPath contains`` rules."""
-    _validate_folder_id_path_values(folder_id_paths)
-    clauses: list[Statement | AndStatement | OrStatement] = [
-        Statement(
-            operator=Operator.CONTAINS,  # TODO: check if EQUALS to be used instead
-            path=["folderIdPath"],
-            value=folder_id_path,
-        )
-        for folder_id_path in folder_id_paths
-    ]
-    if len(clauses) == 1:
-        return clauses[0].model_dump(mode="json")
-    return OrStatement(or_list=clauses).model_dump(mode="json")
+    Equivalent to passing ``scope_ids`` directly to the wire-level search API.
+    """
+    if not scope_ids:
+        raise ValueError("scope_ids must be a non-empty list")
+    return Statement(
+        operator=Operator.IN,
+        path=["folderId"],
+        value=scope_ids,
+    ).model_dump(mode="json")
 
 
 def merge_scope_clause_into_metadata_filter(
@@ -74,27 +41,7 @@ def merge_scope_clause_into_metadata_filter(
     return {_UQL_AND: [scope_dict, dict(metadata_filter)]}
 
 
-def merge_deprecated_scope_ids_into_filter(
-    scope_ids: list[str] | None,
-    metadata_filter: dict[str, Any] | None,
-    *,
-    deprecation_message: str,
-    stacklevel: int = 2,
-) -> dict[str, Any] | None:
-    """Merge **already-resolved** ``uniquepathid://`` paths for legacy call sites; warns."""
-    if not scope_ids:
-        return metadata_filter
-    warnings.warn(
-        deprecation_message,
-        DeprecationWarning,
-        stacklevel=stacklevel,
-    )
-    clause = build_folder_id_path_scope_clause(scope_ids)
-    return merge_scope_clause_into_metadata_filter(clause, metadata_filter)
-
-
 __all__ = [
-    "build_folder_id_path_scope_clause",
-    "merge_deprecated_scope_ids_into_filter",
+    "build_folder_id_in_clause",
     "merge_scope_clause_into_metadata_filter",
 ]

@@ -21,10 +21,9 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
         deprecated=True,
         description=(
             "Not accepted for new configs. Use ``metadata_filter`` with "
-            "``folderIdPath`` / operator ``contains`` and "
-            "``uniquepathid://…`` values. If set, a deprecation warning is emitted "
-            "and values are resolved to full folder paths at search time via the "
-            "folder API (scope id → root-to-leaf path)."
+            "``folderId`` / operator ``in`` and the raw scope ID values instead. "
+            "If set, a deprecation warning is emitted and values are folded into "
+            "a ``folderId in [scope_ids]`` metadata filter at search time."
         ),
     )
     metadata_filter: dict[str, object] | None = Field(
@@ -51,7 +50,7 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
             warnings.warn(
                 (
                     "KnowledgeBaseInternalSearchConfig.scope_ids is deprecated; "
-                    "use metadata_filter with folderIdPath operator 'contains' instead."
+                    "use metadata_filter with folderId operator 'in' instead."
                 ),
                 DeprecationWarning,
                 stacklevel=2,

@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Self, cast
 
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_in_clause,
+    merge_scope_clause_into_metadata_filter,
+)
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.experimental.components.internal_search.base import (
     SearchStringResult,
@@ -61,47 +65,17 @@ class KnowledgeBaseInternalSearchService(
         return debug_info
 
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
-        kb = self._dependencies.knowledge_base_service
-
         metadata_filter = self._effective_metadata_filter
         scope_ids = self._effective_scope_ids
-        content_ids = self._state.content_ids
 
         if scope_ids is not None:
-            metadata_filter = await kb._merge_deprecated_scope_ids_into_metadata_filter_async(
-                scope_ids,
-                metadata_filter,
-                deprecation_message=(
-                    "KnowledgeBaseInternalSearchConfig.scope_ids is deprecated; "
-                    "use metadata_filter with folderIdPath operator 'contains' instead."
-                ),
-                warn=False,
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
             )
             self._resolved_metadata_filter = metadata_filter
 
-        if metadata_filter is not None:
-            if content_ids is not None:
-                chunks = await kb.search_content_chunks_async(
-                    search_string=query,
-                    search_type=self._config.search.search_type,
-                    limit=self._config.filtering.limit,
-                    search_language=self._config.search.search_language,
-                    score_threshold=self._config.filtering.score_threshold,
-                    reranker_config=self._config.reranker_config,
-                    metadata_filter=metadata_filter,
-                    content_ids=content_ids,
-                )
-            else:
-                chunks = await kb.search_content_chunks_async(
-                    search_string=query,
-                    search_type=self._config.search.search_type,
-                    limit=self._config.filtering.limit,
-                    search_language=self._config.search.search_language,
-                    score_threshold=self._config.filtering.score_threshold,
-                    reranker_config=self._config.reranker_config,
-                    metadata_filter=metadata_filter,
-                )
-        else:
+        if metadata_filter is None:
             raise RuntimeError(
                 "KnowledgeBaseInternalSearchService requires a metadata filter "
                 "(config.metadata_filter, deprecated config.scope_ids, chat context "
@@ -109,6 +83,20 @@ class KnowledgeBaseInternalSearchService(
                 "supported without a metadata filter."
             )
 
+        kb = self._dependencies.knowledge_base_service
+        content_ids = self._state.content_ids
+        kwargs: dict[str, Any] = dict(
+            search_string=query,
+            search_type=self._config.search.search_type,
+            limit=self._config.filtering.limit,
+            search_language=self._config.search.search_language,
+            score_threshold=self._config.filtering.score_threshold,
+            reranker_config=self._config.reranker_config,
+            metadata_filter=metadata_filter,
+        )
+        if content_ids is not None:
+            kwargs["content_ids"] = content_ids
+        chunks = await kb.search_content_chunks_async(**kwargs)
         return SearchStringResult(query=query, chunks=chunks)
 
     @property

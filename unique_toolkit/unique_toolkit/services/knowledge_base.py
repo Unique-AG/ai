@@ -12,8 +12,7 @@ import unique_sdk
 from typing_extensions import deprecated
 
 from unique_toolkit._common.metadata_filter_scope import (
-    FOLDER_ID_PATH_VALUE_PREFIX,
-    build_folder_id_path_scope_clause,
+    build_folder_id_in_clause,
     merge_scope_clause_into_metadata_filter,
 )
 from unique_toolkit._common.validate_required_values import validate_required_values
@@ -215,15 +214,15 @@ class KnowledgeBaseService:
             metadata_filter = self._metadata_filter
 
         if scope_ids:
-            metadata_filter = self._merge_deprecated_scope_ids_into_metadata_filter(
-                scope_ids,
-                metadata_filter,
-                deprecation_message=(
-                    "Passing scope_ids to KnowledgeBaseService.search_content_chunks is "
-                    "deprecated; use metadata_filter with folderIdPath operator "
-                    "'contains' instead."
-                ),
-                stacklevel=3,
+            warnings.warn(
+                "Passing scope_ids to KnowledgeBaseService.search_content_chunks is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
             )
             scope_ids = None
 
@@ -312,15 +311,15 @@ class KnowledgeBaseService:
             metadata_filter = self._metadata_filter
 
         if scope_ids:
-            metadata_filter = await self._merge_deprecated_scope_ids_into_metadata_filter_async(
-                scope_ids,
-                metadata_filter,
-                deprecation_message=(
-                    "Passing scope_ids to KnowledgeBaseService.search_content_chunks_async is "
-                    "deprecated; use metadata_filter with folderIdPath operator "
-                    "'contains' instead."
-                ),
-                stacklevel=3,
+            warnings.warn(
+                "Passing scope_ids to KnowledgeBaseService.search_content_chunks_async is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
             )
             scope_ids = None
 
@@ -808,109 +807,6 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
-    @staticmethod
-    def _dedupe_redundant_scope_id_paths(
-        scope_id_paths: list[list[str]],
-    ) -> list[list[str]]:
-        """Drop strict descendant paths; comparison is segment-wise, not string prefix."""
-        if not scope_id_paths:
-            return []
-        unique_in_order: list[list[str]] = []
-        seen: set[tuple[str, ...]] = set()
-        for path in scope_id_paths:
-            key = tuple(path)
-            if key not in seen:
-                seen.add(key)
-                unique_in_order.append(path)
-
-        def _is_ancestor_path(ancestor: list[str], maybe_desc: list[str]) -> bool:
-            if len(ancestor) > len(maybe_desc):
-                return False
-            return maybe_desc[: len(ancestor)] == ancestor
-
-        by_depth = sorted(unique_in_order, key=lambda p: (len(p), tuple(p)))
-        kept_segs: list[list[str]] = []
-        for segs in by_depth:
-            if any(_is_ancestor_path(ks, segs) for ks in kept_segs):
-                continue
-            kept_segs.append(segs)
-
-        kept_set = {tuple(ks) for ks in kept_segs}
-        return [p for p in unique_in_order if tuple(p) in kept_set]
-
-    def _resolve_scope_ids_to_folder_id_paths(
-        self, *, scope_ids: list[str]
-    ) -> list[str]:
-        scope_paths = [
-            self.get_scope_id_path(scope_id=scope_id) for scope_id in scope_ids
-        ]
-        deduped = KnowledgeBaseService._dedupe_redundant_scope_id_paths(scope_paths)
-        return [f"{FOLDER_ID_PATH_VALUE_PREFIX}{'/'.join(p)}" for p in deduped]
-
-    async def _resolve_scope_ids_to_folder_id_paths_async(
-        self, *, scope_ids: list[str]
-    ) -> list[str]:
-        scope_id_paths = await asyncio.gather(
-            *(
-                self._get_scope_id_path_async(scope_id=scope_id)
-                for scope_id in scope_ids
-            )
-        )
-        deduped = KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            list(scope_id_paths)
-        )
-        return [f"{FOLDER_ID_PATH_VALUE_PREFIX}{'/'.join(p)}" for p in deduped]
-
-    def _merge_deprecated_scope_ids_into_metadata_filter(
-        self,
-        scope_ids: list[str] | None,
-        metadata_filter: dict[str, Any] | None,
-        *,
-        deprecation_message: str,
-        stacklevel: int = 2,
-        warn: bool = True,
-    ) -> dict[str, Any] | None:
-        if not scope_ids:
-            return metadata_filter
-
-        if warn:
-            warnings.warn(
-                deprecation_message,
-                DeprecationWarning,
-                stacklevel=stacklevel,
-            )
-
-        folder_id_paths = self._resolve_scope_ids_to_folder_id_paths(
-            scope_ids=scope_ids
-        )
-        scope_clause = build_folder_id_path_scope_clause(folder_id_paths)
-        return merge_scope_clause_into_metadata_filter(scope_clause, metadata_filter)
-
-    async def _merge_deprecated_scope_ids_into_metadata_filter_async(
-        self,
-        scope_ids: list[str] | None,
-        metadata_filter: dict[str, Any] | None,
-        *,
-        deprecation_message: str,
-        stacklevel: int = 2,
-        warn: bool = True,
-    ) -> dict[str, Any] | None:
-        if not scope_ids:
-            return metadata_filter
-
-        if warn:
-            warnings.warn(
-                deprecation_message,
-                DeprecationWarning,
-                stacklevel=stacklevel,
-            )
-
-        folder_id_paths = await self._resolve_scope_ids_to_folder_id_paths_async(
-            scope_ids=scope_ids
-        )
-        scope_clause = build_folder_id_path_scope_clause(folder_id_paths)
-        return merge_scope_clause_into_metadata_filter(scope_clause, metadata_filter)
-
     # File Tree Resolution
     # ------------------------------------------------------------------------------------------------
 
@@ -934,9 +830,7 @@ class KnowledgeBaseService:
             ):
                 scope_ids.update(
                     sid
-                    for sid in folder_id_path.replace(
-                        FOLDER_ID_PATH_VALUE_PREFIX, ""
-                    ).split("/")
+                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
                     if sid
                 )
         return scope_ids
@@ -1017,9 +911,7 @@ class KnowledgeBaseService:
             ):
                 file_path = [
                     scope_id_to_folder_name.get(sid, sid)
-                    for sid in folder_id_path.replace(
-                        FOLDER_ID_PATH_VALUE_PREFIX, ""
-                    ).split("/")
+                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
                     if sid
                 ]
             else:

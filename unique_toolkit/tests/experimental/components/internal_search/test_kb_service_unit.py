@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unique_toolkit._common.metadata_filter_scope import (
-    build_folder_id_path_scope_clause,
+    build_folder_id_in_clause,
 )
 from unique_toolkit.experimental.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
@@ -32,7 +32,7 @@ def _make_service(
 ) -> tuple[KnowledgeBaseInternalSearchService, MagicMock]:
     """Return (service, mock_kb_service)."""
     cfg = config or KnowledgeBaseInternalSearchConfig(
-        metadata_filter=build_folder_id_path_scope_clause(["uniquepathid://scope-1"]),
+        metadata_filter=build_folder_id_in_clause(["scope-1"]),
     )
     svc = KnowledgeBaseInternalSearchService.from_config(cfg)
 
@@ -180,38 +180,23 @@ def test_config__keeps_existing_metadata_filter_when_scope_ids_are_present() -> 
 
 
 @pytest.mark.ai
-async def test_search_single_query__resolves_scope_ids_before_calling_kb(make_chunk):
+async def test_search_single_query__uses_scope_ids_when_set(make_chunk):
     """
-    Purpose: Verifies runtime-resolved scope_ids reach KB search through metadata_filter only.
-    Why this matters: Internal search should mirror UI folder filters without forwarding
-        deprecated scope_ids to the lower layer.
-    Setup summary: Config with deprecated scope_ids; mock KB resolution helper and assert
-        search is called with only the final metadata_filter.
+    Purpose: Verifies scope_ids are folded into a folderId `in` metadata_filter before calling KB.
+    Why this matters: Internal search must not forward deprecated scope_ids to the lower layer;
+        the filter must be resolved locally and sent as metadata_filter only.
+    Setup summary: Config with deprecated scope_ids; assert search is called with a
+        folderId `in` metadata_filter and no scope_ids parameter.
     """
     with pytest.deprecated_call(match="scope_ids"):
         cfg = KnowledgeBaseInternalSearchConfig(scope_ids=["kb-1", "kb-2"])
     svc, mock_kb_svc = _make_service(config=cfg)
-    expected_filter = build_folder_id_path_scope_clause(
-        ["uniquepathid://root/kb-1", "uniquepathid://root/kb-2"]
-    )
-    mock_kb_svc._merge_deprecated_scope_ids_into_metadata_filter_async = AsyncMock(
-        return_value=expected_filter
-    )
     mock_kb_svc.search_content_chunks_async = AsyncMock(return_value=[make_chunk("x")])
 
     await svc._search_single_query(query="hello")
 
-    mock_kb_svc._merge_deprecated_scope_ids_into_metadata_filter_async.assert_awaited_once_with(
-        ["kb-1", "kb-2"],
-        None,
-        deprecation_message=(
-            "KnowledgeBaseInternalSearchConfig.scope_ids is deprecated; "
-            "use metadata_filter with folderIdPath operator 'contains' instead."
-        ),
-        warn=False,
-    )
     call_kwargs = mock_kb_svc.search_content_chunks_async.call_args.kwargs
-    assert call_kwargs["metadata_filter"] == expected_filter
+    assert call_kwargs["metadata_filter"] == build_folder_id_in_clause(["kb-1", "kb-2"])
     assert "scope_ids" not in call_kwargs
     assert "content_ids" not in call_kwargs
 
