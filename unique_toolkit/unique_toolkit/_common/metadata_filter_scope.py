@@ -49,7 +49,7 @@ def build_folder_id_path_scope_clause(folder_id_paths: list[str]) -> dict[str, A
     _validate_folder_id_path_values(folder_id_paths)
     clauses: list[Statement | AndStatement | OrStatement] = [
         Statement(
-            operator=Operator.CONTAINS,
+            operator=Operator.CONTAINS,  # TODO: check if EQUALS to be used instead
             path=["folderIdPath"],
             value=folder_id_path,
         )
