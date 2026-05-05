@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
 import tiktoken
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from tokenizers import Tokenizer
 from typing_extensions import deprecated
@@ -325,25 +325,6 @@ class LanguageModelInfo(BaseModel):
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
-    @model_validator(mode="after")
-    def _apply_family_input_token_correction(self) -> Self:
-        """Scale ``token_limits.token_limit_input`` by the per-family multiplier.
-
-        Runs on every construction (``cls(...)`` and ``cls.model_validate(...)``).
-        Round-trip contract: ``model_dump`` produces a dict with the *corrected*
-        limit; passing that dict back through ``model_validate`` will shrink
-        again. Callers that need to round-trip must either drop the ``family``
-        field (defaults to ``ModelFamily.UNKNOWN`` -> no correction), or ensure
-        the round-tripped ``token_limit_input`` represents the advertised
-        (pre-correction) value.
-        """
-        multiplier = env_settings.token_limit_multiplier.get(self.family, 1.0)
-        if multiplier != 1.0:
-            self.token_limits.token_limit_input = int(
-                self.token_limits.token_limit_input * multiplier
-            )
-        return self
-
     def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""
         if isinstance(self.encoder_name, EncoderName):
@@ -544,6 +525,28 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName | str) -> Self:
+        """Build a ``LanguageModelInfo`` for ``model_name`` and apply the per-family
+        input-token correction exactly once.
+
+        ``token_limits.token_limit_input`` declared in the case branches below is
+        the *advertised* limit. The family multiplier (see
+        ``settings.token_limit_multiplier``) compensates for tokenizer mismatches
+        and is applied here, at the single bottleneck through which every
+        ``from_name`` result flows. Other construction paths
+        (``cls(...)`` direct, ``cls.model_validate(dump)``) are intentionally
+        *not* corrected, so a corrected info round-trips through pydantic
+        without re-shrinking when nested inside parent configs.
+        """
+        info = cls._construct_from_name(model_name)
+        multiplier = env_settings.token_limit_multiplier.get(info.family, 1.0)
+        if multiplier != 1.0:
+            info.token_limits.token_limit_input = int(
+                info.token_limits.token_limit_input * multiplier
+            )
+        return info
+
+    @classmethod
+    def _construct_from_name(cls, model_name: LanguageModelName | str) -> Self:
         if model_name in [name.value for name in LanguageModelName]:
             model_name = LanguageModelName(model_name)
 

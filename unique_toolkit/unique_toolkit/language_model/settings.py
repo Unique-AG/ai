@@ -28,7 +28,7 @@ class ModelFamily(StrEnum):
 class Base(BaseSettings):
     token_limit_multiplier: dict[ModelFamily, float] = Field(
         default={
-            ModelFamily.ANTHROPIC: 0.8,
+            ModelFamily.ANTHROPIC: 0.75,
         },
     )
 
