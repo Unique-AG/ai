@@ -1251,27 +1251,6 @@ class KnowledgeBaseService:
         list_of_scope_ids.reverse()
         return PurePath("/" + "/".join(list_of_folder_names[::-1])), list_of_scope_ids
 
-    async def _get_scope_id_path_async(self, *, scope_id: str) -> list[str]:
-        """
-        Get the list of scope ids from root to the folder asynchronously.
-
-        Args:
-            scope_id (str): The scope id of the folder.
-
-        Returns:
-            list[str]: The list of scope ids from root to the folder.
-        """
-        list_of_scope_ids: list[str] = []
-        folder_info = await self.get_folder_info_async(scope_id=scope_id)
-        list_of_scope_ids.append(folder_info.id)
-        while folder_info.parent_id is not None:
-            parent_scope_id = folder_info.parent_id
-            folder_info = await self.get_folder_info_async(scope_id=parent_scope_id)
-            list_of_scope_ids.append(folder_info.id)
-
-        list_of_scope_ids.reverse()
-        return list_of_scope_ids
-
     # Utility Functions
     # ------------------------------------------------------------------------------------------------
 
