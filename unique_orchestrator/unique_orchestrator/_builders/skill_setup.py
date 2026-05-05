@@ -3,7 +3,18 @@
 Loads skill definitions from the knowledge base and registers the
 SkillTool with the tool manager.
 
-Skill files are ``.md`` documents with optional YAML frontmatter::
+Skill discovery follows the official Agent Skills protocol — see
+https://agentskills.io/home. Each skill is a **folder**
+that contains a ``SKILL.md`` entrypoint with required YAML frontmatter::
+
+    <skill-folder>/
+      SKILL.md          (required: name + description + body)
+      scripts/          (optional: executable code)
+      references/       (optional: documentation)
+      assets/           (optional: templates, resources)
+      ...               # Any additional files or directories
+
+The ``SKILL.md`` body looks like::
 
     ---
     name: summarize-report
@@ -15,42 +26,33 @@ Skill files are ``.md`` documents with optional YAML frontmatter::
     # Summarize Report
     ...instructions...
 
+Only files whose basename is ``SKILL.md`` (case-insensitive) are
+treated as skill entrypoints. Any other ``.md`` files in a skill
+folder (``references/*.md``, README, etc.) are ignored by the loader
+— they are treated as assets, not separate skills. This matches the
+"each skill is a folder" semantics of the official protocol.
+
 The frontmatter fields are used for the skill listing shown to the
-LLM.  The body (everything after the frontmatter) is the prompt
+LLM. The body (everything after the frontmatter) is the prompt
 content injected when the skill is invoked.
-
-TODO: Add a skill-path reconciliation module that supports both KB
-layouts and infers the skill name when frontmatter ``name:`` is
-missing. Today every ``.md`` is treated as an independent skill and
-is skipped unless the frontmatter carries both ``name`` and
-``description`` — a folder-based skill (``<scope>/draft-email/
-SKILL.md`` + assets) is indistinguishable from a flat-layout skill
-(``<scope>/draft-email.md``), and authors must repeat the name in
-frontmatter even though the filename or folder already implies it.
-
-Target layouts:
-  * flat:   ``<scope>/draft-email.md``
-            -> name inferred from filename stem
-  * folder: ``<scope>/draft-email/SKILL.md`` + sibling assets
-            -> name inferred from folder name; other ``.md`` files in
-               the folder are treated as assets, not separate skills
 """
 
 from __future__ import annotations
 
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import frontmatter
 from pydantic import ValidationError
-from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.config import SkillToolConfig
+from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
 from unique_skill_tool.service import SkillTool
-from unique_skill_tool.utils import extract_prefix_skills
+from unique_skill_tool.utils import extract_invoked_skills
+from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import Content, ContentInfo
 from unique_toolkit.content.smart_rules import (
-    AndStatement,
     Operator,
     OrStatement,
     Statement,
@@ -70,26 +72,48 @@ if TYPE_CHECKING:
     from unique_orchestrator.config import UniqueAIConfig
 
 
+def _find_skill_tool_build_config(
+    tools: list[ToolBuildConfig],
+) -> ToolBuildConfig | None:
+    """Return the SkillTool entry from ``space.tools`` if present."""
+    for tool in tools:
+        if tool.name == SkillTool.name:
+            return tool
+    return None
+
+
 _SUBTREE_PAGE_SIZE = 100
 _MAX_SUBTREE_ITEMS = 10_000
 
+_SKILL_ENTRYPOINT_FILENAME = "skill.md"
 
-def _is_markdown(*, content: Content | ContentInfo) -> bool:
-    return content.key.lower().endswith(".md")
+
+def _is_skill_entrypoint(*, content: Content | ContentInfo) -> bool:
+    """Return True when *content*'s basename is the skill entrypoint file.
+
+    Matches only ``SKILL.md`` (case-insensitive). Other ``.md`` files in
+    a skill folder — README, ``references/*.md``, etc. — are treated as
+    assets and not registered as separate skills, which is what the
+    "each skill is a folder" semantics of the official Agent Skills
+    protocol requires.
+    """
+    return content.key.lower() == _SKILL_ENTRYPOINT_FILENAME
 
 
 def _build_subtree_metadata_filter(*, scope_ids: list[str]) -> dict[str, Any]:
     """Build a UniqueQL filter matching any file under the given scope IDs.
 
-    For each configured scope ID we add a ``folderIdPath CONTAINS
-    uniquepathid://<scope_id>`` predicate, then OR them together. The
-    backend's ACL is then applied to the matching set, so only files
-    the current user can access are returned.
+    The ``folderIdPath`` metadata is stored as a single string with one
+    ``uniquepathid://`` prefix at the start, followed by ``/``-separated
+    scope IDs from root to leaf — e.g. for a file in
+    ``Root/Skills/Programming``::
+
+        uniquepathid://scope_root/scope_skills/scope_programming
     """
-    statements: list[Statement | AndStatement | OrStatement] = [
+    statements: list[Statement] = [
         Statement(
             operator=Operator.CONTAINS,
-            value=f"uniquepathid://{scope_id}",
+            value=f"/{scope_id}",
             path=["folderIdPath"],
         )
         for scope_id in scope_ids
@@ -124,7 +148,8 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
 
 def _build_skill(
     *,
-    content: Content | ContentInfo,
+    content_id: str,
+    content_key: str,
     file_text: str,
     logger: Logger,
 ) -> SkillDefinition | None:
@@ -134,6 +159,9 @@ def _build_skill(
     ``name`` (non-kebab-case, contains whitespace/punctuation, too long)
     is rejected by ``SkillDefinition`` rather than silently flowing into
     the OpenAI tool enum where the model could never emit it verbatim.
+
+    ``content_id`` and ``content_key`` are used only for log messages so
+    operators can locate the offending file in the knowledge base.
     """
     if not file_text.strip():
         return None
@@ -146,8 +174,8 @@ def _build_skill(
     if not name or not description:
         logger.warning(
             "Skipping '%s' (%s): wrong skill format.",
-            content.key,
-            content.id,
+            content_key,
+            content_id,
         )
         return None
 
@@ -160,8 +188,8 @@ def _build_skill(
     except ValidationError as exc:
         logger.warning(
             "Skipping '%s' (%s): invalid skill definition: %s",
-            content.key,
-            content.id,
+            content_key,
+            content_id,
             exc.errors(include_url=False),
         )
         return None
@@ -174,18 +202,24 @@ async def load_skills_from_knowledge_base(
     scope_ids: list[str],
     logger: Logger,
 ) -> dict[str, SkillDefinition]:
-    """Load all ``.md`` files from *scope_ids* (recursively) into a skill registry.
+    """Load all ``SKILL.md`` files from *scope_ids* (recursively) into a skill registry.
 
-    Pages through ``/content/infos`` with a UniqueQL metadata filter that
-    OR's ``folderIdPath CONTAINS uniquepathid://<scope_id>`` for every
-    configured scope. The public API caps ``take`` at 100, so results are
-    accumulated across pages up to ``_MAX_SUBTREE_ITEMS``. This matches
-    any file whose folder path contains the configured scope at any
-    depth, so:
+    Pages through ``/content/infos`` with the UniqueQL metadata filter
+    built by :func:`_build_subtree_metadata_filter`, which OR's two
+    ``CONTAINS`` predicates per scope (``uniquepathid://<scope_id>`` and
+    ``/<scope_id>``) so a configured scope matches at the root *and* at
+    any descendant depth. The public API caps ``take`` at 100, so
+    results are accumulated across pages up to ``_MAX_SUBTREE_ITEMS``.
+    This means:
 
-    * Each configured scope ID acts as a subtree root — all files inside
-      it and any of its descendants are considered.
-    * The backend's ACL is applied to the matching set, so only files
+    * Each configured scope ID acts as a subtree root — every skill
+      folder inside it (and any descendant folder) is considered,
+      regardless of whether the scope is itself a top-level folder or
+      a nested one.
+    * Only files whose basename is ``SKILL.md`` are kept; everything
+      else (assets, references, scripts, READMEs) is filtered out so
+      a single skill folder maps to a single registered skill.
+    * The backend's ACL is applied to the matching set, so only skills
       the current user can access are returned.
     * To expose skills to users who only have access to specific
       sub-folders, configure those sub-folder scope IDs directly.
@@ -199,7 +233,6 @@ async def load_skills_from_knowledge_base(
         return {}
 
     metadata_filter = _build_subtree_metadata_filter(scope_ids=scope_ids)
-
     all_infos: list[ContentInfo] = []
     skip = 0
     try:
@@ -225,21 +258,24 @@ async def load_skills_from_knowledge_base(
         )
         return {}
 
-    md_infos = [ci for ci in all_infos if _is_markdown(content=ci)]
-    if not md_infos:
-        logger.info("No .md files found for scope_ids=%s.", scope_ids)
+    skill_infos = [ci for ci in all_infos if _is_skill_entrypoint(content=ci)]
+    if not skill_infos:
+        logger.info(
+            "No SKILL.md entrypoints found for scope_ids=%s.",
+            scope_ids,
+        )
         return {}
 
     download_results = await asyncio.gather(
         *(
             content_service.download_content_to_bytes_async(content_id=info.id)
-            for info in md_infos
+            for info in skill_infos
         ),
         return_exceptions=True,
     )
 
     skill_registry: dict[str, SkillDefinition] = {}
-    for info, result in zip(md_infos, download_results, strict=True):
+    for info, result in zip(skill_infos, download_results, strict=True):
         if isinstance(result, BaseException):
             logger.warning(
                 "Failed to download '%s' (%s) — skipping.",
@@ -260,7 +296,12 @@ async def load_skills_from_knowledge_base(
             )
             continue
 
-        skill = _build_skill(content=info, file_text=file_text, logger=logger)
+        skill = _build_skill(
+            content_id=info.id,
+            content_key=info.key,
+            file_text=file_text,
+            logger=logger,
+        )
         if skill is None:
             logger.debug(
                 "Skipping '%s' (%s): empty file.",
@@ -286,6 +327,86 @@ async def load_skills_from_knowledge_base(
     return skill_registry
 
 
+async def load_selectable_skills(
+    *,
+    content_service: ContentService,
+    selectable_skills: list[SelectableSkill],
+    logger: Logger,
+) -> dict[str, SkillDefinition]:
+    """Load skills from an explicit list of ``SelectableSkill`` references.
+
+    Entries with an empty ``content_id`` are skipped (admin UIs commonly
+    leave a blank row as a placeholder). Failures are logged and do not
+    abort the rest of the registry so one broken entry cannot hide the
+    rest of the skill list.
+    """
+    valid_entries = [entry for entry in selectable_skills if entry.content_id]
+    if not valid_entries:
+        logger.info("SkillTool has no selectable_skills with a content_id set.")
+        return {}
+
+    download_results = await asyncio.gather(
+        *(
+            content_service.download_content_to_bytes_async(content_id=entry.content_id)
+            for entry in valid_entries
+        ),
+        return_exceptions=True,
+    )
+
+    skill_registry: dict[str, SkillDefinition] = {}
+    for entry, result in zip(valid_entries, download_results, strict=True):
+        label = entry.name or entry.content_id
+        if isinstance(result, BaseException):
+            logger.warning(
+                "Failed to download selectable skill '%s' (%s) — skipping.",
+                label,
+                entry.content_id,
+                exc_info=result,
+            )
+            continue
+
+        try:
+            file_text = result.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning(
+                "Failed to decode selectable skill '%s' (%s) as UTF-8 — skipping.",
+                label,
+                entry.content_id,
+                exc_info=True,
+            )
+            continue
+
+        skill = _build_skill(
+            content_id=entry.content_id,
+            content_key=label,
+            file_text=file_text,
+            logger=logger,
+        )
+        if skill is None:
+            logger.debug(
+                "Skipping selectable skill '%s' (%s): empty or invalid file.",
+                label,
+                entry.content_id,
+            )
+            continue
+
+        if skill.name in skill_registry:
+            logger.warning(
+                "Duplicate skill name '%s' from selectable_skills — "
+                "keeping the first occurrence.",
+                skill.name,
+            )
+            continue
+
+        skill_registry[skill.name] = skill
+
+    logger.info(
+        "Loaded %d skill(s) from selectable_skills.",
+        len(skill_registry),
+    )
+    return skill_registry
+
+
 async def configure_skill_tool(
     *,
     config: UniqueAIConfig,
@@ -294,48 +415,65 @@ async def configure_skill_tool(
     content_service: ContentService,
     tool_manager: ToolManager | ResponsesApiToolManager,
 ) -> None:
-    """Register the SkillTool if enabled in the config.
+    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
 
-    Lists all ``.md`` files in the configured ``scope_ids`` (and every
-    sub-folder reachable from them), downloads each one concurrently,
-    and registers the SkillTool with the parsed skills.
+    Two loading strategies are supported (second one will be removed once first is working):
+
+    1. ``selectable_skills`` (fast path): an explicit list of
+       ``SKILL.md`` content references. Skips the subtree listing
+       entirely and just downloads the specified ``content_id``s.
+       Useful to curate a small, fixed set of skills and to avoid
+       paying the ``/content/infos`` pagination cost on every request.
+    2. ``scope_ids`` (discovery path): lists every ``SKILL.md`` reachable
+       from the configured scopes (and every sub-folder under them)
+       and downloads them concurrently.
     """
-    skill_config = config.agent.experimental.skill_tool_config
-    if not skill_config.enabled:
+    skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
+    if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
         return
 
-    if not skill_config.scope_ids:
+    skill_config = cast(SkillToolConfig, skill_tool_build_config.configuration)
+
+    if not skill_config.selectable_skills.selected and not skill_config.scope_ids:
         logger.warning(
-            "SkillTool is enabled but no scope_ids are configured — "
-            "no skills will be loaded."
+            "SkillTool is enabled but no skills are configured — no skills will be loaded."
         )
+        tool_manager.exclude_tool(SkillTool.name)
         return
 
-    knowledge_base_service = KnowledgeBaseService(
-        company_id=event.company_id,
-        user_id=event.user_id,
-    )
-
-    skill_registry = await load_skills_from_knowledge_base(
-        content_service=content_service,
-        knowledge_base_service=knowledge_base_service,
-        scope_ids=skill_config.scope_ids,
-        logger=logger,
-    )
+    if skill_config.selectable_skills.selected:
+        skill_registry = await load_selectable_skills(
+            content_service=content_service,
+            selectable_skills=skill_config.selectable_skills.selected,
+            logger=logger,
+        )
+    else:
+        knowledge_base_service = KnowledgeBaseService(
+            company_id=event.company_id,
+            user_id=event.user_id,
+        )
+        skill_registry = await load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=skill_config.scope_ids,
+            logger=logger,
+        )
 
     if not skill_registry:
-        logger.info(
-            "SkillTool has an empty skill registry — tool will not be registered."
+        logger.info("SkillTool has an empty skill registry — tool will be excluded.")
+        tool_manager.exclude_tool(SkillTool.name)
+        return
+
+    skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
+    if not isinstance(skill_tool, SkillTool):
+        logger.warning(
+            "SkillTool is configured in space.tools but the manager did "
+            "not produce a SkillTool instance — skills will not be "
+            "available."
         )
         return
 
-    tool_manager.add_tool(
-        SkillTool(
-            event=event,
-            skill_registry=skill_registry,
-            config=skill_config,
-        )
-    )
+    skill_tool.skill_registry = skill_registry
 
 
 async def preload_invoked_skills(
@@ -345,13 +483,16 @@ async def preload_invoked_skills(
     history_manager: HistoryManager,
     logger: Logger,
 ) -> str | None:
-    """Preload skills invoked as ``/skill-name`` prefix(es) in the user message.
+    """Preload skills invoked as ``/skill-name`` tokens in the user message.
 
     Mirrors the normal mid-loop activation path so preloaded skills are
     indistinguishable from skills the model activates itself:
 
-    1. Parses consecutive ``/skill-name`` tokens from the start of the
-       user message.
+    1. Pulls every ``/skill-name`` token out of the user message —
+       whether at the start, between words, or at the end — as long as
+       it is properly word-boundaried so URLs and file paths are not
+       mistaken for invocations. Unknown tokens are left as ordinary
+       text.
     2. For each matched skill, synthesizes a ``LanguageModelFunction``
        and runs it through the already-registered ``SkillTool`` — the
        exact same code path ``UniqueAI._handle_tool_calls`` uses.
@@ -369,7 +510,7 @@ async def preload_invoked_skills(
 
     original_text = event.payload.user_message.text or ""
 
-    skills, stripped_text = extract_prefix_skills(
+    skills, stripped_text = extract_invoked_skills(
         original_text, skill_tool.skill_registry
     )
     if not skills:

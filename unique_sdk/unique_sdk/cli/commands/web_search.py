@@ -1,0 +1,333 @@
+"""Web-search command: query a search engine and crawl URLs through the API.
+
+Mirrors the assistants-core ``unique-websearch`` CLI (search + crawl) but
+talks to the Unique platform via :class:`unique_sdk.WebSearch` /
+:class:`unique_sdk.WebCrawl` instead of instantiating engines / crawlers
+locally. Engine and crawler are resolved server-side from
+``ACTIVE_SEARCH_ENGINES`` / ``ACTIVE_INHOUSE_CRAWLERS``; per-call
+overrides use the same discriminated-union shapes the server expects.
+
+Override precedence (highest first):
+    1. Inline ``--engine-config`` / ``--crawler-config`` / ``--fetch-size`` flags
+    2. Config file (``--config``, ``$UNIQUE_WEBSEARCH_CONFIG``, or
+       ``~/.unique-websearch.json``) — shape-compatible with the
+       reference ``unique-websearch`` CLI
+    3. Server-side defaults (``ACTIVE_SEARCH_ENGINES`` etc.)
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any, cast
+
+import unique_sdk
+from unique_sdk.cli.commands.web_search_config import (
+    ConfigOverrides,
+    WebSearchCLIConfigError,
+    load_overrides,
+)
+from unique_sdk.cli.state import ShellState
+
+DEFAULT_PARALLEL = 10
+_SNIPPET_PREVIEW_LIMIT = 200
+_CONTENT_PREVIEW_LIMIT = 500
+
+WEB_SEARCH_ERROR_PREFIX = "web-search:"
+WEB_CRAWL_ERROR_PREFIX = "web-crawl:"
+
+
+def _format_search_results(payload: dict[str, Any]) -> str:
+    """Render a /web-search-api/search response for terminal display."""
+    results: list[dict[str, Any]] = payload.get("results", [])
+    engine = payload.get("engine", "unknown")
+    query = payload.get("query", "")
+
+    if not results:
+        return f"No results found (engine={engine}, query={query!r})."
+
+    lines: list[str] = [f"engine: {engine}    query: {query!r}"]
+    lines.append(f"Found {len(results)} result(s):\n")
+
+    for i, result in enumerate(results, start=1):
+        title = result.get("title", "")
+        url = result.get("url", "")
+        snippet = (result.get("snippet") or "").replace("\n", " ").strip()
+        content = result.get("content") or ""
+
+        lines.append(f"  {i}. {title}")
+        lines.append(f"     {url}")
+
+        if snippet:
+            if len(snippet) > _SNIPPET_PREVIEW_LIMIT:
+                snippet = snippet[: _SNIPPET_PREVIEW_LIMIT - 3] + "..."
+            lines.append(f"     {snippet}")
+
+        if content:
+            lines.append(f"     [{len(content)} chars of content]")
+
+        lines.append("")
+
+    return "\n".join(lines).rstrip()
+
+
+def _format_search_results_json(payload: dict[str, Any]) -> str:
+    """Stable JSON projection — drops the SDK envelope ``object`` discriminator."""
+    return json.dumps(
+        {
+            "engine": payload.get("engine"),
+            "query": payload.get("query"),
+            "results": payload.get("results", []),
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
+
+
+def _format_crawl_results(payload: dict[str, Any]) -> str:
+    """Render a /web-search-api/crawl response for terminal display."""
+    results: list[dict[str, Any]] = payload.get("results", [])
+    crawler = payload.get("crawler", "unknown")
+
+    if not results:
+        return f"No crawl results (crawler={crawler})."
+
+    lines: list[str] = [f"crawler: {crawler}"]
+    lines.append(f"Crawled {len(results)} URL(s):\n")
+
+    for i, entry in enumerate(results, start=1):
+        url = entry.get("url", "")
+        content = entry.get("content") or ""
+        error = entry.get("error")
+
+        lines.append(f"  {i}. {url}")
+        if error:
+            lines.append(f"     ERROR: {error}")
+        elif content.strip():
+            lines.append(f"     [{len(content)} chars]")
+            preview = content[:_CONTENT_PREVIEW_LIMIT].replace("\n", " ").strip()
+            if len(content) > _CONTENT_PREVIEW_LIMIT:
+                preview += "..."
+            lines.append(f"     {preview}")
+        else:
+            lines.append("     (empty)")
+
+        lines.append("")
+
+    return "\n".join(lines).rstrip()
+
+
+def _format_crawl_results_json(payload: dict[str, Any]) -> str:
+    return json.dumps(
+        {
+            "crawler": payload.get("crawler"),
+            "results": payload.get("results", []),
+        },
+        indent=2,
+        ensure_ascii=False,
+    )
+
+
+def _payload_from_resource(resource: Any) -> dict[str, Any]:
+    """Extract a plain dict envelope from a UniqueObject-style SDK response.
+
+    The SDK base class exposes ``.to_dict_recursive()``; falling back to
+    raw attribute access keeps this resilient to lighter mock responses
+    in tests.
+    """
+    to_dict = getattr(resource, "to_dict_recursive", None)
+    if callable(to_dict):
+        return cast(dict[str, Any], to_dict())
+    if isinstance(resource, dict):
+        return cast(dict[str, Any], resource)
+    # Last-resort: rebuild from the few fields we care about.
+    return {
+        key: getattr(resource, key)
+        for key in ("engine", "query", "crawler", "results")
+        if hasattr(resource, key)
+    }
+
+
+def _parse_engine_config(raw: str | None) -> dict[str, Any] | None:
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"--engine-config is not valid JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("--engine-config must be a JSON object")
+    return parsed
+
+
+def _parse_crawler_config(raw: str | None) -> dict[str, Any] | None:
+    if raw is None:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"--crawler-config is not valid JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("--crawler-config must be a JSON object")
+    return parsed
+
+
+def _load_file_overrides(config_path: str | None) -> ConfigOverrides | str:
+    """Load config-file overrides, returning a string error on failure.
+
+    Returns either a populated :class:`ConfigOverrides` (possibly empty
+    when no file is discovered) or a ``"web-search: ..."`` error string
+    that callers can return verbatim.
+    """
+    try:
+        return load_overrides(config_path)
+    except WebSearchCLIConfigError as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+
+
+def cmd_web_search(
+    state: ShellState,
+    query: str,
+    fetch_size: int | None = None,
+    include_content: bool = False,
+    engine_config_raw: str | None = None,
+    crawler_config_raw: str | None = None,
+    output_json: bool = False,
+    config_path: str | None = None,
+) -> str:
+    """Run a web search via the public API.
+
+    Args:
+        state: Shell state carrying user/company credentials.
+        query: Search query string.
+        fetch_size: Override the engine's default ``fetchSize``. Wins
+            over any value loaded from a config file.
+        include_content: When ``True``, populate ``result.content`` via
+            the configured crawler when the engine requires scraping.
+        engine_config_raw: Optional JSON string overriding the
+            ``searchEngineConfig`` discriminated union (e.g.
+            ``{"searchEngineName": "Google", "fetchSize": 5}``). Wins
+            over the config file's full-platform engine block.
+        crawler_config_raw: Optional JSON string overriding the
+            ``crawlerConfig`` discriminated union. Wins over the config
+            file's full-platform crawler block.
+        config_path: Optional path to a JSON config file shape-compatible
+            with the reference ``unique-websearch`` CLI (full
+            ``WebSearchConfig`` payload or simple-overrides). When
+            ``None``, falls back to ``$UNIQUE_WEBSEARCH_CONFIG`` and
+            then ``~/.unique-websearch.json``.
+        output_json: When ``True``, return a JSON envelope instead of a
+            human-friendly table.
+    """
+    file_overrides = _load_file_overrides(config_path)
+    if isinstance(file_overrides, str):
+        return file_overrides
+
+    try:
+        engine_override = _parse_engine_config(engine_config_raw)
+        crawler_override = _parse_crawler_config(crawler_config_raw)
+    except ValueError as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+
+    if engine_override is None:
+        engine_override = file_overrides.engine_config
+    if crawler_override is None:
+        crawler_override = file_overrides.crawler_config
+    if fetch_size is None:
+        fetch_size = file_overrides.fetch_size
+
+    params: dict[str, Any] = {"query": query}
+    if fetch_size is not None:
+        params["fetchSize"] = fetch_size
+    if include_content:
+        params["includeContent"] = True
+    if engine_override is not None:
+        params["searchEngineConfig"] = engine_override
+    if crawler_override is not None:
+        params["crawlerConfig"] = crawler_override
+
+    try:
+        resource = unique_sdk.WebSearch.search(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            **params,
+        )
+    except (ValueError, unique_sdk.APIError) as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
+
+    payload = _payload_from_resource(resource)
+    if output_json:
+        return _format_search_results_json(payload)
+    return _format_search_results(payload)
+
+
+def cmd_web_crawl(
+    state: ShellState,
+    urls: list[str],
+    parallel: int = DEFAULT_PARALLEL,
+    crawler_config_raw: str | None = None,
+    output_json: bool = False,
+    config_path: str | None = None,
+) -> str:
+    """Crawl a list of URLs via the public API.
+
+    Args:
+        state: Shell state carrying user/company credentials.
+        urls: List of URLs to crawl.
+        parallel: Number of URLs the server should crawl concurrently per
+            batch (must be ``>= 1``).
+        crawler_config_raw: Optional JSON string overriding the
+            ``crawlerConfig`` discriminated union. Wins over the config
+            file's full-platform crawler block.
+        config_path: Optional path to a JSON config file shape-compatible
+            with the reference ``unique-websearch`` CLI. See
+            :func:`cmd_web_search` for resolution rules.
+        output_json: When ``True``, return a JSON envelope instead of a
+            human-friendly table.
+    """
+    if not urls:
+        return f"{WEB_CRAWL_ERROR_PREFIX} no URLs provided. Pass URLs as arguments or use --stdin."
+    if parallel < 1:
+        return f"{WEB_CRAWL_ERROR_PREFIX} --parallel must be >= 1 (got {parallel})."
+
+    try:
+        file_overrides = load_overrides(config_path)
+    except WebSearchCLIConfigError as exc:
+        return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
+
+    try:
+        crawler_override = _parse_crawler_config(crawler_config_raw)
+    except ValueError as exc:
+        return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
+
+    if crawler_override is None:
+        crawler_override = file_overrides.crawler_config
+
+    params: dict[str, Any] = {"urls": list(urls), "parallel": parallel}
+    if crawler_override is not None:
+        params["crawlerConfig"] = crawler_override
+
+    try:
+        resource = unique_sdk.WebCrawl.crawl(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            **params,
+        )
+    except (ValueError, unique_sdk.APIError) as exc:
+        return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
+
+    payload = _payload_from_resource(resource)
+    if output_json:
+        return _format_crawl_results_json(payload)
+    return _format_crawl_results(payload)
+
+
+def is_error_output(output: str) -> bool:
+    """Return ``True`` when ``output`` is a CLI error message.
+
+    Used by the Click layer to translate a returned error string into a
+    non-zero exit code without changing the existing string-returning
+    contract of the ``cmd_*`` functions.
+    """
+    return output.startswith(WEB_SEARCH_ERROR_PREFIX) or output.startswith(
+        WEB_CRAWL_ERROR_PREFIX
+    )

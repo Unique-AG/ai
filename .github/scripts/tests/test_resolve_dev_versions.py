@@ -119,7 +119,7 @@ class ResolveTests(unittest.TestCase):
             on_disk={"unique_sdk": "0.11.6", "unique_mcp": "0.3.3"},
         )
         self.assertEqual(new_versions, {"toolkit": "2026.18.0.dev0"})
-        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev0")
+        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev0,<2026.18.0rc0")
         self.assertEqual(dep_pins["unique-sdk"], ">=0.11.6")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
         # all_current_versions
@@ -141,8 +141,8 @@ class ResolveTests(unittest.TestCase):
             on_disk={"unique_mcp": "0.3.3"},
         )
         self.assertEqual(new_versions, {"toolkit": "2026.18.0.dev4"})
-        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev4")
-        self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev2")
+        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev4,<2026.18.0rc0")
+        self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev2,<2026.18.0rc0")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
         self.assertEqual(all_current["toolkit"], "2026.18.0.dev4")
         self.assertEqual(all_current["sdk"], "2026.18.0.dev2")
@@ -161,8 +161,8 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(
             new_versions, {"toolkit": "2026.18.0.dev6", "sdk": "2026.18.0.dev10"}
         )
-        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev6")
-        self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev10")
+        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev6,<2026.18.0rc0")
+        self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev10,<2026.18.0rc0")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
         self.assertEqual(all_current["toolkit"], "2026.18.0.dev6")
         self.assertEqual(all_current["sdk"], "2026.18.0.dev10")

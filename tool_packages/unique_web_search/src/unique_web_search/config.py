@@ -28,7 +28,7 @@ from unique_web_search.services.crawlers import (
     get_crawler_config_types_from_names,
     get_default_crawler_config,
 )
-from unique_web_search.services.executors.configs import (
+from unique_web_search.services.executors import (
     RefineQueryMode,
     WebSearchMode,
     WebSearchModeConfig,
@@ -176,7 +176,7 @@ class WebSearchConfig(BaseToolConfig):
     web_search_mode_config_v3: WebSearchV3Config = Field(
         default_factory=WebSearchV3Config,
         title="Search Mode V3 Settings (Experimental)",
-        description="Settings for V3: pre-filter search results by relevance (snippet judge) before fetching full pages.",
+        description="Settings for the agent-driven search mode (V3): the model itself chains snippet-only `search` calls with on-demand full-page `read_urls` calls per task.",
     )
 
     # Todo [UN-17655] RJSF Tags don't function properly when using union + dscriminator

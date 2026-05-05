@@ -1,6 +1,6 @@
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from logging import Logger
 from typing import Any, cast, overload
 
@@ -38,6 +38,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
@@ -55,15 +56,7 @@ from unique_orchestrator._builders.inject_tool_reminders import (
 )
 from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
-from unique_orchestrator.utils import filter_uploaded_documents_by_selection
-
-EMPTY_MESSAGE_WARNING = (
-    "⚠️ **The language model was unable to produce an output.**\n"
-    "It did not generate any content or perform a tool call in response to your request. "
-    "This is a limitation of the language model itself.\n\n"
-    "**Please try adapting or simplifying your prompt.** "
-    "Rewording your input can often help the model respond successfully."
-)
+from unique_orchestrator.settings import env_settings
 
 
 class UniqueAI:
@@ -89,6 +82,8 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -112,6 +107,7 @@ class UniqueAI:
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -134,12 +130,14 @@ class UniqueAI:
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
         self._config = config
         self._chat_service = chat_service
         self._content_service = content_service
+        self._uploaded_documents = uploaded_documents or []
 
         self._debug_info_manager = debug_info_manager
         self._reference_manager = reference_manager
@@ -214,15 +212,14 @@ class UniqueAI:
         self._execution_times = []
         run_start = time.perf_counter()
 
-        if self._config.agent.experimental.skill_tool_config.enabled:
-            stripped_text = await preload_invoked_skills(
-                event=self._event,
-                tool_manager=self._tool_manager,
-                history_manager=self._history_manager,
-                logger=self._logger,
-            )
-            if stripped_text is not None:
-                self._event.payload.user_message.text = stripped_text
+        stripped_text = await preload_invoked_skills(
+            event=self._event,
+            tool_manager=self._tool_manager,
+            history_manager=self._history_manager,
+            logger=self._logger,
+        )
+        if stripped_text is not None:
+            self._event.payload.user_message.text = stripped_text
 
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
@@ -381,7 +378,7 @@ class UniqueAI:
         if loop_response.is_empty():
             self._logger.debug("Empty model response, exiting loop.")
             await self._chat_service.modify_assistant_message_async(
-                content=EMPTY_MESSAGE_WARNING
+                content=env_settings.empty_message_warning
             )
             return True
 
@@ -507,25 +504,8 @@ class UniqueAI:
             use_sub_agent_references = False
             sub_agent_referencing_instructions = None
 
-        uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
-        additional_parameters = (
-            self._event.payload.additional_parameters
-            if (
-                hasattr(self._event.payload, "additional_parameters")
-                and self._event.payload.additional_parameters
-            )
-            else None
-        )
-        uploaded_documents = filter_uploaded_documents_by_selection(
-            documents=uploaded_documents,
-            additional_parameters=additional_parameters,
-            company_id=self._event.company_id,
-        )
         uploaded_documents_expired = [
-            doc
-            for doc in uploaded_documents
-            if doc.expired_at is not None
-            and doc.expired_at <= datetime.now(timezone.utc)
+            doc for doc in self._uploaded_documents if doc.is_expired()
         ]
 
         # Combine custom instructions and user instructions
@@ -659,13 +639,22 @@ class UniqueAI:
         # step. The Skill tool emits its own message log entry per invocation
         # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
         # redundant and noisy to also list it here.
-        tool_names_not_to_log = ["DeepResearch", "Skill"]
+
+        tool_names_not_to_log: set[str] = {"DeepResearch", "Skill"}
 
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:
             self._history_manager.add_tool_call(tool_call)
             if tool_call.name in all_tools_dict:
                 used_tools[tool_call.name] = used_tools.get(tool_call.name, 0) + 1
+
+        suppress_step_entry = any(
+            getattr(getattr(tool, "config", None), "show_triggered_tool_calls", True)
+            is False
+            for tool in self._tool_manager.available_tools
+        )
+        if suppress_step_entry:
+            return
 
         tool_calls_logs = []
         for tool_name, count in used_tools.items():
@@ -809,6 +798,7 @@ class UniqueAIResponsesApi(UniqueAI):
         config: UniqueAIConfig,
         chat_service: ChatService,
         content_service: ContentService,
+        uploaded_documents: list[Content],
         debug_info_manager: DebugInfoManager,
         streaming_handler: ResponsesSupportCompleteWithReferences,
         reference_manager: ReferenceManager,
@@ -827,6 +817,7 @@ class UniqueAIResponsesApi(UniqueAI):
             config=config,
             chat_service=chat_service,
             content_service=content_service,
+            uploaded_documents=uploaded_documents,
             debug_info_manager=debug_info_manager,
             streaming_handler=streaming_handler,
             reference_manager=reference_manager,

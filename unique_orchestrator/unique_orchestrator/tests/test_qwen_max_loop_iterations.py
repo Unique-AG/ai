@@ -11,11 +11,11 @@ from __future__ import annotations
 import pytest
 
 from unique_orchestrator.config import (
-    LIMIT_MAX_LOOP_ITERATIONS,
     QwenConfig,
     UniqueAIAgentConfig,
     UniqueAIConfig,
 )
+from unique_orchestrator.settings import env_settings
 
 
 class TestQwenConfigMaxLoopIterations:
@@ -45,13 +45,13 @@ class TestQwenConfigMaxLoopIterations:
         Setup summary: Provide value above LIMIT_MAX_LOOP_ITERATIONS, assert clipped to maximum.
         """
         # Arrange
-        value_above_max: int = LIMIT_MAX_LOOP_ITERATIONS + 10
+        value_above_max: int = env_settings.limit_max_loop_iterations + 10
 
         # Act
         config: QwenConfig = QwenConfig(max_loop_iterations=value_above_max)
 
         # Assert
-        assert config.max_loop_iterations == LIMIT_MAX_LOOP_ITERATIONS
+        assert config.max_loop_iterations == env_settings.limit_max_loop_iterations
 
     @pytest.mark.ai
     def test_qwen_config__max_loop_iterations__clips_value_below_minimum(self) -> None:
@@ -79,12 +79,12 @@ class TestQwenConfigMaxLoopIterations:
         # Arrange & Act
         config_min: QwenConfig = QwenConfig(max_loop_iterations=1)
         config_max: QwenConfig = QwenConfig(
-            max_loop_iterations=LIMIT_MAX_LOOP_ITERATIONS
+            max_loop_iterations=env_settings.limit_max_loop_iterations
         )
 
         # Assert
         assert config_min.max_loop_iterations == 1
-        assert config_max.max_loop_iterations == LIMIT_MAX_LOOP_ITERATIONS
+        assert config_max.max_loop_iterations == env_settings.limit_max_loop_iterations
 
 
 class TestUniqueAIAgentConfigMaxLoopIterations:
@@ -98,7 +98,7 @@ class TestUniqueAIAgentConfigMaxLoopIterations:
         Setup summary: Provide value above LIMIT_MAX_LOOP_ITERATIONS, assert clipped to maximum.
         """
         # Arrange
-        value_above_max: int = 100
+        value_above_max: int = env_settings.limit_max_loop_iterations + 10
 
         # Act
         config: UniqueAIAgentConfig = UniqueAIAgentConfig(
@@ -106,7 +106,7 @@ class TestUniqueAIAgentConfigMaxLoopIterations:
         )
 
         # Assert
-        assert config.max_loop_iterations == LIMIT_MAX_LOOP_ITERATIONS
+        assert config.max_loop_iterations == env_settings.limit_max_loop_iterations
 
     @pytest.mark.ai
     def test_agent_config__max_loop_iterations__clips_value_below_minimum(self) -> None:

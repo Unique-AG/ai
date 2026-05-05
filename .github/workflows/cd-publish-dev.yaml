@@ -26,15 +26,11 @@ name: "[CD] Publish dev builds to PyPI"
 # =============================================
 #   Computed once in `resolve` and stamped into every wheel's
 #   Requires-Dist by `rewrite-pyproject-pre-release.py`:
-#     - dep IS publishing in this push          -> `>=<its new_version>`
-#         (floor matches the co-published version; pip can still upgrade
-#          to a later dev or stable)
-#     - dep has a dev wheel in the current cycle -> `>=<highest dev>`
-#         (older locally-installed dev wheels do not satisfy the floor,
-#          so `pip install -U` correctly upgrades them)
-#     - otherwise                                -> `>=<last stable>`
-#         (a fresh cycle with no dev wheels yet; the dep has not changed
-#          since its last stable, so that is the honest floor)
+#     - CalVer cycle sibling ``*.devN`` (publishing now or existing on PyPI)
+#         ``>=V,<YYY.WW.Prc0`` — admits later dev builds on that patch triple
+#         but excludes sibling RC releases (they sort above dev under PEP 440).
+#     - stable-only floor when no ``*.devN`` exists in this cycle yet for that
+#         package: ``>=<stable>`` only (dep unchanged since last stable).
 #
 # Serialization
 # =============
@@ -80,7 +76,7 @@ jobs:
       branch_suffix: ${{ steps.resolve_versions.outputs.branch_suffix }}
       cycle: ${{ steps.calver.outputs.cycle }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Enough history for paths-filter to diff before..after.
           fetch-depth: 0
@@ -161,7 +157,7 @@ jobs:
 
       - name: Install uv
         if: fromJson(steps.publishable.outputs.matrix).include[0] != null
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: '0.11.5'
 
@@ -213,15 +209,15 @@ jobs:
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
     name: publish-dev-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: '0.11.5'
 
@@ -296,13 +292,13 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
         with:
           app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
-          owner: ${{ github.repository_owner }}
+          repositories: ai
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Tag and notes target the commit the dev wheels were built from,
           # not whatever main looks like by the time this job runs.
@@ -389,19 +385,19 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        uses: unique-ag/actions/github/app-token-create@08cc24e926dda3254b05aa898c362790ec506a3d
         with:
           app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
-          owner: ${{ github.repository_owner }}
+          repositories: ai
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: main
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           version: '0.11.5'
 

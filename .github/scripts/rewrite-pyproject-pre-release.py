@@ -10,14 +10,14 @@ publish workflows. Two things happen in place:
    names another AI monorepo package is rewritten to use the pin
    supplied via ``--dep-pins``. For example, with::
 
-       --dep-pins '{"unique-sdk": ">=2026.18.0.dev3",
-                    "unique-toolkit": ">=2026.18.0.dev7"}'
+       --dep-pins '{"unique-sdk": ">=2026.18.0.dev3,<2026.18.0rc0",
+                    "unique-toolkit": ">=2026.18.0.dev7,<2026.18.0rc0"}'
 
    the rewriter produces::
 
-       "unique-sdk>=0.10.85,<0.12"  ->  "unique-sdk>=2026.18.0.dev3"
+       "unique-sdk>=0.10.85,<0.12"  ->  "unique-sdk>=2026.18.0.dev3,<2026.18.0rc0"
        "unique-toolkit[monitoring]>=1.69.6,<2"
-           ->  "unique-toolkit[monitoring]>=2026.18.0.dev7"
+           ->  "unique-toolkit[monitoring]>=2026.18.0.dev7,<2026.18.0rc0"
 
 Because the constraint explicitly contains a PEP 440 pre-release segment
 (``devN`` or ``rcN``), pip/uv resolves to pre-release versions without
@@ -26,9 +26,9 @@ Because the constraint explicitly contains a PEP 440 pre-release segment
 The pin map is computed upstream by either ``resolve-dev-versions.py``
 or ``resolve-rc-versions.py``:
 
-  * Dev publish (``resolve-dev-versions.py``) emits ``>=<version>`` pins;
-    siblings drift forward independently and ``pip install -U`` upgrades
-    siblings that were not republished.
+  * Dev publish (``resolve-dev-versions.py``) emits ``>=V,<YYY.WW.Prc0``
+    pins for cycle ``*.devN`` siblings; when there is no cycle dev yet,
+    pins stay a plain ``>=`` floor at last stable.
   * RC publish (``resolve-rc-versions.py``) emits ``>=<version>`` pins,
     floored at the shared ``{cycle}.0rcN`` so customers can upgrade
     freely to later rcs or the final stable.
@@ -47,21 +47,24 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 import tomlkit
+
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+
+from calver_dev_dependency_pin import is_valid_rewrite_dep_pin  # noqa: E402
 
 _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
 # Own version is always a CalVer pre-release — either ``.devN`` (dev
 # publish) or ``rcN`` (release-candidate publish). Stable CalVers are
 # stamped by release-please, never by this script.
 _VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d+(\.dev\d+|rc\d+)$")
-# Dep pins come from one of the two resolvers:
-#   >=<version>   from resolve-dev-versions.py (siblings drift forward)
-#   >=<version>   from resolve-rc-versions.py  (floored at the rc cut)
-# Versions may be CalVer with a ``.devN``/``rcN`` suffix, or legacy
-# pre-CalVer dotted numerics (e.g. "0.3.3") for last-stable fallbacks.
-_PIN_RE = re.compile(r"^(>=|==)\d+(\.\d+)*(\.dev\d+|rc\d+)?$")
+# Dep pins from resolvers: ``>=`` with optional ``,<YYY.WW.Prc0`` for dev
+# siblings, ``==`` for rc cuts, or plain ``>=`` only (stable floor).
 
 
 def normalize(name: str) -> str:
@@ -114,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
 
     dep_pins: dict[str, str] = {}
     for name, pin in dep_pins_raw.items():
-        if not isinstance(pin, str) or not _PIN_RE.match(pin):
+        if not isinstance(pin, str) or not is_valid_rewrite_dep_pin(pin):
             raise SystemExit(f"invalid pin for {name!r}: {pin!r}")
         dep_pins[normalize(name)] = pin
 

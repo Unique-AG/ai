@@ -3,13 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from unique_web_search.schema import (
-    Step,
-    StepType,
-    WebSearchPlan,
-    WebSearchToolParameters,
-)
-from unique_web_search.services.executors.configs import WebSearchMode
+from unique_web_search.services.executors import WebSearchMode
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -130,7 +126,7 @@ def mock_web_search_config_v2():
     config.web_search_mode_config.mode = WebSearchMode.V2
     config.web_search_mode_config.tool_description = "V2 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
-        "V2 system prompt with $max_steps"
+        "V2 system prompt with {{ max_steps }}"
     )
     config.web_search_mode_config.max_steps = 5
     return config
@@ -156,9 +152,8 @@ def mock_web_search_config_v3():
     config.web_search_mode_config.mode = WebSearchMode.V3
     config.web_search_mode_config.tool_description = "V3 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
-        "V3 system prompt with {{ max_steps }} and {{ date_string }}"
+        "V3 system prompt with {{ date_string }}"
     )
-    config.web_search_mode_config.max_steps = 7
     config.web_search_mode_config.tool_format_information_for_system_prompt = "Test format info\n\n## Domain Diversity Requirement\n\nWhen the current WebSearch tool response"
     config.web_search_mode_config_v3 = config.web_search_mode_config
     return config

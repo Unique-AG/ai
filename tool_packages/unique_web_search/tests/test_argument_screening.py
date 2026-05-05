@@ -93,21 +93,36 @@ class TestArgumentScreeningService:
         lm.name = "test-model"
         return lm
 
+    @pytest.fixture
+    def mock_message_log_callback(self):
+        cb = Mock()
+        cb.post_message = AsyncMock()
+        cb.log_progress = AsyncMock()
+        return cb
+
     @pytest.mark.asyncio
     async def test_skips_when_disabled(
-        self, disabled_config, mock_language_model_service, mock_language_model
+        self,
+        disabled_config,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
     ):
         service = ArgumentScreeningService(
             language_model_service=mock_language_model_service,
             language_model=mock_language_model,
             config=disabled_config,
         )
-        await service({"query": "test query"})
+        await service({"query": "test query"}, mock_message_log_callback)
         mock_language_model_service.complete_async.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_allows_when_go(
-        self, enabled_config, mock_language_model_service, mock_language_model
+        self,
+        enabled_config,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
     ):
         mock_response = Mock()
         mock_response.choices = [
@@ -120,12 +135,16 @@ class TestArgumentScreeningService:
             language_model=mock_language_model,
             config=enabled_config,
         )
-        await service({"query": "Python best practices"})
+        await service({"query": "Python best practices"}, mock_message_log_callback)
         mock_language_model_service.complete_async.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_returns_no_go_result(
-        self, enabled_config, mock_language_model_service, mock_language_model
+        self,
+        enabled_config,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
     ):
         mock_response = Mock()
         mock_response.choices = [
@@ -142,14 +161,20 @@ class TestArgumentScreeningService:
             language_model=mock_language_model,
             config=enabled_config,
         )
-        result = await service({"query": "my card is 4111-1111-1111-1111"})
+        result = await service(
+            {"query": "my card is 4111-1111-1111-1111"}, mock_message_log_callback
+        )
 
         assert result.go is False
         assert "credit card number" in result.reason
 
     @pytest.mark.asyncio
     async def test_raises_when_response_unparseable(
-        self, enabled_config, mock_language_model_service, mock_language_model
+        self,
+        enabled_config,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
     ):
         mock_response = Mock()
         mock_response.choices = [Mock(message=Mock(parsed=None))]
@@ -161,11 +186,14 @@ class TestArgumentScreeningService:
             config=enabled_config,
         )
         with pytest.raises(ArgumentScreeningUnparseableResponseException):
-            await service({"query": "test query"})
+            await service({"query": "test query"}, mock_message_log_callback)
 
     @pytest.mark.asyncio
     async def test_passes_correct_messages(
-        self, mock_language_model_service, mock_language_model
+        self,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
     ):
         config = ArgumentScreeningConfig(
             enabled=True,
@@ -184,7 +212,7 @@ class TestArgumentScreeningService:
             language_model=mock_language_model,
             config=config,
         )
-        await service({"query": "hello"})
+        await service({"query": "hello"}, mock_message_log_callback)
 
         call_args = mock_language_model_service.complete_async.call_args
         messages = call_args[0][0]
@@ -198,7 +226,11 @@ class TestArgumentScreeningService:
 
     @pytest.mark.asyncio
     async def test_uses_structured_output(
-        self, enabled_config, mock_language_model_service, mock_language_model
+        self,
+        enabled_config,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
     ):
         mock_response = Mock()
         mock_response.choices = [
@@ -211,7 +243,7 @@ class TestArgumentScreeningService:
             language_model=mock_language_model,
             config=enabled_config,
         )
-        await service({"query": "test"})
+        await service({"query": "test"}, mock_message_log_callback)
 
         call_kwargs = mock_language_model_service.complete_async.call_args[1]
         assert call_kwargs["structured_output_model"] is ArgumentScreeningResult

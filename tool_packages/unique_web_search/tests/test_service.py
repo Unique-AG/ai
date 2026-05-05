@@ -3,8 +3,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.service import WebSearchTool
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 
 
 class TestWebSearchToolDescription:
@@ -60,9 +62,14 @@ class TestWebSearchToolDescription:
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
 
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.tool_parameter_calls = None  # type: ignore
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result = tool.tool_description()
 
@@ -70,7 +77,7 @@ class TestWebSearchToolDescription:
         assert result.name == "WebSearch"
         assert hasattr(result, "description")
         assert result.description == "V2 tool description"
-        assert tool.tool_parameter_calls == WebSearchPlan
+        assert issubclass(tool.tool_parameter_calls, WebSearchPlan)
 
 
 class TestWebSearchToolDescriptionForSystemPrompt:
@@ -110,10 +117,12 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt replaces $max_steps placeholder for V2.
-        Why this matters: V2 mode requires dynamic max_steps value in system prompt.
-        Setup summary: Mock WebSearchTool with V2 config containing $max_steps placeholder.
+        Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V2.
+        Why this matters: V2 mode requires dynamic max_steps and engine-mode injection.
+        Setup summary: Mock WebSearchTool with V2 config containing Jinja placeholders.
         """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
@@ -124,11 +133,52 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()
 
         assert isinstance(result, str)
-        assert result == "V2 system prompt with 5"
+        assert "V2 system prompt with 5" in result
+
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__rewrites_legacy_max_steps_placeholder__when_mode_is_v2(
+        self,
+        mock_web_search_config_v2: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify legacy V2 prompts using the pre-Jinja ``$max_steps``
+        placeholder still get max_steps substituted after the move to
+        Jinja-based rendering.
+        Why this matters: V2 prompts persisted in the database before the
+        Jinja migration must keep working without manual config updates.
+        Setup summary: Mock V2 config with the legacy ``$max_steps`` syntax.
+        """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+
+        mock_web_search_config_v2.web_search_mode_config.tool_description_for_system_prompt = "Legacy V2 system prompt — must not exceed $max_steps steps."
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v2
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
+
+        result: str = tool.tool_description_for_system_prompt()
+
+        assert isinstance(result, str)
+        assert "must not exceed 5 steps" in result
+        assert "$max_steps" not in result
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__renders_jinja__when_mode_is_v3(
@@ -138,9 +188,11 @@ class TestWebSearchToolDescriptionForSystemPrompt:
     ) -> None:
         """
         Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V3.
-        Why this matters: V3 uses dynamic date and max_steps injection, while V2 should not.
+        Why this matters: V3 uses dynamic date in the system prompt template.
         Setup summary: Mock WebSearchTool with V3 config containing Jinja placeholders.
         """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
@@ -151,11 +203,14 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()
 
         assert isinstance(result, str)
-        assert "V3 system prompt with 7 and " in result
+        assert result.startswith("V3 system prompt with ")
         assert "{{ date_string }}" not in result
 
 
@@ -263,7 +318,7 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V2 mode.
         Setup summary: Mock WebSearchTool with V2 config and WebSearchPlan parameters.
         """
-        from unique_web_search.services.executors.web_search_v2_executor import (
+        from unique_web_search.services.executors.v2.executor import (
             WebSearchV2Executor,
         )
 
@@ -323,7 +378,7 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V1 mode.
         Setup summary: Mock WebSearchTool with V1 config and WebSearchToolParameters.
         """
-        from unique_web_search.services.executors.web_search_v1_executor import (
+        from unique_web_search.services.executors.v1.executor import (
             WebSearchV1Executor,
         )
 
@@ -738,16 +793,9 @@ class TestWebSearchToolRun:
         )
         mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
 
-        plan = WebSearchPlan(
-            objective="test",
-            query_analysis="test",
-            steps=[],
-            expected_outcome="test",
-        )
-
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
-        tool.tool_parameter_calls = WebSearchPlan
+        tool.tool_parameter_calls = WebSearchV3ToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
@@ -763,7 +811,11 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = plan.model_dump()
+        tool_call.arguments = {
+            "command": "search",
+            "objective": "Test sub-goal for this search",
+            "payload": {"gap": "Test gap to fill", "query": "test"},
+        }
 
         result = await tool.run(tool_call)
 

@@ -3,6 +3,10 @@
 # Script to check test coverage on new/changed code
 # Can be used both in CI workflows and locally (e.g., with pre-commit)
 #
+# Pytest is invoked from the package directory with no path arguments, matching
+# the CI test job (default collection). Optional extra arguments may be passed
+# via the CHECK_COVERAGE_PYTEST_ARGS environment variable (e.g. -m "not integration").
+#
 # Usage:
 #   CI: check-coverage.sh <package_name> <base_ref> <min_coverage>
 #   Local: check-coverage.sh <package_name> [base_ref] [min_coverage]
@@ -54,9 +58,13 @@ USAGE:
 
 DESCRIPTION:
     This script checks test coverage on newly added or modified code by:
-    1. Running tests with coverage collection
+    1. Running tests with coverage collection (same pytest discovery as CI test)
     2. Comparing coverage against a base branch
     3. Ensuring new/changed code meets minimum coverage threshold
+
+ENVIRONMENT:
+    CHECK_COVERAGE_PYTEST_ARGS   Optional extra arguments for pytest. Parsed with shell quoting
+                                 rules (so e.g. -m "not integration" stays as two tokens).
 
 ARGUMENTS:
     package_name          Name of the package directory (e.g., unique_toolkit)
@@ -331,24 +339,25 @@ if [ "$SKIP_TESTS" = false ]; then
     print_info "Running tests with coverage..."
     # Extract package name from PACKAGE directory (e.g., unique_toolkit from unique_toolkit/)
     PACKAGE_NAME=$(basename "$PACKAGE")
-    
-    # Find tests directory - try multiple locations
-    if [ -d "tests" ]; then
-        TESTS_DIR="tests/"
-    elif [ -d "$PACKAGE_NAME/tests" ]; then
-        TESTS_DIR="$PACKAGE_NAME/tests/"
-    else
-        # Search for test files in the package
-        TESTS_DIR="$PACKAGE_NAME/"
-        print_info "No dedicated tests/ directory found, searching in $TESTS_DIR"
+
+    # Match CI test job: pytest from package root with default discovery (no path args).
+    print_info "Running pytest with default collection (parity with CI test job)"
+
+    # Parse CHECK_COVERAGE_PYTEST_ARGS with shell quoting rules so values like
+    # `-m "not integration"` survive as two tokens. Naive ${VAR} expansion
+    # word-splits on whitespace and would emit `-m`, `"not`, `integration"`,
+    # leaving pytest to treat `integration"` as a missing test path.
+    EXTRA_PYTEST_ARGS=()
+    if [ -n "${CHECK_COVERAGE_PYTEST_ARGS:-}" ]; then
+        # shellcheck disable=SC2294
+        eval "EXTRA_PYTEST_ARGS=( ${CHECK_COVERAGE_PYTEST_ARGS} )"
     fi
-    
-    print_info "Running tests from: $TESTS_DIR"
+
     $RUNNER pytest \
         --cov="$PACKAGE_NAME" \
         --cov-report=xml \
         --cov-report=term \
-        "$TESTS_DIR" || {
+        "${EXTRA_PYTEST_ARGS[@]}" || {
         print_warning "Some tests failed, but continuing with coverage check..."
     }
 fi

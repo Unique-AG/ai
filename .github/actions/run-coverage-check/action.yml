@@ -21,6 +21,10 @@ inputs:
     description: 'Minimum coverage percentage'
     required: false
     default: '60'
+  test_args:
+    description: 'Additional arguments passed to pytest (same as CI test job, e.g. -m "not integration")'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -53,6 +57,8 @@ runs:
 
     - name: Check coverage on new/changed code
       shell: bash
+      env:
+        CHECK_COVERAGE_PYTEST_ARGS: ${{ inputs.test_args }}
       run: |
         ARGS=(
           "${{ inputs.package_dir }}"

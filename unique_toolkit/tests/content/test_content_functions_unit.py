@@ -647,3 +647,118 @@ async def test_download_content_to_bytes_async__raises_error__when_response_not_
                 content_id="content123",
                 chat_id="chat123",
             )
+
+
+# ---------------------------------------------------------------------------
+# httpx timeout tests for _trigger_upload_content_async (UN-18453)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_trigger_upload_content_async_uses_generous_timeout(
+    sample_content_data,
+) -> None:
+    """
+    Purpose: Verify AsyncClient is created with read/write timeouts well above the 5 s default.
+    Why this matters: Large HTML files (~4 MB) reliably timeout at 5 s waiting for the Azure
+    Blob Storage commit response; without an explicit timeout the upload silently fails.
+    Setup summary: Patch _upsert_content_async and httpx.AsyncClient, call the private helper,
+    assert the timeout kwarg has read >= 60 and write >= 60.
+    """
+    import httpx
+
+    from unique_toolkit.content.functions import _trigger_upload_content_async
+
+    captured_timeout: httpx.Timeout | None = None
+
+    with patch(
+        "unique_toolkit.content.functions._upsert_content_async",
+        new_callable=AsyncMock,
+    ) as mock_upsert:
+        mock_upsert.return_value = sample_content_data
+
+        with patch(
+            "unique_toolkit.content.functions.httpx.AsyncClient"
+        ) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_response = Mock()
+            mock_response.raise_for_status = Mock()
+            mock_client.put.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            def capture_timeout(*args, **kwargs):
+                nonlocal captured_timeout
+                captured_timeout = kwargs.get("timeout")
+                return mock_client
+
+            mock_client_cls.side_effect = capture_timeout
+
+            await _trigger_upload_content_async(
+                user_id="user123",
+                company_id="company123",
+                content=b"<html>large payload</html>",
+                content_name="dashboard.html",
+                mime_type="text/html",
+                chat_id="chat123",
+            )
+
+    assert captured_timeout is not None, (
+        "httpx.AsyncClient must receive a timeout= kwarg"
+    )
+    assert isinstance(captured_timeout, httpx.Timeout)
+    assert captured_timeout.read is not None and captured_timeout.read >= 60, (
+        f"read timeout {captured_timeout.read} must be >= 60 s to survive large blob uploads"
+    )
+    assert captured_timeout.write is not None and captured_timeout.write >= 60, (
+        f"write timeout {captured_timeout.write} must be >= 60 s to survive large blob uploads"
+    )
+
+
+@pytest.mark.asyncio
+async def test_trigger_upload_content_async_timeout_not_default_5s(
+    sample_content_data,
+) -> None:
+    """
+    Purpose: Guard against accidental regression back to the 5 s httpx default.
+    Why this matters: A plain httpx.AsyncClient() has read=write=5 s which causes ReadTimeout
+    for ~4 MB HTML artifacts (observed in production, chat chat_n2ww1gbf0bti31gh8dt95hox).
+    """
+    import httpx
+
+    from unique_toolkit.content.functions import _trigger_upload_content_async
+
+    with patch(
+        "unique_toolkit.content.functions._upsert_content_async",
+        new_callable=AsyncMock,
+    ) as mock_upsert:
+        mock_upsert.return_value = sample_content_data
+
+        with patch(
+            "unique_toolkit.content.functions.httpx.AsyncClient"
+        ) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_response = Mock()
+            mock_response.raise_for_status = Mock()
+            mock_client.put.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            await _trigger_upload_content_async(
+                user_id="user123",
+                company_id="company123",
+                content=b"<html>large payload</html>",
+                content_name="dashboard.html",
+                mime_type="text/html",
+                chat_id="chat123",
+            )
+
+            call_kwargs = mock_client_cls.call_args[1]
+            timeout = call_kwargs.get("timeout")
+
+    assert timeout is not None, (
+        "timeout= must be passed explicitly to httpx.AsyncClient"
+    )
+    assert not isinstance(timeout, httpx.Timeout) or timeout.read != 5.0, (
+        "read timeout must not be the default 5 s"
+    )

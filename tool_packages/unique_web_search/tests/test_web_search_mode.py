@@ -13,10 +13,10 @@ from unique_toolkit.language_model.infos import (
 )
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.services.executors.configs import (
-    WebSearchMode,
+from unique_web_search.services.executors import (
     get_default_web_search_mode_config,
 )
+from unique_web_search.services.executors.base_config import WebSearchMode
 from unique_web_search.settings import Base, Settings
 
 
@@ -99,7 +99,7 @@ class TestGetDefaultWebSearchModeConfig:
     def test_get_default_returns_v1_when_env_is_v1(self):
         """Test get_default_web_search_mode_config returns V1 when env is 'v1'."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = "v1"
             result = get_default_web_search_mode_config()
@@ -108,7 +108,7 @@ class TestGetDefaultWebSearchModeConfig:
     def test_get_default_returns_v2_when_env_is_v2(self):
         """Test get_default_web_search_mode_config returns V2 when env is 'v2'."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = "v2"
             result = get_default_web_search_mode_config()
@@ -117,7 +117,7 @@ class TestGetDefaultWebSearchModeConfig:
     def test_get_default_returns_v3_when_env_is_v3(self):
         """Test get_default_web_search_mode_config returns V3 when env is 'v3'."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = "v3"
             result = get_default_web_search_mode_config()
@@ -126,7 +126,7 @@ class TestGetDefaultWebSearchModeConfig:
     def test_get_default_raises_error_for_invalid_mode(self):
         """Test get_default_web_search_mode_config raises ValueError for invalid mode."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = "invalid"
             with pytest.raises(ValueError, match="Invalid web search mode"):
@@ -135,7 +135,7 @@ class TestGetDefaultWebSearchModeConfig:
     def test_get_default_returns_web_search_mode_enum(self):
         """Test get_default_web_search_mode_config returns WebSearchMode enum."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = "v2"
             result = get_default_web_search_mode_config()
@@ -317,7 +317,7 @@ class TestWebSearchModeIntegration:
     def test_settings_to_config_integration_v2(self, mock_language_model_info):
         """Test integration from Settings to WebSearchConfig with V2 mode."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = "v2"
 
@@ -336,7 +336,7 @@ class TestWebSearchModeIntegration:
     def test_settings_to_config_integration_v1(self, mock_language_model_info):
         """Test integration from Settings to WebSearchConfig with V1 mode."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = "v1"
 
@@ -408,7 +408,7 @@ class TestWebSearchModeEdgeCases:
     def test_get_default_with_none_mode(self):
         """Test get_default_web_search_mode_config handles None gracefully."""
         with patch(
-            "unique_web_search.services.executors.configs.env_settings"
+            "unique_web_search.services.executors.env_settings"
         ) as mock_settings:
             mock_settings.web_search_mode = None
             with pytest.raises((ValueError, AttributeError)):

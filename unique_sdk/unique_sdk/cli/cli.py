@@ -27,6 +27,14 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_update,
 )
 from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.web_search import (
+    cmd_web_crawl,
+    cmd_web_search,
+)
+from unique_sdk.cli.commands.web_search import (
+    is_error_output as _is_web_search_error_output,
+)
+from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
 from unique_sdk.cli.config import load_config
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
@@ -74,6 +82,8 @@ Examples:
   unique-cli upload ./file.pdf      Upload to current folder
   unique-cli download cont_abc123   Download by content ID
   unique-cli elicit ask "Which?"    Ask the user a question synchronously
+  unique-cli web-search search "x"  Search the web via the public API
+  unique-cli web-search crawl URL   Crawl a URL via the public API
 """
 
 
@@ -1072,3 +1082,239 @@ def elicit_respond(
             content=content,
         )
     )
+
+
+# -- Web Search ------------------------------------------------------------
+
+
+# Key under which the `web-search` group stashes its `--config` path on
+# `ctx.meta`, so subcommands can read it back via
+# ``_resolve_web_search_config_path``. Kept as a module-level constant so the
+# writer (group) and reader (subcommand helper) cannot drift.
+_WEB_SEARCH_GROUP_CONFIG_KEY = "web_search_config_path"
+
+
+@main.group("web-search")
+@click.version_option(version=__version__, prog_name="unique-cli web-search")
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help=(
+        "Path to a JSON config file (full WebSearchConfig payload or "
+        "simple {search_engine_config: {...}, crawler_config: {...}} "
+        f"overrides). Falls back to ${ENV_CONFIG_PATH} and then "
+        "~/.unique-websearch.json."
+    ),
+)
+@click.pass_context
+def web_search_group(ctx: click.Context, config_path: str | None) -> None:
+    """Two-phase web search through the Unique public API.
+
+    \b
+    Phase 1 -- search:  query a search engine, get back URLs and snippets.
+    Phase 2 -- crawl:   fetch full page content for selected URLs.
+
+    \b
+    Engine and crawler are resolved server-side from
+    ACTIVE_SEARCH_ENGINES / ACTIVE_INHOUSE_CRAWLERS, matching the
+    server's WebSearchConfig defaults. Per-call overrides use the
+    same JSON shapes the assistants-core service expects, and can be
+    supplied via --config (file), inline --engine-config /
+    --crawler-config (JSON), or the equivalent flags on each subcommand.
+
+    \b
+    Override precedence (highest first):
+      1. Inline --fetch-size / --engine-config / --crawler-config flags
+      2. Config file (--config / $UNIQUE_WEBSEARCH_CONFIG / ~/.unique-websearch.json)
+      3. Server-side defaults
+
+    \b
+    Subcommands:
+      search    Run a web search and print URLs + snippets
+      crawl     Crawl a list of URLs and print their content
+    """
+    if config_path is not None:
+        ctx.meta[_WEB_SEARCH_GROUP_CONFIG_KEY] = config_path
+
+
+def _resolve_web_search_config_path(
+    ctx: click.Context, subcommand_value: str | None
+) -> str | None:
+    """Subcommand value wins; otherwise fall back to the group's --config."""
+    if subcommand_value is not None:
+        return subcommand_value
+    return ctx.meta.get(_WEB_SEARCH_GROUP_CONFIG_KEY)
+
+
+def _emit_web_search(ctx: click.Context, output: str) -> None:
+    """Echo a cmd_web_* result and translate error strings to exit code 1."""
+    click.echo(output)
+    if _is_web_search_error_output(output):
+        ctx.exit(1)
+
+
+_SEARCH_HELP = """\
+Run a web search via /web-search-api/search.
+
+\b
+Examples:
+  unique-cli web-search search "quarterly earnings 2026"
+  unique-cli web-search search "AI regulation" -n 10
+  unique-cli web-search search "python tutorial" --json
+  unique-cli web-search search "sustainability" --include-content --json
+  unique-cli web-search search "tax reform" \\
+    --engine-config '{"searchEngineName":"Google","fetchSize":3}'
+  unique-cli web-search --config ./ws.json search "EU AI act"
+"""
+
+
+@web_search_group.command("search", help=_SEARCH_HELP)
+@click.argument("query")
+@click.option(
+    "--fetch-size",
+    "-n",
+    default=None,
+    type=int,
+    help="Override the engine's fetchSize (number of results to fetch).",
+)
+@click.option(
+    "--include-content",
+    "-i",
+    is_flag=True,
+    default=False,
+    help="Populate result.content via the configured crawler when the engine requires scraping.",
+)
+@click.option(
+    "--engine-config",
+    "engine_config_raw",
+    default=None,
+    help='Override the searchEngineConfig as a JSON object (e.g. \'{"searchEngineName":"Google"}\').',
+)
+@click.option(
+    "--crawler-config",
+    "crawler_config_raw",
+    default=None,
+    help="Override the crawlerConfig as a JSON object (only used with --include-content).",
+)
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help="Per-call override of the web-search group's --config path.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
+)
+@click.pass_context
+def web_search_search_cmd(
+    ctx: click.Context,
+    query: str,
+    fetch_size: int | None,
+    include_content: bool,
+    engine_config_raw: str | None,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    output_json: bool,
+) -> None:
+    """Search the web via the Unique public API."""
+    resolved_config = _resolve_web_search_config_path(ctx, config_path)
+    output = cmd_web_search(
+        LazyState.get(ctx),
+        query,
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=resolved_config,
+    )
+    _emit_web_search(ctx, output)
+
+
+_CRAWL_HELP = """\
+Crawl a list of URLs via /web-search-api/crawl.
+
+URLs can be passed as positional arguments or piped via stdin (one per line).
+
+\b
+Examples:
+  unique-cli web-search crawl https://example.com https://other.com
+  unique-cli web-search crawl --parallel 5 https://a.com https://b.com
+  echo "https://example.com" | unique-cli web-search crawl --stdin
+  unique-cli web-search search "query" --json | jq -r '.results[].url' \\
+    | unique-cli web-search crawl --stdin
+"""
+
+
+@web_search_group.command("crawl", help=_CRAWL_HELP)
+@click.argument("urls", nargs=-1)
+@click.option(
+    "--parallel",
+    "-p",
+    default=10,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help="Number of URLs the server crawls concurrently per batch.",
+)
+@click.option(
+    "--stdin",
+    "from_stdin",
+    is_flag=True,
+    help="Read URLs from stdin (one per line).",
+)
+@click.option(
+    "--crawler-config",
+    "crawler_config_raw",
+    default=None,
+    help='Override the crawlerConfig as a JSON object (e.g. \'{"crawlerType":"BasicCrawler"}\').',
+)
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help="Per-call override of the web-search group's --config path.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output results as JSON.",
+)
+@click.pass_context
+def web_search_crawl_cmd(
+    ctx: click.Context,
+    urls: tuple[str, ...],
+    parallel: int,
+    from_stdin: bool,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    output_json: bool,
+) -> None:
+    """Crawl URLs via the Unique public API."""
+    url_list: list[str] = list(urls)
+    if from_stdin:
+        stdin_urls = [
+            line.strip() for line in click.get_text_stream("stdin") if line.strip()
+        ]
+        url_list.extend(stdin_urls)
+
+    resolved_config = _resolve_web_search_config_path(ctx, config_path)
+    output = cmd_web_crawl(
+        LazyState.get(ctx),
+        url_list,
+        parallel=parallel,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=resolved_config,
+    )
+    _emit_web_search(ctx, output)

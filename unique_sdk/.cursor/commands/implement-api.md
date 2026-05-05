@@ -20,6 +20,7 @@ When the user asks to implement public API changes, follow these steps:
 |-----------------------|----------|-----------|
 | public-content.controller.ts | `_content.py` | `content.md` |
 | public-message.controller.ts | `_message.py` | `message.md` |
+| public-briefing.controller.ts | `_briefing.py` | `briefing.md` |
 | public-space.controller.ts | `_space.py` | `space.md` |
 | public-folder.controller.ts | `_folder.py` | `folder.md` |
 | public-search.controller.ts | `_search.py` | `search.md` |

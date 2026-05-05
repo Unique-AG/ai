@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -208,6 +208,60 @@ class TestContentIsIngested:
 
         with pytest.raises(TypeError):
             content.is_ingested(False)  # type: ignore[call-arg]
+
+
+# ---------------------------------------------------------------------------
+# Content.is_expired
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+class TestContentIsExpired:
+    def test__returns_false__when_expired_at_is_none(self):
+        """
+        Purpose: Verify is_expired returns False when expired_at is None.
+        Why this matters: None means no expiry is set — the content is permanently valid.
+        Setup summary: Content with expired_at=None; assert False.
+        """
+        content = make_content(expired_at=None)
+
+        assert content.is_expired() is False
+
+    def test__returns_false__when_expired_at_is_in_the_future(self):
+        """
+        Purpose: Verify is_expired returns False when expired_at is in the future.
+        Why this matters: Content whose expiry is in the future is still valid and
+                          should not be treated as expired.
+        Setup summary: Content with expired_at = now + 1 day; assert False.
+        """
+        future = datetime.now(timezone.utc) + timedelta(days=1)
+        content = make_content(expired_at=future)
+
+        assert content.is_expired() is False
+
+    def test__returns_true__when_expired_at_is_in_the_past(self):
+        """
+        Purpose: Verify is_expired returns True when expired_at is in the past.
+        Why this matters: Content whose expiry has passed is stale and callers must
+                          treat it as unavailable.
+        Setup summary: Content with expired_at = now - 1 day; assert True.
+        """
+        past = datetime.now(timezone.utc) - timedelta(days=1)
+        content = make_content(expired_at=past)
+
+        assert content.is_expired() is True
+
+    def test__returns_true__when_expired_at_is_just_past_current_moment(self):
+        """
+        Purpose: Verify is_expired returns True when expired_at is just one second ago.
+        Why this matters: The boundary condition (expired_at <= now) must be honoured
+                          so that content is considered expired the instant its time passes.
+        Setup summary: Content with expired_at = now - 1 second; assert True.
+        """
+        just_past = datetime.now(timezone.utc) - timedelta(seconds=1)
+        content = make_content(expired_at=just_past)
+
+        assert content.is_expired() is True
 
 
 # ---------------------------------------------------------------------------

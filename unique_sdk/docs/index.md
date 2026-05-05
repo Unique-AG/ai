@@ -47,6 +47,7 @@ The SDK provides access to the following API resources:
 - [Search String](api_resources/search_string.md) - String-based search operations
 - [Folder](api_resources/folder.md) - Organize content in folders
 - [Space](api_resources/space.md) - Manage conversational spaces and assistants
+- [Briefing](api_resources/briefing.md) - Upsert assistant briefings (OpenAPI `PUT /briefings/{assistantId}`)
 
 #### Advanced Features
 

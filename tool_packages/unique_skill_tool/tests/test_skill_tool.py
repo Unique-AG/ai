@@ -24,7 +24,7 @@ from unique_skill_tool.service import (
     SkillTool,
 )
 from unique_skill_tool.utils import (
-    extract_prefix_skills,
+    extract_invoked_skills,
     format_skill_listing,
     get_char_budget,
     normalize_skill_name,
@@ -58,10 +58,12 @@ def _make_tool(
     if skill_registry is None:
         skill_registry = _make_skill_registry(_make_skill())
     if config is None:
-        config = SkillToolConfig(enabled=True)
+        config = SkillToolConfig()
 
     event = MagicMock()
-    return SkillTool(event=event, skill_registry=skill_registry, config=config)
+    tool = SkillTool(config=config, event=event)
+    tool.skill_registry = skill_registry
+    return tool
 
 
 def _make_tool_call(
@@ -285,7 +287,6 @@ class TestSkillToolUserPrompt:
 
     def test_returns_config_value_verbatim(self) -> None:
         config = SkillToolConfig(
-            enabled=True,
             tool_description_for_user_prompt="extra prompt text",
         )
         tool = _make_tool(config=config)
@@ -347,7 +348,7 @@ class TestSkillToolSystemReminder:
         assert tool.tool_system_reminder_for_user_prompt() == ""
 
     def test_empty_reminder_template_returns_empty(self) -> None:
-        config = SkillToolConfig(enabled=True, tool_system_reminder_for_user_message="")
+        config = SkillToolConfig(tool_system_reminder_for_user_message="")
         tool = _make_tool(config=config)
 
         assert tool.tool_system_reminder_for_user_prompt() == ""
@@ -437,70 +438,94 @@ class TestFormatSkillListing:
 
 
 # ---------------------------------------------------------------------------
-# extract_prefix_skills
+# extract_invoked_skills
 # ---------------------------------------------------------------------------
 
 
-class TestExtractPrefixSkills:
+class TestExtractInvokedSkills:
     """The matcher used by the orchestrator to preload ``/skill-name`` invocations.
 
-    Only consecutive tokens at the very start of the message count — a
-    token anywhere else is treated as normal text. Matching stops on the
-    first unknown name so code samples, URLs, or prose containing ``/``
-    segments are never silently swallowed.
+    Tokens are recognised at the start of the message *and* anywhere
+    inside it, as long as they are word-boundaried (preceded by
+    start-of-string or whitespace, followed by whitespace or
+    end-of-string). Unknown ``/...`` tokens are left in place as
+    ordinary text so URLs, file paths, and typos are never silently
+    swallowed.
     """
 
     def test_no_tokens_returns_empty_and_original(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("just a question", reg)
+        skills, remaining = extract_invoked_skills("just a question", reg)
         assert skills == []
         assert remaining == "just a question"
 
     def test_single_prefix_token(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo how are things?", reg)
+        skills, remaining = extract_invoked_skills("/foo how are things?", reg)
         assert [s.name for s in skills] == ["foo"]
         assert remaining == "how are things?"
 
     def test_multiple_prefix_tokens(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"), _make_skill("bar"))
-        skills, remaining = extract_prefix_skills("/foo /bar the rest", reg)
+        skills, remaining = extract_invoked_skills("/foo /bar the rest", reg)
         assert [s.name for s in skills] == ["foo", "bar"]
         assert remaining == "the rest"
 
     def test_duplicate_tokens_deduped_preserving_order(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"), _make_skill("bar"))
-        skills, remaining = extract_prefix_skills("/foo /bar /foo ask away", reg)
+        skills, remaining = extract_invoked_skills("/foo /bar /foo ask away", reg)
         assert [s.name for s in skills] == ["foo", "bar"]
         assert remaining == "ask away"
 
-    def test_unknown_token_stops_matching(self) -> None:
+    def test_unknown_token_does_not_stop_matching(self) -> None:
+        """Unknown ``/...`` tokens are left as text; known ones still activate."""
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/nope /foo rest", reg)
-        assert skills == []
-        assert remaining == "/nope /foo rest"
-
-    def test_known_then_unknown_keeps_known(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo /nope rest", reg)
+        skills, remaining = extract_invoked_skills("/nope /foo rest", reg)
         assert [s.name for s in skills] == ["foo"]
         assert remaining == "/nope rest"
 
-    def test_token_in_middle_is_ignored(self) -> None:
+    def test_known_then_unknown_keeps_known(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("please run /foo for me", reg)
+        skills, remaining = extract_invoked_skills("/foo /nope rest", reg)
+        assert [s.name for s in skills] == ["foo"]
+        assert remaining == "/nope rest"
+
+    def test_token_in_middle_is_extracted(self) -> None:
+        reg = _make_skill_registry(_make_skill("foo"))
+        skills, remaining = extract_invoked_skills("please run /foo for me", reg)
+        assert [s.name for s in skills] == ["foo"]
+        assert remaining == "please run for me"
+
+    def test_token_at_end_is_extracted(self) -> None:
+        reg = _make_skill_registry(_make_skill("foo"))
+        skills, remaining = extract_invoked_skills("please run /foo", reg)
+        assert [s.name for s in skills] == ["foo"]
+        assert remaining == "please run"
+
+    def test_mixed_prefix_and_inline_tokens(self) -> None:
+        reg = _make_skill_registry(_make_skill("foo"), _make_skill("bar"))
+        skills, remaining = extract_invoked_skills("/foo please also run /bar now", reg)
+        assert [s.name for s in skills] == ["foo", "bar"]
+        assert remaining == "please also run now"
+
+    def test_url_path_segments_are_not_matched(self) -> None:
+        """Slashes inside URLs/paths must not be confused for skill tokens."""
+        reg = _make_skill_registry(_make_skill("api"), _make_skill("foo"))
+        skills, remaining = extract_invoked_skills(
+            "see https://example.com/api/v1 and src/foo.py", reg
+        )
         assert skills == []
-        assert remaining == "please run /foo for me"
+        assert remaining == "see https://example.com/api/v1 and src/foo.py"
 
     def test_leading_whitespace_tolerated(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("   /foo  rest", reg)
+        skills, remaining = extract_invoked_skills("   /foo  rest", reg)
         assert [s.name for s in skills] == ["foo"]
         assert remaining == "rest"
 
     def test_token_alone_returns_empty_remainder(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo", reg)
+        skills, remaining = extract_invoked_skills("/foo", reg)
         assert [s.name for s in skills] == ["foo"]
         assert remaining == ""
 
@@ -508,40 +533,40 @@ class TestExtractPrefixSkills:
         """``/foo-bar`` must not match a skill called ``foo``.
 
         The regex is greedy on ``[A-Za-z0-9_-]*`` so it captures
-        ``foo-bar`` as one token; registry lookup then fails and
-        matching stops without advancing.
+        ``foo-bar`` as one token; registry lookup then fails and the
+        token is left in place as ordinary text.
         """
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo-bar rest", reg)
+        skills, remaining = extract_invoked_skills("/foo-bar rest", reg)
         assert skills == []
         assert remaining == "/foo-bar rest"
 
     def test_hyphenated_name_matches_registered_skill(self) -> None:
         reg = _make_skill_registry(_make_skill("foo-bar"))
-        skills, remaining = extract_prefix_skills("/foo-bar rest", reg)
+        skills, remaining = extract_invoked_skills("/foo-bar rest", reg)
         assert [s.name for s in skills] == ["foo-bar"]
         assert remaining == "rest"
 
     def test_empty_input(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("", reg)
+        skills, remaining = extract_invoked_skills("", reg)
         assert skills == []
         assert remaining == ""
 
     def test_empty_registry(self) -> None:
-        skills, remaining = extract_prefix_skills("/foo hi", {})
+        skills, remaining = extract_invoked_skills("/foo hi", {})
         assert skills == []
         assert remaining == "/foo hi"
 
     def test_name_starting_with_digit_is_matched(self) -> None:
         """Schema allows names starting with digits (e.g. ``5-forces``)."""
         reg = _make_skill_registry(_make_skill("5-forces"))
-        skills, remaining = extract_prefix_skills("/5-forces rest", reg)
+        skills, remaining = extract_invoked_skills("/5-forces rest", reg)
         assert [s.name for s in skills] == ["5-forces"]
         assert remaining == "rest"
 
     def test_all_digits_name_is_matched(self) -> None:
         reg = _make_skill_registry(_make_skill("123"))
-        skills, remaining = extract_prefix_skills("/123 rest", reg)
+        skills, remaining = extract_invoked_skills("/123 rest", reg)
         assert [s.name for s in skills] == ["123"]
         assert remaining == "rest"
