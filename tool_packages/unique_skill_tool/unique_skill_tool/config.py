@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic.rjsf_tags import CustomWidgetName, RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 from unique_skill_tool.prompts import (
@@ -29,6 +30,8 @@ class SkillSelection(BaseModel):
     and the explicit list of selected skills — so the SKILLS_PICKER widget
     sees them as a single object.
     """
+
+    model_config = get_configuration_dict()
 
     source_folder_id: str = Field(
         default="",
