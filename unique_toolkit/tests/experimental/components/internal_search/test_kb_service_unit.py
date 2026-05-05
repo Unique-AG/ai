@@ -287,3 +287,54 @@ async def test_run__produces_result_from_kb_search(make_chunk, set_runnable_stat
 
     assert len(result.chunks) >= 1
     assert result.debug_info.get("searchStrings") == ["company policy on travel"]
+
+
+@pytest.mark.ai
+async def test_run__debug_info_contains_post_merge_metadata_filter(
+    make_chunk, set_runnable_state
+):
+    """
+    Purpose: Verifies debug_info["metadataFilter"] reflects the post-merge filter
+        (scope clause AND-ed with any existing filter) actually sent to the API.
+    Why this matters: The original bug emitted the pre-merge value (often None);
+        this test guards against regressions.
+    Setup summary: Config with deprecated scope_ids; assert debug_info carries the
+        resolved folderId `in` clause, not None.
+    """
+    with pytest.deprecated_call(match="scope_ids"):
+        cfg = KnowledgeBaseInternalSearchConfig(scope_ids=["scope-1"])
+    svc, mock_kb_svc = _make_service(config=cfg)
+    set_runnable_state(svc, ["query"])
+    mock_kb_svc.search_content_chunks_async = AsyncMock(
+        return_value=[make_chunk("kb-1")]
+    )
+
+    with patch.object(svc, "post_progress_message", new=AsyncMock()):
+        result = await svc.run()
+
+    assert result.debug_info["metadataFilter"] == build_folder_id_in_clause(["scope-1"])
+    assert result.debug_info["scopeIds"] == ["scope-1"]
+
+
+@pytest.mark.ai
+async def test_run__debug_info_metadata_filter_without_scope_ids(
+    make_chunk, set_runnable_state
+):
+    """
+    Purpose: Verifies debug_info["metadataFilter"] is the static config filter
+        when no scope_ids are set, and "scopeIds" is absent.
+    Why this matters: Ensures the UNSET fallback path in _extra_debug_info works correctly.
+    Setup summary: Config with plain metadata_filter and no scope_ids; assert debug_info
+        carries the config filter and no scopeIds key.
+    """
+    svc, mock_kb_svc = _make_service()  # uses build_folder_id_in_clause(["scope-1"])
+    set_runnable_state(svc, ["query"])
+    mock_kb_svc.search_content_chunks_async = AsyncMock(
+        return_value=[make_chunk("kb-1")]
+    )
+
+    with patch.object(svc, "post_progress_message", new=AsyncMock()):
+        result = await svc.run()
+
+    assert result.debug_info["metadataFilter"] == build_folder_id_in_clause(["scope-1"])
+    assert "scopeIds" not in result.debug_info

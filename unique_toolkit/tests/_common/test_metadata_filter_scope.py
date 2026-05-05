@@ -59,3 +59,9 @@ def test_and_merge__wraps_non_and_filter() -> None:
 def test_and_merge__returns_scope_when_no_existing_filter() -> None:
     scope = build_folder_id_in_clause(["scope-x"])
     assert merge_scope_clause_into_metadata_filter(scope, None) == scope
+
+
+@pytest.mark.ai
+def test_and_merge__treats_empty_dict_as_no_filter() -> None:
+    scope = build_folder_id_in_clause(["scope-x"])
+    assert merge_scope_clause_into_metadata_filter(scope, {}) == scope
