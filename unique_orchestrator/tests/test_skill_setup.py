@@ -970,7 +970,10 @@ class TestConfigureSkillTool:
         contains a SkillTool entry (with the requested ``is_enabled`` flag
         and scopes) or no SkillTool entry at all when ``is_enabled is None``.
         """
-        from unique_skill_tool.config import SkillToolConfig
+        from unique_skill_tool.config import (
+            SkillSelection,
+            SkillToolConfig,
+        )
         from unique_toolkit.agentic.tools.config import ToolBuildConfig
 
         tools: list[ToolBuildConfig] = []
@@ -980,7 +983,9 @@ class TestConfigureSkillTool:
                     name=SkillTool.name,
                     configuration=SkillToolConfig(
                         scope_ids=scope_ids or [],
-                        selectable_skills=selectable_skills or [],
+                        selectable_skills=SkillSelection(
+                            selected=selectable_skills or [],
+                        ),
                     ),
                     is_enabled=is_enabled,
                 )

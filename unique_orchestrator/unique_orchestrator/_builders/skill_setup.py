@@ -434,17 +434,17 @@ async def configure_skill_tool(
 
     skill_config = cast(SkillToolConfig, skill_tool_build_config.configuration)
 
-    if not skill_config.selectable_skills and not skill_config.scope_ids:
+    if not skill_config.selectable_skills.selected and not skill_config.scope_ids:
         logger.warning(
             "SkillTool is enabled but no skills are configured — no skills will be loaded."
         )
         tool_manager.exclude_tool(SkillTool.name)
         return
 
-    if skill_config.selectable_skills:
+    if skill_config.selectable_skills.selected:
         skill_registry = await load_selectable_skills(
             content_service=content_service,
-            selectable_skills=skill_config.selectable_skills,
+            selectable_skills=skill_config.selectable_skills.selected,
             logger=logger,
         )
     else:
