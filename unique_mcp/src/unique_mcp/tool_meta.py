@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeVar
 
+from fastmcp.dependencies import Depends
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
 
-from unique_mcp.meta_keys import CONFIG_SCHEMA_META_KEY
+from unique_mcp.meta_keys import CONFIG_META_KEY, CONFIG_SCHEMA_META_KEY
+
+_T = TypeVar("_T", bound=BaseModel)
 
 CONTEXT_REQUIREMENTS_META_KEY = "unique.app/context-requirements"
 
@@ -74,9 +77,35 @@ def merge_tool_meta(
     return out
 
 
+def get_tool_config(config_model: type[_T]) -> _T:
+    """Dependency factory — resolves and validates the tool config from ``_meta``.
+
+    Returns a ``Depends`` object; use as a default value in tool signatures::
+
+        config: MyConfig = get_tool_config(MyConfig)
+
+    The host injects the resolved admin config under ``CONFIG_META_KEY`` at
+    call time. ``get_tool_config`` extracts it, handles the JSON-string edge
+    case, and validates it against ``config_model``. Missing fields are filled
+    with model defaults.
+    """
+    from unique_mcp.unique_injectors import (
+        get_request_meta,  # avoid circular at module level
+    )
+
+    def _inner() -> _T:
+        raw = (get_request_meta() or {}).get(CONFIG_META_KEY) or {}
+        if isinstance(raw, str):
+            return config_model.model_validate_json(raw)
+        return config_model.model_validate(raw)
+
+    return Depends(_inner)  # type: ignore[return-value]
+
+
 __all__ = [
     "CONTEXT_REQUIREMENTS_META_KEY",
     "ContextRequirements",
     "config_schema_meta",
+    "get_tool_config",
     "merge_tool_meta",
 ]
