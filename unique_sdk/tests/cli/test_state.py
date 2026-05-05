@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
+
+import pytest
 
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
@@ -128,3 +131,83 @@ class TestShellState:
         assert s.prompt == "/> "
         s._path = "/Reports"
         assert s.prompt == "/Reports> "
+
+
+class TestWorkspaceScopes:
+    def test_no_config_file_returns_empty(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
+        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
+            s = ShellState(_config())
+        assert s.workspace_scope_ids == []
+        assert not s.workspace_restricted
+
+    def test_loads_scope_ids_from_config(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
+        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+            json.dumps({"scopeIds": ["scope_abc", "scope_def"]})
+        )
+        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
+            s = ShellState(_config())
+        assert s.workspace_scope_ids == ["scope_abc", "scope_def"]
+        assert s.workspace_restricted
+
+    def test_invalid_json_returns_empty(self, tmp_path: pytest.TempPathFactory) -> None:
+        (tmp_path / ".unique-search.json").write_text("not json")  # type: ignore[union-attr]
+        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
+            s = ShellState(_config())
+        assert s.workspace_scope_ids == []
+
+    def test_is_within_workspace_no_restriction(self) -> None:
+        s = ShellState(_config())
+        s.workspace_scope_ids = []
+        assert s.is_within_workspace()
+
+    def test_is_within_workspace_direct_scope_match(self) -> None:
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_abc"]
+        s._workspace_scope_paths = []
+        s._scope_id = "scope_abc"
+        assert s.is_within_workspace()
+
+    def test_is_within_workspace_path_prefix_descendant(self) -> None:
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_abc"]
+        s._workspace_scope_paths = ["/Company/Reports"]
+        s._path = "/Company/Reports/Q1"
+        assert s.is_within_workspace()
+
+    def test_is_within_workspace_exact_path(self) -> None:
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_abc"]
+        s._workspace_scope_paths = ["/Company/Reports"]
+        s._path = "/Company/Reports"
+        assert s.is_within_workspace()
+
+    def test_is_within_workspace_blocked_at_root(self) -> None:
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_abc"]
+        s._workspace_scope_paths = ["/Company/Reports"]
+        s._path = "/"
+        s._scope_id = None
+        assert not s.is_within_workspace()
+
+    def test_is_within_workspace_blocked_wrong_path(self) -> None:
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_abc"]
+        s._workspace_scope_paths = ["/Company/Reports"]
+        s._path = "/Company/Finance"
+        assert not s.is_within_workspace()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_resolve_workspace_scope_paths_cached(self, mock_path: patch) -> None:  # type: ignore[valid-type]
+        mock_path.return_value = {"folderPath": "/Company/Reports"}
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_abc"]
+        s._workspace_scope_paths = None
+        paths1 = s._resolve_workspace_scope_paths()
+        paths2 = s._resolve_workspace_scope_paths()
+        assert paths1 == ["/Company/Reports"]
+        assert paths2 == ["/Company/Reports"]
+        mock_path.assert_called_once()

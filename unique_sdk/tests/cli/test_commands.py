@@ -147,6 +147,37 @@ class TestNavigation:
         result = cmd_ls(_state())
         assert "ls:" in result
 
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_workspace_scoped(self, mock_info: MagicMock) -> None:
+        """ls at root with workspace scopes shows only the allowed folders."""
+        mock_info.return_value = _folder_info("Reports", "scope_ws")
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        result = cmd_ls(state)
+        assert "Reports/" in result
+        assert "1 folder(s), 0 file(s)" in result
+        mock_info.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            scopeId="scope_ws",
+        )
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_inside_folder_workspace_scoped_uses_normal_path(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+    ) -> None:
+        """ls inside a scoped folder uses the normal get_infos path."""
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        state = _state("/Reports", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        result = cmd_ls(state)
+        assert "0 folder(s), 0 file(s)" in result
+        mock_folders.assert_called_once()
+
 
 # --- Folders ---
 
@@ -222,6 +253,27 @@ class TestFolders:
         mock.side_effect = ValueError("not found")
         result = cmd_mvdir(_state(), "Q1", "Q2")
         assert "mvdir:" in result
+
+    def test_mkdir_outside_workspace_blocked(self) -> None:
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_mkdir(state, "Q2")
+        assert "permission denied" in result
+
+    def test_rmdir_outside_workspace_blocked(self) -> None:
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_rmdir(state, "scope_other")
+        assert "permission denied" in result
+
+    def test_mvdir_outside_workspace_blocked(self) -> None:
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_mvdir(state, "scope_other", "new")
+        assert "permission denied" in result
 
 
 # --- Files ---
@@ -362,6 +414,27 @@ class TestFiles:
         mock.side_effect = ValueError("fail")
         result = cmd_mv_file(_state(), "cont_abc", "new.pdf")
         assert "mv:" in result
+
+    def test_upload_outside_workspace_blocked(self) -> None:
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_upload(state, "/some/file.pdf")
+        assert "permission denied" in result
+
+    def test_rm_outside_workspace_blocked(self) -> None:
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_rm(state, "cont_abc")
+        assert "permission denied" in result
+
+    def test_mv_file_outside_workspace_blocked(self) -> None:
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_mv_file(state, "cont_abc", "new.pdf")
+        assert "permission denied" in result
 
     def test_upload_nonexistent_file(self) -> None:
         result = cmd_upload(_state("/R", "scope_r"), "/nonexistent/file.pdf")
@@ -509,6 +582,30 @@ class TestSearch:
         mock.side_effect = ValueError("fail")
         result = cmd_search(_state(), "query")
         assert "search:" in result
+
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_uses_workspace_scope_ids(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws1", "scope_ws2"]
+        result = cmd_search(state, "query")
+        assert "No results found" in result
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["scopeIds"] == ["scope_ws1", "scope_ws2"]
+
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_explicit_folder_overrides_workspace(
+        self, mock: MagicMock
+    ) -> None:
+        mock.return_value = []
+        with patch("unique_sdk.Folder.get_info") as mock_info:
+            mock_info.return_value = {"id": "scope_explicit"}
+            state = _state()
+            state.workspace_scope_ids = ["scope_ws"]
+            result = cmd_search(state, "query", folder="/Reports")
+        assert "No results found" in result
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["scopeIds"] == ["scope_explicit"]
 
 
 class TestReadPayload:
