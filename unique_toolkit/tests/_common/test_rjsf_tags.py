@@ -371,6 +371,77 @@ class TestRJSFMetaTag:
         }
         assert tag.attrs == expected
 
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_basic(self):
+        """Test basic SKILLS_PICKER custom widget creation."""
+        tag = RJSFMetaTag.CustomWidget.custom(CustomWidgetName.SKILLS_PICKER)
+        expected = {"ui:widget": "SkillsPicker", "ui:disabled": False}
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_with_options(self):
+        """Test SKILLS_PICKER custom widget with additional options."""
+        tag = RJSFMetaTag.CustomWidget.custom(
+            CustomWidgetName.SKILLS_PICKER,
+            title="Skill Folder",
+            description="Pick a skill folder",
+            help="Select a folder containing skills",
+            disabled=True,
+        )
+        expected = {
+            "ui:widget": "SkillsPicker",
+            "ui:disabled": True,
+            "ui:title": "Skill Folder",
+            "ui:description": "Pick a skill folder",
+            "ui:help": "Select a folder containing skills",
+        }
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_with_extra_kwargs(self):
+        """Test SKILLS_PICKER custom widget passes extra kwargs through."""
+        tag = RJSFMetaTag.CustomWidget.custom(
+            CustomWidgetName.SKILLS_PICKER,
+            title="Skill Folder",
+            **{"ui:options": {"multiple": True, "rootPath": "/skills"}},
+        )
+        expected = {
+            "ui:widget": "SkillsPicker",
+            "ui:disabled": False,
+            "ui:title": "Skill Folder",
+            "ui:options": {"multiple": True, "rootPath": "/skills"},
+        }
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_in_model(self):
+        """Test SKILLS_PICKER widget is rendered correctly in a Pydantic model."""
+
+        class SkillConfig(BaseModel):
+            folder: Annotated[
+                str,
+                RJSFMetaTag.CustomWidget.custom(
+                    CustomWidgetName.SKILLS_PICKER,
+                    title="Skill Folder",
+                    description="Pick a skill folder",
+                ),
+            ]
+
+        ui = ui_schema_for_model(SkillConfig)
+        assert ui["folder"] == {
+            "ui:widget": "SkillsPicker",
+            "ui:disabled": False,
+            "ui:title": "Skill Folder",
+            "ui:description": "Pick a skill folder",
+        }
+        assert ui["ui:order"] == ["folder"]
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_enum_value(self):
+        """Test that the SKILLS_PICKER enum maps to the expected string value."""
+        assert CustomWidgetName.SKILLS_PICKER == "SkillsPicker"
+        assert CustomWidgetName.SKILLS_PICKER.value == "SkillsPicker"
+
     def test_optional_basic(self):
         """Test basic Optional composer creation."""
         widget = RJSFMetaTag.StringWidget.textfield(placeholder="Enter text")
