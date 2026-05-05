@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from unique_mcp.context_requirements import (
+from unique_mcp.meta_keys import MetaKeys
+from unique_mcp.tool_meta import (
     CONTEXT_REQUIREMENTS_META_KEY,
     ContextRequirements,
     merge_tool_meta,
 )
-from unique_mcp.meta_keys import MetaKeys
 
 
 @pytest.mark.ai

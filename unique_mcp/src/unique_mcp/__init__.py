@@ -1,9 +1,9 @@
-from unique_mcp.context_requirements import (
+from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
+from unique_mcp.tool_meta import (
     CONTEXT_REQUIREMENTS_META_KEY,
     ContextRequirements,
     merge_tool_meta,
 )
-from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
 from unique_mcp.unique_injectors import (
     get_request_meta,
     get_unique_service_factory,
