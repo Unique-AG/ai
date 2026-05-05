@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
 import tiktoken
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from tokenizers import Tokenizer
 from typing_extensions import deprecated
@@ -19,6 +19,7 @@ from unique_toolkit.language_model.schemas import (
     ReasoningEffort,
     to_reasoning_effort,
 )
+from unique_toolkit.language_model.settings import ModelFamily, env_settings
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -278,6 +279,7 @@ class LanguageModelInfo(BaseModel):
         | SkipJsonSchema[LanguageModelName]
     ) = Field(title="Model Name", default=LanguageModelName.AZURE_GPT_4o_2024_1120)
     provider: LanguageModelProvider = LanguageModelProvider.AZURE
+    family: ModelFamily = ModelFamily.UNKNOWN
     version: str = Field(title="Model Version", default="")
 
     encoder_name: EncoderName | Annotated[str, Field(title="Custom Encoder Name")] = (
@@ -322,6 +324,25 @@ class LanguageModelInfo(BaseModel):
     supported_reasoning_efforts: list[ReasoningEffort] | None = None
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
+
+    @model_validator(mode="after")
+    def _apply_family_input_token_correction(self) -> Self:
+        """Scale ``token_limits.token_limit_input`` by the per-family multiplier.
+
+        Runs on every construction (``cls(...)`` and ``cls.model_validate(...)``).
+        Round-trip contract: ``model_dump`` produces a dict with the *corrected*
+        limit; passing that dict back through ``model_validate`` will shrink
+        again. Callers that need to round-trip must either drop the ``family``
+        field (defaults to ``ModelFamily.UNKNOWN`` -> no correction), or ensure
+        the round-tripped ``token_limit_input`` represents the advertised
+        (pre-correction) value.
+        """
+        multiplier = env_settings.token_limit_multiplier.get(self.family, 1.0)
+        if multiplier != 1.0:
+            self.token_limits.token_limit_input = int(
+                self.token_limits.token_limit_input * multiplier
+            )
+        return self
 
     def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""
@@ -548,6 +569,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
@@ -567,6 +589,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="0613",
                     encoder_name=EncoderName.CL100K_BASE,
                     capabilities=[
@@ -584,6 +607,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="1106-preview",
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
@@ -601,6 +625,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -632,6 +657,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -663,6 +689,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -694,6 +721,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-08-07",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -714,6 +742,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-10-06",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -740,6 +769,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-13",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -769,6 +799,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-13",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -798,6 +829,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-13",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -827,6 +859,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-13",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -855,6 +888,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-13",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -883,6 +917,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-12-11",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -918,6 +953,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-12-11",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -945,6 +981,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2026-03-05",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -980,6 +1017,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2026-03-05",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -1009,6 +1047,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2026-04-24",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -1044,6 +1083,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2026-04-24",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -1081,6 +1121,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="turbo-2024-04-09",
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128000, token_limit_output=4096
@@ -1102,6 +1143,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2024-05-13",
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128_000, token_limit_output=4_096
@@ -1124,6 +1166,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2024-08-06",
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128_000, token_limit_output=16_384
@@ -1146,6 +1189,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2024-11-20",
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=128_000, token_limit_output=16_384
@@ -1166,6 +1210,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2024-07-18",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1187,6 +1232,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2024-09-12",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1212,6 +1258,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2024-12-17",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1236,6 +1283,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STRUCTURED_OUTPUT,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-01-31",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1261,6 +1309,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1286,6 +1335,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1309,6 +1359,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-02-27",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1330,6 +1381,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-14",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1351,6 +1403,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-14",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1372,6 +1425,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-14",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1393,6 +1447,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-18",
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
@@ -1411,11 +1466,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-3-7-sonnet",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2024, 10, 31),
@@ -1432,11 +1487,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-3-7-sonnet-thinking",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2024, 10, 31),
@@ -1453,11 +1508,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-haiku-4-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2025, 2, 1),
@@ -1474,11 +1529,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-sonnet-4",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),
@@ -1495,11 +1550,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-sonnet-4-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2025, 7, 1),
@@ -1519,11 +1574,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-sonnet-4-6",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2026, 1, 1),
@@ -1540,11 +1595,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-opus-4",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=32_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),
@@ -1561,11 +1616,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-opus-4-1",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=32_000,
                     ),
                     info_cutoff_at=date(2025, 3, 1),
@@ -1582,11 +1637,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-opus-4-5",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=64_000,
                     ),
                     info_cutoff_at=date(2025, 8, 1),
@@ -1606,11 +1661,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-opus-4-6",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=180_000,
+                        token_limit_input=200_000,
                         token_limit_output=128_000,
                     ),
                     info_cutoff_at=date(2025, 8, 1),
@@ -1630,11 +1685,11 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
                     version="claude-opus-4-7",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
-                        # Input limit is 1_000_000, we leave 100_000 tokens as buffer due to tokenizer mismatch
-                        token_limit_input=900_000,
+                        token_limit_input=1_000_000,
                         token_limit_output=128_000,
                     ),
                     info_cutoff_at=date(2026, 1, 1),
@@ -1652,6 +1707,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-0-flash",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
@@ -1672,6 +1728,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-5-flash",
                     encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
                     token_limits=LanguageModelTokenLimits(
@@ -1692,6 +1749,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-5-flash-lite",
                     encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
                     token_limits=LanguageModelTokenLimits(
@@ -1712,6 +1770,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-5-flash-lite-preview-06-17",
                     encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
                     token_limits=LanguageModelTokenLimits(
@@ -1732,6 +1791,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-5-flash-preview-05-20",
                     encoder_name=EncoderName.O200K_BASE,  # TODO:Replace with LLM tokenizer
                     token_limits=LanguageModelTokenLimits(
@@ -1752,6 +1812,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-5-pro",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
@@ -1772,6 +1833,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-5-pro-exp-0325",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
@@ -1792,6 +1854,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-2-5-pro-preview-06-05",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
@@ -1812,6 +1875,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-3-1-pro-preview",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
@@ -1832,6 +1896,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-3-flash-preview",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
@@ -1852,6 +1917,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.GOOGLE,
                     version="gemini-3-pro-preview",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
                     token_limits=LanguageModelTokenLimits(
@@ -1870,6 +1936,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STRUCTURED_OUTPUT,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.XAI,
                     version="grok-4-1-fast-non-reasoning",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
                     token_limits=LanguageModelTokenLimits(
@@ -1892,6 +1959,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.XAI,
                     version="grok-4-1-fast-reasoning",
                     encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
                     token_limits=LanguageModelTokenLimits(
@@ -1908,6 +1976,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="gpt-5",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -1939,6 +2008,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="gpt-5-mini",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -1970,6 +2040,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="gpt-5-nano",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2001,6 +2072,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="gpt-5-chat",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2021,6 +2093,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-10-06",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2047,6 +2120,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-13",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2076,6 +2150,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-11-13",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2105,6 +2180,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-12-11",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2140,6 +2216,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-12-11",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2169,6 +2246,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2026-03-05",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2204,6 +2282,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2026-03-05",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2233,6 +2312,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2026-04-24",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2268,6 +2348,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2026-04-24",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2297,6 +2378,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2024-12-17",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2322,6 +2404,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2347,6 +2430,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-06-26",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2369,6 +2453,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-06-10",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2387,6 +2472,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-16",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2412,6 +2498,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-06-26",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
@@ -2434,6 +2521,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-14",
                     encoder_name=EncoderName.O200K_BASE,
                     published_at=date(2025, 4, 14),
@@ -2455,6 +2543,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
                     version="2025-04-14",
                     encoder_name=EncoderName.O200K_BASE,
                     published_at=date(2025, 4, 14),
@@ -2476,6 +2565,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
                     version="deepseek-r1",
                     encoder_name=EncoderName.DEEPSEEK,
                     capabilities=[
@@ -2494,6 +2584,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
                     version="deepseek-v3-1",
                     encoder_name=EncoderName.DEEPSEEK,
                     capabilities=[
@@ -2511,6 +2602,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.QWEN,
                     version="qwen-3",
                     encoder_name=EncoderName.QWEN,
                     capabilities=[
@@ -2529,6 +2621,7 @@ class LanguageModelInfo(BaseModel):
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.QWEN,
                     version="qwen-3-thinking",
                     encoder_name=EncoderName.QWEN,
                     capabilities=[
