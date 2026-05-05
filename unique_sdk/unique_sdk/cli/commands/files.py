@@ -119,6 +119,9 @@ def cmd_upload(
     upload file.pdf ./sub/new.pdf -> into sub, renamed
     upload file.pdf /abs/path/   -> into absolute path folder
     """
+    dest = destination or "."
+    if not state.is_folder_target_within_workspace(dest):
+        return "upload: permission denied (outside workspace scope)"
     try:
         path = Path(local_path).expanduser().resolve()
         if not path.is_file():
@@ -192,6 +195,11 @@ def cmd_download(
 
 def cmd_rm(state: ShellState, name_or_id: str) -> str:
     """Delete a file by name or content ID."""
+    if name_or_id.startswith("cont_"):
+        if not state.is_content_within_workspace(name_or_id):
+            return "rm: permission denied (outside workspace scope)"
+    elif not state.is_within_workspace():
+        return "rm: permission denied (outside workspace scope)"
     try:
         content_id, display_name = _resolve_content_id(state, name_or_id)
         unique_sdk.Content.delete(
@@ -206,6 +214,11 @@ def cmd_rm(state: ShellState, name_or_id: str) -> str:
 
 def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a file."""
+    if old_name.startswith("cont_"):
+        if not state.is_content_within_workspace(old_name):
+            return "mv: permission denied (outside workspace scope)"
+    elif not state.is_within_workspace():
+        return "mv: permission denied (outside workspace scope)"
     try:
         content_id, display_name = _resolve_content_id(state, old_name)
         result = unique_sdk.Content.update(

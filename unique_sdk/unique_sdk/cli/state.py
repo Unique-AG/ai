@@ -2,8 +2,30 @@
 
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
+
 import unique_sdk
 from unique_sdk.cli.config import Config
+
+_SEARCH_CONFIG_FILENAME = ".unique-search.json"
+
+
+def _load_workspace_scope_ids() -> list[str]:
+    config_path = Path.cwd() / _SEARCH_CONFIG_FILENAME
+    if not config_path.is_file():
+        return []
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return []
+        scope_ids = data.get("scopeIds")
+        if isinstance(scope_ids, list) and all(isinstance(s, str) for s in scope_ids):
+            return scope_ids
+    except (json.JSONDecodeError, OSError):
+        pass
+    return []
 
 
 class ShellState:
@@ -13,6 +35,116 @@ class ShellState:
         self.config = config
         self._path = "/"
         self._scope_id: str | None = None
+        self.workspace_scope_ids: list[str] = _load_workspace_scope_ids()
+        self._workspace_scope_paths: list[str] | None = None
+
+    @property
+    def workspace_restricted(self) -> bool:
+        return bool(self.workspace_scope_ids)
+
+    def _resolve_workspace_scope_paths(self) -> list[str]:
+        """Lazily resolve workspace scope IDs to folder paths (one API call per scope, cached)."""
+        if self._workspace_scope_paths is not None:
+            return self._workspace_scope_paths
+        paths: list[str] = []
+        for scope_id in self.workspace_scope_ids:
+            try:
+                resp = unique_sdk.Folder.get_folder_path(
+                    user_id=self.config.user_id,
+                    company_id=self.config.company_id,
+                    scope_id=scope_id,
+                )
+                p = resp.get("folderPath", "").rstrip("/")
+                if p:  # empty after rstrip means the API returned "/" (root) — skip
+                    paths.append(p)
+            except Exception:
+                pass
+        self._workspace_scope_paths = paths
+        return paths
+
+    def is_within_workspace(self) -> bool:
+        """Return True if the current path is inside (or is) a workspace scope root.
+
+        Always returns True when no workspace restriction is configured.
+        """
+        if not self.workspace_scope_ids:
+            return True
+        if self._scope_id in self.workspace_scope_ids:
+            return True
+        paths = self._resolve_workspace_scope_paths()
+        if not paths:
+            return False
+        current = self._path
+        return any(current == p or current.startswith(p + "/") for p in paths)
+
+    def is_content_within_workspace(self, content_id: str) -> bool:
+        """Return True if the content item's owner scope is within the workspace.
+
+        Makes one API call to resolve the content's parent scope, then
+        delegates to is_folder_target_within_workspace.  Always returns True
+        when no workspace restriction is configured.
+        """
+        if not self.workspace_scope_ids:
+            return True
+        try:
+            result = unique_sdk.Content.get_info(
+                user_id=self.config.user_id,
+                company_id=self.config.company_id,
+                contentId=content_id,
+            )
+            items = result.get("contentInfo", [])
+            if not items:
+                return False
+            owner_id = items[0].get("ownerId", "")
+            return self.is_folder_target_within_workspace(owner_id)
+        except Exception:
+            return False
+
+    def is_folder_target_within_workspace(self, target: str) -> bool:
+        """Check whether a folder target is within the workspace.
+
+        For scope IDs and absolute paths the *target itself* is validated,
+        not the current working directory.  Relative names fall back to the
+        CWD check because they always resolve under the current directory.
+
+        Always returns True when no workspace restriction is configured.
+        """
+        if not self.workspace_scope_ids:
+            return True
+
+        if target.startswith("scope_"):
+            if target in self.workspace_scope_ids:
+                return True
+            paths = self._resolve_workspace_scope_paths()
+            if not paths:
+                return False
+            try:
+                resp = unique_sdk.Folder.get_folder_path(
+                    user_id=self.config.user_id,
+                    company_id=self.config.company_id,
+                    scope_id=target,
+                )
+                p = resp.get("folderPath", "")
+                return any(p == wp or p.startswith(wp + "/") for wp in paths)
+            except Exception:
+                return False
+
+        if target.startswith("/"):
+            # Normalize to collapse any `..` components before prefix-checking.
+            # Without this, "/Workspace/../Evil" would pass a startswith("/Workspace/") check.
+            normalized = os.path.normpath(target)
+            paths = self._resolve_workspace_scope_paths()
+            if not paths:
+                return False
+            return any(normalized == p or normalized.startswith(p + "/") for p in paths)
+
+        # Relative path — resolve against CWD so that `../../outside` style
+        # traversals are caught rather than delegating blindly to the CWD check.
+        resolved = os.path.normpath(self._path.rstrip("/") + "/" + target)
+        paths = self._resolve_workspace_scope_paths()
+        if not paths:
+            return self._scope_id in self.workspace_scope_ids
+        return any(resolved == p or resolved.startswith(p + "/") for p in paths)
 
     @property
     def cwd(self) -> str:
