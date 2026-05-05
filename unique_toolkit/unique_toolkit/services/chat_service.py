@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence, overload
 
 import unique_sdk
@@ -16,6 +17,10 @@ from openai.types.shared_params import Metadata, Reasoning
 from pydantic import BaseModel
 from typing_extensions import Self, deprecated
 
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_in_clause,
+    merge_scope_clause_into_metadata_filter,
+)
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
@@ -1929,6 +1934,18 @@ class ChatService(ChatServiceDeprecated):
         score_threshold: float | None = None,
     ) -> list[ContentChunk]:
         """Search content chunks scoped to this chat session (chat_only=True)."""
+        if scope_ids:
+            warnings.warn(
+                "Passing scope_ids to ChatService.search_content_chunks_async is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
+            scope_ids = None
         return await search_content_chunks_async(
             user_id=self._user_id,
             company_id=self._company_id,
