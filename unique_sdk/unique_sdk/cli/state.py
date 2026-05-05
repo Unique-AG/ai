@@ -74,6 +74,44 @@ class ShellState:
         current = self._path
         return any(current == p or current.startswith(p + "/") for p in paths)
 
+    def is_folder_target_within_workspace(self, target: str) -> bool:
+        """Check whether a folder target is within the workspace.
+
+        For scope IDs and absolute paths the *target itself* is validated,
+        not the current working directory.  Relative names fall back to the
+        CWD check because they always resolve under the current directory.
+
+        Always returns True when no workspace restriction is configured.
+        """
+        if not self.workspace_scope_ids:
+            return True
+
+        if target.startswith("scope_"):
+            if target in self.workspace_scope_ids:
+                return True
+            paths = self._resolve_workspace_scope_paths()
+            if not paths:
+                return False
+            try:
+                resp = unique_sdk.Folder.get_folder_path(
+                    user_id=self.config.user_id,
+                    company_id=self.config.company_id,
+                    scope_id=target,
+                )
+                p = resp.get("folderPath", "")
+                return any(p == wp or p.startswith(wp + "/") for wp in paths)
+            except Exception:
+                return False
+
+        if target.startswith("/"):
+            paths = self._resolve_workspace_scope_paths()
+            if not paths:
+                return False
+            return any(target == p or target.startswith(p + "/") for p in paths)
+
+        # Relative path — always resolves under CWD, so CWD membership suffices.
+        return self.is_within_workspace()
+
     @property
     def cwd(self) -> str:
         return self._path

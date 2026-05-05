@@ -29,7 +29,7 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
 
 def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
     """Delete a folder by path or scope ID."""
-    if not state.is_within_workspace():
+    if not state.is_folder_target_within_workspace(target):
         return "rmdir: permission denied (outside workspace scope)"
     try:
         if target.startswith("scope_"):
@@ -56,7 +56,7 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
 
 def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a folder."""
-    if not state.is_within_workspace():
+    if not state.is_folder_target_within_workspace(old_name):
         return "mvdir: permission denied (outside workspace scope)"
     try:
         if old_name.startswith("scope_"):

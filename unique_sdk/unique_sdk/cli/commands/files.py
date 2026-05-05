@@ -119,7 +119,11 @@ def cmd_upload(
     upload file.pdf ./sub/new.pdf -> into sub, renamed
     upload file.pdf /abs/path/   -> into absolute path folder
     """
-    if not state.is_within_workspace():
+    dest = destination or "."
+    if dest.startswith("scope_") or dest.startswith("/"):
+        if not state.is_folder_target_within_workspace(dest):
+            return "upload: permission denied (outside workspace scope)"
+    elif not state.is_within_workspace():
         return "upload: permission denied (outside workspace scope)"
     try:
         path = Path(local_path).expanduser().resolve()

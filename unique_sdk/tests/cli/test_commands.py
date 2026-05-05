@@ -261,18 +261,42 @@ class TestFolders:
         result = cmd_mkdir(state, "Q2")
         assert "permission denied" in result
 
-    def test_rmdir_outside_workspace_blocked(self) -> None:
-        state = _state()
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_rmdir_scope_id_outside_workspace_blocked(
+        self, mock_path: MagicMock
+    ) -> None:
+        """rmdir scope_other blocked even when CWD is inside the workspace."""
+        mock_path.return_value = {"folderPath": "/OtherTenant/Folder"}
+        state = _state("/Workspace", "scope_ws")
         state.workspace_scope_ids = ["scope_ws"]
         state._workspace_scope_paths = ["/Workspace"]
         result = cmd_rmdir(state, "scope_other")
         assert "permission denied" in result
 
-    def test_mvdir_outside_workspace_blocked(self) -> None:
-        state = _state()
+    def test_rmdir_absolute_path_outside_workspace_blocked(self) -> None:
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_rmdir(state, "/OtherTenant/Folder")
+        assert "permission denied" in result
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mvdir_scope_id_outside_workspace_blocked(
+        self, mock_path: MagicMock
+    ) -> None:
+        """mvdir scope_other blocked even when CWD is inside the workspace."""
+        mock_path.return_value = {"folderPath": "/OtherTenant/Folder"}
+        state = _state("/Workspace", "scope_ws")
         state.workspace_scope_ids = ["scope_ws"]
         state._workspace_scope_paths = ["/Workspace"]
         result = cmd_mvdir(state, "scope_other", "new")
+        assert "permission denied" in result
+
+    def test_mvdir_absolute_path_outside_workspace_blocked(self) -> None:
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_mvdir(state, "/OtherTenant/Folder", "new")
         assert "permission denied" in result
 
 
@@ -420,6 +444,18 @@ class TestFiles:
         state.workspace_scope_ids = ["scope_ws"]
         state._workspace_scope_paths = ["/Workspace"]
         result = cmd_upload(state, "/some/file.pdf")
+        assert "permission denied" in result
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_upload_scope_id_outside_workspace_blocked(
+        self, mock_path: MagicMock
+    ) -> None:
+        """upload to explicit scope_other blocked even when CWD is inside the workspace."""
+        mock_path.return_value = {"folderPath": "/OtherTenant/Folder"}
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_upload(state, "/some/file.pdf", "scope_other")
         assert "permission denied" in result
 
     def test_rm_outside_workspace_blocked(self) -> None:
