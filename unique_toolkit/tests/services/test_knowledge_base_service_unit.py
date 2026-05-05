@@ -8,8 +8,7 @@ import unique_sdk
 from pydantic import SecretStr
 
 from unique_toolkit._common.metadata_filter_scope import (
-    FOLDER_ID_PATH_VALUE_PREFIX,
-    build_folder_id_path_scope_clause,
+    build_folder_id_in_clause,
 )
 from unique_toolkit.app.schemas import (
     BaseEvent,
@@ -39,20 +38,6 @@ from unique_toolkit.content.schemas import (
     PaginatedContentInfos,
 )
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
-
-
-def _parse_wire_folder_id_paths_to_segments(paths: list[str]) -> list[list[str]]:
-    """Parse ``uniquepathid://…`` strings into root→leaf scope id segments (test helper)."""
-    segs: list[list[str]] = []
-    for p in paths:
-        assert p.startswith(FOLDER_ID_PATH_VALUE_PREFIX), p
-        rest = p[len(FOLDER_ID_PATH_VALUE_PREFIX) :]
-        segs.append([s for s in rest.split("/") if s])
-    return segs
-
-
-def _wire_segments_to_folder_id_paths(segments: list[list[str]]) -> list[str]:
-    return [f"{FOLDER_ID_PATH_VALUE_PREFIX}{'/'.join(seg)}" for seg in segments]
 
 
 @pytest.fixture
@@ -389,30 +374,19 @@ class TestKnowledgeBaseServiceSearchContentChunks:
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths",
-        return_value=[
-            "uniquepathid://root/scope1",
-            "uniquepathid://root/scope2",
-        ],
-    )
     def test_search_content_chunks__returns_chunks__with_scope_ids(
         self,
-        mock_resolve_scope_ids: Mock,
         mock_search: Mock,
         base_kb_service: KnowledgeBaseService,
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify search_content_chunks returns results when scope_ids are provided.
+        Purpose: Verify search_content_chunks folds scope_ids into a folderId `in` filter.
         Why this matters: Scope-based search is a core functionality for knowledge base queries.
-        Setup summary: Mock search_content_chunks function, call service method with scope_ids, assert results.
+        Setup summary: Mock search_content_chunks, call with scope_ids, assert folderId `in` filter used.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
 
-        # Act
         with pytest.deprecated_call(match="scope_ids"):
             result = base_kb_service.search_content_chunks(
                 search_string="test query",
@@ -421,7 +395,6 @@ class TestKnowledgeBaseServiceSearchContentChunks:
                 scope_ids=["scope1", "scope2"],
             )
 
-        # Assert
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0].id == "cont_test123"
@@ -435,40 +408,26 @@ class TestKnowledgeBaseServiceSearchContentChunks:
             search_language="english",
             reranker_config=None,
             chat_only=False,
-            metadata_filter=build_folder_id_path_scope_clause(
-                [
-                    "uniquepathid://root/scope1",
-                    "uniquepathid://root/scope2",
-                ]
-            ),
+            metadata_filter=build_folder_id_in_clause(["scope1", "scope2"]),
             content_ids=None,
             score_threshold=None,
         )
-        mock_resolve_scope_ids.assert_called_once_with(scope_ids=["scope1", "scope2"])
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths",
-        return_value=["uniquepathid://scope1"],
-    )
     def test_search_content_chunks__uses_instance_metadata_filter__when_not_provided(
         self,
-        mock_resolve_scope_ids: Mock,
         mock_search: Mock,
         kb_service_with_metadata: KnowledgeBaseService,
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify search_content_chunks uses instance metadata_filter when parameter is None.
+        Purpose: Verify search_content_chunks ANDs the scope clause with the instance metadata_filter.
         Why this matters: Ensures metadata filtering works consistently across searches.
-        Setup summary: Create service with metadata_filter, call search without metadata_filter param, verify instance filter used.
+        Setup summary: Service with metadata_filter, call with scope_ids, assert ANDed filter sent.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
 
-        # Act
         with pytest.deprecated_call(match="scope_ids"):
             result = kb_service_with_metadata.search_content_chunks(
                 search_string="test",
@@ -477,42 +436,28 @@ class TestKnowledgeBaseServiceSearchContentChunks:
                 scope_ids=["scope1"],
             )
 
-        # Assert
         assert len(result) == 1
-        mock_search.assert_called_once()
         call_kwargs = mock_search.call_args[1]
         assert call_kwargs["metadata_filter"] == {
-            "and": [
-                build_folder_id_path_scope_clause(["uniquepathid://scope1"]),
-                {"key": "test_value"},
-            ]
+            "and": [build_folder_id_in_clause(["scope1"]), {"key": "test_value"}]
         }
         assert "scope_ids" not in call_kwargs
-        mock_resolve_scope_ids.assert_called_once_with(scope_ids=["scope1"])
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths",
-        return_value=["uniquepathid://scope1"],
-    )
     def test_search_content_chunks__uses_provided_metadata_filter__over_instance(
         self,
-        mock_resolve_scope_ids: Mock,
         mock_search: Mock,
         kb_service_with_metadata: KnowledgeBaseService,
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify provided metadata_filter parameter overrides instance metadata_filter.
+        Purpose: Verify provided metadata_filter is ANDed with the scope clause, not the instance filter.
         Why this matters: Allows per-query metadata filtering flexibility.
-        Setup summary: Create service with metadata_filter, call search with different metadata_filter, verify provided one used.
+        Setup summary: Service with metadata_filter, call with scope_ids + explicit filter, verify ANDed result.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
 
-        # Act
         with pytest.deprecated_call(match="scope_ids"):
             result = kb_service_with_metadata.search_content_chunks(
                 search_string="test",
@@ -522,27 +467,16 @@ class TestKnowledgeBaseServiceSearchContentChunks:
                 metadata_filter={"override": "value"},
             )
 
-        # Assert
         assert len(result) == 1
         call_kwargs = mock_search.call_args[1]
         assert call_kwargs["metadata_filter"] == {
-            "and": [
-                build_folder_id_path_scope_clause(["uniquepathid://scope1"]),
-                {"override": "value"},
-            ]
+            "and": [build_folder_id_in_clause(["scope1"]), {"override": "value"}]
         }
-        mock_resolve_scope_ids.assert_called_once_with(scope_ids=["scope1"])
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths",
-        return_value=["uniquepathid://scope1"],
-    )
     def test_search_content_chunks__handles_error__and_reraises(
         self,
-        mock_resolve_scope_ids: Mock,
         mock_search: Mock,
         base_kb_service: KnowledgeBaseService,
     ) -> None:
@@ -551,10 +485,8 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         Why this matters: Error handling must preserve exception information for debugging.
         Setup summary: Mock search to raise exception, call service method, assert exception is raised.
         """
-        # Arrange
         mock_search.side_effect = Exception("Search failed")
 
-        # Act & Assert
         with pytest.raises(Exception, match="Search failed"):
             with pytest.deprecated_call(match="scope_ids"):
                 base_kb_service.search_content_chunks(
@@ -563,7 +495,6 @@ class TestKnowledgeBaseServiceSearchContentChunks:
                     limit=10,
                     scope_ids=["scope1"],
                 )
-        mock_resolve_scope_ids.assert_called_once_with(scope_ids=["scope1"])
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
@@ -597,14 +528,8 @@ class TestKnowledgeBaseServiceSearchContentChunks:
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths",
-        return_value=["uniquepathid://scope1"],
-    )
     def test_search_content_chunks__with_reranker_config__passes_config(
         self,
-        mock_resolve_scope_ids: Mock,
         mock_search: Mock,
         base_kb_service: KnowledgeBaseService,
         mock_content_chunk: ContentChunk,
@@ -612,13 +537,11 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         """
         Purpose: Verify search_content_chunks accepts and passes reranker_config.
         Why this matters: Reranking improves search result quality.
-        Setup summary: Create reranker config, call search with it, verify config passed.
+        Setup summary: Create reranker config, call search with scope_ids, verify config and filter passed.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
         reranker_config = ContentRerankerConfig(deployment_name="test_reranker")
 
-        # Act
         with pytest.deprecated_call(match="scope_ids"):
             result = base_kb_service.search_content_chunks(
                 search_string="test",
@@ -628,43 +551,27 @@ class TestKnowledgeBaseServiceSearchContentChunks:
                 reranker_config=reranker_config,
             )
 
-        # Assert
         assert len(result) == 1
         call_kwargs = mock_search.call_args[1]
         assert call_kwargs["reranker_config"] == reranker_config
-        assert call_kwargs["metadata_filter"] == build_folder_id_path_scope_clause(
-            ["uniquepathid://scope1"]
-        )
-        mock_resolve_scope_ids.assert_called_once_with(scope_ids=["scope1"])
+        assert call_kwargs["metadata_filter"] == build_folder_id_in_clause(["scope1"])
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks_async")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths_async",
-        new_callable=AsyncMock,
-        return_value=[
-            "uniquepathid://root/scope1",
-            "uniquepathid://root/scope2",
-        ],
-    )
     async def test_search_content_chunks_async__returns_chunks__with_scope_ids(
         self,
-        mock_resolve_scope_ids_async: AsyncMock,
         mock_search_async: AsyncMock,
         base_kb_service: KnowledgeBaseService,
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify async search_content_chunks_async returns results correctly.
+        Purpose: Verify async search_content_chunks_async folds scope_ids into a folderId `in` filter.
         Why this matters: Async operations are essential for non-blocking I/O.
-        Setup summary: Mock async search function, await service method, assert results.
+        Setup summary: Mock async search, call with scope_ids, assert folderId `in` filter used.
         """
-        # Arrange
         mock_search_async.return_value = [mock_content_chunk]
 
-        # Act
         with pytest.deprecated_call(match="scope_ids"):
             result = await base_kb_service.search_content_chunks_async(
                 search_string="test query",
@@ -673,35 +580,20 @@ class TestKnowledgeBaseServiceSearchContentChunks:
                 scope_ids=["scope1", "scope2"],
             )
 
-        # Assert
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0].id == "cont_test123"
-        mock_search_async.assert_called_once()
         call_kwargs = mock_search_async.call_args[1]
         assert call_kwargs["scope_ids"] is None
-        assert call_kwargs["metadata_filter"] == build_folder_id_path_scope_clause(
-            [
-                "uniquepathid://root/scope1",
-                "uniquepathid://root/scope2",
-            ]
-        )
-        mock_resolve_scope_ids_async.assert_awaited_once_with(
-            scope_ids=["scope1", "scope2"]
+        assert call_kwargs["metadata_filter"] == build_folder_id_in_clause(
+            ["scope1", "scope2"]
         )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks_async")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths_async",
-        new_callable=AsyncMock,
-        return_value=["uniquepathid://scope1"],
-    )
     async def test_search_content_chunks_async__uses_instance_metadata_filter(
         self,
-        mock_resolve_scope_ids_async: AsyncMock,
         mock_search_async: AsyncMock,
         kb_service_with_metadata: KnowledgeBaseService,
         mock_content_chunk: ContentChunk,
@@ -728,24 +620,16 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         call_kwargs = mock_search_async.call_args[1]
         assert call_kwargs["metadata_filter"] == {
             "and": [
-                build_folder_id_path_scope_clause(["uniquepathid://scope1"]),
+                build_folder_id_in_clause(["scope1"]),
                 {"key": "test_value"},
             ]
         }
-        mock_resolve_scope_ids_async.assert_awaited_once_with(scope_ids=["scope1"])
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks_async")
-    @patch.object(
-        KnowledgeBaseService,
-        "_resolve_scope_ids_to_folder_id_paths_async",
-        new_callable=AsyncMock,
-        return_value=["uniquepathid://scope1"],
-    )
     async def test_search_content_chunks_async__handles_error__and_reraises(
         self,
-        mock_resolve_scope_ids_async: AsyncMock,
         mock_search_async: AsyncMock,
         base_kb_service: KnowledgeBaseService,
     ) -> None:
@@ -766,7 +650,6 @@ class TestKnowledgeBaseServiceSearchContentChunks:
                     limit=10,
                     scope_ids=["scope1"],
                 )
-        mock_resolve_scope_ids_async.assert_awaited_once_with(scope_ids=["scope1"])
 
 
 class TestKnowledgeBaseServiceSearchContents:
@@ -1534,200 +1417,6 @@ class TestKnowledgeBaseServiceFolderManagement:
 
         # Assert
         assert result == ["scope_root", "scope_child"]
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch.object(KnowledgeBaseService, "get_folder_info_async")
-    async def test_resolve_scope_ids_to_folder_id_paths_async__returns_rooted_paths(
-        self,
-        mock_get_folder_async: AsyncMock,
-        base_kb_service: KnowledgeBaseService,
-    ) -> None:
-        """
-        Purpose: Verify async scope resolution produces full folderIdPath values.
-        Why this matters: Async KB search must use the same rooted folder subtree filter as
-            the sync path, otherwise nested folder picks behave differently.
-        Setup summary: Mock async folder ancestry for a nested child, resolve one scope ID,
-            and assert the resulting uniquepathid-prefixed path string.
-        """
-        root_folder = FolderInfo(
-            id="scope_root",
-            name="root",
-            parent_id=None,
-            ingestion_config={},
-            created_at=None,
-            updated_at=None,
-            external_id=None,
-        )
-        child_folder = FolderInfo(
-            id="scope_child",
-            name="child",
-            parent_id="scope_root",
-            ingestion_config={},
-            created_at=None,
-            updated_at=None,
-            external_id=None,
-        )
-
-        async def folder_info_side_effect(scope_id: str) -> FolderInfo:
-            if scope_id == "scope_child":
-                return child_folder
-            return root_folder
-
-        mock_get_folder_async.side_effect = folder_info_side_effect
-
-        result = await base_kb_service._resolve_scope_ids_to_folder_id_paths_async(
-            scope_ids=["scope_child"]
-        )
-
-        assert result == ["uniquepathid://scope_root/scope_child"]
-
-    @pytest.mark.ai
-    @patch.object(KnowledgeBaseService, "get_scope_id_path")
-    def test_resolve_scope_ids_to_folder_id_paths__dedupes_parent_when_child_also_selected(
-        self,
-        mock_get_scope_id_path: Mock,
-        base_kb_service: KnowledgeBaseService,
-    ) -> None:
-        """
-        Purpose: Two folder scope ids whose ancestry is ``scope_root/scope_parent`` and
-            ``scope_root/scope_parent/scope_leaf`` yield a single
-            ``uniquepathid://scope_root/scope_parent`` value.
-        Why this matters: Parent+child in scope_ids must not emit redundant OR clauses.
-        """
-
-        def scope_path_side_effect(*, scope_id: str) -> list[str]:
-            if scope_id == "scope_parent":
-                return ["scope_root", "scope_parent"]
-            if scope_id == "scope_leaf":
-                return ["scope_root", "scope_parent", "scope_leaf"]
-            raise AssertionError(f"unexpected scope_id={scope_id!r}")
-
-        mock_get_scope_id_path.side_effect = scope_path_side_effect
-
-        result = base_kb_service._resolve_scope_ids_to_folder_id_paths(
-            scope_ids=["scope_leaf", "scope_parent"],
-        )
-
-        assert result == ["uniquepathid://scope_root/scope_parent"]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__wire_uniquepathid_child_and_ancestor(
-        self,
-    ) -> None:
-        """``uniquepathid://scope_root/scope_child`` + ``…/scope_root`` → only the ancestor string."""
-        wire_in = [
-            "uniquepathid://scope_root/scope_child",
-            "uniquepathid://scope_root",
-        ]
-        deduped = KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            _parse_wire_folder_id_paths_to_segments(wire_in)
-        )
-        assert _wire_segments_to_folder_id_paths(deduped) == [
-            "uniquepathid://scope_root",
-        ]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__parent_segment_supersedes_child(
-        self,
-    ) -> None:
-        """``scope_root/scope_parent`` vs ``…/scope_leaf`` under same prefix keeps minimal cover."""
-        parent = ["scope_root", "scope_parent"]
-        child = ["scope_root", "scope_parent", "scope_leaf"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            [child, parent]
-        ) == [parent]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__drops_descendant_paths(self) -> None:
-        """
-        Purpose: Verify redundant descendant folder ancestry lists are removed when an ancestor
-            is already selected.
-        Why this matters: Deprecated scope_ids lists may include both parent and child folder
-            IDs; emitting both produces redundant OR clauses without changing results.
-        Setup summary: Pass parent and child paths; assert only the ancestor remains in input
-            order among survivors.
-        """
-        parent = ["scope_root"]
-        child = ["scope_root", "scope_child"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            [child, parent]
-        ) == [parent]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__keeps_unrelated_paths(self) -> None:
-        """
-        Purpose: Verify sibling or unrelated paths are all retained.
-        Why this matters: Deduplication must only remove strict subtree redundancy.
-        Setup summary: Two paths under the same root but different branches; assert both kept.
-        """
-        a = ["scope_root", "scope_branch_a"]
-        b = ["scope_root", "scope_branch_b"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths([a, b]) == [a, b]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__does_not_treat_ab_as_child_of_a(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify segment-wise matching does not treat distinct IDs as ancestor/descendant.
-        Why this matters: Naive string prefix checks would wrongly hide ``scope_ab`` when
-            ``scope_a`` is selected.
-        Setup summary: Paths whose last segment differs only by suffix; assert both kept.
-        """
-        short_id = ["scope_a"]
-        long_id = ["scope_ab"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            [short_id, long_id]
-        ) == [short_id, long_id]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__empty_returns_empty(self) -> None:
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths([]) == []
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__duplicate_inputs_single_survivor(
-        self,
-    ) -> None:
-        """Same path repeated must not duplicate OR survivors."""
-        path = ["scope_tenant", "scope_folder"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            [path, path, path]
-        ) == [path]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__three_level_chain_keeps_root_only(
-        self,
-    ) -> None:
-        root = ["scope_root"]
-        mid = ["scope_root", "scope_mid"]
-        leaf = ["scope_root", "scope_mid", "scope_leaf"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            [leaf, mid, root]
-        ) == [root]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__deep_branch_keeps_minimal_cover(
-        self,
-    ) -> None:
-        """When root is absent, drop deeper paths covered by an intermediate ancestor."""
-        mid = ["scope_root", "scope_mid"]
-        leaf = ["scope_root", "scope_mid", "scope_leaf"]
-        other = ["scope_root", "scope_other"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            [leaf, other, mid]
-        ) == [other, mid]
-
-    @pytest.mark.ai
-    def test_dedupe_redundant_scope_id_paths__survivor_order_follows_first_occurrence(
-        self,
-    ) -> None:
-        """Among unrelated survivors, output order matches first-seen in the input."""
-        first = ["scope_org", "scope_sales"]
-        second = ["scope_org", "scope_legal"]
-        assert KnowledgeBaseService._dedupe_redundant_scope_id_paths(
-            [second, first]
-        ) == [second, first]
 
 
 class TestKnowledgeBaseServiceMetadata:
