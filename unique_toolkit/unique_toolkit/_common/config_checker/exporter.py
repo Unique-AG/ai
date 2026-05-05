@@ -15,6 +15,7 @@ from unique_toolkit._common.config_checker.models import (
     ConfigEntry,
     EnvironmentVarWarning,
 )
+from unique_toolkit._common.pydantic_helpers import list_of
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,9 @@ class ExportManifest(BaseModel):
 
     exported_count: int
     skipped_count: int
-    warnings: list[EnvironmentVarWarning] = Field(default_factory=list)
+    warnings: list[EnvironmentVarWarning] = Field(
+        default_factory=list_of(EnvironmentVarWarning)
+    )
     config_files: dict[str, str] = Field(
         default_factory=dict
     )  # config_name -> file_path

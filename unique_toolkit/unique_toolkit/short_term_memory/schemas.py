@@ -21,6 +21,7 @@ class ShortTermMemory(BaseModel):
     data: str | dict[str, Any] | int | float | bool | list[Any] | None = Field(
         deprecated=True
     )
+    # dict, not dict_of(str, Any): pyright rejects type[Any] for dict_of's value parameter.
     value: str | dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")

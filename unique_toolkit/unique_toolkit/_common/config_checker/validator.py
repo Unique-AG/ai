@@ -15,6 +15,7 @@ from unique_toolkit._common.config_checker.models import (
 from unique_toolkit._common.config_checker.models import (
     ValidationError as ValidationErrorModel,
 )
+from unique_toolkit._common.pydantic_helpers import list_of
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,9 @@ class ValidationReport(BaseModel):
     total_configs: int
     valid_count: int
     invalid_count: int
-    results: list[ConfigValidationResult] = Field(default_factory=list)
+    results: list[ConfigValidationResult] = Field(
+        default_factory=list_of(ConfigValidationResult)
+    )
 
     def has_failures(self) -> bool:
         """Check if there are any validation failures."""

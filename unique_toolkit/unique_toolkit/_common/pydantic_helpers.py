@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Any, TypeVar, Unpack
+from typing import Any, Callable, TypeVar, Unpack
 
 import humps
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, create_model
@@ -9,6 +9,20 @@ from pydantic.fields import ComputedFieldInfo, FieldInfo
 from pydantic_core import PydanticUseDefault
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+K = TypeVar("K")
+V = TypeVar("V")
+
+
+def list_of(_t: type[T]) -> Callable[[], list[T]]:
+    return list  # type: ignore[return-value]
+
+
+def dict_of(_k: type[K], _v: type[V]) -> Callable[[], dict[K, V]]:
+    return dict  # type: ignore[return-value]
 
 
 def field_title_generator(

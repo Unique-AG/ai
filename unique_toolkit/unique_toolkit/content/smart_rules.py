@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Mapping, Self, Union
 from pydantic import AliasChoices, BaseModel, Field
 from pydantic.config import ConfigDict
 
+from unique_toolkit._common.pydantic_helpers import list_of
+
 
 class Operator(str, Enum):
     EQUALS = "equals"
@@ -58,7 +60,7 @@ class BaseStatement(BaseModel):
 class Statement(BaseStatement):
     operator: Operator
     value: Union[str, int, bool, list[str], "AndStatement", "OrStatement"]
-    path: List[str] = Field(default_factory=list)
+    path: List[str] = Field(default_factory=list_of(str))
 
     def _fill_in_variables(
         self,

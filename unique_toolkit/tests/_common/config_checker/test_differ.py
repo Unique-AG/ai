@@ -7,6 +7,7 @@ from unique_toolkit._common.config_checker.differ import (
     ConfigDiffer,
     DefaultChangeReport,
 )
+from unique_toolkit._common.pydantic_helpers import list_of
 
 
 class SimpleConfig(BaseModel):
@@ -21,7 +22,7 @@ class NestedConfig(BaseModel):
 
 class ListConfig(BaseModel):
     items: list[str] = Field(default_factory=lambda: ["a", "b"])
-    tags: list[int] = Field(default_factory=list)
+    tags: list[int] = Field(default_factory=list_of(int))
 
 
 class DictConfig(BaseModel):

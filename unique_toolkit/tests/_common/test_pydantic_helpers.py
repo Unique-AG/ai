@@ -13,8 +13,10 @@ from unique_toolkit._common.pydantic_helpers import (
     create_complement_model,
     create_intersection_model,
     create_union_model,
+    dict_of,
     field_title_generator,
     get_configuration_dict,
+    list_of,
     model_title_generator,
 )
 
@@ -469,11 +471,11 @@ class TestEdgeCases:
         class ModelA(BaseModel):
             simple_field: str
             optional_field: Optional[str] = None
-            list_field: list[str] = Field(default_factory=list)
+            list_field: list[str] = Field(default_factory=list_of(str))
 
         class ModelB(BaseModel):
             simple_field: str
-            dict_field: dict[str, int] = Field(default_factory=dict)
+            dict_field: dict[str, int] = Field(default_factory=dict_of(str, int))
 
         # Test union
         union_model = create_union_model(ModelA, ModelB, "ComplexUnion")
@@ -695,7 +697,9 @@ class TestNoneToDefault:
         from typing import Annotated
 
         class Model(BaseModel):
-            items: Annotated[list[str], NoneToDefault] = Field(default_factory=list)
+            items: Annotated[list[str], NoneToDefault] = Field(
+                default_factory=list_of(str)
+            )
 
         instance = Model(items=None)
 
@@ -782,7 +786,9 @@ class TestNoneToDefault:
         from typing import Annotated
 
         class Model(BaseModel):
-            items: Annotated[list[str], NoneToDefault] = Field(default_factory=list)
+            items: Annotated[list[str], NoneToDefault] = Field(
+                default_factory=list_of(str)
+            )
 
         a = Model(items=None)
         b = Model(items=None)
