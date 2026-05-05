@@ -37,4 +37,5 @@ __all__ = [
     "KnowledgeBaseInternalSearchState",
     "KnowledgeBaseInternalSearchDeps",
     "UNSET",
+    "_UnsetType",
 ]

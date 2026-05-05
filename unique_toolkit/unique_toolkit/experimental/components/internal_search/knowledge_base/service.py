@@ -16,6 +16,7 @@ from unique_toolkit.experimental.components.internal_search.knowledge_base.schem
     UNSET,
     KnowledgeBaseInternalSearchDeps,
     KnowledgeBaseInternalSearchState,
+    _UnsetType,
 )
 from unique_toolkit.services import UniqueServiceFactory
 
@@ -27,6 +28,7 @@ class KnowledgeBaseInternalSearchService(
     _dependencies: KnowledgeBaseInternalSearchDeps
     _config: KnowledgeBaseInternalSearchConfig  # pyright: ignore[reportIncompatibleVariableOverride]
     _config_model_cls = KnowledgeBaseInternalSearchConfig
+    _resolved_metadata_filter: dict[str, Any] | None | _UnsetType
 
     @classmethod
     def from_config(cls, config: KnowledgeBaseInternalSearchConfig) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride]
@@ -36,6 +38,7 @@ class KnowledgeBaseInternalSearchService(
 
     def reset_state(self) -> None:
         self._state = KnowledgeBaseInternalSearchState(search_queries=[])
+        self._resolved_metadata_filter = UNSET
 
     def _make_dependencies(
         self, settings: UniqueSettings, context: UniqueContext
@@ -46,7 +49,13 @@ class KnowledgeBaseInternalSearchService(
         )
 
     def _extra_debug_info(self) -> dict[str, Any]:
-        debug_info: dict[str, Any] = {"metadataFilter": self._effective_metadata_filter}
+        resolved = self._resolved_metadata_filter
+        effective = (
+            resolved
+            if not isinstance(resolved, _UnsetType)
+            else self._effective_metadata_filter
+        )
+        debug_info: dict[str, Any] = {"metadataFilter": effective}
         if self._effective_scope_ids is not None:
             debug_info["scopeIds"] = self._effective_scope_ids
         return debug_info
@@ -68,6 +77,7 @@ class KnowledgeBaseInternalSearchService(
                 ),
                 warn=False,
             )
+            self._resolved_metadata_filter = metadata_filter
 
         if metadata_filter is not None:
             if content_ids is not None:
