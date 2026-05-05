@@ -101,9 +101,6 @@ constraint-dependencies = [
 "unique-six" = false
 "unique-search-proxy" = false
 "unique-quartr" = false
-"authlib" = "2026-04-17"
-"langchain-core" = "2026-04-17"
-"langsmith" = "2026-04-15"
 "litellm" = "2026-04-27"
 
 [tool.uv.sources]

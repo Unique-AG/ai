@@ -163,7 +163,7 @@ class TestSearchFormatting:
         )
         assert "engine: Google" in out
         assert "1. A" in out
-        assert "https://a.com" in out
+        assert "     https://a.com" in out
         assert "snippet a" in out
         assert "[9 chars of content]" in out
 
