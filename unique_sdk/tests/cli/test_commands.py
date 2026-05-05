@@ -261,6 +261,13 @@ class TestFolders:
         result = cmd_mkdir(state, "Q2")
         assert "permission denied" in result
 
+    def test_mkdir_dotdot_traversal_blocked(self) -> None:
+        state = _state("/Workspace/Reports", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_mkdir(state, "../../outside")
+        assert "permission denied" in result
+
     @patch("unique_sdk.Folder.get_folder_path")
     def test_rmdir_scope_id_outside_workspace_blocked(
         self, mock_path: MagicMock
@@ -444,6 +451,13 @@ class TestFiles:
         state.workspace_scope_ids = ["scope_ws"]
         state._workspace_scope_paths = ["/Workspace"]
         result = cmd_upload(state, "/some/file.pdf")
+        assert "permission denied" in result
+
+    def test_upload_dotdot_destination_blocked(self) -> None:
+        state = _state("/Workspace/Reports", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_upload(state, "/some/file.pdf", "../../outside/")
         assert "permission denied" in result
 
     @patch("unique_sdk.Folder.get_folder_path")

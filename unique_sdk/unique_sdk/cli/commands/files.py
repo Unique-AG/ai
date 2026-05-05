@@ -120,10 +120,7 @@ def cmd_upload(
     upload file.pdf /abs/path/   -> into absolute path folder
     """
     dest = destination or "."
-    if dest.startswith("scope_") or dest.startswith("/"):
-        if not state.is_folder_target_within_workspace(dest):
-            return "upload: permission denied (outside workspace scope)"
-    elif not state.is_within_workspace():
+    if not state.is_folder_target_within_workspace(dest):
         return "upload: permission denied (outside workspace scope)"
     try:
         path = Path(local_path).expanduser().resolve()

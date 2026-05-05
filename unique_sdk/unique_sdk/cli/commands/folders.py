@@ -9,7 +9,7 @@ from unique_sdk.cli.state import ShellState
 
 def cmd_mkdir(state: ShellState, name: str) -> str:
     """Create a new folder under the current directory."""
-    if not state.is_within_workspace():
+    if not state.is_folder_target_within_workspace(name):
         return "mkdir: permission denied (outside workspace scope)"
     try:
         full_path = f"{state.cwd.rstrip('/')}/{name}"
