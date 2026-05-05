@@ -35,7 +35,7 @@ class CustomWidgetName(StrEnum):
     SELECTION_POLICY = "selectionPolicy"
     TOOL_ICON_SELECT = "toolIconSelect"
     TOGGLE_SWITCH = "toggleSwitch"
-    SKILLS_PICKER = "SkillsPickerWidget"
+    SKILLS_PICKER = "skillsPickerWidget"
     # Add new entries here when adding custom widgets in TypeScript
 
 
