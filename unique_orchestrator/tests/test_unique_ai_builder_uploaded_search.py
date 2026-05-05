@@ -444,9 +444,7 @@ class TestReinstateUploadedSearchAlongsideInternalSearch:
         assert tool_manager.added_tools[0].name == UploadedSearchTool.name
 
     def test_noop_when_uploaded_search_already_loaded(self) -> None:
-        tool_manager = _StubToolManager(
-            ["InternalSearch", UploadedSearchTool.name]
-        )
+        tool_manager = _StubToolManager(["InternalSearch", UploadedSearchTool.name])
         event = _make_event(tool_choices=["InternalSearch"])
 
         _reinstate_uploaded_search_alongside_internal_search(
