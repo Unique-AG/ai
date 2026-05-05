@@ -1417,6 +1417,5 @@ if __name__ == "__main__":
         search_string="test",
         search_type=ContentSearchType.VECTOR,
         limit=10,
-        scope_ids=["123"],
         metadata_filter={"key": "123"},
     )

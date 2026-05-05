@@ -70,22 +70,27 @@ class KnowledgeBaseInternalSearchService(
             )
 
         if metadata_filter is not None:
-            search_kw = dict(
-                search_string=query,
-                search_type=self._config.search.search_type,
-                limit=self._config.filtering.limit,
-                search_language=self._config.search.search_language,
-                score_threshold=self._config.filtering.score_threshold,
-                reranker_config=self._config.reranker_config,
-                metadata_filter=metadata_filter,
-            )
             if content_ids is not None:
                 chunks = await kb.search_content_chunks_async(
-                    **search_kw,
+                    search_string=query,
+                    search_type=self._config.search.search_type,
+                    limit=self._config.filtering.limit,
+                    search_language=self._config.search.search_language,
+                    score_threshold=self._config.filtering.score_threshold,
+                    reranker_config=self._config.reranker_config,
+                    metadata_filter=metadata_filter,
                     content_ids=content_ids,
                 )
             else:
-                chunks = await kb.search_content_chunks_async(**search_kw)
+                chunks = await kb.search_content_chunks_async(
+                    search_string=query,
+                    search_type=self._config.search.search_type,
+                    limit=self._config.filtering.limit,
+                    search_language=self._config.search.search_language,
+                    score_threshold=self._config.filtering.score_threshold,
+                    reranker_config=self._config.reranker_config,
+                    metadata_filter=metadata_filter,
+                )
         else:
             raise RuntimeError(
                 "KnowledgeBaseInternalSearchService requires a metadata filter "

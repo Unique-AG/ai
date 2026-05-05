@@ -6,7 +6,12 @@ import warnings
 from collections.abc import Mapping
 from typing import Any
 
-from unique_toolkit.content.smart_rules import Operator, OrStatement, Statement
+from unique_toolkit.content.smart_rules import (
+    AndStatement,
+    Operator,
+    OrStatement,
+    Statement,
+)
 
 _UQL_AND = "and"
 
@@ -19,7 +24,7 @@ def _validate_folder_id_path_values(folder_id_paths: list[str]) -> None:
         raise ValueError("folder_id_paths must be a non-empty list")
     prefix = FOLDER_ID_PATH_VALUE_PREFIX
     for raw in folder_id_paths:
-        if not isinstance(raw, str):
+        if not isinstance(raw, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
                 f"each folderIdPath value must be a str, got {type(raw).__name__}"
             )
@@ -42,7 +47,7 @@ def _validate_folder_id_path_values(folder_id_paths: list[str]) -> None:
 def build_folder_id_path_scope_clause(folder_id_paths: list[str]) -> dict[str, Any]:
     """UniqueQL for selected folders using UI-style ``folderIdPath contains`` rules."""
     _validate_folder_id_path_values(folder_id_paths)
-    clauses = [
+    clauses: list[Statement | AndStatement | OrStatement] = [
         Statement(
             operator=Operator.CONTAINS,
             path=["folderIdPath"],
