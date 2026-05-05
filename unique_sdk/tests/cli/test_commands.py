@@ -479,11 +479,49 @@ class TestFiles:
         result = cmd_rm(state, "cont_abc")
         assert "permission denied" in result
 
+    @patch("unique_sdk.Content.get_info")
+    def test_rm_content_id_outside_workspace_blocked(
+        self, mock_info: MagicMock
+    ) -> None:
+        """rm cont_X is blocked when the content's ownerId is outside the workspace,
+        even when CWD is inside the workspace."""
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_other_tenant"}]}
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_rm(state, "cont_outside")
+        assert "permission denied" in result
+
+    @patch("unique_sdk.Content.delete")
+    @patch("unique_sdk.Content.get_info")
+    def test_rm_content_id_within_workspace_allowed(
+        self, mock_info: MagicMock, mock_delete: MagicMock
+    ) -> None:
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_ws"}]}
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_rm(state, "cont_inside")
+        assert "permission denied" not in result
+
     def test_mv_file_outside_workspace_blocked(self) -> None:
         state = _state()
         state.workspace_scope_ids = ["scope_ws"]
         state._workspace_scope_paths = ["/Workspace"]
         result = cmd_mv_file(state, "cont_abc", "new.pdf")
+        assert "permission denied" in result
+
+    @patch("unique_sdk.Content.get_info")
+    def test_mv_file_content_id_outside_workspace_blocked(
+        self, mock_info: MagicMock
+    ) -> None:
+        """mv cont_X is blocked when the content's ownerId is outside the workspace,
+        even when CWD is inside the workspace."""
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_other_tenant"}]}
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_mv_file(state, "cont_outside", "new.pdf")
         assert "permission denied" in result
 
     def test_upload_nonexistent_file(self) -> None:

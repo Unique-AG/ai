@@ -195,7 +195,10 @@ def cmd_download(
 
 def cmd_rm(state: ShellState, name_or_id: str) -> str:
     """Delete a file by name or content ID."""
-    if not state.is_within_workspace():
+    if name_or_id.startswith("cont_"):
+        if not state.is_content_within_workspace(name_or_id):
+            return "rm: permission denied (outside workspace scope)"
+    elif not state.is_within_workspace():
         return "rm: permission denied (outside workspace scope)"
     try:
         content_id, display_name = _resolve_content_id(state, name_or_id)
@@ -211,7 +214,10 @@ def cmd_rm(state: ShellState, name_or_id: str) -> str:
 
 def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a file."""
-    if not state.is_within_workspace():
+    if old_name.startswith("cont_"):
+        if not state.is_content_within_workspace(old_name):
+            return "mv: permission denied (outside workspace scope)"
+    elif not state.is_within_workspace():
         return "mv: permission denied (outside workspace scope)"
     try:
         content_id, display_name = _resolve_content_id(state, old_name)

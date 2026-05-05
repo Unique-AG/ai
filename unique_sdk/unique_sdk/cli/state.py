@@ -77,6 +77,29 @@ class ShellState:
         current = self._path
         return any(current == p or current.startswith(p + "/") for p in paths)
 
+    def is_content_within_workspace(self, content_id: str) -> bool:
+        """Return True if the content item's owner scope is within the workspace.
+
+        Makes one API call to resolve the content's parent scope, then
+        delegates to is_folder_target_within_workspace.  Always returns True
+        when no workspace restriction is configured.
+        """
+        if not self.workspace_scope_ids:
+            return True
+        try:
+            result = unique_sdk.Content.get_info(
+                user_id=self.config.user_id,
+                company_id=self.config.company_id,
+                contentId=content_id,
+            )
+            items = result.get("contentInfo", [])
+            if not items:
+                return False
+            owner_id = items[0].get("ownerId", "")
+            return self.is_folder_target_within_workspace(owner_id)
+        except Exception:
+            return False
+
     def is_folder_target_within_workspace(self, target: str) -> bool:
         """Check whether a folder target is within the workspace.
 
