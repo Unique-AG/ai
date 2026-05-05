@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from pydantic import Field
-from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.pydantic.rjsf_tags import CustomWidgetName, RJSFMetaTag
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 from unique_skill_tool.prompts import (
@@ -93,11 +93,16 @@ class SkillToolConfig(BaseToolConfig):
 
     selectable_skills: Annotated[
         list[SelectableSkill],
-        RJSFMetaTag.SpecialWidget.hidden(),
+        RJSFMetaTag.CustomWidget.custom(CustomWidgetName.SKILLS_PICKER),
     ] = Field(
         default_factory=list,
         title="Selectable Skills",
         description=("Individual skill selected from the knowledge base."),
+    )
+
+    source_folder_id: str = Field(
+        default="",
+        description="The root skills folder ID.",
     )
 
     max_listing_desc_chars: int = Field(
