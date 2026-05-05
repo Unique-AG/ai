@@ -375,7 +375,7 @@ class TestRJSFMetaTag:
     def test_custom_widget_SKILLS_PICKER_basic(self):
         """Test basic SKILLS_PICKER custom widget creation."""
         tag = RJSFMetaTag.CustomWidget.custom(CustomWidgetName.SKILLS_PICKER)
-        expected = {"ui:widget": "SkillsPicker", "ui:disabled": False}
+        expected = {"ui:widget": "SkillsPickerWidget", "ui:disabled": False}
         assert tag.attrs == expected
 
     @pytest.mark.ai
@@ -389,7 +389,7 @@ class TestRJSFMetaTag:
             disabled=True,
         )
         expected = {
-            "ui:widget": "SkillsPicker",
+            "ui:widget": "SkillsPickerWidget",
             "ui:disabled": True,
             "ui:title": "Skill Folder",
             "ui:description": "Pick a skill folder",
@@ -406,7 +406,7 @@ class TestRJSFMetaTag:
             **{"ui:options": {"multiple": True, "rootPath": "/skills"}},
         )
         expected = {
-            "ui:widget": "SkillsPicker",
+            "ui:widget": "SkillsPickerWidget",
             "ui:disabled": False,
             "ui:title": "Skill Folder",
             "ui:options": {"multiple": True, "rootPath": "/skills"},
@@ -429,7 +429,7 @@ class TestRJSFMetaTag:
 
         ui = ui_schema_for_model(SkillConfig)
         assert ui["folder"] == {
-            "ui:widget": "SkillsPicker",
+            "ui:widget": "SkillsPickerWidget",
             "ui:disabled": False,
             "ui:title": "Skill Folder",
             "ui:description": "Pick a skill folder",
@@ -439,8 +439,8 @@ class TestRJSFMetaTag:
     @pytest.mark.ai
     def test_custom_widget_SKILLS_PICKER_enum_value(self):
         """Test that the SKILLS_PICKER enum maps to the expected string value."""
-        assert CustomWidgetName.SKILLS_PICKER == "SkillsPicker"
-        assert CustomWidgetName.SKILLS_PICKER.value == "SkillsPicker"
+        assert CustomWidgetName.SKILLS_PICKER == "SkillsPickerWidget"
+        assert CustomWidgetName.SKILLS_PICKER.value == "SkillsPickerWidget"
 
     def test_optional_basic(self):
         """Test basic Optional composer creation."""
