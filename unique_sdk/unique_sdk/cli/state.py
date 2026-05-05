@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import unique_sdk
@@ -17,6 +18,8 @@ def _load_workspace_scope_ids() -> list[str]:
         return []
     try:
         data = json.loads(config_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return []
         scope_ids = data.get("scopeIds")
         if isinstance(scope_ids, list) and all(isinstance(s, str) for s in scope_ids):
             return scope_ids
@@ -51,9 +54,9 @@ class ShellState:
                     company_id=self.config.company_id,
                     scope_id=scope_id,
                 )
-                p = resp.get("folderPath", "")
-                if p:
-                    paths.append(p.rstrip("/"))
+                p = resp.get("folderPath", "").rstrip("/")
+                if p:  # empty after rstrip means the API returned "/" (root) — skip
+                    paths.append(p)
             except Exception:
                 pass
         self._workspace_scope_paths = paths
@@ -104,13 +107,21 @@ class ShellState:
                 return False
 
         if target.startswith("/"):
+            # Normalize to collapse any `..` components before prefix-checking.
+            # Without this, "/Workspace/../Evil" would pass a startswith("/Workspace/") check.
+            normalized = os.path.normpath(target)
             paths = self._resolve_workspace_scope_paths()
             if not paths:
                 return False
-            return any(target == p or target.startswith(p + "/") for p in paths)
+            return any(normalized == p or normalized.startswith(p + "/") for p in paths)
 
-        # Relative path — always resolves under CWD, so CWD membership suffices.
-        return self.is_within_workspace()
+        # Relative path — resolve against CWD so that `../../outside` style
+        # traversals are caught rather than delegating blindly to the CWD check.
+        resolved = os.path.normpath(self._path.rstrip("/") + "/" + target)
+        paths = self._resolve_workspace_scope_paths()
+        if not paths:
+            return self._scope_id in self.workspace_scope_ids
+        return any(resolved == p or resolved.startswith(p + "/") for p in paths)
 
     @property
     def cwd(self) -> str:

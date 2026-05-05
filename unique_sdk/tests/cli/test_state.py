@@ -159,6 +159,16 @@ class TestWorkspaceScopes:
             s = ShellState(_config())
         assert s.workspace_scope_ids == []
 
+    def test_non_dict_json_returns_empty(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
+        """A JSON array or scalar must not crash via AttributeError."""
+        for payload in ("[1, 2, 3]", '"hello"', "42", "null"):
+            (tmp_path / ".unique-search.json").write_text(payload)  # type: ignore[union-attr]
+            with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
+                s = ShellState(_config())
+            assert s.workspace_scope_ids == [], f"failed for payload: {payload}"
+
     def test_is_within_workspace_no_restriction(self) -> None:
         s = ShellState(_config())
         s.workspace_scope_ids = []
@@ -199,6 +209,17 @@ class TestWorkspaceScopes:
         s._workspace_scope_paths = ["/Company/Reports"]
         s._path = "/Company/Finance"
         assert not s.is_within_workspace()
+
+    def test_root_folder_path_skipped(self) -> None:
+        """A workspace scope that resolves to '/' must not be stored — it would
+        make every path match via startswith('/')."""
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_root"]
+        s._workspace_scope_paths = None
+        with patch("unique_sdk.Folder.get_folder_path") as mock_path:
+            mock_path.return_value = {"folderPath": "/"}
+            paths = s._resolve_workspace_scope_paths()
+        assert paths == []
 
     @patch("unique_sdk.Folder.get_folder_path")
     def test_resolve_workspace_scope_paths_cached(self, mock_path: patch) -> None:  # type: ignore[valid-type]
@@ -262,14 +283,29 @@ class TestFolderTargetWithinWorkspace:
         s._workspace_scope_paths = ["/Workspace"]
         assert not s.is_folder_target_within_workspace("/OtherTenant/Folder")
 
-    def test_relative_path_delegates_to_cwd_check(self) -> None:
+    def test_absolute_path_dotdot_traversal_blocked(self) -> None:
+        """/Workspace/../Evil must not pass a startswith('/Workspace/') check."""
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_ws"]
+        s._workspace_scope_paths = ["/Workspace"]
+        assert not s.is_folder_target_within_workspace("/Workspace/../Evil")
+
+    def test_relative_path_within_workspace_allowed(self) -> None:
         s = ShellState(_config())
         s.workspace_scope_ids = ["scope_ws"]
         s._workspace_scope_paths = ["/Workspace"]
         s._path = "/Workspace/Sub"
         assert s.is_folder_target_within_workspace("RelativeFolder")
 
-    def test_relative_path_outside_cwd_blocked(self) -> None:
+    def test_relative_dotdot_traversal_blocked(self) -> None:
+        """../../outside must not pass just because CWD is inside workspace."""
+        s = ShellState(_config())
+        s.workspace_scope_ids = ["scope_ws"]
+        s._workspace_scope_paths = ["/Workspace"]
+        s._path = "/Workspace/Sub"
+        assert not s.is_folder_target_within_workspace("../../outside")
+
+    def test_relative_path_cwd_outside_blocked(self) -> None:
         s = ShellState(_config())
         s.workspace_scope_ids = ["scope_ws"]
         s._workspace_scope_paths = ["/Workspace"]
