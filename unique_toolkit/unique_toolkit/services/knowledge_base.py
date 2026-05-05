@@ -198,7 +198,7 @@ class KnowledgeBaseService:
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
             scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
-                (``folderIdPath`` / ``contains``); do not use for new code.
+                as a ``folderId in [scope_ids]`` clause; do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -296,7 +296,7 @@ class KnowledgeBaseService:
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
             scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
-                (``folderIdPath`` / ``contains``); do not use for new code.
+                as a ``folderId in [scope_ids]`` clause; do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -333,7 +333,6 @@ class KnowledgeBaseService:
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
-                scope_ids=scope_ids,
                 chat_only=False,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,

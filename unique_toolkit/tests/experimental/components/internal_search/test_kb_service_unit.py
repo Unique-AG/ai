@@ -147,9 +147,9 @@ def test_effective_metadata_filter__unset_no_chat_uses_config_filter():
 @pytest.mark.ai
 def test_config__preserves_scope_ids_for_runtime_resolution() -> None:
     """
-    Purpose: Verifies deprecated scope_ids stay on the config for runtime folder-path resolution.
-    Why this matters: Exact folderIdPath filters require folder ancestry lookups that are not
-        available during config validation.
+    Purpose: Verifies deprecated scope_ids stay on the config for conversion at search time.
+    Why this matters: scope_ids are folded into a folderId `in` clause during _search_single_query,
+        not at config validation time.
     Setup summary: Build config with scope_ids and assert scope_ids are preserved while
         metadata_filter remains unset.
     """

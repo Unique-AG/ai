@@ -584,7 +584,7 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         assert len(result) == 1
         assert result[0].id == "cont_test123"
         call_kwargs = mock_search_async.call_args[1]
-        assert call_kwargs["scope_ids"] is None
+        assert "scope_ids" not in call_kwargs
         assert call_kwargs["metadata_filter"] == build_folder_id_in_clause(
             ["scope1", "scope2"]
         )

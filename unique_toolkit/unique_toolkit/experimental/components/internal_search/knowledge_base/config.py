@@ -53,7 +53,7 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
                     "use metadata_filter with folderId operator 'in' instead."
                 ),
                 DeprecationWarning,
-                stacklevel=2,
+                stacklevel=5,  # Pydantic v2 model_validator adds ~3 frames above this validator
             )
         return self
 
