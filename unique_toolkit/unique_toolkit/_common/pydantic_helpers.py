@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Any, TypeVar, Unpack
+from typing import Annotated, Any, TypeVar, Unpack
 
 import humps
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, create_model
@@ -32,6 +32,11 @@ def _none_to_default(v: Any) -> Any:
 BeforeValidator to replace an incoming None with the field's declared default.
 """
 NoneToDefault = BeforeValidator(_none_to_default)
+
+DeactivatedNone = Annotated[
+    None,
+    Field(title="Deactivated", description="None"),
+]
 
 
 def get_configuration_dict(**kwargs: Unpack[ConfigDict]) -> ConfigDict:

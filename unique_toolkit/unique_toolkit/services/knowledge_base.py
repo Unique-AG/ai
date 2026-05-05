@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
+import warnings
 from pathlib import Path, PurePath
 from typing import TYPE_CHECKING, Any, Callable, Self, overload
 
@@ -10,6 +11,10 @@ import humps
 import unique_sdk
 from typing_extensions import deprecated
 
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_in_clause,
+    merge_scope_clause_into_metadata_filter,
+)
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -150,21 +155,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        scope_ids: list[str],
-        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: ContentRerankerConfig | None = None,
-    ) -> list[ContentChunk]: ...
-
-    @overload
-    def search_content_chunks(
-        self,
-        *,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
         metadata_filter: dict[str, Any],
-        scope_ids: list[str] | None = None,
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
@@ -206,7 +197,8 @@ class KnowledgeBaseService:
             limit (int): The maximum number of results to return.
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
-            scope_ids (list[str] | None, optional): The scope IDs to filter by. Defaults to None.
+            scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
+                as a ``folderId in [scope_ids]`` clause; do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -221,6 +213,19 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        if scope_ids:
+            warnings.warn(
+                "Passing scope_ids to KnowledgeBaseService.search_content_chunks is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
+            scope_ids = None
+
         try:
             searches = search_content_chunks(
                 user_id=self._user_id,
@@ -231,7 +236,6 @@ class KnowledgeBaseService:
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
-                scope_ids=scope_ids,
                 chat_only=False,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
@@ -249,21 +253,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        scope_ids: list[str],
-        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: ContentRerankerConfig | None = None,
-    ) -> list[ContentChunk]: ...
-
-    @overload
-    async def search_content_chunks_async(
-        self,
-        *,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
         metadata_filter: dict[str, Any],
-        scope_ids: list[str] | None = None,
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
@@ -305,7 +295,8 @@ class KnowledgeBaseService:
             limit (int): The maximum number of results to return.
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
-            scope_ids (list[str] | None, optional): The scope IDs to filter by. Defaults to None.
+            scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
+                as a ``folderId in [scope_ids]`` clause; do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -319,6 +310,19 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        if scope_ids:
+            warnings.warn(
+                "Passing scope_ids to KnowledgeBaseService.search_content_chunks_async is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
+            scope_ids = None
+
         try:
             searches = await search_content_chunks_async(
                 user_id=self._user_id,
@@ -329,7 +333,6 @@ class KnowledgeBaseService:
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
-                scope_ids=scope_ids,
                 chat_only=False,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
@@ -1239,8 +1242,10 @@ class KnowledgeBaseService:
             return PurePath("/" + folder_info.name), list_of_scope_ids
 
         while folder_info.parent_id is not None:
-            folder_info = self.get_folder_info(scope_id=folder_info.parent_id)
+            parent_scope_id = folder_info.parent_id
+            folder_info = self.get_folder_info(scope_id=parent_scope_id)
             list_of_folder_names.append(folder_info.name)
+            list_of_scope_ids.append(folder_info.id)
 
         list_of_scope_ids.reverse()
         return PurePath("/" + "/".join(list_of_folder_names[::-1])), list_of_scope_ids
@@ -1281,6 +1286,5 @@ if __name__ == "__main__":
         search_string="test",
         search_type=ContentSearchType.VECTOR,
         limit=10,
-        scope_ids=["123"],
         metadata_filter={"key": "123"},
     )
