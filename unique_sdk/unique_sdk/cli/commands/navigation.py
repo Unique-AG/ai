@@ -30,6 +30,24 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         else:
             scope_id = state.scope_id
 
+        # When at root with a workspace restriction, show only the allowed scope
+        # folders — the agent must not see the full company folder tree.
+        if scope_id is None and state.workspace_scope_ids:
+            folders: list[Any] = []
+            for ws_id in state.workspace_scope_ids:
+                try:
+                    info = unique_sdk.Folder.get_info(
+                        user_id=state.config.user_id,
+                        company_id=state.config.company_id,
+                        scopeId=ws_id,
+                    )
+                    folders.append(info)
+                except unique_sdk.APIError:
+                    pass
+            output = format_ls(folders, [])
+            summary = f"\n{len(folders)} folder(s), 0 file(s)"
+            return output + summary
+
         folder_params: dict[str, Any] = {}
         content_params: dict[str, Any] = {}
         if scope_id:

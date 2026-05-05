@@ -2,8 +2,27 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import unique_sdk
 from unique_sdk.cli.config import Config
+
+_SEARCH_CONFIG_FILENAME = ".unique-search.json"
+
+
+def _load_workspace_scope_ids() -> list[str]:
+    config_path = Path.cwd() / _SEARCH_CONFIG_FILENAME
+    if not config_path.is_file():
+        return []
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        scope_ids = data.get("scopeIds")
+        if isinstance(scope_ids, list) and all(isinstance(s, str) for s in scope_ids):
+            return scope_ids
+    except (json.JSONDecodeError, OSError):
+        pass
+    return []
 
 
 class ShellState:
@@ -13,6 +32,47 @@ class ShellState:
         self.config = config
         self._path = "/"
         self._scope_id: str | None = None
+        self.workspace_scope_ids: list[str] = _load_workspace_scope_ids()
+        self._workspace_scope_paths: list[str] | None = None
+
+    @property
+    def workspace_restricted(self) -> bool:
+        return bool(self.workspace_scope_ids)
+
+    def _resolve_workspace_scope_paths(self) -> list[str]:
+        """Lazily resolve workspace scope IDs to folder paths (one API call per scope, cached)."""
+        if self._workspace_scope_paths is not None:
+            return self._workspace_scope_paths
+        paths: list[str] = []
+        for scope_id in self.workspace_scope_ids:
+            try:
+                resp = unique_sdk.Folder.get_folder_path(
+                    user_id=self.config.user_id,
+                    company_id=self.config.company_id,
+                    scope_id=scope_id,
+                )
+                p = resp.get("folderPath", "")
+                if p:
+                    paths.append(p.rstrip("/"))
+            except Exception:
+                pass
+        self._workspace_scope_paths = paths
+        return paths
+
+    def is_within_workspace(self) -> bool:
+        """Return True if the current path is inside (or is) a workspace scope root.
+
+        Always returns True when no workspace restriction is configured.
+        """
+        if not self.workspace_scope_ids:
+            return True
+        if self._scope_id in self.workspace_scope_ids:
+            return True
+        paths = self._resolve_workspace_scope_paths()
+        if not paths:
+            return False
+        current = self._path
+        return any(current == p or current.startswith(p + "/") for p in paths)
 
     @property
     def cwd(self) -> str:

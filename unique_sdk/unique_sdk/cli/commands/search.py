@@ -84,6 +84,8 @@ def cmd_search(
         scope_ids: list[str] | None = None
         if folder_scope_id:
             scope_ids = [folder_scope_id]
+        elif not folder and state.workspace_scope_ids:
+            scope_ids = state.workspace_scope_ids
 
         metadata_filter = _build_metadata_filter(
             folder_scope_id if metadata else None,
