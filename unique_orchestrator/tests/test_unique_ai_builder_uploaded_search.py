@@ -19,6 +19,7 @@ from unique_orchestrator.unique_ai_builder import (
     _build_responses,
     _CommonComponents,
     _configure_uploaded_search_tool,
+    _reinstate_uploaded_search_alongside_internal_search,
 )
 
 
@@ -69,6 +70,12 @@ class _FakeResponsesApiToolManager:
 
     def add_tool(self, tool: object) -> None:
         return None
+
+    def get_tools(self) -> list[object]:
+        # Used by ``_reinstate_uploaded_search_alongside_internal_search``.
+        # The pre-existing tests don't exercise the InternalSearch carve-out,
+        # so returning an empty list keeps the helper a no-op for them.
+        return []
 
 
 @pytest.mark.asyncio
@@ -386,3 +393,95 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         common = self._run(docs)
         tool_names = [t.name for t in common.tool_manager_config.tools]
         assert UploadedSearchTool.name not in tool_names
+
+
+class _StubTool:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+class _StubToolManager:
+    def __init__(self, loaded_tool_names: list[str]) -> None:
+        self._tools: list[_StubTool] = [_StubTool(n) for n in loaded_tool_names]
+        self.added_tools: list[object] = []
+
+    def get_tools(self) -> list[_StubTool]:
+        return list(self._tools)
+
+    def add_tool(self, tool: object) -> None:
+        self.added_tools.append(tool)
+        self._tools.append(_StubTool(getattr(tool, "name", "")))
+
+
+class TestReinstateUploadedSearchAlongsideInternalSearch:
+    """Regression tests for the InternalSearch carve-out.
+
+    ``ToolManager._init__tools`` lets an exclusive tool that the user picked
+    short-circuit the active set to ``[t]``. ``InternalSearch`` is exclusive
+    but only covers knowledge-base sources (excludes uploaded files), so when
+    the carve-out kicks in we must re-attach ``UploadedSearch`` to keep
+    uploaded files searchable. Other exclusive tools must keep their
+    sole-tool semantics.
+    """
+
+    def _components(self):
+        return _make_common_components([])
+
+    def test_reinstates_uploaded_search_when_internal_search_is_exclusive_winner(
+        self,
+    ) -> None:
+        tool_manager = _StubToolManager(["InternalSearch"])
+        event = _make_event(tool_choices=["InternalSearch"])
+
+        _reinstate_uploaded_search_alongside_internal_search(
+            tool_manager=tool_manager,
+            common_components=self._components(),
+            event=event,
+            has_valid_uploaded_documents=True,
+        )
+
+        assert len(tool_manager.added_tools) == 1
+        assert tool_manager.added_tools[0].name == UploadedSearchTool.name
+
+    def test_noop_when_uploaded_search_already_loaded(self) -> None:
+        tool_manager = _StubToolManager(
+            ["InternalSearch", UploadedSearchTool.name]
+        )
+        event = _make_event(tool_choices=["InternalSearch"])
+
+        _reinstate_uploaded_search_alongside_internal_search(
+            tool_manager=tool_manager,
+            common_components=self._components(),
+            event=event,
+            has_valid_uploaded_documents=True,
+        )
+
+        assert tool_manager.added_tools == []
+
+    def test_noop_when_internal_search_not_loaded(self) -> None:
+        # Some other exclusive tool (e.g. DeepResearch) won — its
+        # sole-tool semantics must be preserved.
+        tool_manager = _StubToolManager(["DeepResearch"])
+        event = _make_event(tool_choices=["DeepResearch"])
+
+        _reinstate_uploaded_search_alongside_internal_search(
+            tool_manager=tool_manager,
+            common_components=self._components(),
+            event=event,
+            has_valid_uploaded_documents=True,
+        )
+
+        assert tool_manager.added_tools == []
+
+    def test_noop_when_no_valid_uploaded_documents(self) -> None:
+        tool_manager = _StubToolManager(["InternalSearch"])
+        event = _make_event(tool_choices=["InternalSearch"])
+
+        _reinstate_uploaded_search_alongside_internal_search(
+            tool_manager=tool_manager,
+            common_components=self._components(),
+            event=event,
+            has_valid_uploaded_documents=False,
+        )
+
+        assert tool_manager.added_tools == []
