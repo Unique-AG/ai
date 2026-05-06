@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -15,6 +16,8 @@ from unique_mcp.settings import ServerSettings
 
 def main() -> None:
     """Main entry point for the MCP Search server."""
+
+    logging.getLogger("mcp_search").setLevel(logging.DEBUG)
 
     server_settings = ServerSettings()
 
