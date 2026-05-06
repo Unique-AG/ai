@@ -105,7 +105,7 @@ def normalize_skill_name(skill: str) -> str:
 def extract_invoked_skills(
     user_text: str,
     skill_registry: dict[str, SkillDefinition],
-) -> tuple[list[SkillDefinition], str]:
+) -> list[SkillDefinition]:
     """Pull every ``/skill-name`` invocation out of *user_text*.
 
     Tokens are recognised wherever they appear in the message — at the
@@ -121,23 +121,18 @@ def extract_invoked_skills(
     swallowed. Duplicates are dropped while preserving first-occurrence
     order.
 
-    Returns ``(ordered_skills, remaining_text)`` where *remaining_text*
-    is the original message with the matched tokens removed and any
-    surrounding whitespace tidied up so the final string reads naturally
-    to a downstream LLM.
+    Returns the invoked registered skills, deduplicated in first-occurrence
+    order.
     """
     ordered: list[SkillDefinition] = []
     seen: set[str] = set()
 
-    def _replace(match: re.Match[str]) -> str:
+    for match in _SKILL_TOKEN_RE.finditer(user_text):
         name = match.group(2)
         skill = skill_registry.get(name)
         if skill is None:
-            return match.group(0)
+            continue
         if name not in seen:
             seen.add(name)
             ordered.append(skill)
-        return ""
-
-    remaining = _SKILL_TOKEN_RE.sub(_replace, user_text)
-    return ordered, remaining.strip()
+    return ordered

@@ -64,14 +64,13 @@ class TestPreloadInvokedSkills:
         history_manager = MagicMock()
         tool_manager = _FakeToolManager(skill_tool=None)
 
-        stripped_text = await preload_invoked_skills(
+        await preload_invoked_skills(
             event=event,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
         )
 
-        assert stripped_text is None
         history_manager.add_tool_call.assert_not_called()
         history_manager._append_tool_calls_to_history.assert_not_called()
         history_manager.add_tool_call_results.assert_not_called()
@@ -83,14 +82,13 @@ class TestPreloadInvokedSkills:
         skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
-        stripped_text = await preload_invoked_skills(
+        await preload_invoked_skills(
             event=event,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
         )
 
-        assert stripped_text == "what are the revenue trends?"
         history_manager.add_tool_call.assert_called_once()
         synthetic_call = history_manager.add_tool_call.call_args.args[0]
         assert isinstance(synthetic_call, LanguageModelFunction)
@@ -103,6 +101,45 @@ class TestPreloadInvokedSkills:
         response = responses[0]
         assert isinstance(response, ToolCallResponse)
         assert "FOO BODY" in response.content
+
+    @pytest.mark.asyncio
+    async def test_forced_skill_choice_preloaded_without_slash_token(
+        self, logger: Logger
+    ) -> None:
+        event = _make_event("what are the revenue trends?")
+        history_manager = MagicMock()
+        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
+        tool_manager = _FakeToolManager(skill_tool=skill_tool)
+
+        await preload_invoked_skills(
+            event=event,
+            tool_manager=tool_manager,  # type: ignore[arg-type]
+            history_manager=history_manager,
+            logger=logger,
+            skill_choices=[SelectableSkill(name="foo", content_id="cid-1")],
+        )
+
+        history_manager.add_tool_call.assert_called_once()
+        synthetic_call = history_manager.add_tool_call.call_args.args[0]
+        assert isinstance(synthetic_call, LanguageModelFunction)
+        assert synthetic_call.arguments == {"skill_name": "foo"}
+
+    @pytest.mark.asyncio
+    async def test_forced_skills_skip_slash_scan(self, logger: Logger) -> None:
+        event = _make_event("/foo what are the revenue trends?")
+        history_manager = MagicMock()
+        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
+        tool_manager = _FakeToolManager(skill_tool=skill_tool)
+
+        await preload_invoked_skills(
+            event=event,
+            tool_manager=tool_manager,  # type: ignore[arg-type]
+            history_manager=history_manager,
+            logger=logger,
+            skill_choices=[SelectableSkill(name="foo", content_id="cid-1")],
+        )
+
+        history_manager.add_tool_call.assert_called_once()
 
 
 class TestBuildSkill:
@@ -237,6 +274,78 @@ class TestConfigureSkillTool:
 
     @pytest.mark.asyncio
     async def test_enabled_with_selectables_populates_tool_registry(
+        self, logger: Logger
+    ) -> None:
+        selectable_skills = [SelectableSkill(content_id="cid-1", name="Skill 1")]
+        config = self._build_config(
+            is_enabled=True, selectable_skills=selectable_skills
+        )
+        content_service = MagicMock()
+        tool_manager = MagicMock()
+        skill_tool = self._make_skill_tool()
+        tool_manager.get_tool_by_name.return_value = skill_tool
+        expected_registry = {"foo": _make_skill("foo", content="skill content")}
+
+        with patch(
+            "unique_orchestrator._builders.skill_setup.load_selectable_skills",
+            new=AsyncMock(return_value=expected_registry),
+        ) as mock_load_selectable_skills:
+            await configure_skill_tool(
+                config=config,
+                logger=logger,
+                content_service=content_service,
+                tool_manager=tool_manager,
+            )
+
+        mock_load_selectable_skills.assert_awaited_once_with(
+            content_service=content_service,
+            selectable_skills=selectable_skills,
+            logger=logger,
+        )
+        assert skill_tool.skill_registry == expected_registry
+        tool_manager.exclude_tool.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enabled_with_multiple_selectables_loads_full_registry(
+        self, logger: Logger
+    ) -> None:
+        selectable_skills = [
+            SelectableSkill(content_id="cid-1", name="Skill 1"),
+            SelectableSkill(content_id="cid-2", name="Skill 2"),
+        ]
+        config = self._build_config(
+            is_enabled=True, selectable_skills=selectable_skills
+        )
+        content_service = MagicMock()
+        tool_manager = MagicMock()
+        skill_tool = self._make_skill_tool()
+        tool_manager.get_tool_by_name.return_value = skill_tool
+        expected_registry = {
+            "foo": _make_skill("foo", content="skill content"),
+            "bar": _make_skill("bar", content="other skill content"),
+        }
+
+        with patch(
+            "unique_orchestrator._builders.skill_setup.load_selectable_skills",
+            new=AsyncMock(return_value=expected_registry),
+        ) as mock_load_selectable_skills:
+            await configure_skill_tool(
+                config=config,
+                logger=logger,
+                content_service=content_service,
+                tool_manager=tool_manager,
+            )
+
+        mock_load_selectable_skills.assert_awaited_once_with(
+            content_service=content_service,
+            selectable_skills=selectable_skills,
+            logger=logger,
+        )
+        assert skill_tool.skill_registry == expected_registry
+        tool_manager.exclude_tool.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enabled_with_single_selectable_loads_registry(
         self, logger: Logger
     ) -> None:
         selectable_skills = [SelectableSkill(content_id="cid-1", name="Skill 1")]
