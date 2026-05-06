@@ -434,7 +434,6 @@ async def _build_responses(
 
     await configure_skill_tool(
         config=config,
-        event=event,
         logger=logger,
         content_service=common_components.content_service,
         tool_manager=tool_manager,
@@ -513,7 +512,6 @@ async def _build_completions(
 
     await configure_skill_tool(
         config=config,
-        event=event,
         logger=logger,
         content_service=common_components.content_service,
         tool_manager=tool_manager,
