@@ -300,8 +300,10 @@ async def preload_invoked_skills(
        resulting tool-result messages to history, so the first model
        turn sees the skills as already-activated tool calls.
     ``skill_choices`` are treated as forced skills and loaded even when
-    the user message does not contain ``/skill-name`` tokens. User
-    message text is never modified in this preload step.
+    the user message does not contain ``/skill-name`` tokens. Duplicate
+    choices that resolve to the same registered skill are ignored after
+    the first (same deduplication idea as ``extract_invoked_skills``).
+    User message text is never modified in this preload step.
     """
     skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
     if not isinstance(skill_tool, SkillTool):
@@ -310,6 +312,7 @@ async def preload_invoked_skills(
     forced_skills = []
 
     if skill_choices:
+        seen_forced: set[str] = set()
         for choice in skill_choices:
             if not choice.name:
                 continue
@@ -317,6 +320,9 @@ async def preload_invoked_skills(
             forced_skill = skill_tool.skill_registry.get(normalized_name)
             if forced_skill is None:
                 continue
+            if forced_skill.name in seen_forced:
+                continue
+            seen_forced.add(forced_skill.name)
             forced_skills.append(forced_skill)
 
     else:

@@ -69,6 +69,7 @@ class TestPreloadInvokedSkills:
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
+            skill_choices=[],
         )
 
         history_manager.add_tool_call.assert_not_called()
@@ -87,6 +88,7 @@ class TestPreloadInvokedSkills:
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
+            skill_choices=[],
         )
 
         history_manager.add_tool_call.assert_called_once()
@@ -123,6 +125,27 @@ class TestPreloadInvokedSkills:
         synthetic_call = history_manager.add_tool_call.call_args.args[0]
         assert isinstance(synthetic_call, LanguageModelFunction)
         assert synthetic_call.arguments == {"skill_name": "foo"}
+
+    @pytest.mark.asyncio
+    async def test_duplicate_skill_choices_preload_once(self, logger: Logger) -> None:
+        event = _make_event("what are the revenue trends?")
+        history_manager = MagicMock()
+        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
+        tool_manager = _FakeToolManager(skill_tool=skill_tool)
+
+        await preload_invoked_skills(
+            text=event.payload.user_message.text,
+            tool_manager=tool_manager,  # type: ignore[arg-type]
+            history_manager=history_manager,
+            logger=logger,
+            skill_choices=[
+                SelectableSkill(name="foo", content_id="cid-1"),
+                SelectableSkill(name="/foo", content_id="cid-2"),
+                SelectableSkill(name="foo", content_id="cid-3"),
+            ],
+        )
+
+        history_manager.add_tool_call.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_forced_skills_skip_slash_scan(self, logger: Logger) -> None:
