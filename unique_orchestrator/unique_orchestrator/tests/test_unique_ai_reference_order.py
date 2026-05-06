@@ -27,6 +27,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
             assistant_message = AssistantMessage()
             user_message = MagicMock()
             user_message.text = "query"
+            skill_choices = []
 
         payload = Payload()
 

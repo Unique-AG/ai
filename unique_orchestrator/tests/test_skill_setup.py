@@ -65,7 +65,7 @@ class TestPreloadInvokedSkills:
         tool_manager = _FakeToolManager(skill_tool=None)
 
         await preload_invoked_skills(
-            event=event,
+            text=event.payload.user_message.text,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
@@ -83,7 +83,7 @@ class TestPreloadInvokedSkills:
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
         await preload_invoked_skills(
-            event=event,
+            text=event.payload.user_message.text,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
@@ -112,7 +112,7 @@ class TestPreloadInvokedSkills:
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
         await preload_invoked_skills(
-            event=event,
+            text=event.payload.user_message.text,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
@@ -132,7 +132,7 @@ class TestPreloadInvokedSkills:
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
         await preload_invoked_skills(
-            event=event,
+            text=event.payload.user_message.text,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,

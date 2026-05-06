@@ -59,7 +59,6 @@ if TYPE_CHECKING:
         ResponsesApiToolManager,
         ToolManager,
     )
-    from unique_toolkit.app.schemas import ChatEvent
     from unique_toolkit.content.service import ContentService
 
     from unique_orchestrator.config import UniqueAIConfig
@@ -309,7 +308,7 @@ async def preload_invoked_skills(
         return
 
     forced_skills = []
-    
+
     if skill_choices:
         for choice in skill_choices:
             if not choice.name:
