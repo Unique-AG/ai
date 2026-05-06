@@ -62,7 +62,7 @@ def _add_sub_agent_references_in_place(
     responses: list[SubAgentResponse],
 ) -> None:
     text = loop_response.message.text
-    refs = []
+    refs = list(loop_response.message.references or [])
 
     for response in responses:
         sub_agent_refs = []
