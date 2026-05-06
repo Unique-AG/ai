@@ -1,12 +1,9 @@
+import logging
 import os
 import re
 
 import psycopg2
-from mcp_sql_demo.db_tool_pm.prompts import (
-    DEFAULT_TOOL_DESCRIPTION,
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
-    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-)
+from dotenv import load_dotenv
 from psycopg2.extras import RealDictCursor
 from pydantic import Field, create_model
 from typing_extensions import override
@@ -27,9 +24,18 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
 )
 
+from db_tool_pm.prompts import (
+    DEFAULT_TOOL_DESCRIPTION,
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+)
+
+load_dotenv()
+_log = logging.getLogger(__name__)
+
 DB_HOST = os.getenv("PGHOST", "localhost")
-DB_PORT = int(os.getenv("PGPORT", "10100"))
-DB_NAME = os.getenv("PGDATABASE", "testdb")
+DB_PORT = int(os.getenv("PGPORT", "5432"))
+DB_NAME = os.getenv("PGDATABASE", "mcpdb")
 DB_USER = os.getenv("PGUSER", "postgres")
 DB_PASSWORD = os.getenv("PGPASSWORD", "postgres")
 
@@ -101,11 +107,18 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
             ]
         )
 
-        response = await self._language_model_service.complete_async(
-            model_name=LanguageModelName.AZURE_GPT_4o_2024_1120, messages=messages
-        )
-        print(response)
-        return response.choices[0].message.content
+        try:
+            response = await self._language_model_service.complete_async(
+                model_name=LanguageModelName.AZURE_GPT_4o_2024_0513, messages=messages
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            _log.exception(
+                "[PM_Positions] ChatCompletion failed: %s=%s",
+                type(e).__name__,
+                str(e)[:500] if str(e) else "(no message)",
+            )
+            raise
 
     def get_connection(self):
         return psycopg2.connect(
@@ -134,13 +147,13 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
 
         base_sql = f"SELECT * FROM (SELECT * FROM {TABLE_NAME} WHERE email = %s) AS tmp {where_clause}"
         print(base_sql, [email])
-        with conn.cursor() as cur:
-            conn.set_session(readonly=True)
-            try:
+        conn.set_session(readonly=True)
+        try:
+            with conn.cursor() as cur:
                 cur.execute(base_sql, (email,))
                 rows = cur.fetchall()
-            finally:
-                conn.set_session(readonly=False)
+        finally:
+            conn.set_session(readonly=False)
         for r in rows:
             print(" | ".join(str(x) if x is not None else "" for x in r))
         return rows
@@ -162,42 +175,29 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
             cur.execute(sql_query, (TABLE_NAME,))
             return cur.fetchall()
 
-    def get_distinct_direction(self, conn):
+    def _query_distinct(self, conn, column):
         with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT direction FROM {TABLE_NAME} WHERE direction IS NOT NULL ORDER BY direction;"
-            )
-            result = [r for r in cur.fetchall()]
-            return [r[0] for r in result]  # extract first element from each tuple
+            cur.execute(f"SELECT DISTINCT {column} FROM {TABLE_NAME} WHERE {column} IS NOT NULL ORDER BY {column};")
+            return [r[0] for r in cur.fetchall()]
+
+    def get_distinct_direction(self, conn):
+        return self._query_distinct(conn, "direction")
 
     def get_distinct_sleeve(self, conn):
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT sleeve FROM {TABLE_NAME} WHERE sleeve IS NOT NULL ORDER BY sleeve;"
-            )
-            result = [r for r in cur.fetchall()]
-            return [r[0] for r in result]  # extract first element from each tuple
+        return self._query_distinct(conn, "sleeve")
 
     def get_distinct_tickers(self, conn):
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT ticker FROM {TABLE_NAME} WHERE ticker IS NOT NULL ORDER BY ticker;"
-            )
-            result = [r for r in cur.fetchall()]
-            return [r[0] for r in result]  # extract first element from each tuple
+        return self._query_distinct(conn, "ticker")
 
     def build_system_prompt_for_sql_where(self, conn):
         cols = self.get_column_descriptions(conn)
-        direction = self.get_distinct_direction(
-            conn
-        )  # list is a list of tuples, take the first element of each tuple
+        direction = self.get_distinct_direction(conn)
         print(direction)
         tickers = self.get_distinct_tickers(conn)
         print(tickers)
         sleeve = self.get_distinct_sleeve(conn)
         print(sleeve)
 
-        # Format column description lines
         col_lines = []
         for c in cols:
             name = c["column_name"]
@@ -218,7 +218,6 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
             nullable = "NULL" if is_nullable == "YES" else "NOT NULL"
             col_lines.append(f"- {name}: {type_str} {nullable}")
 
-        # Create prompt sections
         columns_section = "\n".join(col_lines)
         direction_section = ", ".join(sorted(direction))
         sleeve_section = ", ".join(sorted(sleeve))
@@ -233,7 +232,7 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
 
         Output ONLY the SQL WHERE clause text (no SELECT, no comments, no explanations).
         Read-only retrieval ONLY. Do not generate INSERT/UPDATE/DELETE/DDL.
-        Use standard PostgreSQL syntax.
+        Use standard PostgreSQL SQL syntax.
         If no filtering is required, return 'WHERE TRUE'.
         Prefer safe comparisons (e.g., ILIKE for case-insensitive text matching when appropriate).
         For multiple conditions, use AND/OR with parentheses to be unambiguous.
