@@ -129,7 +129,9 @@ def test_space_create_message_defaults_skill_choices_to_empty_list():
 
 @pytest.mark.asyncio
 async def test_space_create_message_async_defaults_skill_choices_to_empty_list():
-    with patch.object(Space, "_static_request_async", new_callable=AsyncMock) as mock_req:
+    with patch.object(
+        Space, "_static_request_async", new_callable=AsyncMock
+    ) as mock_req:
         mock_req.return_value = {"id": "m1", "chatId": "c1"}
 
         await Space.create_message_async(
