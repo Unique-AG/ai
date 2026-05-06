@@ -17,9 +17,13 @@ class ConfigSchemaMeta:
         self.config_model = config_model
 
     def merge_into_meta(self, meta: dict[str, Any]) -> None:
+        alias_gen = self.config_model.model_config.get("alias_generator")
         meta[self._META_KEY] = {
             "json_schema": self.config_model.model_json_schema(),
-            "ui_schema": ui_schema_for_model(self.config_model),
+            "ui_schema": ui_schema_for_model(
+                self.config_model,
+                key_transform=alias_gen if callable(alias_gen) else None,
+            ),
             "default_config": self.config_model().model_dump(
                 mode="json", by_alias=True
             ),
