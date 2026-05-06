@@ -1,6 +1,7 @@
 import asyncio
 import warnings
-from typing import Any, Literal, Sequence
+from collections.abc import Sequence
+from typing import Any, Literal
 
 from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space

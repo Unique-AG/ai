@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import frontmatter
 from pydantic import ValidationError
@@ -280,7 +280,7 @@ async def preload_invoked_skills(
     tool_manager: ToolManager | ResponsesApiToolManager,
     history_manager: HistoryManager,
     logger: Logger,
-    skill_choices: Sequence[SelectableSkill] = (),
+    skill_choices: list[SelectableSkill],
 ) -> None:
     """Preload forced and slash-invoked skills before the first model turn.
 

@@ -10,6 +10,7 @@ from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
+from unique_skill_tool.schemas import SelectableSkill
 
 from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit.app.chat_event_filter_options_settings import (
@@ -242,7 +243,7 @@ class ChatEventPayload(BaseModel):
         default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
     )
-    skill_choices: list[ChatEventSkillChoice] = Field(
+    skill_choices: list[SelectableSkill] = Field(
         default_factory=list,
         description=(
             "A list containing selected skills with ``scope_id``, "
