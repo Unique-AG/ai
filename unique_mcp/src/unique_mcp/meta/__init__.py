@@ -7,7 +7,8 @@ from unique_mcp.meta.keys import (
     MetaKeys,
 )
 from unique_mcp.meta.part import MetaPart, merge_tool_meta
-from unique_mcp.meta.tool import ConfigSchemaMeta, get_tool_config
+from unique_mcp.meta.rjsf import ConfigSchemaMeta
+from unique_mcp.meta.tool import get_tool_config
 
 __all__ = [
     "CONTEXT_REQUIREMENTS_META_KEY",

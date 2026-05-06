@@ -10,7 +10,8 @@ from unique_mcp.meta.keys import (
     MetaKeys,
 )
 from unique_mcp.meta.part import merge_tool_meta
-from unique_mcp.meta.tool import ConfigSchemaMeta, _config_env_key, get_tool_config
+from unique_mcp.meta.rjsf import ConfigSchemaMeta
+from unique_mcp.meta.tool import _config_env_key, get_tool_config
 
 
 @pytest.mark.ai

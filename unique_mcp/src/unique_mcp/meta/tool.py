@@ -2,33 +2,14 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, ClassVar, TypeVar
+from typing import Any, TypeVar
 
 from fastmcp.dependencies import CurrentFastMCP, Depends
 from pydantic import BaseModel
-from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
 
-from unique_mcp.meta.keys import CONFIG_META_KEY, CONFIG_SCHEMA_META_KEY
+from unique_mcp.meta.keys import CONFIG_META_KEY
 
 _T = TypeVar("_T", bound=BaseModel)
-
-
-class ConfigSchemaMeta:
-    """MetaPart that publishes RJSF schema at listTools time."""
-
-    _META_KEY: ClassVar[str] = CONFIG_SCHEMA_META_KEY
-
-    def __init__(self, config_model: type[BaseModel]) -> None:
-        self.config_model = config_model
-
-    def merge_into_meta(self, meta: dict[str, Any]) -> None:
-        meta[self._META_KEY] = {
-            "json_schema": self.config_model.model_json_schema(),
-            "ui_schema": ui_schema_for_model(self.config_model),
-            "default_config": self.config_model().model_dump(
-                mode="json", by_alias=True
-            ),
-        }
 
 
 def _config_env_key(server_name: str, config_model: type) -> str:
@@ -75,6 +56,5 @@ def get_tool_config(config_model: type[_T]) -> _T:
 
 
 __all__ = [
-    "ConfigSchemaMeta",
     "get_tool_config",
 ]
