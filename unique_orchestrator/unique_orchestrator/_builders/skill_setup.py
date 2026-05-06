@@ -48,7 +48,7 @@ from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
 from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
 from unique_skill_tool.service import SkillTool
-from unique_skill_tool.utils import extract_invoked_skills
+from unique_skill_tool.utils import extract_invoked_skills, normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -59,7 +59,6 @@ if TYPE_CHECKING:
         ResponsesApiToolManager,
         ToolManager,
     )
-    from unique_toolkit.app.schemas import ChatEvent
     from unique_toolkit.content.service import ContentService
 
     from unique_orchestrator.config import UniqueAIConfig
@@ -277,47 +276,65 @@ async def configure_skill_tool(
 
 async def preload_invoked_skills(
     *,
-    event: ChatEvent,
+    text: str,
     tool_manager: ToolManager | ResponsesApiToolManager,
     history_manager: HistoryManager,
     logger: Logger,
-) -> str | None:
-    """Preload skills invoked as ``/skill-name`` tokens in the user message.
+    skill_choices: list[SelectableSkill],
+) -> None:
+    """Preload forced and slash-invoked skills before the first model turn.
 
     Mirrors the normal mid-loop activation path so preloaded skills are
     indistinguishable from skills the model activates itself:
 
-    1. Pulls every ``/skill-name`` token out of the user message —
-       whether at the start, between words, or at the end — as long as
-       it is properly word-boundaried so URLs and file paths are not
-       mistaken for invocations. Unknown tokens are left as ordinary
-       text.
+    1. Resolves forced ``skill_choices`` first.
+    2. If no forced skills are found, pulls every ``/skill-name`` token
+       out of the user message — whether at the start, between words, or
+       at the end — as long as it is properly word-boundaried so URLs and
+       file paths are not mistaken for invocations. Unknown tokens are
+       left as ordinary text.
     2. For each matched skill, synthesizes a ``LanguageModelFunction``
        and runs it through the already-registered ``SkillTool`` — the
        exact same code path ``UniqueAI._handle_tool_calls`` uses.
     3. Appends the synthetic assistant tool-call message plus the
        resulting tool-result messages to history, so the first model
        turn sees the skills as already-activated tool calls.
-    4. Strips the matched ``/skill-name`` tokens from the user message
-       so the rendered turn shows only the user's actual query.
-
-    No-ops when the SkillTool is not registered or no tokens match.
+    ``skill_choices`` are treated as forced skills and loaded even when
+    the user message does not contain ``/skill-name`` tokens. Duplicate
+    choices that resolve to the same registered skill are ignored after
+    the first (same deduplication idea as ``extract_invoked_skills``).
+    User message text is never modified in this preload step.
     """
     skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
     if not isinstance(skill_tool, SkillTool):
-        return None
+        return
 
-    original_text = event.payload.user_message.text or ""
+    forced_skills = []
 
-    skills, stripped_text = extract_invoked_skills(
-        original_text, skill_tool.skill_registry
-    )
-    if not skills:
-        return None
+    if skill_choices:
+        seen_forced: set[str] = set()
+        for choice in skill_choices:
+            if not choice.name:
+                continue
+            normalized_name = normalize_skill_name(choice.name)
+            forced_skill = skill_tool.skill_registry.get(normalized_name)
+            if forced_skill is None:
+                continue
+            if forced_skill.name in seen_forced:
+                continue
+            seen_forced.add(forced_skill.name)
+            forced_skills.append(forced_skill)
+
+    else:
+        if text:
+            forced_skills = extract_invoked_skills(text, skill_tool.skill_registry)
+
+    if not forced_skills:
+        return
 
     tool_calls: list[LanguageModelFunction] = []
     responses: list[ToolCallResponse] = []
-    for skill in skills:
+    for skill in forced_skills:
         tool_call = LanguageModelFunction(
             name=SkillTool.name,
             arguments={"skill_name": skill.name},
@@ -331,9 +348,7 @@ async def preload_invoked_skills(
     history_manager.add_tool_call_results(responses)
 
     logger.info(
-        "Preloaded %d skill(s) from slash invocation: %s",
-        len(skills),
-        [s.name for s in skills],
+        "Preloaded %d skill(s) before first model turn: %s",
+        len(forced_skills),
+        [s.name for s in forced_skills],
     )
-
-    return stripped_text

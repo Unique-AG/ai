@@ -1,5 +1,6 @@
 import asyncio
 import warnings
+from collections.abc import Sequence
 from typing import Any, Literal
 
 from unique_sdk.api_resources._message import Message
@@ -16,6 +17,7 @@ async def send_message_and_wait_for_completion(
     assistant_id: str,
     text: str,
     tool_choices: list[str] | None = None,
+    skill_choices: Sequence[dict[str, Any]] = (),
     scope_rules: dict[str, Any] | None = None,
     chat_id: str | None = None,
     poll_interval: float = 1.0,
@@ -32,6 +34,7 @@ async def send_message_and_wait_for_completion(
         assistant_id: The assistant ID.
         text: The prompt text.
         tool_choices: List of tool names to use.
+        skill_choices: Sequence of selected skill objects to use.
         scope_rules: Scope rules for filtering content.
         chat_id: Optional chat ID to continue an existing chat.
         poll_interval: Seconds between polls.
@@ -50,6 +53,7 @@ async def send_message_and_wait_for_completion(
         chatId=chat_id,
         text=text,
         toolChoices=tool_choices,
+        skillChoices=list(skill_choices),
         scopeRules=scope_rules,
         correlation=correlation,
     )

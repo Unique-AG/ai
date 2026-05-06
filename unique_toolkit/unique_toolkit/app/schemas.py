@@ -215,6 +215,20 @@ class Correlation(BaseModel):
     parent_assistant_id: str
 
 
+class ChatEventSkillChoice(BaseModel):
+    model_config = model_config
+
+    name: str = Field(default="", description="Skill name.")
+    scope_id: str = Field(
+        default="",
+        description="Knowledge base scope ID that contains the skill file.",
+    )
+    content_id: str = Field(
+        default="",
+        description="Knowledge base content ID of the ``SKILL.md`` file.",
+    )
+
+
 class ChatEventPayload(BaseModel):
     model_config = model_config
 
@@ -233,6 +247,13 @@ class ChatEventPayload(BaseModel):
     tool_choices: list[str] = Field(
         default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
+    )
+    skill_choices: list[ChatEventSkillChoice] = Field(
+        default_factory=list,
+        description=(
+            "A list containing selected skills with ``scope_id``, "
+            "``content_id``, and ``name``."
+        ),
     )
     disabled_tools: list[str] = Field(
         default_factory=list,
