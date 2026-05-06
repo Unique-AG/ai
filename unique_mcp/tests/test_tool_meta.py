@@ -152,7 +152,7 @@ def test_get_tool_config_returns_defaults() -> None:
         value: int = 7
 
     dep = get_tool_config(MyConfig)
-    config = dep.dependency(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
     assert isinstance(config, MyConfig)
     assert config.value == 7
 
@@ -166,6 +166,6 @@ def test_get_tool_config_env_var_fallback(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv(env_key, '{"value": 42}')
 
     dep = get_tool_config(MyConfig)
-    config = dep.dependency(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
     assert isinstance(config, MyConfig)
     assert config.value == 42
