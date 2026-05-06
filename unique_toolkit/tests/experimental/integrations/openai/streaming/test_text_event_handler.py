@@ -15,7 +15,7 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCallFunction,
 )
 
-from unique_toolkit.experimental.components.streaming import TextFlushed
+from unique_toolkit.experimental._internal.streaming import TextFlushed
 from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.text_event_handler import (
     ChatCompletionTextEventHandler,
 )

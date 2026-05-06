@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, Union
 
 from unique_toolkit._common.event_bus import TypedEventBus
-from unique_toolkit.experimental.components.streaming.common import ActivityStatus
+from unique_toolkit.experimental._internal.streaming.common import ActivityStatus
 
 if TYPE_CHECKING:
     from unique_toolkit.content.schemas import ContentChunk

@@ -23,7 +23,7 @@ from openai.types.responses.response_function_tool_call_item import (
 from openai.types.responses.response_text_delta_event import Logprob
 
 from unique_toolkit._common.event_bus import TypedEventBus
-from unique_toolkit.experimental.components.streaming import TextFlushed, TextState
+from unique_toolkit.experimental._internal.streaming import TextFlushed, TextState
 from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.stream_event_router import (
     ChatCompletionStreamEventRouter,
 )

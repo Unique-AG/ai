@@ -19,8 +19,8 @@ from openai import AsyncOpenAI
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.experimental.components.streaming import TextFlushed
-from unique_toolkit.experimental.components.streaming.pattern_replacer import (
+from unique_toolkit.experimental._internal.streaming import TextFlushed
+from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
     NORMALIZATION_PATTERNS,
     StreamingPatternReplacer,

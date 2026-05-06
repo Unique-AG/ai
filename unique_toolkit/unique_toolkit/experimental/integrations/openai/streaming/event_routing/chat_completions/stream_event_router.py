@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.experimental.components.streaming import StreamEventHandlerProtocol
-from unique_toolkit.experimental.components.streaming.pattern_replacer import (
+from unique_toolkit.experimental._internal.streaming import StreamEventHandlerProtocol
+from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     filter_cited_sdk_references,
 )
 from unique_toolkit.language_model.schemas import (
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
     from unique_toolkit._common.event_bus import TypedEventBus
-    from unique_toolkit.experimental.components.streaming import TextFlushed
+    from unique_toolkit.experimental._internal.streaming import TextFlushed
 
     from ..protocols import (
         ChatCompletionTextEventHandlerProtocol,

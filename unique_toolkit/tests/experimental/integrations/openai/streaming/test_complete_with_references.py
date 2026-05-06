@@ -377,7 +377,7 @@ async def test_AI_chat_completions__text_flush_between_requests__is_logged(caplo
     """
     import logging
 
-    from unique_toolkit.experimental.components.streaming import TextFlushed
+    from unique_toolkit.experimental._internal.streaming import TextFlushed
 
     fake_client = MagicMock()
     fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))

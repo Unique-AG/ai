@@ -10,7 +10,7 @@ from openai.types.responses.response_code_interpreter_call_in_progress_event imp
     ResponseCodeInterpreterCallInProgressEvent,
 )
 
-from unique_toolkit.experimental.components.streaming import (
+from unique_toolkit.experimental._internal.streaming import (
     ActivityProgressUpdate,
     AppendixProducer,
 )

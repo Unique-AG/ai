@@ -2,7 +2,7 @@ import re
 
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.experimental.components.streaming.pattern_replacer import (
+from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     BATCH_NORMALIZATION_PATTERNS,
 )
 

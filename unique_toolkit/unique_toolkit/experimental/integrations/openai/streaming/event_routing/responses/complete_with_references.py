@@ -18,11 +18,11 @@ import httpx
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
-from unique_toolkit.experimental.components.streaming import (
+from unique_toolkit.experimental._internal.streaming import (
     ActivityProgressUpdate,
     TextFlushed,
 )
-from unique_toolkit.experimental.components.streaming.pattern_replacer import (
+from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
     NORMALIZATION_PATTERNS,
     StreamingPatternReplacer,

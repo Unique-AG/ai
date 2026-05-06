@@ -5,7 +5,7 @@ Layout:
   Framework-agnostic event handler contracts (``TextState``, ``StreamEventHandlerProtocol``,
   ``TextFlushed``, ``ActivityProgressUpdate``, ``AppendixProducer``,
   ``UsageProducer``) live in the domain layer at
-  :mod:`unique_toolkit.experimental.components.streaming`.
+  :mod:`unique_toolkit.experimental._internal.streaming`.
 - :mod:`events` — domain events (``StreamStarted``, ``TextDelta``, ``StreamEnded``, ``ActivityProgress``) plus ``StreamEventBus`` (routing table of typed channels) and the ``StreamSubscriber`` protocol.
 - :mod:`subscribers` — default bus subscribers (e.g. ``MessagePersistingSubscriber``).
 - :mod:`chat_completions` — Chat Completions stream (``chat.completions.create``).
@@ -14,7 +14,7 @@ Layout:
 
 from __future__ import annotations
 
-from unique_toolkit.experimental.components.streaming import (
+from unique_toolkit.experimental._internal.streaming import (
     ActivityProgressUpdate,
     AppendixProducer,
     StreamEventHandlerProtocol,

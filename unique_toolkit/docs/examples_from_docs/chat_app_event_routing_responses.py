@@ -28,7 +28,7 @@ from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.experimental.components.streaming.pattern_replacer import (
+from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
     NORMALIZATION_PATTERNS,
     StreamingPatternReplacer,
