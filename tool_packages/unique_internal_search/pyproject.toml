@@ -1,36 +1,41 @@
-[tool.poetry]
+[project]
 name = "unique_internal_search"
-version = "1.2.26"
+version = "2026.20.0.dev14"
 description = ""
+readme = "README.md"
+license = { text = "Proprietary" }
 authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Sadique Sheik <sadique@unique.ch>",
-    "Fabian Schläpfer <fabian@unique.ch>",
-    "Pascal Hauri <pascal@unique.ch>",
+    { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
+    { name = "Sadique Sheik", email = "sadique@unique.ch" },
+    { name = "Fabian Schläpfer", email = "fabian@unique.ch" },
+    { name = "Pascal Hauri", email = "pascal@unique.ch" },
 ]
-readme = ["README.md", "CHANGELOG.md"]
-license = "Proprietary"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-pydantic = "^2.8.2"
-typing-extensions = "^4.9.0"
-unique-toolkit = "^1.46.4"
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-asyncio = "^0.24.0"
-ruff = "^0.12.10"
-pytest-cov = "^7.0.0"
-deptry = "^0.24.0"
-basedpyright = "^1.35.0"
-poethepoet = "^0.32.0"
-
+requires-python = ">=3.12,<4"
+dependencies = [
+    "pydantic>=2.8.2,<3",
+    "typing-extensions>=4.9.0,<5",
+    "unique-toolkit>=2026.20.0.dev24,<2026.20.0rc0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.uv]
+exclude-newer = "2 weeks"
+constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
+
+[dependency-groups]
+dev = []
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
@@ -47,10 +52,29 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 known_first_party = ["unique_internal_search"]
 extend_exclude = ["tests"]
 
+[tool.deptry.per_rule_ignores]
+DEP002 = ["unique-toolkit"]
+DEP003 = ["unique_toolkit"]
+
 [tool.basedpyright]
 typeCheckingMode = "standard"
 include = ["unique_internal_search"]
 exclude = ["**/tests/**", "**/test_*.py"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
 
 [tool.ruff]
 target-version = "py311"

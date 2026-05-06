@@ -1,11 +1,7 @@
 from enum import Enum
 from typing import (
     Any,
-    ClassVar,
-    Dict,
-    List,
     Literal,
-    Optional,
     TypedDict,
     cast,
 )
@@ -15,73 +11,85 @@ from typing_extensions import NotRequired, Unpack
 import unique_sdk
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Content(APIResource["Content"]):
-    OBJECT_NAME: ClassVar[Literal["content.search"]] = "content.search"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["content.search"]:
+        return "content.search"
 
     id: str
     key: str
-    url: Optional[str]
-    title: Optional[str]
+    url: str | None
+    title: str | None
     updatedAt: str
-    chunks: Optional[List["Content.Chunk"]]
-    metadata: Optional[Dict[str, Any]]
-    writeUrl: Optional[str]
-    readUrl: Optional[str]
-    expiredAt: Optional[str]
-    appliedIngestionConfig: Optional[Dict[str, Any]]
+    chunks: list["Content.Chunk"] | None
+    metadata: dict[str, Any] | None
+    writeUrl: str | None
+    readUrl: str | None
+    expiredAt: str | None
+    appliedIngestionConfig: dict[str, Any] | None
+    mimeType: str | None
+    # Optional preview PDF blob registered against this content. When the
+    # caller passes ``previewPdfFileName`` to :meth:`upsert` (or to
+    # :func:`unique_sdk.utils.file_io.upload_file` via ``preview_pdf_path``),
+    # the platform stores the filename here and returns
+    # ``pdfPreviewWriteUrl`` so the PDF bytes can be uploaded directly to
+    # blob storage. The chat side panel resolves this filename to the
+    # ``/v1/content/{id}/preview-file`` endpoint when rendering Office /
+    # other formats whose in-browser preview is unreliable.
+    previewPdfFileName: str | None
+    pdfPreviewWriteUrl: str | None
 
     class QueryMode(Enum):
         Default = "default"
         Insensitive = "insensitive"
 
     class StringFilter(TypedDict, total=False):
-        contains: Optional[str]
-        endsWith: Optional[str]
-        equals: Optional[str]
-        gt: Optional[str]
-        gte: Optional[str]
-        in_: Optional[
-            List[str]
-        ]  # Changed 'in' to 'in_' as 'in' is a reserved keyword in Python
-        lt: Optional[str]
-        lte: Optional[str]
-        mode: Optional["Content.QueryMode"]
-        not_: Optional["Content.NestedStringFilter"]  # Changed 'not' to 'not_'
-        notIn: Optional[List[str]]
-        startsWith: Optional[str]
+        contains: str | None
+        endsWith: str | None
+        equals: str | None
+        gt: str | None
+        gte: str | None
+        in_: (
+            list[str] | None
+        )  # Changed 'in' to 'in_' as 'in' is a reserved keyword in Python
+        lt: str | None
+        lte: str | None
+        mode: "Content.QueryMode | None"  # quoted: basedpyright can't use | with unresolved forward ref
+        not_: "Content.NestedStringFilter | None"  # Changed 'not' to 'not_'
+        notIn: list[str] | None
+        startsWith: str | None
 
     class NestedStringFilter(StringFilter):
-        not_: Optional[
-            "Content.NestedStringFilter"
-        ]  # Inherit from StringFilter and redefine 'not_' for nested usage
+        pass  # not_ inherited from StringFilter as Optional[NestedStringFilter]
 
     class StringNullableFilter(TypedDict, total=False):
-        contains: Optional[str]
-        endsWith: Optional[str]
-        equals: Optional[str]
-        gt: Optional[str]
-        gte: Optional[str]
-        in_: Optional[List[str]]
-        lt: Optional[str]
-        lte: Optional[str]
-        mode: Optional["Content.QueryMode"]
-        not_: Optional["Content.NestedStringNullableFilter"]
-        notIn: Optional[List[str]]
+        contains: str | None
+        endsWith: str | None
+        equals: str | None
+        gt: str | None
+        gte: str | None
+        in_: list[str] | None
+        lt: str | None
+        lte: str | None
+        mode: "Content.QueryMode | None"
+        not_: "Content.NestedStringNullableFilter | None"
+        notIn: list[str] | None
 
     class NestedStringNullableFilter(StringNullableFilter):
-        not_: Optional["Content.NestedStringNullableFilter"]
+        pass  # not_ inherited from StringNullableFilter
 
     class ContentWhereInput(TypedDict, total=False):
-        AND: Optional[List["Content.ContentWhereInput"]]
-        NOT: Optional[List["Content.ContentWhereInput"]]
-        OR: Optional[List["Content.ContentWhereInput"]]
-        id: Optional["Content.StringFilter"]
-        key: Optional["Content.StringFilter"]
-        ownerId: Optional["Content.StringFilter"]
-        title: Optional["Content.StringNullableFilter"]
-        url: Optional["Content.StringNullableFilter"]
+        AND: list["Content.ContentWhereInput"] | None
+        NOT: list["Content.ContentWhereInput"] | None
+        OR: list["Content.ContentWhereInput"] | None
+        id: "Content.StringFilter | None"
+        key: "Content.StringFilter | None"
+        ownerId: "Content.StringFilter | None"
+        title: "Content.StringNullableFilter | None"
+        url: "Content.StringNullableFilter | None"
 
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
@@ -115,31 +123,31 @@ class Content(APIResource["Content"]):
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
-        apiPayload: Optional[str]
+        apiPayload: str | None
         customisationType: str
 
     class VttConfig(TypedDict, total=False):
-        languageModel: Optional[str]
+        languageModel: str | None
 
     class IngestionConfig(TypedDict, total=False):
-        chunkMaxTokens: Optional[int]
-        chunkMaxTokensOnePager: Optional[int]
-        chunkMinTokens: Optional[int]
-        chunkStrategy: Optional[str]
-        customApiOptions: Optional[List["Content.CustomApiOptions"]]
-        documentMinTokens: Optional[int]
-        excelReadMode: Optional[str]
-        jpgReadMode: Optional[str]
-        pdfReadMode: Optional[str]
-        pptReadMode: Optional[str]
+        chunkMaxTokens: int | None
+        chunkMaxTokensOnePager: int | None
+        chunkMinTokens: int | None
+        chunkStrategy: str | None
+        customApiOptions: list["Content.CustomApiOptions"] | None
+        documentMinTokens: int | None
+        excelReadMode: str | None
+        jpgReadMode: str | None
+        pdfReadMode: str | None
+        pptReadMode: str | None
         uniqueIngestionMode: str
-        vttConfig: Optional["Content.VttConfig"]
-        wordReadMode: Optional[str]
-        hideInChat: Optional[bool]
+        vttConfig: "Content.VttConfig | None"
+        wordReadMode: str | None
+        hideInChat: bool | None
 
     class Input(TypedDict):
         key: str
-        title: Optional[str]
+        title: str | None
         mimeType: str
         description: NotRequired[str | None]
         ownerType: NotRequired[str | None]
@@ -157,6 +165,11 @@ class Content(APIResource["Content"]):
         sourceOwnerType: NotRequired[str | None]
         storeInternally: NotRequired[bool | None]
         fileUrl: NotRequired[str | None]
+        # Pass a blob filename to attach a PDF preview to the upserted
+        # content. The response then carries ``pdfPreviewWriteUrl`` —
+        # a SAS URL the caller PUTs the PDF bytes to. ``file_io.upload_file``
+        # exposes this as ``preview_pdf_path`` for a one-call flow.
+        previewPdfFileName: NotRequired[str | None]
 
     class UpdateParams(RequestOptions):
         contentId: NotRequired[str]
@@ -173,9 +186,9 @@ class Content(APIResource["Content"]):
     class Chunk(TypedDict):
         id: str
         text: str
-        startPage: Optional[int]
-        endPage: Optional[int]
-        order: Optional[int]
+        startPage: int | None
+        endPage: int | None
+        order: int | None
 
     class ContentInfo(TypedDict):
         """
@@ -187,7 +200,7 @@ class Content(APIResource["Content"]):
         key: str
         url: str | None
         title: str | None
-        metadata: Dict[str, Any] | None
+        metadata: dict[str, Any] | None
         mimeType: str
         description: str | None
         byteSize: int
@@ -199,11 +212,11 @@ class Content(APIResource["Content"]):
         expiredAt: str | None
 
     class PaginatedContentInfo(TypedDict):
-        contentInfo: List["Content.ContentInfo"]
+        contentInfo: list["Content.ContentInfo"]
         totalCount: int
 
     class PaginatedContentInfos(TypedDict):
-        contentInfos: List["Content.ContentInfo"]
+        contentInfos: list["Content.ContentInfo"]
         totalCount: int
 
     class DeleteParams(RequestOptions):
@@ -221,18 +234,18 @@ class Content(APIResource["Content"]):
 
     class MagicTableRow(TypedDict):
         rowId: str
-        columns: List["Content.MagicTableSheetTableColumn"]
+        columns: list["Content.MagicTableSheetTableColumn"]
         context: NotRequired[str]
         rowMetadata: NotRequired[str]
 
     class MagicTableSheetIngestionConfiguration(TypedDict):
-        columnIdsInMetadata: List[str]
-        columnIdsInChunkText: List[str]
+        columnIdsInMetadata: list[str]
+        columnIdsInChunkText: list[str]
 
     class MagicTableSheetIngestParams(TypedDict):
-        data: List["Content.MagicTableRow"]
+        data: list["Content.MagicTableRow"]
         ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
-        metadata: Dict[str, Optional[str]]
+        metadata: dict[str, str | None]
         scopeId: str
         sheetName: str
         context: NotRequired[str]
@@ -242,7 +255,7 @@ class Content(APIResource["Content"]):
         contentId: str
 
     class MagicTableSheetResponse(TypedDict):
-        rowIdsToContentIds: List["Content.MagicTableSheetRowIdToContentId"]
+        rowIdsToContentIds: list["Content.MagicTableSheetRowIdToContentId"]
 
     @classmethod
     def search(
@@ -250,9 +263,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.SearchParams"],
-    ) -> List["Content"]:
+    ) -> list["Content"]:
         return cast(
-            List["Content"],
+            list["Content"],
             cls._static_request(
                 "post",
                 "/content/search",
@@ -268,9 +281,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.SearchParams"],
-    ) -> List["Content"]:
+    ) -> list["Content"]:
         return cast(
-            List["Content"],
+            list["Content"],
             await cls._static_request_async(
                 "post",
                 "/content/search",
@@ -491,7 +504,7 @@ class Content(APIResource["Content"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,
@@ -689,10 +702,12 @@ class Content(APIResource["Content"]):
                 filePath=file_path,
             )
             content_infos = file_info.get("contentInfo")
+            # contentInfo is typed non-optional in the TypedDict, but .get() returns None
+            # when the key is absent at runtime (API schema drift or untyped caller).
             resolved_id = (
                 content_infos[0].get("id")
                 if file_info.get("totalCount", 0) > 0
-                and content_infos is not None
+                and content_infos is not None  # pyright: ignore[reportUnnecessaryComparison]
                 and len(content_infos) > 0
                 else None
             )

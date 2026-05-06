@@ -1,4 +1,9 @@
+from __future__ import annotations
+
+from typing import Any
+
 from openai import AsyncOpenAI
+from openai.types.responses import ResponseIncludable
 
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import (
@@ -6,8 +11,10 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
-    OpenAICodeInterpreterConfig,
     OpenAICodeInterpreterTool,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
 )
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
@@ -16,7 +23,7 @@ from unique_toolkit.content.service import ContentService
 class OpenAIBuiltInToolManager:
     def __init__(
         self,
-        builtin_tools: list[OpenAIBuiltInTool],
+        builtin_tools: list[OpenAIBuiltInTool[Any]],
     ):
         self._builtin_tools = builtin_tools
 
@@ -30,11 +37,12 @@ class OpenAIBuiltInToolManager:
         chat_id: str,
         client: AsyncOpenAI,
         tool_config: ToolBuildConfig,
-    ) -> OpenAIBuiltInTool:
+        force_auto_container: bool = False,
+    ) -> OpenAIBuiltInTool[Any]:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
-            assert isinstance(tool_config.configuration, OpenAICodeInterpreterConfig)
+            assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
             tool = await OpenAICodeInterpreterTool.build_tool(
-                config=tool_config.configuration,
+                config=tool_config.configuration.tool_config,
                 uploaded_files=uploaded_files,
                 content_service=content_service,
                 client=client,
@@ -42,6 +50,7 @@ class OpenAIBuiltInToolManager:
                 user_id=user_id,
                 chat_id=chat_id,
                 is_exclusive=tool_config.is_exclusive,
+                force_auto_container=force_auto_container,
             )
             return tool
         else:
@@ -57,7 +66,8 @@ class OpenAIBuiltInToolManager:
         chat_id: str,
         client: AsyncOpenAI,
         tool_configs: list[ToolBuildConfig],
-    ) -> "OpenAIBuiltInToolManager":
+        force_auto_container: bool = False,
+    ) -> OpenAIBuiltInToolManager:
         builtin_tools = []
         for tool_config in tool_configs:
             if tool_config.name in OpenAIBuiltInToolName and tool_config.is_enabled:
@@ -70,10 +80,22 @@ class OpenAIBuiltInToolManager:
                         chat_id,
                         client,
                         tool_config,
+                        force_auto_container,
                     )
                 )
 
         return OpenAIBuiltInToolManager(builtin_tools)
 
-    def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool]:
+    def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool[Any]]:
         return self._builtin_tools.copy()
+
+    def get_required_include_params(self) -> list[ResponseIncludable]:
+        """Aggregate include params required by all active built-in tools."""
+        seen: set[str] = set()
+        result: list[ResponseIncludable] = []
+        for tool in self._builtin_tools:
+            for param in tool.get_required_include_params():
+                if param not in seen:
+                    seen.add(param)
+                    result.append(param)
+        return result

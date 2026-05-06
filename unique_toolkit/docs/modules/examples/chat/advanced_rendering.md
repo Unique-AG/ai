@@ -15,8 +15,6 @@ chat_service.create_assistant_message(
 )
 ```
 
-### Full Example
-
 <!--
 ```{.python file=docs/.python_files/chat_prompt_button.py}
 <<full_sse_setup_with_services>>
@@ -40,11 +38,19 @@ chat_service.create_assistant_message(
 )
 ```
 
+<!--
+```{.python file=docs/.python_files/chat_latex_formula.py}
+<<full_sse_setup_with_services>>
+    <<rendering_latex_formula>>
+    <<free_user_input>>
+```
+-->
+
 ### Basic Formula (Manual)
 
 To include a basic formula, wrap it in escaped square brackets:
 
-```python
+```{.python #rendering-latex-block-math-manual}
 # Block math example
 formula = r"\[E = mc^2\]"
 chat_service.create_assistant_message(
@@ -56,7 +62,7 @@ chat_service.create_assistant_message(
 
 For inline formulas within text, use escaped parentheses:
 
-```python
+```{.python #rendering-latex-inline-math}
 # Inline math example
 content = f"The area of a circle is \( \pi r^2 \)."
 chat_service.create_assistant_message(content=content)
@@ -66,7 +72,7 @@ chat_service.create_assistant_message(content=content)
 
 For more complex formulas, ensure all LaTeX syntax is correctly used within the escaped brackets:
 
-```python
+```{.python #rendering-latex-complex-formula}
 # Complex formula with inline math
 content = f"The integral of a function is given by \[\int_{a}^{b} f(x) \, dx\]."
 chat_service.create_assistant_message(content=content)
@@ -88,7 +94,7 @@ chat_service.create_assistant_message(
 
 ### Getting Content ID from Uploaded Images
 
-```python
+```{.python #rendering-image-from-uploaded}
 # Download images and documents from the chat
 images, documents = chat_service.download_chat_images_and_documents()
 
@@ -161,7 +167,7 @@ chat_service.create_assistant_message(
 
 To show multiple instruments for comparison:
 
-```python
+```{.python #rendering-financial-chart-comparative}
 import json
 
 # Multiple instruments for comparative view
@@ -212,6 +218,73 @@ financial_chart_markdown = f"```financialchart\n{json.dumps(financial_data, inde
 
 chat_service.create_assistant_message(
     content=f"Here is a comparison of stock performance:\n{financial_chart_markdown}",
+)
+```
+
+## HTML Rendering
+
+HTML content can be rendered directly within chat messages using the `HtmlRendering` code block. There are two approaches: referencing uploaded content via a `unique://content/` URI, or embedding inline HTML.
+
+### Referencing Uploaded Content
+
+Render an HTML file that has been uploaded to the chat or to a knowledge base:
+
+```{.python #rendering-html-uploaded-content}
+content_id = "cont_csr3nbrc4gfm5kpt574lcm3p"
+
+html_block = f"""```HtmlRendering
+100%
+800px
+
+unique://content/{content_id}
+```"""
+
+chat_service.create_assistant_message(
+    content=f"Here is the rendered HTML:\n{html_block}",
+)
+```
+
+### Inline HTML
+
+Embed a full HTML document directly in the message. This example renders an interactive Plotly bar chart:
+
+```{.python #rendering-html-inline}
+html_content = """\
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <div id="chart"></div>
+  <script>
+    const trace = {
+      x: [1, 2, 3],
+      y: [1, 2, 3],
+      type: 'bar',
+      name: 'Values',
+      marker: { color: '#1f77b4' }
+    };
+    const layout = {
+      title: 'Simple Plotly Bar Chart',
+      xaxis: { title: 'Category', zeroline: false, showgrid: true },
+      yaxis: { title: 'Value', zeroline: true, showgrid: true },
+      margin: { l: 60, r: 20, t: 60, b: 50 }
+    };
+    Plotly.newPlot('chart', [trace], layout, {responsive: true});
+  </script>
+</body>
+</html>"""
+
+html_block = f"""```HtmlRendering
+100%
+700px
+
+{html_content}
+```"""
+
+chat_service.create_assistant_message(
+    content=f"Here is an interactive chart:\n{html_block}",
 )
 ```
 

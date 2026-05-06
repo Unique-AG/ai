@@ -89,6 +89,35 @@ class TestSearchEngineFactory:
         assert config == GoogleConfig
 
 
+class TestBingSearchInit:
+    """Tests for BingSearch constructor creating response parsers internally."""
+
+    @pytest.mark.ai
+    def test_bing_search__initializes_response_parsers__internally(self) -> None:
+        """
+        Purpose: Verify BingSearch creates JsonConversionStrategy and LLMParserStrategy internally.
+        Why this matters: Parsers were moved from the factory into BingSearch; incorrect wiring
+            would break response parsing for all Bing searches.
+        Setup summary: Create BingSearch with mock LanguageModelService; inspect response_parsers.
+        """
+        from unique_web_search.services.search_engine.utils.grounding import (
+            JsonConversionStrategy,
+            LLMParserStrategy,
+        )
+
+        # Arrange
+        config = BingSearchConfig(search_engine_name=SearchEngineType.BING)
+        mock_lm_service = Mock()
+
+        # Act
+        search = BingSearch(config, mock_lm_service)
+
+        # Assert
+        assert len(search.response_parsers) == 2
+        assert isinstance(search.response_parsers[0], JsonConversionStrategy)
+        assert isinstance(search.response_parsers[1], LLMParserStrategy)
+
+
 class TestGetSearchEngineModelConfig:
     """Tests for get_search_engine_model_config utility function."""
 
@@ -110,21 +139,21 @@ class TestGetSearchEngineModelConfig:
         config_dict = get_search_engine_model_config(SearchEngineType.GOOGLE)
 
         # Assert
-        assert config_dict["title"] == "Google Search Engine"
+        assert config_dict["title"] == "Google Search"
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
         "engine_type, expected_title",
         [
-            (SearchEngineType.GOOGLE, "Google Search Engine"),
+            (SearchEngineType.GOOGLE, "Google Search"),
             (SearchEngineType.JINA, "Jina Search"),
             (SearchEngineType.FIRECRAWL, "Firecrawl Search"),
             (SearchEngineType.TAVILY, "Tavily Search"),
-            (SearchEngineType.BRAVE, "Brave Search Engine"),
+            (SearchEngineType.BRAVE, "Brave Search"),
             (SearchEngineType.BING, "Grounding with Bing"),
-            (SearchEngineType.DUCKDUCKGO, "DuckDuckGo Search Engine"),
-            (SearchEngineType.VERTEXAI, "VertexAI Search Engine"),
-            (SearchEngineType.CUSTOM_API, "Customized API Search Engine"),
+            (SearchEngineType.DUCKDUCKGO, "DuckDuckGo Search"),
+            (SearchEngineType.VERTEXAI, "Grounding with VertexAI"),
+            (SearchEngineType.CUSTOM_API, "Customized API Search"),
         ],
         ids=[
             "google",
@@ -170,7 +199,7 @@ class TestGetSearchEngineModelConfig:
         config = BraveSearchConfig(search_engine_name=SearchEngineType.BRAVE)
 
         # Assert
-        assert config.model_config.get("title") == "Brave Search Engine"
+        assert config.model_config.get("title") == "Brave Search"
 
     @pytest.mark.ai
     def test_model_config_title__set_on_vertexai_config__when_instantiated(
@@ -185,7 +214,7 @@ class TestGetSearchEngineModelConfig:
         config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
 
         # Assert
-        assert config.model_config.get("title") == "VertexAI Search Engine"
+        assert config.model_config.get("title") == "Grounding with VertexAI"
 
 
 class TestSearchEngineConfigs:
@@ -235,7 +264,7 @@ class TestSearchEngineConfigs:
         config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
 
         assert config.search_engine_name == SearchEngineType.VERTEXAI
-        assert config.model_name == "gemini-2.5-flash"
+        assert config.vertexai_model_name == "gemini-3-flash-preview"
         assert not config.requires_scraping
         assert not config.enable_entreprise_search
         assert config.enable_redirect_resolution
@@ -244,15 +273,15 @@ class TestSearchEngineConfigs:
         """Test VertexAIConfig with custom values."""
         config = VertexAIConfig(
             search_engine_name=SearchEngineType.VERTEXAI,
-            model_name="gemini-2.5-pro",
-            grounding_system_instruction="Custom instruction",
+            vertexai_model_name="gemini-2.5-pro",
+            generation_instructions="Custom instruction",
             requires_scraping=True,
             enable_entreprise_search=True,
             enable_redirect_resolution=False,
         )
 
-        assert config.model_name == "gemini-2.5-pro"
-        assert config.grounding_system_instruction == "Custom instruction"
+        assert config.vertexai_model_name == "gemini-2.5-pro"
+        assert config.generation_instructions == "Custom instruction"
         assert config.requires_scraping
         assert config.enable_entreprise_search
         assert not config.enable_redirect_resolution
@@ -515,7 +544,7 @@ class TestSearchEngineInstances:
     def test_vertexai_search_initialization(self):
         """Test VertexAI initializes correctly."""
         config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
-        search = VertexAI(config)
+        search = VertexAI(config, Mock())
 
         assert search.config == config
         assert hasattr(search, "is_configured")
@@ -532,39 +561,39 @@ class TestVertexAISearch:
             enable_redirect_resolution=True,
         )
 
-        # Mock the Vertex AI client and functions
         mock_client = AsyncMock()
         mocker.patch(
             "unique_web_search.services.search_engine.vertexai.get_vertex_client",
             return_value=mock_client,
         )
-
-        # Mock generate_content
-        mock_generate = AsyncMock()
-        mock_generate.side_effect = [
-            "Answer with citations",  # First call returns answer
-            WebSearchResults(
-                results=[
-                    WebSearchResult(
-                        url="http://example.com",
-                        title="Test",
-                        snippet="Test snippet",
-                        content="Test content",
-                    )
-                ]
-            ),  # Second call returns structured results
+        mocker.patch(
+            "unique_web_search.services.search_engine.vertexai.generate_vertexai_response",
+            new_callable=AsyncMock,
+            return_value=Mock(),
+        )
+        mocker.patch(
+            "unique_web_search.services.search_engine.vertexai.add_citations",
+            return_value="answer with citations",
+        )
+        parsed = [
+            WebSearchResult(
+                url="http://example.com",
+                title="Test",
+                snippet="Test snippet",
+                content="Test content",
+            )
         ]
         mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.generate_content",
-            mock_generate,
+            "unique_web_search.services.search_engine.vertexai.convert_response_to_search_results",
+            new_callable=AsyncMock,
+            return_value=parsed,
         )
 
-        # Mock resolve_all
         mock_resolve = AsyncMock()
         mock_resolve.return_value = WebSearchResults(
             results=[
                 WebSearchResult(
-                    url="https://example.com",  # Resolved URL
+                    url="https://example.com",
                     title="Test",
                     snippet="Test snippet",
                     content="Test content",
@@ -576,7 +605,7 @@ class TestVertexAISearch:
             mock_resolve,
         )
 
-        search = VertexAI(config)
+        search = VertexAI(config, Mock())
         results = await search.search("test query")
 
         assert len(results) == 1
@@ -591,41 +620,40 @@ class TestVertexAISearch:
             enable_redirect_resolution=False,
         )
 
-        # Mock the Vertex AI client and functions
         mock_client = AsyncMock()
         mocker.patch(
             "unique_web_search.services.search_engine.vertexai.get_vertex_client",
             return_value=mock_client,
         )
-
-        # Mock generate_content
-        mock_generate = AsyncMock()
-        mock_generate.side_effect = [
-            "Answer with citations",
-            WebSearchResults(
-                results=[
-                    WebSearchResult(
-                        url="http://example.com",
-                        title="Test",
-                        snippet="Test snippet",
-                        content="Test content",
-                    )
-                ]
-            ),
-        ]
         mocker.patch(
-            "unique_web_search.services.search_engine.vertexai.generate_content",
-            mock_generate,
+            "unique_web_search.services.search_engine.vertexai.generate_vertexai_response",
+            new_callable=AsyncMock,
+            return_value=Mock(),
+        )
+        mocker.patch(
+            "unique_web_search.services.search_engine.vertexai.add_citations",
+            return_value="answer with citations",
+        )
+        mocker.patch(
+            "unique_web_search.services.search_engine.vertexai.convert_response_to_search_results",
+            new_callable=AsyncMock,
+            return_value=[
+                WebSearchResult(
+                    url="http://example.com",
+                    title="Test",
+                    snippet="Test snippet",
+                    content="Test content",
+                )
+            ],
         )
 
-        # Mock resolve_all - should not be called
         mock_resolve = AsyncMock()
         mocker.patch(
             "unique_web_search.services.search_engine.vertexai.resolve_all",
             mock_resolve,
         )
 
-        search = VertexAI(config)
+        search = VertexAI(config, Mock())
         results = await search.search("test query")
 
         assert len(results) == 1
@@ -727,8 +755,9 @@ class TestVertexAISearch:
             requires_scraping=True,
         )
 
-        search_no_scraping = VertexAI(config_no_scraping)
-        search_with_scraping = VertexAI(config_with_scraping)
+        mock_lm = Mock()
+        search_no_scraping = VertexAI(config_no_scraping, mock_lm)
+        search_with_scraping = VertexAI(config_with_scraping, mock_lm)
 
         assert not search_no_scraping.requires_scraping
         assert search_with_scraping.requires_scraping

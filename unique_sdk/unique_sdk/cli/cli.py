@@ -1,0 +1,1320 @@
+"""Click entry point with one-shot subcommands and interactive shell mode."""
+
+from __future__ import annotations
+
+from typing import Any
+
+import click
+
+from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.elicitation import (
+    cmd_elicit_ask,
+    cmd_elicit_create,
+    cmd_elicit_get,
+    cmd_elicit_pending,
+    cmd_elicit_respond,
+    cmd_elicit_wait,
+)
+from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
+from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.mcp import cmd_mcp
+from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.scheduled_tasks import (
+    cmd_schedule_create,
+    cmd_schedule_delete,
+    cmd_schedule_get,
+    cmd_schedule_list,
+    cmd_schedule_update,
+)
+from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.web_search import (
+    cmd_web_crawl,
+    cmd_web_search,
+)
+from unique_sdk.cli.commands.web_search import (
+    is_error_output as _is_web_search_error_output,
+)
+from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
+from unique_sdk.cli.config import load_config
+from unique_sdk.cli.shell import UniqueShell
+from unique_sdk.cli.state import ShellState
+
+MAIN_HELP = """\
+Unique CLI -- Linux-like file explorer for the Unique AI Platform.
+
+Browse, manage, and search files and folders in the Unique knowledge base
+using familiar commands (cd, ls, mkdir, rm, mv, etc.) as if connected to
+a remote server via SSH.
+
+\b
+Modes:
+  Interactive shell   Run without a subcommand to enter the REPL.
+  One-shot command    Run with a subcommand (e.g. unique-cli ls /Reports).
+
+\b
+Required environment variables:
+  UNIQUE_USER_ID      User ID for API requests
+  UNIQUE_COMPANY_ID   Company ID for API requests
+
+\b
+Optional:
+  UNIQUE_API_KEY      API key (not needed on localhost / secured cluster)
+  UNIQUE_APP_ID       Application identifier (not needed on localhost / secured cluster)
+  UNIQUE_API_BASE     API base URL (default: https://gateway.unique.app/public/chat-gen2)
+
+\b
+Path formats accepted by all commands:
+  Reports             Relative name (resolved from current directory)
+  /Company/Reports    Absolute path (from root)
+  scope_abc123        Scope ID (resolved directly)
+
+\b
+File identifiers:
+  report.pdf          File name (matched in current directory)
+  cont_abc123         Content ID (used directly)
+
+\b
+Examples:
+  unique-cli                        Launch interactive shell
+  unique-cli ls                     List root folders
+  unique-cli ls /Reports            List a specific folder
+  unique-cli search "revenue" -l 50 Search with custom limit
+  unique-cli upload ./file.pdf      Upload to current folder
+  unique-cli download cont_abc123   Download by content ID
+  unique-cli elicit ask "Which?"    Ask the user a question synchronously
+  unique-cli web-search search "x"  Search the web via the public API
+  unique-cli web-search crawl URL   Crawl a URL via the public API
+"""
+
+
+class LazyState:
+    """Lazily initializes ShellState on first access so --help works without env vars."""
+
+    @staticmethod
+    def get(ctx: click.Context) -> ShellState:
+        if ctx.obj is None:
+            config = load_config()
+            ctx.obj = ShellState(config)
+        return ctx.obj
+
+
+@click.group(invoke_without_command=True, help=MAIN_HELP)
+@click.version_option(version=__version__, prog_name="unique-cli")
+@click.pass_context
+def main(ctx: click.Context) -> None:
+    if ctx.invoked_subcommand is None:
+        state = LazyState.get(ctx)
+        shell = UniqueShell(state)
+        shell.intro = (
+            f"Unique File System v{__version__}\n"
+            f"Connected as {state.config.user_id} @ {state.config.company_id}\n"
+            f"Type 'help' for available commands.\n"
+        )
+        shell.cmdloop()
+
+
+@main.command()
+@click.pass_context
+def pwd(ctx: click.Context) -> None:
+    """Print the current working directory path.
+
+    \b
+    Shows the full path of your position in the Unique folder
+    hierarchy. At startup the directory is always /.
+    """
+    click.echo(cmd_pwd(LazyState.get(ctx)))
+
+
+@main.command()
+@click.argument("target", default="/")
+@click.pass_context
+def cd(ctx: click.Context, target: str) -> None:
+    """Change the current working directory.
+
+    \b
+    TARGET can be:
+      folder name       Resolved relative to the current directory
+      /absolute/path    Resolved from root
+      scope_abc123      Scope ID, resolved directly
+      ..                Parent directory
+      /                 Root directory
+
+    \b
+    Examples:
+      unique-cli cd Reports
+      unique-cli cd /Company/Reports/Q1
+      unique-cli cd scope_abc123
+    """
+    click.echo(cmd_cd(LazyState.get(ctx), target))
+
+
+@main.command()
+@click.argument("target", required=False, default=None)
+@click.pass_context
+def ls(ctx: click.Context, target: str | None) -> None:
+    """List folders and files in a directory.
+
+    \b
+    Without TARGET, lists the current directory. With TARGET, lists
+    the specified folder (by name, absolute path, or scope ID).
+
+    \b
+    Output columns: TYPE  NAME  ID  SIZE  UPDATED
+      DIR   Reports/     scope_abc123              2025-03-01 10:00
+      FILE  readme.txt   cont_ghi789     1.2 KB    2025-03-10 09:00
+
+    \b
+    Examples:
+      unique-cli ls              List root folders
+      unique-cli ls /Reports     List a specific path
+      unique-cli ls scope_abc    List by scope ID
+    """
+    click.echo(cmd_ls(LazyState.get(ctx), target))
+
+
+@main.command()
+@click.argument("name")
+@click.pass_context
+def mkdir(ctx: click.Context, name: str) -> None:
+    """Create a new folder under the current directory.
+
+    \b
+    NAME is the folder name to create. Nested paths are supported
+    (e.g., "A/B/C" creates the full hierarchy).
+
+    \b
+    Examples:
+      unique-cli mkdir Q2
+      unique-cli mkdir "2025/Q1"
+    """
+    click.echo(cmd_mkdir(LazyState.get(ctx), name))
+
+
+@main.command()
+@click.argument("target")
+@click.option(
+    "--recursive",
+    "-r",
+    is_flag=True,
+    help="Delete folder and all its contents recursively.",
+)
+@click.pass_context
+def rmdir(ctx: click.Context, target: str, recursive: bool) -> None:
+    """Delete a folder by name, path, or scope ID.
+
+    \b
+    Without --recursive, the folder must be empty. Use -r to delete
+    the folder and everything inside it.
+
+    \b
+    Examples:
+      unique-cli rmdir Q2
+      unique-cli rmdir /Reports/Q1 --recursive
+      unique-cli rmdir scope_abc123 -r
+    """
+    click.echo(cmd_rmdir(LazyState.get(ctx), target, recursive=recursive))
+
+
+@main.command()
+@click.argument("old_name")
+@click.argument("new_name")
+@click.pass_context
+def mvdir(ctx: click.Context, old_name: str, new_name: str) -> None:
+    """Rename a folder.
+
+    \b
+    Changes the folder's display name without moving it. OLD_NAME
+    can be a folder name, path, or scope ID.
+
+    \b
+    Examples:
+      unique-cli mvdir Q1 "Q1-2025"
+      unique-cli mvdir scope_abc123 "New Name"
+    """
+    click.echo(cmd_mvdir(LazyState.get(ctx), old_name, new_name))
+
+
+@main.command()
+@click.argument("local_path")
+@click.argument("destination", required=False, default=None)
+@click.pass_context
+def upload(ctx: click.Context, local_path: str, destination: str | None) -> None:
+    """Upload a local file (works like Linux cp).
+
+    \b
+    Uploads LOCAL_PATH to the Unique platform. DESTINATION works like
+    the target in cp -- it can be a folder path, a new filename, or
+    a combination of both. MIME type is auto-detected.
+
+    \b
+    Destination formats:
+      (omitted)       Current dir, keep original name
+      .               Current dir, keep original name
+      newname.pdf     Current dir, rename to newname.pdf
+      subfolder/      Upload into subfolder, keep name
+      ./sub/new.pdf   Upload into sub, rename to new.pdf
+      /abs/path/      Upload into absolute folder path
+      scope_abc123    Upload into that scope ID
+
+    \b
+    Examples:
+      unique-cli upload ./report.pdf
+      unique-cli upload ./report.pdf "Q1 Report.pdf"
+      unique-cli upload ./report.pdf Q1/
+      unique-cli upload ./report.pdf /Archive/2025/
+    """
+    click.echo(cmd_upload(LazyState.get(ctx), local_path, destination))
+
+
+@main.command()
+@click.argument("name_or_id")
+@click.argument("local_dest", required=False, default=None)
+@click.pass_context
+def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> None:
+    """Download a file to your local machine.
+
+    \b
+    NAME_OR_ID is a file name (matched in the current directory) or
+    a content ID (cont_...) which is resolved directly.
+
+    \b
+    LOCAL_DEST is an optional path (directory or file) to save to.
+    Defaults to the current local working directory.
+
+    \b
+    Examples:
+      unique-cli download annual.pdf
+      unique-cli download annual.pdf ./downloads/
+      unique-cli download cont_abc123 ~/Desktop/
+    """
+    click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
+
+
+@main.command()
+@click.argument("name_or_id")
+@click.pass_context
+def rm(ctx: click.Context, name_or_id: str) -> None:
+    """Delete a file by name or content ID.
+
+    \b
+    NAME_OR_ID is a file name (matched in the current directory) or
+    a content ID (cont_...).
+
+    \b
+    Examples:
+      unique-cli rm report.pdf
+      unique-cli rm cont_abc123
+    """
+    click.echo(cmd_rm(LazyState.get(ctx), name_or_id))
+
+
+@main.command()
+@click.argument("old_name")
+@click.argument("new_name")
+@click.pass_context
+def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
+    """Rename a file.
+
+    \b
+    Changes the file's display title without changing its content ID
+    or location. OLD_NAME can be a file name or content ID.
+
+    \b
+    Examples:
+      unique-cli mv annual.pdf annual-2025.pdf
+      unique-cli mv cont_abc123 "New Title.pdf"
+    """
+    click.echo(cmd_mv_file(LazyState.get(ctx), old_name, new_name))
+
+
+@main.command()
+@click.argument("query")
+@click.option(
+    "--folder",
+    "-f",
+    default=None,
+    help="Restrict search to a folder (path, name, or scope ID). Defaults to current directory.",
+)
+@click.option(
+    "--metadata",
+    "-m",
+    multiple=True,
+    help="Metadata filter as key=value. Can be repeated for AND logic.",
+)
+@click.option(
+    "--limit",
+    "-l",
+    default=200,
+    show_default=True,
+    help="Maximum number of results to return.",
+)
+@click.pass_context
+def search(
+    ctx: click.Context,
+    query: str,
+    folder: str | None,
+    metadata: tuple[str, ...],
+    limit: int,
+) -> None:
+    """Search the knowledge base using combined (vector + full-text) search.
+
+    \b
+    QUERY is the search text. Results are ranked by relevance using
+    both semantic similarity and keyword matching.
+
+    \b
+    By default, searches within the current directory scope with up
+    to 200 results. Use --folder to target a different folder, and
+    --metadata to filter by custom metadata fields.
+
+    \b
+    Examples:
+      unique-cli search "revenue growth"
+      unique-cli search "earnings" --folder /Reports/Q1 --limit 50
+      unique-cli search "compliance" -f scope_abc123
+      unique-cli search "audit" -m department=Legal -m year=2025
+    """
+    state = LazyState.get(ctx)
+    parsed_metadata: list[tuple[str, str]] | None = None
+    if metadata:
+        parsed_metadata = []
+        for kv in metadata:
+            if "=" not in kv:
+                click.echo(f"Invalid metadata format: {kv} (expected key=value)")
+                return
+            k, v = kv.split("=", 1)
+            parsed_metadata.append((k, v))
+
+    click.echo(
+        cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit)
+    )
+
+
+@main.command()
+@click.argument("payload", required=False, default=None)
+@click.option(
+    "--chat-id",
+    "-c",
+    required=True,
+    help="Chat ID for the MCP tool call context.",
+)
+@click.option(
+    "--message-id",
+    "-m",
+    required=True,
+    help="Message ID for the MCP tool call context.",
+)
+@click.option(
+    "--file",
+    "-f",
+    "file_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Read JSON payload from a file instead of a positional argument.",
+)
+@click.option(
+    "--stdin",
+    "use_stdin",
+    is_flag=True,
+    help="Read JSON payload from stdin.",
+)
+@click.pass_context
+def mcp(
+    ctx: click.Context,
+    payload: str | None,
+    chat_id: str,
+    message_id: str,
+    file_path: str | None,
+    use_stdin: bool,
+) -> None:
+    """Call an MCP server tool with a JSON payload.
+
+    \b
+    PAYLOAD is a JSON string containing the tool name and arguments:
+      {"name": "tool_name", "arguments": {"param": "value"}}
+
+    \b
+    The JSON is forwarded 1:1 to the MCP call-tool API. Chat ID and
+    message ID are provided as separate flags to identify the
+    conversation context.
+
+    \b
+    Input sources (exactly one required):
+      PAYLOAD              Inline JSON string
+      --file / -f PATH     Read JSON from a file
+      --stdin              Read JSON from stdin
+
+    \b
+    Examples:
+      unique-cli mcp -c chat_123 -m msg_456 \\
+        '{"name": "search", "arguments": {"query": "test"}}'
+
+      unique-cli mcp -c chat_123 -m msg_456 --file payload.json
+
+      cat payload.json | unique-cli mcp -c chat_123 -m msg_456 --stdin
+    """
+    click.echo(
+        cmd_mcp(
+            LazyState.get(ctx),
+            chat_id=chat_id,
+            message_id=message_id,
+            payload=payload,
+            file=file_path,
+            stdin=use_stdin,
+        )
+    )
+
+
+# -- Scheduled Tasks -------------------------------------------------------
+
+
+@main.group()
+def schedule() -> None:
+    """Manage cron-based scheduled tasks.
+
+    \b
+    Scheduled tasks trigger an assistant on a recurring schedule
+    defined by a cron expression. A Kubernetes CronJob evaluates all
+    enabled tasks every minute and triggers execution for those whose
+    cron expression matches the current time.
+
+    \b
+    Subcommands:
+      list      List all scheduled tasks
+      get       Get details of a single task
+      create    Create a new scheduled task
+      update    Update an existing task
+      delete    Delete a task
+    """
+
+
+@schedule.command(name="list")
+@click.pass_context
+def schedule_list(ctx: click.Context) -> None:
+    """List all scheduled tasks for the authenticated user.
+
+    \b
+    Shows a table of all tasks with their status, cron expression,
+    assistant, prompt snippet, ID, and last run time.
+
+    \b
+    Examples:
+      unique-cli schedule list
+    """
+    click.echo(cmd_schedule_list(LazyState.get(ctx)))
+
+
+@schedule.command(name="get")
+@click.argument("task_id")
+@click.pass_context
+def schedule_get(ctx: click.Context, task_id: str) -> None:
+    """Get details of a scheduled task by ID.
+
+    \b
+    TASK_ID is the scheduled task identifier.
+
+    \b
+    Examples:
+      unique-cli schedule get clx3ghi4f0003mnopqr345678
+    """
+    click.echo(cmd_schedule_get(LazyState.get(ctx), task_id))
+
+
+@schedule.command(name="create")
+@click.option(
+    "--cron",
+    "-c",
+    required=True,
+    help='5-field cron expression (e.g. "*/15 * * * *").',
+)
+@click.option(
+    "--assistant",
+    "-a",
+    "assistant_id",
+    required=True,
+    help="ID of the assistant to execute on each trigger.",
+)
+@click.option(
+    "--prompt",
+    "-p",
+    required=True,
+    help="Prompt text sent to the assistant on each trigger.",
+)
+@click.option(
+    "--chat-id",
+    default=None,
+    help="Optional chat ID to continue. If omitted, a new chat is created each run.",
+)
+@click.option(
+    "--disabled",
+    is_flag=True,
+    default=False,
+    help="Create the task in a disabled state.",
+)
+@click.pass_context
+def schedule_create(
+    ctx: click.Context,
+    cron: str,
+    assistant_id: str,
+    prompt: str,
+    chat_id: str | None,
+    disabled: bool,
+) -> None:
+    """Create a new scheduled task.
+
+    \b
+    Defines a cron schedule, an assistant, and a prompt. The task
+    will execute the assistant with the given prompt on every cron
+    match.
+
+    \b
+    Cron expression format (5 fields):
+      minute hour day-of-month month day-of-week
+
+    \b
+    Examples:
+      unique-cli schedule create \\
+        --cron "0 9 * * 1-5" \\
+        --assistant clx1abc2d0001abcdef123456 \\
+        --prompt "Generate the daily sales report"
+
+      unique-cli schedule create \\
+        -c "*/15 * * * *" -a clx1abc -p "Check inbox" --disabled
+    """
+    click.echo(
+        cmd_schedule_create(
+            LazyState.get(ctx),
+            cron=cron,
+            assistant_id=assistant_id,
+            prompt=prompt,
+            chat_id=chat_id,
+            enabled=not disabled,
+        )
+    )
+
+
+@schedule.command(name="update")
+@click.argument("task_id")
+@click.option("--cron", "-c", default=None, help="Updated cron expression.")
+@click.option(
+    "--assistant", "-a", "assistant_id", default=None, help="Updated assistant ID."
+)
+@click.option("--prompt", "-p", default=None, help="Updated prompt text.")
+@click.option("--chat-id", default=None, help="Updated chat ID (use 'none' to clear).")
+@click.option("--enable", is_flag=True, default=False, help="Enable the task.")
+@click.option("--disable", is_flag=True, default=False, help="Disable the task.")
+@click.pass_context
+def schedule_update(
+    ctx: click.Context,
+    task_id: str,
+    cron: str | None,
+    assistant_id: str | None,
+    prompt: str | None,
+    chat_id: str | None,
+    enable: bool,
+    disable: bool,
+) -> None:
+    """Update an existing scheduled task.
+
+    \b
+    TASK_ID is the scheduled task identifier. Only the fields you
+    provide will be changed; everything else stays the same.
+
+    \b
+    Examples:
+      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5"
+      unique-cli schedule update clx3ghi4f --disable
+      unique-cli schedule update clx3ghi4f --enable --prompt "New prompt"
+      unique-cli schedule update clx3ghi4f --chat-id none
+    """
+    if enable and disable:
+        click.echo("schedule: cannot use --enable and --disable together")
+        return
+
+    enabled: bool | None = None
+    if enable:
+        enabled = True
+    elif disable:
+        enabled = False
+
+    resolved_chat_id = chat_id
+    if chat_id and chat_id.lower() == "none":
+        resolved_chat_id = ""
+
+    click.echo(
+        cmd_schedule_update(
+            LazyState.get(ctx),
+            task_id,
+            cron=cron,
+            assistant_id=assistant_id,
+            prompt=prompt,
+            chat_id=resolved_chat_id,
+            enabled=enabled,
+        )
+    )
+
+
+@schedule.command(name="delete")
+@click.argument("task_id")
+@click.pass_context
+def schedule_delete(ctx: click.Context, task_id: str) -> None:
+    """Delete a scheduled task by ID.
+
+    \b
+    TASK_ID is the scheduled task identifier. This action cannot
+    be undone.
+
+    \b
+    Examples:
+      unique-cli schedule delete clx3ghi4f0003mnopqr345678
+    """
+    click.echo(cmd_schedule_delete(LazyState.get(ctx), task_id))
+
+
+# -- Elicitations ----------------------------------------------------------
+
+
+@main.group()
+def elicit() -> None:
+    """Ask the user questions via the Unique elicitation API.
+
+    \b
+    Elicitations are structured user-input requests displayed in the
+    Unique UI. Use this when an agent or tool needs the user to answer
+    a clarifying question, confirm a destructive action, or fill in a
+    form -- instead of guessing or halting the task.
+
+    \b
+    Subcommands:
+      ask       Create a form question and wait synchronously for the answer
+      create    Low-level: create a FORM or URL elicitation
+      pending   List pending elicitations for the current user
+      get       Show details of a single elicitation by ID
+      respond   Respond to an elicitation (ACCEPT / DECLINE / CANCEL / REJECT)
+      wait      Poll an elicitation until it reaches a terminal state
+    """
+
+
+@elicit.command(name="ask")
+@click.argument("message")
+@click.option(
+    "--tool-name",
+    "-t",
+    default="agent_question",
+    show_default=True,
+    help="Name of the tool/agent asking the question (appears in the UI).",
+)
+@click.option(
+    "--schema",
+    default=None,
+    help=(
+        "JSON schema for the form. Defaults to a single required "
+        '"answer" string field when omitted.'
+    ),
+)
+@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option("--message-id", "-m", default=None, help="Associated message ID.")
+@click.option(
+    "--expires-in",
+    "expires_in_seconds",
+    type=int,
+    default=None,
+    help="Expire the elicitation after N seconds if not answered.",
+)
+@click.option(
+    "--timeout",
+    type=int,
+    default=300,
+    show_default=True,
+    help="Max seconds to block waiting for the user's response.",
+)
+@click.option(
+    "--poll-interval",
+    type=float,
+    default=2.0,
+    show_default=True,
+    help="Seconds between polls while waiting.",
+)
+@click.option(
+    "--metadata",
+    multiple=True,
+    help="Metadata key=value pairs (repeatable).",
+)
+@click.option(
+    "--visible/--no-visible",
+    "visible",
+    default=True,
+    show_default=True,
+    help=(
+        "Wrap the elicitation in a placeholder 'thinking' timeline so the "
+        "chat UI renders it (UN-19815 workaround). Requires --chat-id; the "
+        "placeholder is collapsed or deleted automatically after the user "
+        "responds."
+    ),
+)
+@click.option(
+    "--assistant-id",
+    default=None,
+    help=(
+        "Assistant id to use when creating the visibility placeholder. "
+        "Defaults to $UNIQUE_ASSISTANT_ID, else the latest assistant in the "
+        "chat."
+    ),
+)
+@click.option(
+    "--placeholder-text",
+    default=None,
+    help="Text shown on the placeholder 'thinking' step while waiting.",
+)
+@click.option(
+    "--cleanup",
+    "cleanup_mode",
+    type=click.Choice(["collapse", "delete"], case_sensitive=False),
+    default=None,
+    help=(
+        "How to tear down the visibility placeholder after the user "
+        "responds. 'collapse' (default) sets completedAt + a short note; "
+        "'delete' removes the placeholder message entirely."
+    ),
+)
+@click.pass_context
+def elicit_ask(
+    ctx: click.Context,
+    message: str,
+    tool_name: str,
+    schema: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    expires_in_seconds: int | None,
+    timeout: int,
+    poll_interval: float,
+    metadata: tuple[str, ...],
+    visible: bool = True,
+    assistant_id: str | None = None,
+    placeholder_text: str | None = None,
+    cleanup_mode: str | None = None,
+) -> None:
+    """Ask the user a question and wait for the answer.
+
+    \b
+    Creates a FORM elicitation in the Unique UI with the given MESSAGE
+    and blocks until the user responds, the elicitation is declined /
+    cancelled / expired, or --timeout is reached.
+
+    \b
+    Examples:
+      unique-cli elicit ask "Which report should I send? (Q1 or Q2)"
+      unique-cli elicit ask "Confirm deletion of /Archive" --timeout 60
+      unique-cli elicit ask "Pick a region" \\
+        --schema '{"type":"object","properties":{"region":{"type":"string","enum":["EU","US","APAC"]}},"required":["region"]}'
+    """
+    parsed_metadata: list[tuple[str, str]] = []
+    for kv in metadata:
+        if "=" not in kv:
+            click.echo(f"Invalid metadata format: {kv} (expected key=value)")
+            return
+        k, v = kv.split("=", 1)
+        parsed_metadata.append((k, v))
+
+    ask_kwargs: dict[str, Any] = {
+        "message": message,
+        "tool_name": tool_name,
+        "schema": schema,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "expires_in_seconds": expires_in_seconds,
+        "timeout": timeout,
+        "poll_interval": poll_interval,
+        "metadata": parsed_metadata or None,
+        "visible": visible,
+        "assistant_id": assistant_id,
+    }
+    if placeholder_text is not None:
+        ask_kwargs["placeholder_text"] = placeholder_text
+    if cleanup_mode is not None:
+        ask_kwargs["cleanup_mode"] = cleanup_mode.lower()
+    click.echo(cmd_elicit_ask(LazyState.get(ctx), **ask_kwargs))
+
+
+@elicit.command(name="create")
+@click.argument("message")
+@click.option(
+    "--mode",
+    type=click.Choice(["FORM", "URL"], case_sensitive=False),
+    required=True,
+    help="Elicitation display mode.",
+)
+@click.option(
+    "--tool-name",
+    "-t",
+    required=True,
+    help="Name of the tool/agent requesting input.",
+)
+@click.option(
+    "--schema",
+    default=None,
+    help="JSON schema (required for --mode FORM).",
+)
+@click.option("--url", default=None, help="External URL (required for --mode URL).")
+@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option("--message-id", "-m", default=None, help="Associated message ID.")
+@click.option(
+    "--expires-in",
+    "expires_in_seconds",
+    type=int,
+    default=None,
+    help="Expire the elicitation after N seconds.",
+)
+@click.option(
+    "--external-id",
+    "external_elicitation_id",
+    default=None,
+    help="External identifier for de-duplication / tracking.",
+)
+@click.option(
+    "--metadata",
+    multiple=True,
+    help="Metadata key=value pairs (repeatable).",
+)
+@click.option(
+    "--visible/--no-visible",
+    "visible",
+    default=True,
+    show_default=True,
+    help=(
+        "Wrap the elicitation in a placeholder 'thinking' timeline so the "
+        "chat UI renders it (UN-19815 workaround). Requires --chat-id; the "
+        "placeholder is collapsed or deleted automatically when the user "
+        "responds or when you call `elicit wait` on the returned id."
+    ),
+)
+@click.option(
+    "--assistant-id",
+    default=None,
+    help=(
+        "Assistant id to use when creating the visibility placeholder. "
+        "Defaults to $UNIQUE_ASSISTANT_ID, else the latest assistant in the "
+        "chat."
+    ),
+)
+@click.option(
+    "--placeholder-text",
+    default=None,
+    help="Text shown on the placeholder 'thinking' step while pending.",
+)
+@click.option(
+    "--cleanup",
+    "cleanup_mode",
+    type=click.Choice(["collapse", "delete"], case_sensitive=False),
+    default=None,
+    help=(
+        "How to tear down the visibility placeholder after the user "
+        "responds. 'collapse' (default) sets completedAt + a short note; "
+        "'delete' removes the placeholder message entirely."
+    ),
+)
+@click.pass_context
+def elicit_create(
+    ctx: click.Context,
+    message: str,
+    mode: str,
+    tool_name: str,
+    schema: str | None,
+    url: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    expires_in_seconds: int | None,
+    external_elicitation_id: str | None,
+    metadata: tuple[str, ...],
+    visible: bool = True,
+    assistant_id: str | None = None,
+    placeholder_text: str | None = None,
+    cleanup_mode: str | None = None,
+) -> None:
+    """Create an elicitation without waiting for the response.
+
+    \b
+    Use this when you want to fire-and-forget, then poll later with
+    `elicit wait <id>` or `elicit get <id>`. For interactive question /
+    answer flows prefer `elicit ask` which does both in one call.
+
+    \b
+    Examples:
+      unique-cli elicit create "Please provide feedback" \\
+        --mode FORM --tool-name feedback \\
+        --schema '{"type":"object","properties":{"rating":{"type":"integer"}},"required":["rating"]}'
+
+      unique-cli elicit create "Complete the survey" \\
+        --mode URL --tool-name survey --url https://example.com/s/123
+    """
+    parsed_metadata: list[tuple[str, str]] = []
+    for kv in metadata:
+        if "=" not in kv:
+            click.echo(f"Invalid metadata format: {kv} (expected key=value)")
+            return
+        k, v = kv.split("=", 1)
+        parsed_metadata.append((k, v))
+
+    create_kwargs: dict[str, Any] = {
+        "mode": mode,
+        "message": message,
+        "tool_name": tool_name,
+        "schema": schema,
+        "url": url,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "expires_in_seconds": expires_in_seconds,
+        "external_elicitation_id": external_elicitation_id,
+        "metadata": parsed_metadata or None,
+        "visible": visible,
+        "assistant_id": assistant_id,
+    }
+    if placeholder_text is not None:
+        create_kwargs["placeholder_text"] = placeholder_text
+    if cleanup_mode is not None:
+        create_kwargs["cleanup_mode"] = cleanup_mode.lower()
+    click.echo(cmd_elicit_create(LazyState.get(ctx), **create_kwargs))
+
+
+@elicit.command(name="pending")
+@click.pass_context
+def elicit_pending(ctx: click.Context) -> None:
+    """List all pending elicitations for the current user.
+
+    \b
+    Examples:
+      unique-cli elicit pending
+    """
+    click.echo(cmd_elicit_pending(LazyState.get(ctx)))
+
+
+@elicit.command(name="get")
+@click.argument("elicitation_id")
+@click.pass_context
+def elicit_get(ctx: click.Context, elicitation_id: str) -> None:
+    """Show details of a single elicitation by ID.
+
+    \b
+    Examples:
+      unique-cli elicit get elicit_abc123
+    """
+    click.echo(cmd_elicit_get(LazyState.get(ctx), elicitation_id))
+
+
+@elicit.command(name="wait")
+@click.argument("elicitation_id")
+@click.option(
+    "--timeout",
+    type=int,
+    default=300,
+    show_default=True,
+    help="Max seconds to wait for a terminal state.",
+)
+@click.option(
+    "--poll-interval",
+    type=float,
+    default=2.0,
+    show_default=True,
+    help="Seconds between polls.",
+)
+@click.pass_context
+def elicit_wait(
+    ctx: click.Context,
+    elicitation_id: str,
+    timeout: int,
+    poll_interval: float,
+) -> None:
+    """Poll an elicitation until it is answered, declined, cancelled, or expires.
+
+    \b
+    Examples:
+      unique-cli elicit wait elicit_abc123
+      unique-cli elicit wait elicit_abc123 --timeout 60 --poll-interval 1
+    """
+    click.echo(
+        cmd_elicit_wait(
+            LazyState.get(ctx),
+            elicitation_id,
+            timeout=timeout,
+            poll_interval=poll_interval,
+        )
+    )
+
+
+@elicit.command(name="respond")
+@click.argument("elicitation_id")
+@click.option(
+    "--action",
+    type=click.Choice(["ACCEPT", "DECLINE", "CANCEL", "REJECT"], case_sensitive=False),
+    required=True,
+    help="Response action.",
+)
+@click.option(
+    "--content",
+    default=None,
+    help="JSON object with response fields (required for ACCEPT).",
+)
+@click.pass_context
+def elicit_respond(
+    ctx: click.Context,
+    elicitation_id: str,
+    action: str,
+    content: str | None,
+) -> None:
+    """Respond to an elicitation (mostly for scripting / testing).
+
+    \b
+    The user normally answers via the Unique UI. Use this to script
+    declines / cancels, or to simulate a user response in tests.
+
+    \b
+    Examples:
+      unique-cli elicit respond elicit_abc123 --action ACCEPT \\
+        --content '{"answer":"yes"}'
+      unique-cli elicit respond elicit_abc123 --action DECLINE
+      unique-cli elicit respond elicit_abc123 --action CANCEL
+    """
+    click.echo(
+        cmd_elicit_respond(
+            LazyState.get(ctx),
+            elicitation_id,
+            action=action,
+            content=content,
+        )
+    )
+
+
+# -- Web Search ------------------------------------------------------------
+
+
+# Key under which the `web-search` group stashes its `--config` path on
+# `ctx.meta`, so subcommands can read it back via
+# ``_resolve_web_search_config_path``. Kept as a module-level constant so the
+# writer (group) and reader (subcommand helper) cannot drift.
+_WEB_SEARCH_GROUP_CONFIG_KEY = "web_search_config_path"
+
+
+@main.group("web-search")
+@click.version_option(version=__version__, prog_name="unique-cli web-search")
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help=(
+        "Path to a JSON config file (full WebSearchConfig payload or "
+        "simple {search_engine_config: {...}, crawler_config: {...}} "
+        f"overrides). Falls back to ${ENV_CONFIG_PATH} and then "
+        "~/.unique-websearch.json."
+    ),
+)
+@click.pass_context
+def web_search_group(ctx: click.Context, config_path: str | None) -> None:
+    """Two-phase web search through the Unique public API.
+
+    \b
+    Phase 1 -- search:  query a search engine, get back URLs and snippets.
+    Phase 2 -- crawl:   fetch full page content for selected URLs.
+
+    \b
+    Engine and crawler are resolved server-side from
+    ACTIVE_SEARCH_ENGINES / ACTIVE_INHOUSE_CRAWLERS, matching the
+    server's WebSearchConfig defaults. Per-call overrides use the
+    same JSON shapes the assistants-core service expects, and can be
+    supplied via --config (file), inline --engine-config /
+    --crawler-config (JSON), or the equivalent flags on each subcommand.
+
+    \b
+    Override precedence (highest first):
+      1. Inline --fetch-size / --engine-config / --crawler-config flags
+      2. Config file (--config / $UNIQUE_WEBSEARCH_CONFIG / ~/.unique-websearch.json)
+      3. Server-side defaults
+
+    \b
+    Subcommands:
+      search    Run a web search and print URLs + snippets
+      crawl     Crawl a list of URLs and print their content
+    """
+    if config_path is not None:
+        ctx.meta[_WEB_SEARCH_GROUP_CONFIG_KEY] = config_path
+
+
+def _resolve_web_search_config_path(
+    ctx: click.Context, subcommand_value: str | None
+) -> str | None:
+    """Subcommand value wins; otherwise fall back to the group's --config."""
+    if subcommand_value is not None:
+        return subcommand_value
+    return ctx.meta.get(_WEB_SEARCH_GROUP_CONFIG_KEY)
+
+
+def _emit_web_search(ctx: click.Context, output: str) -> None:
+    """Echo a cmd_web_* result and translate error strings to exit code 1."""
+    click.echo(output)
+    if _is_web_search_error_output(output):
+        ctx.exit(1)
+
+
+_SEARCH_HELP = """\
+Run a web search via /web-search-api/search.
+
+\b
+Examples:
+  unique-cli web-search search "quarterly earnings 2026"
+  unique-cli web-search search "AI regulation" -n 10
+  unique-cli web-search search "python tutorial" --json
+  unique-cli web-search search "sustainability" --include-content --json
+  unique-cli web-search search "tax reform" \\
+    --engine-config '{"searchEngineName":"Google","fetchSize":3}'
+  unique-cli web-search --config ./ws.json search "EU AI act"
+"""
+
+
+@web_search_group.command("search", help=_SEARCH_HELP)
+@click.argument("query")
+@click.option(
+    "--fetch-size",
+    "-n",
+    default=None,
+    type=int,
+    help="Override the engine's fetchSize (number of results to fetch).",
+)
+@click.option(
+    "--include-content",
+    "-i",
+    is_flag=True,
+    default=False,
+    help="Populate result.content via the configured crawler when the engine requires scraping.",
+)
+@click.option(
+    "--engine-config",
+    "engine_config_raw",
+    default=None,
+    help='Override the searchEngineConfig as a JSON object (e.g. \'{"searchEngineName":"Google"}\').',
+)
+@click.option(
+    "--crawler-config",
+    "crawler_config_raw",
+    default=None,
+    help="Override the crawlerConfig as a JSON object (only used with --include-content).",
+)
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help="Per-call override of the web-search group's --config path.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
+)
+@click.pass_context
+def web_search_search_cmd(
+    ctx: click.Context,
+    query: str,
+    fetch_size: int | None,
+    include_content: bool,
+    engine_config_raw: str | None,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    output_json: bool,
+) -> None:
+    """Search the web via the Unique public API."""
+    resolved_config = _resolve_web_search_config_path(ctx, config_path)
+    output = cmd_web_search(
+        LazyState.get(ctx),
+        query,
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=resolved_config,
+    )
+    _emit_web_search(ctx, output)
+
+
+_CRAWL_HELP = """\
+Crawl a list of URLs via /web-search-api/crawl.
+
+URLs can be passed as positional arguments or piped via stdin (one per line).
+
+\b
+Examples:
+  unique-cli web-search crawl https://example.com https://other.com
+  unique-cli web-search crawl --parallel 5 https://a.com https://b.com
+  echo "https://example.com" | unique-cli web-search crawl --stdin
+  unique-cli web-search search "query" --json | jq -r '.results[].url' \\
+    | unique-cli web-search crawl --stdin
+"""
+
+
+@web_search_group.command("crawl", help=_CRAWL_HELP)
+@click.argument("urls", nargs=-1)
+@click.option(
+    "--parallel",
+    "-p",
+    default=10,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help="Number of URLs the server crawls concurrently per batch.",
+)
+@click.option(
+    "--stdin",
+    "from_stdin",
+    is_flag=True,
+    help="Read URLs from stdin (one per line).",
+)
+@click.option(
+    "--crawler-config",
+    "crawler_config_raw",
+    default=None,
+    help='Override the crawlerConfig as a JSON object (e.g. \'{"crawlerType":"BasicCrawler"}\').',
+)
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help="Per-call override of the web-search group's --config path.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output results as JSON.",
+)
+@click.pass_context
+def web_search_crawl_cmd(
+    ctx: click.Context,
+    urls: tuple[str, ...],
+    parallel: int,
+    from_stdin: bool,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    output_json: bool,
+) -> None:
+    """Crawl URLs via the Unique public API."""
+    url_list: list[str] = list(urls)
+    if from_stdin:
+        stdin_urls = [
+            line.strip() for line in click.get_text_stream("stdin") if line.strip()
+        ]
+        url_list.extend(stdin_urls)
+
+    resolved_config = _resolve_web_search_config_path(ctx, config_path)
+    output = cmd_web_crawl(
+        LazyState.get(ctx),
+        url_list,
+        parallel=parallel,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=resolved_config,
+    )
+    _emit_web_search(ctx, output)

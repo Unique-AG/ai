@@ -1,22 +1,31 @@
-import sys
-from fastapi.responses import JSONResponse
+from pathlib import Path
+from typing import Annotated
+
+import httpx
+from dotenv import load_dotenv
+from fastapi.responses import FileResponse, JSONResponse
 from fastmcp import FastMCP
-from starlette.requests import Request
-from fastmcp.server.dependencies import get_access_token
-from fastapi.responses import FileResponse
-import requests
+from fastmcp.dependencies import Depends
+from pydantic import Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+
+from mcp_sql_demo.db_tool_pm.service import PMPositionsTool
+from unique_mcp import get_unique_settings, get_unique_userinfo
+from unique_mcp.auth.zitadel.oauth_proxy import (
+    ZitadelOAuthProxySettings,
+    create_zitadel_oauth_proxy,
+)
+from unique_mcp.settings import ServerSettings
+from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.app.schemas import (
     ChatEvent,
+    ChatEventAssistantMessage,
     ChatEventPayload,
     ChatEventUserMessage,
-    ChatEventAssistantMessage,
 )
-
-
-from unique_toolkit.agentic.tools.factory import ToolFactory
-
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 import unique_sdk
 from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
@@ -111,8 +120,8 @@ custom_middleware = [
 chatEvent = ChatEvent(
     event="user_message_created",
     id="event_id",
-    user_id=user_id,
-    company_id=company_id,
+    user_id="placeholder",
+    company_id="placeholder",
     payload=ChatEventPayload(
         assistant_id="assistant_xkpx89hstyjqrudl4dftiryc",
         chat_id="chat_id",
@@ -170,30 +179,33 @@ async def search_in_database(
     print("user", user)
     email = os.getenv("PM_POSITIONS_EMAIL") or user.get("email", "alice@alphabet.example")
 
-    tool_call: LanguageModelFunction = LanguageModelFunction(
-        id="unique_id",  # type: ignore
-        name=tool.name,
-        arguments={"search_string": query, "email": email},  # type: ignore
-    )
+        per_request_event = ChatEvent(
+            event="user_message_created",
+            id="event_id",
+            user_id=user_id,
+            company_id=company_id,
+            payload=_PLACEHOLDER_EVENT.payload,
+        )  # type: ignore
+        tool = ToolFactory.build_tool("PM_Positions", {}, per_request_event)
 
-    result = await tool.run(
-        tool_call,
-    )  # type: ignore
-    return result.content
+        tool_call = LanguageModelFunction(
+            id="unique_id",  # type: ignore
+            name=tool.name,
+            arguments={"search_string": query, "email": email},  # type: ignore
+        )
 
+        result = await tool.run(tool_call)
+        return result.content
 
-@mcp.custom_route("/", methods=["GET"])
-async def get_status(request: Request):
-    return JSONResponse({"server": "running"})
+    @mcp.custom_route("/", methods=["GET"])
+    async def get_status(request: Request):
+        return JSONResponse({"server": "running"})
 
+    @mcp.custom_route("/favicon.ico", methods=["GET"])
+    async def favicon(request: Request):
+        FAVICON_PATH = Path(__file__).parent / "favicon.ico"
+        return FileResponse(FAVICON_PATH)
 
-@mcp.custom_route("/favicon.ico", methods=["GET"])
-async def favicon(request: Request):
-    FAVICON_PATH = Path(__file__).parent / "favicon.ico"
-    return FileResponse(FAVICON_PATH)
-
-
-if __name__ == "__main__":
     mcp.run(
         transport="http",
         host="0.0.0.0",
@@ -201,3 +213,7 @@ if __name__ == "__main__":
         log_level="debug",
         middleware=custom_middleware,
     )
+
+
+if __name__ == "__main__":
+    main()

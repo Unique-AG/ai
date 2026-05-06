@@ -181,9 +181,9 @@ if [ ! -d "$PACKAGE_DIR" ]; then
     exit 1
 fi
 
-# Check if poetry is available
-if ! command -v poetry &> /dev/null; then
-    print_error "poetry not found. Please install poetry first."
+# Check if uv is available
+if ! command -v uv &> /dev/null; then
+    print_error "uv not found. Please install uv first."
     exit 1
 fi
 
@@ -200,7 +200,7 @@ echo ""
 if [ "$SKIP_INSTALL" = false ]; then
     print_info "Checking dependencies"
     cd "$PACKAGE_DIR"
-    poetry install --quiet
+    uv sync --quiet
     echo ""
 fi
 

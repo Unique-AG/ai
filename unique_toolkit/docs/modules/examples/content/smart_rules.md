@@ -112,7 +112,8 @@ content_chunks = kb_service.search_content_chunks(
 <!--
 ```{.python file=./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py }
 <<smart_rules_imports>>
-<<kb_service_setup>>
+<<common_imports>>
+<<initialize_kb_service_standalone>>
 <<load_demo_variables>>
 <<env_scope_id>>
 <<smart_rule_folder_content>>
@@ -143,7 +144,7 @@ infos =kb_service.get_paginated_content_infos(
 
 **⚠️ Warning:** This operation is irreversible and will permanently delete all content matching the filter criteria.
 
-```{python #upload_with_custom_metadata}
+```{.python #upload_with_custom_metadata}
 content_bytes = b"Your file content here"
 content = kb_service.upload_content_from_bytes(
     content=content_bytes,
@@ -154,7 +155,7 @@ content = kb_service.upload_content_from_bytes(
 )
 ```
 
-```{python #combined_folder_and_custom_metadata}
+```{.python #combined_folder_and_custom_metadata}
 smart_rule_folders_and_mime = AndStatement(and_list=[smart_rule_folder_content, 
                                                      smart_rule_custom])
 metadata_filter = smart_rule_folders_and_mime.model_dump(mode="json") 

@@ -1,10 +1,19 @@
-from pydantic import Field
+from typing import Annotated
+
+from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+    ShowExecutedCodePostprocessorConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    DisplayCodeInterpreterFilesPostProcessorConfig,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
@@ -16,6 +25,7 @@ Instructions:
 Uploaded and generated files:
 - All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
 - All files generated through code MUST be saved in the `/mnt/data` folder.
+- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
 
 CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
@@ -32,12 +42,94 @@ Always use a line break between the title and the markdown!
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
 
+# Displaying Dataframes/Tables:
+- Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
+
+Handling User Queries:
+- Whenever the user query requires using the python tool, you must always think first about the steps required.
+- CRITICAL: If any step generates a plot or visualization, that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
+- CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
+- CRITICAL: For Excel files (`.xls`, `.xlsx`) and CSV files uploaded to the chat, ALWAYS use this tool to read and process them (e.g. `pandas.read_excel`, `pandas.read_csv`, `openpyxl`). Do NOT rely on the chat's text content or prior ingestion for spreadsheet data — the raw file contents are only accessible via code execution from `/mnt/data/<filename>`.
+- For calculation, retrieval, or exploratory-analysis answers, return the result concisely in the chat as markdown (key numbers inline, short tables where useful). Do NOT produce a separate artifact file (HTML, PDF, etc.) unless the user explicitly asked for a downloadable output or the request clearly calls for a dashboard/report.
+- Use the tool multiple times:
+    - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
+        - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
+        In this case, you can simply call the tool multiple times.
+        - REMEMBER that you can always read the content of text, csv files if needed. In this case, you MUST always limit the amount of data displayed.
+- If a tool step fails, you must recover as much as possible.
+- After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
+""".strip()
+
+# Used when the code-execution fence feature flag (UN-17972) is enabled.
+# The frontend derives the artifact title from the filename itself, so the
+# LLM no longer needs to produce a markdown heading before the sandbox link.
+#
+# UN-19711 / Horizon follow-up: The HTML rules in the fence prompt reduce iframe height
+# collapse when chat auto-measures the embedded document. Remaining gaps belong in the
+# Next.js monorepo `HtmlRendering` component (e.g. respect declared dimensions, harden
+# postMessage sizing, iframe sandbox/CSP and WebGL when product wants full fidelity).
+# UN-19880: kaleido is not installed in the Azure OpenAI code interpreter environment,
+# so plotly's fig.write_image() always fails. The "Visualization library choice" section
+# steers the model to use matplotlib for PNG outputs and plotly only for HTML artifacts.
+DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE = """
+Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
+
+Instructions:
+
+Uploaded and generated files:
+- All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
+- All files generated through code MUST be saved in the `/mnt/data` folder.
+- CRITICAL: When generating any plot or visualization as a PNG, use **matplotlib** and call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
+
+CRUCIAL Instructions for displaying images and files in the chat:
+- Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
+WHENEVER you reference a generated file, you MUST use the following format:
+```
+
+[*Generating your {Graph/Chart/File}…*](sandbox:/mnt/data/<filename>)
+
+```
+IMPORTANT: Do NOT append a leading `!` even when displaying an image.
+IMPORTANT: ALWAYS place a blank line before AND after each file reference link so it stands on its own paragraph. Never place a file reference inline within a sentence or as part of a list item.
+- Files are displayed as interactive components in the chat — images are shown inline, other files show the filename with an option to view the generating code and download the file.
+- Not using syntax above will FAIL to show files to the user.
+- YOU MUST use the syntax above to display files, otherwise the file will not be displayed in the chat.
+- Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
+- You MUST always use this syntax, otherwise the files will not be displayed in the chat.
+
+Visualization library choice — CRITICAL:
+- For static image outputs (PNG): ALWAYS use **matplotlib**. NEVER use plotly to produce a PNG — `fig.write_image()` requires the `kaleido` package which is NOT installed in this environment and will always raise an error.
+- For interactive visualizations (HTML): ALWAYS use **plotly**. Save with `fig.write_html(path, full_html=True, include_plotlyjs="cdn", default_height="600px")`. Do NOT use matplotlib for HTML artifacts.
+- If a user explicitly asks for a plotly chart as an image, produce an equivalent **matplotlib** PNG and briefly explain that static plotly export is not supported here.
+
+HTML files — CRITICAL rules:
+- NEVER write raw HTML markup directly in your text response. HTML content MUST only ever appear as a saved `.html` file in `/mnt/data/`.
+- Whenever you create HTML (dashboards, charts, tables, reports, interactive widgets), you MUST save it as a `.html` file and reference it using the sandbox link format above.
+- HTML files MUST follow these best practices so they render correctly in the UI:
+  - Use a valid HTML5 document structure: `<!DOCTYPE html>`, `<html>`, `<head>` (with `<meta charset="UTF-8">` and `<meta name="viewport" content="width=device-width, initial-scale=1.0">`), and `<body>`.
+  - Make the layout self-contained: inline all CSS in a `<style>` block and all JavaScript in a `<script>` block. Do NOT rely on external CDN links that may be blocked — **except** for Plotly (see Plotly bullet below): `include_plotlyjs="cdn"` is required there so the HTML stays small enough to upload; a full inlined Plotly bundle is multi-megabyte and often fails.
+  - Width: use fluid width (`width: 100%`, flexbox, CSS grid) so the content fits the iframe. Fixed pixel widths are discouraged.
+  - Height — CRITICAL for correct rendering in our chat iframe:
+    - NEVER set `height: 100%`, `min-height: 100%`, `height: 100vh` or any viewport-relative height on `<html>` or `<body>`. Let the document height be determined by its content. The chat iframe auto-sizes to the content; percentage/viewport heights on `html`/`body` collapse or cause measurement loops.
+    - The main content container MUST have a bounded, measurable height. For charts/dashboards either (a) give the chart container an explicit pixel height (e.g. `height: 500px`) or (b) use `aspect-ratio` together with a `width` so height is derived. Do NOT leave the top-level container with no intrinsic height.
+    - Do NOT use `position: fixed` or `position: absolute` on top-level layout elements — they remove the element from the flow and the iframe cannot measure it.
+    - Plotly users — CRITICAL: Plotly's `fig.write_html(...)` / `fig.to_html(...)` defaults emit a `<div class="plotly-graph-div" style="height:100%; width:100%;">` with no wrapper height (iframe collapse) **and** inline the entire Plotly JS bundle (~3MB), which often fails KB upload. You MUST pass `include_plotlyjs="cdn"`, `full_html=True`, and `default_height` (and `default_width` when relevant). Example: `fig.write_html(path, full_html=True, include_plotlyjs="cdn", default_height="600px")`. If you hand-write the wrapper HTML around a Plotly div, wrap the `plotly-graph-div` in a container with an explicit pixel height and never leave the graph div at `height:100%`.
+    - Single-chart HTML files — always add an outer wrapper with an explicit `height` (e.g. `<div style="height:600px">…chart…</div>`) so the document has a non-zero intrinsic height, even if the chart library defaults to percentage sizing.
+  - Apply clean, readable typography: prefer system fonts (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`) and sufficient contrast (WCAG AA minimum).
+  - Use semantic HTML elements (`<table>` for tabular data, `<button>` for actions, `<h1>`–`<h6>` for headings, `alt` attributes on `<img>` tags). Avoid using `<div>` for everything.
+  - Do NOT use `window.parent`, `window.top`, or any attempt to access the parent frame.
+
 
 # Displaying Dataframes/Tables:
 - Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
 
 Handling User Queries:
 - Whenever the user query requires using the python tool, you must always think first about the steps required.
+- CRITICAL: If any step generates a plot or visualization as a PNG, use **matplotlib** — that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
+- CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
+- CRITICAL: The sandbox has NO internet access. NEVER use `requests`, `httpx`, `urllib`, or any other HTTP library to fetch data from the web — these calls will always fail. If the user's query requires live web data (e.g. market prices, news, APIs), you MUST retrieve it using the web search tool first and then pass the result into the code interpreter.
+- CRITICAL: For Excel files (`.xls`, `.xlsx`) and CSV files uploaded to the chat, ALWAYS use this tool to read and process them (e.g. `pandas.read_excel`, `pandas.read_csv`, `openpyxl`). Do NOT rely on the chat's text content or prior ingestion for spreadsheet data — the raw file contents are only accessible via code execution from `/mnt/data/<filename>`.
+- For calculation, retrieval, or exploratory-analysis answers, return the result concisely in the chat as markdown (key numbers inline, short tables where useful). Do NOT produce a separate artifact file (HTML, PDF, etc.) unless the user explicitly asked for a downloadable output or the request clearly calls for a dashboard/report.
 - Use the tool multiple times:
     - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
         - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
@@ -49,7 +141,7 @@ Handling User Queries:
 
 
 DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
-DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc."
+DEFAULT_TOOL_DESCRIPTION = "Use this tool to run Python code: generate plots, process Excel/CSV files, perform calculations, create dashboards and data visualizations. ALWAYS use this tool when the user uploads a file (especially Excel/CSV) or asks for any chart, plot, graph, dashboard, analysis, visualization, or equation. Do not answer plotting or graphing requests with text or ASCII art — always produce a real image via the tool."
 
 
 @register_config()
@@ -58,12 +150,24 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=True,
         description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
-    tool_description: str = Field(
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION,
         description="The description of the tool that will be included in the system prompt.",
     )
-    tool_description_for_system_prompt: str = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE.split("\n")) / 2
+            )
+        ),
+    ] = Field(
+        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
         description="The description of the tool that will be included in the system prompt.",
     )
     tool_description_for_user_prompt: SkipJsonSchema[str] = (
@@ -72,16 +176,50 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
             description="The description of the tool that will be included in the user prompt.",
         )
     )
-    expires_after_minutes: int = Field(
+    expires_after_minutes: Annotated[
+        int,
+        RJSFMetaTag.NumberWidget.updown(min=1, max=20),
+    ] = Field(
         default=20,
-        description="The number of minutes after which the container will be deleted.",
+        ge=1,
+        le=20,
+        description="Minutes of inactivity after which the container is deleted. Maximum allowed by OpenAI is 20.",
     )
     use_auto_container: bool = Field(
         default=False,
         description="If set, use the `auto` container setting from OpenAI. Note that this will recreate the container on each call.",
     )
+    additional_uploaded_documents: list[str] = Field(
+        default=[],
+        description="Documents (content_ids) to always upload to the container from the Knowledge Base. Useful for example for templates.",
+    )
+
+
+@register_config()
+class CodeInterpreterExtendedConfig(BaseToolConfig):
+    generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
+        default=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        title="Generated files",
+    )
+
+    executed_code_display_config: ShowExecutedCodePostprocessorConfig = Field(
+        default=ShowExecutedCodePostprocessorConfig(),
+        title="Code display",
+    )
+
+    @field_validator("executed_code_display_config", mode="before")
+    @classmethod
+    def _default_executed_code_display_config(cls, v):
+        if v is None:
+            return ShowExecutedCodePostprocessorConfig()
+        return v
+
+    tool_config: OpenAICodeInterpreterConfig = Field(
+        default=OpenAICodeInterpreterConfig(),
+        title="Tool",
+    )
 
 
 ToolFactory.register_tool_config(
-    OpenAIBuiltInToolName.CODE_INTERPRETER, OpenAICodeInterpreterConfig
+    OpenAIBuiltInToolName.CODE_INTERPRETER, CodeInterpreterExtendedConfig
 )

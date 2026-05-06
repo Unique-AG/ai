@@ -14,12 +14,12 @@ class LangchainNotInstalledError(ImportError):
 
     def __init__(self):
         super().__init__(
-            "langchain-openai package is not installed. Install it with 'poetry install --with langchain'."
+            "langchain-openai package is not installed. Install it with 'uv add unique_toolkit[langchain]'."
         )
 
 
 if importlib.util.find_spec("langchain_openai") is not None:
-    from langchain_openai import ChatOpenAI
+    from langchain_openai import ChatOpenAI  # pyright: ignore[reportMissingImports]
 else:
     raise LangchainNotInstalledError()
 

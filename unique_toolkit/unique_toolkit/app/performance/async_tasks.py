@@ -18,7 +18,7 @@ async def run_async_tasks_parallel(
     tasks: Sequence[Awaitable[T]],
     max_tasks: Optional[int] = None,
     logger: logging.Logger = logging.getLogger(__name__),
-) -> list[Result]:
+) -> list[Result[T]]:
     """
     Executes the a set of given async tasks and returns the results.
 
@@ -32,7 +32,7 @@ async def run_async_tasks_parallel(
 
     max_tasks = max_tasks or len(tasks)
 
-    async def logging_wrapper(task: Awaitable[T], task_id: int) -> Result:
+    async def logging_wrapper(task: Awaitable[T], task_id: int) -> Result[T]:
         thread = threading.current_thread()
         start_time = time.time()
 
@@ -57,14 +57,16 @@ async def run_async_tasks_parallel(
 
     sem = asyncio.Semaphore(max_tasks)
 
-    async def sem_task(task: Awaitable[T], task_id: int) -> Result:
+    async def sem_task(task: Awaitable[T], task_id: int) -> Result[T]:
         async with sem:
             return await logging_wrapper(task, task_id)
 
-    wrapped_tasks: list[Awaitable[Result]] = [
+    wrapped_tasks: list[Awaitable[Result[T]]] = [
         sem_task(task, i) for i, task in enumerate(tasks)
     ]
 
-    results: list[Result] = await asyncio.gather(*wrapped_tasks, return_exceptions=True)
+    results: list[Result[T]] = await asyncio.gather(
+        *wrapped_tasks, return_exceptions=True
+    )
 
     return results

@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-swot-v1.3.5...unique-swot-v2026.18.0) (2026-04-23)
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
+## [1.3.5] - 2026-04-15
+- Chore: standardize pytest configuration across workspace packages
+
+## [1.3.4] - 2026-04-14
+- Chore: migrate pytest config from `pytest.ini` to `pyproject.toml` with `importlib` import mode
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
+
+## [1.3.3] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
+## [1.3.2] - 2026-03-30
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [1.3.1] - 2026-03-05
+- Build: migrate from Poetry to uv
+
+## [1.3.0] - 2026-03-02
+### Added
+- Dual-mode generation architecture with `GenerationMode` enum (`INTERLEAVED` / `EXTRACT_FIRST`)
+- Extract-first pipeline: extracts facts from all sources first, then clusters and generates sections once per SWOT component
+- `ClusterPlanPromptConfig` for one-shot fact clustering prompts
+- `create_progress_sequence` utility for deterministic progress tracking
+- `handle_accumulated_generate_operation` for extract-first section generation
+
+### Changed
+- `ReportingAgent` protocol now receives source iterator and selector directly, enabling mode-specific iteration strategies
+- `SWOTOrchestrator.run()` simplified: no longer accepts `company_name`, delegates source iteration to the reporting agent
+- `GenerationAgent.generate()` refactored as dispatch method routing to mode-specific implementations
+- `ReportGenerationConfig` gains `generation_mode` field with UI radio widget
+- Progress sequence generation moved from orchestrator to agentic utils
+
 ## [1.2.4] - 2026-02-10
 - Migrate token counting in `batch_sequence_generator` to use model-agnostic `LanguageModelInfo.get_encoder()` instead of direct `tiktoken`. Removed `tiktoken` dependency.
 

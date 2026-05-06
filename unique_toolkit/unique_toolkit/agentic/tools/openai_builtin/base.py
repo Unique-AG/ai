@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Generic, TypeVar
 
+from openai.types.responses import ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
@@ -44,3 +45,12 @@ class OpenAIBuiltInTool(ABC, Generic[ToolType]):
     @abstractmethod
     def display_name(self) -> str:
         raise NotImplementedError()
+
+    def get_required_include_params(self) -> list[ResponseIncludable]:
+        """Return Responses API `include` values required by this tool.
+
+        Subclasses override this when they need additional data attached to the
+        response (e.g. code interpreter execution logs).  The default is an
+        empty list, meaning no extra includes are needed.
+        """
+        return []

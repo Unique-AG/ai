@@ -1,4 +1,7 @@
-from datetime import datetime
+from __future__ import annotations
+
+import re
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Optional
 
@@ -7,6 +10,7 @@ from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.utils.files import FileMimeType
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -42,7 +46,7 @@ class ContentChunk(BaseModel):
     )
     key: str | None = Field(
         default=None,
-        description="The key of the chunk. For document chunks this is the the filename",
+        description="The key of the chunk. For document chunks this is the filename",
     )
     chunk_id: str | None = Field(
         default=None,
@@ -72,6 +76,56 @@ class ContentChunk(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
+    def to_reference(
+        self,
+        sequence_number: int,
+        original_index: list[int] | None = None,
+        *,
+        message_id: str = "",
+    ) -> ContentReference:
+        """Convert this chunk into a ``ContentReference`` with page-number info.
+
+        When using ``modify_assistant_message`` (the message-update path) instead of
+        streaming via ``complete_with_references``, the backend does **not**
+        automatically create references from ``searchContext``. This method replicates
+        the reference format the backend streaming path produces so page numbers
+        appear in the frontend reference chips.
+
+        Args:
+            sequence_number: The 1-based sequence number shown in the ``<sup>``
+                tag in the message text.
+            original_index: Optional list of bracket indices (``[N]``) in the
+                message text that this reference corresponds to.
+            message_id: The chat message id this reference belongs to, if any.
+
+        Returns:
+            A ``ContentReference`` ready to pass to ``modify_assistant_message``.
+        """
+        from unique_toolkit.content.utils import _generate_pages_postfix
+
+        name = self.title or self.key or f"Content {self.id}"
+        pages_postfix = _generate_pages_postfix([self])
+        if pages_postfix and not re.search(r" : [\d,]+$", name):
+            name = f"{name}{pages_postfix}"
+
+        source_id = f"{self.id}_{self.chunk_id}" if self.chunk_id else self.id
+        url = (
+            self.url
+            if self.url and not self.internally_stored_at
+            else f"unique://content/{self.id}"
+        )
+
+        return ContentReference(
+            id=self.id,
+            message_id=message_id,
+            name=name,
+            sequence_number=sequence_number,
+            source_id=source_id,
+            source="node-ingestion-chunks",
+            url=url,
+            original_index=original_index or [],
+        )
+
 
 class Content(BaseModel):
     model_config = model_config
@@ -82,13 +136,14 @@ class Content(BaseModel):
     )
     key: str = Field(
         default="",
-        description="The key of the content. For documents this is the the filename",
+        description="The key of the content. For documents this is the filename",
     )
     title: str | None = Field(
         default=None,
         description="The title of the content. For documents this is the title of the document.",
     )
     url: str | None = None
+    mime_type: str | None = None
     chunks: list[ContentChunk] = []
     write_url: str | None = None
     read_url: str | None = None
@@ -96,8 +151,38 @@ class Content(BaseModel):
     updated_at: datetime | None = None
     expired_at: datetime | None = None
     metadata: dict[str, Any] | None = None
-    ingestion_config: dict | None = None
+    ingestion_config: dict[str, Any] | None = None
+    applied_ingestion_config: dict[str, Any] | None = None
     ingestion_state: str | None = None
+
+    def is_ingested(self, *, default_if_unknown: bool = True) -> bool:
+        if (
+            self.applied_ingestion_config is None
+            or "uniqueIngestionMode" not in self.applied_ingestion_config
+        ):
+            return default_if_unknown
+
+        if self.applied_ingestion_config["uniqueIngestionMode"] == "SKIP_INGESTION":
+            return False
+
+        elif (
+            self.applied_ingestion_config["uniqueIngestionMode"]
+            == "SKIP_EXCEL_INGESTION"
+        ):
+            if (
+                self.mime_type is None
+                or (mime_type := FileMimeType.from_mime_string(self.mime_type)) is None
+            ):
+                return default_if_unknown
+
+            return not (mime_type.is_xlsx or mime_type.is_csv)
+
+        return True
+
+    def is_expired(self) -> bool:
+        return self.expired_at is not None and self.expired_at <= datetime.now(
+            timezone.utc
+        )
 
 
 class ContentReference(BaseModel):
@@ -117,14 +202,14 @@ class ContentReference(BaseModel):
     url: str
     original_index: list[int] = Field(
         default=[],
-        description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
+        description="List of indices in the ChatMessage original_text this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
     )
 
     @classmethod
     def from_sdk_reference(
         cls, reference: unique_sdk.Message.Reference | unique_sdk.Space.Reference
     ) -> "ContentReference":
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "name": reference["name"],
             "url": reference["url"],
             "sequence_number": reference["sequenceNumber"],
@@ -170,7 +255,7 @@ class ContentUploadInput(BaseModel):
 class ContentRerankerConfig(BaseModel):
     model_config = model_config
     deployment_name: str = Field(serialization_alias="deploymentName")
-    options: dict | None = None
+    options: dict[str, Any] | None = None
 
 
 class ContentInfo(BaseModel):

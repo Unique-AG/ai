@@ -71,13 +71,18 @@ def test_new_http_client_async_fallback_httpx(mock_httpx, mock_anyio):
 def test_new_http_client_async_fallback_aiohttp(mock_aiohttp, mock_anyio):
     mock_anyio.return_value = None
     mock_aiohttp.return_value = True
-    client = new_http_client_async_fallback()
+    with patch("unique_sdk._http_client.httpx", None):
+        client = new_http_client_async_fallback()
     assert isinstance(client, AIOHTTPClient)
 
 
 def test_new_http_client_async_fallback_no_imports(mock_anyio):
     mock_anyio.return_value = None
-    client = new_http_client_async_fallback()
+    with (
+        patch("unique_sdk._http_client.httpx", None),
+        patch("unique_sdk._http_client.aiohttp", None),
+    ):
+        client = new_http_client_async_fallback()
     assert isinstance(client, NoImportFoundAsyncClient)
 
 

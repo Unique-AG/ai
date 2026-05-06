@@ -30,7 +30,7 @@ The module consists of two main components:
 
 ### Basic Data Extraction
 
-```python
+```{.python #data-extraction-basic-usage}
 from pydantic import BaseModel
 from unique_toolkit.data_extraction import StructuredOutputDataExtractor, StructuredOutputDataExtractorConfig
 from unique_toolkit import LanguageModelService
@@ -54,7 +54,7 @@ print(result.data)  # PersonInfo(name="John", age=30, occupation="software engin
 
 ### Augmented Data Extraction
 
-```python
+```{.python #data-extraction-augmented-usage}
 from pydantic import BaseModel, Field
 from _common.data_extraction import AugmentedDataExtractor, StructuredOutputDataExtractor
 

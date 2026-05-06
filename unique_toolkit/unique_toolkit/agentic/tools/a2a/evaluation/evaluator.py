@@ -1,5 +1,5 @@
 import logging
-from typing import NamedTuple, override
+from typing import Any, NamedTuple, override
 
 import unique_sdk
 from jinja2 import Template
@@ -169,7 +169,7 @@ class SubAgentEvaluationService(Evaluation):
             assistant_id = next(iter(responses))
             explanation = single_assessment["explanation"] or ""
             name = self._evaluation_specs[assistant_id].display_name
-            label = single_assessment["label"] or ""
+            label = ChatMessageAssessmentLabel(single_assessment["label"])
 
             return EvaluationMetricResult(
                 name=self.get_name(),
@@ -187,10 +187,19 @@ class SubAgentEvaluationService(Evaluation):
             display_name = self._evaluation_specs[assistant_id].display_name
 
             for response in sub_agent_responses:
-                assessments = sort_assessments(response.message["assessment"])  #  type:ignore
-                value = get_worst_label(value, assessments[0]["label"])  # type: ignore
+                valid_assessments = [
+                    a
+                    for a in (response.message["assessment"] or [])
+                    if a["label"] in ChatMessageAssessmentLabel
+                ]
+                assessments = sort_assessments(valid_assessments)
+                if not assessments:
+                    continue
+                value = get_worst_label(
+                    value, ChatMessageAssessmentLabel(assessments[0]["label"])
+                )
 
-                data = {
+                data: dict[str, Any] = {
                     "name": display_name,
                     "assessments": assessments,
                 }
@@ -221,13 +230,15 @@ class SubAgentEvaluationService(Evaluation):
                 type=self.get_assessment_type(),
             )
 
+        label = ChatMessageAssessmentLabel(evaluation_result.value)
+
         single_assessment_data = _parse_single_assesment_found(evaluation_result.reason)
         if single_assessment_data is not None:
             return EvaluationAssessmentMessage(
                 status=ChatMessageAssessmentStatus.DONE,
                 explanation=single_assessment_data.explanation,
                 title=single_assessment_data.name,
-                label=evaluation_result.value,  # type: ignore
+                label=label,
                 type=self.get_assessment_type(),
             )
 
@@ -235,11 +246,11 @@ class SubAgentEvaluationService(Evaluation):
             status=ChatMessageAssessmentStatus.DONE,
             explanation=evaluation_result.reason,
             title=self.DISPLAY_NAME,
-            label=evaluation_result.value,  # type: ignore
+            label=label,
             type=self.get_assessment_type(),
         )
 
-    async def _get_reason(self, sub_agents_display_data: list[dict]) -> str:
+    async def _get_reason(self, sub_agents_display_data: list[dict[str, Any]]) -> str:
         messages = (
             MessagesBuilder()
             .system_message_append(self._config.summarization_system_message)

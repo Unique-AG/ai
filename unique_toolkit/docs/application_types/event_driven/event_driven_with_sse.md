@@ -94,8 +94,9 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 
 ```{.python #obtaining_sse_client_with_chat_event}
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
-    <<init_services_from_event>>
-
+    # Initialize services from event
+    chat_service = ChatService(event)
+    kb_service = KnowledgeBaseService.from_event(event)
 ```
 ??? example "Full Examples (Click to expand)"
     

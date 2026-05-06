@@ -1,8 +1,7 @@
-from typing import overload
+from typing import Any, overload
 
 from typing_extensions import deprecated
 
-from unique_toolkit._common._base_service import BaseService
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -11,7 +10,7 @@ from unique_toolkit.embedding.functions import embed_texts, embed_texts_async
 from unique_toolkit.embedding.schemas import Embeddings
 
 
-class EmbeddingService(BaseService):
+class EmbeddingService:
     """
     Provides methods to interact with the Embedding service.
     """
@@ -20,7 +19,7 @@ class EmbeddingService(BaseService):
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | BaseEvent): ...
+    def __init__(self, event: Event | BaseEvent[Any]): ...
 
     """
         Initialize the EmbeddingService with an event (deprecated)
@@ -35,7 +34,7 @@ class EmbeddingService(BaseService):
 
     def __init__(
         self,
-        event: Event | BaseEvent | None = None,
+        event: Event | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
     ):
@@ -45,11 +44,11 @@ class EmbeddingService(BaseService):
             self._user_id: str = event.user_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._company_id: str = company_id
-            self._user_id: str = user_id
+            self._company_id = company_id
+            self._user_id = user_id
 
     @classmethod
-    def from_event(cls, event: Event | BaseEvent):
+    def from_event(cls, event: Event | BaseEvent[Any]):
         """
         Initialize the EmbeddingService with an event.
         """
@@ -75,7 +74,7 @@ class EmbeddingService(BaseService):
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 

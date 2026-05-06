@@ -14,6 +14,7 @@ from unique_toolkit.agentic.loop_runner.runners.basic import (
     BasicLoopIterationRunner,
     BasicLoopIterationRunnerConfig,
 )
+from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -21,7 +22,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
-    LanguageModelStreamResponseMessage,
     LanguageModelUserMessage,
 )
 
@@ -66,8 +66,9 @@ def create_stream_response(
 ) -> LanguageModelStreamResponse:
     """Helper function to create LanguageModelStreamResponse instances for testing."""
     return LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_123",
+            chat_id="",
             previous_message_id="prev_msg_123",
             role=LanguageModelMessageRole.ASSISTANT,
             text=text,
@@ -802,7 +803,7 @@ class TestBasicLoopIterationRunnerEdgeCases:
 class TestBasicLoopIterationRunnerRouting:
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.handle_forced_tools_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.run_forced_tools_iteration",
         new_callable=AsyncMock,
     )
     @patch(
@@ -853,7 +854,7 @@ class TestBasicLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.handle_forced_tools_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.run_forced_tools_iteration",
         new_callable=AsyncMock,
     )
     @patch(
@@ -900,7 +901,7 @@ class TestBasicLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.handle_forced_tools_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.run_forced_tools_iteration",
         new_callable=AsyncMock,
     )
     @patch(
@@ -943,4 +944,102 @@ class TestBasicLoopIterationRunnerRouting:
         # Assert
         mock_forced.assert_not_called()
         mock_last.assert_not_called()
+        mock_normal.assert_called_once()
+
+
+class TestBasicLoopIterationRunnerHooks:
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner.runners.basic.run_forced_tools_iteration",
+        new_callable=AsyncMock,
+    )
+    async def test_handle_forced_tools__delegates_to_run_forced_tools_iteration(
+        self,
+        mock_run_forced: AsyncMock,
+        mock_streaming_handler: MagicMock,
+        mock_language_model: LanguageModelInfo,
+    ) -> None:
+        """
+        Purpose: Verify _handle_forced_tools calls run_forced_tools_iteration directly.
+        Why this matters: Hook method must delegate to the shared utility, not bypass it.
+        """
+        config = BasicLoopIterationRunnerConfig(max_loop_iterations=5)
+        runner = BasicLoopIterationRunner(config=config)
+        mock_run_forced.return_value = create_stream_response()
+
+        messages = LanguageModelMessages(
+            root=[LanguageModelUserMessage(content="Hello")]
+        )
+
+        await runner._handle_forced_tools(
+            iteration_index=0,
+            messages=messages,
+            model=mock_language_model,
+            streaming_handler=mock_streaming_handler,
+        )
+
+        mock_run_forced.assert_called_once()
+
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_last_iteration",
+        new_callable=AsyncMock,
+    )
+    async def test_handle_last_iteration__delegates_to_handle_last_iteration(
+        self,
+        mock_last: AsyncMock,
+        mock_streaming_handler: MagicMock,
+        mock_language_model: LanguageModelInfo,
+    ) -> None:
+        """
+        Purpose: Verify _handle_last_iteration delegates to the handle_last_iteration utility.
+        Why this matters: Hook method must call the correct shared utility.
+        """
+        config = BasicLoopIterationRunnerConfig(max_loop_iterations=5)
+        runner = BasicLoopIterationRunner(config=config)
+        mock_last.return_value = create_stream_response()
+
+        messages = LanguageModelMessages(
+            root=[LanguageModelUserMessage(content="Hello")]
+        )
+
+        await runner._handle_last_iteration(
+            iteration_index=4,
+            messages=messages,
+            model=mock_language_model,
+            streaming_handler=mock_streaming_handler,
+        )
+
+        mock_last.assert_called_once()
+
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
+        new_callable=AsyncMock,
+    )
+    async def test_handle_normal_iteration__delegates_to_handle_normal_iteration(
+        self,
+        mock_normal: AsyncMock,
+        mock_streaming_handler: MagicMock,
+        mock_language_model: LanguageModelInfo,
+    ) -> None:
+        """
+        Purpose: Verify _handle_normal_iteration delegates to the handle_normal_iteration utility.
+        Why this matters: Hook method must call the correct shared utility.
+        """
+        config = BasicLoopIterationRunnerConfig(max_loop_iterations=5)
+        runner = BasicLoopIterationRunner(config=config)
+        mock_normal.return_value = create_stream_response()
+
+        messages = LanguageModelMessages(
+            root=[LanguageModelUserMessage(content="Hello")]
+        )
+
+        await runner._handle_normal_iteration(
+            iteration_index=1,
+            messages=messages,
+            model=mock_language_model,
+            streaming_handler=mock_streaming_handler,
+        )
+
         mock_normal.assert_called_once()

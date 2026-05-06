@@ -1,0 +1,5 @@
+[pytest]
+addopts = --strict-markers
+asyncio_mode = auto
+markers =
+    ai: AI-authored test

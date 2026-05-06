@@ -1,9 +1,7 @@
 from typing import (
-    ClassVar,
-    List,
+    Any,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -11,13 +9,14 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class ChatCompletionRequestMessage(TypedDict, total=False):
     role: Literal["system", "user", "assistant"]
     content: str
-    name: Optional[str]
-    tool_call_id: Optional[str]
+    name: str | None
+    tool_call_id: str | None
 
 
 class ChatCompletionResponseMessage(TypedDict):
@@ -32,7 +31,9 @@ class ChatCompletionChoicesInner(TypedDict):
 
 
 class ChatCompletion(APIResource["ChatCompletion"]):
-    OBJECT_NAME: ClassVar[Literal["openai.chat.completion"]] = "openai.chat.completion"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["openai.chat.completion"]:
+        return "openai.chat.completion"
 
     class CreateParams(RequestOptions):
         model: NotRequired[
@@ -41,15 +42,15 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 "AZURE_GPT_4_32K_0613",
             ]
         ]
-        timeout: NotRequired[Optional["int"]]
-        messages: List[ChatCompletionRequestMessage]
-        options: NotRequired[dict]
+        timeout: NotRequired[int | None]
+        messages: list[ChatCompletionRequestMessage]
+        options: NotRequired[dict[str, Any]]
 
     model: Literal[
         "AZURE_GPT_4_0613",
         "AZURE_GPT_4_32K_0613",
     ]
-    choices: List[ChatCompletionChoicesInner]
+    choices: list[ChatCompletionChoicesInner]
 
     @classmethod
     def create(

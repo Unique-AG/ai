@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v3.6.2...unique-deep-research-v2026.18.0) (2026-04-23)
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
+## [3.6.2] - 2026-04-15
+- Chore: standardize pytest configuration across workspace packages
+
+## [3.6.1] - 2026-04-14
+- Chore: add `importlib` import mode to pytest config to prevent namespace collisions
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
+
+## [3.6.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [3.5.5] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
+## [3.5.4] - 2026-04-01
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [3.5.3] - 2026-03-31
+- Docs: replace Poetry references with uv equivalents in benchmarking README
+
+## [3.5.2] - 2026-03-05
+- Improve deep research prompts
+
+## [3.5.1] - 2026-03-05
+- Build: migrate from Poetry to uv
+
+## [3.5.0] - 2026-02-27
+- Add support for exporting the report to a Word Document
+
+## [3.4.1] - 2026-02-23
+- Add flag-based cancellation support via `CancellationWatcher`
+
+## [3.4.0] - 2026-02-20
+- Add option to show full page content of search results in the return of the web search tool
+
 ## [3.3.2] - 2026-02-11
 - Correctly log debug info in case of error
 
@@ -202,7 +243,7 @@ Minor bugfixes:
 ## [0.0.5] - 2025-09-04
 - Additional messages in message log and add formatted messages in details
 
-## [0.0.4] - 2025-09-02
+## [0.0.4] - 2025-09-03
 - Introducing handover capability.
 
 ## [0.0.3] - 2025-09-03

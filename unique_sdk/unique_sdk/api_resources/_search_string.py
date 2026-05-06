@@ -1,9 +1,10 @@
-from typing import ClassVar, List, Literal, TypedDict, cast
+from typing import Literal, TypedDict, cast
 
 from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class HistoryMessage(TypedDict):
@@ -12,12 +13,14 @@ class HistoryMessage(TypedDict):
 
 
 class SearchString(APIResource["SearchString"]):
-    OBJECT_NAME: ClassVar[Literal["search.search-string"]] = "search.search-string"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["search.search-string"]:
+        return "search.search-string"
 
     class CreateParams(RequestOptions):
         prompt: str
         chatId: NotRequired["str"]
-        messages: NotRequired[List[HistoryMessage]]
+        messages: NotRequired[list[HistoryMessage]]
         languageModel: NotRequired[
             Literal[
                 "AZURE_GPT_4_0613",

@@ -1,11 +1,7 @@
 from typing import (
     Any,
-    ClassVar,
-    Dict,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -13,19 +9,22 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Group(APIResource["Group"]):
-    OBJECT_NAME: ClassVar[Literal["group"]] = "group"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["group"]:
+        return "group"
 
     class GetParams(RequestOptions):
         """
         Parameters for getting groups in a company.
         """
 
-        skip: NotRequired[Optional[int]]
-        take: NotRequired[Optional[int]]
-        name: NotRequired[Optional[str]]
+        skip: NotRequired[int | None]
+        take: NotRequired[int | None]
+        name: NotRequired[str | None]
 
     class CreateParams(RequestOptions):
         """
@@ -33,36 +32,36 @@ class Group(APIResource["Group"]):
         """
 
         name: str
-        externalId: NotRequired[Optional[str]]
-        parentId: NotRequired[Optional[str]]
+        externalId: NotRequired[str | None]
+        parentId: NotRequired[str | None]
 
     class UpdateParams(RequestOptions):
         """
         Parameters for updating a group.
         """
 
-        name: NotRequired[Optional[str]]
+        name: NotRequired[str | None]
 
     class AddUsersParams(RequestOptions):
         """
         Parameters for adding users to a group.
         """
 
-        userIds: List[str]
+        userIds: list[str]
 
     class RemoveUsersParams(RequestOptions):
         """
         Parameters for removing users from a group.
         """
 
-        userIds: List[str]
+        userIds: list[str]
 
     class UpdateGroupConfigurationParams(RequestOptions):
         """
         Parameters for updating group configuration.
         """
 
-        configuration: Dict[str, Any]
+        configuration: dict[str, Any]
 
     class GroupMember(TypedDict):
         """
@@ -88,8 +87,8 @@ class Group(APIResource["Group"]):
         id: str
         name: str
         externalId: str
-        parentId: Optional[str]
-        members: Optional[List["Group.GroupMember"]]
+        parentId: str | None
+        members: list["Group.GroupMember"] | None
         createdAt: str
         updatedAt: str
 
@@ -98,14 +97,14 @@ class Group(APIResource["Group"]):
         Represents a group in the company with configuration.
         """
 
-        configuration: Dict[str, Any]
+        configuration: dict[str, Any]
 
     class Groups(TypedDict):
         """
         Response for getting groups.
         """
 
-        groups: List["Group.Group"]
+        groups: list["Group.Group"]
 
     class DeleteResponse(TypedDict):
         """
@@ -119,7 +118,7 @@ class Group(APIResource["Group"]):
         Response for adding users to a group.
         """
 
-        memberships: List["Group.GroupMembership"]
+        memberships: list["Group.GroupMembership"]
 
     class RemoveUsersFromGroupResponse(TypedDict):
         """

@@ -15,7 +15,7 @@ export UNIQUE_ENV_PATH="/path/to/your/.env"
 # 3. Configure the run in run_unique_custom_bench.py
 
 # 4. Parallel execution (faster, 3 concurrent tasks)
-poetry run python benchmarking/run_unique_custom_bench.py --concurrency 3
+uv run python benchmarking/run_unique_custom_bench.py --concurrency 3
 
 # 5. After completion, setup evaluation in benchmarking/deep_research_bench/run_benchmark
 

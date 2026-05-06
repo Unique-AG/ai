@@ -1,6 +1,6 @@
 import json
 from collections import OrderedDict
-from typing import Mapping
+from collections.abc import Mapping
 
 
 class UniqueResponseBase(object):

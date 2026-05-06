@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      changes: ${{ steps.detect.outputs.changes }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/detect-changes
+        id: detect
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
+      - name: Select packages
+        id: set-matrix
+        uses: ./.github/actions/select-packages
+        with:
+          packages: ${{ steps.pkgs.outputs.packages }}
+          selected: ''
+          changes: ${{ steps.detect.outputs.changes }}
+
+  lint:
+    name: Lint
+    needs: detect-changes
+    uses: ./.github/workflows/ci-lint.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
+
+  test:
+    name: Test
+    needs: detect-changes
+    uses: ./.github/workflows/ci-pytest.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
+
+  types:
+    name: Types
+    needs: detect-changes
+    uses: ./.github/workflows/ci-type-check.yaml
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
+
+  coverage:
+    name: Coverage
+    needs: detect-changes
+    uses: ./.github/workflows/ci-coverage.yaml
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
+
+  deps:
+    name: Dependencies
+    needs: detect-changes
+    uses: ./.github/workflows/ci-dependency-checks.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
+
+  config:
+    name: Config Compatibility Check
+    uses: ./.github/workflows/ci-config-check.yaml
+
+  pr-title:
+    name: PR Title
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/chore_validate_pr_title.yaml
+    permissions:
+      pull-requests: read
+
+  no-manual-release:
+    name: No Manual Release Changes
+    if: github.event_name == 'pull_request' && github.actor != 'release-please[bot]' && !startsWith(github.head_ref, 'release-please--') && !startsWith(github.head_ref, 'chore/bump-dev-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Check for forbidden version/changelog changes
+        run: |
+          bash .github/scripts/check-no-manual-release.sh \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}"
+
+  status:
+    name: Gatekeeper
+    needs: [detect-changes, lint, test, types, coverage, deps, config, pr-title, no-manual-release]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Check results
+        id: check
+        env:
+          DETECT_CHANGES: ${{ needs.detect-changes.result }}
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+          TYPES: ${{ needs.types.result }}
+          COVERAGE: ${{ needs.coverage.result }}
+          DEPS: ${{ needs.deps.result }}
+          CONFIG: ${{ needs.config.result }}
+          PR_TITLE: ${{ needs.pr-title.result }}
+          NO_MANUAL_RELEASE: ${{ needs.no-manual-release.result }}
+        run: |
+          echo "=== CI Status Summary ==="
+          echo "detect-changes: $DETECT_CHANGES"
+          echo "lint: $LINT"
+          echo "test: $TEST"
+          echo "types: $TYPES"
+          echo "coverage: $COVERAGE"
+          echo "deps: $DEPS"
+          echo "config: $CONFIG"
+          echo "pr-title: $PR_TITLE"
+          echo "no-manual-release: $NO_MANUAL_RELEASE"
+          echo "========================="
+
+          failed=false
+
+          # Required checks (skipped is OK for when no packages changed or merge_group).
+          # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE"; do
+            name="${check%%:*}"
+            result="${check##*:}"
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "❌ $name: $result"
+              failed=true
+            fi
+          done
+
+          if [[ "$failed" == "true" ]]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "description=CI checks failed" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "description=All CI checks passed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATE: ${{ steps.check.outputs.status }}
+          DESCRIPTION: ${{ steps.check.outputs.description }}
+        run: |
+          gh api repos/${{ github.repository }}/statuses/$SHA \
+            -f state="$STATE" \
+            -f context="CI / Gatekeeper" \
+            -f description="$DESCRIPTION" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Fail if checks failed
+        if: steps.check.outputs.status == 'failure'
+        run: exit 1

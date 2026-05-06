@@ -8,13 +8,14 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Correlation, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
     download_content,
     download_content_to_bytes,
+    download_content_to_bytes_async,
     download_content_to_file_by_id,
     request_content_by_id,
     search_content_chunks,
@@ -45,7 +46,7 @@ class ContentService:
         "Use __init__ with company_id, user_id and chat_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
 
     """
         Initialize the ContentService with an event (deprecated)
@@ -58,7 +59,7 @@ class ContentService:
         company_id: str,
         user_id: str,
         chat_id: str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ): ...
 
     """
@@ -67,11 +68,11 @@ class ContentService:
 
     def __init__(
         self,
-        event: Event | BaseEvent | None = None,
+        event: Event | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """
         Initialize the ContentService with a company_id, user_id and chat_id.
@@ -87,16 +88,41 @@ class ContentService:
                 self._chat_id: str | None = event.payload.chat_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._company_id: str = company_id
-            self._user_id: str = user_id
-            self._chat_id: str | None = chat_id
+            self._company_id = company_id
+            self._user_id = user_id
+            self._chat_id = chat_id
             self._metadata_filter = metadata_filter
 
     @classmethod
-    def from_event(cls, event: Event | ChatEvent | BaseEvent):
+    def from_event(cls, event: Event | ChatEvent | BaseEvent[Any]):
+        """Initialize the ContentService with an event.
+
+        When the event has a correlation (e.g. subagent run), delegates to
+        from_correlation so content operations are scoped to the parent chat
+        and files uploaded in the primary session are accessible. Otherwise
+        uses the event's chat_id.
+
+        Args:
+            event: The event (e.g. from the webhook payload).
+
+        Returns:
+            ContentService: Instance scoped to the event's chat or, when
+                correlation is present, the parent chat.
         """
-        Initialize the ContentService with an event.
-        """
+        if (
+            isinstance(event, (ChatEvent, Event))
+            and getattr(event.payload, "correlation", None) is not None
+        ):
+            if event.payload.correlation is None:
+                raise ValueError(
+                    "correlation attribute is not defined in the event payload"
+                )
+            return cls.from_correlation(
+                event.company_id,
+                event.user_id,
+                event.payload.correlation,
+                metadata_filter=getattr(event.payload, "metadata_filter", None),
+            )
         chat_id = None
         metadata_filter = None
 
@@ -112,10 +138,40 @@ class ContentService:
         )
 
     @classmethod
+    def from_correlation(
+        cls,
+        company_id: str,
+        user_id: str,
+        correlation: Correlation,
+        metadata_filter: dict[str, Any] | None = None,
+    ):
+        """Initialize the ContentService from a correlation (e.g. when running as a subagent).
+
+        Content operations (search, download, upload context) are scoped to
+        the parent chat so files uploaded in the primary session are
+        accessible.
+
+        Args:
+            company_id: Company id (from event).
+            user_id: User id (from event).
+            correlation: Parent chat/message/assistant ids.
+            metadata_filter: Optional metadata filter (e.g. from event.payload).
+
+        Returns:
+            ContentService: Instance with chat_id set to correlation.parent_chat_id.
+        """
+        return cls(
+            company_id=company_id,
+            user_id=user_id,
+            chat_id=correlation.parent_chat_id,
+            metadata_filter=metadata_filter,
+        )
+
+    @classmethod
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
@@ -136,7 +192,7 @@ class ContentService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 
@@ -227,7 +283,7 @@ class ContentService:
     @deprecated(
         "The metadata_filter property is deprecated and will be removed in a future version."
     )
-    def metadata_filter(self) -> dict | None:
+    def metadata_filter(self) -> dict[str, Any] | None:
         """
         Get the metadata filter (deprecated).
 
@@ -240,7 +296,7 @@ class ContentService:
     @deprecated(
         "The metadata_filter setter is deprecated and will be removed in a future version."
     )
-    def metadata_filter(self, value: dict | None) -> None:
+    def metadata_filter(self, value: dict[str, Any] | None) -> None:
         """
         Set the metadata filter (deprecated).
 
@@ -255,11 +311,11 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ) -> list[ContentChunk]:
@@ -289,7 +345,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only")
@@ -322,11 +378,11 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ):
@@ -355,7 +411,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only.")
@@ -383,8 +439,8 @@ class ContentService:
 
     def search_contents(
         self,
-        where: dict,
-        chat_id: str = "",
+        where: dict[str, Any],
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -396,7 +452,7 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         return search_contents(
             user_id=self._user_id,
@@ -407,8 +463,8 @@ class ContentService:
 
     async def search_contents_async(
         self,
-        where: dict,
-        chat_id: str = "",
+        where: dict[str, Any],
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
@@ -419,7 +475,7 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         return await search_contents_async(
             user_id=self._user_id,
@@ -443,7 +499,7 @@ class ContentService:
         skip_ingestion: bool = False,
         skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -485,7 +541,7 @@ class ContentService:
         chat_id: str | None = None,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -681,8 +737,50 @@ class ContentService:
             chat_id=chat_id,
         )
 
+    async def download_content_to_bytes_async(
+        self,
+        content_id: str,
+        chat_id: str | None = None,
+    ) -> bytes:
+        """
+        Asynchronously downloads content to memory.
+
+        Args:
+            content_id (str): The id of the uploaded content.
+            chat_id (Optional[str]): The chat_id, defaults to None.
+
+        Returns:
+            bytes: The downloaded content.
+
+        Raises:
+            Exception: If the download fails.
+        """
+        chat_id = chat_id or self._chat_id  # type: ignore
+        return await download_content_to_bytes_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=chat_id,
+        )
+
     def get_documents_uploaded_to_chat(self) -> list[Content]:
         chat_contents = self.search_contents(
+            where={
+                "ownerId": {
+                    "equals": self._chat_id,
+                },
+            },
+        )
+
+        content: list[Content] = []
+        for c in chat_contents:
+            if self.is_file_content(c.key):
+                content.append(c)
+
+        return content
+
+    async def get_documents_uploaded_to_chat_async(self) -> list[Content]:
+        chat_contents = await self.search_contents_async(
             where={
                 "ownerId": {
                     "equals": self._chat_id,

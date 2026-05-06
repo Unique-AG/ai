@@ -96,7 +96,7 @@ def num_tokens_per_messages(
                     num_tokens += handle_message_with_images(value, encode)
                 else:
                     num_tokens += len(encode(value))
-            elif isinstance(value, str):
+            elif isinstance(value, str):  # pyright: ignore[reportUnnecessaryIsInstance]
                 num_tokens += len(encode(value))
 
             if key == "name":
@@ -167,7 +167,9 @@ def num_tokens_for_tools(
     return func_token_count
 
 
-def handle_message_with_images(message: list[dict], encode: Callable[[str], list[int]]):
+def handle_message_with_images(
+    message: list[dict[str, Any]], encode: Callable[[str], list[int]]
+):
     token_count = 0
     for item in message:
         if item.get("type") == "image_url":

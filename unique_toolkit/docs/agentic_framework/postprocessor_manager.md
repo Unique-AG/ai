@@ -13,7 +13,7 @@ The `Postprocessor` is an abstract class that defines the structure and behavior
 3. **`remove_from_text`**: Removes any postprocessing artifacts from the text, ensuring clean input for subsequent LLM rounds.
 
 #### Postprocessor Class Definition:
-```python
+```{.python #postprocessor-class-definition}
 class Postprocessor(ABC):
     def __init__(self, name: str):
         self.name = name

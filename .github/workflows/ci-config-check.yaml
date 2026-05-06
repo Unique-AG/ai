@@ -1,8 +1,7 @@
 name: "[CI] Config Compatibility Check"
 
 on:
-  pull_request:
-  merge_group:
+  workflow_call:
   workflow_dispatch:
     inputs:
       package:
@@ -16,8 +15,10 @@ on:
           - deep_research
           - swot
           - internal_search
+          - skill_tool
           - stock_ticker
           - follow_up_questions
+          - six
         default: ''
 
 jobs:
@@ -28,9 +29,9 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v3
         id: filter
         with:
           filters: |
@@ -44,10 +45,14 @@ jobs:
               - 'tool_packages/unique_swot/**'
             internal_search:
               - 'tool_packages/unique_internal_search/**'
+            skill_tool:
+              - 'tool_packages/unique_skill_tool/**'
             stock_ticker:
               - 'postprocessors/unique_stock_ticker/**'
             follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
+            six:
+              - 'connectors/unique_six/**'
 
       - uses: ./.github/actions/select-packages
         id: set-matrix
@@ -59,8 +64,10 @@ jobs:
               {"id": "deep_research", "dir": "tool_packages/unique_deep_research", "python": "3.12"},
               {"id": "swot", "dir": "tool_packages/unique_swot", "python": "3.12"},
               {"id": "internal_search", "dir": "tool_packages/unique_internal_search", "python": "3.12"},
+              {"id": "skill_tool", "dir": "tool_packages/unique_skill_tool", "python": "3.12"},
               {"id": "stock_ticker", "dir": "postprocessors/unique_stock_ticker", "python": "3.12"},
-              {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"}
+              {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
+              {"id": "six", "dir": "connectors/unique_six", "python": "3.12"}
             ]
           selected: ${{ inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}
@@ -75,7 +82,7 @@ jobs:
 
     steps:
       # 1. Setup
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0  # Need full history for merge-base
 
@@ -94,20 +101,21 @@ jobs:
       - name: Checkout base commit
         run: git checkout ${{ steps.base.outputs.commit }} --quiet
 
-      - name: Install package manager (base)
-        id: install_base
-        uses: ./.github/actions/install-package-manager
+      - name: Setup uv (base)
+        uses: ./.github/actions/setup-uv
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
+          lock_mode: frozen
 
       - name: Export base defaults
         working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
         run: |
           # Only run export if the config checker exists in the base commit.
-          # If this is the first PR introducing the tool, we skip the base export.
-          if ${{ steps.install_base.outputs.run_cmd }} python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
-            ${{ steps.install_base.outputs.run_cmd }} python -m unique_toolkit._common.config_checker export \
+          if uv run python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
+            uv run python -m unique_toolkit._common.config_checker export \
               --package . \
               --output "$GITHUB_WORKSPACE/config-artifacts-base/"
           else
@@ -117,26 +125,29 @@ jobs:
           fi
 
       - name: Upload base artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: config-base-${{ matrix.id }}
           path: ./config-artifacts-base/
           retention-days: 1
           if-no-files-found: warn
 
+      - name: Restore lock file before checkout
+        run: |
+          git restore uv.lock 2>/dev/null || true
+
       # 3. Checkout tip and validate
       - name: Checkout PR tip
         run: git checkout ${{ github.sha }} --quiet
 
-      - name: Install package manager (tip)
-        id: install_tip
-        uses: ./.github/actions/install-package-manager
+      - name: Setup uv (tip)
+        uses: ./.github/actions/setup-uv
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
 
       - name: Download base artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: config-base-${{ matrix.id }}
           path: ./config-artifacts-base/
@@ -144,8 +155,10 @@ jobs:
       - name: Validate compatibility
         id: validate
         working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
         run: |
-          ${{ steps.install_tip.outputs.run_cmd }} python -m unique_toolkit._common.config_checker check \
+          uv run python -m unique_toolkit._common.config_checker check \
             --artifacts "$GITHUB_WORKSPACE/config-artifacts-base/" \
             --package . \
             --report-defaults \

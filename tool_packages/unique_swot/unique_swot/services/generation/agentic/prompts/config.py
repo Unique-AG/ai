@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
+from unique_swot.services.generation.agentic.prompts.cluster_plan.config import (
+    ClusterPlanPromptConfig,
+)
 from unique_swot.services.generation.agentic.prompts.commands.config import (
     CommandsPromptConfig,
 )
@@ -28,7 +31,12 @@ class AgenticPromptsConfig(BaseModel):
 
     plan_prompt_config: PlanPromptConfig = Field(
         default=PlanPromptConfig(),
-        description="The prompt config for the plan.",
+        description="The prompt config for the incremental plan (used in interleaved mode).",
+    )
+
+    cluster_plan_prompt_config: ClusterPlanPromptConfig = Field(
+        default=ClusterPlanPromptConfig(),
+        description="The prompt config for one-shot fact clustering (used in extract-first mode).",
     )
 
     definition_prompt_config: ComponentDefinitionPromptConfig = Field(

@@ -170,3 +170,89 @@ def test_is_image_content(filename, expected):
 
 def test_is_image_content_unknown_extension():
     assert is_image_content("file.unknown") is False
+
+
+# ---------------------------------------------------------------------------
+# FileMimeType.from_mime_string
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "mime,expected",
+    [
+        ("application/pdf", FileMimeType.PDF),
+        ("text/csv", FileMimeType.CSV),
+        (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            FileMimeType.XLSX,
+        ),
+        ("application/vnd.ms-excel", FileMimeType.XLS),
+    ],
+)
+def test_from_mime_string_known(mime, expected):
+    assert FileMimeType.from_mime_string(mime) == expected
+
+
+def test_from_mime_string_unknown():
+    assert FileMimeType.from_mime_string("application/x-unknown-type") is None
+
+
+def test_from_mime_string_empty():
+    assert FileMimeType.from_mime_string("") is None
+
+
+# ---------------------------------------------------------------------------
+# FileMimeType instance properties
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "mime,prop,expected",
+    [
+        (FileMimeType.DOCX, "is_docx", True),
+        (FileMimeType.DOC, "is_docx", True),
+        (FileMimeType.PDF, "is_docx", False),
+        (FileMimeType.PDF, "is_pdf", True),
+        (FileMimeType.DOCX, "is_pdf", False),
+        (FileMimeType.XLSX, "is_xlsx", True),
+        (FileMimeType.XLS, "is_xlsx", True),
+        (FileMimeType.MSEXCEL, "is_xlsx", True),
+        (FileMimeType.EXCEL, "is_xlsx", True),
+        (FileMimeType.PDF, "is_xlsx", False),
+        (FileMimeType.PPTX, "is_pptx", True),
+        (FileMimeType.PPT, "is_pptx", True),
+        (FileMimeType.MSPPT, "is_pptx", True),
+        (FileMimeType.PDF, "is_pptx", False),
+        (FileMimeType.JSON, "is_json", True),
+        (FileMimeType.PDF, "is_json", False),
+        (FileMimeType.CSV, "is_csv", True),
+        (FileMimeType.PDF, "is_csv", False),
+    ],
+)
+def test_mime_type_properties(mime, prop, expected):
+    assert getattr(mime, prop) is expected
+
+
+# ---------------------------------------------------------------------------
+# is_*_mime returns False for unknown extension (None guard)
+# ---------------------------------------------------------------------------
+
+
+def test_is_docx_mime_unknown_extension():
+    assert FileMimeType.is_docx_mime(Path("file.unknown")) is False
+
+
+def test_is_pdf_mime_unknown_extension():
+    assert FileMimeType.is_pdf_mime(Path("file.unknown")) is False
+
+
+def test_is_xlsx_mime_unknown_extension():
+    assert FileMimeType.is_xlsx_mime(Path("file.unknown")) is False
+
+
+def test_is_pptx_mime_unknown_extension():
+    assert FileMimeType.is_pptx_mime(Path("file.unknown")) is False
+
+
+def test_is_json_mime_unknown_extension():
+    assert FileMimeType.is_json_mime(Path("file.unknown")) is False

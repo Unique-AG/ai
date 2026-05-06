@@ -1,68 +1,84 @@
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
-from unique_web_search.services.content_processing.config import ContentProcessorConfig
-from unique_web_search.services.content_processing.service import ContentProcessor
+from unique_web_search.services.content_processing.processing_strategies.llm_process import (
+    LLMProcess,
+    LLMProcessorConfig,
+)
+from unique_web_search.services.content_processing.processing_strategies.truncate import (
+    Truncate,
+    TruncateConfig,
+)
 from unique_web_search.services.search_engine.schema import WebSearchResult
+
+
+def _simple_encoder(text: str) -> list[int]:
+    return list(range(len(text.split())))
+
+
+def _simple_decoder(tokens: list[int]) -> str:
+    return " ".join(["word"] * len(tokens))
 
 
 @pytest.mark.asyncio
 async def test_summarize_page_uses_encoder():
-    config = ContentProcessorConfig(
-        language_model=LanguageModelInfo.from_name(
-            LanguageModelName.AZURE_GPT_4o_2024_0513
+    config = LLMProcessorConfig(enabled=True, min_tokens=0)
+    mock_llm_service = Mock()
+    mock_response = Mock()
+    mock_response.choices = [
+        Mock(
+            message=Mock(
+                parsed={
+                    "snippet": "Summarized snippet",
+                    "summary": "Summarized content",
+                }
+            )
         )
-    )
-    processor = ContentProcessor(
-        event=MagicMock(), config=config, language_model=config.language_model
+    ]
+    mock_llm_service.complete_async = AsyncMock(return_value=mock_response)
+
+    processor = LLMProcess(
+        config=config,
+        llm_service=mock_llm_service,
+        encoder=_simple_encoder,
+        decoder=_simple_decoder,
     )
     page = WebSearchResult(
         url="http://test.com",
-        display_link="test.com",
         title="Test",
         snippet="s",
         content="Test content " * 100,
     )
 
-    with patch(
-        "unique_web_search.services.content_processing.service.get_async_openai_client"
-    ) as mock_client:
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock(message=MagicMock(content="Summarized"))]
-        mock_client.return_value.chat.completions.create = AsyncMock(
-            return_value=mock_response
-        )
+    result = await processor(page=page, query="test query")
 
-        result = await processor._summarize_page(page, "test query")
-        assert result.content == "Summarized"
+    assert result.content == "Summarized content"
+    assert result.snippet == "Summarized snippet"
+    mock_llm_service.complete_async.assert_called_once()
 
 
 def test_truncate_page():
     long_content = (
         "This is a test sentence with multiple words that count as tokens. " * 50
     )
-    config = ContentProcessorConfig(
-        language_model=LanguageModelInfo.from_name(
-            LanguageModelName.AZURE_GPT_4o_2024_0513
-        ),
-        max_tokens=50,
-    )
-    processor = ContentProcessor(
-        event=MagicMock(), config=config, language_model=config.language_model
+    config = TruncateConfig(max_tokens=50)
+    truncate = Truncate(
+        encoder=_simple_encoder,
+        decoder=_simple_decoder,
+        config=config,
     )
     page = WebSearchResult(
         url="http://test.com",
-        display_link="test.com",
         title="Test",
         snippet="s",
         content=long_content,
     )
     original_length = len(page.content)
 
-    result = asyncio.run(processor._truncate_page(page))
+    import asyncio
+
+    result = asyncio.run(truncate(page=page, query="test"))
 
     assert len(result.content) < original_length
     assert len(result.content) > 0

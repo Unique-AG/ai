@@ -1,5 +1,8 @@
+import asyncio
 import logging
-from typing import Any, Sequence, overload
+import warnings
+from contextlib import suppress
+from typing import TYPE_CHECKING, Any, Sequence, overload
 
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
@@ -14,9 +17,17 @@ from openai.types.responses import (
 )
 from openai.types.shared_params import Metadata, Reasoning
 from pydantic import BaseModel
-from typing_extensions import deprecated
+from typing_extensions import Self, deprecated
 
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_in_clause,
+    merge_scope_clause_into_metadata_filter,
+)
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
+from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.message_log_order import next_message_log_order
+from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
+from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
     DEFAULT_PERCENT_OF_MAX_TOKENS,
@@ -32,10 +43,14 @@ from unique_toolkit.chat.functions import (
     create_message_execution_async,
     create_message_log,
     create_message_log_async,
+    create_message_tools,
+    create_message_tools_async,
     get_full_history,
     get_full_history_async,
     get_message_execution,
     get_message_execution_async,
+    get_message_tools,
+    get_message_tools_async,
     get_selection_from_history,
     modify_message,
     modify_message_assessment,
@@ -49,6 +64,7 @@ from unique_toolkit.chat.functions import (
     update_message_log_async,
 )
 from unique_toolkit.chat.responses_api import (
+    rate_limit_retry_config,
     stream_responses_with_references,
     stream_responses_with_references_async,
 )
@@ -59,6 +75,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatMessageTool,
     MessageExecution,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -67,9 +84,13 @@ from unique_toolkit.chat.schemas import (
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
+from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
+    download_content_to_bytes_async,
+    search_content_chunks_async,
     search_contents,
+    search_contents_async,
     upload_content_from_bytes,
     upload_content_from_bytes_async,
 )
@@ -77,6 +98,8 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentReference,
+    ContentRerankerConfig,
+    ContentSearchType,
 )
 from unique_toolkit.elicitation.service import ElicitationService
 from unique_toolkit.language_model.constants import (
@@ -103,16 +126,81 @@ from unique_toolkit.short_term_memory.functions import (
 )
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
-logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+if TYPE_CHECKING:
+    from unique_toolkit.app.schemas import ChatEvent
+
+_LOGGER = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
 class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""
 
-    def __init__(self, *args, **kwargs):
-        """Initialize ChatService with lazy-loaded service properties."""
-        super().__init__(*args, **kwargs)
+    @deprecated(
+        "Use UniqueContext.from_chat_event(event) with UniqueServiceFactory instead."
+    )
+    def __init__(
+        self,
+        event: "ChatEvent",
+        content_scope_chat_id: str | None = None,
+    ) -> None:
+        """Initialize ChatService from an event (deprecated). Use :meth:`from_context` instead."""
+        super().__init__(event, content_scope_chat_id)
         self._elicitation_service: ElicitationService | None = None
+        self._elicitation_message_id: str | None = None
+        self._cancellation_watcher: CancellationWatcher = CancellationWatcher(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_message_id=self._assistant_message_id,
+        )
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings, **kwargs: Any) -> Self:
+        """Create a ChatService from a :class:`UniqueSettings` or :class:`UniqueContext`.
+
+        This is the preferred constructor when using the service factory pattern.
+
+        Args:
+            settings: Either a :class:`UniqueSettings` (whose ``context`` is used)
+                or a :class:`UniqueContext` carrying auth and chat information directly.
+
+        Raises:
+            ValueError: If the resolved context has no chat or ``last_user_message_id`` is missing.
+        """
+        return cls.from_context(context=settings.context)
+
+    @classmethod
+    def from_context(cls, context: UniqueContext) -> Self:
+        if context.chat is None:
+            raise ValueError(
+                "ChatService requires a chat context (context.chat is None)"
+            )
+        chat = context.chat
+        user_message_id = chat.last_user_message_id
+        instance: ChatService = cls.__new__(cls)
+        instance._event = None
+        instance._company_id = context.auth.get_confidential_company_id()
+        instance._user_id = context.auth.get_confidential_user_id()
+        instance._chat_id = chat.chat_id
+        instance._assistant_id = chat.assistant_id
+        instance._assistant_message_id = chat.last_assistant_message_id
+        instance._user_message_id = user_message_id
+        instance._user_message_text = chat.last_user_message_text
+        instance._content_scope_chat_id = chat.parent_chat_id or chat.chat_id
+        instance._elicitation_service = None
+        instance._elicitation_message_id = chat.last_assistant_message_id
+        instance._cancellation_watcher = CancellationWatcher(
+            user_id=instance._user_id,
+            company_id=instance._company_id,
+            chat_id=instance._chat_id,
+            assistant_message_id=instance._assistant_message_id,
+        )
+        return instance
+
+    @property
+    def cancellation(self) -> CancellationWatcher:
+        """Cancellation watcher for this chat session."""
+        return self._cancellation_watcher
 
     @property
     def elicitation(self) -> ElicitationService:
@@ -120,12 +208,63 @@ class ChatService(ChatServiceDeprecated):
         if self._elicitation_service is not None:
             return self._elicitation_service
 
-        # Create the ElicitationService from the chat event (dynamically selects correlation or chat and message)
-        self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        if self._event is not None:  # pyright: ignore[reportUnnecessaryComparison]
+            self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        else:
+            self._elicitation_service = ElicitationService(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                chat_id=self._content_scope_chat_id,
+                message_id=self._elicitation_message_id,
+            )
 
         return self._elicitation_service
 
-    async def update_debug_info_async(self, debug_info: dict):
+    def get_debug_info(self) -> dict[str, Any]:
+        """Retrieves the debug information from the current user message.
+
+        Returns:
+            dict[str, Any]: The debug information stored on the user message,
+                or an empty dict if retrieval fails or no debug info exists.
+
+        """
+        try:
+            raw_msg = unique_sdk.Message.retrieve(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                id=self._user_message_id,
+                chatId=self._chat_id,
+            )
+            return getattr(raw_msg, "debugInfo", {}) or {}
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Failed to retrieve debug info from user message", exc_info=True
+            )
+            return {}
+
+    async def get_debug_info_async(self) -> dict[str, Any]:
+        """Retrieves the debug information from the current user message asynchronously.
+
+        Returns:
+            dict[str, Any]: The debug information stored on the user message,
+                or an empty dict if retrieval fails or no debug info exists.
+
+        """
+        try:
+            raw_msg = await unique_sdk.Message.retrieve_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                id=self._user_message_id,
+                chatId=self._chat_id,
+            )
+            return getattr(raw_msg, "debugInfo", {}) or {}
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Failed to retrieve debug info from user message", exc_info=True
+            )
+            return {}
+
+    async def update_debug_info_async(self, debug_info: dict[str, Any]):
         """Updates the debug information for the chat session.
 
         Args:
@@ -143,7 +282,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
         )
 
-    def replace_debug_info(self, debug_info: dict):
+    def replace_debug_info(self, debug_info: dict[str, Any]):
         """Replace the debug information in the last user message
 
         Args:
@@ -168,7 +307,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         content: str,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
@@ -207,7 +346,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         content: str,
         references: list[ContentReference] = [],
-        debug_info: dict = {},
+        debug_info: dict[str, Any] = {},
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
@@ -247,7 +386,7 @@ class ChatService(ChatServiceDeprecated):
         content: str | None = None,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = None,
     ) -> ChatMessage:
@@ -290,7 +429,7 @@ class ChatService(ChatServiceDeprecated):
         content: str | None = None,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
@@ -332,7 +471,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a message in the chat session synchronously.
@@ -372,7 +511,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a message in the chat session asynchronously.
@@ -412,7 +551,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a user message in the chat session synchronously.
@@ -452,7 +591,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a user message in the chat session asynchronously.
@@ -1007,7 +1146,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for tracking long-running operations synchronously.
@@ -1015,8 +1154,8 @@ class ChatService(ChatServiceDeprecated):
         Args:
             message_id (str): The ID of the message this execution belongs to
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
-            seconds_remaining (int | None): Estimated seconds remaining for completion
-            percentage_completed (int | None): Percentage of completion (0-100)
+            seconds_remaining (int | None): Deprecated — no longer used by the SDK.
+            percentage_completed (int | None): Deprecated — no longer used by the SDK.
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
@@ -1032,10 +1171,7 @@ class ChatService(ChatServiceDeprecated):
             user_id=self._user_id,
             company_id=self._company_id,
             message_id=message_id,
-            chat_id=self._chat_id,
             type=type,
-            seconds_remaining=seconds_remaining,
-            percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
             progress_title=progress_title,
@@ -1049,7 +1185,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for tracking long-running operations asynchronously.
@@ -1057,8 +1193,8 @@ class ChatService(ChatServiceDeprecated):
         Args:
             message_id (str): The ID of the message this execution belongs to
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
-            seconds_remaining (int | None): Estimated seconds remaining for completion
-            percentage_completed (int | None): Percentage of completion (0-100)
+            seconds_remaining (int | None): Deprecated — no longer used by the SDK.
+            percentage_completed (int | None): Deprecated — no longer used by the SDK.
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
@@ -1074,10 +1210,7 @@ class ChatService(ChatServiceDeprecated):
             user_id=self._user_id,
             company_id=self._company_id,
             message_id=message_id,
-            chat_id=self._chat_id,
             type=type,
-            seconds_remaining=seconds_remaining,
-            percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
             progress_title=progress_title,
@@ -1206,7 +1339,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for the current assistant message synchronously.
@@ -1215,8 +1348,8 @@ class ChatService(ChatServiceDeprecated):
 
         Args:
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
-            seconds_remaining (int | None): Estimated seconds remaining for completion
-            percentage_completed (int | None): Percentage of completion (0-100)
+            seconds_remaining (int | None): Deprecated — no longer used by the SDK.
+            percentage_completed (int | None): Deprecated — no longer used by the SDK.
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
@@ -1231,8 +1364,6 @@ class ChatService(ChatServiceDeprecated):
         return self.create_message_execution(
             message_id=self._assistant_message_id,
             type=type,
-            seconds_remaining=seconds_remaining,
-            percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
             progress_title=progress_title,
@@ -1245,7 +1376,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for the current assistant message asynchronously.
@@ -1254,8 +1385,8 @@ class ChatService(ChatServiceDeprecated):
 
         Args:
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
-            seconds_remaining (int | None): Estimated seconds remaining for completion
-            percentage_completed (int | None): Percentage of completion (0-100)
+            seconds_remaining (int | None): Deprecated — no longer used by the SDK.
+            percentage_completed (int | None): Deprecated — no longer used by the SDK.
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
@@ -1270,8 +1401,6 @@ class ChatService(ChatServiceDeprecated):
         return await self.create_message_execution_async(
             message_id=self._assistant_message_id,
             type=type,
-            seconds_remaining=seconds_remaining,
-            percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
             progress_title=progress_title,
@@ -1376,13 +1505,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict[str, Any] = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         return self.complete_with_references(
             messages=messages,
@@ -1402,13 +1531,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         """Streams a completion in the chat session synchronously."""
         return stream_complete_with_references(
@@ -1435,13 +1564,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references(
             messages=messages,
@@ -1464,13 +1593,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         """Stream a completion in the chat session asynchronously."""
         return await self.complete_with_references_async(
@@ -1491,13 +1620,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         start_text: str | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         return await stream_complete_with_references_async(
             company_id=self._company_id,
@@ -1523,13 +1652,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references_async(
             messages=messages,
@@ -1560,7 +1689,7 @@ class ChatService(ChatServiceDeprecated):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -1571,7 +1700,7 @@ class ChatService(ChatServiceDeprecated):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
         return stream_responses_with_references(
             company_id=self._company_id,
@@ -1611,7 +1740,7 @@ class ChatService(ChatServiceDeprecated):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -1622,33 +1751,159 @@ class ChatService(ChatServiceDeprecated):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
-        return await stream_responses_with_references_async(
-            company_id=self._company_id,
-            user_id=self._user_id,
-            assistant_message_id=self._assistant_message_id,
-            user_message_id=self._user_message_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            model_name=model_name,
-            messages=messages,
-            content_chunks=content_chunks,
-            tools=tools,
-            temperature=temperature,
-            debug_info=debug_info,
-            start_text=start_text,
-            include=include,
-            instructions=instructions,
-            max_output_tokens=max_output_tokens,
-            metadata=metadata,
-            parallel_tool_calls=parallel_tool_calls,
-            text=text,
-            tool_choice=tool_choice,
-            top_p=top_p,
-            reasoning=reasoning,
-            other_options=other_options,
-        )
+        # UN-19878: rate-limit retry UX via message logs. After the streaming refactor
+        # (UN-20053) merges and is adopted, this should be integrated with the shared
+        # streaming layer instead of living on ChatService.
+        # Single-element box so nested callbacks and finally see assignments (pyright).
+        rate_limit_log_box: list[MessageLog | None] = [None]
+        _ticker_task: asyncio.Task[None] | None = None
+
+        async def _cancel_ticker() -> None:
+            nonlocal _ticker_task
+            if _ticker_task is not None and not _ticker_task.done():
+                _ = _ticker_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await _ticker_task
+            _ticker_task = None
+
+        async def _on_rate_limit_retry(attempt: int, wait_secs: float) -> None:
+            nonlocal _ticker_task
+
+            if not rate_limit_retry_config.log_message_on_retry:
+                return
+            if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                self._company_id
+            ):
+                return
+
+            await _cancel_ticker()
+
+            msg_id = self._assistant_message_id
+            # Use round(), not int() and not :.0f in isolation: tenacity adds jitter, so
+            # wait_secs is often non-integer. Rounding once keeps the first banner and the
+            # countdown start value identical (e.g. avoid "31s" then 29, 28…).
+            wait_display_seconds = max(0, round(float(wait_secs)))
+            initial = (
+                f"Rate limit reached; retrying in {wait_display_seconds}s "
+                f"(attempt {attempt})"
+            )
+
+            try:
+                if rate_limit_log_box[0] is None:
+                    order = next_message_log_order(message_id=msg_id)
+                    rate_limit_log_box[0] = await self.create_message_log_async(
+                        message_id=msg_id,
+                        text=initial,
+                        status=MessageLogStatus.RUNNING,
+                        order=order,
+                    )
+                else:
+                    existing = rate_limit_log_box[0]
+                    if existing.message_log_id is None:
+                        return
+                    rate_limit_log_box[0] = await self.update_message_log_async(
+                        message_log_id=existing.message_log_id,
+                        order=existing.order,
+                        text=initial,
+                        status=MessageLogStatus.RUNNING,
+                    )
+            except Exception:
+                _LOGGER.warning(
+                    "Failed to write rate-limit retry message log",
+                    exc_info=True,
+                )
+                return
+
+            active = rate_limit_log_box[0]
+            if active is None or active.message_log_id is None:  # pyright: ignore[reportUnnecessaryComparison]
+                return
+
+            log_id = active.message_log_id
+            log_order = active.order
+
+            async def _countdown() -> None:
+                remaining = wait_display_seconds
+                while remaining > 0:
+                    await asyncio.sleep(1)
+                    remaining -= 1
+                    if remaining <= 0:
+                        break
+                    try:
+                        _ = await self.update_message_log_async(
+                            message_log_id=log_id,
+                            order=log_order,
+                            text=(
+                                f"Rate limit reached; retrying in {remaining}s "
+                                f"(attempt {attempt})"
+                            ),
+                            status=MessageLogStatus.RUNNING,
+                        )
+                    except Exception:
+                        _LOGGER.debug(
+                            "Rate limit countdown message log update failed",
+                            exc_info=True,
+                        )
+                        break
+
+            _ticker_task = asyncio.create_task(_countdown())
+
+        stream_error: BaseException | None = None
+        try:
+            return await stream_responses_with_references_async(
+                company_id=self._company_id,
+                user_id=self._user_id,
+                assistant_message_id=self._assistant_message_id,
+                user_message_id=self._user_message_id,
+                chat_id=self._chat_id,
+                assistant_id=self._assistant_id,
+                model_name=model_name,
+                messages=messages,
+                content_chunks=content_chunks,
+                tools=tools,
+                temperature=temperature,
+                debug_info=debug_info,
+                start_text=start_text,
+                include=include,
+                instructions=instructions,
+                max_output_tokens=max_output_tokens,
+                metadata=metadata,
+                parallel_tool_calls=parallel_tool_calls,
+                text=text,
+                tool_choice=tool_choice,
+                top_p=top_p,
+                reasoning=reasoning,
+                other_options=other_options,
+                on_rate_limit_retry=_on_rate_limit_retry,
+            )
+        except BaseException as exc:
+            stream_error = exc
+            raise
+        finally:
+            await _cancel_ticker()
+            fin = rate_limit_log_box[0]
+            if fin is not None and fin.message_log_id is not None:
+                try:
+                    if stream_error is None:
+                        _ = await self.update_message_log_async(
+                            message_log_id=fin.message_log_id,
+                            order=fin.order,
+                            text="Rate limit resolved; resuming.",
+                            status=MessageLogStatus.COMPLETED,
+                        )
+                    else:
+                        _ = await self.update_message_log_async(
+                            message_log_id=fin.message_log_id,
+                            order=fin.order,
+                            text="Rate limit retries exhausted.",
+                            status=MessageLogStatus.FAILED,
+                        )
+                except Exception:
+                    _LOGGER.warning(
+                        "Failed to finalize rate-limit message log",
+                        exc_info=True,
+                    )
 
     # Chat Content Methods
     ############################################################################
@@ -1706,21 +1961,59 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def download_chat_content_to_bytes(self, *, content_id: str) -> bytes:
+        """Download content by id from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Args:
+            content_id: The content id to download.
+
+        Returns:
+            bytes: The raw content bytes.
+        """
         return download_content_to_bytes(
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
-            chat_id=self._chat_id,
+            chat_id=self._content_scope_chat_id,
+        )
+
+    async def download_chat_content_to_bytes_async(self, *, content_id: str) -> bytes:
+        """Async download content by id from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Args:
+            content_id: The content id to download.
+
+        Returns:
+            bytes: The raw content bytes.
+        """
+        return await download_content_to_bytes_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=self._content_scope_chat_id,
         )
 
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
+        """Return images and documents from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Returns:
+            tuple[list[Content], list[Content]]: (images, documents) from the content-scope chat.
+        """
         images: list[Content] = []
         files: list[Content] = []
         for c in search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._chat_id,
-            where={"ownerId": {"equals": self._chat_id}},
+            chat_id=self._content_scope_chat_id,
+            where={"ownerId": {"equals": self._content_scope_chat_id}},
         ):
             if is_file_content(filename=c.key):
                 files.append(c)
@@ -1728,11 +2021,68 @@ class ChatService(ChatServiceDeprecated):
                 images.append(c)
         return images, files
 
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        scope_ids: list[str] | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+        content_ids: list[str] | None = None,
+        score_threshold: float | None = None,
+    ) -> list[ContentChunk]:
+        """Search content chunks scoped to this chat session (chat_only=True)."""
+        if scope_ids:
+            warnings.warn(
+                "Passing scope_ids to ChatService.search_content_chunks_async is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
+            scope_ids = None
+        return await search_content_chunks_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            search_string=search_string,
+            search_type=search_type,
+            limit=limit,
+            search_language=search_language,
+            reranker_config=reranker_config,
+            scope_ids=scope_ids,
+            chat_only=True,
+            metadata_filter=metadata_filter,
+            content_ids=content_ids,
+            score_threshold=score_threshold,
+        )
+
+    async def search_contents_async(
+        self,
+        *,
+        where: dict[str, Any],
+        include_failed_content: bool = False,
+    ) -> list[Content]:
+        """Search content files uploaded to this chat session."""
+        return await search_contents_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            where=where,
+            include_failed_content=include_failed_content,
+        )
+
     # Short Term Memories
     ############################################################################
 
     def create_chat_memory_by_id(
-        self, *, chat_id: str, key: str, value: str | dict | BaseModel
+        self, *, chat_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific chat synchronously.
 
@@ -1760,7 +2110,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     async def create_chat_memory_by_id_async(
-        self, *, chat_id: str, key: str, value: str | dict | BaseModel
+        self, *, chat_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific chat asynchronously.
 
@@ -1788,7 +2138,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def create_message_memory_by_id(
-        self, *, message_id: str, key: str, value: str | dict | BaseModel
+        self, *, message_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific message synchronously.
 
@@ -1816,7 +2166,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     async def create_message_memory_by_id_async(
-        self, *, message_id: str, key: str, value: str | dict | BaseModel
+        self, *, message_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific message asynchronously.
 
@@ -1933,7 +2283,7 @@ class ChatService(ChatServiceDeprecated):
     ############################################################################
 
     def create_chat_memory(
-        self, *, key: str, value: str | dict | BaseModel
+        self, *, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current chat synchronously.
 
@@ -1954,7 +2304,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     async def create_chat_memory_async(
-        self, *, key: str, value: str | dict | BaseModel
+        self, *, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current chat asynchronously.
 
@@ -1979,16 +2329,20 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         key: str,
-        value: str | dict | BaseModel,
+        value: str | dict[str, Any] | BaseModel,
     ) -> ShortTermMemory: ...
 
     @overload
     def create_message_memory(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str
+        self, *, key: str, value: str | dict[str, Any] | BaseModel, message_id: str
     ) -> ShortTermMemory: ...
 
     def create_message_memory(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str | None = None
+        self,
+        *,
+        key: str,
+        value: str | dict[str, Any] | BaseModel,
+        message_id: str | None = None,
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current assistant message synchronously.
 
@@ -2013,16 +2367,20 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         key: str,
-        value: str | dict | BaseModel,
+        value: str | dict[str, Any] | BaseModel,
     ) -> ShortTermMemory: ...
 
     @overload
     async def create_message_memory_async(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str
+        self, *, key: str, value: str | dict[str, Any] | BaseModel, message_id: str
     ) -> ShortTermMemory: ...
 
     async def create_message_memory_async(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str | None = None
+        self,
+        *,
+        key: str,
+        value: str | dict[str, Any] | BaseModel,
+        message_id: str | None = None,
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current assistant message asynchronously.
 
@@ -2126,4 +2484,75 @@ class ChatService(ChatServiceDeprecated):
         return await self.find_message_memory_by_id_async(
             message_id=message_id or self._assistant_message_id,
             key=key,
+        )
+
+    # Message Tool Methods
+    ############################################################################
+
+    def create_message_tools(
+        self,
+        *,
+        tool_calls: list[ChatMessageTool],
+        message_id: str | None = None,
+    ) -> list[ChatMessageTool]:
+        """Persist tool call records for an assistant message.
+
+        Args:
+            tool_calls: The tool call records to persist.
+            message_id: The assistant message to attach records to.
+                Defaults to the current turn's assistant message.
+        """
+        return create_message_tools(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id or self._assistant_message_id,
+            tool_calls=tool_calls,
+        )
+
+    async def create_message_tools_async(
+        self,
+        *,
+        tool_calls: list[ChatMessageTool],
+        message_id: str | None = None,
+    ) -> list[ChatMessageTool]:
+        """Async variant of create_message_tools.
+
+        Args:
+            tool_calls: The tool call records to persist.
+            message_id: The assistant message to attach records to.
+                Defaults to the current turn's assistant message.
+        """
+        return await create_message_tools_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id or self._assistant_message_id,
+            tool_calls=tool_calls,
+        )
+
+    def get_message_tools(
+        self,
+        *,
+        message_id: str | None = None,
+        message_ids: list[str] | None = None,
+    ) -> list[ChatMessageTool]:
+        """Fetch persisted tool call records for one or more assistant messages."""
+        return get_message_tools(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            message_ids=message_ids,
+        )
+
+    async def get_message_tools_async(
+        self,
+        *,
+        message_id: str | None = None,
+        message_ids: list[str] | None = None,
+    ) -> list[ChatMessageTool]:
+        """Async variant of get_message_tools."""
+        return await get_message_tools_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            message_ids=message_ids,
         )

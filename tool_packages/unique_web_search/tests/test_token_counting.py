@@ -1,6 +1,6 @@
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
-from unique_web_search.services.content_processing import WebPageChunk
+from unique_web_search.schema import WebPageChunk
 from unique_web_search.utils import reduce_sources_to_token_limit
 
 

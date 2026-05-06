@@ -1,0 +1,45 @@
+{
+    email ${caddy_email}
+    # Use Let's Encrypt Staging environment to avoid rate limits during testing
+    # Staging certificates are NOT trusted by browsers but allow unlimited requests
+    acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# Serve domain with automatic HTTPS (Let's Encrypt Staging)
+# Caddy will automatically:
+# 1. Request certificate from Let's Encrypt Staging
+# 2. Complete HTTP-01 challenge (must be reachable at this domain)
+# 3. Provision and renew certificate automatically
+# NOTE: Staging certificates are NOT trusted by browsers/clients
+#       Use this for testing to avoid hitting production rate limits
+${domain_name} {
+    reverse_proxy localhost:8003
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Serve HTTP on port 80
+# Caddy will automatically redirect to HTTPS once certificate is obtained
+:80 {
+    reverse_proxy localhost:8003
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

@@ -17,8 +17,8 @@ def add_references_to_message(
     if not message.content:
         return message, False
 
-    if message.id is None:
-        raise ValueError("Message ID is required")
+    if message.id is None:  # pyright: ignore[reportUnnecessaryComparison]
+        raise ValueError("Message ID is required")  # pyright: ignore[reportUnreachable]
 
     message.content = _preprocess_message(message.content)
     text, ref_found = _add_references(
@@ -53,7 +53,9 @@ def _add_references(
 
     # Gemini 2.5 models have tendency to add multiple references for the same fact
     # This is a workaround to limit the number of references to 5
-    if model and model.startswith("litellm:gemini-2-5"):
+    if model and model.startswith(
+        "litellm:gemini-2-5"
+    ):  # TODO - check if this holds also for other models
         reduced_text = _limit_consecutive_source_references(with_footnotes)
 
         # Get the references that remain after reduction

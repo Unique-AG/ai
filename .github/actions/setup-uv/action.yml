@@ -1,28 +1,41 @@
 name: 'Setup uv'
-description: 'Sets up Python and uv'
+description: 'Sets up Python and uv, optionally installs package dependencies'
 
 inputs:
   package_dir:
-    description: 'Path to the package directory'
-    required: true
+    description: 'Path to the package directory (required when install_dependencies is true)'
+    required: false
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'
+    default: '3.12'
+  install_dependencies:
+    description: 'Whether to install package dependencies after setting up uv'
+    required: false
+    default: 'true'
+  lock_mode:
+    description: 'uv lock mode: locked (default, asserts lock file is up-to-date) or frozen (uses lock file as-is, no staleness check)'
+    required: false
+    default: 'locked'
+
+outputs:
+  uv-version:
+    description: 'Installed uv version (from astral-sh/setup-uv)'
+    value: ${{ steps.install-uv.outputs.uv-version }}
 
 runs:
   using: 'composite'
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
       with:
         python-version: ${{ inputs.python_version }}
 
     - name: Install uv
-      shell: bash
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      id: install-uv
+      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+      with:
+        version: '0.11.5'
 
     - name: Print versions
       shell: bash
@@ -31,7 +44,10 @@ runs:
         echo "uv version: $(uv --version)"
 
     - name: Install dependencies
+      if: inputs.install_dependencies == 'true'
       shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: uv sync --locked
-
+      run: |
+        PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+        echo "Syncing package: $PKG_NAME"
+        uv sync --${{ inputs.lock_mode }} --package "$PKG_NAME"
+        uv sync --${{ inputs.lock_mode }} --inexact --only-dev

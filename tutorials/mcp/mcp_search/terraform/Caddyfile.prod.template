@@ -1,0 +1,42 @@
+{
+    email ${caddy_email}
+    # Caddy automatically attempts Let's Encrypt via ACMEv2 (Production)
+    # Works with Azure FQDNs when domain matches dnsNameLabel
+}
+
+# Serve domain with automatic HTTPS (Let's Encrypt Production)
+# Caddy will automatically:
+# 1. Request certificate from Let's Encrypt Production
+# 2. Complete HTTP-01 challenge (must be reachable at this domain)
+# 3. Provision and renew certificate automatically
+${domain_name} {
+    reverse_proxy localhost:8003
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}
+
+# Serve HTTP on port 80
+# Caddy will automatically redirect to HTTPS once certificate is obtained
+:80 {
+    reverse_proxy localhost:8003
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

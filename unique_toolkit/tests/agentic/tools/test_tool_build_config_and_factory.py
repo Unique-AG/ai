@@ -11,7 +11,6 @@ This test demonstrates the complete lifecycle of tool configuration and factory 
 
 import json
 from typing import cast
-from unittest.mock import Mock
 
 import pytest
 from pydantic import RootModel
@@ -25,7 +24,6 @@ from unique_toolkit.agentic.tools.config import (
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -45,20 +43,7 @@ class TestTool(Tool[TestToolConfig]):
     name = "test_tool"
 
     def __init__(self, configuration: TestToolConfig, *args, **kwargs):
-        # Create a mock event for the parent constructor with required attributes
-        mock_event = Mock(spec=ChatEvent)
-        mock_event.company_id = "test_company"
-        mock_event.user_id = "test_user"
-        mock_event.chat_id = "test_chat"
-        mock_event.assistant_id = "test_assistant"
-
-        # Mock the payload structure
-        mock_payload = Mock()
-        mock_payload.assistant_message = Mock()
-        mock_payload.assistant_message.id = "test_assistant_message_id"
-        mock_event.payload = mock_payload
-
-        super().__init__(configuration, mock_event)
+        super().__init__(configuration)
         self.settings.configuration = configuration
         # settings will be set by factory, but we need to initialize it properly
         self.settings = ToolBuildConfig(name=self.name, configuration=configuration)
@@ -394,20 +379,7 @@ class TestToolBuildConfigAndFactory:
             name = "another_test_tool"
 
             def __init__(self, configuration: AnotherTestToolConfig, *args, **kwargs):
-                # Create a mock event for the parent constructor with required attributes
-                mock_event = Mock(spec=ChatEvent)
-                mock_event.company_id = "test_company"
-                mock_event.user_id = "test_user"
-                mock_event.chat_id = "test_chat"
-                mock_event.assistant_id = "test_assistant"
-
-                # Mock the payload structure
-                mock_payload = Mock()
-                mock_payload.assistant_message = Mock()
-                mock_payload.assistant_message.id = "test_assistant_message_id"
-                mock_event.payload = mock_payload
-
-                super().__init__(configuration, mock_event)
+                super().__init__(configuration)
                 self.settings.configuration = configuration
                 # settings will be set by factory, but we need to initialize it properly
                 self.settings = ToolBuildConfig(

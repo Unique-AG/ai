@@ -41,6 +41,7 @@ theme:
 nav:
   - Home: 'index.md'
   - Implementation Guidelines: 'usecase_realization_guidelines.md'
+  - Release Process: 'contributing/release-process.md'
   - Unique SDK: https://unique-ag.github.io/ai/unique-sdk/latest/
   - Unique Toolkit: https://unique-ag.github.io/ai/unique-toolkit/latest/
   - Tutorials: '!include ./tutorials/mkdocs.yaml'

@@ -1,11 +1,16 @@
+import asyncio
+import base64
 import json
 import logging
+import mimetypes
+import uuid
 from typing import Any, Dict
 
 import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -15,6 +20,8 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.functions import upload_content_from_bytes
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -33,9 +40,13 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         config: MCPToolConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
-    ):
+    ) -> None:
         self.name = mcp_tool.name
-        super().__init__(config, event, tool_progress_reporter)
+        super().__init__(config)
+        self._event = event
+        self._tool_progress_reporter = tool_progress_reporter
+        self._chat_service = ChatService(event)
+        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 
@@ -116,7 +127,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         if (
             self._tool_progress_reporter
             and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self.event.company_id
+                self._event.company_id
             )
         ):
             await self._tool_progress_reporter.notify_from_tool_call(
@@ -133,23 +144,29 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             # Use SDK to call the public API
             result = await self._call_mcp_tool_via_sdk(arguments)
 
-            # Create successful response
-            tool_response = ToolCallResponse(  # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
+            content_str, image_data_urls = await asyncio.to_thread(
+                self._process_mcp_result, result
+            )
+
+            # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
+            tool_response = ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
                 debug_info={
                     "mcp_tool": self.name,
+                    "mcp_server": self._mcp_server.name,
                     "arguments": arguments,
                 },
                 error_message="",
-                content=json.dumps(result),
+                content=content_str,
+                image_data_urls=image_data_urls,
             )
 
             # Notify completion
             if (
                 self._tool_progress_reporter
                 and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.event.company_id
+                    self._event.company_id
                 )
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
@@ -175,7 +192,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             if (
                 self._tool_progress_reporter
                 and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.event.company_id
+                    self._event.company_id
                 )
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
@@ -196,6 +213,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 name=self.name,
                 debug_info={
                     "mcp_tool": self.name,
+                    "mcp_server": self._mcp_server.name,
                     "error": str(e),
                     "original_arguments": getattr(tool_call, "arguments", None),
                 },
@@ -253,7 +271,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 )
 
         # Handle dictionary arguments (already parsed)
-        if isinstance(raw_arguments, dict):
+        if isinstance(raw_arguments, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             self.logger.debug(f"MCP tool {self.name}: arguments already in dict format")
             return raw_arguments
 
@@ -265,21 +283,112 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             f"Unexpected arguments type for MCP tool {self.name}: {type(raw_arguments)}"
         )
 
+    def _process_mcp_result(self, result: Dict[str, Any]) -> tuple[str, list[str]]:
+        """Parse MCP result content array, upload images, return content string and data URLs."""
+        content_items = self._extract_content_items(result)
+        if not content_items:
+            return json.dumps(result), []
+
+        text_parts: list[str] = []
+        image_data_urls: list[str] = []
+        image_markdowns: list[str] = []
+
+        for i, item in enumerate(content_items):
+            if not isinstance(item, dict):
+                continue
+            item_type = item.get("type", "")
+            if item_type == "text":
+                text_parts.append(str(item.get("text", "")))
+            elif item_type == "image":
+                data_b64 = item.get("data")
+                mime_type = item.get("mimeType", "image/png")
+                if data_b64:
+                    data_url, content_id = self._process_image_content(
+                        data_b64, mime_type, i
+                    )
+                    if data_url:
+                        image_data_urls.append(data_url)
+                    if content_id:
+                        image_markdowns.append(
+                            f"![image](unique://content/{content_id})"
+                        )
+
+        content_str = "\n\n".join(text_parts)
+        if image_markdowns:
+            content_str += "\n\n" + "\n\n".join(image_markdowns)
+            content_str += (
+                "\n\nInclude the image(s) in your response using the markdown above."
+            )
+        if not content_str.strip():
+            content_str = json.dumps(result)
+        return content_str, image_data_urls
+
+    def _extract_content_items(self, result: Dict[str, Any]) -> list[Any]:
+        """Extract content array from MCP result (handles various response shapes)."""
+        if "content" in result and isinstance(result["content"], list):
+            return result["content"]
+        if "result" in result and isinstance(result["result"], dict):
+            inner = result["result"]
+            if "content" in inner and isinstance(inner["content"], list):
+                return inner["content"]
+        return []
+
+    def _process_image_content(
+        self, data_b64: str, mime_type: str, index: int
+    ) -> tuple[str | None, str | None]:
+        """Decode base64 image, upload to chat, return data URL and content ID."""
+        try:
+            img_bytes = base64.b64decode(data_b64)
+        except Exception as e:
+            self.logger.warning(
+                "MCP tool %s: failed to decode image base64: %s",
+                self.name,
+                e,
+                exc_info=True,
+            )
+            return None, None
+
+        data_url = f"data:{mime_type};base64,{data_b64}"
+        content_id: str | None = None
+        ext = mimetypes.guess_extension(mime_type, strict=False) or ".png"
+
+        try:
+            content = upload_content_from_bytes(
+                user_id=self._event.user_id,
+                company_id=self._event.company_id,
+                content=img_bytes,
+                content_name=f"mcp_tool_{self.name}_image_{uuid.uuid4().hex[:12]}_{index}{ext}",
+                mime_type=mime_type,
+                chat_id=self._event.payload.chat_id,
+                skip_ingestion=True,
+                hide_in_chat=True,
+            )
+            content_id = content.id
+        except Exception as e:
+            self.logger.warning(
+                "MCP tool %s: failed to upload image: %s",
+                self.name,
+                e,
+                exc_info=True,
+            )
+
+        return data_url, content_id
+
     async def _call_mcp_tool_via_sdk(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call MCP tool via SDK to public API"""
         try:
-            result = unique_sdk.MCP.call_tool(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
-                name=self.name,
-                messageId=self.event.payload.assistant_message.id,
-                chatId=self.event.payload.chat_id,
-                arguments=arguments,
-            )
-
             self.logger.info(
                 f"Calling MCP tool {self.name} with arguments: {arguments}"
             )
+            result = await unique_sdk.MCP.call_tool_async(
+                user_id=self._event.user_id,
+                company_id=self._event.company_id,
+                name=self.name,
+                messageId=self._event.payload.assistant_message.id,
+                chatId=self._event.payload.chat_id,
+                arguments=arguments,
+            )
+
             self.logger.debug(f"Result: {result}")
 
             return result

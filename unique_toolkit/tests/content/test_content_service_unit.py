@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from unittest.mock import ANY, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 
 import pytest
 import unique_sdk
@@ -546,6 +546,69 @@ class TestContentServiceUnit:
         assert isinstance(result, bytes)
         assert result == b"Test content"
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_download_content_to_bytes_async__returns_bytes__with_explicit_chat_id(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify async download delegates to the function layer with explicit chat_id.
+        Why this matters: Ensures the service correctly forwards user-supplied chat_id.
+        Setup summary: Mock download function, call service with explicit chat_id, assert delegation args.
+        """
+        with patch(
+            "unique_toolkit.content.service.download_content_to_bytes_async"
+        ) as mock_download:
+            # Arrange
+            mock_download.return_value = b"Test content"
+
+            # Act
+            result = await self.service.download_content_to_bytes_async(
+                content_id="test_content_id",
+                chat_id="test_chat_id",
+            )
+
+            # Assert
+            assert isinstance(result, bytes)
+            assert result == b"Test content"
+            mock_download.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                content_id="test_content_id",
+                chat_id="test_chat_id",
+            )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_download_content_to_bytes_async__uses_default_chat_id__when_no_chat_id_provided(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify async download falls back to the event's chat_id when none is provided.
+        Why this matters: Prevents None chat_id from breaking downstream API calls.
+        Setup summary: Mock download function, call service without chat_id, assert event chat_id used.
+        """
+        with patch(
+            "unique_toolkit.content.service.download_content_to_bytes_async"
+        ) as mock_download:
+            # Arrange
+            mock_download.return_value = b"Test content"
+
+            # Act
+            result = await self.service.download_content_to_bytes_async(
+                content_id="test_content_id",
+            )
+
+            # Assert
+            assert isinstance(result, bytes)
+            assert result == b"Test content"
+            mock_download.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                content_id="test_content_id",
+                chat_id="test_chat",
+            )
+
     @patch("requests.get")
     def test_download_content_with_dir(self, mock_get):
         mock_response = Mock()
@@ -893,3 +956,130 @@ class TestContentServiceUnit:
             "operator": "equals",
             "value": "test_key",
         }
+
+
+@pytest.mark.ai
+class TestGetDocumentsUploadedToChatAsync:
+    """Tests for ContentService.get_documents_uploaded_to_chat_async."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.event = get_event_obj(
+            user_id="test_user",
+            company_id="test_company",
+            assistant_id="test_assistant",
+            chat_id="test_chat",
+        )
+        self.service = ContentService(self.event)
+
+    @pytest.mark.asyncio
+    async def test__returns_only_file_content__when_mixed_keys_returned(self) -> None:
+        """
+        Purpose: Verify get_documents_uploaded_to_chat_async filters out non-file entries,
+                 returning only items whose key is recognised as a file.
+        Why this matters: The chat content endpoint returns all owner-scoped content;
+                          the method must silently drop non-file items (e.g. images, web clips)
+                          so callers receive a clean list of uploadable documents.
+        Setup summary: Mock unique_sdk.Content.search_async to return one file key
+                       (report.pdf) and one non-file key (screenshot.png). Assert only
+                       the file entry is returned.
+        """
+        file_content_raw = {
+            "id": "content_file_1",
+            "key": "report.pdf",
+            "title": "Q2 Report",
+            "url": "http://test.com/report.pdf",
+            "chunks": [],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+        }
+        image_content_raw = {
+            "id": "content_image_1",
+            "key": "screenshot.png",
+            "title": "Screenshot",
+            "url": "http://test.com/screenshot.png",
+            "chunks": [],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+        }
+
+        with patch.object(
+            unique_sdk.Content, "search_async", new_callable=AsyncMock
+        ) as mock_search_async:
+            mock_search_async.return_value = [file_content_raw, image_content_raw]
+
+            result = await self.service.get_documents_uploaded_to_chat_async()
+
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], Content)
+        assert result[0].id == "content_file_1"
+        assert result[0].key == "report.pdf"
+
+        mock_search_async.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            chatId="test_chat",
+            where={"ownerId": {"equals": "test_chat"}},
+            includeFailedContent=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test__returns_empty_list__when_no_content_in_chat(self) -> None:
+        """
+        Purpose: Verify get_documents_uploaded_to_chat_async returns an empty list
+                 when the chat has no associated content.
+        Why this matters: Callers must not crash on an empty result; the method must
+                          handle the zero-document case gracefully.
+        Setup summary: Mock search_async to return []; assert empty list returned.
+        """
+        with patch.object(
+            unique_sdk.Content, "search_async", new_callable=AsyncMock
+        ) as mock_search_async:
+            mock_search_async.return_value = []
+
+            result = await self.service.get_documents_uploaded_to_chat_async()
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test__returns_all_file_entries__when_all_keys_are_files(self) -> None:
+        """
+        Purpose: Verify get_documents_uploaded_to_chat_async returns every entry when
+                 all returned content has file keys.
+        Why this matters: Ensures no valid file documents are accidentally dropped when
+                          there are no non-file entries to filter out.
+        Setup summary: Mock search_async with two file entries (PDF, DOCX);
+                       assert both are returned.
+        """
+        raw_entries = [
+            {
+                "id": "file_a",
+                "key": "alpha.pdf",
+                "title": "Alpha",
+                "url": "http://test.com/alpha.pdf",
+                "chunks": [],
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            },
+            {
+                "id": "file_b",
+                "key": "beta.docx",
+                "title": "Beta",
+                "url": "http://test.com/beta.docx",
+                "chunks": [],
+                "createdAt": "2024-01-01T00:00:00Z",
+                "updatedAt": "2024-01-01T00:00:00Z",
+            },
+        ]
+
+        with patch.object(
+            unique_sdk.Content, "search_async", new_callable=AsyncMock
+        ) as mock_search_async:
+            mock_search_async.return_value = raw_entries
+
+            result = await self.service.get_documents_uploaded_to_chat_async()
+
+        assert len(result) == 2
+        returned_ids = {c.id for c in result}
+        assert returned_ids == {"file_a", "file_b"}

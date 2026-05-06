@@ -89,5 +89,5 @@ def convert_user_message_content_to_responses_api(
             case "file":
                 responses_content.append(_convert_file_part_to_responses_api(part))
             case "input_audio":
-                responses_content.append(_convert_audio_part_to_responses_api(part))
+                responses_content.append(_convert_audio_part_to_responses_api(part))  # pyright: ignore[reportArgumentType]
     return responses_content

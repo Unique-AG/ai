@@ -253,7 +253,7 @@ def replace_variables(
 
 
 def replace_tool_parameters_patterns(
-    value: str, tool_parameters: Dict[str, Union[str, int, bool]]
+    value: str, tool_parameters: Mapping[str, Union[str, int, bool]]
 ) -> str:
     def replace_match(match):
         param_name = match.group(1)
@@ -263,7 +263,7 @@ def replace_tool_parameters_patterns(
 
 
 def replace_user_metadata_patterns(
-    value: str, user_metadata: Dict[str, Union[str, int, bool]]
+    value: str, user_metadata: Mapping[str, Union[str, int, bool]]
 ) -> str:
     def replace_match(match):
         param_name = match.group(1)

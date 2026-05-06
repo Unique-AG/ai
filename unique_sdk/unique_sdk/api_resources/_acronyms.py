@@ -1,15 +1,18 @@
-from typing import ClassVar, List, Literal, cast
+from typing import Literal, cast
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._util import classproperty
 
 
 class Acronyms(APIResource["Acronyms"]):
-    OBJECT_NAME: ClassVar[Literal["company.acronyms"]] = "company.acronyms"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["company.acronyms"]:
+        return "company.acronyms"
 
-    Acronyms: List[List[float]]
+    Acronyms: list[list[float]]
 
     @classmethod
-    def get(cls, user_id: str, company_id: str) -> "Acronyms":
+    def get(cls, user_id: str, company_id: str) -> "Acronyms":  # pyright: ignore[reportIncompatibleMethodOverride]
         return cast(
             "Acronyms",
             cls._static_request(

@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "0.1.4"
+version = "2026.20.0.dev15"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -8,34 +8,40 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=2.13.3",
+    "fastmcp>=3.1.1,<4",
+    "httpx>=0.28.0",
+    "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
-    "platformdirs>=4.0.0",
+    "unique-toolkit>=2026.20.0.dev24,<2026.20.0rc0",
 ]
-
-[project.scripts]
-unique-mcp = "unique_mcp:main"
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = [
-    "ruff>=0.14.8",
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
-    "diff-cover>=8.0.0",
-    "basedpyright>=1.33.0",
-    "deptry>=0.24.0",
-    "python-dep-tree>=0.19.9",
-    "poethepoet>=0.32.0",
-]
+dev = []
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
 markers = [
-    "ai: AI-generated tests",
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
 ]
 
 [tool.basedpyright]

@@ -1,4 +1,6 @@
 site_name: Unique Toolkit
+extra_css:
+  - stylesheets/extra.css
 site_description: Documentation for the Unique Toolkit
 site_author: Unique Team
 # IMPORTANT: site_url is set dynamically by CI to versioned path
@@ -67,6 +69,7 @@ nav:
     - Events: events/events.md
     - Chat:
       - Overview: chat/index.md
+      - Task Cancellation: chat/cancellation.md
       - Advanced Rendering: chat/advanced_rendering.md
     - Knowledge Base:
       - Overview: knowledge_base/index.md
@@ -84,8 +87,17 @@ nav:
     - Knowledge Base:
       - Base Service: modules/examples/content/kb_service.md
       - Smart Rules: modules/examples/content/smart_rules.md
+    - Content Folder(experimental):
+      - Content folder service: modules/examples/content/content-folder.md
+    - Content Tree (experimental):
+      - Content tree service: modules/examples/experimental/content_tree.md
+    - Scheduled Tasks (experimental):
+      - Service: modules/examples/scheduled_task/scheduled_tasks.md
+    - Identity (experimental):
+      - Users & Groups: modules/examples/identity/identity_service.md
   - Tutorials:
     - Agentic Table App: tutorials/agentic_table_app.md
+    - Code Execution: tutorials/code_execution.md
     - File Creation with Upload to Chat: tutorials/file_creation_and_upload_to_chat.md
   - Agentic Framework:
     - Overview: agentic_framework/framework.md
@@ -98,6 +110,7 @@ nav:
     - Evaluation Manager: agentic_framework/evaluation_manager.md
     - Reference Manager: agentic_framework/reference_manager.md
     - History Manager: agentic_framework/history_manager.md
+    - Tool Call Persistence: agentic_framework/tool_call_persistence.md
   - API Reference:
     - Overview: api.md
     - Core Services:
@@ -111,6 +124,8 @@ nav:
     - Framework Utilities:
       - OpenAI Client: modules/openai.md
       - Langchain Client: modules/langchain.md
+    - Experimental Modules:
+      - Identity Module: modules/identity.md
     - Deprecated Modules:
       - Content Module: modules/content.md
       - Embedding Module: modules/embedding.md
@@ -149,6 +164,8 @@ markdown_extensions:
 
 docs_dir: docs
 site_dir: site
+exclude_docs: |
+  entangled-registry.json
 
 plugins:
   - search

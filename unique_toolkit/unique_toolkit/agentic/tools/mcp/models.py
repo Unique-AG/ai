@@ -1,9 +1,9 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Protocol
 
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 
-class MCPTool:
+class MCPTool(Protocol):
     """Protocol defining the expected structure of an MCP tool."""
 
     name: str

@@ -1,5 +1,7 @@
 """Exceptions for generation handler operations."""
 
+from typing import Any
+
 
 class GenerationHandlerError(Exception):
     """Base exception for all generation handler errors."""
@@ -28,7 +30,7 @@ class PromptBuildError(GenerationHandlerError):
         self,
         message: str,
         prompt_type: str | None = None,
-        context: dict | None = None,
+        context: dict[str, Any] | None = None,
     ):
         super().__init__(message)
         self.prompt_type = prompt_type

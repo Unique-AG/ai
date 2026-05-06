@@ -13,8 +13,49 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 - Manage space chats
 - Retrieve space configuration
 - Access message history
+- List and filter spaces
 
 ## Methods
+
+??? example "`unique_sdk.Space.get_spaces` - List spaces"
+
+    List all spaces accessible to the user, with optional filtering by name and pagination.
+
+    **Parameters:**
+
+    - `name` (str, optional) - Filter by name (case-insensitive partial match)
+    - `skip` (int, optional) - Number of records to skip for pagination (default: 0, min: 0)
+    - `take` (int, optional) - Number of records to return (default: 50, min: 1, max: 1000)
+
+    **Returns:**
+
+    Returns a [`Spaces`](#getspacesresponse) object.
+
+    **Example - List all spaces:**
+
+    ```python
+    result = unique_sdk.Space.get_spaces(
+        user_id=user_id,
+        company_id=company_id,
+    )
+
+    for space in result["data"]:
+        print(f"{space['id']}: {space['name']}")
+    ```
+
+    **Example - Filter by name with pagination:**
+
+    ```python
+    result = unique_sdk.Space.get_spaces(
+        user_id=user_id,
+        company_id=company_id,
+        name="support",
+        skip=0,
+        take=10,
+    )
+
+    print(f"Found {len(result['data'])} spaces")
+    ```
 
 ??? example "`unique_sdk.Space.create_space` - Create a new space"
 
@@ -82,6 +123,70 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
         explanation="Assistant for engineering team",
         chatUpload="ENABLED",
         isPinned=True
+    )
+    ```
+
+??? example "`unique_sdk.Space.update_space` - Update a space"
+
+    !!! info "Compatibility"
+        Compatible with release >.10
+
+    Update an existing space (assistant). Preserves assistant_id so end users keep chat history.
+
+    **Parameters:**
+
+    - `space_id` (str, required) - The ID of the space to update
+    - `name` (str, optional) - The name of the space
+    - `title` (str, optional) - The title of the space
+    - `modules` (List[UpdateModuleItem], optional) - Update existing modules by ID. Use to change configuration (tools, languageModel, customInstructions) without replacing modules. Mutually exclusive with creating new modules.
+        - `moduleId` (str, required) - Module ID to update
+        - `configuration` (Dict, optional) - Module configuration (tools, languageModel, customInstructions, services, etc.)
+        - `name` (str, optional) - Module name
+        - `description` (str, optional) - Module description
+        - `weight` (int, optional) - Module weight
+    - `explanation` (str, optional) - Explanation or description of the space
+    - `alert` (str, optional) - Alert message for the space
+    - `chatUpload` (Literal["ENABLED", "DISABLED"], optional) - Chat upload setting
+    - `languageModel` (str, optional) - Language model to use
+    - `isPinned` (bool, optional) - Whether the space is pinned
+    - `settings` (Dict, optional) - Space settings
+    - `allowEndUserSpace` (bool, optional) - Allow end users to create custom spaces from this assistant
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.
+
+    **Returns:**
+
+    Returns a [`Space`](#space) object.
+
+    **Example - Update Name and Title:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="space_abc123",
+        name="Updated Customer Support",
+        title="How can I help you today?"
+    )
+    ```
+
+    **Example - Update Module Configuration:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="space_abc123",
+        modules=[
+            {
+                "moduleId": "module_u3x61phmqxvlhswjlm3byvvr",
+                "name": "Updated Module Name",
+                "configuration": {
+                    "tools": ["search", "calculator"],
+                    "languageModel": "AZURE_GPT_4o_2024_0806"
+                },
+                "weight": 5000
+            }
+        ]
     )
     ```
 
@@ -262,6 +367,32 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
             "parentAssistantId": "assistant_def456",
         }
     )
+    ```
+
+??? example "`unique_sdk.Space.create_chat` - Create a chat"
+
+    Create a chat linked to an assistant without sending a message. Corresponds to `POST /public/space/chat` on the node-chat public API.
+
+    **Parameters:**
+
+    - `title` (str, required) - Chat title
+    - `assistantId` (str, required) - Assistant (space) ID to attach the chat to
+
+    **Returns:**
+
+    Returns a [`ChatResult`](#chatresult) object.
+
+    **Example:**
+
+    ```python
+    chat = unique_sdk.Space.create_chat(
+        user_id=user_id,
+        company_id=company_id,
+        title="Support thread",
+        assistantId="assistant_abc123",
+    )
+
+    print(chat["id"], chat["createdAt"])
     ```
 
 ??? example "`unique_sdk.Space.get_chat_messages` - Get paginated messages"
@@ -484,6 +615,16 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 
 ## Return Types
 
+#### Spaces {#getspacesresponse}
+
+??? note "The `Spaces` object contains a list of spaces"
+
+    **Fields:**
+
+    - `data` (List[Space]) - List of space objects. See [`Space`](#space) for structure.
+
+    **Returned by:** `Space.get_spaces()`, `Space.get_spaces_async()`
+
 #### Space.Message {#spacemessage}
 
 ??? note "The `Space.Message` object represents a message in a space chat"
@@ -587,7 +728,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `updatedAt` (str) - Last update timestamp (ISO 8601)
 
-    **Returned by:** `Space.get_space()`, `Space.create_space()`
+    **Returned by:** `Space.get_space()`, `Space.create_space()`, `Space.update_space()`
 
 #### SpaceAccessResponse {#spaceaccessresponse}
 
@@ -697,6 +838,19 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `parentAssistantId` (str, required) - The ID of the parent assistant
 
     **Used in:** `Space.create_message()`
+
+#### ChatResult {#chatresult}
+
+??? note "The `ChatResult` object is returned when creating a chat via the space API"
+
+    **Fields:**
+
+    - `id` (str) - Chat identifier
+    - `title` (str | None) - Chat title
+    - `createdAt` (str) - Creation timestamp (ISO 8601)
+    - `object` (Literal["chat"]) - Object type discriminator
+
+    **Returned by:** `Space.create_chat()`, `Space.create_chat_async()`
 
 #### DeleteChatResponse {#deletechatresponse}
 

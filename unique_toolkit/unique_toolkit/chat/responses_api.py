@@ -1,5 +1,7 @@
 import json
 import logging
+import random
+from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple, Sequence
 
 import unique_sdk
@@ -13,7 +15,14 @@ from openai.types.responses import (
     response_create_params,
 )
 from openai.types.shared_params import Metadata, Reasoning
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from tenacity import (
+    AsyncRetrying,
+    RetryCallState,
+    retry_if_exception,
+    stop_after_attempt,
+)
 
 from unique_toolkit._common.execution import (
     failsafe,
@@ -24,7 +33,6 @@ from unique_toolkit.language_model.constants import (
 )
 from unique_toolkit.language_model.functions import (
     SearchContext,
-    _clamp_temperature,
     _to_search_context,
 )
 from unique_toolkit.language_model.infos import (
@@ -42,6 +50,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
     LanguageModelUserMessage,
     ResponsesLanguageModelStreamResponse,
+    reasoning_effort_to_openai,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,10 +71,9 @@ def _convert_tools_to_openai(
 def _convert_message_to_openai(
     message: LanguageModelMessageOptions,
 ) -> ResponseInputParam:
-    res = []
     match message:
         case LanguageModelAssistantMessage():
-            return message.to_openai(mode="responses")  # type: ignore
+            return message.to_openai(mode="responses")  # pyright: ignore[reportReturnType]
         case (
             LanguageModelUserMessage()
             | LanguageModelSystemMessage()
@@ -74,7 +82,6 @@ def _convert_message_to_openai(
             return [message.to_openai(mode="responses")]
         case _:
             return _convert_message_to_openai(_convert_to_specific_message(message))
-    return res
 
 
 def _convert_to_specific_message(
@@ -113,6 +120,20 @@ def _convert_messages_to_openai(
     return res
 
 
+def convert_messages_to_openai(
+    messages: str
+    | LanguageModelMessages
+    | Sequence[
+        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
+    ],
+) -> str | list[ResponseInputItemParam]:
+    if isinstance(messages, str):
+        return messages
+    if isinstance(messages, LanguageModelMessages):
+        return _convert_messages_to_openai(messages.root)
+    return _convert_messages_to_openai(messages)
+
+
 class _ResponsesParams(NamedTuple):
     temperature: float
     model_name: str
@@ -135,7 +156,7 @@ def _prepare_responses_params_util(
     ],
     reasoning: Reasoning | None,
     text: ResponseTextConfigParam | None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> _ResponsesParams:
     search_context = (
         _to_search_context(content_chunks) if content_chunks is not None else None
@@ -152,16 +173,19 @@ def _prepare_responses_params_util(
 
     if isinstance(model_name, LanguageModelName):
         model_info = LanguageModelInfo.from_name(model_name)
-
-        if model_info.temperature_bounds is not None and temperature is not None:
-            temperature = _clamp_temperature(temperature, model_info.temperature_bounds)
-
-        if (
-            reasoning is None
-            and model_info.default_options is not None
-            and "reasoning_effort" in model_info.default_options
-        ):
-            reasoning = Reasoning(effort=model_info.default_options["reasoning_effort"])
+        requested_effort = reasoning.get("effort") if reasoning is not None else None
+        temperature, resolved_effort = model_info.resolve_temp_and_reasoning(
+            temperature,
+            requested_effort,
+        )
+        if resolved_effort is not None:
+            reasoning = Reasoning(**(reasoning or {}))
+            reasoning["effort"] = reasoning_effort_to_openai(resolved_effort)
+        else:
+            if reasoning is not None and "effort" in reasoning:
+                del reasoning["effort"]
+                if not reasoning:
+                    reasoning = None  # pyright: ignore[reportUnreachable]
 
         if (
             reasoning is not None
@@ -177,14 +201,7 @@ def _prepare_responses_params_util(
                 "low"  # Code interpreter cannot be used with minimal effort
             )
 
-    messages_res = None
-    if isinstance(messages, LanguageModelMessages):
-        messages_res = _convert_messages_to_openai(messages.root)
-    elif isinstance(messages, list):
-        messages_res = _convert_messages_to_openai(messages)
-    else:
-        assert isinstance(messages, str)
-        messages_res = messages
+    messages_res = convert_messages_to_openai(messages)
 
     return _ResponsesParams(
         temperature, model, search_context, messages_res, tools_res, reasoning, text
@@ -268,7 +285,7 @@ def _prepare_responses_args(
     chat_id: str,
     assistant_id: str,
     params: _ResponsesParams,
-    debug_info: dict | None,
+    debug_info: dict[str, Any] | None,
     start_text: str | None,
     include: list[ResponseIncludable] | None,
     instructions: str | None,
@@ -277,7 +294,7 @@ def _prepare_responses_args(
     parallel_tool_calls: bool | None,
     tool_choice: response_create_params.ToolChoice | None,
     top_p: float | None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     options = {}
 
@@ -317,16 +334,124 @@ def _prepare_responses_args(
         "top_p": top_p,
     }
 
-    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # type: ignore[arg-type]
+    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType, reportCallIssue]
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
         for k, v in other_options.items():
-            openai_options.setdefault(k, v)  # type: ignore
+            openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
     options["options"] = openai_options
 
     return options
+
+
+_RATE_LIMIT_KEYWORDS = ("too_many_requests", "too many requests", "ratelimitreached")
+
+
+class RateLimitRetryConfig(BaseSettings):
+    """Config for Responses API rate-limit retry. Set via env vars with prefix RATE_LIMIT_RETRY_."""
+
+    initial_delay_seconds: float = Field(
+        default=30.0,
+        description="First wait after SDK retries exhausted. Backoff then 2x (30→60→120s).",
+    )
+    max_attempts: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Total attempts (1 initial + retries). Default 2 = 1 retry (~30s wait). Set to 1 to disable.",
+    )
+    log_message_on_retry: bool = Field(
+        default=True,
+        description="Write a message-log entry when a retry is about to sleep (e.g. 'Retrying in 30s').",
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="RATE_LIMIT_RETRY_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
+rate_limit_retry_config = RateLimitRetryConfig()
+
+
+def _rate_limit_wait(retry_state: RetryCallState) -> float:
+    """Exponential backoff with up to 10% jitter: initial_delay → 2x → 4x."""
+    n = retry_state.attempt_number - 1  # 0-indexed
+    base = rate_limit_retry_config.initial_delay_seconds * (2.0**n)
+    return base + random.uniform(0.0, base * 0.1)
+
+
+async def _responses_stream_with_rate_limit_retry(
+    responses_args: dict[str, Any],
+    model_name: str,
+    on_rate_limit_retry: Callable[[int, float], Awaitable[None]] | None = None,
+) -> "unique_sdk.Integrated.ResponsesStreamResult":
+    """Wrap responses_stream_async with exponential backoff for rate-limit errors.
+
+    The SDK already retries 3× (1s/2s/4s) before raising. This layer adds further
+    retries with longer delays, which are needed for models with tighter RPM limits
+    (e.g. GPT-4o) when large-token requests (web search, code execution) are in the loop.
+
+    Args:
+        responses_args: Keyword arguments forwarded to responses_stream_async.
+        model_name: Model name used in log messages.
+        on_rate_limit_retry: Optional async callback invoked before each retry sleep.
+            Receives (attempt_1based, wait_seconds). Useful for writing a message-log
+            entry so the user sees progress during long waits.
+    """
+
+    def _is_rate_limit(exc: BaseException) -> bool:
+        return isinstance(exc, unique_sdk.APIError) and any(
+            kw in str(exc).lower() for kw in _RATE_LIMIT_KEYWORDS
+        )
+
+    max_attempts = rate_limit_retry_config.max_attempts
+    max_retries = max_attempts - 1
+
+    def _log_attempt(retry_state: RetryCallState) -> None:
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        if exc is None:
+            return
+        logger.error(
+            "responses_stream_async error on toolkit attempt %d/%d "
+            "model=%s code=%s http_status=%s is_rate_limit=%s original_error=%r",
+            retry_state.attempt_number,
+            max_attempts,
+            model_name,
+            getattr(exc, "code", None),
+            getattr(exc, "http_status", None),
+            _is_rate_limit(exc),
+            getattr(exc, "original_error", None),
+        )
+
+    async def _before_sleep(retry_state: RetryCallState) -> None:
+        wait_secs = retry_state.upcoming_sleep
+        logger.warning(
+            "Rate limit hit for model=%s. Toolkit-level retry %d/%d in %.1fs",
+            model_name,
+            retry_state.attempt_number,
+            max_retries,
+            wait_secs,
+        )
+        if on_rate_limit_retry is not None:
+            await on_rate_limit_retry(retry_state.attempt_number, wait_secs)
+
+    async def _call() -> "unique_sdk.Integrated.ResponsesStreamResult":
+        return await unique_sdk.Integrated.responses_stream_async(**responses_args)
+
+    return await AsyncRetrying(
+        retry=retry_if_exception(_is_rate_limit),
+        stop=stop_after_attempt(max_attempts),
+        wait=_rate_limit_wait,
+        after=_log_attempt,
+        before_sleep=_before_sleep,
+        reraise=True,
+    )(_call)
 
 
 def stream_responses_with_references(
@@ -346,7 +471,7 @@ def stream_responses_with_references(
     content_chunks: list[ContentChunk] | None = None,
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     start_text: str | None = None,
     include: list[ResponseIncludable] | None = None,
     instructions: str | None = None,
@@ -357,7 +482,7 @@ def stream_responses_with_references(
     tool_choice: response_create_params.ToolChoice | None = None,
     top_p: float | None = None,
     reasoning: Reasoning | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> ResponsesLanguageModelStreamResponse:
     responses_params = _prepare_responses_params_util(
         model_name=model_name,
@@ -414,7 +539,7 @@ async def stream_responses_with_references_async(
     content_chunks: list[ContentChunk] | None = None,
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     start_text: str | None = None,
     include: list[ResponseIncludable] | None = None,
     instructions: str | None = None,
@@ -425,7 +550,8 @@ async def stream_responses_with_references_async(
     tool_choice: response_create_params.ToolChoice | None = None,
     top_p: float | None = None,
     reasoning: Reasoning | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
+    on_rate_limit_retry: Callable[[int, float], Awaitable[None]] | None = None,
 ) -> ResponsesLanguageModelStreamResponse:
     responses_params = _prepare_responses_params_util(
         model_name=model_name,
@@ -458,8 +584,14 @@ async def stream_responses_with_references_async(
         other_options=other_options,
     )
 
+    logger.info(
+        "Calling responses_stream_async model=%s",
+        responses_params.model_name,
+    )
     return ResponsesLanguageModelStreamResponse.model_validate(
-        await unique_sdk.Integrated.responses_stream_async(
-            **responses_args,
+        await _responses_stream_with_rate_limit_retry(
+            responses_args=responses_args,
+            model_name=responses_params.model_name,
+            on_rate_limit_retry=on_rate_limit_retry,
         )
     )

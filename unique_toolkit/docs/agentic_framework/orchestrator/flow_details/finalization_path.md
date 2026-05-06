@@ -15,7 +15,7 @@ For example to add follow-up questions or attach stock ticker plots to the messa
 
 
 Code:
-```python
+```{.python #orchestrator-handle-no-tool-calls}
     async def _handle_no_tool_calls(
           self, loop_response: LanguageModelStreamResponse
     ) -> bool:

@@ -143,7 +143,7 @@ class HumanVerificationManagerForApiCalling(
 
         class VerificationModel(BaseModel):
             confirmation: HumanConfirmation
-            modifiable_params: self._modifiable_payload_params_model  # type: ignore
+            modifiable_params: self._modifiable_payload_params_model  # pyright: ignore[reportInvalidTypeForm]
 
         self._verification_model = VerificationModel
 
@@ -332,6 +332,7 @@ if __name__ == "__main__":
     )
 
     last_assistant_message = ChatMessage(
+        id="123",
         role=ChatMessageRole.ASSISTANT,
         text=api_call.confirmation.payload_hash,
         chat_id="123",

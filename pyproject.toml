@@ -1,35 +1,129 @@
-[tool.poetry]
+[project]
 name = "ai-monorepo"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI Monorepo Documentation"
-authors = ["Unique Team"]
-readme = ["README.md"]
+authors = [{ name = "Unique Team" }]
+readme = "README.md"
 license = "Proprietary"
-package-mode = false
+requires-python = ">=3.11"
+dependencies = [
+    "unique-toolkit>=2026.18.0",
+    "griffe-pydantic>=1.1.8",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-unique_toolkit = { path = "./unique_toolkit", develop = true }
-#unique_toolkit = "^0.9.1"
-griffe-pydantic = "^1.1.8"
+[dependency-groups]
+dev = [
+    # type checking / linting
+    "pyright>=1.1.405",
+    "ruff>=0.14.2",
+    "basedpyright>=1.35.0,<2",
+    "langchain>=1.1.0",
+    # shared test tools (used across all workspace packages)
+    "pytest>=9.0.3,<10",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=7.0.0,<8",
+    "pytest-mock>=3.14.0,<4",
+    "deptry>=0.24.0,<0.25",
+    "import-linter>=2.0,<3",
+    "poethepoet>=0.32.0,<0.33",
+    # migrated from per-package dev groups
+    "python-dotenv>=1.1.0,<2",
+    "openai>=1.105.0,<3",
+    "isort>=6.0.1,<7",
+    "opik>=1.8.42,<2",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.11",
+    "mkdocs-monorepo-plugin>=1.1.2",
+    "mkdocs-include-markdown-plugin>=7.1.8",
+    "mkdocs-callouts>=1.16.0",
+    "mkdocstrings-python>=1.16.10",
+    # mkdocs-entangled-plugin 0.6.0 still calls entangled.config.read_config()
+    # without the filesystem argument added in entangled-cli 2.4.2.
+    "entangled-cli>=2.4,<2.4.2",
+    "mkdocs-entangled-plugin>=0.4.0",
+    "mkdocs-codeinclude-plugin>=0.2.1",
+    "mkdocs-include-dir-to-nav>=1.2.0",
+    "mike>=2.1.3",
+]
 
-[tool.poetry.group.dev.dependencies]
-mkdocs = "^1.6.1"
-mkdocs-material = "^9.6.11"
-mkdocs-monorepo-plugin = "^1.1.2"
-mkdocs-include-markdown-plugin = "^7.1.8"
-mkdocs-callouts = "^1.16.0"
-mkdocstrings-python = "^1.16.10"
-entangled-cli = "^2.1.13"
-mkdocs-entangled-plugin = "^0.4.0"
-mkdocs-codeinclude-plugin = "^0.2.1"
-mkdocs-include-dir-to-nav = "^1.2.0"
-pyright = "^1.1.405"
-ruff = "^0.14.2"
-basedpyright = "^1.33.0"
-langchain = "^1.1.0"
-mike = "^2.1.3"
+[tool.uv]
+exclude-newer = "2 weeks"
+# `docs` pins entangled-cli<2.4.2 (which requires click>=8.3.0), but `dev` (via
+# opik → litellm) requires click==8.1.8. They are never installed together,
+# so declare them mutually exclusive to let uv resolve each independently.
+conflicts = [
+    [
+        { group = "dev" },
+        { group = "docs" },
+    ],
+]
+constraint-dependencies = [
+    "aiohttp>=3.13.4",
+    "authlib>=1.6.11",
+    "copier>=9.14.1",
+    "cryptography>=46.0.7",
+    "deepdiff>=8.6.2",
+    "fastmcp>=3.2.0",
+    "langchain-core>=1.2.31",
+    # NOTE: langchain-openai 1.1.14 (SSRF DNS-rebinding fix, GHSA-???) requires
+    # openai>=2.26.0, but litellm 1.83.x hard-pins openai==2.24.0. Cannot
+    # bump to 1.1.14 until litellm relaxes its openai pin. The advisory is
+    # severity LOW and tracked in Dependabot alert #741.
+    "langsmith>=0.7.31",
+    # litellm 1.83.5–1.83.13 hard-pin python-dotenv==1.0.1 (upstream regression);
+    # 1.83.14 relaxes it. Both satisfy the GHSA security advisory (>=1.83.7).
+    "litellm>=1.83.14",
+    # NOTE: lxml is pinned to 5.x by crawl4ai (used by unique-web-search).
+    # Cannot upgrade to 6.1.0 (XXE fix, GHSA-pp9p-pjj9-77w7) until
+    # crawl4ai relaxes lxml~=5.3. Re-evaluate when a newer crawl4ai
+    # release supports lxml>=6. Tracked in Dependabot alert #742.
+    "lxml>=5.0.0",
+    "pillow>=12.2.0",
+    "pytest>=9.0.3",
+    "python-multipart>=0.0.26",
+    "requests>=2.33.0",
+]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
+"unique-toolkit" = false
+"unique-mcp" = false
+"unique-orchestrator" = false
+"unique-web-search" = false
+"unique-internal-search" = false
+"unique-skill-tool" = false
+"unique-swot" = false
+"unique-deep-research" = false
+"unique-stock-ticker" = false
+"unique-follow-up-questions" = false
+"unique-six" = false
+"unique-search-proxy" = false
+"unique-quartr" = false
+"authlib" = "2026-04-17"
+"langchain-core" = "2026-04-17"
+"langsmith" = "2026-04-15"
+"litellm" = "2026-04-27"
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "unique_sdk",
+    "unique_toolkit",
+    "unique_mcp",
+    "unique_orchestrator",
+    "tool_packages/*",
+    "postprocessors/*",
+    "connectors/*",
+    "tutorials/mcp/mcp_test",
+]
+
+# Root-level poe tasks. Individual workspace packages own their own
+# [tool.poe.tasks] blocks; only forward-to-package passthroughs belong here,
+# so `uv run poe <task>` works from the repository root as well as from each
+# package directory.
+[tool.poe.tasks]
+check-imports = "lint-imports --config unique_toolkit/pyproject.toml"

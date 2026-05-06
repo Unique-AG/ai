@@ -1,11 +1,7 @@
 from typing import (
     Any,
-    ClassVar,
-    Dict,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -13,6 +9,7 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 ACTION_TYPES = Literal["ACCEPT", "DECLINE", "CANCEL"]
 SOURCE_TYPES = Literal["INTERNAL_TOOL", "MCP_SERVER"]
@@ -20,7 +17,9 @@ MODE_TYPES = Literal["FORM", "URL"]
 
 
 class Elicitation(APIResource["Elicitation"]):
-    OBJECT_NAME: ClassVar[Literal["elicitation"]] = "elicitation"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["elicitation"]:
+        return "elicitation"
 
     class CreateParams(RequestOptions):
         """
@@ -30,13 +29,13 @@ class Elicitation(APIResource["Elicitation"]):
         mode: MODE_TYPES
         message: str
         toolName: str
-        schema: NotRequired[Optional[Dict[str, Any]]]
-        url: NotRequired[Optional[str]]
-        externalElicitationId: NotRequired[Optional[str]]
-        chatId: NotRequired[Optional[str]]
-        messageId: NotRequired[Optional[str]]
-        expiresInSeconds: NotRequired[Optional[int]]
-        metadata: NotRequired[Optional[Dict[str, Any]]]
+        schema: NotRequired[dict[str, Any] | None]
+        url: NotRequired[str | None]
+        externalElicitationId: NotRequired[str | None]
+        chatId: NotRequired[str | None]
+        messageId: NotRequired[str | None]
+        expiresInSeconds: NotRequired[int | None]
+        metadata: NotRequired[dict[str, Any] | None]
 
     class RespondParams(RequestOptions):
         """
@@ -45,7 +44,7 @@ class Elicitation(APIResource["Elicitation"]):
 
         elicitationId: str
         action: ACTION_TYPES
-        content: NotRequired[Optional[Dict[str, str | int | bool | List[str]]]]
+        content: NotRequired[dict[str, str | int | bool | list[str]] | None]
 
     class Elicitation(TypedDict):
         """
@@ -58,21 +57,21 @@ class Elicitation(APIResource["Elicitation"]):
         mode: MODE_TYPES
         status: str
         message: str
-        mcpServerId: NotRequired[Optional[str]]
-        toolName: NotRequired[Optional[str]]
-        schema: NotRequired[Optional[Dict[str, Any]]]
-        url: NotRequired[Optional[str]]
-        externalElicitationId: NotRequired[Optional[str]]
-        responseContent: NotRequired[Optional[Dict[str, Any]]]
-        respondedAt: NotRequired[Optional[str]]
+        mcpServerId: NotRequired[str | None]
+        toolName: NotRequired[str | None]
+        schema: NotRequired[dict[str, Any] | None]
+        url: NotRequired[str | None]
+        externalElicitationId: NotRequired[str | None]
+        responseContent: NotRequired[dict[str, Any] | None]
+        respondedAt: NotRequired[str | None]
         companyId: str
         userId: str
-        chatId: NotRequired[Optional[str]]
-        messageId: NotRequired[Optional[str]]
-        metadata: NotRequired[Optional[Dict[str, Any]]]
+        chatId: NotRequired[str | None]
+        messageId: NotRequired[str | None]
+        metadata: NotRequired[dict[str, Any] | None]
         createdAt: str
-        updatedAt: NotRequired[Optional[str]]
-        expiresAt: NotRequired[Optional[str]]
+        updatedAt: NotRequired[str | None]
+        expiresAt: NotRequired[str | None]
 
     class ElicitationResponseResult(TypedDict):
         """
@@ -80,14 +79,14 @@ class Elicitation(APIResource["Elicitation"]):
         """
 
         success: bool
-        message: NotRequired[Optional[str]]
+        message: NotRequired[str | None]
 
     class Elicitations(TypedDict):
         """
         Response for getting pending elicitations.
         """
 
-        elicitations: List["Elicitation.Elicitation"]
+        elicitations: list["Elicitation.Elicitation"]
 
     @classmethod
     def create_elicitation(

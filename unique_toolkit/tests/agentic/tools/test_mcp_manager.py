@@ -29,10 +29,16 @@ def mock_chat_event() -> ChatEvent:
     event.chat_id = "chat_789"
     event.assistant_id = "assistant_101"
 
-    # Mock the payload structure
+    # Mock the payload structure — string fields must be real strings for ChatContext validation
     mock_payload = Mock()
+    mock_payload.chat_id = "chat_789"
+    mock_payload.assistant_id = "assistant_101"
     mock_payload.assistant_message = Mock()
     mock_payload.assistant_message.id = "assistant_message_202"
+    mock_payload.user_message = Mock()
+    mock_payload.user_message.id = "user_message_303"
+    mock_payload.metadata_filter = None
+    mock_payload.correlation = None
     event.payload = mock_payload
 
     return event

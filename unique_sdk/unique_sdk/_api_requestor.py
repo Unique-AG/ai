@@ -4,7 +4,8 @@ import json
 import platform
 import time
 from collections import OrderedDict
-from typing import Any, Dict, Mapping, NoReturn, Optional, cast
+from collections.abc import Mapping
+from typing import Any, Callable, NoReturn, cast
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import unique_sdk
@@ -61,18 +62,36 @@ def _build_api_url(url, query):
     return urlunsplit((scheme, netloc, path, query, fragment))
 
 
+def _abs_api_url(api_base: str, path: str) -> str:
+    """Combine ``unique_sdk.api_base`` with a route path avoiding ``//`` holes.
+
+    Callers normally pass routes like ``/content/infos`` or ``/briefings/{id}``. If
+    ``api_base`` ends with a slash (often from env), naive ``%s%s`` concatenation
+    would produce ``.../chat-gen2//content/...`` and some gateways mis-route.
+
+    Surrounding ``'`` / ``"`` from ``.env`` or shell copy‑paste are stripped so a
+    value like ``'https://.../chat-gen2'`` resolves correctly (avoids malformed
+    hosts such as ``.../infos'`` leaking into paths).
+    """
+    base = api_base.strip().strip("'\"").rstrip("/")
+    segment = path.strip().strip("'\"")
+    if not segment.startswith("/"):
+        segment = "/" + segment
+    return base + segment
+
+
 class APIRequestor(object):
-    api_key: Optional[str]
-    app_id: Optional[str]
+    api_key: str | None
+    app_id: str | None
     api_base: str
     api_version: str
-    user_id: Optional[str]
-    company_id: Optional[str]
+    user_id: str | None
+    company_id: str | None
 
     def __init__(
         self,
-        user_id: Optional[str],
-        company_id: Optional[str],
+        user_id: str | None,
+        company_id: str | None,
         key=None,
         app_id=None,
     ):
@@ -95,8 +114,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> UniqueResponse:
         rbody, rcode, rheaders = self.request_raw(
             method.lower(), url, params, headers, is_streaming=False
@@ -108,8 +127,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> UniqueResponse:
         rbody, rcode, rheaders = await self.request_raw_async(
             method.lower(), url, params, headers, is_streaming=False
@@ -126,11 +145,12 @@ class APIRequestor(object):
             "publisher": "unique",
             "httplib": self._client.name,
         }
-        for attr, func in [
-            ["lang_version", platform.python_version],
-            ["platform", platform.platform],
-            ["uname", lambda: " ".join(platform.uname())],
-        ]:
+        ua_parts: list[tuple[str, Callable[[], str]]] = [
+            ("lang_version", platform.python_version),
+            ("platform", platform.platform),
+            ("uname", lambda: " ".join(platform.uname())),
+        ]
+        for attr, func in ua_parts:
             try:
                 val = func()
             except Exception:
@@ -143,7 +163,7 @@ class APIRequestor(object):
             "Authorization": "Bearer %s" % (api_key,),
         }
 
-        if method == "post" or method == "patch":
+        if method == "post" or method == "patch" or method == "put":
             headers["Content-Type"] = "application/json"
 
         if self.user_id:
@@ -160,8 +180,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        supplied_headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        supplied_headers: Mapping[str, str] | None = None,
         is_streaming: bool = False,
     ):
         method, abs_url, headers, post_data = self._get_request_args(
@@ -196,8 +216,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        supplied_headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        supplied_headers: Mapping[str, str] | None = None,
         is_streaming: bool = False,
     ):
         method, abs_url, headers, post_data = self._get_request_args(
@@ -232,17 +252,17 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        supplied_headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        supplied_headers: Mapping[str, str] | None = None,
     ):
-        supplied_headers_dict: Optional[Dict[str, str]] = (
+        supplied_headers_dict: dict[str, str] | None = (
             dict(supplied_headers) if supplied_headers is not None else None
         )
 
         if params is not None:
             res = self.rename_keys(params)
             # casting needed due to list processing in rename_keys
-            params = cast(Optional[Mapping[str, Any]], res)
+            params = cast(Mapping[str, Any] | None, res)
 
         if self.api_key:
             my_api_key = self.api_key
@@ -276,7 +296,7 @@ class APIRequestor(object):
                 "questions."
             )
 
-        abs_url = "%s%s" % (self.api_base, url)
+        abs_url = _abs_api_url(self.api_base, url)
 
         encoded_params = urlencode(list(_api_encode(params or {})))
 
@@ -289,7 +309,7 @@ class APIRequestor(object):
             if params:
                 abs_url = _build_api_url(abs_url, encoded_params)
             post_data = None
-        elif method == "post" or method == "patch":
+        elif method == "post" or method == "patch" or method == "put":
             post_data = params
         else:
             raise _error.APIConnectionError(
@@ -305,7 +325,7 @@ class APIRequestor(object):
 
         return method, abs_url, headers, post_data
 
-    def rename_keys(self, obj: Optional[Mapping[str, Any]]):
+    def rename_keys(self, obj: Mapping[str, Any] | None):
         if obj is None:
             return None
         if isinstance(obj, dict):

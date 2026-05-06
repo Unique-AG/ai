@@ -31,7 +31,7 @@ When to fill what information on the tool call response, not all fields must be 
    - this can be left empty if other fields are filled
 
 
-```python
+```{.python #tool-call-response-schema}
 
 class ToolCallResponse(BaseModel):
     id: str
@@ -39,7 +39,7 @@ class ToolCallResponse(BaseModel):
     content: str = ""
     debug_info: Optional[dict] = None  # TODO: Make the default {}
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
-    reasoning_result: Optional[dict] = None  # TODO: Make the default {} 
+    reasoning_result: Optional[dict] = None  # TODO: Make the default {}
     error_message: str = ""
 
 ```

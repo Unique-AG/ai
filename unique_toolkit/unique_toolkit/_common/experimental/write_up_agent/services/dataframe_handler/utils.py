@@ -1,6 +1,7 @@
 """Utility functions for DataFrame operations."""
 
 import re
+from typing import Any
 
 import pandas as pd
 
@@ -112,7 +113,7 @@ def limit_dataframe_rows(df: pd.DataFrame, max_rows: int) -> pd.DataFrame:
 
 def dataframe_to_dict_records(
     df: pd.DataFrame, columns: list[str] | None = None
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """
     Convert DataFrame to list of dict records.
 

@@ -1,6 +1,6 @@
 # Unique Toolkit
 
-This package provides highlevel abstractions and methods on top of `unique_sdk` to ease application development for the Unique Platform. 
+This package provides high-level abstractions and methods on top of `unique_sdk` to ease application development for the Unique Platform.
 
 The Toolkit is structured along the following domains:
 - `unique_toolkit.chat`
@@ -9,25 +9,25 @@ The Toolkit is structured along the following domains:
 - `unique_toolkit.language_model`
 - `unique_toolkit.short_term_memory`
 
-Each domain comprises a set of schemas (in `schemas.py`) are used in functions (in `functions.py`) which encapsulates the basic functionalities to interact with the plattform. 
+Each domain comprises a set of schemas (in `schemas.py`) that are used in functions (in `functions.py`) which encapsulate the basic functionalities to interact with the platform.
 The above domains represent the internal structure of the Unique platform.
 
-For the `developers` we expose interfaces via `services` classes that correspond directly to an frontend or an entity the `user` interacts with. 
+For the `developers` we expose interfaces via `services` classes that correspond directly to a frontend or an entity the `user` interacts with.
 
 The following services are currently available:
 
-| Service | Responsability |
+| Service | Responsibility |
 |--|--|
-| ChatService | All interactions with the chat interface | 
+| ChatService | All interactions with the chat interface |
 | KnowledgeBaseService | All interaction with the knowledgebase |
 
-The services can be directly import as 
+The services can be directly imported as
 
-```
+```python
 from unique_toolkit import ChatService, KnowledgeBaseService
+```
 
-
-In addition, the `unique_toolkit.app` module provides functions to initialize apps and dev utilities to interact with the Unique platform. 
+In addition, the `unique_toolkit.app` module provides functions to initialize apps and dev utilities to interact with the Unique platform.
 
 ## Changelog
 

@@ -1,18 +1,31 @@
-import os
+from __future__ import annotations
+
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 from urllib.parse import ParseResult, urlparse, urlunparse
 
 import unique_sdk
-from platformdirs import user_config_dir
-from pydantic import AliasChoices, Field, SecretStr, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    Field,
+    PrivateAttr,
+    SecretStr,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing_extensions import Protocol, deprecated
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit.app.chat_event_filter_options_settings import (
+    CHAT_EVENT_FILTER_OPTIONS_SETTINGS,
+)
+from unique_toolkit.app.feature_flags import UNIQUE_TOOLKIT_FEATURE_FLAGS
+from unique_toolkit.app.find_env_file import EnvFileNotFoundError, find_env_file
 
 if TYPE_CHECKING:
-    from unique_toolkit.app.schemas import BaseEvent
+    from unique_toolkit.app.schemas import BaseEvent, ChatEvent
 
 
 logger = getLogger(__name__)
@@ -37,6 +50,215 @@ def warn_about_defaults(instance: T) -> T:
     return instance
 
 
+# Auth
+# We have a BaseModel and a BaseSetting class here because the context can be
+# obtained from the environment and or a request. In the case of a request we
+# should be using the AuthContext.
+# Both classes implement the protocol that can be used for typing.
+class AuthContextProtocol(Protocol):
+    company_id: SecretStr
+    user_id: SecretStr
+
+    def get_confidential_company_id(self) -> str: ...
+    def get_confidential_user_id(self) -> str: ...
+
+
+class AuthContext(BaseModel):
+    company_id: SecretStr = Field(
+        ...,
+        description="The company ID.",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+    )
+    user_id: SecretStr = Field(
+        ...,
+        description="The user ID.",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+    )
+
+    def get_confidential_company_id(self) -> str:
+        return self.company_id.get_secret_value()
+
+    def get_confidential_user_id(self) -> str:
+        return self.user_id.get_secret_value()
+
+    @classmethod
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
+        return cls(
+            company_id=SecretStr(event.company_id),
+            user_id=SecretStr(event.user_id),
+        )
+
+
+@register_config()
+class UniqueAuth(BaseSettings):
+    company_id: SecretStr = Field(
+        default=SecretStr("dummy_company_id"),
+        validation_alias=AliasChoices(
+            "unique_auth_company_id",
+            "company_id",
+            "UNIQUE_AUTH_COMPANY_ID",
+            "COMPANY_ID",
+        ),
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+    )
+    user_id: SecretStr = Field(
+        default=SecretStr("dummy_user_id"),
+        validation_alias=AliasChoices(
+            "unique_auth_user_id", "user_id", "UNIQUE_AUTH_USER_ID", "USER_ID"
+        ),
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="unique_auth_",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+        env_file=find_env_file("unique.env", ".env", required=False),
+    )
+
+    def get_confidential_company_id(self) -> str:
+        return self.company_id.get_secret_value()
+
+    def get_confidential_user_id(self) -> str:
+        return self.user_id.get_secret_value()
+
+    @model_validator(mode="after")
+    def _warn_about_defaults(self) -> Self:
+        return warn_about_defaults(self)
+
+    @classmethod
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
+        return cls(
+            company_id=SecretStr(event.company_id),
+            user_id=SecretStr(event.user_id),
+        )
+
+    def to_auth_context(self) -> AuthContext:
+        return AuthContext(
+            company_id=self.company_id,
+            user_id=self.user_id,
+        )
+
+
+# Chat
+class ChatContextProtocol(Protocol):
+    chat_id: str
+    assistant_id: str
+
+    @property
+    def last_assistant_message_id(self) -> str: ...
+    @property
+    def last_user_message_id(self) -> str: ...
+    @property
+    def last_user_message_text(self) -> str: ...
+
+    @property
+    def metadata_filter(self) -> dict[str, Any] | None: ...
+    @property
+    def parent_chat_id(self) -> str | None: ...
+
+
+class ChatContext(BaseModel):
+    chat_id: str = Field(
+        ...,
+        description="The chat ID.",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+    )
+    assistant_id: str = Field(
+        ...,
+        description="The assistant ID.",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+    )
+
+    _last_assistant_message_id: str | None = PrivateAttr(default=None)
+    _last_user_message_id: str | None = PrivateAttr(default=None)
+    _last_user_message_text: str | None = PrivateAttr(default=None)
+    _metadata_filter: dict[str, Any] | None = PrivateAttr(default=None)
+    _parent_chat_id: str | None = PrivateAttr(default=None)
+
+    def __init__(
+        self,
+        *,
+        chat_id: str,
+        assistant_id: str,
+        last_assistant_message_id: str | None = None,
+        last_user_message_id: str | None = None,
+        last_user_message_text: str | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+        parent_chat_id: str | None = None,
+        **data: Any,
+    ) -> None:
+        super().__init__(chat_id=chat_id, assistant_id=assistant_id, **data)
+        if last_assistant_message_id is not None:
+            self._last_assistant_message_id = last_assistant_message_id
+        if last_user_message_id is not None:
+            self._last_user_message_id = last_user_message_id
+        if last_user_message_text is not None:
+            self._last_user_message_text = last_user_message_text
+        if metadata_filter is not None:
+            self._metadata_filter = metadata_filter
+        if parent_chat_id is not None:
+            self._parent_chat_id = parent_chat_id
+
+    @property
+    def last_assistant_message_id(self) -> str:
+        if self._last_assistant_message_id is None:
+            raise ValueError("Last assistant message id is not set")
+        return self._last_assistant_message_id
+
+    @property
+    def last_user_message_id(self) -> str:
+        if self._last_user_message_id is None:
+            raise ValueError("User message id is not set")
+        return self._last_user_message_id
+
+    @property
+    def last_user_message_text(self) -> str:
+        if self._last_user_message_text is None:
+            raise ValueError("User message text is not set")
+        return self._last_user_message_text
+
+    @property
+    def metadata_filter(self) -> dict[str, Any] | None:
+        return self._metadata_filter
+
+    @metadata_filter.setter
+    def metadata_filter(self, value: dict[str, Any]) -> None:
+        self._metadata_filter = value
+
+    @property
+    def parent_chat_id(self) -> str | None:
+        return self._parent_chat_id
+
+    @parent_chat_id.setter
+    def parent_chat_id(self, value: str) -> None:
+        self._parent_chat_id = value
+
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent) -> Self:
+        return cls(
+            chat_id=event.payload.chat_id,
+            assistant_id=event.payload.assistant_id,
+            last_assistant_message_id=event.payload.assistant_message.id,
+            last_user_message_id=event.payload.user_message.id
+            if event.payload.user_message
+            else None,
+            last_user_message_text=event.payload.user_message.text
+            if event.payload.user_message
+            else None,
+            metadata_filter=event.payload.metadata_filter
+            if event.payload.metadata_filter
+            else None,
+            parent_chat_id=event.payload.correlation.parent_chat_id
+            if event.payload.correlation
+            else None,
+        )
+
+
+# App
+# Settings only as only obtained from the environment.
 @register_config()
 class UniqueApp(BaseSettings):
     id: SecretStr = Field(
@@ -55,6 +277,7 @@ class UniqueApp(BaseSettings):
         default="http://localhost:8092/",
         deprecated="Use UniqueApi.base_url instead",
     )
+
     endpoint: str = Field(default="dummy")
 
     endpoint_secret: SecretStr = Field(
@@ -74,9 +297,17 @@ class UniqueApp(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="unique_app_",
         env_file_encoding="utf-8",
+        env_file=find_env_file("unique.env", ".env", required=False),
         case_sensitive=False,
         extra="ignore",
+        validate_by_name=True,
+        validate_by_alias=True,
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
+
+
+# Api
+# Settings only as only obtained from the environment.
 
 
 @register_config()
@@ -102,8 +333,10 @@ class UniqueApi(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="unique_api_",
         env_file_encoding="utf-8",
+        env_file=find_env_file("unique.env", ".env", required=False),
         case_sensitive=False,
         extra="ignore",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
 
     @model_validator(mode="after")
@@ -131,7 +364,10 @@ class UniqueApi(BaseSettings):
             base_path = "/public/chat-gen2"
 
         if parsed.hostname and (
-            "localhost" in parsed.hostname or "svc.cluster.local" in parsed.hostname
+            "localhost" in parsed.hostname
+            or "svc.cluster.local" in parsed.hostname
+            or ".svc." in parsed.hostname
+            or parsed.hostname.endswith(".svc")
         ):
             base_path = "/public"
 
@@ -147,43 +383,8 @@ class UniqueApi(BaseSettings):
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
-@register_config()
-class UniqueAuth(BaseSettings):
-    company_id: SecretStr = Field(
-        default=SecretStr("dummy_company_id"),
-        validation_alias=AliasChoices(
-            "unique_auth_company_id",
-            "company_id",
-            "UNIQUE_AUTH_COMPANY_ID",
-            "COMPANY_ID",
-        ),
-    )
-    user_id: SecretStr = Field(
-        default=SecretStr("dummy_user_id"),
-        validation_alias=AliasChoices(
-            "unique_auth_user_id", "user_id", "UNIQUE_AUTH_USER_ID", "USER_ID"
-        ),
-    )
-
-    model_config = SettingsConfigDict(
-        env_prefix="unique_auth_",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
-
-    @model_validator(mode="after")
-    def _warn_about_defaults(self) -> Self:
-        return warn_about_defaults(self)
-
-    @classmethod
-    def from_event(cls, event: "BaseEvent") -> Self:
-        return cls(
-            company_id=SecretStr(event.company_id),
-            user_id=SecretStr(event.user_id),
-        )
-
-
+# EventFilterOptions
+# Settings only as only obtained from the environment.
 class UniqueChatEventFilterOptions(BaseSettings):
     # Empty string evals to False
     assistant_ids: list[str] = Field(
@@ -195,86 +396,110 @@ class UniqueChatEventFilterOptions(BaseSettings):
         description="The module (reference) names in code to filter by. Default is all modules.",
     )
 
-    model_config = SettingsConfigDict(
-        env_prefix="unique_chat_event_filter_options_",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
 
     @model_validator(mode="after")
     def _warn_about_defaults(self) -> Self:
         return warn_about_defaults(self)
 
 
-class EnvFileNotFoundError(FileNotFoundError):
-    """Raised when no environment file can be found in any of the expected locations."""
+class UniqueEnvironment:
+    """
+    Contains all settings that come exclusively from the environment.
+    This means if a setting can be initialized from either request or the environment, this class will not contain it.
+    """
+
+    def __init__(self, app: UniqueApp, api: UniqueApi) -> None:
+        self._app = app
+        self._api = api
+
+    @property
+    def app(self) -> UniqueApp:
+        return self._app
+
+    @property
+    def api(self) -> UniqueApi:
+        return self._api
 
 
+class UniqueContext:
+    """
+    Contains all settings/configuration that come from a request or an environment.
+    """
+
+    def __init__(
+        self,
+        auth: AuthContextProtocol | None = None,
+        chat: ChatContextProtocol | None = None,
+    ) -> None:
+        self._auth = auth
+        self._chat = chat
+
+    @property
+    def auth(self) -> AuthContextProtocol:
+        if self._auth is None:
+            raise ValueError("Auth context not set")
+        return self._auth
+
+    @auth.setter
+    @deprecated(
+        "Avoid this, rather create a new request context with the new auth context. Kept for backwards compatibility."
+    )
+    def auth(self, value: AuthContextProtocol) -> None:
+        self._auth = value
+
+    @property
+    def chat(self) -> ChatContextProtocol | None:
+        return self._chat
+
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent) -> UniqueContext:
+        """Build a full (auth + chat) context from a ChatEvent."""
+
+        return cls(
+            auth=AuthContext.from_event(event),
+            chat=ChatContext.from_chat_event(event),
+        )
+
+    @classmethod
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
+        """Build an auth-only context from any BaseEvent."""
+        return cls(
+            auth=AuthContext.from_event(event),
+        )
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings | None = None) -> UniqueContext:
+        """Build an auth-only context from UniqueSettings (auto-loads from env if None)."""
+        if settings is None:
+            settings = UniqueSettings.from_env_auto_with_sdk_init()
+        return cls(auth=settings.authcontext)
+
+
+# Bundling: Build this object for every request.
 class UniqueSettings:
     def __init__(
         self,
-        auth: UniqueAuth,
+        auth: AuthContextProtocol,
         app: UniqueApp,
         api: UniqueApi,
         *,
         chat_event_filter_options: UniqueChatEventFilterOptions | None = None,
+        chat: ChatContextProtocol | None = None,
         env_file: Path | None = None,
     ):
-        self._app = app
-        self._auth = auth
-        self._api = api
+        self._env = UniqueEnvironment(app=app, api=api)
+        self._context = UniqueContext(auth=auth, chat=chat)
         self._chat_event_filter_options = chat_event_filter_options
         self._env_file: Path | None = (
             env_file if (env_file and env_file.exists()) else None
         )
 
     @classmethod
-    def _find_env_file(cls, filename: str = "unique.env") -> Path:
-        """Find environment file using cross-platform fallback locations.
-
-        Search order:
-        1. UNIQUE_ENV_FILE environment variable
-        2. Current working directory
-        3. User config directory (cross-platform via platformdirs)
-
-        Args:
-            filename: Name of the environment file (default: 'unique.env')
-
-        Returns:
-            Path to the environment file.
-
-        Raises:
-            EnvFileNotFoundError: If no environment file is found in any location.
-        """
-        locations = [
-            # 1. Explicit environment variable
-            Path(env_path) if (env_path := os.environ.get("UNIQUE_ENV_FILE")) else None,
-            # 2. Current working directory
-            Path.cwd() / filename,
-            # 3. User config directory (cross-platform)
-            Path(user_config_dir("unique", "unique-toolkit")) / filename,
-        ]
-
-        for location in locations:
-            if location and location.exists() and location.is_file():
-                return location
-
-        # If no file found, provide helpful error message
-        searched_locations = [str(loc) for loc in locations if loc is not None]
-        raise EnvFileNotFoundError(
-            f"Environment file '{filename}' not found. Searched locations:\n"
-            + "\n".join(f"  - {loc}" for loc in searched_locations)
-            + "\n\nTo fix this:\n"
-            + f"  1. Create {filename} in one of the above locations, or\n"
-            + f"  2. Set UNIQUE_ENV_FILE environment variable to point to your {filename} file"
-        )
-
-    @classmethod
     def from_env(
         cls,
         env_file: Path | None = None,
-    ) -> "UniqueSettings":
+    ) -> UniqueSettings:
         """Initialize settings from environment variables and/or env file.
 
         Args:
@@ -292,10 +517,10 @@ class UniqueSettings:
 
         # Initialize settings with environment file if provided
         env_file_str = str(env_file) if env_file else None
-        auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
-        app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
-        api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # type: ignore[call-arg]
+        auth = UniqueAuth(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        app = UniqueApp(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        api = UniqueApi(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
         return cls(
             auth=auth,
             app=app,
@@ -305,7 +530,7 @@ class UniqueSettings:
         )
 
     @classmethod
-    def from_env_auto(cls, filename: str = "unique.env") -> "UniqueSettings":
+    def from_env_auto(cls, filename: str = "unique.env") -> UniqueSettings:
         """Initialize settings by automatically finding environment file.
 
         This method will automatically search for an environment file in standard locations
@@ -318,7 +543,7 @@ class UniqueSettings:
             UniqueSettings instance with values loaded from found env file or environment variables.
         """
         try:
-            env_file = cls._find_env_file(filename)
+            env_file = find_env_file(filename)
             logger.info(f"Environment file found at {env_file}")
             return cls.from_env(env_file=env_file)
         except EnvFileNotFoundError:
@@ -334,14 +559,14 @@ class UniqueSettings:
         This method configures the global unique_sdk module with the API key,
         app ID, and base URL from these settings.
         """
-        unique_sdk.api_key = self._app.key.get_secret_value()
-        unique_sdk.app_id = self._app.id.get_secret_value()
-        unique_sdk.api_base = self._api.sdk_url()
+        unique_sdk.api_key = self.app.key.get_secret_value()
+        unique_sdk.app_id = self.app.id.get_secret_value()
+        unique_sdk.api_base = self.api.sdk_url()
 
     @classmethod
     def from_env_auto_with_sdk_init(
         cls, filename: str = "unique.env"
-    ) -> "UniqueSettings":
+    ) -> UniqueSettings:
         """Initialize settings and SDK in one convenient call.
 
         This method combines from_env_auto() and init_sdk() for the most common use case.
@@ -356,24 +581,92 @@ class UniqueSettings:
         settings.init_sdk()
         return settings
 
-    def update_from_event(self, event: "BaseEvent") -> None:
-        self._auth = UniqueAuth.from_event(event)
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent) -> UniqueSettings:
+        """Build a :class:`UniqueSettings` from a :class:`ChatEvent`.
+
+        Auth and chat context are extracted from the event.  App and API
+        settings are left at their default values; override them via the
+        returned instance's properties if needed.
+
+        Args:
+            event: The incoming chat event.
+
+        Returns:
+            UniqueSettings with auth + chat context populated from the event.
+        """
+        return cls(
+            auth=AuthContext.from_event(event),
+            app=UniqueApp(),
+            api=UniqueApi(),
+            chat=ChatContext.from_chat_event(event),
+        )
+
+    @property
+    def context(self) -> UniqueContext:
+        """The request-level context (auth + optional chat) for this settings object."""
+        return self._context
+
+    def update_from_event(self, event: BaseEvent[Any]) -> None:
+        self._context = UniqueContext(
+            auth=UniqueAuth.from_event(event), chat=self._context.chat
+        )
+
+    def with_auth(self, auth: AuthContextProtocol) -> Self:
+        """Return a copy of the settings with the new auth context."""
+        return self.__class__(
+            auth=auth,
+            app=self.app,
+            api=self.api,
+            chat_event_filter_options=self.chat_event_filter_options,
+            chat=self._context.chat,
+            env_file=self._env_file,
+        )
+
+    def with_chat(self, chat: ChatContextProtocol | None) -> Self:
+        """Return a copy of the settings with the new chat context.
+
+        Passing ``None`` clears any existing chat context; this mirrors the
+        semantics of :meth:`with_auth` and is how MCP request handlers opt out
+        of chat scoping when the request does not carry chat identifiers.
+        """
+        return self.__class__(
+            auth=self._context.auth,
+            app=self.app,
+            api=self.api,
+            chat_event_filter_options=self.chat_event_filter_options,
+            chat=chat,
+            env_file=self._env_file,
+        )
 
     @property
     def api(self) -> UniqueApi:
-        return self._api
+        return self._env.api
 
     @property
     def app(self) -> UniqueApp:
-        return self._app
+        return self._env.app
 
     @property
+    @deprecated("Use authcontext instead")
     def auth(self) -> UniqueAuth:
-        return self._auth
+        if isinstance(self._context.auth, AuthContext):
+            return UniqueAuth(
+                company_id=SecretStr(self._context.auth.get_confidential_company_id()),
+                user_id=SecretStr(self._context.auth.get_confidential_user_id()),
+            )
+        if not isinstance(self._context.auth, UniqueAuth):
+            raise ValueError("Auth context is not a UniqueAuth instance")
+        return self._context.auth
 
     @auth.setter
+    @deprecated("Use authcontext instead")
     def auth(self, value: UniqueAuth) -> None:
-        self._auth = value
+        self._context.auth = value
+
+    @property
+    def authcontext(self) -> AuthContextProtocol:
+        return self._context.auth
 
     @property
     def chat_event_filter_options(self) -> UniqueChatEventFilterOptions | None:

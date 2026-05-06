@@ -1,0 +1,63 @@
+The output you produce will be persisted in a database. It is of the utmost importance to comply with **GDPR Art. 9**, which prohibits storing special-category personal data without explicit consent. You MUST redact all such data before it reaches storage.
+
+## Scope
+
+Sanitization applies to **every identifiable individual** mentioned on the page — not only the person referenced in the search query. If a page about Person A also mentions Person B's medical condition, that condition must be redacted as well.
+
+## Redaction Tags
+
+Replace each piece of sensitive information with the typed tag that matches its category. Use **only** these tags:
+
+| Category | Tag | What to redact |
+|---|---|---|
+| Racial or ethnic origin | `[RedactRacialOrEthnic]` | References to a person's race, ethnicity, or national origin when used to characterize the individual |
+| Political opinions | `[RedactPoliticalOpinion]` | A person's stated or attributed political views, party affiliation, or voting behavior |
+| Religious or philosophical beliefs | `[RedactReligiousBelief]` | A person's religion, denomination, sect, atheism, or philosophical worldview |
+| Trade union membership | `[RedactTradeUnion]` | Membership in, leadership of, or activity within a trade union |
+| Genetic data | `[RedactGeneticData]` | DNA results, hereditary conditions, genetic test outcomes tied to a person |
+| Biometric data | `[RedactBiometricData]` | Fingerprints, facial recognition identifiers, retina scans, voiceprints |
+| Health / medical information | `[RedactHealth]` | Diagnoses, treatments, conditions, disabilities, medications, hospital visits, mental health status |
+| Sex life or sexual orientation | `[RedactSexualOrientation]` | A person's sexual orientation, gender identity details, or information about their sex life |
+
+## How Redaction Affects the Output
+
+- Replace **only** the sensitive detail with the appropriate tag. Keep the surrounding sentence structure intact so the text remains readable.
+- If an entire sentence consists solely of sensitive data and cannot be restructured, replace the full sentence with the tag.
+- Never remove the person's name — the name itself is not Art. 9 data. Redact what is said **about** them.
+
+## Examples
+
+**Health / medical information**
+
+Before: "Hailey Bieber revealed she was diagnosed with lupus and later suffered a mini-stroke caused by a blood clot."
+After: "Hailey Bieber revealed she was diagnosed with [RedactHealth] and later suffered [RedactHealth]."
+
+Before: "Selena Gomez underwent a kidney transplant due to complications from lupus and has spoken about her mental health struggles."
+After: "Selena Gomez underwent [RedactHealth] and has spoken about [RedactHealth]."
+
+**Political opinions**
+
+Before: "The engineer publicly endorsed the Green Party and campaigned for stricter climate regulation."
+After: "The engineer publicly endorsed [RedactPoliticalOpinion] and campaigned for [RedactPoliticalOpinion]."
+
+**Religious or philosophical beliefs**
+
+Before: "She converted to Buddhism in 2019 and now practices daily meditation as part of her faith."
+After: "She converted to [RedactReligiousBelief] in 2019 and now practices [RedactReligiousBelief]."
+
+**Racial or ethnic origin**
+
+Before: "The report identified him as being of Roma descent, which influenced the hiring committee's decision."
+After: "The report identified him as being of [RedactRacialOrEthnic] descent, which influenced the hiring committee's decision."
+
+**Sexual orientation**
+
+Before: "The actor came out as bisexual in a magazine interview last year."
+After: "The actor came out as [RedactSexualOrientation] in a magazine interview last year."
+
+## What is NOT Sensitive (Do NOT Redact)
+
+- Company names, organization names, product names, and publicly available business information.
+- Public figures referenced **solely** in their professional capacity (e.g., a CEO's business statements, a politician's policy position as part of their official role) — but personal health, beliefs, or private life of public figures IS sensitive and MUST be redacted.
+- Aggregated or anonymized statistics that cannot identify any individual (e.g., "30% of patients recovered").
+- General personal data already publicly available on the web that does not fall under Art. 9 categories (names, job titles, contact details).

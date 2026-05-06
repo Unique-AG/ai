@@ -10,15 +10,16 @@ from pydantic import ValidationError
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.services.search_engine.utils.bing.models import (
+from unique_web_search.services.search_engine.utils.grounding import (
+    JsonConversionStrategy,
+    LLMParserStrategy,
+)
+from unique_web_search.services.search_engine.utils.grounding.bing.models import (
     GENERATION_INSTRUCTIONS,
     GroundingWithBingResults,
     ResultItem,
 )
-from unique_web_search.services.search_engine.utils.bing.runner import (
-    JsonConversionStrategy,
-    LLMParserStrategy,
-    _convert_response_to_search_results,
+from unique_web_search.services.search_engine.utils.grounding.bing.runner import (
     _get_answer_from_thread,
     create_and_process_run,
     get_bing_grounding_tool,
@@ -407,84 +408,6 @@ class TestLLMParserStrategy:
 
 
 # ---------------------------------------------------------------------------
-# _convert_response_to_search_results tests
-# ---------------------------------------------------------------------------
-
-
-class TestConvertResponseToSearchResults:
-    """Tests for the strategy-chain response conversion logic."""
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_convert__first_strategy_succeeds__returns_immediately(self) -> None:
-        """
-        Purpose: Verify first successful strategy short-circuits the chain.
-        Why this matters: Avoids unnecessary LLM calls when JSON parsing works.
-        Setup summary: Two mock strategies; first succeeds, second should not be called.
-        """
-        # Arrange
-        expected = [
-            WebSearchResult(url="https://a.com", title="A", snippet="s", content="c")
-        ]
-        strategy_1 = AsyncMock(return_value=expected)
-        strategy_2 = AsyncMock()
-
-        # Act
-        results = await _convert_response_to_search_results(
-            "some response", [strategy_1, strategy_2]
-        )
-
-        # Assert
-        assert results == expected
-        strategy_1.assert_called_once_with("some response")
-        strategy_2.assert_not_called()
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_convert__first_fails__falls_back_to_second(self) -> None:
-        """
-        Purpose: Verify fallback to next strategy when first raises an exception.
-        Why this matters: Core resilience mechanism for Bing response parsing.
-        Setup summary: First strategy raises ValueError; second returns valid results.
-        """
-        # Arrange
-        expected = [
-            WebSearchResult(url="https://b.com", title="B", snippet="s", content="c")
-        ]
-        strategy_1 = AsyncMock(side_effect=ValueError("parse error"))
-        strategy_2 = AsyncMock(return_value=expected)
-
-        # Act
-        results = await _convert_response_to_search_results(
-            "some response", [strategy_1, strategy_2]
-        )
-
-        # Assert
-        assert results == expected
-        strategy_1.assert_called_once()
-        strategy_2.assert_called_once()
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_convert__all_strategies_fail__raises_value_error(self) -> None:
-        """
-        Purpose: Verify ValueError when every strategy fails.
-        Why this matters: Caller needs clear signal that parsing is impossible.
-        Setup summary: Two strategies both raise exceptions.
-        """
-        # Arrange
-        strategy_1 = AsyncMock(side_effect=ValueError("no JSON"))
-        strategy_2 = AsyncMock(side_effect=RuntimeError("LLM failure"))
-
-        # Act & Assert
-        with pytest.raises(ValueError) as exc_info:
-            await _convert_response_to_search_results(
-                "bad response", [strategy_1, strategy_2]
-            )
-        assert "No conversion strategy found" in str(exc_info.value)
-
-
-# ---------------------------------------------------------------------------
 # get_or_create_agent_id tests
 # ---------------------------------------------------------------------------
 
@@ -519,7 +442,9 @@ class TestGetOrCreateAgentId:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_web_search.services.search_engine.utils.bing.runner.env_settings")
+    @patch(
+        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
+    )
     async def test_get_or_create__agent_not_found__creates_new(
         self, mock_env: MagicMock, mock_agent_client: MagicMock
     ) -> None:
@@ -529,6 +454,7 @@ class TestGetOrCreateAgentId:
         Setup summary: Mock list_agents returning empty; mock create_agent returning new id.
         """
         # Arrange
+        mock_env.azure_ai_assistant_id = None
         mock_agent_client.agents.list_agents.return_value = _async_iter([])
         mock_env.azure_ai_bing_agent_model = "gpt-4o"
         new_agent = MagicMock()
@@ -578,6 +504,31 @@ class TestGetOrCreateAgentId:
         # Assert
         assert agent_id == "target-789"
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch(
+        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
+    )
+    async def test_get_or_create__env_assistant_id_set__returns_env_id_directly(
+        self, mock_env: MagicMock, mock_agent_client: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify env-set assistant_id is returned immediately without agent lookup.
+        Why this matters: IT admins setting the assistant_id in .env expect it to be used
+            directly, bypassing auto-provisioning entirely.
+        Setup summary: Set azure_ai_assistant_id on env; assert returned without list_agents call.
+        """
+        # Arrange
+        mock_env.azure_ai_assistant_id = "env-preconfigured-agent-id"
+
+        # Act
+        agent_id = await get_or_create_agent_id(mock_agent_client)
+
+        # Assert
+        assert agent_id == "env-preconfigured-agent-id"
+        mock_agent_client.agents.list_agents.assert_not_called()
+        mock_agent_client.agents.create_agent.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # get_bing_grounding_tool tests
@@ -588,7 +539,9 @@ class TestGetBingGroundingTool:
     """Tests for BingGroundingTool factory function."""
 
     @pytest.mark.ai
-    @patch("unique_web_search.services.search_engine.utils.bing.runner.env_settings")
+    @patch(
+        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
+    )
     def test_get_tool__connection_string_set__returns_tool(
         self, mock_env: MagicMock
     ) -> None:
@@ -598,7 +551,7 @@ class TestGetBingGroundingTool:
         Setup summary: Set connection string; assert tool is returned with correct count.
         """
         # Arrange
-        mock_env.azure_ai_bing_ressource_connection_string = (
+        mock_env.azure_ai_bing_resource_connection_string = (
             "projects/123/connections/bing"
         )
 
@@ -609,7 +562,9 @@ class TestGetBingGroundingTool:
         assert tool is not None
 
     @pytest.mark.ai
-    @patch("unique_web_search.services.search_engine.utils.bing.runner.env_settings")
+    @patch(
+        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
+    )
     def test_get_tool__connection_string_missing__raises_value_error(
         self, mock_env: MagicMock
     ) -> None:
@@ -619,7 +574,7 @@ class TestGetBingGroundingTool:
         Setup summary: Set connection string to None; assert ValueError raised.
         """
         # Arrange
-        mock_env.azure_ai_bing_ressource_connection_string = None
+        mock_env.azure_ai_bing_resource_connection_string = None
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
@@ -627,7 +582,9 @@ class TestGetBingGroundingTool:
         assert "Connection String is not set" in str(exc_info.value)
 
     @pytest.mark.ai
-    @patch("unique_web_search.services.search_engine.utils.bing.runner.env_settings")
+    @patch(
+        "unique_web_search.services.search_engine.utils.grounding.bing.runner.env_settings"
+    )
     def test_get_tool__empty_connection_string__raises_value_error(
         self, mock_env: MagicMock
     ) -> None:
@@ -637,7 +594,7 @@ class TestGetBingGroundingTool:
         Setup summary: Set connection string to empty; assert ValueError raised.
         """
         # Arrange
-        mock_env.azure_ai_bing_ressource_connection_string = ""
+        mock_env.azure_ai_bing_resource_connection_string = ""
 
         # Act & Assert
         with pytest.raises(ValueError):
@@ -799,7 +756,7 @@ class TestGetAnswerFromThread:
 # ---------------------------------------------------------------------------
 
 
-_RUNNER_MODULE = "unique_web_search.services.search_engine.utils.bing.runner"
+_RUNNER_MODULE = "unique_web_search.services.search_engine.utils.grounding.bing.runner"
 
 
 class TestCreateAndProcessRun:
@@ -1135,6 +1092,58 @@ class TestBingSearchConfig:
         assert config.agent_id == "my-agent-id-123"
         assert config.endpoint == "https://my-project.azure.com"
 
+    @pytest.mark.ai
+    @patch("unique_web_search.services.search_engine.bing.env_settings")
+    def test_config__agent_id_defaults_from_env__when_env_set(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify agent_id defaults to env_settings.azure_ai_assistant_id when set.
+        Why this matters: IT admins setting the assistant_id in .env expect BingSearchConfig
+            to pick it up automatically without explicit config.
+        Setup summary: Patch env_settings with assistant_id; create config without override; assert match.
+        """
+        from unique_web_search.services.search_engine.bing import BingSearchConfig
+
+        # Arrange
+        mock_env.azure_ai_assistant_id = "env-agent-abc"
+        mock_env.azure_ai_project_endpoint = None
+
+        # Act
+        config = BingSearchConfig(
+            agent_id=mock_env.azure_ai_assistant_id or "",
+            endpoint=mock_env.azure_ai_project_endpoint or "",
+        )
+
+        # Assert
+        assert config.agent_id == "env-agent-abc"
+
+    @pytest.mark.ai
+    @patch("unique_web_search.services.search_engine.bing.env_settings")
+    def test_config__endpoint_defaults_from_env__when_env_set(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify endpoint defaults to env_settings.azure_ai_project_endpoint when set.
+        Why this matters: IT admins setting the endpoint in .env expect BingSearchConfig
+            to pick it up automatically without explicit config.
+        Setup summary: Patch env_settings with endpoint; create config without override; assert match.
+        """
+        from unique_web_search.services.search_engine.bing import BingSearchConfig
+
+        # Arrange
+        mock_env.azure_ai_assistant_id = None
+        mock_env.azure_ai_project_endpoint = "https://env-endpoint.azure.com"
+
+        # Act
+        config = BingSearchConfig(
+            agent_id=mock_env.azure_ai_assistant_id or "",
+            endpoint=mock_env.azure_ai_project_endpoint or "",
+        )
+
+        # Assert
+        assert config.endpoint == "https://env-endpoint.azure.com"
+
 
 # ---------------------------------------------------------------------------
 # Models constants tests
@@ -1162,7 +1171,7 @@ class TestModelsConstants:
         Why this matters: Agent needs schema to produce valid structured output.
         Setup summary: Import constant; assert contains schema keyword.
         """
-        from unique_web_search.services.search_engine.utils.bing.models import (
+        from unique_web_search.services.search_engine.utils.grounding.bing.models import (
             RESPONSE_RULE,
         )
 

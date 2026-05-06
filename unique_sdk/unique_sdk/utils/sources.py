@@ -22,7 +22,7 @@ def sort_sources(searchContext) -> list[str]:
     sortedSources = []
     for sources in sourceMap.values():
         sources.sort(key=lambda x: x.order)
-        for i, s in enumerate(sources):
+        for s in sources:
             s.text = re.sub(
                 r"<\|/document\|>", f" text part {s['order']}<|/document|>", s["text"]
             )

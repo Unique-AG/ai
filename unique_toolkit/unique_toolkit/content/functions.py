@@ -21,7 +21,11 @@ from unique_toolkit.content.schemas import (
     FolderInfo,
     PaginatedContentInfos,
 )
-from unique_toolkit.content.utils import map_contents, map_to_content_chunks
+from unique_toolkit.content.utils import (
+    _apply_ingestion_upload_url_override,
+    map_contents,
+    map_to_content_chunks,
+)
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -29,7 +33,7 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 def search_content_chunks(
     user_id: str,
     company_id: str,
-    chat_id: str,
+    chat_id: str | None,
     search_string: str,
     search_type: ContentSearchType,
     limit: int,
@@ -37,7 +41,7 @@ def search_content_chunks(
     reranker_config: ContentRerankerConfig | None = None,
     scope_ids: list[str] | None = None,
     chat_only: bool | None = None,
-    metadata_filter: dict | None = None,
+    metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
 ) -> list[ContentChunk]:
@@ -91,7 +95,7 @@ def search_content_chunks(
 async def search_content_chunks_async(
     user_id: str,
     company_id: str,
-    chat_id: str,
+    chat_id: str | None,
     search_string: str,
     search_type: ContentSearchType,
     limit: int,
@@ -99,7 +103,7 @@ async def search_content_chunks_async(
     reranker_config: ContentRerankerConfig | None = None,
     scope_ids: list[str] | None = None,
     chat_only: bool | None = None,
-    metadata_filter: dict | None = None,
+    metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
 ):
@@ -141,8 +145,8 @@ async def search_content_chunks_async(
 def search_contents(
     user_id: str,
     company_id: str,
-    chat_id: str,
-    where: dict,
+    chat_id: str | None,
+    where: dict[str, Any],
     include_failed_content: bool = False,
 ) -> list[Content]:
     """
@@ -165,8 +169,7 @@ def search_contents(
             user_id=user_id,
             company_id=company_id,
             chatId=chat_id,
-            # TODO add type parameter in SDK
-            where=where,  # type: ignore
+            where=where,  # pyright: ignore[reportArgumentType]
             includeFailedContent=include_failed_content,
         )
         return map_contents(contents)
@@ -178,8 +181,8 @@ def search_contents(
 async def search_contents_async(
     user_id: str,
     company_id: str,
-    chat_id: str,
-    where: dict,
+    chat_id: str | None,
+    where: dict[str, Any],
     include_failed_content: bool = False,
 ):
     """Asynchronously searches for content in the knowledge base."""
@@ -191,7 +194,7 @@ async def search_contents_async(
             user_id=user_id,
             company_id=company_id,
             chatId=chat_id,
-            where=where,  # type: ignore
+            where=where,  # pyright: ignore[reportArgumentType]
             includeFailedContent=include_failed_content,
         )
         return map_contents(contents)
@@ -203,7 +206,7 @@ async def search_contents_async(
 def _upsert_content(
     user_id: str,
     company_id: str,
-    input_data: dict,
+    input_data: dict[str, Any],
     scope_id: str | None = None,
     chat_id: str | None = None,
     file_url: str | None = None,
@@ -212,17 +215,17 @@ def _upsert_content(
     return unique_sdk.Content.upsert(
         user_id=user_id,
         company_id=company_id,
-        input=input_data,
+        input=input_data,  # pyright: ignore[reportArgumentType]
         scopeId=scope_id,
         chatId=chat_id,
         fileUrl=file_url,
-    )  # type: ignore
+    )
 
 
 async def _upsert_content_async(
     user_id: str,
     company_id: str,
-    input_data: dict,
+    input_data: dict[str, Any],
     scope_id: str | None = None,
     chat_id: str | None = None,
     file_url: str | None = None,
@@ -230,7 +233,7 @@ async def _upsert_content_async(
     return await unique_sdk.Content.upsert_async(
         user_id=user_id,
         company_id=company_id,
-        input=input_data,  # type: ignore
+        input=input_data,  # pyright: ignore[reportArgumentType]
         scopeId=scope_id,
         chatId=chat_id,
         fileUrl=file_url,
@@ -450,6 +453,8 @@ def _trigger_upload_content(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    write_url = _apply_ingestion_upload_url_override(write_url)
+
     headers = {
         "X-Ms-Blob-Content-Type": mime_type,
         "X-Ms-Blob-Type": "BlockBlob",
@@ -513,6 +518,7 @@ def _trigger_upload_content(
             scope_id=scope_id,
         )  # type: ignore
 
+    created_content["writeUrl"] = write_url
     return Content.model_validate(created_content, by_alias=True, by_name=True)
 
 
@@ -576,12 +582,19 @@ async def _trigger_upload_content_async(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    write_url = _apply_ingestion_upload_url_override(write_url)
+
     headers = {
         "X-Ms-Blob-Content-Type": mime_type,
         "X-Ms-Blob-Type": "BlockBlob",
     }
     # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
-    async with httpx.AsyncClient() as client:
+    # Use generous write/read timeouts: multi-MB HTML files (e.g. Plotly bundles) can
+    # exhaust the default 5 s ceiling while waiting for the Azure Blob commit response.
+    _blob_upload_timeout = httpx.Timeout(
+        connect=10.0, read=120.0, write=120.0, pool=10.0
+    )
+    async with httpx.AsyncClient(timeout=_blob_upload_timeout) as client:
         if isinstance(content, bytes):
             response = await client.put(
                 url=write_url,
@@ -641,6 +654,7 @@ async def _trigger_upload_content_async(
             scope_id=scope_id,
         )
 
+    created_content["writeUrl"] = write_url
     return Content.model_validate(created_content, by_alias=True, by_name=True)
 
 
@@ -675,6 +689,40 @@ def request_content_by_id(
     }
 
     return requests.get(url, headers=headers)
+
+
+async def request_content_by_id_async(
+    user_id: str, company_id: str, content_id: str, chat_id: str | None
+) -> httpx.Response:
+    """
+    Sends an async request to download content.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content_id (str): The ID of the content to download.
+        chat_id (str): The ID of the chat from which to download the content. Defaults to None to download from knowledge base.
+
+    Returns:
+        httpx.Response: The response object containing the downloaded content.
+
+    """
+    logger.info(f"Requesting content with content_id: {content_id}")
+    url = f"{unique_sdk.api_base}/content/{content_id}/file"
+    if chat_id:
+        url = f"{url}?chatId={chat_id}"
+
+    raw_headers: dict[str, str | None] = {
+        "x-api-version": unique_sdk.api_version,
+        "x-app-id": unique_sdk.app_id,
+        "x-user-id": user_id,
+        "x-company-id": company_id,
+        "Authorization": "Bearer %s" % (unique_sdk.api_key,),
+    }
+    headers: dict[str, str] = {k: v for k, v in raw_headers.items() if v is not None}
+
+    async with httpx.AsyncClient() as client:
+        return await client.get(url, headers=headers)
 
 
 def download_content_to_file_by_id(
@@ -747,6 +795,40 @@ def download_content_to_bytes(
     return response.content
 
 
+async def download_content_to_bytes_async(
+    user_id: str,
+    company_id: str,
+    content_id: str,
+    chat_id: str | None,
+) -> bytes:
+    """
+    Asynchronously downloads content to memory.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content_id (str): The ID of the content to download.
+        chat_id (str | None): The chat ID, or None to download from the knowledge base.
+
+    raises:
+        httpx.HTTPStatusError: If the download fails.
+    """
+    logger.info(f"Downloading content with content_id: {content_id}")
+    response = await request_content_by_id_async(
+        user_id, company_id, content_id, chat_id
+    )
+
+    if not response.is_success:
+        logger.error(
+            "Error downloading file %s: Status code %s",
+            content_id,
+            response.status_code,
+        )
+        response.raise_for_status()
+
+    return response.content
+
+
 # TODO: Discuss if we should deprecate this method due to unclear use by content_name
 def download_content(
     user_id: str,
@@ -799,17 +881,17 @@ def get_content_info(
     skip: int | None = None,
     take: int | None = None,
     file_path: str | None = None,
-):
+) -> PaginatedContentInfos:
     """Gets the info of a content."""
 
     get_info_params = unique_sdk.Content.ContentInfoParams(
         metadataFilter=metadata_filter or None,  # Dict cannot be empty
     )
-    if skip:
+    if skip is not None:
         get_info_params["skip"] = skip
-    if take:
+    if take is not None:
         get_info_params["take"] = take
-    if file_path:
+    if file_path is not None:
         get_info_params["filePath"] = file_path
 
     content_info = unique_sdk.Content.get_infos(
@@ -820,12 +902,51 @@ def get_content_info(
     )
 
 
+async def get_content_info_async(
+    user_id: str,
+    company_id: str,
+    *,
+    metadata_filter: dict[str, Any] | None = None,
+    skip: int | None = None,
+    take: int | None = None,
+    file_path: str | None = None,
+) -> PaginatedContentInfos:
+    """Gets the info of a content."""
+
+    get_info_params = unique_sdk.Content.ContentInfoParams(
+        metadataFilter=metadata_filter or None,  # Dict cannot be empty
+    )
+    if skip is not None:
+        get_info_params["skip"] = skip
+    if take is not None:
+        get_info_params["take"] = take
+    if file_path is not None:
+        get_info_params["filePath"] = file_path
+
+    content_info = unique_sdk.Content.get_infos_async(
+        user_id=user_id, company_id=company_id, **get_info_params
+    )
+    return PaginatedContentInfos.model_validate(
+        await content_info, by_alias=True, by_name=True
+    )
+
+
 def get_folder_info(user_id: str, company_id: str, *, scope_id: str) -> FolderInfo:
     info = unique_sdk.Folder.get_info(
         user_id=user_id, company_id=company_id, scopeId=scope_id
     )
 
     return FolderInfo.model_validate(info, by_alias=True, by_name=True)
+
+
+async def get_folder_info_async(
+    user_id: str, company_id: str, *, scope_id: str
+) -> FolderInfo:
+    info = unique_sdk.Folder.get_info_async(
+        user_id=user_id, company_id=company_id, scopeId=scope_id
+    )
+
+    return FolderInfo.model_validate(await info, by_alias=True, by_name=True)
 
 
 def update_content(

@@ -53,3 +53,18 @@ def create_batch_notification(
         return f"This document is too large to extract. It will be split into {total_batches} batches."
 
     return f"Processing {component} (Batch {batch_index} of {total_batches})..."
+
+
+def create_progress_sequence(
+    start: int, stop: int, steps: int
+) -> tuple[float, Generator[float, None, None]]:
+    step_size = (stop - start) / steps
+
+    def frange(start):
+        if steps == 0:
+            raise ValueError("step must not be zero")
+
+        for i in range(steps):
+            yield start + i * step_size
+
+    return step_size, frange(start)

@@ -1,6 +1,6 @@
 import pytest
 
-from unique_web_search.services.content_processing import WebPageChunk
+from unique_web_search.schema import WebPageChunk
 from unique_web_search.utils import query_params_to_human_string
 
 

@@ -2,7 +2,11 @@ import copy
 import logging
 import warnings
 from datetime import UTC, datetime
-from typing import Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, cast
+from uuid import uuid4
+
+if TYPE_CHECKING:
+    from unique_toolkit.app.unique_settings import UniqueSettings
 
 import humps
 import unique_sdk
@@ -12,22 +16,20 @@ from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.language_model import (
-    LanguageModelMessageRole,
-    LanguageModelMessages,
-    LanguageModelResponse,
-    LanguageModelStreamResponse,
-    LanguageModelStreamResponseMessage,
-    LanguageModelTool,
-    LanguageModelToolDescription,
-)
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
-    TemperatureBounds,
 )
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelFunction,
+    LanguageModelMessages,
+    LanguageModelResponse,
+    LanguageModelStreamResponse,
+    LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 from .constants import (
@@ -45,7 +47,7 @@ def complete(
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
     user_id: str | None = None,
@@ -87,13 +89,10 @@ def complete(
         response = unique_sdk.ChatCompletion.create(
             company_id=company_id,
             user_id=user_id,
-            model=model,
-            messages=cast(
-                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
-                messages_dict,
-            ),
+            model=model,  # pyright: ignore[reportArgumentType]
+            messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore
+            options=options,
         )
         return LanguageModelResponse(**response)
     except Exception as e:
@@ -109,7 +108,7 @@ async def complete_async(
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> LanguageModelResponse:
@@ -159,13 +158,10 @@ async def complete_async(
         response = await unique_sdk.ChatCompletion.create_async(
             company_id=company_id,
             user_id=user_id,
-            model=model,
-            messages=cast(
-                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
-                messages_dict,
-            ),
+            model=model,  # pyright: ignore[reportArgumentType]
+            messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore
+            options=options,
         )
         return LanguageModelResponse(**response)
     except Exception as e:
@@ -174,9 +170,9 @@ async def complete_async(
 
 
 def _add_tools_to_options(
-    options: dict,
+    options: dict[str, Any],
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None,
-) -> dict:
+) -> dict[str, Any]:
     if tools:
         options["tools"] = [
             {
@@ -197,7 +193,7 @@ def _to_search_context(
     if not chunks:
         return None
     return [
-        unique_sdk.Integrated.SearchResult(
+        unique_sdk.Integrated.SearchResult(  # pyright: ignore[reportCallIssue]
             id=chunk.id,
             chunkId=chunk.chunk_id,
             key=chunk.key,
@@ -213,10 +209,10 @@ def _to_search_context(
 
 
 def _add_response_format_to_options(
-    options: dict,
+    options: dict[str, Any],
     structured_output_model: type[BaseModel] | dict[str, Any],
     structured_output_enforce_schema: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     if isinstance(structured_output_model, dict):
         name = structured_output_model.get("title", "DefaultName")
         options["responseFormat"] = {
@@ -245,11 +241,11 @@ def _prepare_completion_params_util(
     model_name: LanguageModelName | str,
     temperature: float,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, dict, SearchContext | None]:
+) -> tuple[dict[str, Any], str, dict[str, Any], SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -293,11 +289,11 @@ def _prepare_openai_completion_params_util(
     model_name: LanguageModelName | str,
     temperature: float,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, SearchContext | None]:
+) -> tuple[dict[str, Any], str, SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -341,18 +337,10 @@ def __camelize_keys(data):
     return data
 
 
-def _clamp_temperature(
-    temperature: float, temperature_bounds: TemperatureBounds
-) -> float:
-    temperature = max(temperature_bounds.min_temperature, temperature)
-    temperature = min(temperature_bounds.max_temperature, temperature)
-    return round(temperature, 2)
-
-
 def _prepare_other_options(
-    other_options: dict | None,
-    default_options: dict,
-) -> dict:
+    other_options: dict[str, Any] | None,
+    default_options: dict[str, Any],
+) -> dict[str, Any]:
     options = default_options
     if other_options is not None:
         options.update(other_options)
@@ -364,13 +352,13 @@ def _prepare_all_completions_params_util(
     model_name: LanguageModelName | str,
     temperature: float,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     content_chunks: list[ContentChunk] | None = None,
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[
-    dict,
+    dict[str, Any],
     str,
     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
     SearchContext | None,
@@ -414,14 +402,16 @@ def _prepare_all_completions_params_util(
         )
         messages_dict = __camelize_keys(messages.copy())
 
-    if (
-        model_info is not None
-        and model_info.temperature_bounds is not None
-        and "temperature" in options
-    ):
-        options["temperature"] = _clamp_temperature(
-            temperature, model_info.temperature_bounds
+    if model_info is not None:
+        reasoning_effort = options.get("reasoning_effort")
+        resolved_temp, resolved_effort = model_info.resolve_temp_and_reasoning(
+            temperature, reasoning_effort=reasoning_effort
         )
+        options["temperature"] = resolved_temp
+        if resolved_effort is not None:
+            options["reasoning_effort"] = resolved_effort
+        elif reasoning_effort is not None:
+            options.pop("reasoning_effort", None)
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
@@ -437,7 +427,7 @@ def complete_with_references(
     model_name: LanguageModelName | str,
     user_id: str | None = None,
     content_chunks: list[ContentChunk] | None = None,
-    debug_dict: dict = {},
+    debug_dict: dict[str, Any] = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
@@ -470,7 +460,7 @@ async def complete_with_references_async(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_dict: dict | None = None,
+    debug_dict: dict[str, Any] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
@@ -523,12 +513,13 @@ def _create_language_model_stream_response_with_references(
         search_context=content_chunks,
     )
 
-    stream_response_message = LanguageModelStreamResponseMessage(
+    stream_response_message = ChatMessage(
         id="stream_unknown",
         previous_message_id=None,
-        role=LanguageModelMessageRole.ASSISTANT,
+        role=ChatMessageRole.ASSISTANT,
         text=message.content or "",
         original_text=content,
+        chat_id="stream_unknown",
         references=[
             ContentReference(**u.model_dump()) for u in message.references or []
         ],
@@ -541,3 +532,128 @@ def _create_language_model_stream_response_with_references(
         message=stream_response_message,
         tool_calls=tool_calls,
     )
+
+
+async def stream_complete_with_references_openai(
+    messages: list[ChatCompletionMessageParam] | LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] | None = None,
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    start_text: str | None = None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+    unique_settings: "UniqueSettings | None" = None,  # noqa: F821
+    message_id: str | None = None,
+) -> LanguageModelStreamResponse:
+    """Stream a chat completion via the OpenAI proxy, apply reference injection, and return a LanguageModelStreamResponse."""
+    from unique_toolkit.framework_utilities.openai.client import (
+        get_async_openai_client,
+    )
+    from unique_toolkit.language_model.stream_transform import (
+        ReferenceInjectionTransform,
+        TextTransformPipeline,
+    )
+
+    # prepare variables
+    client = get_async_openai_client(unique_settings=unique_settings)
+    model_name_: str = (
+        model_name.value if isinstance(model_name, LanguageModelName) else model_name
+    )
+    messages_: list[ChatCompletionMessageParam] = (
+        messages.model_dump(
+            exclude_none=True,
+            by_alias=False,
+        )
+        if isinstance(messages, LanguageModelMessages)
+        else list(messages)
+    )
+    tools_ = (
+        []
+        if tools is None
+        else [
+            tool.to_openai(mode="completions")
+            if isinstance(tool, LanguageModelToolDescription)
+            else {"type": "function", "function": tool.model_dump(exclude_none=True)}
+            for tool in tools
+        ]
+    )
+
+    # pipeline
+    pipeline = TextTransformPipeline()
+    # pipeline.add(NormalizationTransform()) # no-op for now
+    pipeline.add(
+        ReferenceInjectionTransform(
+            content_chunks=content_chunks or [], model=model_name_
+        )
+    )
+
+    stream_kwargs: dict[str, Any] = {
+        "messages": messages_,
+        "model": model_name_,
+        "temperature": temperature,
+        "stream": True,
+    }
+    if tool_choice is not None:
+        stream_kwargs["tool_choice"] = tool_choice
+    if tools_:
+        stream_kwargs["tools"] = tools_
+
+    full_text: str = start_text or ""
+    tool_calls_fragments: dict[int, dict[str, Any]] = {}
+    try:
+        stream = await client.chat.completions.create(**stream_kwargs)
+        async with stream:
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+                choice_ = chunk.choices[0]
+                # text
+                delta_ = choice_.delta
+                if delta_.content is not None:
+                    full_text += delta_.content
+                    pipeline.feed_delta(delta_.content)  # does nothing right now
+                # tools
+                for tool_call in delta_.tool_calls or []:
+                    idx_ = tool_call.index
+                    if idx_ not in tool_calls_fragments.keys():
+                        tool_calls_fragments[idx_] = {
+                            "id": tool_call.id or "",
+                            "name": "",
+                            "arguments": "",
+                        }
+                    if tool_call.function is not None:
+                        tool_calls_fragments[idx_]["name"] += (
+                            tool_call.function.name or ""
+                        )
+                        tool_calls_fragments[idx_]["arguments"] += (
+                            tool_call.function.arguments or ""
+                        )
+        # run on full text
+        text_, references_ = pipeline.run(full_text)
+        # construct tool calls
+        tool_calls_list = None
+        if len(tool_calls_fragments) > 0:
+            tool_calls_list = [
+                LanguageModelFunction(
+                    id=tool_call["id"],
+                    name=tool_call["name"],
+                    arguments=tool_call["arguments"] or None,
+                )
+                for tool_call in tool_calls_fragments.values()
+            ]
+
+        return LanguageModelStreamResponse(
+            message=ChatMessage(
+                id=message_id or uuid4().hex,
+                chat_id="",
+                previous_message_id=None,
+                role=ChatMessageRole.ASSISTANT,
+                text=text_,
+                original_text=full_text,
+                references=references_,
+            ),
+            tool_calls=tool_calls_list,
+        )
+    except Exception as e:
+        logger.error("Error streaming completion (model=%s): %s", model_name_, e)
+        raise

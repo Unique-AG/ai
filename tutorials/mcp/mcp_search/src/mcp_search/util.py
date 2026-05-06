@@ -24,7 +24,7 @@ def get_user(zitadel_oauth_proxy_settings: ZitadelOAuthProxySettings) -> User:
         "Authorization": f"Bearer {token.token}",
     }
     response = requests.get(
-        zitadel_oauth_proxy_settings.userinfo_endpoint(), headers=headers
+        zitadel_oauth_proxy_settings.userinfo_endpoint, headers=headers
     )
     response.raise_for_status()
     zitadel_user_info = response.json()

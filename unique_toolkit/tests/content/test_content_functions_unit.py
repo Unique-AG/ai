@@ -1,12 +1,14 @@
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from unique_toolkit.content.functions import (
     download_content,
     download_content_to_bytes,
+    download_content_to_bytes_async,
     download_content_to_file_by_id,
     request_content_by_id,
+    request_content_by_id_async,
     search_content_chunks,
     search_content_chunks_async,
     search_contents,
@@ -204,6 +206,31 @@ def test_upload_content_from_bytes(mock_upsert, mock_put, sample_content_data):
     assert isinstance(result, Content)
     call_kwargs = mock_upsert.call_args[1]
     assert call_kwargs["input_data"]["ingestionConfig"] == ingestion_config
+
+
+@patch("unique_toolkit.content.functions.requests.put")
+@patch("unique_toolkit.content.functions._upsert_content")
+def test_upload_content_from_bytes_uses_ingestion_upload_url_internal_when_set(
+    mock_upsert, mock_put, sample_content_data
+):
+    mock_upsert.return_value = sample_content_data
+    internal_base = "https://node-ingestion.internal/upload"
+    with patch(
+        "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+        internal_base,
+    ):
+        result = upload_content_from_bytes(
+            user_id="user123",
+            company_id="company123",
+            content=b"test",
+            content_name="test.txt",
+            mime_type="text/plain",
+            scope_id="scope123",
+        )
+    assert result.write_url is not None
+    assert result.write_url.startswith(internal_base)
+    mock_put.assert_called_once()
+    assert mock_put.call_args[1]["url"].startswith(internal_base)
 
 
 @patch("unique_toolkit.content.functions.requests.get")
@@ -511,3 +538,227 @@ def test_upload_content_missing_write_url(mock_sdk, tmp_path):
             ingestion_config=ingestion_config,
         )
     assert "Write url for uploaded content is missing" in str(exc_info.value)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_request_content_by_id_async__returns_response__with_valid_params(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify async content request builds correct URL with chat_id and auth headers.
+    Why this matters: Incorrect URL or headers would silently fail content downloads.
+    Setup summary: Mock httpx.AsyncClient, call request_content_by_id_async, assert URL and headers.
+    """
+    with patch("unique_toolkit.content.functions.httpx.AsyncClient") as mock_client_cls:
+        # Arrange
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"test content"
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.get.return_value = mock_response
+        mock_client_cls.return_value = mock_client
+
+        # Act
+        response = await request_content_by_id_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id="chat123",
+        )
+
+        # Assert
+        assert response.status_code == 200
+        assert response.content == b"test content"
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
+        assert "content123" in call_args[0][0]
+        assert "chatId=chat123" in call_args[0][0]
+        headers = call_args[1]["headers"]
+        assert headers["x-user-id"] == "user123"
+        assert headers["x-company-id"] == "company123"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_content_to_bytes_async__returns_bytes__with_successful_response(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify async download returns raw bytes when the response is successful.
+    Why this matters: Callers depend on receiving bytes for in-memory file processing.
+    Setup summary: Mock request_content_by_id_async with a 200 response, assert bytes returned.
+    """
+    # Arrange
+    mock_response = Mock()
+    mock_response.is_success = True
+    mock_response.content = b"test content"
+
+    async def fake_request(*args):
+        return mock_response
+
+    with patch(
+        "unique_toolkit.content.functions.request_content_by_id_async",
+        side_effect=fake_request,
+    ):
+        # Act
+        result = await download_content_to_bytes_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id="chat123",
+        )
+
+        # Assert
+        assert isinstance(result, bytes)
+        assert result == b"test content"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_content_to_bytes_async__raises_error__when_response_not_successful(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify async download raises when the server returns a non-success status.
+    Why this matters: Silent failures on bad responses would produce corrupt or missing data.
+    Setup summary: Mock request with is_success=False and raise_for_status side effect, assert raises.
+    """
+    # Arrange
+    mock_response = Mock()
+    mock_response.is_success = False
+    mock_response.status_code = 404
+    mock_response.raise_for_status.side_effect = RuntimeError("download failed")
+
+    async def fake_request(*args):
+        return mock_response
+
+    with patch(
+        "unique_toolkit.content.functions.request_content_by_id_async",
+        side_effect=fake_request,
+    ):
+        # Act & Assert
+        with pytest.raises(RuntimeError, match="download failed"):
+            await download_content_to_bytes_async(
+                user_id="user123",
+                company_id="company123",
+                content_id="content123",
+                chat_id="chat123",
+            )
+
+
+# ---------------------------------------------------------------------------
+# httpx timeout tests for _trigger_upload_content_async (UN-18453)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_trigger_upload_content_async_uses_generous_timeout(
+    sample_content_data,
+) -> None:
+    """
+    Purpose: Verify AsyncClient is created with read/write timeouts well above the 5 s default.
+    Why this matters: Large HTML files (~4 MB) reliably timeout at 5 s waiting for the Azure
+    Blob Storage commit response; without an explicit timeout the upload silently fails.
+    Setup summary: Patch _upsert_content_async and httpx.AsyncClient, call the private helper,
+    assert the timeout kwarg has read >= 60 and write >= 60.
+    """
+    import httpx
+
+    from unique_toolkit.content.functions import _trigger_upload_content_async
+
+    captured_timeout: httpx.Timeout | None = None
+
+    with patch(
+        "unique_toolkit.content.functions._upsert_content_async",
+        new_callable=AsyncMock,
+    ) as mock_upsert:
+        mock_upsert.return_value = sample_content_data
+
+        with patch(
+            "unique_toolkit.content.functions.httpx.AsyncClient"
+        ) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_response = Mock()
+            mock_response.raise_for_status = Mock()
+            mock_client.put.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            def capture_timeout(*args, **kwargs):
+                nonlocal captured_timeout
+                captured_timeout = kwargs.get("timeout")
+                return mock_client
+
+            mock_client_cls.side_effect = capture_timeout
+
+            await _trigger_upload_content_async(
+                user_id="user123",
+                company_id="company123",
+                content=b"<html>large payload</html>",
+                content_name="dashboard.html",
+                mime_type="text/html",
+                chat_id="chat123",
+            )
+
+    assert captured_timeout is not None, (
+        "httpx.AsyncClient must receive a timeout= kwarg"
+    )
+    assert isinstance(captured_timeout, httpx.Timeout)
+    assert captured_timeout.read is not None and captured_timeout.read >= 60, (
+        f"read timeout {captured_timeout.read} must be >= 60 s to survive large blob uploads"
+    )
+    assert captured_timeout.write is not None and captured_timeout.write >= 60, (
+        f"write timeout {captured_timeout.write} must be >= 60 s to survive large blob uploads"
+    )
+
+
+@pytest.mark.asyncio
+async def test_trigger_upload_content_async_timeout_not_default_5s(
+    sample_content_data,
+) -> None:
+    """
+    Purpose: Guard against accidental regression back to the 5 s httpx default.
+    Why this matters: A plain httpx.AsyncClient() has read=write=5 s which causes ReadTimeout
+    for ~4 MB HTML artifacts (observed in production, chat chat_n2ww1gbf0bti31gh8dt95hox).
+    """
+    import httpx
+
+    from unique_toolkit.content.functions import _trigger_upload_content_async
+
+    with patch(
+        "unique_toolkit.content.functions._upsert_content_async",
+        new_callable=AsyncMock,
+    ) as mock_upsert:
+        mock_upsert.return_value = sample_content_data
+
+        with patch(
+            "unique_toolkit.content.functions.httpx.AsyncClient"
+        ) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_response = Mock()
+            mock_response.raise_for_status = Mock()
+            mock_client.put.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            await _trigger_upload_content_async(
+                user_id="user123",
+                company_id="company123",
+                content=b"<html>large payload</html>",
+                content_name="dashboard.html",
+                mime_type="text/html",
+                chat_id="chat123",
+            )
+
+            call_kwargs = mock_client_cls.call_args[1]
+            timeout = call_kwargs.get("timeout")
+
+    assert timeout is not None, (
+        "timeout= must be passed explicitly to httpx.AsyncClient"
+    )
+    assert not isinstance(timeout, httpx.Timeout) or timeout.read != 5.0, (
+        "read timeout must not be the default 5 s"
+    )

@@ -1,11 +1,13 @@
 import asyncio
+import time
 from logging import Logger, getLogger
-from typing import Generic, Literal, TypeVar, overload
+from typing import Any, Generic, Literal, TypeVar, overload
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
 )
 from openai.types.responses import (
+    ResponseIncludable,
     ToolParam,
     response_create_params,
 )
@@ -86,7 +88,7 @@ class _ToolManager(Generic[_ApiMode]):
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
-        self._tools: list[Tool | OpenAIBuiltInTool] = []
+        self._tools: list[Tool[Any] | OpenAIBuiltInTool[Any]] = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
         self._exclusive_tools = [
@@ -155,6 +157,8 @@ class _ToolManager(Generic[_ApiMode]):
                 continue
             # if tool choices are given, only include those tools
             if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
+                if t.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
+                    self._tools.append(t)
                 continue
             # is the tool exclusive and has been choosen by the user?
             if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:
@@ -209,6 +213,57 @@ class _ToolManager(Generic[_ApiMode]):
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools]
 
+    def add_tool(self, tool: Tool[Any]) -> None:
+        """Inject an externally constructed tool into the manager.
+
+        Use this for tools that require custom constructor arguments (e.g. a
+        shared registry) that cannot be built through ToolFactory.
+        """
+        self._internal_tools.append(tool)
+        self.available_tools.append(tool)
+        self._tools.append(tool)
+
+    def exclude_tool(self, name: str) -> bool:
+        """Exclude a tool by name from the active tool set.
+
+        The tool is removed from all internal tracking lists so it will no
+        longer be offered to the model or executed.  Returns True if the tool
+        was present in at least one list.
+        """
+        found = False
+
+        filtered_tools = [tool for tool in self._tools if tool.name != name]
+        found = found or len(filtered_tools) != len(self._tools)
+        self._tools = filtered_tools
+
+        filtered_internal_tools = [
+            tool for tool in self._internal_tools if tool.name != name
+        ]
+        found = found or len(filtered_internal_tools) != len(self._internal_tools)
+        self._internal_tools = filtered_internal_tools
+
+        filtered_mcp_tools = [tool for tool in self._mcp_tools if tool.name != name]
+        found = found or len(filtered_mcp_tools) != len(self._mcp_tools)
+        self._mcp_tools = filtered_mcp_tools
+
+        filtered_sub_agents = [tool for tool in self._sub_agents if tool.name != name]
+        found = found or len(filtered_sub_agents) != len(self._sub_agents)
+        self._sub_agents = filtered_sub_agents
+
+        filtered_builtin_tools = [
+            tool for tool in self._builtin_tools if tool.name != name
+        ]
+        found = found or len(filtered_builtin_tools) != len(self._builtin_tools)
+        self._builtin_tools = filtered_builtin_tools
+
+        filtered_available_tools = [
+            tool for tool in self.available_tools if tool.name != name
+        ]
+        found = found or len(filtered_available_tools) != len(self.available_tools)
+        self.available_tools = filtered_available_tools
+
+        return found
+
     def add_forced_tool(self, name):
         tool = self.get_tool_by_name(name)
         if not tool:
@@ -255,6 +310,7 @@ class _ToolManager(Generic[_ApiMode]):
 
         # Wait until all tasks are finished
         tool_call_results = await asyncio.gather(*tasks)
+
         tool_call_results_unpacked: list[ToolCallResponse] = []
         for i, result in enumerate(tool_call_results):
             unpacked_tool_call_result = self._create_tool_call_response(
@@ -285,10 +341,16 @@ class _ToolManager(Generic[_ApiMode]):
             raise ValueError(f"Tool {tool_call.name} cannot be run")
 
         if tool_instance:
-            # Execute the tool
+            tool_start = time.perf_counter()
             tool_response: ToolCallResponse = await tool_instance.run(
                 tool_call=tool_call
             )
+            tool_execution_time = round(time.perf_counter() - tool_start, 3)
+
+            if tool_response.debug_info is None:
+                tool_response.debug_info = {}
+            tool_response.debug_info["execution_time_s"] = tool_execution_time
+
             evaluation_checks = tool_instance.evaluation_check_list()
             self._tool_evaluation_check_list.update(evaluation_checks)
 
@@ -309,14 +371,7 @@ class _ToolManager(Generic[_ApiMode]):
                 name=tool_call.name,
                 error_message=str(result.exception),
             )
-        unpacked = result.unpack()
-        if not isinstance(unpacked, ToolCallResponse):
-            return ToolCallResponse(
-                id=tool_call.id or "unknown_id",
-                name=tool_call.name,
-                error_message="Tool call response is not of type ToolCallResponse",
-            )
-        return unpacked
+        return result.unpack()
 
     def filter_duplicate_tool_calls(
         self,
@@ -358,33 +413,33 @@ class _ToolManager(Generic[_ApiMode]):
     @overload
     def get_tool_by_name(
         self: "_ToolManager[Literal['completions']]", name: str
-    ) -> Tool | None: ...
+    ) -> Tool[Any] | None: ...
 
     @overload
     def get_tool_by_name(
         self: "_ToolManager[Literal['responses']]", name: str
-    ) -> Tool | OpenAIBuiltInTool | None: ...
+    ) -> Tool[Any] | OpenAIBuiltInTool[Any] | None: ...
 
     @overload  # Unknown API mode typing
     def get_tool_by_name(
-        self: "_ToolManager", name: str
-    ) -> Tool | OpenAIBuiltInTool | None: ...
+        self: "_ToolManager[Any]", name: str
+    ) -> Tool[Any] | OpenAIBuiltInTool[Any] | None: ...
 
-    def get_tool_by_name(self, name: str) -> Tool | OpenAIBuiltInTool | None:
+    def get_tool_by_name(self, name: str) -> Tool[Any] | OpenAIBuiltInTool[Any] | None:
         for tool in self._tools:
             if tool.name == name:
                 return tool
         return None
 
     @overload
-    def get_tools(self: "_ToolManager[Literal['completions']]") -> list[Tool]: ...
+    def get_tools(self: "_ToolManager[Literal['completions']]") -> list[Tool[Any]]: ...
 
     @overload
     def get_tools(
         self: "_ToolManager[Literal['responses']]",
-    ) -> list[Tool | OpenAIBuiltInTool]: ...
+    ) -> list[Tool[Any] | OpenAIBuiltInTool[Any]]: ...
 
-    def get_tools(self) -> list[Tool] | list[Tool | OpenAIBuiltInTool]:
+    def get_tools(self) -> list[Tool[Any]] | list[Tool[Any] | OpenAIBuiltInTool[Any]]:
         return self._tools.copy()
 
     @overload
@@ -403,11 +458,12 @@ class _ToolManager(Generic[_ApiMode]):
         list[ChatCompletionNamedToolChoiceParam]
         | list[response_create_params.ToolChoice]
     ):
-        return [
+        # TODO(UN-19531): split into two branches with literal mode strings to eliminate this ignore
+        return [  # pyright: ignore[reportReturnType]
             _convert_to_forced_tool(t.name, mode=self._api_mode)
             for t in self._tools
             if t.name in self._tool_choices
-        ]  # type: ignore
+        ]
 
     @overload
     def get_tool_definitions(
@@ -439,7 +495,7 @@ def _convert_to_forced_tool(
     else:
         if tool_name in OpenAIBuiltInToolName:
             # Built-in have a special syntax for forcing
-            return {"type": tool_name}  # type: ignore
+            return {"type": tool_name}  # pyright: ignore[reportReturnType]  # TODO(UN-19531)
         else:
             return {
                 "name": tool_name,
@@ -480,6 +536,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         a2a_manager: A2AManager,
         builtin_tool_manager: OpenAIBuiltInToolManager,
     ) -> None:
+        self._builtin_tool_manager = builtin_tool_manager
         super().__init__(
             logger=logger,
             config=config,
@@ -490,3 +547,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             api_mode="responses",
             builtin_tool_manager=builtin_tool_manager,
         )
+
+    def get_required_include_params(self) -> list[ResponseIncludable]:
+        """Return Responses API include params required by all active built-in tools."""
+        return self._builtin_tool_manager.get_required_include_params()

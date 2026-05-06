@@ -9,6 +9,7 @@ import pytest
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from unique_toolkit._common.pydantic_helpers import (
+    NoneToDefault,
     create_complement_model,
     create_intersection_model,
     create_union_model,
@@ -663,6 +664,131 @@ class TestIntegrationScenarios:
         assert union_model.model_config["use_enum_values"] is True
         # Note: Custom config doesn't automatically include title generators
         # This is expected behavior - the custom config overrides the default
+
+
+class TestNoneToDefault:
+    """Test cases for NoneToDefault BeforeValidator."""
+
+    @pytest.mark.ai
+    def test_AI_none_to_default__replaces_none_with_scalar_default(self) -> None:
+        """
+        Purpose: Verify None is replaced by the field's scalar default.
+        Why this matters: Enables backward-compatible migration from nullable to non-nullable fields.
+        Setup summary: Pass None for a str field with default "", assert default is used.
+        """
+        from typing import Annotated
+
+        class Model(BaseModel):
+            name: Annotated[str, NoneToDefault] = Field(default="")
+
+        instance = Model(name=None)
+
+        assert instance.name == ""
+
+    @pytest.mark.ai
+    def test_AI_none_to_default__replaces_none_with_factory_default(self) -> None:
+        """
+        Purpose: Verify None is replaced by a default_factory result.
+        Why this matters: Fields using default_factory (lists, dicts) must also be handled.
+        Setup summary: Pass None for a list field with default_factory=list, assert empty list.
+        """
+        from typing import Annotated
+
+        class Model(BaseModel):
+            items: Annotated[list[str], NoneToDefault] = Field(default_factory=list)
+
+        instance = Model(items=None)
+
+        assert instance.items == []
+
+    @pytest.mark.ai
+    def test_AI_none_to_default__preserves_explicit_value(self) -> None:
+        """
+        Purpose: Verify explicit non-None values pass through unchanged.
+        Why this matters: The validator must only intercept None, not alter valid data.
+        Setup summary: Pass "hello" for a str field, assert it is preserved.
+        """
+        from typing import Annotated
+
+        class Model(BaseModel):
+            name: Annotated[str, NoneToDefault] = Field(default="")
+
+        instance = Model(name="hello")
+
+        assert instance.name == "hello"
+
+    @pytest.mark.ai
+    def test_AI_none_to_default__uses_field_default_when_key_missing(self) -> None:
+        """
+        Purpose: Verify that omitting the field entirely still uses the default.
+        Why this matters: NoneToDefault must not interfere with normal default behavior.
+        Setup summary: Instantiate model without providing the field, assert default is used.
+        """
+        from typing import Annotated
+
+        class Model(BaseModel):
+            name: Annotated[str, NoneToDefault] = Field(default="fallback")
+
+        instance = Model()
+
+        assert instance.name == "fallback"
+
+    @pytest.mark.ai
+    def test_AI_none_to_default__works_with_int_field(self) -> None:
+        """
+        Purpose: Verify NoneToDefault works with non-string scalar types.
+        Why this matters: The validator must be type-agnostic.
+        Setup summary: Pass None for an int field with default 0, assert 0.
+        """
+        from typing import Annotated
+
+        class Model(BaseModel):
+            count: Annotated[int, NoneToDefault] = Field(default=0)
+
+        instance = Model(count=None)
+
+        assert instance.count == 0
+
+    @pytest.mark.ai
+    def test_AI_none_to_default__migration_from_nullable_model(self) -> None:
+        """
+        Purpose: End-to-end migration scenario: old nullable model dump loaded into new model.
+        Why this matters: This is the primary use case driving the feature.
+        Setup summary: Dump an old model with None values, load into new model with NoneToDefault.
+        """
+        from typing import Annotated
+
+        class OldModel(BaseModel):
+            name: str | None = Field(default=None)
+            count: int | None = Field(default=None)
+
+        class NewModel(BaseModel):
+            name: Annotated[str, NoneToDefault] = Field(default="")
+            count: Annotated[int, NoneToDefault] = Field(default=0)
+
+        old_data = OldModel().model_dump()
+        new_instance = NewModel(**old_data)
+
+        assert new_instance.name == ""
+        assert new_instance.count == 0
+
+    @pytest.mark.ai
+    def test_AI_none_to_default__factory_returns_independent_instances(self) -> None:
+        """
+        Purpose: Verify default_factory produces independent objects per instance.
+        Why this matters: Shared mutable defaults would cause cross-instance contamination.
+        Setup summary: Create two instances from None, mutate one list, assert the other is unaffected.
+        """
+        from typing import Annotated
+
+        class Model(BaseModel):
+            items: Annotated[list[str], NoneToDefault] = Field(default_factory=list)
+
+        a = Model(items=None)
+        b = Model(items=None)
+        a.items.append("x")
+
+        assert b.items == []
 
 
 if __name__ == "__main__":

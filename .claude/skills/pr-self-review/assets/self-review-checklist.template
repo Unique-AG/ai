@@ -1,0 +1,36 @@
+# Self-Review Checklist
+
+<!--
+Copy this checklist into a comment on your PR before requesting review.
+Mark items as you verify them. This shows reviewers you've done a thorough check.
+-->
+
+## Description Accuracy
+- [ ] PR description accurately describes all files in the diff
+- [ ] No surprises or drift between description and actual changes
+
+## Scope
+- [ ] All files in the diff are intentionally included (no accidental files)
+- [ ] No unrelated changes mixed in (single concern)
+- [ ] No files changed that don't belong in this PR
+
+## Artifact Cleanup
+- [ ] No leftover `console.log`, `print`, `println` debug output
+- [ ] No `debugger` or `pdb` breakpoints left behind
+- [ ] No commented-out code blocks
+- [ ] No TODO, FIXME, HACK, or XXX comments left unresolved
+- [ ] No `.only` or `.skip` on test cases (all tests run)
+
+## Test Coverage
+- [ ] Every changed function/method has at least one corresponding test
+- [ ] New tests are included in the diff
+- [ ] All tests should pass (locally verified if possible)
+
+## Single Concern
+- [ ] Changes are focused on a single, logical concern
+- [ ] No mixing of unrelated changes (auth + refactoring, etc.)
+- [ ] If multiple concerns detected: consider splitting this PR
+
+---
+
+**Ready for external review? ✅**

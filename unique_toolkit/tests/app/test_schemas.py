@@ -1,4 +1,5 @@
 from unique_toolkit.app.schemas import (
+    ChatEventAdditionalParameters,
     ChatEventAssistantMessage,
     ChatEventPayload,
     ChatEventUserMessage,
@@ -45,7 +46,7 @@ class TestEventSchemas:
                 "createdAt": "2023-01-01T00:01:00Z"
             },
             "text": "Optional text",
-            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
+            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234", "userSpaceInstructions": "some instructions"}
         }"""
         payload = EventPayload.model_validate_json(json_data)
 
@@ -60,6 +61,9 @@ class TestEventSchemas:
         assert payload.additional_parameters is not None
         assert payload.additional_parameters.translate_to_language == "en"
         assert payload.additional_parameters.content_id_to_translate == "content_1234"
+        assert (
+            payload.additional_parameters.user_space_instructions == "some instructions"
+        )
 
     def test_event_deserialization(self):
         json_data = """{
@@ -85,7 +89,7 @@ class TestEventSchemas:
                     "createdAt": "2023-01-01T00:01:00Z"
                 },
                 "text": "Optional text",
-                "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
+                "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234", "userSpaceInstructions": "some instructions"}
             },
             "createdAt": 1672531200,
             "version": "1.0"
@@ -106,6 +110,10 @@ class TestEventSchemas:
         assert (
             event.payload.additional_parameters.content_id_to_translate
             == "content_1234"
+        )
+        assert (
+            event.payload.additional_parameters.user_space_instructions
+            == "some instructions"
         )
         assert event.created_at == 1672531200
         assert event.version == "1.0"
@@ -177,7 +185,7 @@ class TestEventSchemas:
                 "createdAt": "2023-01-01T00:01:00Z"
             },
             "text": "Optional text",
-            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
+            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234", "userSpaceInstructions": "some instructions"}
         }"""
         payload = ChatEventPayload.model_validate_json(json_data)
 
@@ -192,3 +200,35 @@ class TestEventSchemas:
         assert payload.additional_parameters is not None
         assert payload.additional_parameters.translate_to_language == "en"
         assert payload.additional_parameters.content_id_to_translate == "content_1234"
+        assert (
+            payload.additional_parameters.user_space_instructions == "some instructions"
+        )
+
+    def test_additional_parameters__uploaded_files__object_format_deserialization(self):
+        json_data = """{
+            "userSpaceInstructions": "",
+            "uploadedFiles": [
+                {"id": "cont_abc", "title": "Q3 Report.pdf", "mimeType": "application/pdf"}
+            ],
+            "selectedUploadedFiles": [
+                {"id": "cont_abc", "title": "Q3 Report.pdf", "mimeType": "application/pdf"}
+            ]
+        }"""
+        params = ChatEventAdditionalParameters.model_validate_json(json_data)
+
+        assert len(params.uploaded_files) == 1
+        assert params.uploaded_files[0].id == "cont_abc"
+        assert params.uploaded_files[0].title == "Q3 Report.pdf"
+        assert params.uploaded_files[0].mime_type == "application/pdf"
+        assert params.uploaded_file_ids == ["cont_abc"]
+
+        assert len(params.selected_uploaded_files) == 1
+        assert params.selected_uploaded_files[0].id == "cont_abc"
+        assert params.selected_uploaded_file_ids == ["cont_abc"]
+
+    def test_additional_parameters__uploaded_files__defaults_to_empty_list(self):
+        json_data = '{"userSpaceInstructions": ""}'
+        params = ChatEventAdditionalParameters.model_validate_json(json_data)
+
+        assert params.uploaded_files == []
+        assert params.selected_uploaded_files == []

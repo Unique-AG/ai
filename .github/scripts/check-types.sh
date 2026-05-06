@@ -40,19 +40,14 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -b, --base-ref REF   Base branch/ref for comparison (default: origin/main)
-    -r, --runner CMD     Command runner prefix (default: auto-detect)
-                         Use "poetry run" for Poetry, "uv run" for uv
+    -r, --runner CMD     Command runner prefix (default: "uv run")
 
 EXAMPLES:
-    # Basic usage (Poetry, auto-detect base branch)
+    # Basic usage
     ${SCRIPT_NAME} unique_toolkit
 
     # With explicit base branch
     ${SCRIPT_NAME} unique_toolkit --base-ref origin/main
-
-    # For uv packages
-    ${SCRIPT_NAME} unique_mcp --runner "uv run"
-    ${SCRIPT_NAME} tool_packages/unique_web_search --runner "uv run"
 
 EXIT CODES:
     0    No new type errors
@@ -139,11 +134,7 @@ fi
 
 # Auto-detect runner if not specified
 if [ -z "$RUNNER" ]; then
-    if [ -f "$PACKAGE_DIR/uv.lock" ]; then
-        RUNNER="uv run"
-    else
-        RUNNER="poetry run"
-    fi
+    RUNNER="uv run"
 fi
 
 # Determine base reference if not provided

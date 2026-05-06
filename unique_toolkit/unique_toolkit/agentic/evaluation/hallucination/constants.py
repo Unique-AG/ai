@@ -43,7 +43,8 @@ class HallucinationConfig(EvaluationMetricConfig):
     language_model: LMI = LanguageModelInfo.from_name(
         DEFAULT_GPT_4o,
     )
-    prompts_config: HallucinationPromptsConfig = Field(  # type: ignore[assignment]
+    # TODO(UN-19516): make EvaluationMetricConfig generic over PromptsConfig to avoid this override
+    prompts_config: HallucinationPromptsConfig = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
         default_factory=HallucinationPromptsConfig,
         description="The prompts config for the hallucination metric",
     )
@@ -51,12 +52,12 @@ class HallucinationConfig(EvaluationMetricConfig):
         default={},
         description="Additional options to pass to the language model.",
     )
-    score_to_label: dict = {
+    score_to_label: dict[str, str] = {
         "LOW": "GREEN",
         "MEDIUM": "YELLOW",
         "HIGH": "RED",
     }
-    score_to_title: dict = {
+    score_to_title: dict[str, str] = {
         "LOW": "No Hallucination Detected",
         "MEDIUM": "Hallucination Warning",
         "HIGH": "High Hallucination",

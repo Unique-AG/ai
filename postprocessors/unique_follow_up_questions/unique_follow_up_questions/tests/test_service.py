@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from unique_toolkit import LanguageModelService
@@ -121,8 +121,10 @@ async def test_get_follow_up_question_suggestion(
             ),
         ]
     )
-    language_model_service.complete.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(parsed=mock_output.model_dump()))]
+    language_model_service.complete_async = AsyncMock(
+        return_value=MagicMock(
+            choices=[MagicMock(message=MagicMock(parsed=mock_output.model_dump()))]
+        )
     )
 
     # Act
@@ -135,8 +137,8 @@ async def test_get_follow_up_question_suggestion(
 
     # Assert
     assert isinstance(result, str)
-    language_model_service.complete.assert_called_once()
-    call_args = language_model_service.complete.call_args[1]
+    language_model_service.complete_async.assert_called_once()
+    call_args = language_model_service.complete_async.call_args[1]
     assert call_args["model_name"] == config.language_model.name
     assert call_args["structured_output_model"] == FollowUpQuestionsOutput
 
@@ -154,8 +156,10 @@ async def test_get_follow_up_question_suggestion_without_structured_output(
 
     # Mock the language model response
     mock_content = '{"questions": [{"question": "Question 1"}]}'
-    language_model_service.complete.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content=mock_content))]
+    language_model_service.complete_async = AsyncMock(
+        return_value=MagicMock(
+            choices=[MagicMock(message=MagicMock(content=mock_content))]
+        )
     )
 
     # Mock use_structured_output to return False to test non-structured output path
@@ -175,8 +179,8 @@ async def test_get_follow_up_question_suggestion_without_structured_output(
 
         # Assert
         assert isinstance(result, str)
-        language_model_service.complete.assert_called_once()
-        call_args = language_model_service.complete.call_args[1]
+        language_model_service.complete_async.assert_called_once()
+        call_args = language_model_service.complete_async.call_args[1]
         assert (
             call_args["model_name"]
             == config_without_structured_output.language_model.name
@@ -195,7 +199,9 @@ async def test_get_follow_up_question_suggestion_error_handling(
     language = "en"
 
     # Mock the language model to raise an exception
-    language_model_service.complete.side_effect = Exception("Test error")
+    language_model_service.complete_async = AsyncMock(
+        side_effect=Exception("Test error")
+    )
 
     # Act
     result = await service.get_follow_up_question_suggestion(

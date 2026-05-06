@@ -30,14 +30,11 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -o, --output FILE    Path to output JSON file (default: /tmp/deptry.json)
-    -r, --runner CMD     Command executor prefix (e.g., "poetry run" or "uv run", default: "uv run")
+    -r, --runner CMD     Command executor prefix (default: "uv run")
 
 EXAMPLES:
-    # Basic usage (with uv)
+    # Basic usage
     ${SCRIPT_NAME} unique_mcp
-
-    # With poetry
-    ${SCRIPT_NAME} -r "poetry run" unique_toolkit
 
     # Specify package directory and output file
     ${SCRIPT_NAME} unique_mcp /tmp/my-results.json

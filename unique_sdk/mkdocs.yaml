@@ -60,6 +60,8 @@ nav:
   - API Reference:
     - Overview: api_resources/index.md
     - Agentic Table: api_resources/agentic_table.md
+    - Benchmarking: api_resources/benchmarking.md
+    - Briefing: api_resources/briefing.md
     - ChatCompletion: api_resources/chat_completion.md
     - Content: api_resources/content.md
     - Embeddings: api_resources/embeddings.md
@@ -71,14 +73,18 @@ nav:
     - Message Assessment: api_resources/message_assessment.md
     - Message Execution: api_resources/message_execution.md
     - Message Log: api_resources/message_log.md
+    - MCP: api_resources/mcp.md
+    - ScheduledTask: api_resources/scheduled_task.md
     - Search: api_resources/search.md
     - SearchString: api_resources/search_string.md
     - Short Term Memory: api_resources/short_term_memory.md
     - Space: api_resources/space.md
+    - MessageTool: api_resources/message_tool.md
     - User: api_resources/user.md
   - UniqueQL:
     - Query Language: uniqueql.md
   - Utilities:
+    - Benchmarking run: utilities/benchmarking_run.md
     - Chat History: utilities/chat_history.md
     - File I/O: utilities/file_io.md
     - Sources: utilities/sources.md
@@ -90,6 +96,13 @@ nav:
     - Folder Updates: tutorials/folder_updates.md
     - Rule-Based Search: tutorials/get_contents.md
     - OpenAI Integration: tutorials/openai_scripts.md
+  - CLI (Experimental):
+    - Overview: cli/index.md
+    - Command Reference: cli/commands.md
+    - Scheduled Tasks: cli/scheduled_tasks.md
+    - Elicitation: cli/elicitation.md
+    - Search Guide: cli/search.md
+    - Configuration: cli/configuration.md
 
 
 markdown_extensions:

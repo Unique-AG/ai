@@ -91,19 +91,17 @@ def reset_message_order_counters():
     """
     Purpose: Reset message order counters before each test.
     Why this matters: Prevents test interference from shared module-level state.
-    Setup summary: Clear the _request_counters dictionary before each test.
+    Setup summary: Clear shared message-log order counters before each test.
     """
-    from unique_toolkit.agentic.message_log_manager.service import (
-        _request_counters,  # type: ignore[attr-defined]
+    from unique_toolkit.agentic.message_log_order import (
+        reset_message_log_order_counters,
     )
 
-    # Clear counters before test
-    _request_counters.clear()
+    reset_message_log_order_counters()
 
     yield
 
-    # Clear counters after test
-    _request_counters.clear()
+    reset_message_log_order_counters()
 
 
 # Initialization Tests

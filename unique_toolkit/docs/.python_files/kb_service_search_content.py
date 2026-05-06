@@ -1,5 +1,5 @@
 # ~/~ begin <<docs/modules/examples/content/kb_service.md#./docs/.python_files/kb_service_search_content.py>>[init]
-# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_setup>>[init]
+# ~/~ begin <<docs/application_types/standalone_application.md#kb_service_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
@@ -28,15 +28,13 @@ from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/kb_service.md#initialize_kb_service_standalone>>[init]
 kb_service = KnowledgeBaseService.from_settings()
 # ~/~ end
-# ~/~ end
-# ~/~ begin <<docs/modules/examples/content/kb_service.md#load_demo_variables>>[init]
+# ~/~ begin <<docs/application_types/demo_environment.md#load_demo_variables>>[init]
 from dotenv import dotenv_values
 demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
 # ~/~ end
-# ~/~ begin <<docs/modules/examples/content/kb_service.md#env_scope_id>>[init]
+# ~/~ begin <<docs/application_types/demo_environment.md#env_scope_id>>[init]
 scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/content/kb_service.md#kb_service_content_search>>[init]

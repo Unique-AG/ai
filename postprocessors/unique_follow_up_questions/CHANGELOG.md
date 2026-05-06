@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v1.1.19...unique-follow-up-questions-v2026.18.0) (2026-04-23)
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
+## [1.1.19] - 2026-04-15
+- Chore: standardize pytest configuration across workspace packages
+
+## [1.1.18] - 2026-04-14
+- Chore: migrate pytest config from `pytest.ini` to `pyproject.toml` with `importlib` import mode
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
+
+## [1.1.17] - 2026-04-05
+- Fix: use async `complete_async()` instead of sync `complete()` in follow-up question generation to avoid blocking the event loop and starving concurrent postprocessors
+- Fix: handle `None` message text in `apply_postprocessing_to_response` to prevent TypeError
+
+## [1.1.16] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
+## [1.1.15] - 2026-03-30
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [1.1.14] - 2026-03-05
+- Build: migrate from Poetry to uv
+- Bump unique-toolkit to >=1.50.4
+
 ## [1.1.13] - 2026-01-16
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
 

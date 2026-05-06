@@ -54,7 +54,7 @@ async def handle_responses_forced_tools_iteration(
     for r in responses:
         if r.tool_calls:
             tool_calls.extend(r.tool_calls)
-        references.extend(r.message.references)
+        references.extend(r.message.references or [])
 
     response = responses[0]
     response.tool_calls = tool_calls if len(tool_calls) > 0 else None

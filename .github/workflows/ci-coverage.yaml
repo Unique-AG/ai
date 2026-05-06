@@ -1,7 +1,18 @@
-name: "[CI] Coverage - All Packages"
+name: "[CI] Coverage"
 
 on:
-  pull_request:
+  workflow_call:
+    inputs:
+      changes:
+        description: 'Pre-computed changes JSON from ci.yaml (skips detection when set)'
+        required: false
+        type: string
+        default: ''
+      matrix:
+        description: 'Pre-computed matrix JSON from ci.yaml (skips select-packages when set)'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       package:
@@ -21,79 +32,51 @@ on:
           - deep_research
           - internal_search
           - quartr
+          - six
+          - search_proxy
         default: ''
 
 jobs:
   detect-changes:
+    if: inputs.matrix == ''
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            toolkit:
-              - 'unique_toolkit/**/!(*.md|docs/**|.entangled/**|*mkdocs.yaml)'
-            sdk:
-              - 'unique_sdk/**/!(*.md)'
-            mcp:
-              - 'unique_mcp/**/!(*.md)'
-            orchestrator:
-              - 'unique_orchestrator/**/!(*.md)'
-            web_search:
-              - 'tool_packages/unique_web_search/**/!(*.md)'
-            swot:
-              - 'tool_packages/unique_swot/**/!(*.md)'
-            follow_up_questions:
-              - 'postprocessors/unique_follow_up_questions/**/!(*.md)'
-            stock_ticker:
-              - 'postprocessors/unique_stock_ticker/**/!(*.md)'
-            deep_research:
-              - 'tool_packages/unique_deep_research/**/!(*.md)'
-            internal_search:
-              - 'tool_packages/unique_internal_search/**/!(*.md)'
-            quartr:
-              - 'connectors/unique_quartr/**/!(*.md)'
+      - uses: ./.github/actions/detect-changes
+        id: detect
+
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
 
       - name: Select packages
         id: set-matrix
         uses: ./.github/actions/select-packages
         with:
-          packages: |
-            [
-              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "min_coverage": "60"},
-              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "min_coverage": "60"},
-              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "min_coverage": "60"},
-              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "min_coverage": "60"},
-              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "min_coverage": "60"},
-              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "min_coverage": "60"},
-              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "min_coverage": "60"},
-              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "60"},
-              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "60"},
-              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "60"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"}
-            ]
+          packages: ${{ steps.pkgs.outputs.packages }}
           selected: ${{ github.event.inputs.package }}
-          changes: ${{ toJson(steps.filter.outputs) }}
+          changes: ${{ inputs.changes || steps.detect.outputs.changes }}
 
   coverage:
     needs: detect-changes
-    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    if: >-
+      !cancelled()
+      && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
+      && fromJson(inputs.matrix || needs.detect-changes.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      matrix: ${{ fromJson(inputs.matrix || needs.detect-changes.outputs.matrix) }}
     name: cov-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
@@ -102,5 +85,7 @@ jobs:
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
+          install_args: ${{ matrix.install_args }}
+          test_args: ${{ matrix.test_args }}
           base_ref: origin/${{ github.base_ref || 'main' }}
           min_coverage: ${{ matrix.min_coverage }}

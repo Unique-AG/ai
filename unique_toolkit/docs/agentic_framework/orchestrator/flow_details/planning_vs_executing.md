@@ -20,7 +20,7 @@ Should it stream it makes sure the references are automatically cited correctly 
 Detailed description of Step A from the Main Control flow:
 
 Code:
-```python
+```{.python #orchestrator-plan-or-execute}
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
         self._logger.info("Planning or executing the loop.")

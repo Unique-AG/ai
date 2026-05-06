@@ -709,6 +709,7 @@ For simplified file operations, use the [File I/O utilities](../utilities/file_i
     - `readUrl` (str | None) - URL for reading/downloading file content
     - `expiredAt` (str | None) - Expiration timestamp (ISO 8601)
     - `appliedIngestionConfig` (Dict[str, Any] | None) - The ingestion configuration that was applied to this content
+    - `mimeType` (str | None) - Mime type of this content
 
     **Returned by:** `Content.search()`, `Content.upsert()`
 

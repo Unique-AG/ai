@@ -36,7 +36,7 @@ To enable automatic instantiation of tools based on their configuration, each to
 1. **Register the Tool**:  
    At the end of the tool's implementation file, register the tool and its configuration with the `ToolFactory`.
 
-   ```python
+   ```{.python #tool-factory-register}
    ToolFactory.register_tool(InternalSearchTool, InternalSearchConfig)
    ```
    
@@ -55,7 +55,7 @@ The **core functionality** of any tool is defined in its **`run` method**, which
 The **`run` method** is where the actual execution of the tool happens. It is an abstract method that must be implemented by every tool. This method takes a `LanguageModelFunction` as input and returns a `ToolCallResponse`. The `run` method is responsible for performing the tool's specific task, such as executing a search, generating content, or interacting with external systems.
 
 #### Method Signature:
-```python
+```{.python #tool-run-method}
 @abstractmethod
 async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
 
@@ -67,38 +67,26 @@ This method is the heart of the tool's functionality and must be tailored to the
 
 ### 🧩 Initialization
 
-The `Tool` class is initialized with a configuration object, an event, and an optional progress reporter. These components are essential for setting up the tool and ensuring it operates correctly.
+The base `Tool` class is initialized with **configuration only**. The base class is decoupled from chat-frontend concerns (ChatEvent, ChatService, LanguageModelService, ToolProgressReporter).
 
-#### Constructor:
-```python
-def __init__(
-    self,
-    config: ConfigType,
-    event: ChatEvent,
-    tool_progress_reporter: ToolProgressReporter | None = None,
-):
+Tools that need runtime context (event, chat_service, language_model_service, tool_progress_reporter) should accept them in their own `__init__` and create the services they need.
+
+#### Base Constructor:
+```{.python #tool-init}
+def __init__(self, config: ConfigType) -> None:
+    """Initialize the tool with configuration only."""
     self.settings = ToolBuildConfig(
         name=self.name,
         configuration=config,
     )
-
     self.config = config
-    module_name = "default overwrite for module name"
     self.logger = getLogger(f"{module_name}.{__name__}")
     self.debug_info: dict = {}
-
-    # Deprecated properties
-    self._event: ChatEvent = event
-    self._tool_progress_reporter: ToolProgressReporter | None = (
-        tool_progress_reporter
-    )
 ```
 
 #### 🔄 Progress Reporting
 
-Tools can report their progress during execution using the **`tool_progress_reporter`** property. This feature is essential for keeping users informed about the tool's status, especially for long-running operations. For example, a tool might report stages like "Searching...", "Processing results...", or "Preparing output...".
-
-Progress updates are typically sent before any streaming begins, ensuring users are aware of the tool's current state.
+Tools that need progress reporting should accept `tool_progress_reporter` in their `__init__` (passed by ToolManager) and store it. Progress updates are typically sent before any streaming begins, ensuring users are aware of the tool's current state.
 
 ---
 
@@ -110,7 +98,7 @@ Each tool is defined by a set of properties that determine its identity, configu
    - **`name`**: The internal, code-oriented name of the tool.
    - **`display_name`**: The user-facing name of the tool.
 
-   ```python
+   ```{.python #tool-name-display-name}
    name: str
    def display_name(self) -> str:
        """The display name of the tool."""
@@ -120,7 +108,7 @@ Each tool is defined by a set of properties that determine its identity, configu
 #### 2. **Icon**
    - **`icon`**: A visual representation of the tool, used in user interfaces.
 
-   ```python
+   ```{.python #tool-icon}
    def icon(self) -> str:
        """The icon of the tool."""
        return self.settings.icon
@@ -129,7 +117,7 @@ Each tool is defined by a set of properties that determine its identity, configu
 #### 3. **Exclusivity**
    - **`is_exclusive`**: Indicates whether the tool can run exclusively, meaning no other tools can execute simultaneously.
 
-   ```python
+   ```{.python #tool-is-exclusive}
    def is_exclusive(self) -> bool:
        """Whether the tool is exclusive or not."""
        return self.settings.is_exclusive
@@ -138,7 +126,7 @@ Each tool is defined by a set of properties that determine its identity, configu
 #### 4. **Enable/Disable Status**
    - **`is_enabled`**: Specifies whether the tool is available for use.
 
-   ```python
+   ```{.python #tool-is-enabled}
    def is_enabled(self) -> bool:
        """Whether the tool is enabled or not."""
        return self.settings.is_enabled
@@ -147,7 +135,7 @@ Each tool is defined by a set of properties that determine its identity, configu
 #### 5. **Control Takeover**
    - **`takes_control`**: Indicates if the tool takes over the conversation from the orchestrator. This is useful for tools like deep research, which require uninterrupted interaction with the user.
 
-   ```python
+   ```{.python #tool-takes-control}
    def takes_control(self):
        """
        Indicates whether the tool takes control of the conversation.
@@ -162,7 +150,7 @@ Each tool is defined by a set of properties that determine its identity, configu
 The `Tool` class provides several methods for describing the tool and generating prompts for both the system and the user. These descriptions and prompts help the orchestrator and LLMs understand the tool's purpose and how to interact with it.
 
 #### Tool Description
-```python
+```{.python #tool-tool-description}
 @abstractmethod
 def tool_description(self) -> LanguageModelToolDescription:
     """
@@ -175,7 +163,7 @@ def tool_description(self) -> LanguageModelToolDescription:
 ```
 
 #### System Prompts
-```python
+```{.python #tool-system-prompts}
 def tool_description_for_system_prompt(self) -> str:
     """Provides a detailed description for system-level understanding."""
     return ""
@@ -186,7 +174,7 @@ def tool_format_information_for_system_prompt(self) -> str:
 ```
 
 #### User Prompts
-```python
+```{.python #tool-user-prompts}
 def tool_description_for_user_prompt(self) -> str:
     """Provides a description for user-facing interactions."""
     return ""
@@ -207,7 +195,7 @@ def tool_format_reminder_for_user_prompt(self) -> str:
 The `get_tool_prompts` method consolidates all tool-related information into a `ToolPrompts` object, making it easier for the orchestrator to inject this data into jinja templates on rendering the system and the user prompt.
 
 #### Method:
-```python
+```{.python #tool-get-tool-prompts}
 def get_tool_prompts(self) -> ToolPrompts:
     """
     Collects all tool-related information for templating.

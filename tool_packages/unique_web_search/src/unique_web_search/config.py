@@ -20,6 +20,7 @@ from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
 )
+from unique_web_search.services.argument_screening import ArgumentScreeningConfig
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
 )
@@ -27,12 +28,13 @@ from unique_web_search.services.crawlers import (
     get_crawler_config_types_from_names,
     get_default_crawler_config,
 )
-from unique_web_search.services.executors.configs import (
+from unique_web_search.services.executors import (
     RefineQueryMode,
     WebSearchMode,
     WebSearchModeConfig,
     WebSearchV1Config,
     WebSearchV2Config,
+    WebSearchV3Config,
     get_default_web_search_mode_config,
 )
 from unique_web_search.services.query_elicitation import QueryElicitationConfig
@@ -59,6 +61,35 @@ DefaultCrawler = get_default_crawler_config(env_settings.active_crawlers)
 DEFAULT_WEB_SEARCH_MODE_CONFIG = get_default_web_search_mode_config()
 
 
+class ToolResponseSystemReminderConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    enabled: bool = Field(
+        default=False,
+        title="Enable Tool Response Reminder",
+        description="When enabled, attach reminder text to each successful WebSearch tool response (independent of system-prompt citation instructions).",
+    )
+    system_reminder_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
+        ),
+    ] = Field(
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        title="Tool Response System Reminder Prompt",
+        description="Text sent as system_reminder on WebSearch tool responses when the reminder is enabled.",
+    )
+
+    @property
+    def get_reminder_prompt(self):
+        if not self.enabled:
+            return ""
+
+        return self.system_reminder_prompt
+
+
 class AnswerGenerationConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -79,12 +110,29 @@ class AnswerGenerationConfig(BaseModel):
 class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     query_elicitation_config: QueryElicitationConfig = Field(
         default_factory=QueryElicitationConfig,
-        description="Query elicitation configuration",
+        title="Query Review",
+        description="Allow users to review and modify search queries before execution.",
+    )
+    tool_response_system_reminder: ToolResponseSystemReminderConfig = Field(
+        default_factory=ToolResponseSystemReminderConfig,
+        title="Tool Response System Reminder",
+        description="Optional reminder text attached to each successful WebSearch tool response.",
+    )
+    argument_screening_config: ArgumentScreeningConfig = Field(
+        default_factory=ArgumentScreeningConfig,
+        title="Argument Screening",
+        description="LLM-based screening of tool call arguments for sensitive information before execution. Requires the feature flag FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741 to be activated.",
     )
 
 
 class WebSearchConfig(BaseToolConfig):
-    language_model: LMI = get_LMI_default_field(DEFAULT_MODEL_NAME)
+    language_model: LMI = get_LMI_default_field(
+        DEFAULT_MODEL_NAME,
+        title="Query Refinement Language Model (V1)",
+        description="The AI model used to refine and improve the user's search query in V1 search mode."
+        " **This setting will be moved to the V1 Search Mode Settings in a future release.**",
+    )
+    # TODO [UN-17641]: Remove this field in a future release.
 
     limit_token_sources: SkipJsonSchema[int] = Field(
         default=60_000,  # TODO: Remove SkipJsonSchema once UI (Spaces 2.0) can be configured to not include certain fields
@@ -92,7 +140,8 @@ class WebSearchConfig(BaseToolConfig):
     )
     percentage_of_input_tokens_for_sources: float = Field(
         default=0.4,
-        description="The percentage of the maximum input tokens of the language model to use for the tool response.",
+        title="Source Content Budget",
+        description="Percentage of the AI model's input capacity reserved for web search results. Higher values include more search content but leave less room for conversation history.",
         ge=0.0,
         le=1.0,
     )
@@ -101,54 +150,68 @@ class WebSearchConfig(BaseToolConfig):
         description="Language model maximum input tokens",
     )
 
-    web_search_active_mode: WebSearchMode = Field(
+    web_search_active_mode: Annotated[
+        WebSearchMode,
+        RJSFMetaTag(
+            {
+                "ui:enumNames": WebSearchMode.get_enum_names(),
+            }
+        ),
+    ] = Field(
         default=DEFAULT_WEB_SEARCH_MODE_CONFIG,
-        description="Web Search Active Mode",
+        title="Search Mode",
+        description="Choose which search strategy to use. Each option is described in the selector.",
     )
 
     web_search_mode_config_v1: WebSearchV1Config = Field(
         default_factory=WebSearchV1Config,
-        description="Web Search Mode Configuration V1",
-        title="Web Search Mode Configuration V1",
+        title="Search Mode V1 Settings",
+        description="Settings for the basic search mode (V1), including query refinement and tool behavior.",
     )
     web_search_mode_config_v2: WebSearchV2Config = Field(
         default_factory=WebSearchV2Config,
-        description="Web Search Mode Configuration V2",
-        title="Web Search Mode Configuration V2",
+        title="Search Mode V2 Settings",
+        description="Settings for the advanced AI-planned search mode (V2), including step limits and tool behavior.",
+    )
+    web_search_mode_config_v3: WebSearchV3Config = Field(
+        default_factory=WebSearchV3Config,
+        title="Search Mode V3 Settings (Experimental)",
+        description="Settings for the agent-driven search mode (V3): the model itself chains snippet-only `search` calls with on-demand full-page `read_urls` calls per task.",
     )
 
+    # Todo [UN-17655] RJSF Tags don't function properly when using union + dscriminator
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
-        description="Search Engine Configuration",
+        title="Search Engine",
+        description="Choose and configure which search engine to use for web searches (e.g. Google, Bing, Brave).",
         discriminator="search_engine_name",
-        title="Search Engine Configuration",
     )
 
     crawler_config: ActivatedCrawler = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultCrawler,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
-        title="Crawler Configuration",
-        description="Crawler configuration.",
+        title="Web Page Reader",
+        description="Choose and configure how web pages are fetched and converted to readable text.",
         discriminator="crawler_type",
     )
 
     content_processor_config: ContentProcessorConfig = Field(
         default_factory=ContentProcessorConfig,
-        description="Content processor configuration",
-        title="Content Processor Configuration",
+        title="Content Processing",
+        description="Configure how fetched web page content is cleaned, shortened, and prepared before being used.",
     )
 
     chunk_relevancy_sort_config: ChunkRelevancySortConfig = Field(
         default_factory=ChunkRelevancySortConfig,
-        description="Chunk Relevancy Sort Configuration",
-        title="Chunk Relevancy Sort Configuration",
+        title="Result Relevancy Sorting",
+        description="Use AI to evaluate and sort search results by relevance to the user's question, prioritizing the most useful content.",
     )
 
     evaluation_check_list: list[EvaluationMetricName] = Field(
         default=[
             EvaluationMetricName.HALLUCINATION,
         ],
-        description="Check list of evaluations executed conditionally after the answer is generated",
-        title="Evaluation Check List",
+        title="Answer Quality Checks",
+        description="Automated checks run after generating an answer to detect issues like hallucinations or irrelevant responses.",
     )
 
     tool_format_information_for_system_prompt: Annotated[
@@ -160,18 +223,20 @@ class WebSearchConfig(BaseToolConfig):
         ),
     ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        description="Tool format information for system prompt. This is used to format the tool response for the system prompt.",
+        title="Tool Format Information For System Prompt",
+        description="Advanced: Instructions that tell the AI how to cite web search sources in its answers.",
     )
 
     experimental_features: ExperimentalFeatures = Field(
         default_factory=ExperimentalFeatures,
-        description="Experimental features",
         title="Experimental Features",
+        description="Features that are still in testing and may change or be removed in future updates.",
     )
 
     debug: bool = Field(
         default=False,
-        description="Whether to enable the debug mode",
+        title="Debug Mode",
+        description="When enabled, logs additional technical details for troubleshooting.",
     )
 
     @model_validator(mode="after")
@@ -192,15 +257,17 @@ class WebSearchConfig(BaseToolConfig):
 
     @property
     def web_search_mode_config(self) -> WebSearchModeConfig:
-        return (
-            self.web_search_mode_config_v1
-            if self.web_search_active_mode == WebSearchMode.V1
-            else self.web_search_mode_config_v2
-        )
+        if self.web_search_active_mode == WebSearchMode.V1:
+            return self.web_search_mode_config_v1
+        if self.web_search_active_mode == WebSearchMode.V3:
+            return self.web_search_mode_config_v3
+        return self.web_search_mode_config_v2
 
     @field_validator("web_search_active_mode", mode="before")
     @classmethod
-    def validate_web_search_active_mode(cls, v: str) -> Literal["v1", "v2"]:
-        if "v2" in v.lower():  # Make sure to handle "v2 (beta)" as well
+    def validate_web_search_active_mode(cls, v: str) -> Literal["v1", "v2", "v3"]:
+        if "v3" in v.lower():
+            return "v3"
+        if "v2" in v.lower():
             return "v2"
         return "v1"

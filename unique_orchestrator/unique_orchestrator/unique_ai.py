@@ -1,7 +1,8 @@
 import asyncio
-from datetime import datetime, timezone
+import time
+from datetime import datetime
 from logging import Logger
-from typing import overload
+from typing import Any, cast, overload
 
 import jinja2
 from typing_extensions import deprecated
@@ -9,12 +10,15 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.history_manager.utils import (
+    get_selected_uploaded_content_ids,
+)
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
-    is_qwen_model,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
@@ -22,33 +26,37 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
+from unique_toolkit.agentic.tools.experimental.open_file_tool import (
+    OpenFileToolRuntime,
+    OpenFileToolRuntimeConfig,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     SafeTaskExecutor,
     ToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    ResponsesLanguageModelStreamResponse,
 )
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
     SupportCompleteWithReferences,
 )
 
-from unique_orchestrator.config import UniqueAIConfig
-
-EMPTY_MESSAGE_WARNING = (
-    "⚠️ **The language model was unable to produce an output.**\n"
-    "It did not generate any content or perform a tool call in response to your request. "
-    "This is a limitation of the language model itself.\n\n"
-    "**Please try adapting or simplifying your prompt.** "
-    "Rewording your input can often help the model respond successfully."
+from unique_orchestrator._builders.inject_tool_reminders import (
+    inject_tool_reminders_into_user_message,
 )
+from unique_orchestrator._builders.skill_setup import preload_invoked_skills
+from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.settings import env_settings
 
 
 class UniqueAI:
@@ -74,6 +82,8 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -96,6 +106,8 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -117,12 +129,15 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
+        uploaded_documents: list[Content] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
         self._config = config
         self._chat_service = chat_service
         self._content_service = content_service
+        self._uploaded_documents = uploaded_documents or []
 
         self._debug_info_manager = debug_info_manager
         self._reference_manager = reference_manager
@@ -138,23 +153,47 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._agent_file_registry: list[str] = (
+                agent_file_registry if agent_file_registry is not None else []
+            )
+            file_cfg = self._config.agent.experimental.open_file_tool_config
+            selected_ids = get_selected_uploaded_content_ids(event)
+            self._open_file_runtime = OpenFileToolRuntime(
+                logger=logger,
+                config=OpenFileToolRuntimeConfig(
+                    enabled=file_cfg.enabled,
+                    send_files_in_payload=file_cfg.send_files_in_payload,
+                    send_uploaded_files_in_payload=file_cfg.send_uploaded_files_in_payload,
+                    use_responses_api=(
+                        self._config.agent.experimental.responses_api_config.use_responses_api
+                        or self._config.agent.experimental.use_responses_api
+                    ),
+                    selected_content_ids=(
+                        frozenset(selected_ids) if selected_ids is not None else None
+                    ),
+                ),
+                content_service=content_service,
+                tool_manager=tool_manager,
+                message_step_logger=message_step_logger,
+                agent_file_registry=self._agent_file_registry,
+            )
+        self._file_fallback_occurred = False
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
+        self._last_assistant_text: str | None = None
 
-    @property
-    def _effective_max_loop_iterations(self) -> int:
-        """Get the effective max loop iterations based on the model type."""
-        if is_qwen_model(model=self._config.space.language_model):
-            qwen_config = (
-                self._config.agent.experimental.loop_configuration.model_specific.qwen
-            )
-            return qwen_config.max_loop_iterations
-        return self._config.agent.max_loop_iterations
+        self._execution_times: list[dict[str, Any]] = []
+        self._current_loop_timing: dict[str, Any] = {}
 
-    ############################################################
-    # Override of base methods
-    ############################################################
+    async def _on_cancellation(self, _event: CancellationEvent) -> None:
+        """Subscriber called by the cancellation event bus."""
+        self._logger.info("Agent stopped by user request.")
+        await self._chat_service.modify_assistant_message_async(
+            set_completed_at=True,
+        )
+
     # @track(name="loop_agent_run")  # Group traces together
     async def run(self):
         """
@@ -166,51 +205,128 @@ class UniqueAI:
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
             self._event.company_id
         ):
-            self._chat_service.modify_assistant_message(
+            await self._chat_service.modify_assistant_message_async(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
-        ## Loop iteration
-        max_iterations = self._effective_max_loop_iterations
-        for i in range(max_iterations):
-            self.current_iteration_index = i
-            self._logger.info(f"Starting iteration {i + 1}...")
+        self._execution_times = []
+        run_start = time.perf_counter()
 
-            # Plan execution
-            loop_response = await self._plan_or_execute()
-            self._logger.info("Done with _plan_or_execute")
-
-            self._reference_manager.add_references(loop_response.message.references)
-            self._logger.info("Done with adding references")
-
-            # Update tool progress reporter
-            self._thinking_manager.update_tool_progress_reporter(loop_response)
-
-            # Execute the plan
-            exit_loop = await self._process_plan(loop_response)
-            self._logger.info("Done with _process_plan")
-
-            if exit_loop:
-                self._thinking_manager.close_thinking_steps(loop_response)
-                self._logger.info("Exiting loop.")
-                break
-
-            if i == max_iterations - 1:
-                self._logger.error("Max iterations reached.")
-                await self._chat_service.modify_assistant_message_async(
-                    content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
-                )
-                break
-
-            self.start_text = self._thinking_manager.update_start_text(
-                self.start_text, loop_response
-            )
-        await self._update_debug_info_if_tool_took_control()
-
-        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
-        await self._chat_service.modify_assistant_message_async(
-            set_completed_at=not self._tool_took_control,
+        stripped_text = await preload_invoked_skills(
+            event=self._event,
+            tool_manager=self._tool_manager,
+            history_manager=self._history_manager,
+            logger=self._logger,
         )
+        if stripped_text is not None:
+            self._event.payload.user_message.text = stripped_text
+
+        sub = self._chat_service.cancellation.on_cancellation.subscribe(
+            self._on_cancellation
+        )
+        try:
+            max_iterations = self._config.effective_max_loop_iterations
+            for i in range(max_iterations):
+                if await self._chat_service.cancellation.check_cancellation_async():
+                    break
+
+                self.current_iteration_index = i
+                self._logger.info(f"Starting iteration {i + 1}...")
+
+                loop_start = time.perf_counter()
+                self._current_loop_timing = {
+                    "iteration": i + 1,
+                    "tool_execution": {},
+                    "post_processing": {},
+                    "evaluation": {},
+                }
+
+                planning_start = time.perf_counter()
+                loop_response = await self._plan_or_execute()
+                self._current_loop_timing["planning_or_streaming"] = round(
+                    time.perf_counter() - planning_start, 3
+                )
+                self._logger.info("Done with _plan_or_execute")
+
+                if await self._chat_service.cancellation.check_cancellation_async():
+                    self._finalize_loop_timing(loop_start)
+                    break
+
+                self._reference_manager.add_references(
+                    loop_response.message.references or []
+                )
+                self._last_assistant_text = (
+                    loop_response.message.original_text or loop_response.message.text
+                )
+                self._logger.info("Done with adding references")
+
+                self._thinking_manager.update_tool_progress_reporter(loop_response)
+
+                if (
+                    self._config.agent.experimental.open_file_tool_config.enabled
+                    and self._file_fallback_occurred
+                ):
+                    await self._open_file_runtime.report_file_fallback_step()
+                    self._file_fallback_occurred = False
+
+                self._debug_info_manager.extract_builtin_tool_debug_info(
+                    loop_response,
+                    tool_manager=cast(ToolManager, self._tool_manager),
+                    loop_iteration_index=self.current_iteration_index,
+                )
+
+                exit_loop = await self._process_plan(loop_response)
+                self._logger.info("Done with _process_plan")
+
+                self._finalize_loop_timing(loop_start)
+
+                if await self._chat_service.cancellation.check_cancellation_async():
+                    break
+
+                if exit_loop:
+                    self._thinking_manager.close_thinking_steps(loop_response)
+                    self._logger.info("Exiting loop.")
+                    break
+
+                if i == max_iterations - 1:
+                    self._logger.error("Max iterations reached.")
+                    await self._chat_service.modify_assistant_message_async(
+                        content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
+                    )
+                    break
+
+                self.start_text = self._thinking_manager.update_start_text(
+                    self.start_text, loop_response
+                )
+
+            self._debug_info_manager.add(
+                "execution_time",
+                {
+                    "loop_iterations": self._execution_times,
+                    "total_time": round(time.perf_counter() - run_start, 3),
+                },
+            )
+
+            tool_names = [
+                tool["name"] for tool in self._debug_info_manager.get()["tools"]
+            ]
+
+            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
+            if "DeepResearch" not in tool_names:
+                debug_info = {
+                    **await self._chat_service.get_debug_info_async(),
+                    **self._debug_info_manager.get(),
+                }
+                await self._chat_service.update_debug_info_async(debug_info=debug_info)
+
+            if not self._chat_service.cancellation.is_cancelled:
+                if self._config.agent.input_token_distribution.enable_tool_call_persistence:
+                    await self._persist_tool_calls()
+                await self._chat_service.modify_assistant_message_async(
+                    set_completed_at=not self._tool_took_control,
+                )
+        finally:
+            sub.cancel()
 
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
@@ -219,19 +335,40 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
-        return await self._loop_iteration_runner(
+        kwargs: dict = dict(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
             model=self._config.space.language_model,
             tools=self._tool_manager.get_tool_definitions(),  # type: ignore (as above)
-            content_chunks=self._reference_manager.get_chunks(),
+            content_chunks=self._history_manager.get_content_chunks_for_backend(),
             start_text=self.start_text,
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+
+        # Experimental Feature UN-17905
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            try:
+                return await self._loop_iteration_runner(**kwargs)
+            except Exception as exc:
+                if not self._open_file_runtime.should_retry_without_files(exc):
+                    raise
+                self._logger.warning(
+                    "LLM call failed (likely payload too large). "
+                    "Retrying without attached files."
+                )
+                self._file_fallback_occurred = True
+                kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
+                    messages=messages
+                )
+                kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
+                kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
+                return await self._loop_iteration_runner(**kwargs)
+
+        return await self._loop_iteration_runner(**kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -240,7 +377,9 @@ class UniqueAI:
 
         if loop_response.is_empty():
             self._logger.debug("Empty model response, exiting loop.")
-            self._chat_service.modify_assistant_message(content=EMPTY_MESSAGE_WARNING)
+            await self._chat_service.modify_assistant_message_async(
+                content=env_settings.empty_message_warning
+            )
             return True
 
         call_tools = len(loop_response.tool_calls or []) > 0
@@ -269,6 +408,20 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            if self._open_file_runtime.should_attach_content_files():
+                messages = (
+                    self._open_file_runtime.inject_content_files_into_user_message(
+                        messages
+                    )
+                )
+
+        tool_reminders: list[str] = []
+        for prompts in self._tool_manager.get_tool_prompts():
+            if prompts.tool_system_reminder_for_user_prompt:
+                tool_reminders.append(prompts.tool_system_reminder_for_user_prompt)
+        messages = inject_tool_reminders_into_user_message(messages, tool_reminders)
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -351,13 +504,17 @@ class UniqueAI:
             use_sub_agent_references = False
             sub_agent_referencing_instructions = None
 
-        uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
         uploaded_documents_expired = [
-            doc
-            for doc in uploaded_documents
-            if doc.expired_at is not None
-            and doc.expired_at <= datetime.now(timezone.utc)
+            doc for doc in self._uploaded_documents if doc.is_expired()
         ]
+
+        # Combine custom instructions and user instructions
+        custom_instructions = self._config.space.custom_instructions
+        if self._config.space.user_space_instructions:
+            custom_instructions += (
+                "\n\nAdditional instructions provided by the user:\n"
+                + self._config.space.user_space_instructions
+            )
 
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
@@ -365,9 +522,9 @@ class UniqueAI:
             tool_descriptions=tool_descriptions,
             used_tools=used_tools,
             project_name=self._config.space.project_name,
-            custom_instructions=self._config.space.custom_instructions,
+            custom_instructions=custom_instructions,
             max_tools_per_iteration=self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
-            max_loop_iterations=self._effective_max_loop_iterations,
+            max_loop_iterations=self._config.effective_max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,
             mcp_server_system_prompts=mcp_server_system_prompts,
             use_sub_agent_references=use_sub_agent_references,
@@ -377,6 +534,12 @@ class UniqueAI:
         )
         return system_message
 
+    def _finalize_loop_timing(self, loop_start: float) -> None:
+        self._current_loop_timing["total_loop_time"] = round(
+            time.perf_counter() - loop_start, 3
+        )
+        self._execution_times.append(dict(self._current_loop_timing))
+
     async def _handle_no_tool_calls(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
@@ -385,7 +548,27 @@ class UniqueAI:
             logger=self._logger,
         )
 
-        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            selected_evaluation_names = self._open_file_runtime.filter_evaluation_names(
+                self._tool_manager.get_evaluation_check_list()
+            )
+        else:
+            selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+
+        if (
+            isinstance(loop_response, ResponsesLanguageModelStreamResponse)
+            and loop_response.code_interpreter_calls
+        ):
+            selected_evaluation_names = [
+                name
+                for name in selected_evaluation_names
+                if name != EvaluationMetricName.HALLUCINATION
+            ]
+            self._logger.info(
+                "Code interpreter was used - skipping hallucination check "
+                "(answer is grounded in code execution output, not search chunks)."
+            )
+
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
             selected_evaluation_names,
@@ -403,6 +586,17 @@ class UniqueAI:
             evaluation_results,
         )
 
+        self._current_loop_timing["post_processing"].update(
+            self._postprocessor_manager.get_execution_times()
+        )
+
+        evaluation_times = self._evaluation_manager.get_execution_times()
+        for name in selected_evaluation_names:
+            name_str = str(name)
+            self._current_loop_timing["evaluation"][name_str] = evaluation_times.get(
+                name_str, 0
+            )
+
         if evaluation_results.success and not all(
             result.is_positive for result in evaluation_results.unpack()
         ):
@@ -412,6 +606,28 @@ class UniqueAI:
 
         return True
 
+    async def _persist_tool_calls(self) -> None:
+        """Persist tool calls and responses from the loop to the database.
+
+        Before persisting, uncited sources are stripped from tool response
+        content so that only sources referenced in the final assistant message
+        are kept (compaction).
+        """
+        records = self._history_manager.extract_message_tools()
+        if not records:
+            return
+        records = HistoryManager.compact_message_tools(
+            records=records,
+            assistant_text=self._last_assistant_text,
+        )
+        try:
+            await self._chat_service.create_message_tools_async(
+                tool_calls=records,
+            )
+            self._logger.info(f"Persisted {len(records)} tool call records")
+        except Exception:
+            self._logger.error("Failed to persist tool calls", exc_info=True)
+
     def _log_tool_calls(self, tool_calls: list) -> None:
         # Create dictionary mapping tool names to display names for efficient lookup
         all_tools_dict: dict[str, str] = {
@@ -419,14 +635,26 @@ class UniqueAI:
             for tool in self._tool_manager.available_tools
         }
 
-        # Tool names that should not be logged in the message steps
-        tool_names_not_to_log = ["DeepResearch"]
+        # Tool names that should not be logged in the "Triggered Tool Calls"
+        # step. The Skill tool emits its own message log entry per invocation
+        # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
+        # redundant and noisy to also list it here.
+
+        tool_names_not_to_log: set[str] = {"DeepResearch", "Skill"}
 
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:
             self._history_manager.add_tool_call(tool_call)
             if tool_call.name in all_tools_dict:
                 used_tools[tool_call.name] = used_tools.get(tool_call.name, 0) + 1
+
+        suppress_step_entry = any(
+            getattr(getattr(tool, "config", None), "show_triggered_tool_calls", True)
+            is False
+            for tool in self._tool_manager.available_tools
+        )
+        if suppress_step_entry:
+            return
 
         tool_calls_logs = []
         for tool_name, count in used_tools.items():
@@ -463,10 +691,33 @@ class UniqueAI:
 
         # Log tool calls
         self._log_tool_calls(tool_calls)
-        # Execute tool calls
+
+        execution_start = time.perf_counter()
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
         )
+        execution_total = round(time.perf_counter() - execution_start, 3)
+
+        tool_times: dict[str, float] = {}
+        for response in tool_call_responses:
+            if response.debug_info and "execution_time_s" in response.debug_info:
+                name = response.name
+                if name == "total" or name in tool_times:
+                    counter = 2
+                    base = name
+                    while f"{base}_{counter}" in tool_times:
+                        counter += 1
+                    name = f"{base}_{counter}"
+                tool_times[name] = response.debug_info["execution_time_s"]
+
+        self._current_loop_timing["tool_execution"] = {
+            "total": execution_total,
+            **tool_times,
+        }
+
+        # Inject reminders before persisting tool results into history.
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._open_file_runtime.inject_open_file_reminder(tool_call_responses)
 
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
@@ -480,6 +731,7 @@ class UniqueAI:
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
+
         return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
@@ -536,32 +788,6 @@ class UniqueAI:
             }
         return user_metadata
 
-    async def _update_debug_info_if_tool_took_control(self) -> None:
-        """
-        Update debug info when a tool takes control of the conversation.
-        DeepResearch is excluded as it handles debug info directly since it calls
-        the orchestrator multiple times.
-        """
-        if not self._tool_took_control:
-            return
-
-        tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
-        if "DeepResearch" in tool_names:
-            return
-
-        debug_info_event = {
-            "assistant": {
-                "id": self._event.payload.assistant_id,
-                "name": self._event.payload.name,
-            },
-            "chosenModule": self._event.payload.name,
-            "userMetadata": self._event.payload.user_metadata,
-            "toolParameters": self._event.payload.tool_parameters,
-            **self._debug_info_manager.get(),
-        }
-
-        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
-
 
 @deprecated("Use UniqueAI directly instead")
 class UniqueAIResponsesApi(UniqueAI):
@@ -572,6 +798,7 @@ class UniqueAIResponsesApi(UniqueAI):
         config: UniqueAIConfig,
         chat_service: ChatService,
         content_service: ContentService,
+        uploaded_documents: list[Content],
         debug_info_manager: DebugInfoManager,
         streaming_handler: ResponsesSupportCompleteWithReferences,
         reference_manager: ReferenceManager,
@@ -590,6 +817,7 @@ class UniqueAIResponsesApi(UniqueAI):
             config=config,
             chat_service=chat_service,
             content_service=content_service,
+            uploaded_documents=uploaded_documents,
             debug_info_manager=debug_info_manager,
             streaming_handler=streaming_handler,
             reference_manager=reference_manager,

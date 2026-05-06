@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from enum import StrEnum
 from logging import getLogger
@@ -10,6 +12,9 @@ from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
 from unique_toolkit._common.exception import ConfigurationException
+from unique_toolkit.app.chat_event_filter_options_settings import (
+    CHAT_EVENT_FILTER_OPTIONS_SETTINGS,
+)
 from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
@@ -46,12 +51,15 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT]):
     company_id: str
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "BaseEvent":
+    def from_json_file(cls, file_path: Path) -> BaseEvent[Any]:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
+
+    def filter(self) -> bool:
+        return False
 
     def filter_event(self, *, filter_options: FilterOptionsT | None = None) -> bool:
         """Determine if event should be filtered out and be neglected."""
@@ -162,11 +170,32 @@ class EventAssistantMessage(ChatEventAssistantMessage):
     pass
 
 
+class UploadedFileInfo(BaseModel):
+    """Describes a file attached to the chat"""
+
+    model_config = model_config
+
+    id: str
+    title: str = ""
+    mime_type: str = ""
+
+
 class ChatEventAdditionalParameters(BaseModel):
     model_config = model_config
 
     translate_to_language: Optional[str] = None
     content_id_to_translate: Optional[str] = None
+    user_space_instructions: str
+    uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
+    selected_uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
+
+    @property
+    def uploaded_file_ids(self) -> list[str]:
+        return [f.id for f in self.uploaded_files]
+
+    @property
+    def selected_uploaded_file_ids(self) -> list[str]:
+        return [f.id for f in self.selected_uploaded_files]
 
 
 @deprecated(
@@ -254,15 +283,27 @@ class EventPayload(ChatEventPayload):
     # additional_parameters: Optional[EventAdditionalParameters] = None
 
 
-class ChatEvent(BaseEvent):
+class ChatEvent(BaseEvent[UniqueChatEventFilterOptions]):
     model_config = model_config
 
     payload: ChatEventPayload
     created_at: Optional[int] = None
     version: Optional[str] = None
 
+    class FilterOptions(BaseSettings):
+        assistant_ids: list[str] = Field(
+            default=[],
+            description="The assistant ids (space) to filter by. Default is all assistants.",
+        )
+        references_in_code: list[str] = Field(
+            default=[],
+            description="The module (reference) names in code to filter by. Default is all modules.",
+        )
+
+        model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
+
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "ChatEvent":
+    def from_json_file(cls, file_path: Path) -> ChatEvent:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
@@ -279,6 +320,27 @@ class ChatEvent(BaseEvent):
             "chosen_module": self.payload.name,
             "assistant": {"id": self.payload.assistant_id},
         }
+
+    @override
+    def filter(self) -> bool:
+        """Filter the chat event based on the assistant id and reference in code."""
+
+        options = ChatEvent.FilterOptions()
+
+        # Empty lists mean "do not filter by this criterion" (same as filter_event).
+        if (
+            options.assistant_ids
+            and self.payload.assistant_id not in options.assistant_ids
+        ):
+            return True
+
+        if (
+            options.references_in_code
+            and self.payload.name not in options.references_in_code
+        ):
+            return True
+
+        return False
 
     @override
     def filter_event(
@@ -325,7 +387,7 @@ class Event(ChatEvent):
     # payload: EventPayload
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "Event":
+    def from_json_file(cls, file_path: Path) -> Event:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:

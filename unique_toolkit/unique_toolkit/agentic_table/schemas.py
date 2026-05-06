@@ -2,6 +2,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     Field,
     field_validator,
@@ -9,6 +10,7 @@ from pydantic import (
 from unique_sdk import (
     AgenticTableSheetState,
     AgreementStatus,
+    MagicTableArtifactType,
     SelectionMethod,
 )
 from unique_sdk import LogDetail as SDKLogDetail
@@ -23,6 +25,7 @@ from unique_toolkit.app.schemas import (
     ChatEvent,
     ChatEventAssistantMessage,
     ChatEventUserMessage,
+    Correlation,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
@@ -87,6 +90,15 @@ class DDMetadata(BaseMetadata):
     )
     context: str = Field(default="", description="The context text for the table.")
 
+    rerun: bool = Field(
+        default=False,
+        description=(
+            "Explicit re-run when sources change; bypasses auto_reprocess_on_source_add "
+            "when true."
+        ),
+        validation_alias=AliasChoices("rerun", "Rerun"),
+    )
+
     @field_validator("context", mode="before")
     @classmethod
     def normalize_context(cls, v):
@@ -120,6 +132,7 @@ class MagicTableBasePayload(BaseModel, Generic[A, T]):
     configuration: dict[str, Any] = {}
     metadata: T
     metadata_filter: dict[str, Any] | None = None
+    correlation: Correlation | None = None
 
 
 ########### Specialized Payload definitions ###########
@@ -138,15 +151,13 @@ class MagicTableUpdateCellPayload(
     data: str
 
 
-class ArtifactType(StrEnum):
-    QUESTIONS = "QUESTIONS"
-    FULL_REPORT = "FULL_REPORT"
-    AGENTIC_REPORT = "AGENTIC_REPORT"
+# Same wire values as ``MagicTableArtifactType`` / public ``POST .../artifact`` (unique-sdk 0.11.12+).
+ArtifactType = MagicTableArtifactType
 
 
 class ArtifactData(BaseModel):
     model_config = get_configuration_dict()
-    artifact_type: ArtifactType
+    artifact_type: MagicTableArtifactType
 
 
 class MagicTableGenerateArtifactPayload(
@@ -246,8 +257,9 @@ MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]
 
 
 class MagicTableEvent(ChatEvent):
-    event: MagicTableEventTypes  # type: ignore[assignment]
-    payload: MagicTablePayloadTypes  # type: ignore[assignment]
+    # TODO(UN-19532): investigate making ChatEvent generic to avoid these overrides
+    event: MagicTableEventTypes  # pyright: ignore[reportIncompatibleVariableOverride]
+    payload: MagicTablePayloadTypes  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 class LogDetail(BaseModel):
@@ -331,7 +343,10 @@ class MagicTableSheet(BaseModel):
         description="The total number of rows in the sheet",
         alias="magicTableRowCount",
     )
-    chat_id: str
+    chat_id: str | None = Field(
+        default=None,
+        description="Chat that owns the sheet when returned by the API (may be omitted).",
+    )
     created_by: str
     company_id: str
     created_at: str

@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -6,13 +7,12 @@ import unique_sdk
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.functions import (
     _add_tools_to_options,
-    _clamp_temperature,
     _prepare_completion_params_util,
     _to_search_context,
     complete,
     complete_async,
 )
-from unique_toolkit.language_model.infos import LanguageModelName, TemperatureBounds
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelTool,
@@ -167,30 +167,258 @@ async def test_complete_async_basic(mock_create):
     mock_create.assert_called_once()
 
 
-def test_clamp_temperature_bounds_clamping():
-    """Test temperature clamping when bounds enforce limits."""
-    # Test with both min and max bounds
-    bounds = TemperatureBounds(min_temperature=0.1, max_temperature=0.8)
+def test_resolve_temp_and_reasoning_clamps_temperature():
+    """Test that temperature is clamped to the model's declared bounds when no reasoning."""
+    # AZURE_GPT_51 has temperature_bounds min=0.0, max=1.0 and default effort "none"
+    model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_51_2025_1113)
 
-    # Test clamping below minimum
-    assert _clamp_temperature(0.05, bounds) == 0.1
-    assert _clamp_temperature(-0.5, bounds) == 0.1
+    assert model.resolve_temp_and_reasoning(0.12345, None) == (0.12, "none")
+    assert model.resolve_temp_and_reasoning(0.996, None) == (1.0, "none")
+    assert model.resolve_temp_and_reasoning(2.0, None) == (1.0, "none")
+    assert model.resolve_temp_and_reasoning(-0.5, None) == (0.0, "none")
 
-    # Test clamping above maximum
-    assert _clamp_temperature(0.9, bounds) == 0.8
-    assert _clamp_temperature(2.0, bounds) == 0.8
 
-    # Test values within bounds (should be unchanged, just rounded)
-    assert _clamp_temperature(0.5, bounds) == 0.5
-    assert _clamp_temperature(0.555, bounds) == 0.56
+def test_resolve_temp_and_reasoning_boundless_known_model_no_upper_clamp():
+    """Models without declared temperature_bounds fall back to [0, inf) — only negatives
+    are rejected."""
+    model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+    assert model.resolve_temp_and_reasoning(1.5, None) == (1.5, None)
+    assert model.resolve_temp_and_reasoning(2.5, None) == (2.5, None)
+    assert model.resolve_temp_and_reasoning(10.0, None) == (10.0, None)
+    assert model.resolve_temp_and_reasoning(-0.1, None) == (0.0, None)
 
-    # Test exact boundary values
-    assert _clamp_temperature(0.1, bounds) == 0.1
-    assert _clamp_temperature(0.8, bounds) == 0.8
 
-    bounds = TemperatureBounds(min_temperature=0.0, max_temperature=1.0)
-    assert _clamp_temperature(0.12345, bounds) == 0.12
-    assert _clamp_temperature(0.996, bounds) == 1.0
-    assert _clamp_temperature(0.999, bounds) == 1.0
-    assert _clamp_temperature(0.9999999999999999, bounds) == 1.0
-    assert _clamp_temperature(0.0000000000000001, bounds) == 0.0
+def test_resolve_temp_and_reasoning_forces_1_when_reasoning_active():
+    """Test that active reasoning forces temperature to 1.0."""
+    thinking_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+    assert thinking_model.resolve_temp_and_reasoning(0.0, "medium") == (1.0, "medium")
+    assert thinking_model.resolve_temp_and_reasoning(0.5, "high") == (1.0, "high")
+
+    # Switchable model with active reasoning also gets temperature=1.0
+    switchable_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_51_2025_1113
+    )
+    assert switchable_model.resolve_temp_and_reasoning(0.0, "low") == (1.0, "low")
+
+    # reasoning_effort='none' on switchable model → clamping applies
+    assert switchable_model.resolve_temp_and_reasoning(0.5, "none") == (0.5, "none")
+
+
+def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort():
+    """Scenario 3 catches 'none' for thinking-only models and falls back to first supported effort.
+
+    reasoning_effort=None means "not provided" — scenario 2 applies the model default instead.
+    """
+    # AZURE_GPT_54_PRO supports ["medium", "high", "xhigh"] and has default "medium"
+    thinking_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+
+    # Passing "none" → not in supported list, falls back to first supported effort ("medium")
+    temp, effort = thinking_model.resolve_temp_and_reasoning(0.0, "none")
+    assert temp == 1.0
+    assert effort == "medium"
+
+    # Passing None → scenario 2 applies the model default ("medium")
+    temp, effort = thinking_model.resolve_temp_and_reasoning(0.5, None)
+    assert temp == 1.0
+    assert effort == "medium"
+
+
+def test_resolve_temp_and_reasoning_applies_model_default_when_no_effort_supplied():
+    """Scenario 2: when no effort is passed, the model default from default_options is used."""
+    # AZURE_GPT_54_PRO has default_options={"reasoning_effort": "medium"}
+    thinking_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+    temp, effort = thinking_model.resolve_temp_and_reasoning(0.5, None)
+    assert effort == "medium"
+    assert temp == 1.0
+
+    # GPT-5.1 has default_options={"reasoning_effort": "none"} → default is applied
+    switchable_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_51_2025_1113
+    )
+    temp, effort = switchable_model.resolve_temp_and_reasoning(0.5, None)
+    assert effort == "none"
+    assert (
+        temp == 0.5
+    )  # "none" → no active reasoning → temperature is clamped, not forced
+
+
+def test_resolve_temp_and_reasoning_drops_effort_for_non_reasoning_model(caplog):
+    """Scenario 1: model with supported_reasoning_efforts=[] warns and drops the effort."""
+    model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = model.resolve_temp_and_reasoning(0.7, "medium")
+
+    assert "does not support reasoning_effort" in caplog.text
+    assert effort is None
+    assert temp == 0.7
+
+
+def test_resolve_temp_and_reasoning_warns_on_unsupported_effort(caplog):
+    """Scenario 2: unsupported effort is warned about and corrected to first supported effort."""
+    # gpt-5.4-pro supports ["medium", "high", "xhigh"] — "minimal" is not in the list
+    thinking_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = thinking_model.resolve_temp_and_reasoning(0.5, "minimal")
+
+    assert "not supported" in caplog.text
+    # Falls back to the first (lightest) supported effort; active reasoning forces temp to 1.0
+    assert temp == 1.0
+    assert effort == "medium"
+
+
+def test_resolve_temp_and_reasoning_warns_on_out_of_bounds_temperature(caplog):
+    """Warning is logged when temperature is outside model bounds (no reasoning)."""
+    # AZURE_GPT_51 has temperature_bounds [0.0, 1.0]
+    model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_51_2025_1113)
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = model.resolve_temp_and_reasoning(2.5, None)
+
+    assert "out of bounds" in caplog.text
+    assert temp == 1.0  # clamped to max
+    assert effort == "none"  # model default applied
+
+
+def test_resolve_temp_and_reasoning_no_warning_for_valid_effort(caplog):
+    """No warning is logged when reasoning_effort is valid for the model."""
+    # gpt-5.4-pro supports ["medium", "high", "xhigh"]
+    thinking_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = thinking_model.resolve_temp_and_reasoning(0.0, "high")
+
+    assert "not supported" not in caplog.text
+    assert temp == 1.0
+    assert effort == "high"
+
+
+def test_supported_reasoning_efforts_set_correctly():
+    """Verify that supported_reasoning_efforts is assigned correctly for key models."""
+    # gpt-5 family (original) supports minimal
+    gpt5 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_5_2025_0807)
+    assert gpt5.supported_reasoning_efforts == ["minimal", "low", "medium", "high"]
+
+    # gpt-5-pro only supports high
+    gpt5_pro = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_5_PRO_2025_1006)
+    assert gpt5_pro.supported_reasoning_efforts == ["high"]
+
+    # gpt-5.1 and greater support none but not minimal
+    gpt51 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_51_2025_1113)
+    assert gpt51.supported_reasoning_efforts == ["none", "low", "medium", "high"]
+    assert "minimal" not in gpt51.supported_reasoning_efforts
+
+    # Thinking-only variants do not include none or low
+    gpt54_pro = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+    assert gpt54_pro.supported_reasoning_efforts == ["medium", "high", "xhigh"]
+    assert "none" not in gpt54_pro.supported_reasoning_efforts
+    assert "low" not in gpt54_pro.supported_reasoning_efforts
+
+    # o-series
+    o3 = LanguageModelInfo.from_name(LanguageModelName.AZURE_o3_2025_0416)
+    assert o3.supported_reasoning_efforts == ["low", "medium", "high"]
+
+    # o1-mini has no reasoning_effort support
+    o1_mini = LanguageModelInfo.from_name(LanguageModelName.AZURE_o1_MINI_2024_0912)
+    assert o1_mini.supported_reasoning_efforts == []
+
+    # Third-party models (DeepSeek, Qwen) have no reasoning_effort support
+    deepseek = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
+    assert deepseek.supported_reasoning_efforts == []
+
+
+def test_resolve_unknown_model_passes_effort_through():
+    """Scenario 0: unknown model (supported_reasoning_efforts=None) passes any
+    effort through unchanged, including values not in ReasoningEffort."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+    )
+    assert model.supported_reasoning_efforts is None
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "medium")
+    assert effort == "medium"
+    assert temp == 1.0
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "ultra_custom_effort")
+    assert effort == "ultra_custom_effort"
+    assert temp == 1.0
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "xhigh")
+    assert effort == "xhigh"
+    assert temp == 1.0
+
+
+def test_resolve_unknown_model_applies_default():
+    """Scenario 0 + default: unknown model applies default_options effort
+    when none is supplied."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+        default_options={"reasoning_effort": "high"},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(0.5, None)
+    assert effort == "high"
+    assert temp == 1.0
+
+
+def test_resolve_unknown_model_effort_none_does_not_force_temp():
+    """Scenario 0: unknown model with effort="none" does not force temp to 1.0."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "none")
+    assert effort == "none"
+    assert temp == 0.7
+
+
+def test_resolve_unknown_model_no_upper_temp_clamp():
+    """Scenario 0: unknown model without temperature_bounds allows temp > 2."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(5.0, None)
+    assert temp == 5.0
+    assert effort is None
+
+    temp, effort = model.resolve_temp_and_reasoning(-1.0, None)
+    assert temp == 0.0
+    assert effort is None
+
+
+def test_resolve_unknown_model_respects_declared_bounds():
+    """Scenario 0: unknown model WITH declared temperature_bounds respects them."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+        temperature_bounds={"min_temperature": 0.0, "max_temperature": 1.5},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(2.0, None)
+    assert temp == 1.5
+
+    temp, effort = model.resolve_temp_and_reasoning(1.0, None)
+    assert temp == 1.0

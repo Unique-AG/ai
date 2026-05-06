@@ -52,8 +52,8 @@ Some domains resulted in Services that will be slowly deprecated
 
 Services and Clients utilities are always directly importable from the `unique_toolkit`.
 
-```python
-from unique_toolkit import ChatService, KnowledgeBaseService 
+```{.python #architectural-service-imports}
+from unique_toolkit import ChatService, KnowledgeBaseService
 from unique_toolkit import get_openai_client, get_async_openai_client, get_langchain_client
 ```
 

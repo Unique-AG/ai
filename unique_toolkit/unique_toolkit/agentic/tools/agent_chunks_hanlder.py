@@ -1,3 +1,5 @@
+from typing import Any
+
 from typing_extensions import deprecated
 
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
@@ -15,7 +17,7 @@ class AgentChunksHandler:
         return self._chunks
 
     @property
-    def tool_chunks(self) -> dict:
+    def tool_chunks(self) -> dict[str, Any]:
         return self._tool_chunks
 
     def extend(self, chunks: list[ContentChunk]):

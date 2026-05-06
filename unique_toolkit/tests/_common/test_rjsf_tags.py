@@ -2,19 +2,25 @@
 Tests for the RJSF tags module.
 """
 
-from typing import Annotated, Union
+from enum import StrEnum
+from typing import Annotated, Generic, Literal, TypeVar, Union
 
 import pytest
-from pydantic import BaseModel
+from humps import camelize
+from pydantic import BaseModel, Field
 
 from unique_toolkit._common.pydantic.rjsf_tags import (
     _NONE_TYPES,
+    CustomWidgetName,
     RJSFMetaTag,
     _collect_metatags,
+    _is_metadata_key,
     _is_pyd_model,
     _strip_annotated,
+    _transform_obj,
     _unwrap_optional,
     _walk_annotated_chain,
+    transform_ui_schema,
     ui_schema_for_model,
 )
 
@@ -46,6 +52,7 @@ class TestRJSFMetaTag:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:autofocus": False,
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -71,6 +78,7 @@ class TestRJSFMetaTag:
             "ui:description": "Enter your full name",
             "ui:help": "This field is required",
             "ui:classNames": "form-control",
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -85,13 +93,19 @@ class TestRJSFMetaTag:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:autofocus": False,
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
     def test_textarea_basic(self):
         """Test basic textarea creation."""
         tag = RJSFMetaTag.StringWidget.textarea()
-        expected = {"ui:widget": "textarea", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "textarea",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_textarea_with_rows(self):
@@ -103,6 +117,7 @@ class TestRJSFMetaTag:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:options": {"rows": 5},
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -129,14 +144,14 @@ class TestRJSFMetaTag:
     def test_range_basic(self):
         """Test basic range slider creation."""
         tag = RJSFMetaTag.NumberWidget.range()
-        assert tag.attrs == {"ui:widget": "range"}
+        assert tag.attrs == {"ui:widget": "range", "ui:disabled": False}
 
     def test_range_with_constraints(self):
         """Test range slider with constraints."""
         tag = RJSFMetaTag.NumberWidget.range(min=0, max=100, step=10, disabled=True)
         expected = {
             "ui:widget": "range",
-            "ui:disabled": "true",
+            "ui:disabled": True,
             "ui:options": {"min": 0, "max": 100, "step": 10},
         }
         assert tag.attrs == expected
@@ -168,19 +183,34 @@ class TestRJSFMetaTag:
     def test_password_basic(self):
         """Test basic password field creation."""
         tag = RJSFMetaTag.StringWidget.password()
-        expected = {"ui:widget": "password", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "password",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_email_basic(self):
         """Test basic email field creation."""
         tag = RJSFMetaTag.StringWidget.email()
-        expected = {"ui:widget": "email", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "email",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_url_basic(self):
         """Test basic URL field creation."""
         tag = RJSFMetaTag.StringWidget.url()
-        expected = {"ui:widget": "uri", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "uri",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_date_basic(self):
@@ -204,13 +234,13 @@ class TestRJSFMetaTag:
     def test_color_basic(self):
         """Test basic color picker creation."""
         tag = RJSFMetaTag.StringWidget.color()
-        expected = {"ui:widget": "color", "ui:disabled": False}
+        expected = {"ui:widget": "color", "ui:disabled": False, "ui:emptyValue": ""}
         assert tag.attrs == expected
 
     def test_file_basic(self):
         """Test basic file upload creation."""
         tag = RJSFMetaTag.StringWidget.file()
-        expected = {"ui:widget": "file", "ui:disabled": False}
+        expected = {"ui:widget": "file", "ui:disabled": False, "ui:emptyValue": ""}
         assert tag.attrs == expected
 
     def test_file_with_accept(self):
@@ -220,6 +250,7 @@ class TestRJSFMetaTag:
             "ui:widget": "file",
             "ui:disabled": False,
             "ui:options": {"accept": ".pdf,.doc,.docx"},
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -284,6 +315,133 @@ class TestRJSFMetaTag:
         }
         assert tag.attrs == expected
 
+    @pytest.mark.ai
+    def test_hidden_basic(self):
+        """Test basic hidden field creation."""
+        tag = RJSFMetaTag.SpecialWidget.hidden()
+        expected = {"ui:widget": "hidden"}
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_object_collapsible_basic(self):
+        """Test basic collapsible object field creation."""
+        tag = RJSFMetaTag.ObjectWidget.collapsible()
+        expected = {"ui:collapsible": True}
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_object_collapsible_with_options(self):
+        """Test collapsible object field with options."""
+        tag = RJSFMetaTag.ObjectWidget.collapsible(
+            title="Section",
+            description="Collapsible section",
+            help="Click to expand",
+        )
+        expected = {
+            "ui:collapsible": True,
+            "ui:title": "Section",
+            "ui:description": "Collapsible section",
+            "ui:help": "Click to expand",
+        }
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_basic(self):
+        """Test basic custom widget creation with CustomWidgetName."""
+        tag = RJSFMetaTag.CustomWidget.custom(CustomWidgetName.ICON_PICKER)
+        expected = {"ui:widget": "iconPicker", "ui:disabled": False}
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_with_options(self):
+        """Test custom widget with additional options."""
+        tag = RJSFMetaTag.CustomWidget.custom(
+            CustomWidgetName.ICON_PICKER,
+            title="Icon",
+            description="Pick an icon",
+            help="Select from available icons",
+            disabled=True,
+        )
+        expected = {
+            "ui:widget": "iconPicker",
+            "ui:disabled": True,
+            "ui:title": "Icon",
+            "ui:description": "Pick an icon",
+            "ui:help": "Select from available icons",
+        }
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_basic(self):
+        """Test basic SKILLS_PICKER custom widget creation."""
+        tag = RJSFMetaTag.CustomWidget.custom(CustomWidgetName.SKILLS_PICKER)
+        expected = {"ui:widget": "skillsPickerWidget", "ui:disabled": False}
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_with_options(self):
+        """Test SKILLS_PICKER custom widget with additional options."""
+        tag = RJSFMetaTag.CustomWidget.custom(
+            CustomWidgetName.SKILLS_PICKER,
+            title="Skill Folder",
+            description="Pick a skill folder",
+            help="Select a folder containing skills",
+            disabled=True,
+        )
+        expected = {
+            "ui:widget": "skillsPickerWidget",
+            "ui:disabled": True,
+            "ui:title": "Skill Folder",
+            "ui:description": "Pick a skill folder",
+            "ui:help": "Select a folder containing skills",
+        }
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_with_extra_kwargs(self):
+        """Test SKILLS_PICKER custom widget passes extra kwargs through."""
+        tag = RJSFMetaTag.CustomWidget.custom(
+            CustomWidgetName.SKILLS_PICKER,
+            title="Skill Folder",
+            **{"ui:options": {"multiple": True, "rootPath": "/skills"}},
+        )
+        expected = {
+            "ui:widget": "skillsPickerWidget",
+            "ui:disabled": False,
+            "ui:title": "Skill Folder",
+            "ui:options": {"multiple": True, "rootPath": "/skills"},
+        }
+        assert tag.attrs == expected
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_in_model(self):
+        """Test SKILLS_PICKER widget is rendered correctly in a Pydantic model."""
+
+        class SkillConfig(BaseModel):
+            folder: Annotated[
+                str,
+                RJSFMetaTag.CustomWidget.custom(
+                    CustomWidgetName.SKILLS_PICKER,
+                    title="Skill Folder",
+                    description="Pick a skill folder",
+                ),
+            ]
+
+        ui = ui_schema_for_model(SkillConfig)
+        assert ui["folder"] == {
+            "ui:widget": "skillsPickerWidget",
+            "ui:disabled": False,
+            "ui:title": "Skill Folder",
+            "ui:description": "Pick a skill folder",
+        }
+        assert ui["ui:order"] == ["folder"]
+
+    @pytest.mark.ai
+    def test_custom_widget_SKILLS_PICKER_enum_value(self):
+        """Test that the SKILLS_PICKER enum maps to the expected string value."""
+        assert CustomWidgetName.SKILLS_PICKER == "skillsPickerWidget"
+        assert CustomWidgetName.SKILLS_PICKER.value == "skillsPickerWidget"
+
     def test_optional_basic(self):
         """Test basic Optional composer creation."""
         widget = RJSFMetaTag.StringWidget.textfield(placeholder="Enter text")
@@ -299,6 +457,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {"type": "null"},
             ],
@@ -353,6 +512,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {"ui:title": "Optional Test Field", "type": "null"},
             ],
@@ -375,6 +535,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -410,6 +571,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -452,6 +614,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -484,6 +647,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -529,6 +693,7 @@ class TestHelperFunctions:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:autofocus": False,  # From first tag
+            "ui:emptyValue": "",
         }
         assert result == expected
 
@@ -609,8 +774,7 @@ class TestUISchemaForModel:
             age: int
 
         schema = ui_schema_for_model(SimpleModel)
-        # Simple models without annotations should have empty dicts for each field
-        assert schema == {"name": {}, "age": {}}
+        assert schema == {"name": {}, "age": {}, "ui:order": ["name", "age"]}
 
     def test_model_with_annotated_fields(self):
         """Test ui_schema_for_model with annotated fields."""
@@ -629,6 +793,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "age": {
                 "ui:widget": "updown",
@@ -636,6 +801,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
             },
+            "ui:order": ["name", "age"],
         }
         assert schema == expected
 
@@ -662,6 +828,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "address": {
                 "ui:title": "Address",
@@ -672,6 +839,7 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 "city": {
                     "ui:widget": "text",
@@ -679,8 +847,11 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
+                "ui:order": ["street", "city"],
             },
+            "ui:order": ["name", "address"],
         }
         assert schema == expected
 
@@ -713,8 +884,10 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
             },
+            "ui:order": ["items", "tags"],
         }
         assert schema == expected
 
@@ -745,8 +918,10 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
             },
+            "ui:order": ["prefs", "settings"],
         }
         assert schema == expected
 
@@ -771,6 +946,7 @@ class TestUISchemaForModel:
                     {"ui:widget": "updown", "ui:disabled": False, "ui:readonly": False},
                 ],
             },
+            "ui:order": ["value", "alt"],
         }
         assert schema == expected
 
@@ -790,13 +966,16 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "optional_field": {
                 "ui:widget": "text",
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
+            "ui:order": ["name", "optional_field"],
         }
         assert schema == expected
 
@@ -829,6 +1008,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "age": {
                 "ui:widget": "updown",
@@ -847,6 +1027,7 @@ class TestUISchemaForModel:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     "zip_code": {
                         "ui:widget": "text",
@@ -854,7 +1035,9 @@ class TestUISchemaForModel:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
+                    "ui:order": ["street", "zip_code"],
                 },
             },
             "metadata": {
@@ -862,8 +1045,103 @@ class TestUISchemaForModel:
                 "ui:expandable": True,
                 "additionalProperties": {},
             },
+            "ui:order": ["name", "age", "addresses", "metadata"],
         }
         assert schema == expected
+
+    def test_no_key_transform_returns_snake_case(self):
+        """Test that key_transform=None (default) returns snake_case keys."""
+
+        class SnakeModel(BaseModel):
+            tool_description: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=10)]
+            is_enabled: bool
+
+        schema = ui_schema_for_model(SnakeModel)
+        assert "tool_description" in schema
+        assert "is_enabled" in schema
+        assert schema["ui:order"] == ["tool_description", "is_enabled"]
+
+    def test_key_transform_camelize(self):
+        """Test key_transform=camelize converts keys and ui:order values."""
+
+        class CamelModel(BaseModel):
+            tool_description: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=10)]
+            is_enabled: bool
+
+        schema = ui_schema_for_model(CamelModel, key_transform=camelize)
+        assert "toolDescription" in schema
+        assert "isEnabled" in schema
+        assert "tool_description" not in schema
+        assert schema["ui:order"] == ["toolDescription", "isEnabled"]
+        assert schema["toolDescription"]["ui:widget"] == "textarea"
+
+    def test_key_transform_matches_standalone_helper(self):
+        """Test key_transform=camelize matches transform_ui_schema(raw, camelize)."""
+
+        class EquivModel(BaseModel):
+            field_one: str
+            field_two: int
+
+        raw = ui_schema_for_model(EquivModel)
+        via_param = ui_schema_for_model(EquivModel, key_transform=camelize)
+        via_helper = transform_ui_schema(raw, camelize)
+        assert via_param == via_helper
+
+    def test_key_transform_with_nested_model(self):
+        """Test that key_transform camelizes nested model keys and ui:order."""
+
+        class Inner(BaseModel):
+            inner_field: str
+
+        class Outer(BaseModel):
+            outer_field: str
+            nested: Inner
+
+        schema = ui_schema_for_model(Outer, key_transform=camelize)
+        assert schema["ui:order"] == ["outerField", "nested"]
+        assert "outerField" in schema
+        assert schema["nested"]["ui:order"] == ["innerField"]
+        assert "innerField" in schema["nested"]
+
+    def test_key_transform_custom_function(self):
+        """Test that an arbitrary str→str function works as key_transform."""
+
+        class MyModel(BaseModel):
+            tool_description: str
+            is_enabled: bool
+
+        schema = ui_schema_for_model(MyModel, key_transform=str.upper)
+        assert "TOOL_DESCRIPTION" in schema
+        assert "IS_ENABLED" in schema
+        assert schema["ui:order"] == ["TOOL_DESCRIPTION", "IS_ENABLED"]
+        assert "ui:order" in schema  # metadata key preserved
+
+    def test_value_transform_defaults_to_key_transform(self):
+        """Test that value_transform defaults to key_transform when omitted."""
+
+        class MyModel(BaseModel):
+            field_one: str
+            field_two: int
+
+        only_key = ui_schema_for_model(MyModel, key_transform=camelize)
+        both = ui_schema_for_model(
+            MyModel, key_transform=camelize, value_transform=camelize
+        )
+        assert only_key == both
+
+    def test_separate_value_transform(self):
+        """Test that value_transform can differ from key_transform."""
+
+        class MyModel(BaseModel):
+            field_one: str
+            field_two: int
+
+        schema = ui_schema_for_model(
+            MyModel, key_transform=camelize, value_transform=str.upper
+        )
+        assert "fieldOne" in schema
+        assert "fieldTwo" in schema
+        assert schema["ui:order"] == ["FIELD_ONE", "FIELD_TWO"]
 
     def test_ui_schema_for_model_invalid_input(self):
         """Test ui_schema_for_model with invalid input."""
@@ -908,7 +1186,7 @@ class TestEdgeCases:
             pass
 
         schema = ui_schema_for_model(EmptyModel)
-        assert schema == {}
+        assert schema == {"ui:order": []}
 
     def test_model_with_private_fields(self):
         """Test ui_schema_for_model with private fields (should be ignored)."""
@@ -918,9 +1196,9 @@ class TestEdgeCases:
             _private_field: Annotated[str, RJSFMetaTag.StringWidget.textfield()]
 
         schema = ui_schema_for_model(ModelWithPrivate)
-        # Private fields should be included in the schema
         assert "public_field" in schema
-        assert "_private_field" in schema
+        assert "_private_field" not in schema
+        assert schema["ui:order"] == ["public_field"]
 
 
 # Example test that matches the example in the original file
@@ -990,9 +1268,14 @@ class TestExampleFromFile:
         assert schema["prefs"]["additionalProperties"]["ui:options"]["min"] == 0
         assert schema["prefs"]["additionalProperties"]["ui:options"]["max"] == 100
 
-        # For the Union field with None, it should be unwrapped to an empty dict
-        # since None is filtered out and the Union is unwrapped
-        assert schema["alt"] == {}
+        # alt: Union[Annotated[Address, expandable], None] - metadata now preserved
+        assert schema["alt"]["ui:expandable"] is True
+        assert schema["alt"]["role"] == "home"
+        assert "street" in schema["alt"]
+        assert "zip" in schema["alt"]
+
+        assert schema["ui:order"] == ["id", "name", "address", "tags", "prefs", "alt"]
+        assert schema["address"]["ui:order"] == ["street", "zip"]
 
     def test_model_with_optional_composer(self):
         """Test ui_schema_for_model with Optional composer."""
@@ -1030,6 +1313,7 @@ class TestExampleFromFile:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     {"ui:title": "No name provided", "type": "null"},
                 ],
@@ -1049,6 +1333,7 @@ class TestExampleFromFile:
                     {"type": "null"},
                 ],
             },
+            "ui:order": ["name", "age"],
         }
         assert schema == expected
 
@@ -1094,6 +1379,7 @@ class TestExampleFromFile:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     {
                         "ui:widget": "updown",
@@ -1115,6 +1401,7 @@ class TestExampleFromFile:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     {
                         "ui:widget": "updown",
@@ -1128,6 +1415,7 @@ class TestExampleFromFile:
                     },
                 ],
             },
+            "ui:order": ["value", "choice"],
         }
         assert schema == expected
 
@@ -1191,3 +1479,386 @@ class TestExampleFromFile:
         assert (
             schema["optional_address"]["anyOf"][1]["ui:title"] == "No address provided"
         )
+
+        assert schema["ui:order"] == ["name", "contact", "optional_address"]
+
+
+class TestIsMetadataKey:
+    """Test the _is_metadata_key helper."""
+
+    def test_ui_prefixed_keys(self):
+        """Test that ui:-prefixed keys are recognised as metadata."""
+        assert _is_metadata_key("ui:widget") is True
+        assert _is_metadata_key("ui:order") is True
+        assert _is_metadata_key("ui:options") is True
+        assert _is_metadata_key("ui:disabled") is True
+
+    def test_dollar_prefixed_keys(self):
+        """Test that $-prefixed keys are recognised as metadata."""
+        assert _is_metadata_key("$ref") is True
+        assert _is_metadata_key("$defs") is True
+
+    def test_structural_keys(self):
+        """Test that JSON Schema structural keys are recognised."""
+        for key in ("anyOf", "oneOf", "allOf", "items", "additionalProperties", "type"):
+            assert _is_metadata_key(key) is True, f"{key} should be metadata"
+
+    def test_field_name_keys(self):
+        """Test that regular field names are NOT metadata."""
+        assert _is_metadata_key("tool_description") is False
+        assert _is_metadata_key("isEnabled") is False
+        assert _is_metadata_key("configuration") is False
+
+
+class TestTransformObj:
+    """Test the _transform_obj internal helper."""
+
+    def test_transforms_field_name_keys(self):
+        """Test that field-name keys are transformed via key_fn."""
+        obj = {
+            "display_name": {"ui:widget": "text"},
+            "is_enabled": {"ui:widget": "hidden"},
+        }
+        result = _transform_obj(obj, camelize, camelize)
+        assert "displayName" in result
+        assert "isEnabled" in result
+
+    def test_preserves_metadata_keys(self):
+        """Test that ui:/$/structural keys are NOT transformed."""
+        obj = {
+            "ui:widget": "textarea",
+            "ui:options": {"rows": 5},
+            "ui:disabled": False,
+            "$ref": "#/$defs/Foo",
+            "anyOf": [{}, {}],
+        }
+        result = _transform_obj(obj, camelize, camelize)
+        assert result == obj
+
+    def test_transforms_ui_order_values_with_val_fn(self):
+        """Test that ui:order values use val_fn, not key_fn."""
+        obj = {"ui:order": ["display_name", "is_enabled"]}
+        result = _transform_obj(obj, camelize, str.upper)
+        assert result == {"ui:order": ["DISPLAY_NAME", "IS_ENABLED"]}
+
+    def test_same_key_and_val_fn(self):
+        """Test with the same function for keys and values."""
+        obj = {"ui:order": ["display_name"], "display_name": {"ui:widget": "text"}}
+        result = _transform_obj(obj, camelize, camelize)
+        assert result == {
+            "ui:order": ["displayName"],
+            "displayName": {"ui:widget": "text"},
+        }
+
+    def test_recurses_into_nested_dicts(self):
+        """Test recursive transformation in nested structures."""
+        obj = {
+            "ui:order": ["name", "configuration"],
+            "configuration": {
+                "ui:order": ["tool_description", "service_config"],
+                "tool_description": {"ui:widget": "textarea"},
+            },
+        }
+        result = _transform_obj(obj, camelize, camelize)
+        assert result["ui:order"] == ["name", "configuration"]
+        assert result["configuration"]["ui:order"] == [
+            "toolDescription",
+            "serviceConfig",
+        ]
+        assert "toolDescription" in result["configuration"]
+
+    def test_handles_empty_ui_order(self):
+        """Test that empty ui:order lists are preserved."""
+        assert _transform_obj({"ui:order": []}, camelize, camelize) == {"ui:order": []}
+
+    def test_handles_non_string_items_in_ui_order(self):
+        """Test that non-string items in ui:order are passed through."""
+        result = _transform_obj(
+            {"ui:order": ["field_name", 42, None]}, camelize, camelize
+        )
+        assert result == {"ui:order": ["fieldName", 42, None]}
+
+    def test_handles_lists_of_dicts(self):
+        """Test recursion into lists containing dicts."""
+        obj = [{"ui:order": ["field_one"]}, {"ui:order": ["field_two"]}]
+        result = _transform_obj(obj, camelize, camelize)
+        assert result == [{"ui:order": ["fieldOne"]}, {"ui:order": ["fieldTwo"]}]
+
+    def test_passthrough_for_scalars(self):
+        """Test that scalars are returned unchanged."""
+        assert _transform_obj("hello", camelize, camelize) == "hello"
+        assert _transform_obj(42, camelize, camelize) == 42
+        assert _transform_obj(None, camelize, camelize) is None
+
+
+class TestTransformUiSchema:
+    """Test the public transform_ui_schema function."""
+
+    def test_transforms_keys_and_ui_order_values(self):
+        """Test that both dict keys and ui:order values are transformed."""
+        raw = {
+            "ui:order": ["display_name", "is_enabled", "configuration"],
+            "display_name": {"ui:widget": "text"},
+            "is_enabled": {"ui:widget": "hidden"},
+            "configuration": {
+                "ui:order": ["tool_description", "service_config"],
+                "tool_description": {"ui:widget": "textarea"},
+            },
+        }
+        result = transform_ui_schema(raw, camelize)
+        assert result["ui:order"] == ["displayName", "isEnabled", "configuration"]
+        assert "displayName" in result
+        assert "isEnabled" in result
+        assert result["configuration"]["ui:order"] == [
+            "toolDescription",
+            "serviceConfig",
+        ]
+        assert "toolDescription" in result["configuration"]
+
+    def test_preserves_ui_colon_keys(self):
+        """Test that ui: prefixed keys are not transformed."""
+        raw = {
+            "field_name": {
+                "ui:widget": "textarea",
+                "ui:options": {"rows": 5},
+                "ui:disabled": False,
+            }
+        }
+        result = transform_ui_schema(raw, camelize)
+        assert result["fieldName"]["ui:widget"] == "textarea"
+        assert result["fieldName"]["ui:options"] == {"rows": 5}
+        assert result["fieldName"]["ui:disabled"] is False
+
+    def test_empty_schema(self):
+        """Test that an empty schema passes through."""
+        assert transform_ui_schema({}, camelize) == {}
+
+    def test_custom_transform_function(self):
+        """Test with a non-camelize transform function."""
+        raw = {
+            "ui:order": ["field_a", "field_b"],
+            "field_a": {"ui:widget": "text"},
+            "field_b": {},
+        }
+        result = transform_ui_schema(raw, str.upper)
+        assert result["ui:order"] == ["FIELD_A", "FIELD_B"]
+        assert "FIELD_A" in result
+        assert "FIELD_B" in result
+        assert result["FIELD_A"]["ui:widget"] == "text"
+
+    def test_separate_value_transform(self):
+        """Test that value_transform can differ from key_transform."""
+        raw = {
+            "ui:order": ["field_a", "field_b"],
+            "field_a": {"ui:widget": "text"},
+            "field_b": {},
+        }
+        result = transform_ui_schema(raw, camelize, str.upper)
+        assert "fieldA" in result
+        assert "fieldB" in result
+        assert result["ui:order"] == ["FIELD_A", "FIELD_B"]
+
+    def test_value_transform_defaults_to_key_transform(self):
+        """Test that omitting value_transform uses key_transform for both."""
+        raw = {
+            "ui:order": ["field_a"],
+            "field_a": {"ui:widget": "text"},
+        }
+        only_key = transform_ui_schema(raw, camelize)
+        both_same = transform_ui_schema(raw, camelize, camelize)
+        assert only_key == both_same
+
+    def test_end_to_end_with_ui_schema_for_model(self):
+        """Test the full pipeline: model → ui_schema_for_model → transform_ui_schema."""
+
+        class MyConfig(BaseModel):
+            tool_description: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=10)]
+            is_enabled: bool
+            service_config_id: str
+
+        raw = ui_schema_for_model(MyConfig)
+        result = transform_ui_schema(raw, camelize)
+
+        assert result["ui:order"] == ["toolDescription", "isEnabled", "serviceConfigId"]
+        assert "toolDescription" in result
+        assert result["toolDescription"]["ui:widget"] == "textarea"
+        assert "isEnabled" in result
+        assert "serviceConfigId" in result
+
+
+@pytest.mark.ai
+def test_AI_field_named_items_is_transformed_by_key_transform() -> None:
+    """
+    Purpose: Verify that a field literally named 'items' or 'type' is still
+        transformed by key_transform rather than being skipped as a structural key.
+    Why this matters: _is_metadata_key treats 'items', 'type', etc. as structural
+        keys. Without field_names awareness, a Pydantic field with such a name
+        would not be transformed, while its ui:order entry would — causing a mismatch.
+    Setup summary: Create a model with fields named 'items' and 'type', call
+        ui_schema_for_model with camelize, assert both keys and ui:order are consistent.
+    """
+
+    class Edgy(BaseModel):
+        items: Annotated[str, RJSFMetaTag.StringWidget.textfield()]
+        type: Annotated[str, RJSFMetaTag.StringWidget.textfield()]
+        normal_field: Annotated[str, RJSFMetaTag.StringWidget.textfield()]
+
+    schema = ui_schema_for_model(Edgy, key_transform=camelize)
+
+    assert "items" in schema, (
+        "field 'items' must be transformed (camelize is identity for 'items')"
+    )
+    assert "type" in schema, (
+        "field 'type' must be transformed (camelize is identity for 'type')"
+    )
+    assert "normalField" in schema, "field 'normal_field' must be camelized"
+
+    assert schema["ui:order"] == ["items", "type", "normalField"]
+
+    for key in ("items", "type", "normalField"):
+        assert key in schema["ui:order"], f"{key} must appear in ui:order"
+        assert key in schema, f"{key} must appear as schema key"
+
+
+@pytest.mark.ai
+def test_AI_ui_schema_for_model__pipe_union_with_annotated_models__resolves_anyof() -> (
+    None
+):
+    """
+    Purpose: Verify that ui_schema_for_model resolves Union branches declared
+        with the Python 3.10+ pipe syntax (A | B) which produces types.UnionType.
+    Why this matters: types.UnionType differs from typing.Union; without handling
+        both, the Union branch in ui_schema_for_model is skipped and the field's
+        uiSchema is empty instead of containing anyOf with per-branch metadata.
+    Setup summary: Define a discriminated union using pipe syntax where each
+        variant carries distinct RJSFMetaTag annotations, call ui_schema_for_model,
+        and assert the resulting anyOf structure matches expected per-branch schemas.
+    """
+
+    class _CaseName(StrEnum):
+        CASE1 = "case1"
+        CASE2 = "case2"
+
+    _T = TypeVar("_T", bound=_CaseName)
+
+    class _BaseCase(BaseModel, Generic[_T]):
+        name: _T
+        a: int
+
+    class _Case1(_BaseCase):
+        name: Annotated[
+            Literal[_CaseName.CASE1], RJSFMetaTag.SpecialWidget.hidden()
+        ] = _CaseName.CASE1
+
+    class _Case2(_BaseCase):
+        name: Annotated[
+            Literal[_CaseName.CASE2],
+            RJSFMetaTag.StringWidget.textfield(disabled=True),
+        ] = _CaseName.CASE2
+
+    class _OrCase(BaseModel):
+        case: _Case1 | _Case2 = Field(default=_Case1(a=1))
+
+    schema = ui_schema_for_model(_OrCase)
+
+    expected = {
+        "case": {
+            "anyOf": [
+                {
+                    "name": {"ui:widget": "hidden"},
+                    "a": {},
+                    "ui:order": ["name", "a"],
+                },
+                {
+                    "name": {
+                        "ui:widget": "text",
+                        "ui:disabled": True,
+                        "ui:readonly": False,
+                        "ui:autofocus": False,
+                        "ui:emptyValue": "",
+                    },
+                    "a": {},
+                    "ui:order": ["name", "a"],
+                },
+            ],
+        },
+        "ui:order": ["case"],
+    }
+    assert schema == expected
+
+
+@pytest.mark.ai
+def test_AI_ui_schema_for_model__default_string_empty_value__plain_str_fields() -> None:
+    """
+    Purpose: Verify ``default_string_empty_value`` injects ``ui:emptyValue`` for bare
+        ``str`` annotations (no ``Annotated[..., RJSFMetaTag]``).
+    Why this matters: Teams often use plain ``str`` on models while still wanting RJSF
+        to treat cleared inputs as a defined empty value.
+    Setup summary: Define plain ``str`` / ``list[str]`` / ``dict[str, str]`` / ``Union``
+        fields, call ``ui_schema_for_model`` with ``default_string_empty_value`` set,
+        assert ``ui:emptyValue`` appears only where the leaf type is ``str`` and assert
+        omitted kwarg leaves schemas unchanged for plain strings.
+    """
+
+    class Inner(BaseModel):
+        detail: str
+
+    class PlainStrModel(BaseModel):
+        title: str
+        items: list[str]
+        labels: dict[str, str]
+        either: str | int
+        nested: Inner
+
+    schema_default = ui_schema_for_model(PlainStrModel, default_string_empty_value="")
+    assert schema_default["title"] == {"ui:emptyValue": ""}
+    assert schema_default["items"]["items"] == {"ui:emptyValue": ""}
+    assert schema_default["labels"]["additionalProperties"] == {"ui:emptyValue": ""}
+    assert schema_default["either"]["anyOf"] == [
+        {"ui:emptyValue": ""},
+        {},
+    ]
+    assert schema_default["nested"]["detail"] == {"ui:emptyValue": ""}
+
+    schema_null = ui_schema_for_model(PlainStrModel, default_string_empty_value=None)
+    assert schema_null["title"] == {"ui:emptyValue": None}
+
+    assert ui_schema_for_model(PlainStrModel)["title"] == {}
+
+
+@pytest.mark.ai
+def test_AI_ui_schema_for_model__sub_agent_tool_config__produces_correct_widgets() -> (
+    None
+):
+    """
+    Purpose: Verify SubAgentToolConfig RJSF annotations produce correct uiSchema.
+    Why this matters: SubAgentToolConfig uses RJSFMetaTag for form fields; correct
+        uiSchema ensures the tool config form renders properly in the UI.
+    Setup summary: Call ui_schema_for_model on SubAgentToolConfig, assert
+        RJSF-annotated fields have the expected widget type and options.
+    """
+    from unique_toolkit.agentic.tools.a2a.tool.config import SubAgentToolConfig
+
+    schema = ui_schema_for_model(SubAgentToolConfig)
+
+    textarea_fields = {
+        "tool_description_for_system_prompt": 3,
+        "tool_description": 5,
+        "tool_format_information_for_system_prompt": 2,
+        "param_description_sub_agent_user_message": 1,
+        "tool_input_json_schema": 5,
+    }
+    for field, rows in textarea_fields.items():
+        assert field in schema, f"Expected {field} in schema"
+        assert schema[field]["ui:widget"] == "textarea"
+        assert schema[field]["ui:options"] == {"rows": rows}
+
+    hidden_fields = [
+        "assistant_id",
+        "chat_id",
+        "tool_description_for_user_prompt",
+        "tool_format_information_for_user_prompt",
+    ]
+    for field in hidden_fields:
+        assert field in schema, f"Expected {field} in schema"
+        assert schema[field]["ui:widget"] == "hidden"

@@ -1,8 +1,9 @@
 from typing import Annotated, Any
 
 from pydantic import (
-    AliasChoices,
+    BaseModel,
     Field,
+    model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
@@ -14,6 +15,7 @@ from unique_toolkit._common.feature_flags.schema import (
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
@@ -26,15 +28,47 @@ from unique_internal_search.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+    DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT,
 )
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
-
-class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
-
-
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED = 1000
+
+
+class ToolResponseSystemReminderConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    enabled: bool = Field(
+        default=False,
+        title="Enable Tool Response Reminder",
+        description="When enabled, attach reminder text to each successful InternalSearch tool response (independent of system-prompt citation instructions).",
+    )
+
+    system_reminder_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT.split("\n")) / 3)
+        ),
+    ] = Field(
+        default=DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT,
+        title="Tool Response System Reminder Prompt",
+        description="Text sent as system_reminder on InternalSearch tool responses when the reminder is enabled.",
+    )
+
+    @property
+    def get_reminder_prompt(self):
+        if not self.enabled:
+            return ""
+
+        return self.system_reminder_prompt
+
+
+class ExperimentalFeatures(FeatureExtendedSourceSerialization):
+    tool_response_system_reminder: ToolResponseSystemReminderConfig = Field(
+        default_factory=ToolResponseSystemReminderConfig,
+        description="Tool response system reminder.",
+    )
 
 
 def _search_limit_factory(data: dict[str, Any]) -> int:
@@ -45,7 +79,23 @@ def _search_limit_factory(data: dict[str, Any]) -> int:
     )
 
 
+_FIELD_ALIASES: dict[str, str] = {
+    "ftsSearchLanguage": "searchLanguage",
+}
+
+
+# TODO [UN-17521] @klcd: Check if a migration script is required to remove the legacy key `ftsSearchLanguage`
+# Then remove the remapping logic
 class InternalSearchConfig(BaseToolConfig):
+    @model_validator(mode="before")
+    @classmethod
+    def _remap_legacy_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for old_key, new_key in _FIELD_ALIASES.items():
+                if old_key in data and new_key not in data:
+                    data[new_key] = data.pop(old_key)
+        return data
+
     search_type: ContentSearchType = Field(
         default=ContentSearchType.COMBINED,
         description="The type of search to perform. Two possible values: `COMBINED` or `VECTOR`.",
@@ -86,7 +136,6 @@ class InternalSearchConfig(BaseToolConfig):
     )
     search_language: str = Field(
         default="english",
-        validation_alias=AliasChoices("ftsSearchLanguage", "searchLanguage"),
         description="The language to use for the search.",
     )
     # evaluation_config: EvaluationMetricConfig = EvaluationMetricConfig()
@@ -96,7 +145,7 @@ class InternalSearchConfig(BaseToolConfig):
     )
     limit: int = Field(
         default_factory=_search_limit_factory,
-        description="The limit of chunks to return.",
+        description="The maximum limit of chunks returned by the search.",
     )
     chat_only: bool = Field(
         default=False,
@@ -160,8 +209,6 @@ class InternalSearchConfig(BaseToolConfig):
         description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
     )
 
-    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
-
     metadata_chunk_sections: dict[str, str] = Field(
         default={},
         description=(
@@ -183,4 +230,9 @@ class InternalSearchConfig(BaseToolConfig):
         default=10,
         ge=1,
         description="The maximum number of search strings to perform in a single tool call.",
+    )
+
+    experimental_features: ExperimentalFeatures = Field(
+        default_factory=ExperimentalFeatures,
+        description="Experimental features.",
     )

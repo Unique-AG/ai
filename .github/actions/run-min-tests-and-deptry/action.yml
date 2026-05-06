@@ -1,5 +1,5 @@
 name: 'Run Min Tests and Deptry'
-description: 'Runs deptry on all packages, and min-deps pytest tests for uv packages only'
+description: 'Runs deptry and min-deps pytest tests using uv'
 
 inputs:
   package_dir:
@@ -9,6 +9,10 @@ inputs:
     description: 'Python version to use'
     required: false
     default: '3.12'
+  extras:
+    description: 'Comma-separated extras to install (e.g., "fastapi" installs -e .[fastapi])'
+    required: false
+    default: ''
   test_args:
     description: 'Additional arguments to pass to pytest'
     required: false
@@ -17,44 +21,103 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install package manager
-      id: pm
-      uses: ./.github/actions/install-package-manager
+    - name: Setup uv
+      uses: ./.github/actions/setup-uv
       with:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
+        install_dependencies: 'false'
 
-    # uv: Install with min deps
-    - name: Install package (min deps - uv)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+    - name: Install package (min deps)
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
-        uv venv --clear
-        uv pip install -e . --resolution=lowest-direct
-        uv export --only-group dev --no-hashes | uv pip install -r -
+        # Use uv pip install instead of uv lock + uv sync because
+        # UV_NO_WORKSPACE=1 does not prevent uv lock from checking workspace
+        # members' requires-python, which fails when the CI matrix Python
+        # (e.g. 3.11 for the SDK) is older than the workspace constraint (3.12).
+        # uv pip install is fully workspace-agnostic.
+        uv venv --python "${{ inputs.python_version }}"
 
-    # Poetry: Normal install (deptry is in dev dependencies)
-    - name: Install package (poetry)
-      if: steps.pm.outputs.run_cmd == 'poetry run'
+        EXTRAS=""
+        for e in $(echo "${{ inputs.extras }}" | tr ',' ' '); do
+          [ -n "$e" ] && EXTRAS="${EXTRAS:+$EXTRAS,}$e"
+        done
+
+        if [ -n "$EXTRAS" ]; then
+          PKG_SPEC="-e .[$EXTRAS]"
+        else
+          PKG_SPEC="-e ."
+        fi
+
+        uv pip install $PKG_SPEC --resolution lowest-direct
+
+    - name: Reinstall workspace packages from source
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: poetry install
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: |
+        # External deps stay at their lowest-direct versions; workspace packages
+        # must always reflect current source code, not a stale PyPI snapshot.
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
 
-    - name: Run deptry (uv)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+        # Emit "<name>\t<path>" for every workspace member
+        while IFS=$'\t' read -r name path; do
+          [ -z "$name" ] && continue
+          if uv pip show "$name" >/dev/null 2>&1; then
+            uv pip install --no-deps -e "$path"
+          fi
+        done < <(python3 - "$REPO_ROOT" <<'EOF'
+        import tomllib, pathlib, sys
+        repo_root = pathlib.Path(sys.argv[1])
+        with open(repo_root / "pyproject.toml", "rb") as f:
+            root = tomllib.load(f)
+        members = root.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+        for pattern in members:
+            for member_dir in sorted(repo_root.glob(pattern)):
+                toml = member_dir / "pyproject.toml"
+                if not toml.exists():
+                    continue
+                with open(toml, "rb") as f:
+                    data = tomllib.load(f)
+                name = data.get("project", {}).get("name", "")
+                if name:
+                    print(f"{name}\t{member_dir}")
+        EOF
+        )
+
+    - name: Install dev tools
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv run --no-sync deptry .
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: |
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        # Root dev group: pytest, ruff, deptry, etc.
+        uv export --directory "$REPO_ROOT" --frozen --only-group dev --no-hashes | uv pip install -r -
+        # Package-level dev group: package-specific test deps (e.g. responses for unique_six)
+        uv export --frozen --only-group dev --no-hashes 2>/dev/null | uv pip install -r - 2>/dev/null || true
 
-    - name: Run deptry (poetry)
-      if: steps.pm.outputs.run_cmd == 'poetry run'
+    - name: Show installed packages
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: poetry run deptry .
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: uv pip list
 
-    - name: Run tests with min dependencies (uv only)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+    - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv run --no-sync pytest ${{ inputs.test_args }}
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: .venv/bin/deptry .
+
+    - name: Run tests with min dependencies
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: .venv/bin/pytest ${{ inputs.test_args }}

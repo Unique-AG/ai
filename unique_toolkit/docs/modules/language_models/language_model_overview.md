@@ -37,6 +37,9 @@ The following properties are documented for each model:
 | [AZURE_GPT_51_CODEX_2025_1113](models/model_AZURE_GPT_51_CODEX_2025_1113.md) | AZURE | 272,000 | 128,000 | 400,000 |
 | [AZURE_GPT_51_CODEX_MINI_2025_1113](models/model_AZURE_GPT_51_CODEX_MINI_2025_1113.md) | AZURE | 272,000 | 128,000 | 400,000 |
 | [AZURE_GPT_51_THINKING_2025_1113](models/model_AZURE_GPT_51_THINKING_2025_1113.md) | AZURE | 272,000 | 128,000 | 400,000 |
+| [AZURE_GPT_52_2025_1211](models/model_AZURE_GPT_52_2025_1211.md) | AZURE | 272,000 | 128,000 | 400,000 |
+| [AZURE_GPT_52_CHAT_2025_1211](models/model_AZURE_GPT_52_CHAT_2025_1211.md) | AZURE | 128,000 | 16,384 | 144,384 |
+| [AZURE_GPT_54_2026_0305](models/model_AZURE_GPT_54_2026_0305.md) | AZURE | 922,000 | 128,000 | 1,050,000 |
 | [AZURE_GPT_5_2025_0807](models/model_AZURE_GPT_5_2025_0807.md) | AZURE | 272,000 | 128,000 | 400,000 |
 | [AZURE_GPT_5_CHAT_2025_0807](models/model_AZURE_GPT_5_CHAT_2025_0807.md) | AZURE | 128,000 | 16,384 | 144,384 |
 | [AZURE_GPT_5_MINI_2025_0807](models/model_AZURE_GPT_5_MINI_2025_0807.md) | AZURE | 272,000 | 128,000 | 400,000 |
@@ -70,6 +73,10 @@ The following properties are documented for each model:
 | [litellm:openai-gpt-5](models/model_litellm:openai-gpt-5.md) | LITELLM | 272,000 | 128,000 | 400,000 |
 | [litellm:openai-gpt-5-1](models/model_litellm:openai-gpt-5-1.md) | LITELLM | 272,000 | 128,000 | 400,000 |
 | [litellm:openai-gpt-5-1-thinking](models/model_litellm:openai-gpt-5-1-thinking.md) | LITELLM | 272,000 | 128,000 | 400,000 |
+| [litellm:openai-gpt-5-2](models/model_litellm:openai-gpt-5-2.md) | LITELLM | 272,000 | 128,000 | 400,000 |
+| [litellm:openai-gpt-5-2-thinking](models/model_litellm:openai-gpt-5-2-thinking.md) | LITELLM | 272,000 | 128,000 | 400,000 |
+| [litellm:openai-gpt-5-4](models/model_litellm:openai-gpt-5-4.md) | LITELLM | 922,000 | 128,000 | 1,050,000 |
+| [litellm:openai-gpt-5-4-thinking](models/model_litellm:openai-gpt-5-4-thinking.md) | LITELLM | 922,000 | 128,000 | 1,050,000 |
 | [litellm:openai-gpt-5-chat](models/model_litellm:openai-gpt-5-chat.md) | LITELLM | 128,000 | 16,384 | 144,384 |
 | [litellm:openai-gpt-5-mini](models/model_litellm:openai-gpt-5-mini.md) | LITELLM | 272,000 | 128,000 | 400,000 |
 | [litellm:openai-gpt-5-nano](models/model_litellm:openai-gpt-5-nano.md) | LITELLM | 272,000 | 128,000 | 400,000 |
@@ -104,6 +111,9 @@ The following properties are documented for each model:
 | [AZURE_GPT_51_CODEX_2025_1113](models/model_AZURE_GPT_51_CODEX_2025_1113.md) | ✅ | ✅ | ✅ | ✅ |
 | [AZURE_GPT_51_CODEX_MINI_2025_1113](models/model_AZURE_GPT_51_CODEX_MINI_2025_1113.md) | ✅ | ✅ | ✅ | ✅ |
 | [AZURE_GPT_51_THINKING_2025_1113](models/model_AZURE_GPT_51_THINKING_2025_1113.md) | ✅ | ✅ | ✅ | ✅ |
+| [AZURE_GPT_52_2025_1211](models/model_AZURE_GPT_52_2025_1211.md) | ✅ | ✅ | ✅ | ✅ |
+| [AZURE_GPT_52_CHAT_2025_1211](models/model_AZURE_GPT_52_CHAT_2025_1211.md) | ✅ | ✅ | ✅ | ❌ |
+| [AZURE_GPT_54_2026_0305](models/model_AZURE_GPT_54_2026_0305.md) | ✅ | ✅ | ✅ | ✅ |
 | [AZURE_GPT_5_2025_0807](models/model_AZURE_GPT_5_2025_0807.md) | ✅ | ✅ | ✅ | ✅ |
 | [AZURE_GPT_5_CHAT_2025_0807](models/model_AZURE_GPT_5_CHAT_2025_0807.md) | ✅ | ❌ | ❌ | ❌ |
 | [AZURE_GPT_5_MINI_2025_0807](models/model_AZURE_GPT_5_MINI_2025_0807.md) | ✅ | ✅ | ✅ | ✅ |
@@ -137,6 +147,10 @@ The following properties are documented for each model:
 | [litellm:openai-gpt-5](models/model_litellm:openai-gpt-5.md) | ✅ | ✅ | ✅ | ✅ |
 | [litellm:openai-gpt-5-1](models/model_litellm:openai-gpt-5-1.md) | ✅ | ✅ | ✅ | ✅ |
 | [litellm:openai-gpt-5-1-thinking](models/model_litellm:openai-gpt-5-1-thinking.md) | ✅ | ✅ | ✅ | ✅ |
+| [litellm:openai-gpt-5-2](models/model_litellm:openai-gpt-5-2.md) | ✅ | ✅ | ✅ | ✅ |
+| [litellm:openai-gpt-5-2-thinking](models/model_litellm:openai-gpt-5-2-thinking.md) | ✅ | ✅ | ✅ | ✅ |
+| [litellm:openai-gpt-5-4](models/model_litellm:openai-gpt-5-4.md) | ✅ | ✅ | ✅ | ✅ |
+| [litellm:openai-gpt-5-4-thinking](models/model_litellm:openai-gpt-5-4-thinking.md) | ✅ | ✅ | ✅ | ✅ |
 | [litellm:openai-gpt-5-chat](models/model_litellm:openai-gpt-5-chat.md) | ✅ | ❌ | ❌ | ❌ |
 | [litellm:openai-gpt-5-mini](models/model_litellm:openai-gpt-5-mini.md) | ✅ | ✅ | ✅ | ✅ |
 | [litellm:openai-gpt-5-nano](models/model_litellm:openai-gpt-5-nano.md) | ✅ | ✅ | ✅ | ✅ |
@@ -153,7 +167,7 @@ The following properties are documented for each model:
 
 To use any of these models in your application:
 
-```python
+```{.python #language-model-usage-example}
 from unique_toolkit import LanguageModelName
 from unique_toolkit.language_model.infos import LanguageModelInfo
 

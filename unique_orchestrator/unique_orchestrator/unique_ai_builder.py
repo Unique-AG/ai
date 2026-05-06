@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
 from logging import Logger
-from typing import NamedTuple, cast
+from typing import Any, NamedTuple, cast
 
+from openai import AsyncOpenAI
+from typing_extensions import override
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
@@ -34,10 +35,6 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
-from unique_toolkit.agentic.responses_api import (
-    DisplayCodeInterpreterFilesPostProcessor,
-    ShowExecutedCodePostprocessor,
-)
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
@@ -56,6 +53,13 @@ from unique_toolkit.agentic.tools.a2a import (
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    DisplayCodeInterpreterFilesPostProcessor,
+    ShowExecutedCodePostprocessor,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
     ResponsesApiToolManager,
@@ -67,11 +71,53 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
-from unique_orchestrator._builders import build_loop_iteration_runner
+from unique_orchestrator._builders import (
+    build_loop_iteration_runner,
+    build_responses_loop_iteration_runner,
+)
+from unique_orchestrator._builders.open_file_setup import (
+    configure_file_payload,
+    handle_uploaded_file_tool_choices,
+)
+from unique_orchestrator._builders.skill_setup import configure_skill_tool
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
+from unique_orchestrator.utils import filter_uploaded_documents_by_selection
+
+
+class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
+    """Streaming handler for Responses API runs.
+
+    Injects `include` params from the tool manager on every call so the
+    orchestrator loop stays generic (no isinstance checks in UniqueAI).
+    """
+
+    def __init__(
+        self,
+        chat_service: ChatService,
+        tool_manager: ResponsesApiToolManager,
+    ) -> None:
+        self._chat_service: ChatService = chat_service
+        self._tool_manager: ResponsesApiToolManager = tool_manager
+
+    @override
+    def complete_with_references(self, *args: Any, **kwargs: Any) -> Any:
+        include = self._tool_manager.get_required_include_params()
+        if include:
+            kwargs["include"] = include
+        return self._chat_service.complete_responses_with_references(*args, **kwargs)
+
+    @override
+    async def complete_with_references_async(self, *args: Any, **kwargs: Any) -> Any:
+        include = self._tool_manager.get_required_include_params()
+        if include:
+            kwargs["include"] = include
+        return await self._chat_service.complete_responses_with_references_async(
+            *args, **kwargs
+        )
 
 
 async def build_unique_ai(
@@ -80,9 +126,12 @@ async def build_unique_ai(
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    common_components = _build_common(event, logger, config)
+    common_components = await _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config.use_responses_api:
+    if (
+        config.agent.experimental.responses_api_config.use_responses_api
+        or config.agent.experimental.use_responses_api
+    ):
         return await _build_responses(
             event=event,
             logger=logger,
@@ -91,7 +140,7 @@ async def build_unique_ai(
             common_components=common_components,
         )
     else:
-        return _build_completions(
+        return await _build_completions(
             event=event,
             logger=logger,
             config=config,
@@ -120,7 +169,7 @@ class _CommonComponents(NamedTuple):
     mcp_servers: list[McpServer]
 
 
-def _build_common(
+async def _build_common(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
@@ -131,7 +180,12 @@ def _build_common(
 
     content_service = ContentService.from_event(event)
 
-    uploaded_documents = content_service.get_documents_uploaded_to_chat()
+    uploaded_documents = await content_service.get_documents_uploaded_to_chat_async()
+    uploaded_documents = filter_uploaded_documents_by_selection(
+        documents=uploaded_documents,
+        additional_parameters=event.payload.additional_parameters,
+        company_id=event.company_id,
+    )
 
     response_watcher = SubAgentResponseWatcher()
 
@@ -156,6 +210,7 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
+        enable_tool_call_persistence=config.agent.input_token_distribution.enable_tool_call_persistence,
     )
     history_manager = HistoryManager(
         logger,
@@ -239,6 +294,52 @@ def _build_common(
     )
 
 
+def _register_code_interpreter_postprocessors(
+    tools: list[ToolBuildConfig],
+    postprocessor_manager: PostprocessorManager,
+    client: AsyncOpenAI,
+    content_service: ContentService,
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    chat_service: ChatService,
+) -> None:
+    """Find the first enabled Code Interpreter tool and register its postprocessors.
+
+    When a CODE_INTERPRETER tool is present and enabled, both the executed-code
+    display postprocessor and the generated-files postprocessor are unconditionally
+    registered so that all Code Interpreter output is surfaced to the user.
+    """
+    code_interpreter_config = None
+    for tool in tools:
+        if tool.is_enabled and tool.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
+            code_interpreter_config = cast(
+                CodeInterpreterExtendedConfig, tool.configuration
+            )
+            break
+
+    if code_interpreter_config is None:
+        return
+
+    postprocessor_manager.add_postprocessor(
+        ShowExecutedCodePostprocessor(
+            config=code_interpreter_config.executed_code_display_config,
+            company_id=company_id,
+        )
+    )
+    postprocessor_manager.add_postprocessor(
+        DisplayCodeInterpreterFilesPostProcessor(
+            client=client,
+            content_service=content_service,
+            config=code_interpreter_config.generated_files_config,
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            chat_service=chat_service,
+        )
+    )
+
+
 async def _build_responses(
     event: ChatEvent,
     logger: Logger,
@@ -256,42 +357,39 @@ async def _build_responses(
         }
     )
 
-    assert config.agent.experimental.responses_api_config is not None
-
-    code_interpreter_config = (
-        config.agent.experimental.responses_api_config.code_interpreter
-    )
     postprocessor_manager = common_components.postprocessor_manager
-    tool_names = [tool.name for tool in config.space.tools]
 
-    if code_interpreter_config is not None:
-        if OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names:
-            logger.info("Automatically adding code interpreter to the tools")
-            config = config.model_copy(deep=True)
-            config.space.tools.append(
-                ToolBuildConfig(
-                    name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-                    configuration=code_interpreter_config.tool_config,
-                )
-            )
-            common_components.tool_manager_config.tools = config.space.tools
+    _register_code_interpreter_postprocessors(
+        tools=config.space.tools,
+        postprocessor_manager=postprocessor_manager,
+        client=client,
+        content_service=common_components.content_service,
+        user_id=event.user_id,
+        company_id=event.company_id,
+        chat_id=event.payload.chat_id,
+        chat_service=common_components.chat_service,
+    )
 
-        if code_interpreter_config.executed_code_display_config is not None:
-            postprocessor_manager.add_postprocessor(
-                ShowExecutedCodePostprocessor(
-                    config=code_interpreter_config.executed_code_display_config
-                )
-            )
+    force_auto_container = (
+        ModelCapabilities.AUTO_CONTAINER_ONLY
+        in config.space.language_model.capabilities
+    )
 
-        postprocessor_manager.add_postprocessor(
-            DisplayCodeInterpreterFilesPostProcessor(
-                client=client,
-                content_service=common_components.content_service,
-                config=code_interpreter_config.generated_files_config,
-                user_id=event.user_id,
-                company_id=event.company_id,
-                chat_id=event.payload.chat_id,
-                chat_service=common_components.chat_service,
+    has_valid_uploaded_documents = False
+    has_tool_choices = False
+    if config.agent.experimental.open_file_tool_config.enabled:
+        handle_uploaded_file_tool_choices(
+            config,
+            event,
+            common_components.uploaded_documents,
+            logger,
+        )
+    else:
+        has_valid_uploaded_documents, has_tool_choices = (
+            _configure_uploaded_search_tool(
+                event=event,
+                logger=logger,
+                common_components=common_components,
             )
         )
 
@@ -303,6 +401,7 @@ async def _build_responses(
         chat_id=event.payload.chat_id,
         client=client,
         tool_configs=config.space.tools,
+        force_auto_container=force_auto_container,
     )
 
     tool_manager = ResponsesApiToolManager(
@@ -314,28 +413,42 @@ async def _build_responses(
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
     )
+    if not config.agent.experimental.open_file_tool_config.enabled:
+        if not has_tool_choices and has_valid_uploaded_documents:
+            tool_manager.add_forced_tool(UploadedSearchTool.name)
 
-    postprocessor_manager = common_components.postprocessor_manager
-    loop_iteration_runner = build_loop_iteration_runner(
+    agent_file_registry: list[str] = []
+    if config.agent.experimental.open_file_tool_config.enabled:
+        history_manager, agent_file_registry = configure_file_payload(
+            config,
+            event,
+            logger,
+            common_components.history_manager,
+            common_components.reference_manager,
+            config.space.language_model,
+            tool_manager,
+        )
+        common_components = common_components._replace(
+            history_manager=history_manager,
+        )
+
+    await configure_skill_tool(
         config=config,
-        history_manager=common_components.history_manager,
-        llm_service=common_components.llm_service,
-        chat_service=common_components.chat_service,
-        use_responses_api=True,
+        logger=logger,
+        content_service=common_components.content_service,
+        tool_manager=tool_manager,
     )
 
-    class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
-        def complete_with_references(self, *args, **kwargs):
-            return common_components.chat_service.complete_responses_with_references(
-                *args, **kwargs
-            )
+    loop_iteration_runner = build_responses_loop_iteration_runner(
+        config=config,
+        history_manager=common_components.history_manager,
+        openai_client=client,
+    )
 
-        async def complete_with_references_async(self, *args, **kwargs):
-            return await common_components.chat_service.complete_responses_with_references_async(
-                *args, **kwargs
-            )
-
-    streaming_handler = ResponsesStreamingHandler()
+    streaming_handler = ResponsesStreamingHandler(
+        chat_service=common_components.chat_service,
+        tool_manager=tool_manager,
+    )
 
     _add_sub_agents_postprocessor(
         postprocessor_manager=postprocessor_manager,
@@ -357,6 +470,7 @@ async def _build_responses(
         logger=logger,
         chat_service=common_components.chat_service,
         content_service=common_components.content_service,
+        uploaded_documents=common_components.uploaded_documents,
         tool_manager=tool_manager,
         thinking_manager=common_components.thinking_manager,
         streaming_handler=streaming_handler,
@@ -368,51 +482,22 @@ async def _build_responses(
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
         loop_iteration_runner=loop_iteration_runner,
+        agent_file_registry=agent_file_registry,
     )
 
 
-def _build_completions(
+async def _build_completions(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    # Uploaded content behavior is always to force uploaded search tool:
-    # 1. Add it to forced tools if there are tool choices.
-    # 2. Simply force it if there are no tool choices.
-    # 3. Not available if not uploaded documents.
-    now = datetime.now(timezone.utc)
-    UPLOADED_DOCUMENTS_VALID = [
-        doc
-        for doc in common_components.uploaded_documents
-        if doc.expired_at is None or doc.expired_at > now
-    ]
-    UPLOADED_DOCUMENTS_EXPIRED = [
-        doc
-        for doc in common_components.uploaded_documents
-        if doc.expired_at is not None and doc.expired_at <= now
-    ]
-    TOOL_CHOICES = len(event.payload.tool_choices) > 0
-
-    if UPLOADED_DOCUMENTS_EXPIRED:
-        logger.info(
-            f"Number of expired uploaded documents: {len(UPLOADED_DOCUMENTS_EXPIRED)}"
-        )
-
-    if UPLOADED_DOCUMENTS_VALID:
-        logger.info(
-            f"Number of valid uploaded documents: {len(UPLOADED_DOCUMENTS_VALID)}"
-        )
-        common_components.tool_manager_config.tools.append(
-            ToolBuildConfig(
-                name=UploadedSearchTool.name,
-                display_name=UploadedSearchTool.name,
-                configuration=UploadedSearchConfig(),
-            )
-        )
-    if TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
-        event.payload.tool_choices.append(str(UploadedSearchTool.name))
+    has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
+        event=event,
+        logger=logger,
+        common_components=common_components,
+    )
 
     tool_manager = ToolManager(
         logger=logger,
@@ -422,8 +507,15 @@ def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
-    if not TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
+    if not has_tool_choices and has_valid_uploaded_documents:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
+
+    await configure_skill_tool(
+        config=config,
+        logger=logger,
+        content_service=common_components.content_service,
+        tool_manager=tool_manager,
+    )
 
     postprocessor_manager = common_components.postprocessor_manager
 
@@ -446,7 +538,6 @@ def _build_completions(
         history_manager=common_components.history_manager,
         llm_service=common_components.llm_service,
         chat_service=common_components.chat_service,
-        use_responses_api=False,
     )
 
     return UniqueAI(
@@ -455,6 +546,7 @@ def _build_completions(
         logger=logger,
         chat_service=common_components.chat_service,
         content_service=common_components.content_service,
+        uploaded_documents=common_components.uploaded_documents,
         tool_manager=tool_manager,
         thinking_manager=common_components.thinking_manager,
         history_manager=common_components.history_manager,
@@ -467,6 +559,46 @@ def _build_completions(
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
     )
+
+
+def _configure_uploaded_search_tool(
+    event: ChatEvent,
+    logger: Logger,
+    common_components: _CommonComponents,
+) -> tuple[bool, bool]:
+    """Mirror uploaded-file bootstrapping across completions and Responses API."""
+    valid_uploaded_documents: list[Content] = []
+    expired_uploaded_documents: list[Content] = []
+    for doc in common_components.uploaded_documents:
+        if not doc.is_ingested(default_if_unknown=True):
+            continue
+        if doc.is_expired():
+            expired_uploaded_documents.append(doc)
+        else:
+            valid_uploaded_documents.append(doc)
+    has_tool_choices = len(event.payload.tool_choices) > 0
+
+    if expired_uploaded_documents:
+        logger.info(
+            f"Number of expired uploaded documents: {len(expired_uploaded_documents)}"
+        )
+
+    if valid_uploaded_documents:
+        logger.info(
+            f"Number of valid uploaded documents: {len(valid_uploaded_documents)}"
+        )
+        common_components.tool_manager_config.tools.append(
+            ToolBuildConfig(
+                name=UploadedSearchTool.name,
+                display_name=UploadedSearchTool.name,
+                configuration=UploadedSearchConfig(),
+            )
+        )
+
+    if has_tool_choices and valid_uploaded_documents:
+        event.payload.tool_choices.append(str(UploadedSearchTool.name))
+
+    return bool(valid_uploaded_documents), has_tool_choices
 
 
 def _add_sub_agents_postprocessor(

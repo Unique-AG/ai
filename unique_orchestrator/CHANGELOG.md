@@ -2,10 +2,141 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.02] - 2026-01-05
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v1.22.2...unique-orchestrator-v2026.18.0) (2026-04-23)
+
+
+### Features
+
+* **unique-orchestrator:** Increase max loops ([#1486](https://github.com/Unique-AG/ai/issues/1486)) ([c036e38](https://github.com/Unique-AG/ai/commit/c036e382c73abcc66a71ed50097322b31c2533b5))
+* **unique-orchestrator:** skills tool ([#1485](https://github.com/Unique-AG/ai/issues/1485)) ([636db3d](https://github.com/Unique-AG/ai/commit/636db3d26f89f623793c43f157de8556911654d1))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
+## [1.22.2] - 2026-04-22
+- Align `SKIP_EXCEL_INGESTION` tests in `_configure_uploaded_search_tool` with the new `Content.is_ingested` semantics from `unique_toolkit` 1.80.1; also pin non-Excel behavior with a regression test.
+
+## [1.22.1] - 2026-04-20
+- Pass `selected_content_ids` to `OpenFileToolRuntimeConfig` so only user-selected uploaded PDFs are included
+- Fix `filter_uploaded_documents_by_selection` call to handle missing `additional_parameters` gracefully
+
+## [1.22.0] - 2026-04-16
+- Add planning middleware support for Responses API
+
+## [1.21.3] - 2026-04-15
+- Chore: standardize pytest configuration across workspace packages
+
+## [1.21.2] - 2026-04-14
+- Chore: migrate pytest config from `pytest.ini` to `pyproject.toml` with `importlib` import mode
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
+
+## [1.21.1] - 2026-04-13
+- Trigger `uploaded_content_tool` only if at least one file is ingested (and not expired)
+
+## [1.21.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [1.20.7] - 2026-04-09
+- changing FF from enable_selected_uploaded_files_un_18470 to enable_selected_uploaded_files_un_18215
+
+## [1.20.6] - 2026-04-08
+- Including logic for selected uploaded files
+
+## [1.20.5] - 2026-04-06
+- Fix sync `modify_assistant_message` calls inside async `run()` and `_process_plan()` blocking the event loop — replaced with `modify_assistant_message_async`
+
+## [1.20.4] - 2026-04-03
+- Fix: skip hallucination evaluation when code interpreter is used, preventing false-positive assessments on code-execution-grounded answers
+
+## [1.20.3] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
+## [1.20.2] - 2026-04-01
+- Removing `FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977` and replace it with parameter in loop history config
+
+## [1.20.1] - 2026-04-01
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [1.20.0] - 2026-04-01
+- Experimental open file tool
+
+## [1.19.0] - 2026-03-31
+- Resolve `AUTO_CONTAINER_ONLY` model capability in `_build_responses` and pass `force_auto_container` to `OpenAIBuiltInToolManager.build_manager`
+- Bump `unique-toolkit` lower-bound to `>=1.67.0`
+
+## [1.18.1] - 2026-03-30
+- Revert experimental open file tool
+
+## [1.18.0] - 2026-03-26
+- Experimental open file tool
+
+## [1.17.1] - 2026-03-26
+- Gate tool call persistence and history reconstruction behind `FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`; both are disabled by default (UN-15977)
+- Bump `unique-toolkit` lower-bound to `>=1.64.1`
+
+## [1.17.0] - 2026-03-25
+- Forward Responses API `include` params from `ResponsesApiToolManager.get_required_include_params()` via `ResponsesStreamingHandler` (UN-17972); gating lives in `unique_toolkit` — no FF logic in orchestrator
+- Pass `company_id` into `ShowExecutedCodePostprocessor` so fence feature-flag checks match `DisplayCodeInterpreterFilesPostProcessor` (UN-17972)
+- Bump `unique-toolkit` lower-bound to `>=1.64.0`
+
+## [1.16.0] - 2026-03-25
+- Persist tool calls and compacted responses to the database after each agentic loop via `_persist_tool_calls()` (UN-15977)
+- Use `history_manager.get_content_chunks_for_backend()` for citation indexing so `searchContext[N]` correctly resolves `[sourceN]` across turns (UN-15977)
+- Remove `percent_for_tool_call_history` from `InputTokenDistributionConfig` and `HistoryManagerConfig` wiring; history truncation now relies solely on `percent_for_history`
+- Bump `unique-toolkit` dependency to `>=1.63.0`
+
+
+## [1.15.1] - 2026-03-25
+- Fix debug info
+
+## [1.15.0] - 2026-03-23
+- Add support for Code Execution in tool analytics (Debug Info)
+
+## [1.14.3] - 2026-03-17
+- Add execution timing tracking to the agentic loop: records per-iteration durations for planning/streaming, tool execution, post-processing, and evaluation
+- Persist aggregated execution times (per-loop and total) into user message debug info
+
+## [1.14.2] - 2026-03-16
+- Remove unused code interpreter code
+
+## [1.14.1] - 2026-03-13
+- Fix uploaded file bootstrapping in the Responses API path by mirroring the `UploadedSearch` registration and forcing behavior used in the completions path
+
+## [1.14.0] - 2026-03-10
+- Refactor `build_loop_iteration_runner`: replace `is_qwen_model` check with inline `_get_model_family` helper and if/elif/else dispatch; add `MistralLoopIterationRunner` selection for Mistral models
+- Update `UniqueAI._effective_max_loop_iterations`: replace `is_qwen_model` import with inline string check
+
+## [1.13.07] - 2026-03-05
+- Build: migrate from Poetry to uv
+
+## [1.13.06] - 2026-03-03
+- Fix cancellation polling: replace passive `is_cancelled` flag checks with active `check_cancellation_async()` calls so the orchestrator actually detects user aborts
+
+## [1.13.05] - 2026-02-26
+- Add system prompt instruction for image rendering: use `![image](unique://content/[content_id])` when referring to tool-returned images
+
+## [1.13.04] - 2026-02-26
+- Hide Responses API config from experimental section in UI (SkipJsonSchema); Code Interpreter is now configured via tools section only
+
+## [1.13.03] - 2026-02-23
+- Changing parameter name from `user_instruction` to `user_space_instruction`
+
+## [1.13.02] - 2026-02-23
+- Add flag-based cancellation support via `CancellationWatcher`
+
+## [1.13.01] - 2026-02-23
+- Fix code interpreter tool toggle: auto-enable Responses API and populate default `CodeInterpreterExtendedConfig` when an enabled `code_interpreter` tool is present and model supports Responses API
+- Fix `_build_responses` to filter `tool_names` by `is_enabled` so a disabled tool entry does not block the builder from adding an enabled instance
+
+## [1.13.00] - 2026-01-26
+- Including functionality of user instruction in orchestrator
+
+## [1.12.02] - 2026-01-26
 - Adjust feature flag
 
 ## [1.12.01] - 2026-01-26

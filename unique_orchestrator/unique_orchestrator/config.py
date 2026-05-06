@@ -28,26 +28,34 @@ from unique_toolkit.agentic.loop_runner import (
     QWEN_MAX_LOOP_ITERATIONS,
     PlanningConfig,
 )
-from unique_toolkit.agentic.responses_api import (
-    DisplayCodeInterpreterFilesPostProcessorConfig,
-    ShowExecutedCodePostprocessorConfig,
-)
 from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
-from unique_toolkit.agentic.tools.openai_builtin.manager import (
-    OpenAICodeInterpreterConfig,
+from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
+    OpenFileToolConfig,
 )
+from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool import (
+    RetrieveSearchScopeConfig,
+    RetrieveSearchScopeTool,
+)
+from unique_toolkit.agentic.tools.experimental.todo import (
+    TodoConfig,
+    TodoWriteTool,
+)
+from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
+
+from unique_orchestrator.settings import env_settings
 
 DeactivatedNone = Annotated[
     None,
@@ -82,6 +90,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         description="A custom instruction provided by the system admin.",
     )
 
+    user_space_instructions: str | None = Field(
+        default=None,
+        description="User instructions for the space provided by the user.",
+    )
+
     tools: list[ToolBuildConfig] = Field(
         default=[
             ToolBuildConfig(
@@ -111,11 +124,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         cls, tools: list[ToolBuildConfig], info: ValidationInfo
     ) -> list[ToolBuildConfig]:
         for tool in tools:
-            if tool.name == InternalSearchTool.name:
-                tool.configuration.language_model_max_input_tokens = (  # type: ignore
-                    info.data["language_model"].token_limits.token_limit_input
-                )
-            elif tool.name == WebSearchTool.name:
+            if tool.name in (
+                InternalSearchTool.name,
+                WebSearchTool.name,
+                RetrieveSearchScopeTool.name,
+            ):
                 tool.configuration.language_model_max_input_tokens = (  # type: ignore
                     info.data["language_model"].token_limits.token_limit_input
                 )
@@ -130,15 +143,23 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 
 UniqueAISpaceConfig.model_rebuild()
 
-LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
-LIMIT_MAX_LOOP_ITERATIONS = 10
+
+_MODEL_FAMILIES = ("qwen", "mistral")
+
+
+def get_model_family(model_name: str) -> str | None:
+    name = model_name.lower()
+    for family in _MODEL_FAMILIES:
+        if family in name:
+            return family
+    return None
 
 
 class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
 
     max_loop_iterations: Annotated[
-        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+        int, *ClipInt(min_value=1, max_value=env_settings.limit_max_loop_iterations)
     ] = Field(
         default=QWEN_MAX_LOOP_ITERATIONS,
         description="Maximum number of agentic loop iterations for Qwen models.",
@@ -164,7 +185,9 @@ class ModelSpecificConfig(BaseToolConfig):
 class LoopConfiguration(BaseToolConfig):
     max_tool_calls_per_iteration: Annotated[
         int,
-        *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
+        *ClipInt(
+            min_value=1, max_value=env_settings.limit_max_tool_calls_per_iteration
+        ),
     ] = 10
 
     planning_config: (
@@ -256,12 +279,17 @@ class UniqueAIServices(BaseToolConfig):
         return evaluation_config
 
 
-class InputTokenDistributionConfig(BaseToolConfig):
+class HistoryConfig(BaseToolConfig):
     percent_for_history: float = Field(
         default=0.2,
         ge=0.0,
         lt=1.0,
         description="The fraction of the max input tokens that will be reserved for the history.",
+    )
+
+    enable_tool_call_persistence: bool = Field(
+        default=False,
+        description="Persist tool calls and reconstruct tool call history across turns.",
     )
 
     def max_history_tokens(self, max_input_token: int) -> int:
@@ -294,39 +322,7 @@ class SubAgentsConfig(BaseToolConfig):
     )
 
 
-class CodeInterpreterExtendedConfig(BaseToolConfig):
-    generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
-        default=DisplayCodeInterpreterFilesPostProcessorConfig(),
-        title="Generated files config",
-        description="Display config for generated files",
-    )
-
-    executed_code_display_config: (
-        Annotated[
-            ShowExecutedCodePostprocessorConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
-    ) = Field(
-        ShowExecutedCodePostprocessorConfig(),
-        description="If active, generated code will be prepended to the LLM answer",
-    )
-
-    tool_config: OpenAICodeInterpreterConfig = Field(
-        default=OpenAICodeInterpreterConfig(),
-        title="Tool config",
-    )
-
-
 class ResponsesApiConfig(BaseToolConfig):
-    code_interpreter: (
-        Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
-        | DeactivatedNone
-    ) = Field(
-        default=None,
-        description="If active, the main agent will have acces to the OpenAI Code Interpreter tool",
-    )
-
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
@@ -358,17 +354,34 @@ class ExperimentalConfig(BaseToolConfig):
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
-    responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
+    responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
+
+    open_file_tool_config: OpenFileToolConfig = OpenFileToolConfig()
+
+    retrieve_search_scope_config: RetrieveSearchScopeConfig = (
+        RetrieveSearchScopeConfig()
+    )
+    todo_config: TodoConfig = Field(
+        title="Todo Tool",
+        description="Configuration for the todo tool",
+        default_factory=TodoConfig,
+    )
+
+    use_responses_api: bool = Field(
+        default=False,
+        description="If set, the main agent will use the Responses API from OpenAI",
+    )
 
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
-        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
-    ] = 5
+        int, *ClipInt(min_value=1, max_value=env_settings.limit_max_loop_iterations)
+    ] = 20
 
-    input_token_distribution: InputTokenDistributionConfig = Field(
-        default=InputTokenDistributionConfig(),
-        description="The distribution of the input tokens.",
+    input_token_distribution: HistoryConfig = Field(
+        default=HistoryConfig(),
+        title="Loop History",
+        description="Configuration for loop history.",
     )
 
     prompt_config: UniqueAIPromptConfig = UniqueAIPromptConfig()
@@ -388,3 +401,117 @@ class UniqueAIConfig(BaseToolConfig):
         if not any(tool.is_sub_agent for tool in self.space.tools):
             self.agent.experimental.sub_agents_config.referencing_config = None
         return self
+
+    @model_validator(mode="after")
+    def enable_responses_api_for_code_interpreter_tool(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API when Code Interpreter is added directly as a tool.
+
+        When Code Interpreter is configured via the UI tool selector (i.e. as an entry in
+        space.tools), neither `use_responses_api` nor `responses_api_config.code_interpreter`
+        are set.  This validator detects that combination and fills in the required defaults so
+        that `unique_ai_builder` routes the request correctly and registers all postprocessors.
+
+        The validator only activates when the selected model actually supports the Responses API;
+        models that do not support it are left untouched so that an invalid configuration is not
+        silently promoted.
+        """
+        # Only consider enabled tools — a disabled entry (toggle off) means the user
+        # has not intentionally activated Code Interpreter via the UI toggle.
+        tool_names = [tool.name for tool in self.space.tools if tool.is_enabled]
+        model_supports_responses_api = (
+            ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities
+        )
+
+        if (
+            OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+            and model_supports_responses_api
+        ):
+            self.agent.experimental.responses_api_config.use_responses_api = True
+
+        return self
+
+    @model_validator(mode="after")
+    def enable_responses_api_for_gpt_55_and_gpt_55_pro(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API for GPT-5.5 (AZURE_GPT_55_2026_0424) and GPT-5.5-Pro (AZURE_GPT_55_PRO_2026_0424).
+
+        TEMP FIX: gpt-5.5-2026-04-24 and gpt-5.5-pro-2026-04-24 reject requests that combine `tools` with
+        `reasoning_effort` on /v1/chat/completions and demands /v1/responses.
+        Forcing the Responses API here avoids the OpenAI 400 error until the
+        runner can pick the right transport based on model capabilities.
+        Tracked in Jira: UN-20123.
+        """
+        if (
+            self.space.language_model.name == LanguageModelName.AZURE_GPT_55_2026_0424
+            or self.space.language_model.name
+            == LanguageModelName.AZURE_GPT_55_PRO_2026_0424
+        ):
+            self.agent.experimental.responses_api_config.use_responses_api = True
+        return self
+
+    @model_validator(mode="after")
+    def validate_open_file_tool_requires_responses_api(self) -> "UniqueAIConfig":
+        uses_responses_api = (
+            self.agent.experimental.responses_api_config.use_responses_api
+            or self.agent.experimental.use_responses_api
+        )
+        if (
+            self.agent.experimental.open_file_tool_config.enabled
+            and not uses_responses_api
+        ):
+            raise ValueError(
+                "open_file_tool_config.enabled requires the Responses API to be enabled."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def inject_retrieve_search_scope_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = RetrieveSearchScopeTool.name in tool_names
+        config = self.agent.experimental.retrieve_search_scope_config
+
+        if config.enabled and not has_tool:
+            config.language_model_max_input_tokens = (
+                self.space.language_model.token_limits.token_limit_input
+            )
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=RetrieveSearchScopeTool.name,
+                    display_name=RetrieveSearchScopeTool.default_display_name,
+                    configuration=config,
+                )
+            )
+        elif not config.enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools if t.name != RetrieveSearchScopeTool.name
+            ]
+
+        return self
+
+    @model_validator(mode="after")
+    def inject_todo_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = TodoWriteTool.name in tool_names
+        config = self.agent.experimental.todo_config
+
+        if config.enabled and not has_tool:
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=TodoWriteTool.name,
+                    display_name=config.display_name,
+                    configuration=config,
+                )
+            )
+        elif not config.enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools if t.name != TodoWriteTool.name
+            ]
+
+        return self
+
+    @property
+    def effective_max_loop_iterations(self) -> int:
+        """Effective max loop iterations, accounting for model-specific overrides."""
+        family = get_model_family(str(self.space.language_model))
+        if family == "qwen":
+            return self.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations
+        return self.agent.max_loop_iterations

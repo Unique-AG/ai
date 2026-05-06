@@ -1,4 +1,5 @@
 # %%
+import unique_sdk
 from unique_toolkit import (
     ChatService,
     KnowledgeBaseService,

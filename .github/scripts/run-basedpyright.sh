@@ -32,14 +32,11 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -o, --output FILE    Path to output JSON file (default: /tmp/basedpyright.json)
-    -r, --runner CMD     Command executor prefix (e.g., "poetry run" or "uv run", default: "poetry run")
+    -r, --runner CMD     Command executor prefix (default: "uv run")
 
 EXAMPLES:
-    # Basic usage (with Poetry)
+    # Basic usage
     ${SCRIPT_NAME} unique_toolkit
-
-    # With uv
-    ${SCRIPT_NAME} -r "uv run" unique_mcp
 
     # Specify package directory and output file
     ${SCRIPT_NAME} unique_sdk /tmp/my-results.json
@@ -73,7 +70,7 @@ EOF
 # Initialize variables with defaults
 PACKAGE_DIR=""
 OUTPUT_FILE="/tmp/basedpyright.json"
-RUNNER="poetry run"
+RUNNER="uv run"
 
 # Convert long options to short options for getopts
 ARGS=()

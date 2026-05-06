@@ -1,3 +1,5 @@
+from .find_env_file import EnvFileNotFoundError as EnvFileNotFoundError
+from .find_env_file import find_env_file as find_env_file
 from .init_logging import init_logging as init_logging
 from .init_sdk import get_endpoint_secret as get_endpoint_secret
 from .init_sdk import init_sdk as init_sdk
@@ -43,6 +45,9 @@ from .schemas import (
 )
 from .schemas import (
     McpTool as McpTool,
+)
+from .schemas import (
+    UploadedFileInfo as UploadedFileInfo,
 )
 from .verification import (
     verify_signature_and_construct_event as verify_signature_and_construct_event,

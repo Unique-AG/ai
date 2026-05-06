@@ -137,14 +137,14 @@ class FollowUpQuestionService:
         """
         try:
             if self.config.use_structured_output:
-                response = language_model_service.complete(
+                response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self.config.language_model.name,
                     structured_output_model=FollowUpQuestionsOutput,
                 )
                 parsed_content = response.choices[0].message.parsed
             else:
-                response = language_model_service.complete(
+                response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self.config.language_model.name,
                 )

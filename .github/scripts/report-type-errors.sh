@@ -235,9 +235,9 @@ jq -r --arg repo_root "$REPO_ROOT" '
 ERROR_COUNT=$(wc -l < "$ERRORS_FILE" | tr -d ' ')
 
 if [ "$ERROR_COUNT" -eq 0 ]; then
-    print_success "No new type errors found! Baseline successfully filtered out existing errors."
+    print_success "No type errors found!"
     echo ""
-    print_success "Your changes don't introduce new type errors."
+    print_success "Your changes don't introduce type errors."
     exit 0
 fi
 

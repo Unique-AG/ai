@@ -5,8 +5,13 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeVar
 from pydantic import ValidationError
 
 if TYPE_CHECKING:
-    from fastapi import BackgroundTasks, FastAPI, Request, status
-    from fastapi.responses import JSONResponse
+    from fastapi import (  # pyright: ignore[reportMissingImports]
+        BackgroundTasks,
+        FastAPI,
+        Request,
+        status,
+    )
+    from fastapi.responses import JSONResponse  # pyright: ignore[reportMissingImports]
 else:
     try:
         from fastapi import BackgroundTasks, FastAPI, Request, status
@@ -33,7 +38,7 @@ def default_event_handler(event: Any) -> int:
         return 200
 
 
-T = TypeVar("T", bound=BaseEvent)
+T = TypeVar("T", bound=BaseEvent[Any])
 
 EventHandlerType = Callable[[T], Awaitable[int]] | Callable[[T], int]
 
@@ -43,7 +48,7 @@ def build_unique_custom_app(
     title: str = "Unique Chat App",
     webhook_path: str = "/webhook",
     settings: UniqueSettings,
-    event_handler: EventHandlerType = default_event_handler,
+    event_handler: EventHandlerType[T] = default_event_handler,
     event_constructor: Callable[..., T] = ChatEvent,
     subscribed_event_names: list[str] | None = None,
 ) -> "FastAPI":
@@ -58,12 +63,29 @@ def build_unique_custom_app(
     if subscribed_event_names is None:
         subscribed_event_names = [EventName.EXTERNAL_MODULE_CHOSEN]
 
-    @app.get(path="/")
+    @app.get(path="/")  # pyright: ignore[reportUntypedFunctionDecorator]
     async def health_check() -> JSONResponse:
         """Health check endpoint."""
         return JSONResponse(content={"status": "healthy", "service": title})
 
-    @app.post(path=webhook_path)
+    from unique_toolkit.monitoring import _MONITORING_AVAILABLE
+
+    if _MONITORING_AVAILABLE:
+        from starlette.responses import (  # pyright: ignore[reportMissingImports]
+            Response as StarletteResponse,
+        )
+
+        from unique_toolkit.monitoring import get_metrics
+
+        @app.get(path="/metrics")  # pyright: ignore[reportUntypedFunctionDecorator]
+        async def metrics_endpoint() -> StarletteResponse:
+            """Prometheus metrics endpoint."""
+            return StarletteResponse(
+                content=get_metrics(),
+                media_type="text/plain; version=0.0.4; charset=utf-8",
+            )
+
+    @app.post(path=webhook_path)  # pyright: ignore[reportUntypedFunctionDecorator]
     async def webhook_handler(
         request: Request, background_tasks: BackgroundTasks
     ) -> JSONResponse:

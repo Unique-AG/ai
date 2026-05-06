@@ -1,18 +1,19 @@
 # ruff: noqa: E402
 # ruff: noqa: I001
-from typing import Literal, Optional
+from typing import Literal
 
 # Unique SDK
 # Authors:
 # Konstantin Krauss<konstantin@unique.ch>
-from unique_sdk._api_version import _ApiVersion
+from unique_sdk._api_version import ApiVersion
 
 api_key: str | None = None
 app_id: str | None = None
 api_base: str = "https://gateway.unique.app/public/chat-gen2"
-api_version: str = _ApiVersion.CURRENT
+api_version: str = ApiVersion.CURRENT
 api_verify_mode: bool = True
-default_http_client: Optional["HTTPClient"] = None
+default_http_client: "HTTPClient | None" = None
+ingestion_upload_api_url_internal: str | None = None
 
 # Set to either 'debug' or 'info', controls console logging
 log: Literal["debug", "info"] | None = None
@@ -95,7 +96,23 @@ from unique_sdk.api_resources._message_execution import (
     MessageExecution as MessageExecution,
 )
 from unique_sdk.api_resources._message_log import MessageLog as MessageLog
+from unique_sdk.api_resources._message_tool import MessageTool as MessageTool
 from unique_sdk.api_resources._elicitation import Elicitation as Elicitation
+from unique_sdk.api_resources._benchmarking import (
+    Benchmarking as Benchmarking,
+)
+from unique_sdk.api_resources._scheduled_task import ScheduledTask as ScheduledTask
+from unique_sdk.api_resources._analytics_order import (
+    AnalyticsOrder as AnalyticsOrder,
+)
+from unique_sdk.api_resources._module import Module as Module
+from unique_sdk.api_resources._briefing import Briefing as Briefing
+from unique_sdk.api_resources._web_search import (
+    WebSearch as WebSearch,
+    WebCrawl as WebCrawl,
+    WebSearchResultItem as WebSearchResultItem,
+    WebCrawlResultItem as WebCrawlResultItem,
+)
 
 # Unique QL
 from unique_sdk._unique_ql import UQLOperator as UQLOperator
@@ -105,6 +122,7 @@ from unique_sdk._unique_ql import UQLCombinator as UQLCombinator
 from .api_resources._agentic_table import (
     AgenticTable as AgenticTable,
     AgenticTableCell as AgenticTableCell,
+    AgenticTableCellMetaData as AgenticTableCellMetaData,
     AgenticTableSheet as AgenticTableSheet,
     AgenticTableSheetState as AgenticTableSheetState,
     LogEntry as LogEntry,
@@ -115,4 +133,7 @@ from .api_resources._agentic_table import (
     AgreementStatus as AgreementStatus,
     RowVerificationStatus as RowVerificationStatus,
     MagicTableAction as MagicTableAction,
+    MagicTableActivityResponse as MagicTableActivityResponse,
+    MagicTableArtifactType as MagicTableArtifactType,
+    MagicTableMetadataEntry as MagicTableMetadataEntry,
 )

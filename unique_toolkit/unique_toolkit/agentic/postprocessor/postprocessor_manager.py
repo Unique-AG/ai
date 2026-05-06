@@ -1,4 +1,5 @@
 import asyncio
+import time
 from abc import ABC
 from logging import Logger
 
@@ -84,6 +85,7 @@ class PostprocessorManager:
         self._logger = logger
         self._chat_service = chat_service
         self._postprocessors: list[Postprocessor | ResponsesApiPostprocessor] = []
+        self._execution_times: dict[str, float] = {}
 
         # Allow to add postprocessors that should be run before or after the others.
         self._first_postprocessor: Postprocessor | ResponsesApiPostprocessor | None = (
@@ -123,6 +125,8 @@ class PostprocessorManager:
         self,
         loop_response: LanguageModelStreamResponse,
     ) -> None:
+        self._execution_times = {}
+
         task_executor = SafeTaskExecutor(
             logger=self._logger,
         )
@@ -144,8 +148,9 @@ class PostprocessorManager:
             if postprocessor_results[i].success:
                 successful_postprocessors.append(postprocessors[i])
 
+        # TODO(UN-19522): make Postprocessor generic over response type to eliminate these ignores
         modification_results = [
-            postprocessor.apply_postprocessing_to_response(loop_response)  # type: ignore (checked in `get_valid_postprocessors_for_loop_response`)
+            postprocessor.apply_postprocessing_to_response(loop_response)  # pyright: ignore[reportArgumentType]
             for postprocessor in successful_postprocessors
         ]
 
@@ -158,12 +163,19 @@ class PostprocessorManager:
                 references=loop_response.message.references,
             )
 
+    def get_execution_times(self) -> dict[str, float]:
+        return self._execution_times.copy()
+
     async def execute_postprocessors(
         self,
         loop_response: LanguageModelStreamResponse,
         postprocessor_instance: Postprocessor | ResponsesApiPostprocessor,
     ) -> None:
-        await postprocessor_instance.run(loop_response)  # type: ignore
+        start = time.perf_counter()
+        await postprocessor_instance.run(loop_response)  # pyright: ignore[reportArgumentType]  # TODO(UN-19522)
+        self._execution_times[postprocessor_instance.name] = round(
+            time.perf_counter() - start, 3
+        )
 
     async def remove_from_text(
         self,

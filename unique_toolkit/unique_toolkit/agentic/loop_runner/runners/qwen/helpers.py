@@ -1,20 +1,8 @@
-from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
 )
-
-
-def is_qwen_model(*, model: str | LanguageModelInfo | None) -> bool:
-    """Check if the model is a Qwen model."""
-    if isinstance(model, LanguageModelInfo):
-        name = model.name
-        # name is an Enum with a .value attribute
-        return "qwen" in str(getattr(name, "value", name)).lower()
-    elif isinstance(model, str):
-        return "qwen" in model.lower()
-    return False
 
 
 def append_qwen_forced_tool_call_instruction(

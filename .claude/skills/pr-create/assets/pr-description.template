@@ -1,0 +1,42 @@
+# PR Description Template
+
+## Title
+<!-- Use semantic commit format: <type>(<scope>): <subject> -->
+<!-- type: feat, fix, chore, ci, deploy, docs, improvement, refactor, test -->
+<!-- scope: optional, describes the area affected (e.g., auth, api, ui) -->
+<!-- subject: imperative mood, concise description -->
+
+`feat(example): add new feature description`
+
+## Refs
+<!-- Link to Jira issue or ticket tracking system -->
+<!-- Format: PROJ-123 or https://jira.example.com/browse/PROJ-123 -->
+<!-- If none, ask, or remove ## Refs directly -->
+
+PROJ-123
+
+## Summary
+<!-- One sentence: what changed? Describe the change concisely from a user/business perspective. -->
+
+This PR adds...
+
+## Testing
+<!-- How can a reviewer verify this change works? Be specific and actionable. -->
+<!-- Include: manual test steps, how to run automated tests, what to look for -->
+
+Run `npm test` to verify all tests pass.
+
+Manual verification:
+1. Step 1 to test manually
+2. Step 2 to verify behavior
+3. Expected result
+
+## Breaking Changes
+<!-- Only include if there are breaking changes or migrations needed. -->
+<!-- Delete this section if not applicable. -->
+
+BREAKING CHANGE: [Describe what breaks and how to migrate, if nothing, remove]
+
+---
+
+**Copy & paste the sections above into your Git hosting platform (GitHub, GitLab, etc.)**

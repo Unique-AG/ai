@@ -16,7 +16,7 @@ Detailed description of Step D from the Main Control flow
 
 
 Code:
-```python
+```{.python #orchestrator-process-plan}
     async def _process_plan(
           self, loop_response: LanguageModelStreamResponse
     ) -> bool:

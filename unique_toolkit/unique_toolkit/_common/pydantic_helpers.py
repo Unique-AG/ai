@@ -1,11 +1,12 @@
 import logging
 import warnings
-from typing import TypeVar, Unpack
+from typing import Annotated, Any, TypeVar, Unpack
 
 import humps
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, create_model
 from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
+from pydantic_core import PydanticUseDefault
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +22,32 @@ def model_title_generator(model: type) -> str:
     return humps.decamelize(model.__name__).replace("_", " ").title()
 
 
+def _none_to_default(v: Any) -> Any:
+    if v is None:
+        raise PydanticUseDefault()
+    return v
+
+
+"""
+BeforeValidator to replace an incoming None with the field's declared default.
+"""
+NoneToDefault = BeforeValidator(_none_to_default)
+
+DeactivatedNone = Annotated[
+    None,
+    Field(title="Deactivated", description="None"),
+]
+
+
 def get_configuration_dict(**kwargs: Unpack[ConfigDict]) -> ConfigDict:
-    config = {
+    base: dict[str, object] = {
         "alias_generator": to_camel,
         "field_title_generator": field_title_generator,
         "model_title_generator": model_title_generator,
         "populate_by_name": True,
-        # protected_namespaces=(),
     }
-    config.update(kwargs)
-    return ConfigDict(**config)
+    base.update(kwargs)
+    return ConfigDict(**base)  # pyright: ignore[reportArgumentType]
 
 
 ModelTypeA = TypeVar("ModelTypeA", bound=BaseModel)

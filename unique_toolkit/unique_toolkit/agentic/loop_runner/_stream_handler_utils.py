@@ -1,6 +1,6 @@
 from typing import Any, Required
 
-from openai.types.chat import ChatCompletionNamedToolChoiceParam
+from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from typing_extensions import TypedDict
 
 from unique_toolkit import LanguageModelToolDescription
@@ -18,7 +18,7 @@ class _StreamingHandlerKwargs(TypedDict, total=False):
     start_text: str
     debug_info: dict[str, Any]
     temperature: float
-    tool_choice: ChatCompletionNamedToolChoiceParam
+    tool_choice: ChatCompletionToolChoiceOptionParam
     other_options: dict[str, Any]
 
 

@@ -1,16 +1,22 @@
 import logging
 from abc import ABC, abstractmethod
 from time import time
+from typing import Generic, TypeVar
 
+from pydantic import BaseModel
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
 )
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
+from unique_toolkit.monitoring import metric_scope
 
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
-from unique_web_search.services.content_processing import WebPageChunk
+from unique_web_search.metrics import llm_duration, llm_errors
+from unique_web_search.schema import (
+    StepDebugInfo,
+    WebPageChunk,
+)
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
@@ -19,19 +25,21 @@ from unique_web_search.services.executors.context import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.utils import StepDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class BaseWebSearchExecutor(ABC):
+T = TypeVar("T", bound=BaseModel)
+
+
+class BaseWebSearchExecutor(ABC, Generic[T]):
     def __init__(
         self,
         services: ExecutorServiceContext,
         config: ExecutorConfiguration,
         callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
-        tool_parameters: WebSearchPlan | WebSearchToolParameters,
+        tool_parameters: T,
     ):
         # Extract from service context
         self.search_service = services.search_engine_service
@@ -97,21 +105,22 @@ class BaseWebSearchExecutor(ABC):
     ) -> list[WebPageChunk]:
         start_time = time()
         _LOGGER.info(
-            f"Company {self.company_id} Content processing with {self.content_processor.config.strategy}"
+            f"Company {self.company_id} Content processing with {self.content_processor.config.active_processing_strategies}"
         )
-        content_results = await self.content_processor.run(
-            objective, web_search_results
-        )
+        with metric_scope(llm_duration, llm_errors, purpose="content_processing"):
+            content_results = await self.content_processor.run(
+                objective, web_search_results
+            )
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(
-            f"Content processed with {self.content_processor.config.strategy} completed in {delta_time} seconds"
+            f"Content processed with {self.content_processor.config.active_processing_strategies} completed in {delta_time} seconds"
         )
         self.debug_info.steps.append(
             StepDebugInfo(
                 step_name="content_processing",
                 execution_time=delta_time,
-                config=self.content_processor.config.strategy.name,
+                config=str(self.content_processor.config.active_processing_strategies),
                 extra={
                     "number_of_results": len(web_search_results),
                     "web_page_chunks": [elem.model_dump() for elem in content_results],

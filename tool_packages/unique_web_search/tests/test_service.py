@@ -3,8 +3,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.service import WebSearchTool
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 
 
 class TestWebSearchToolDescription:
@@ -60,9 +62,14 @@ class TestWebSearchToolDescription:
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
 
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.tool_parameter_calls = None  # type: ignore
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result = tool.tool_description()
 
@@ -70,7 +77,7 @@ class TestWebSearchToolDescription:
         assert result.name == "WebSearch"
         assert hasattr(result, "description")
         assert result.description == "V2 tool description"
-        assert tool.tool_parameter_calls == WebSearchPlan
+        assert issubclass(tool.tool_parameter_calls, WebSearchPlan)
 
 
 class TestWebSearchToolDescriptionForSystemPrompt:
@@ -110,10 +117,12 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt replaces $max_steps placeholder for V2.
-        Why this matters: V2 mode requires dynamic max_steps value in system prompt.
-        Setup summary: Mock WebSearchTool with V2 config containing $max_steps placeholder.
+        Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V2.
+        Why this matters: V2 mode requires dynamic max_steps and engine-mode injection.
+        Setup summary: Mock WebSearchTool with V2 config containing Jinja placeholders.
         """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
@@ -124,11 +133,85 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()
 
         assert isinstance(result, str)
-        assert result == "V2 system prompt with 5"
+        assert "V2 system prompt with 5" in result
+
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__rewrites_legacy_max_steps_placeholder__when_mode_is_v2(
+        self,
+        mock_web_search_config_v2: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify legacy V2 prompts using the pre-Jinja ``$max_steps``
+        placeholder still get max_steps substituted after the move to
+        Jinja-based rendering.
+        Why this matters: V2 prompts persisted in the database before the
+        Jinja migration must keep working without manual config updates.
+        Setup summary: Mock V2 config with the legacy ``$max_steps`` syntax.
+        """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+
+        mock_web_search_config_v2.web_search_mode_config.tool_description_for_system_prompt = "Legacy V2 system prompt — must not exceed $max_steps steps."
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v2
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
+
+        result: str = tool.tool_description_for_system_prompt()
+
+        assert isinstance(result, str)
+        assert "must not exceed 5 steps" in result
+        assert "$max_steps" not in result
+
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__renders_jinja__when_mode_is_v3(
+        self,
+        mock_web_search_config_v3: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V3.
+        Why this matters: V3 uses dynamic date in the system prompt template.
+        Setup summary: Mock WebSearchTool with V3 config containing Jinja placeholders.
+        """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v3
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
+
+        result: str = tool.tool_description_for_system_prompt()
+
+        assert isinstance(result, str)
+        assert result.startswith("V3 system prompt with ")
+        assert "{{ date_string }}" not in result
 
 
 class TestWebSearchToolFormatInformation:
@@ -160,6 +243,34 @@ class TestWebSearchToolFormatInformation:
 
         assert isinstance(result, str)
         assert result == "Test format info"
+
+    @pytest.mark.ai
+    def test_tool_format_information_for_system_prompt__returns_v3_nested_value(
+        self,
+        mock_web_search_config_v3: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify V3 citation instructions come from Search Mode V3 settings, not root + append.
+        Why this matters: V3 has a single configured prompt without runtime concatenation.
+        """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v3
+
+        result: str = tool.tool_format_information_for_system_prompt()
+
+        assert result == (
+            mock_web_search_config_v3.web_search_mode_config_v3.tool_format_information_for_system_prompt
+        )
+        assert "Domain Diversity Requirement" in result
 
 
 class TestWebSearchToolEvaluationCheckList:
@@ -207,7 +318,7 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V2 mode.
         Setup summary: Mock WebSearchTool with V2 config and WebSearchPlan parameters.
         """
-        from unique_web_search.services.executors.web_search_v2_executor import (
+        from unique_web_search.services.executors.v2.executor import (
             WebSearchV2Executor,
         )
 
@@ -267,7 +378,7 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V1 mode.
         Setup summary: Mock WebSearchTool with V1 config and WebSearchToolParameters.
         """
-        from unique_web_search.services.executors.web_search_v1_executor import (
+        from unique_web_search.services.executors.v1.executor import (
             WebSearchV1Executor,
         )
 
@@ -501,6 +612,7 @@ class TestWebSearchToolRun:
         # Mock WebSearchMessageLogger
         mock_message_logger = Mock()
         mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
         mocker.patch(
             "unique_web_search.service.WebSearchMessageLogger",
             return_value=mock_message_logger,
@@ -523,6 +635,9 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -536,11 +651,176 @@ class TestWebSearchToolRun:
         assert result.name == "WebSearch"
         assert hasattr(result, "content_chunks")
         assert result.content_chunks == sample_content_chunks
+        assert result.system_reminder == ""
         assert (
             not hasattr(result, "error_message")
             or result.error_message is None
             or result.error_message == ""
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("blank_format", ["", "   ", "\t"])
+    async def test_run__sets_empty_system_reminder__when_format_info_blank(
+        self,
+        mock_web_search_config_v1: Mock,
+        sample_content_chunks: list,
+        mocker: Any,
+        blank_format: str,
+    ) -> None:
+        """
+        Purpose: Verify run leaves system_reminder empty when experimental reminder text is blank.
+        Why this matters: Avoids appending whitespace-only noise to tool message content.
+        Setup summary: enable_system_reminder with empty or whitespace system_reminder_prompt.
+
+        Note: When system_reminder is non-empty, persisted tool content is JSON sources plus a suffix;
+        uncited-source compaction uses json.loads on the full string and may skip trimming (see HistoryManager).
+        """
+        mock_web_search_config_v1.tool_format_information_for_system_prompt = (
+            blank_format
+        )
+        rem = mock_web_search_config_v1.experimental_features.tool_response_system_reminder
+        rem.enable_system_reminder = True
+        rem.system_reminder_prompt = blank_format
+        rem.get_reminder_prompt = ""
+
+        mock_executor = AsyncMock()
+        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
+        mock_executor.notify_name = "test-name"
+        mock_executor.notify_message = "test-message"
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.tool_parameter_calls = WebSearchToolParameters
+        tool.logger = Mock()
+        tool._message_step_logger = Mock()
+        tool._tool_progress_reporter = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
+        tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = {"query": "test", "date_restrict": None}
+
+        result = await tool.run(tool_call)
+
+        assert result.system_reminder == ""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__system_reminder_uses_experimental_prompt__when_enabled_for_v3(
+        self,
+        mock_web_search_config_v3: Mock,
+        sample_content_chunks: list,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify run sets system_reminder from experimental features when enabled (V3).
+        Why this matters: Tool response reminder is independent of system-prompt citation instructions.
+        """
+        rem = mock_web_search_config_v3.experimental_features.tool_response_system_reminder
+        rem.enable_system_reminder = True
+        rem.system_reminder_prompt = (
+            "Test format info\n\n## Domain Diversity Requirement\n\n"
+            "When the current WebSearch tool response"
+        )
+        rem.get_reminder_prompt = rem.system_reminder_prompt
+        mock_executor = AsyncMock()
+        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
+        mock_executor.notify_name = "test-name"
+        mock_executor.notify_message = "test-message"
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v3
+        tool.tool_parameter_calls = WebSearchV3ToolParameters
+        tool.logger = Mock()
+        tool._message_step_logger = Mock()
+        tool._tool_progress_reporter = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
+        tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = {
+            "command": "search",
+            "objective": "Test sub-goal for this search",
+            "payload": {"gap": "Test gap to fill", "query": "test"},
+        }
+
+        result = await tool.run(tool_call)
+
+        assert "Test format info" in result.system_reminder
+        assert "Domain Diversity Requirement" in result.system_reminder
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -600,6 +880,9 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -658,6 +941,7 @@ class TestWebSearchToolRun:
         # Mock WebSearchMessageLogger
         mock_message_logger = Mock()
         mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
         mocker.patch(
             "unique_web_search.service.WebSearchMessageLogger",
             return_value=mock_message_logger,
@@ -680,6 +964,9 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
 
         # Mock feature_flags to ensure the progress reporter code path is taken
         mock_feature_flags = mocker.patch("unique_web_search.service.feature_flags")

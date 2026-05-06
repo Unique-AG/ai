@@ -3,13 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from unique_web_search.schema import (
-    Step,
-    StepType,
-    WebSearchPlan,
-    WebSearchToolParameters,
-)
-from unique_web_search.services.executors.configs import WebSearchMode
+from unique_web_search.services.executors import WebSearchMode
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -63,6 +59,19 @@ def mock_environment_variables(monkeypatch):
     monkeypatch.setenv("BRAVE_API_KEY", "test-brave-key")
 
 
+def _mock_experimental_features(
+    enable_system_reminder: bool = False,
+    system_reminder_prompt: str = "",
+) -> Mock:
+    exp = Mock()
+    rem = Mock()
+    rem.enable_system_reminder = enable_system_reminder
+    rem.system_reminder_prompt = system_reminder_prompt
+    rem.get_reminder_prompt = system_reminder_prompt if enable_system_reminder else ""
+    exp.tool_response_system_reminder = rem
+    return exp
+
+
 @pytest.fixture
 def mock_web_search_config_v1():
     """Mock WebSearchConfig for V1 mode testing."""
@@ -78,6 +87,8 @@ def mock_web_search_config_v1():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.experimental_features = _mock_experimental_features()
+    config.web_search_active_mode = WebSearchMode.V1
     config.web_search_mode_config.mode = WebSearchMode.V1
     config.web_search_mode_config.tool_description = "V1 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
@@ -110,12 +121,41 @@ def mock_web_search_config_v2():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.experimental_features = _mock_experimental_features()
+    config.web_search_active_mode = WebSearchMode.V2
     config.web_search_mode_config.mode = WebSearchMode.V2
     config.web_search_mode_config.tool_description = "V2 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
-        "V2 system prompt with $max_steps"
+        "V2 system prompt with {{ max_steps }}"
     )
     config.web_search_mode_config.max_steps = 5
+    return config
+
+
+@pytest.fixture
+def mock_web_search_config_v3():
+    """Mock WebSearchConfig for V3 mode testing."""
+    config = Mock()
+    config.language_model = Mock()
+    config.search_engine_config = Mock()
+    config.crawler_config = Mock()
+    config.content_processor_config = Mock()
+    config.chunk_relevancy_sort_config = Mock()
+    config.language_model_max_input_tokens = None
+    config.percentage_of_input_tokens_for_sources = 0.4
+    config.limit_token_sources = 60000
+    config.debug = False
+    config.tool_format_information_for_system_prompt = "Test format info"
+    config.evaluation_check_list = []
+    config.experimental_features = _mock_experimental_features()
+    config.web_search_active_mode = WebSearchMode.V3
+    config.web_search_mode_config.mode = WebSearchMode.V3
+    config.web_search_mode_config.tool_description = "V3 tool description"
+    config.web_search_mode_config.tool_description_for_system_prompt = (
+        "V3 system prompt with {{ date_string }}"
+    )
+    config.web_search_mode_config.tool_format_information_for_system_prompt = "Test format info\n\n## Domain Diversity Requirement\n\nWhen the current WebSearch tool response"
+    config.web_search_mode_config_v3 = config.web_search_mode_config
     return config
 
 
@@ -241,7 +281,7 @@ def mock_executor_dependencies():
     """Mock dependencies for executor initialization."""
     from unittest.mock import AsyncMock
 
-    from unique_web_search.utils import WebSearchDebugInfo
+    from unique_web_search.schema import WebSearchDebugInfo
 
     mock_lm_service = Mock()
     mock_lm_service.complete_async = AsyncMock()

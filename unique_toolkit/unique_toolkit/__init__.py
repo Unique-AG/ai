@@ -20,6 +20,7 @@ from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory import ShortTermMemoryService
 
 # Conditionally import config_checker (requires pydantic-settings)
+_CONFIG_CHECKER_AVAILABLE: bool = False
 try:
     from unique_toolkit._common.config_checker import (
         ConfigDiffer,  # noqa: F401, I001
@@ -33,17 +34,18 @@ try:
         register_config,  # noqa: F401, I001
     )
 
-    _CONFIG_CHECKER_AVAILABLE = True
+    _CONFIG_CHECKER_AVAILABLE = True  # pyright: ignore[reportConstantRedefinition]
 except ImportError:
-    _CONFIG_CHECKER_AVAILABLE = False
+    pass
 
 # Conditionally import langchain utilities if langchain is installed
+_LANGCHAIN_AVAILABLE: bool = False
 try:
     from unique_toolkit.framework_utilities.langchain.client import get_langchain_client  # noqa: F401, I001
 
-    _LANGCHAIN_AVAILABLE = True
+    _LANGCHAIN_AVAILABLE = True  # pyright: ignore[reportConstantRedefinition]
 except ImportError:
-    _LANGCHAIN_AVAILABLE = False
+    pass
 
 # You can add other classes you frequently use here as well
 

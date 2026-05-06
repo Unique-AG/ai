@@ -21,6 +21,8 @@ class FeatureFlag:
         False
     """
 
+    value: list[str] | bool
+
     def __init__(self, value: list[str] | bool):
         self.value = value
 
@@ -37,10 +39,7 @@ class FeatureFlag:
         if isinstance(self.value, bool):
             return self.value
 
-        if isinstance(self.value, list):
-            return company_id in self.value if company_id else False
-
-        return False
+        return company_id in self.value if company_id else False
 
     def __repr__(self) -> str:
         return f"FeatureFlag({self.value})"
@@ -75,6 +74,32 @@ class FeatureFlags(BaseSettings):
     enable_html_rendering_un_15131: FeatureFlag = Field(
         default=FeatureFlag(False),
         description="Enable HTML rendering for code interpreter files (UN-15131). Can be 'true' or comma-separated company IDs.",
+    )
+
+    enable_code_execution_fence_un_17972: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Emit codeExecution fences in message.text for code interpreter outputs (UN-17972). When disabled, inline file refs are kept as-is. Can be 'true' or comma-separated company IDs.",
+    )
+
+    enable_web_search_argument_screening_un_18741: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Enable argument screening agent for web search tool calls (UN-18741). Can be 'true' or comma-separated company IDs.",
+    )
+
+    enable_selected_uploaded_files_un_18215: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Use selected_uploaded_files from event payload instead of querying uploaded files from the backend. Can be 'true' or comma-separated company IDs.",
+    )
+
+    enable_mcp_metadata_fallback_un_19145: FeatureFlag = Field(
+        default=FeatureFlag(True),
+        description=(
+            "When namespaced MCP `_meta` keys (`unique.app/auth/user-id`, "
+            "`unique.app/chat/chat-id`, ...) are absent, fall back to the flat camelCase "
+            "keys (`userId`, `companyId`, `chatId`, `messageId`) still emitted "
+            "by pre-#22513 monorepo builds. Flip to `False` once the monorepo "
+            "rollout of namespaced keys is complete."
+        ),
     )
 
     model_config = SettingsConfigDict(

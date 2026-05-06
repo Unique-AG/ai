@@ -19,6 +19,7 @@ from openai.types.responses.response_output_text import (
 )
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
+from unique_toolkit._common.execution import safe_execute_async
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
@@ -28,6 +29,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -47,7 +49,7 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
-from unique_deep_research.unique_custom.tools import crawl_url
+from unique_deep_research.unique_custom.tools import crawl_url, get_today_str
 
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,
@@ -57,6 +59,7 @@ from .config import (
     UniqueEngine,
 )
 from .markdown_utils import (
+    export_report_to_docx,
     postprocess_research_result_with_chunks,
     validate_and_map_citations,
 )
@@ -226,7 +229,27 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             return []
         return evaluation_check_list
 
+    async def _on_cancellation(self, _event: CancellationEvent) -> None:
+        """Subscriber called by the cancellation event bus."""
+        _LOGGER.info("Deep Research cancelled by user")
+        self.write_message_log_text_message("**Research stopped by user**")
+        if self.is_message_execution():
+            await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+        await self.chat_service.modify_assistant_message_async(
+            content="Research was stopped.",
+        )
+
+    def _cancelled_response(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        return ToolCallResponse(
+            id=tool_call.id or "",
+            name=self.name,
+            content="Research was stopped.",
+        )
+
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        sub = self.chat_service.cancellation.on_cancellation.subscribe(
+            self._on_cancellation
+        )
         try:
             return await self._run(tool_call)
         except Exception as e:
@@ -248,6 +271,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
             )
+        finally:
+            sub.cancel()
 
         return ToolCallResponse(
             id=tool_call.id or "",
@@ -278,12 +303,22 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             )
         if self.is_message_execution():
             _LOGGER.info("Starting research")
-            # Run research
+
+            if await self.chat_service.cancellation.check_cancellation_async():
+                return self._cancelled_response(tool_call)
+
             self.write_message_log_text_message("**Generating research plan**")
             research_brief = await self.generate_research_brief_from_dict(
                 self.get_visible_history_messages()
             )
+
+            if await self.chat_service.cancellation.check_cancellation_async():
+                return self._cancelled_response(tool_call)
+
             processed_result, content_chunks = await self.run_research(research_brief)
+
+            if self.chat_service.cancellation.is_cancelled:
+                return self._cancelled_response(tool_call)
 
             if processed_result == "":
                 raise ValueError("Research returned empty result")
@@ -294,7 +329,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
-            # Return the results
             return ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
@@ -458,9 +492,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             },
         }
 
-        result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
+        result = await self.chat_service.cancellation.run_with_cancellation(
+            custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
+            cancel_result={"final_report": ""},
+        )
 
-        # Extract final report (citations already refined by agents.py)
         research_result = result.get("final_report", "")
 
         if not research_result:
@@ -471,6 +507,21 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         processed_result, references = validate_and_map_citations(
             research_result, citation_registry
         )
+
+        assert isinstance(self.config.engine, UniqueEngine)
+
+        if self.config.engine.report_export is not None:
+            docx_result = await safe_execute_async(
+                export_report_to_docx,
+                report=processed_result,
+                references=references,
+                config=self.config.engine.report_export,
+                content_service=self.content_service,
+                chat_service=self.chat_service,
+            )
+            if docx_result.success:
+                processed_result, reference = docx_result.unpack()
+                references.append(reference)
 
         # Update the assistant message with the results
         await self.chat_service.modify_assistant_message_async(
@@ -519,8 +570,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             stream=True,
         )
 
-        # Process the stream
-        research_result, annotations = await self._process_research_stream(stream)
+        (
+            research_result,
+            annotations,
+        ) = await self.chat_service.cancellation.run_with_cancellation(
+            self._process_research_stream(stream),
+            cancel_result=("", []),
+        )
 
         if not research_result:
             return "", []
@@ -728,9 +784,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             messages=[
                 {
                     "role": "system",
-                    "content": self.env.get_template(
-                        "report_cleanup_prompt.j2"
-                    ).render(),
+                    "content": self.env.get_template("report_cleanup_prompt.j2").render(
+                        date=get_today_str()
+                    ),
                 },
                 {
                     "role": "user",
@@ -787,6 +843,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             {
                 "role": "system",
                 "content": self.env.get_template("clarifying_agent.j2").render(
+                    date=get_today_str(),
                     engine_type=self.config.engine.get_type().value,
                     has_web_tools=self.has_web_tools,
                     has_internal_tools=self.has_internal_tools,
@@ -814,6 +871,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "content": self.env.get_template(
                     "research_instructions_agent.j2"
                 ).render(
+                    date=get_today_str(),
                     engine_type=self.config.engine.get_type().value,
                     has_web_tools=self.has_web_tools,
                     has_internal_tools=self.has_internal_tools,

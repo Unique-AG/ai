@@ -1,0 +1,38 @@
+{
+  "name": "mcp-server-onenote",
+  "version": "0.1.0",
+  "description": "OneNote MCP Server Implementation with Device Code Authentication",
+  "type": "module",
+  "main": "onenote-mcp.mjs",
+  "scripts": {
+    "start": "node onenote-mcp.mjs",
+    "start:sse": "node onenote-sse.mjs",
+    "auth": "node authenticate.js",
+    "token-status": "node token-status.js",
+    "list-notebooks": "node simple-onenote.js",
+    "list-sections": "node list-sections.js",
+    "list-pages": "node list-pages.js",
+    "create-page": "node create-page.js"
+  },
+  "dependencies": {
+    "@azure/identity": "^2.1.0",
+    "@azure/identity-cache-persistence": "^1.2.0",
+    "@azure/msal-node": "^3.5.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "jsdom": "^26.0.0",
+    "node-fetch": "^3.3.2",
+    "open": "^10.1.0"
+  },
+  "keywords": [
+    "mcp",
+    "onenote",
+    "modelcontextprotocol",
+    "device-code-auth"
+  ],
+  "author": "Zubeid Hendricks",
+  "license": "MIT"
+}

@@ -1,0 +1,24 @@
+Facts (id -> text):
+{{ fact_view }}
+
+Task:
+- Cluster all facts by topic into coherent sections.
+- Produce one create_section command per section. Each command must list the relevant fact ids in source_facts_ids and include a clear instruction for the writer.
+- Reference fact ids explicitly in reasoning and in source_facts_ids; do not leave source_facts_ids empty.
+- Order sections from most significant to least significant.
+- Ensure every fact is assigned to exactly one section.
+
+Output:
+A JSON object matching GenerationPlan:
+{
+  "commands": [
+    {
+      "reasoning": "<why these facts form a section, cite fact ids>",
+      "command": "create_section",
+      "instruction": "<clear, actionable instruction to the writer describing what the section should cover>",
+      "target_section_id": null,
+      "source_facts_ids": ["<fact-id>", ...]
+    }
+  ]
+}
+Keep reasoning and instructions concise.

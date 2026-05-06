@@ -1,12 +1,20 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import mimetypes
+import warnings
 from pathlib import Path, PurePath
-from typing import Any, Callable, overload
+from typing import TYPE_CHECKING, Any, Callable, Self, overload
 
 import humps
 import unique_sdk
+from typing_extensions import deprecated
 
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_in_clause,
+    merge_scope_clause_into_metadata_filter,
+)
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -17,9 +25,12 @@ from unique_toolkit.content.functions import (
     delete_content,
     delete_content_async,
     download_content_to_bytes,
+    download_content_to_bytes_async,
     download_content_to_file_by_id,
     get_content_info,
+    get_content_info_async,
     get_folder_info,
+    get_folder_info_async,
     search_content_chunks,
     search_content_chunks_async,
     search_contents,
@@ -42,6 +53,9 @@ from unique_toolkit.content.schemas import (
 )
 from unique_toolkit.content.smart_rules import Operator, Statement
 
+if TYPE_CHECKING:
+    from unique_toolkit.app.unique_settings import UniqueContext
+
 _LOGGER = logging.getLogger(f"toolkit.knowledge_base.{__name__}")
 
 _DEFAULT_SCORE_THRESHOLD: float = 0.5
@@ -56,10 +70,10 @@ class KnowledgeBaseService:
         self,
         company_id: str,
         user_id: str,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """
-        Initialize the ContentService with a company_id, user_id and chat_id.
+        Initialize the KnowledgeBaseService with a company_id, user_id and chat_id.
         """
 
         self._metadata_filter = None
@@ -69,7 +83,11 @@ class KnowledgeBaseService:
         self._metadata_filter = metadata_filter
 
     @classmethod
-    def from_event(cls, event: BaseEvent):
+    @deprecated(
+        "Use UniqueContext.from_chat_event(event) (if you have a ChatEvent) or "
+        "UniqueContext.from_event(event) (for any BaseEvent) with UniqueServiceFactory instead."
+    )
+    def from_event(cls, event: BaseEvent[Any]):
         """
         Initialize the ContentService with an event.
         """
@@ -85,10 +103,29 @@ class KnowledgeBaseService:
         )
 
     @classmethod
+    def from_context(cls, context: UniqueContext) -> Self:
+        """Create a KnowledgeBaseService from a :class:`UniqueContext`.
+
+        This is the preferred constructor when using the service factory pattern.
+
+        Args:
+            context: The request context carrying auth and chat information.
+        """
+        metadata_filter = (
+            context.chat.metadata_filter if context.chat is not None else None
+        )
+        return cls(
+            company_id=context.auth.get_confidential_company_id(),
+            user_id=context.auth.get_confidential_user_id(),
+            metadata_filter=metadata_filter,
+        )
+
+    @classmethod
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+        **kwargs: Any,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
@@ -99,9 +136,12 @@ class KnowledgeBaseService:
         elif isinstance(settings, str):
             settings = UniqueSettings.from_env_auto_with_sdk_init(filename=settings)
 
+        if metadata_filter is None and settings.context.chat is not None:
+            metadata_filter = settings.context.chat.metadata_filter
+
         return cls(
-            company_id=settings.auth.company_id.get_secret_value(),
-            user_id=settings.auth.user_id.get_secret_value(),
+            company_id=settings.authcontext.get_confidential_company_id(),
+            user_id=settings.authcontext.get_confidential_user_id(),
             metadata_filter=metadata_filter,
         )
 
@@ -115,7 +155,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        scope_ids: list[str],
+        metadata_filter: dict[str, Any],
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
@@ -128,21 +168,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        metadata_filter: dict,
-        scope_ids: list[str] | None = None,
-        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: ContentRerankerConfig | None = None,
-    ) -> list[ContentChunk]: ...
-
-    @overload
-    def search_content_chunks(
-        self,
-        *,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
-        metadata_filter: dict,
+        metadata_filter: dict[str, Any],
         content_ids: list[str],
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
@@ -158,7 +184,7 @@ class KnowledgeBaseService:
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ) -> list[ContentChunk]:
@@ -171,7 +197,8 @@ class KnowledgeBaseService:
             limit (int): The maximum number of results to return.
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
-            scope_ids (list[str] | None, optional): The scope IDs to filter by. Defaults to None.
+            scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
+                as a ``folderId in [scope_ids]`` clause; do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -186,6 +213,19 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        if scope_ids:
+            warnings.warn(
+                "Passing scope_ids to KnowledgeBaseService.search_content_chunks is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
+            scope_ids = None
+
         try:
             searches = search_content_chunks(
                 user_id=self._user_id,
@@ -196,7 +236,6 @@ class KnowledgeBaseService:
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
-                scope_ids=scope_ids,
                 chat_only=False,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
@@ -214,7 +253,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        scope_ids: list[str],
+        metadata_filter: dict[str, Any],
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
@@ -227,21 +266,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        metadata_filter: dict,
-        scope_ids: list[str] | None = None,
-        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
-        search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        reranker_config: ContentRerankerConfig | None = None,
-    ) -> list[ContentChunk]: ...
-
-    @overload
-    async def search_content_chunks_async(
-        self,
-        *,
-        search_string: str,
-        search_type: ContentSearchType,
-        limit: int,
-        metadata_filter: dict,
+        metadata_filter: dict[str, Any],
         content_ids: list[str],
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
@@ -257,7 +282,7 @@ class KnowledgeBaseService:
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ):
@@ -270,7 +295,8 @@ class KnowledgeBaseService:
             limit (int): The maximum number of results to return.
             search_language (str, optional): The language for the full-text search. Defaults to "english".
             reranker_config (ContentRerankerConfig | None, optional): The reranker configuration. Defaults to None.
-            scope_ids (list[str] | None, optional): The scope IDs to filter by. Defaults to None.
+            scope_ids (list[str] | None, optional): Deprecated. Folded into ``metadata_filter``
+                as a ``folderId in [scope_ids]`` clause; do not use for new code.
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
@@ -284,6 +310,19 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        if scope_ids:
+            warnings.warn(
+                "Passing scope_ids to KnowledgeBaseService.search_content_chunks_async is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
+            scope_ids = None
+
         try:
             searches = await search_content_chunks_async(
                 user_id=self._user_id,
@@ -294,7 +333,6 @@ class KnowledgeBaseService:
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
-                scope_ids=scope_ids,
                 chat_only=False,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
@@ -308,7 +346,7 @@ class KnowledgeBaseService:
     def search_contents(
         self,
         *,
-        where: dict,
+        where: dict[str, Any],
         include_failed_content: bool = False,
     ) -> list[Content]:
         """
@@ -333,7 +371,7 @@ class KnowledgeBaseService:
     async def search_contents_async(
         self,
         *,
-        where: dict,
+        where: dict[str, Any],
         include_failed_content: bool = False,
     ) -> list[Content]:
         """
@@ -366,7 +404,7 @@ class KnowledgeBaseService:
         scope_id: str,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -406,7 +444,7 @@ class KnowledgeBaseService:
         scope_id: str,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -536,6 +574,31 @@ class KnowledgeBaseService:
             chat_id=None,
         )
 
+    async def download_content_to_bytes_async(
+        self,
+        *,
+        content_id: str,
+    ) -> bytes:
+        """
+        Asynchronously downloads content to memory.
+
+        Args:
+            content_id (str): The id of the uploaded content.
+
+        Returns:
+            bytes: The downloaded content.
+
+        Raises:
+            Exception: If the download fails.
+        """
+
+        return await download_content_to_bytes_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=None,
+        )
+
     def batch_file_upload(
         self,
         *,
@@ -627,6 +690,79 @@ class KnowledgeBaseService:
             file_path=file_path,
         )
 
+    async def get_paginated_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        skip: int | None = None,
+        take: int | None = None,
+        file_path: str | None = None,
+    ) -> PaginatedContentInfos:
+        return await get_content_info_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            metadata_filter=metadata_filter,
+            skip=skip,
+            take=take,
+            file_path=file_path,
+        )
+
+    async def get_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        step_size: int = 100,
+        max_concurrent_requests: int = 10,
+    ) -> list[ContentInfo]:
+        """
+        Fetches all content infos from the knowledge base using parallel pagination.
+        The API limits responses to 100 items per request, so this method fetches
+        the total count first, then retrieves all pages concurrently (bounded by
+        ``max_concurrent_requests`` to avoid rate limiting or connection exhaustion).
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+            step_size (int): Number of items per page. Defaults to 100.
+            max_concurrent_requests (int): Maximum number of concurrent API calls.
+                Defaults to 10.
+
+        Returns:
+            list[ContentInfo]: All content infos visible to the user.
+        """
+
+        info_for_count_of_total_content = await self.get_paginated_content_infos_async(
+            metadata_filter=metadata_filter,
+            take=1,
+        )
+
+        total_count = info_for_count_of_total_content.total_count
+
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def _fetch_page(skip: int) -> PaginatedContentInfos:
+            async with semaphore:
+                return await self.get_paginated_content_infos_async(
+                    metadata_filter=metadata_filter,
+                    skip=skip,
+                    take=step_size,
+                )
+
+        results: list[PaginatedContentInfos | BaseException] = await asyncio.gather(
+            *[_fetch_page(i) for i in range(0, total_count, step_size)],
+            return_exceptions=True,
+        )
+
+        for result in results:
+            if isinstance(result, BaseException):
+                _LOGGER.error("Error fetching paginated content infos", exc_info=result)
+
+        return [
+            content_info
+            for result in results
+            if not isinstance(result, BaseException)
+            for content_info in result.content_infos
+        ]
+
     def get_file_names_in_folder(self, *, scope_id: str) -> list[str]:
         """
         Get the list of file names in a knowledge base folder
@@ -659,71 +795,131 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
-    def _resolve_visible_file_tree(self, content_infos: list[ContentInfo]) -> list[str]:
-        # collect all scope ids
-        folder_id_paths: set[str] = set()
-        known_folder_paths: set[str] = set()
+    async def get_folder_info_async(
+        self,
+        *,
+        scope_id: str,
+    ) -> FolderInfo:
+        return await get_folder_info_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            scope_id=scope_id,
+        )
+
+    # File Tree Resolution
+    # ------------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def extract_scope_ids(content_infos: list[ContentInfo]) -> set[str]:
+        """Extracts all unique scope IDs from the ``folderIdPath`` metadata field.
+
+        Args:
+            content_infos: The content infos to extract scope IDs from.
+
+        Returns:
+            set[str]: All unique scope IDs found across content infos.
+        """
+        scope_ids: set[str] = set()
         for content_info in content_infos:
             if (
                 content_info.metadata
-                and content_info.metadata.get(r"{FullPath}") is not None
+                and (folder_id_path := content_info.metadata.get("folderIdPath"))
+                is not None
+                and isinstance(folder_id_path, str)
             ):
-                known_folder_paths.add(str(content_info.metadata.get(r"{FullPath}")))
-                continue
+                scope_ids.update(
+                    sid
+                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
+                    if sid
+                )
+        return scope_ids
 
-            if (
-                content_info.metadata
-                and content_info.metadata.get("folderIdPath") is not None
-            ):
-                folder_id_paths.add(str(content_info.metadata.get("folderIdPath")))
+    async def _translate_scope_id_async(self, scope_id: str) -> str | None:
+        """Resolve a single scope ID to its folder name.
 
-        scope_ids: set[str] = set()
-        for fp in folder_id_paths:
-            scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
-            scope_ids.update(scope_ids_list)
-
-        scope_id_to_folder_name: dict[str, str] = {}
-        for scope_id in scope_ids:
-            folder_info = self.get_folder_info(
-                scope_id=scope_id,
-            )
-            scope_id_to_folder_name[scope_id] = folder_info.name
-
-        folder_paths: set[str] = set()
-        for folder_id_path in folder_id_paths:
-            scope_ids_list = folder_id_path.replace("uniquepathid://", "").split("/")
-
-            if all(scope_id in scope_id_to_folder_name for scope_id in scope_ids_list):
-                folder_path = [
-                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
-                ]
-                folder_paths.add("/".join(folder_path))
-
-        return [
-            p if p.startswith("/") else f"/{p}"
-            for p in folder_paths.union(known_folder_paths)
-        ]
-
-    def resolve_visible_file_tree(
-        self, *, metadata_filter: dict[str, Any] | None = None
-    ) -> list[str]:
+        Returns the folder name, or ``None`` if the lookup fails.
         """
-        Resolves the visible file tree for the knowledge base for the current user.
+        try:
+            folder_info = await self.get_folder_info_async(scope_id=scope_id)
+            return folder_info.name
+        except Exception as e:
+            _LOGGER.warning(
+                f"Could not resolve folder for scope_id {scope_id}", exc_info=e
+            )
+            return None
+
+    async def _translate_scope_ids_async(
+        self,
+        scope_ids: set[str],
+        *,
+        max_concurrent_requests: int = 25,
+    ) -> dict[str, str]:
+        """Translate a set of scope IDs to folder names concurrently.
+
+        Scope IDs that cannot be resolved are silently omitted from the result.
 
         Args:
-            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+            scope_ids: The scope IDs to translate.
+            max_concurrent_requests: Maximum number of concurrent API calls.
+                Defaults to 25.
 
         Returns:
-            list[str]: The visible file tree.
-
-
-
+            dict[str, str]: Mapping from scope ID to folder name.
         """
-        info = self.get_paginated_content_infos(
+        scope_id_list = list(scope_ids)
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def _resolve(sid: str) -> str | None:
+            async with semaphore:
+                return await self._translate_scope_id_async(sid)
+
+        results = await asyncio.gather(*[_resolve(sid) for sid in scope_id_list])
+        return {
+            sid: name for sid, name in zip(scope_id_list, results) if name is not None
+        }
+
+    async def resolve_visible_file_paths_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> list[tuple[ContentInfo, list[str]]]:
+        """Resolves file paths visible to the current user asynchronously.
+
+        Returns each content item paired with its resolved file path segments.
+
+        Args:
+            metadata_filter: Optional metadata filter to narrow the content scope.
+
+        Returns:
+            list[tuple[ContentInfo, list[str]]]: Each tuple is
+                ``(content_info, [folder1, folder2, ..., filename])``.
+        """
+        content_infos = await self.get_content_infos_async(
             metadata_filter=metadata_filter,
         )
+        scope_ids = self.extract_scope_ids(content_infos)
+        scope_id_to_folder_name = await self._translate_scope_ids_async(scope_ids)
 
-        return self._resolve_visible_file_tree(content_infos=info.content_infos)
+        resolved: list[tuple[ContentInfo, list[str]]] = []
+        for content_info in content_infos:
+            if (
+                content_info.metadata
+                and (folder_id_path := content_info.metadata.get("folderIdPath"))
+                is not None
+                and isinstance(folder_id_path, str)
+            ):
+                file_path = [
+                    scope_id_to_folder_name.get(sid, sid)
+                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
+                    if sid
+                ]
+            else:
+                file_path = ["_no_folder_path"]
+
+            file_path.append(content_info.key)
+            resolved.append((content_info, file_path))
+
+        return resolved
 
     def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
         forbidden_keys = [
@@ -935,8 +1131,7 @@ class KnowledgeBaseService:
         content_id: str | None = None,
         file_path: str | None = None,
     ) -> DeleteContentResponse:
-        """Delete content by id, file path or metadata filter"""
-
+        """Delete content by id, file path or metadata filter."""
         return delete_content(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -949,7 +1144,7 @@ class KnowledgeBaseService:
         *,
         metadata_filter: dict[str, Any],
     ) -> list[DeleteContentResponse]:
-        """Delete all content matching the metadata filter"""
+        """Delete all content matching the metadata filter."""
         resp: list[DeleteContentResponse] = []
 
         if metadata_filter:
@@ -1000,7 +1195,7 @@ class KnowledgeBaseService:
         *,
         metadata_filter: dict[str, Any],
     ) -> list[DeleteContentResponse]:
-        """Delete all content matching the metadata filter"""
+        """Delete all content matching the metadata filter."""
         if not metadata_filter:
             return []
 
@@ -1047,8 +1242,10 @@ class KnowledgeBaseService:
             return PurePath("/" + folder_info.name), list_of_scope_ids
 
         while folder_info.parent_id is not None:
-            folder_info = self.get_folder_info(scope_id=folder_info.parent_id)
+            parent_scope_id = folder_info.parent_id
+            folder_info = self.get_folder_info(scope_id=parent_scope_id)
             list_of_folder_names.append(folder_info.name)
+            list_of_scope_ids.append(folder_info.id)
 
         list_of_scope_ids.reverse()
         return PurePath("/" + "/".join(list_of_folder_names[::-1])), list_of_scope_ids
@@ -1089,6 +1286,5 @@ if __name__ == "__main__":
         search_string="test",
         search_type=ContentSearchType.VECTOR,
         limit=10,
-        scope_ids=["123"],
         metadata_filter={"key": "123"},
     )

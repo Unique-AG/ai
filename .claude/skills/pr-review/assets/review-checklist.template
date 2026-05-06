@@ -1,0 +1,55 @@
+# Peer Review Checklist
+
+<!--
+Copy this checklist into your review to stay systematic and thorough.
+Check items as you work through them.
+-->
+
+## 1. Intent Understanding
+- [ ] PR description is clear about what changed and why
+- [ ] Linked issues provide context
+- [ ] I understand the problem being solved
+
+## 2. Test Review
+- [ ] Tests exist and are comprehensive
+- [ ] Tests verify the claimed behavior
+- [ ] Test coverage is adequate for the changes
+- [ ] No missing test scenarios
+
+## 3. Correctness
+- [ ] Logic is sound and does what the PR claims
+- [ ] No off-by-one errors or type mismatches
+- [ ] Assumptions about input are documented
+- [ ] Code follows the project's conventions
+
+## 4. Edge Cases
+- [ ] Empty input / null values handled
+- [ ] Boundary values (min, max, zero) handled
+- [ ] Concurrent access / race conditions considered
+- [ ] Performance impact on large volumes assessed
+- [ ] Timeouts and failures handled
+
+## 5. Security
+- [ ] User inputs are validated
+- [ ] Auth/authz changes are correctly implemented
+- [ ] No secrets or credentials exposed
+- [ ] Privilege escalations properly gated
+- [ ] External integrations use secure protocols
+
+## 6. Feedback Quality
+- [ ] Every comment is specific and actionable
+- [ ] Comments explain the *why*, not just the *what*
+- [ ] Blocking issues are clearly marked
+- [ ] Non-blocking suggestions are phrased as suggestions
+- [ ] No vague or unhelpful comments
+
+---
+
+## Final Decision
+
+- [ ] **Approve** — Code is ready to merge
+- [ ] **Approve with comments** — Good code, has improvement suggestions
+- [ ] **Request Changes** — Code has issues that must be fixed
+- [ ] **Comment** — Questions / discussion only
+
+**Summary**: [Brief one-liner about the review]

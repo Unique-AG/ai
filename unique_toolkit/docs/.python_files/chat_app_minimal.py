@@ -1,6 +1,6 @@
 # ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_app_minimal.py>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
+# ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup_with_services>>[init]
+# ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
@@ -29,12 +29,12 @@ from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
-# ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
+# ~/~ begin <<docs/application_types/event_driven/event_driven_with_sse.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
-    # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
+    # ~/~ begin <<docs/application_types/event_driven/index.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
     kb_service= KnowledgeBaseService.from_event(event)

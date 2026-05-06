@@ -15,7 +15,7 @@ A Python connector library for the [Quartr API](https://quartr.com), providing e
 ## Installation
 
 ```bash
-poetry add unique_quartr
+uv add unique_quartr
 ```
 
 Or using pip:
@@ -471,20 +471,20 @@ class QuartrEarningsCallTranscript:
 Run the test suite:
 
 ```bash
-poetry run pytest
+uv run pytest
 ```
 
 Run with coverage:
 
 ```bash
-poetry run pytest --cov=unique_quartr --cov-report=html
+uv run pytest --cov=unique_quartr --cov-report=html
 ```
 
 Run specific test files:
 
 ```bash
-poetry run pytest tests/test_service.py
-poetry run pytest tests/test_constants.py
+uv run pytest tests/test_service.py
+uv run pytest tests/test_constants.py
 ```
 
 ## Error Handling
@@ -519,13 +519,13 @@ git clone <repository_url>
 cd unique_quartr
 
 # Install dependencies
-poetry install
+uv sync
 
 # Run linting
-poetry run ruff check .
+uv run ruff check .
 
 # Run formatting
-poetry run ruff format .
+uv run ruff format .
 ```
 
 ### Project Structure

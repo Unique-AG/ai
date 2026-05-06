@@ -5,7 +5,140 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.82] - 2026-02-12
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v0.11.12...unique-sdk-v2026.18.0) (2026-04-23)
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
+## [0.11.12] - 2026-04-22
+- `AgenticTable.GetSheetData`: add `includeSheetMetadata` and `includeRowMetadata` (optional GET query params; `includeRowMetadata` for `GET /magic-table/{tableId}` aligns with in-flight public API work)
+- Align other `AgenticTable` request/response types with the public magic-table REST contract (`2023-12-06` / `node-chat`): `RowVerificationStatus` uses `NEEDS_REVIEW` to match `MagicTableRowStatus`; `MagicTableAction` adds `InsertRow` and `GenerateOverview`; `bulk_update_status` adds optional `locked`; `SetArtifact` optional `name`/`mimeType` and `MagicTableArtifactType` including `AGENTIC_REPORT`; `set_activity` returns `MagicTableActivityResponse`, `set_artifact` returns `ColumnMetadataUpdateStatus`; extend cell/sheet TypedDicts (`metaData`, `rowMetadata`, `magicTableSheetMetadata`, optional `chatId` / `magicTableRowCount`); export `AgenticTableCellMetaData`, `MagicTableActivityResponse`, `MagicTableArtifactType`, `MagicTableMetadataEntry`
+- Docs: update `agentic_table` reference for the above; add test coverage for `includeSheetMetadata` / `includeRowMetadata` on `get_sheet_data`
+
+## [0.11.11] - 2026-04-22
+- Add `Space.get_spaces` / `Space.get_spaces_async` to list spaces with optional name filter and skip/take pagination
+
+## [0.11.10] - 2026-04-21
+- Fix `unique-cli mcp` crashing with `AttributeError: isError` on spec-compliant `CallToolResult` responses that only include `content`. `format_mcp_response` now reads `isError`, `name`, and `mcpServerId` defensively via `getattr(..., default)` and accepts a keyword-only `tool_name` fallback so the header stays informative when the server omits `name`
+- `cmd_mcp` now threads the parsed payload name into `format_mcp_response` and wraps the final format step in a defensive `try/except` that prints the raw response payload instead of a traceback if the formatter ever errors
+- Mark `MCP.isError`, `MCP.name`, `MCP.mcpServerId` as `NotRequired` on the response type to match the MCP spec and the Unique backend's observed behaviour (typing-only change)
+
+## [0.11.9] - 2026-04-21
+- Docs: update the `unique-cli-elicitation` skill to require both `--chat-id "$UNIQUE_CHAT_ID"` and `--message-id "$UNIQUE_MESSAGE_ID"` on every `elicit ask` call, explain that every elicitation is anchored to a `(chatId, messageId)` pair in the backend, and document the two new env vars agents should always forward
+
+## [0.11.8] - 2026-04-21
+- Workaround for UN-19815: `elicit ask` / `elicit create` now wrap the elicitation in a short-lived placeholder "thinking" timeline (a placeholder `ASSISTANT` message + a `RUNNING` `MessageLog` step) so the chat UI actually renders the elicitation while it is pending. The placeholder is torn down automatically (collapsed or deleted) when the user responds, on timeout, on API error, or on Ctrl-C
+- Add `--visible` / `--no-visible`, `--assistant-id`, `--placeholder-text`, `--cleanup` flags to `elicit ask` and `elicit create` in both the one-shot CLI and the REPL shell. The workaround is enabled by default whenever `--chat-id` is passed and `--message-id` is not; pass `--no-visible` to opt out once the UN-19815 UI fix lands
+- `elicit wait` and `elicit respond` now auto-clean any placeholder a prior `elicit create --visible` left behind, by reading the placeholder ids back from the elicitation's `metadata`
+- Serialize `completedAt` as an ISO-8601 UTC string (not a raw `datetime`) when collapsing the visibility placeholder via `Message.modify`, so the `PATCH /messages/{id}` body is accepted by the backend; without this the placeholder would stay visually "running" after the user responded
+- Fix `elicit pending` crashing with `AttributeError: 'list' object has no attribute 'get'` — the backend returns a raw JSON array; both list and dict shapes are now accepted
+- Fix `elicit wait` / `elicit ask` never terminating when the user answers — `ACCEPTED` and `REJECTED` are now recognised as terminal statuses alongside `RESPONDED` / `DECLINED` / `CANCELLED` / `EXPIRED` / `COMPLETED`
+- Accept `REJECT` as a valid `elicit respond --action` value (forwarded to the backend as `REJECT`)
+- Update the `unique-cli-elicitation` skill and the CLI docs page with the new flags and a note on when to turn the workaround off
+
+## [0.11.7] - 2026-04-20
+- Chore: exempt `unique-sdk` from the workspace root `exclude-newer` cutoff so recent SDK releases resolve correctly under `UV_NO_SOURCES=1`
+
+## [0.11.6] - 2026-04-20
+- Add `mimeType` field to `Content`
+
+## [0.11.5] - 2026-04-16
+- Add `elicit` CLI command group with `ask`, `create`, `pending`, `get`, `wait`, `respond` subcommands for both one-shot and interactive REPL modes, wrapping the existing `Elicitation` API resource
+- Add `elicit ask` convenience command that creates a FORM elicitation and blocks until the user responds, declines, cancels, or the request expires
+- Add formatting helpers for elicitation display (detail view, pending list, response result)
+- Add agent skill for elicitation (`unique-cli-elicitation`) so agents route user-facing questions through the platform UI instead of asking in plain chat
+- Add `CLI > Elicitation` documentation page and expose it in the mkdocs nav
+
+## [0.11.4] - 2026-04-15
+- Chore: standardize pytest configuration across workspace packages
+
+## [0.11.3] - 2026-04-14
+- Make `UNIQUE_API_KEY` and `UNIQUE_APP_ID` optional in the CLI — not needed on localhost or in a secured cluster
+
+## [0.11.2] - 2026-04-14
+- Chore: add `importlib` import mode to pytest config to prevent namespace collisions
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
+
+## [0.11.1] - 2026-04-09
+- Fix stack trace exposure in custom-assistant example: return generic error messages instead of `str(e)` in HTTP responses
+
+## [0.11.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [0.10.101] - 2026-04-06
+- Fix all `async def` methods in `AgenticTable` that incorrectly called synchronous `_static_request` instead of `await _static_request_async`, blocking the event loop
+- Fix `wait_for_ingestion_completion` to use `Content.search_async` instead of synchronous `Content.search`
+
+## [0.10.100] - 2026-04-06
+- Fix `Integrated.responses_stream_async` blocking the asyncio event loop by calling synchronous `_static_request` instead of `await _static_request_async` — concurrent coroutines (STM lookups, file downloads, other API calls) were starved for 60-75s per LLM call
+
+## [0.10.99] - 2026-04-02
+- Add `ScheduledTask` API resource with full CRUD operations (create, list, retrieve, modify, delete) and async variants
+- Add `schedule` CLI command group with `list`, `get`, `create`, `update`, `delete` subcommands for both one-shot and interactive REPL modes
+- Add formatting helpers for scheduled task display (detail view and table view)
+- Add agent skill for scheduled task management (`unique-cli-scheduled-tasks`)
+
+## [0.10.98] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
+## [0.10.97] - 2026-04-01
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [0.10.96] - 2026-03-31
+- Remove leftover `poetry` references from tox config, CONTRIBUTING.md, and tutorial docs — all replaced with `uv` equivalents
+
+## [0.10.95] - 2026-03-30
+- Add `mcp` command to the CLI for calling MCP server tools directly via JSON payload
+- Support inline JSON, `--file`, and `--stdin` input modes for MCP tool payloads
+- Add Claude Code skill for CLI MCP tool calls (`unique-cli-mcp`)
+
+## [0.10.94] - 2026-03-30
+- Add `Benchmarking` functions and script.
+
+## [0.10.93] - 2026-03-25
+- Add `Space.create_chat`
+
+## [0.10.92] - 2026-03-19
+- Add experimental CLI (`unique-cli`) for interactive file exploration of the Unique knowledge base
+- Add `click` as a required dependency for the CLI
+- Add Claude Code skills for CLI file management and search
+
+## [0.10.91] - 2026-03-17
+- Chore: switch basedpyright to `recommended` mode with zero errors/warnings
+- Refactor: replace deprecated `typing` aliases (`Optional`, `List`, `Dict`, `Type`, `typing.Mapping`, `typing.Iterator`) with modern PEP 585/604 equivalents
+- Refactor: rename `_ApiVersion` → `ApiVersion`; use `inspect.iscoroutinefunction` instead of deprecated `asyncio.iscoroutinefunction`
+- Fix: use `list_result.data` instead of dict-key access in `chat_history` to access typed `ListObject` response
+
+## [0.10.90] - 2026-03-17
+- Add `qdrantParams` to `Search.create` for configuring Qdrant search parameters (hnsw_ef, exact, quantization, consistency)
+
+## [0.10.89] - 2026-03-16
+- Add `usage: Integrated.Usage | None` field to `ResponsesStreamResult` TypedDict (UN-18040)
+
+## [0.10.88] - 2026-03-12
+- Add `MessageTool` API resource for node-chat `POST/GET /messages/tools` (batch create and get by messageIds). Enables toolkit and orchestrator to persist and load tool calls via a dedicated table.
+
+## [0.10.87] - 2026-03-12
+- Fix: resolve non-breaking basedpyright errors; modern typing in core modules (`__init__`, `_api_requestor`, `_http_client`)
+- Fix: restore strict key access in `AgenticTable.set_multiple_cells` so missing required fields raise `ValueError` instead of silently defaulting (UN-17995)
+
+## [0.10.86] - 2026-03-12
+- Fix return type for `Integrated.chat_stream_completion` and `Integrated.chat_stream_completion_async` to correctly reflect `StreamCompletionResult` (message, toolCalls, usage) instead of `Message`
+
+## [0.10.85] - 2026-03-10
+- Examples: migrate custom-assistant from Poetry to uv with `src/` layout
+- Examples: replace hardcoded credentials in custom-assistant with `os.getenv()` for env-based configuration
+- Examples: fix Ollama import (`langchain.llms` → `langchain_community.llms`) and add langchain dependencies
+
+## [0.10.84] - 2026-03-03
+- Build: migrate from Poetry to uv (PEP 621 `pyproject.toml`, `uv.lock`)
+
+## [0.10.83] - 2026-02-28
+- Add `Space.update` method to update a space (assistant) configuration
+
+## [0.10.82] - 2026-02-13
 - Add `User.get_by_id` method to retrieve a user by their ID
 
 ## [0.10.81] - 2026-02-13
@@ -43,13 +176,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.71] - 2026-01-16
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
 
-## [0.10.70] - 2026-01-13
+## [0.10.70] - 2026-01-16
 - Adding additional parameters `isQueueable`, `executionOptions` and `progressTitle` to the message execution
 
 ## [0.10.69] - 2026-01-16
 - Add unified type checking CI with basedpyright
 
-## [0.10.68] - 2026-01-13
+## [0.10.68] - 2026-01-14
 - Add missing direct dependencies (httpx, anyio, aiohttp, regex, tiktoken) for deptry compliance
 
 ## [0.10.67] - 2026-01-14
@@ -58,7 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.66] - 2026-01-05
 - Expose appliedIngestionConfig field on content search.
 
-## [0.10.65] - 2025-01-05
+## [0.10.65] - 2026-01-05
 - Add new params for elicitation to `call_tool` api
 
 ## [0.10.64] - 2025-12-31
@@ -349,7 +482,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.14] - 2024-12-06
 - Add `contentIds` to `Search.create` and `Search.create_async`
 
-## [0.9.13] - 2024-10-23
+## [0.9.13] - 2024-11-21
 - Add retry for `5xx` errors, add additional error message.
 
 ## [0.9.12] - 2024-11-21

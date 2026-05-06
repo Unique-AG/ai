@@ -28,11 +28,13 @@ class QueryElicitationConfig(BaseModel):
 
     enable_elicitation: bool = Field(
         default=False,
-        description="Whether to enable elicitation. This flag is relevant only if the associated feature flag is enabled.",
+        title="Enable Query Review",
+        description="When enabled, users can review and modify proposed search queries before they are executed. Requires the associated feature flag to be active.",
     )
     timeout_seconds: int = Field(
         default=60,
-        description="Timeout in seconds for waiting for user approval",
+        title="Review Timeout",
+        description="How long to wait (in seconds) for the user to review search queries before proceeding automatically.",
         ge=1,
         le=300,
     )
@@ -147,13 +149,13 @@ class QueryElicitationService:
             elif elicitation.status == ElicitationStatus.DECLINED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} declined")
                 raise ElicitationDeclinedException(
-                    f"Elicitation triggerd with queries {queries} was declined"
+                    f"Elicitation triggered with queries {queries} was declined"
                 )
 
             elif elicitation.status == ElicitationStatus.CANCELLED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} cancelled")
                 raise ElicitationCancelledException(
-                    f"Elicitation triggerd with queries {queries} was cancelled"
+                    f"Elicitation triggered with queries {queries} was cancelled"
                 )
 
         raise ElicitationExpiredException(

@@ -3,9 +3,12 @@ Unit tests for markdown_utils.py module.
 """
 
 import pytest
+from unique_toolkit.content.schemas import ContentReference
 
 from unique_deep_research.markdown_utils import (
     MarkdownLink,
+    _remap_and_append_docx_references,
+    _remove_horizontal_rules,
     create_content_references_and_chunks_from_links,
     create_content_references_from_links,
     extract_markdown_links,
@@ -409,3 +412,242 @@ def test_validate_and_map_citations__removes_invalid_citations__from_report() ->
     assert "<sup>99</sup>" not in processed_report
     assert len(references) == 1
     assert references[0].sequence_number == 1
+
+
+@pytest.mark.ai
+def test_remap_and_append_docx_references__remaps_sup_to_markdown_links__and_appends_sources() -> (
+    None
+):
+    """
+    Purpose: Verify _remap_and_append_docx_references converts sup refs to markdown and adds Sources.
+    Why this matters: DOCX export requires markdown links and a Sources section for Pandoc conversion.
+    Setup summary: Report with <sup>N</sup> refs, references dict, verify remapping and Sources format.
+    """
+    # Arrange
+    report = "Text<sup>1</sup> and<sup>2</sup>."
+    references = {
+        1: ContentReference(
+            name="OpenAI",
+            url="https://openai.com",
+            sequence_number=1,
+            source="web",
+            source_id="1",
+        ),
+        2: ContentReference(
+            name="Google",
+            url="https://google.com",
+            sequence_number=2,
+            source="web",
+            source_id="2",
+        ),
+    }
+
+    # Act
+    result = _remap_and_append_docx_references(report, references)
+
+    # Assert
+    assert "[[1]](https://openai.com)" in result
+    assert "[[2]](https://google.com)" in result
+    assert "<sup>1</sup>" not in result
+    assert "<sup>2</sup>" not in result
+    assert "# Sources" in result
+    assert "[1] [OpenAI](https://openai.com)" in result
+    assert "[2] [Google](https://google.com)" in result
+
+
+@pytest.mark.ai
+def test_remap_and_append_docx_references__preserves_citation_number_gaps__in_sources() -> (
+    None
+):
+    """
+    Purpose: Verify Sources section uses original citation numbers (1, 3, 5) not sequential (1, 2, 3).
+    Why this matters: validate_and_map_citations may remove invalid refs, leaving gaps; in-text [[3]] must match Sources.
+    Setup summary: Report with refs 1, 3, 5; verify Sources shows [1], [3], [5] format.
+    """
+    # Arrange
+    report = "Text<sup>1</sup><sup>3</sup><sup>5</sup>."
+    references = {
+        1: ContentReference(
+            name="First",
+            url="https://a.com",
+            sequence_number=1,
+            source="web",
+            source_id="1",
+        ),
+        3: ContentReference(
+            name="Third",
+            url="unique://content/x",
+            sequence_number=3,
+            source="report",
+            source_id="x",
+        ),
+        5: ContentReference(
+            name="Fifth",
+            url="https://e.com",
+            sequence_number=5,
+            source="web",
+            source_id="5",
+        ),
+    }
+
+    # Act
+    result = _remap_and_append_docx_references(report, references)
+
+    # Assert - Sources uses original numbers [1], [3], [5], not sequential [1], [2], [3]
+    assert "[1] [First](https://a.com)" in result
+    assert "[3] Third" in result
+    assert "[5] [Fifth](https://e.com)" in result
+    assert "[2]" not in result
+
+
+@pytest.mark.ai
+def test_remap_and_append_docx_references__non_https_urls__rendered_without_link() -> (
+    None
+):
+    """
+    Purpose: Verify non-https refs (e.g. unique://) use plain [N] in text and [N] Name in Sources.
+    Why this matters: Internal content refs don't have external URLs.
+    Setup summary: Ref with unique:// URL; verify [N] and no markdown link in Sources.
+    """
+    # Arrange
+    report = "See<sup>1</sup>."
+    references = {
+        1: ContentReference(
+            name="Internal Report",
+            url="unique://content/abc",
+            sequence_number=1,
+            source="report",
+            source_id="abc",
+        ),
+    }
+
+    # Act
+    result = _remap_and_append_docx_references(report, references)
+
+    # Assert
+    assert "[1]" in result
+    assert "unique://" not in result
+    assert "[1] Internal Report" in result
+
+
+@pytest.mark.ai
+def test_remap_and_append_docx_references__removes_invalid_refs__from_report() -> None:
+    """
+    Purpose: Verify ref numbers not in references dict are removed from report.
+    Why this matters: Stale or invalid citations should not appear in DOCX.
+    Setup summary: Report with refs 1 and 99; only ref 1 in registry; verify 99 removed.
+    """
+    # Arrange
+    report = "Text<sup>1</sup> and<sup>99</sup>."
+    references = {
+        1: ContentReference(
+            name="Valid",
+            url="https://v.com",
+            sequence_number=1,
+            source="web",
+            source_id="1",
+        ),
+    }
+
+    # Act
+    result = _remap_and_append_docx_references(report, references)
+
+    # Assert
+    assert "<sup>1</sup>" not in result
+    assert "<sup>99</sup>" not in result
+    assert "[[1]](https://v.com)" in result
+    assert "# Sources" in result
+    assert "[99]" not in result  # Invalid ref not in Sources
+
+
+@pytest.mark.ai
+def test_remap_and_append_docx_references__sources_have_hard_line_breaks() -> None:
+    """
+    Purpose: Verify each Sources entry ends with trailing double-space for Pandoc hard line break.
+    Why this matters: Ensures each source appears on its own line in DOCX without extra paragraph spacing.
+    Setup summary: Multiple refs; verify Sources lines end with two spaces.
+    """
+    # Arrange
+    report = "Text<sup>1</sup><sup>2</sup>."
+    references = {
+        1: ContentReference(
+            name="A",
+            url="https://a.com",
+            sequence_number=1,
+            source="web",
+            source_id="1",
+        ),
+        2: ContentReference(
+            name="B",
+            url="https://b.com",
+            sequence_number=2,
+            source="web",
+            source_id="2",
+        ),
+    }
+
+    # Act
+    result = _remap_and_append_docx_references(report, references)
+
+    # Assert - each Sources line ends with two spaces for Pandoc hard line break
+    assert "[1] [A](https://a.com)  " in result
+    assert "[2] [B](https://b.com)  " in result
+
+
+@pytest.mark.ai
+def test_remap_and_append_docx_references__returns_unchanged__when_no_refs() -> None:
+    """
+    Purpose: Verify report is returned unchanged when it has no sup references.
+    Why this matters: Edge case for reports without citations.
+    Setup summary: Plain text report; verify no Sources section added.
+    """
+    # Arrange
+    report = "No citations here."
+    references: dict[int, ContentReference] = {}
+
+    # Act
+    result = _remap_and_append_docx_references(report, references)
+
+    # Assert
+    assert result == report
+    assert "# Sources" not in result
+
+
+@pytest.mark.ai
+def test_remove_horizontal_rules__removes_dashes_asterisks_underscores() -> None:
+    """
+    Purpose: Verify _remove_horizontal_rules removes ---, ***, ___ horizontal rules.
+    Why this matters: DOCX export may strip markdown dividers per config.
+    Setup summary: Text with various horizontal rules; verify they are removed.
+    """
+    # Arrange
+    text = "Section 1\n---\nSection 2\n***\nSection 3\n___\nSection 4"
+
+    # Act
+    result = _remove_horizontal_rules(text)
+
+    # Assert
+    assert "---" not in result
+    assert "***" not in result
+    assert "___" not in result
+    assert "Section 1" in result
+    assert "Section 2" in result
+    assert "Section 3" in result
+    assert "Section 4" in result
+
+
+@pytest.mark.ai
+def test_remove_horizontal_rules__preserves_content__without_rules() -> None:
+    """
+    Purpose: Verify _remove_horizontal_rules leaves text unchanged when no rules present.
+    Why this matters: Idempotent for normal content.
+    Setup summary: Plain text; verify unchanged.
+    """
+    # Arrange
+    text = "Just some normal text with - dashes and * asterisks."
+
+    # Act
+    result = _remove_horizontal_rules(text)
+
+    # Assert
+    assert result == text

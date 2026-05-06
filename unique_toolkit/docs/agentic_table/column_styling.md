@@ -2,7 +2,7 @@
 
 The `set_column_style` method allows you to configure various aspects of a column in the Agentic Table, including width, filters, cell renderers, and editability.
 
-```python
+```{.python #column-styling-set-column-style-signature}
 AgenticTableService.set_column_style(
     column=column,
     width=width,
@@ -34,7 +34,7 @@ Whether the column cells are editable by users.
 Set the width of a column in pixels.
 
 **Example:**
-```python
+```{.python #column-styling-set-column-width}
 from unique_toolkit.agentic_table import AgenticTableService
 
 service = AgenticTableService(
@@ -61,7 +61,7 @@ Filters allow users to filter rows based on column values. Different filter type
 - `FilterTypes.ASSIGNEE_FILTER`: Filter by assignee
 
 **Example:**
-```python
+```{.python #column-styling-set-filter}
 from unique_toolkit.agentic_table import AgenticTableService, FilterTypes
 
 service = AgenticTableService(
@@ -101,7 +101,7 @@ Cell renderers control how cells are displayed and interacted with in the column
 - `CellRendererTypes.SELECTABLE_CELL_RENDERER`: Markdown rendering + cells as selectable (for cell selection functionality)
 
 **Example:**
-```python
+```{.python #column-styling-set-cell-renderer}
 from unique_toolkit.agentic_table import AgenticTableService, CellRendererTypes
 
 service = AgenticTableService(
@@ -134,7 +134,7 @@ await service.set_column_style(
 Control whether users can edit cells in a column. When set to `False`, the column becomes read-only.
 
 **Example:**
-```python
+```{.python #column-styling-set-editability}
 from unique_toolkit.agentic_table import AgenticTableService
 
 service = AgenticTableService(
@@ -157,7 +157,7 @@ To enable cell selection functionality in a column, use the `SELECTABLE_CELL_REN
 ![Cell Selection](images/selection.png)
 
 **Example:**
-```python
+```{.python #column-styling-selectable-cells}
 from unique_toolkit.agentic_table import (
     AgenticTableService,
     CellRendererTypes
@@ -180,7 +180,7 @@ await service.set_column_style(
 
 Configure multiple column properties at once:
 
-```python
+```{.python #column-styling-complete-example}
 from unique_toolkit.agentic_table import (
     AgenticTableService,
     CellRendererTypes,

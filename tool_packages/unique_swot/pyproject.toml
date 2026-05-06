@@ -1,39 +1,44 @@
-[tool.poetry]
+[project]
 name = "unique-swot"
-version = "1.2.4"
+version = "2026.20.0.dev15"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
-authors = ["Rami Azouz <rami.ext@unique.ch>", "Fabian Schläpfer <fabian.schlaepfer@unique.ai>"]
-license = "Proprietary"
 readme = "README.md"
-
-
-[tool.poetry.dependencies]
-python = "^3.12"
-pydantic = "^2.8.2"
-typing-extensions = "^4.9.0"
-jinja2 = "^3.1.0"
-tqdm = "^4.66.0"
-unique-toolkit = "^1.46.4"
-unique-quartr = "^0.2.1"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.11.7"
-python = "^3.12"
-pydantic = "^2.8.2"
-pytest = "^8.3.5"
-pytest-cov = "^7.0.0"
-pytest-mock = "^3.14.0"
-pytest-asyncio = "^1.2.0"
-deptry = "^0.24.0"
-basedpyright = "^1.35.0"
-poethepoet = "^0.32.0"
-unique-toolkit = { path = "../../unique_toolkit",  develop = true}
-unique-quartr = { path = "../../connectors/unique_quartr",  develop = true}
+license = { text = "Proprietary" }
+authors = [
+    { name = "Rami Azouz", email = "rami.ext@unique.ch" },
+    { name = "Fabian Schläpfer", email = "fabian.schlaepfer@unique.ai" },
+]
+requires-python = ">=3.12,<4"
+dependencies = [
+    "pydantic>=2.8.2,<3",
+    "typing-extensions>=4.9.0,<5",
+    "jinja2>=3.1.0,<4",
+    "tqdm>=4.66.0,<5",
+    "unique-toolkit>=2026.20.0.dev24,<2026.20.0rc0",
+    "unique-quartr>=2026.20.0.dev14,<2026.20.0rc0",
+]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
 
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.uv]
+exclude-newer = "2 weeks"
+constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.uv.exclude-newer-package]
+"unique-quartr" = false
+"unique-toolkit" = false
+
+[dependency-groups]
+dev = []
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
+unique-quartr = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
@@ -46,12 +51,28 @@ coverage = "pytest --cov=unique_swot --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
 [tool.deptry]
 known_first_party = ["unique_swot", "unique_toolkit", "unique_quartr"]
 extend_exclude = ["unique_swot/tests"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["unique-toolkit", "unique-quartr"]
+DEP003 = ["unique_toolkit", "unique_quartr"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"

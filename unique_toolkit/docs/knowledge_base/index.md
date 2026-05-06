@@ -154,10 +154,10 @@ For implementation examples, see the [Content Search Examples](../modules/exampl
 1. **Prefer Memory Operations**: Always prefer `download_content_to_bytes()` and `upload_content_from_bytes()` to avoid disk-based information leakage.
 
 2. **Temporary File Cleanup**: When using temporary files, always clean them up:
-   ```python
+   ```{.python #kb-temp-file-cleanup}
    import tempfile
    import os
-   
+
    temp_dir = tempfile.mkdtemp()
    try:
        # Your file operations

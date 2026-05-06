@@ -18,7 +18,9 @@ class ShortTermMemory(BaseModel):
     key: str = Field(alias="object")
     chat_id: str | None
     message_id: str | None
-    data: str | dict | int | float | bool | list | None = Field(deprecated=True)
+    data: str | dict[str, Any] | int | float | bool | list[Any] | None = Field(
+        deprecated=True
+    )
     value: str | dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")

@@ -61,12 +61,12 @@ Cell metadata allows you to control the visual styling and state of individual c
 
 ![Cell Selection](images/selection.png)
 
-```python
+```{.python #cell-rendering-set-cell-metadata-signature}
 AgenticTableService.set_cell_metadata(
-    row=row_index, 
-    column=column_index, 
-    selected=selected, 
-    selection_method=selection_method, 
+    row=row_index,
+    column=column_index,
+    selected=selected,
+    selection_method=selection_method,
     agreement_status=agreement_status
 )
 ```
@@ -94,7 +94,7 @@ The method used to select the cell. This indicates how the selection was made.
 - `SelectionMethod.MANUAL`: Manual selection by the user
 
 **Example:**
-```python
+```{.python #cell-rendering-set-cell-metadata-selection-method}
 from unique_toolkit.agentic_table import SelectionMethod
 
 await service.set_cell_metadata(
@@ -113,7 +113,7 @@ The agreement status of the cell. This is used to indicate whether the cell cont
 - `AgreementStatus.NO_MATCH`: Cell content does not match expected values
 
 **Example:**
-```python
+```{.python #cell-rendering-set-cell-metadata-agreement-status}
 from unique_toolkit.agentic_table import AgreementStatus
 
 await service.set_cell_metadata(
@@ -125,7 +125,7 @@ await service.set_cell_metadata(
 
 ### Complete Example
 
-```python
+```{.python #cell-rendering-set-cell-metadata-complete}
 from unique_toolkit.agentic_table import (
     AgenticTableService,
     SelectionMethod,
@@ -175,7 +175,7 @@ await service.set_cell_metadata(
 The row verification status is used to indicate whether the row has been verified.
 Once a row is marked as verified, it will be locked and not editable by the user until the verification status is reverted.
 
-```python
+```{.python #cell-rendering-update-row-verification-status}
 AgenticTableService.update_row_verification_status(
     row_orders=row_orders,
     status=status

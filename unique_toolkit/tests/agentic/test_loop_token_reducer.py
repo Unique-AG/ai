@@ -35,6 +35,8 @@ from unique_toolkit.language_model.infos import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelFunctionCall,
     LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -594,9 +596,45 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     content_dict = json.loads(content)
     assert len(content_dict) == 2
     assert content_dict[0]["source_number"] == 5
+    assert content_dict[0]["content_id"] == "cont_test123"
     assert content_dict[0]["content"] == "First chunk text"
     assert content_dict[1]["source_number"] == 6
+    assert content_dict[1]["content_id"] == "cont_test123"
     assert content_dict[1]["content"] == "Second chunk text"
+
+
+@pytest.mark.ai
+def test_create_reduced_standard_sources_message__preserves_readable_unicode_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify reduced source messages keep multilingual text readable.
+    Why this matters: Token reduction should not reintroduce escaped Unicode in tool content.
+    """
+    original_message = create_tool_message("tool_1", "TestTool", "original")
+    chunks = [
+        create_content_chunk("chunk_1", 'ページ名 "quoted"'),
+        create_content_chunk("chunk_2", "مرحبا 😀"),
+    ]
+
+    result = loop_token_reducer._create_reduced_standard_sources_message(
+        message=original_message,
+        content_chunks=chunks,
+        source_offset=2,
+    )
+
+    content = result.content
+    assert isinstance(content, str)
+    assert "ページ名" in content
+    assert "مرحبا" in content
+    assert "😀" in content
+    assert "\\u30da" not in content
+
+    content_dict = json.loads(content)
+    assert content_dict[0]["source_number"] == 2
+    assert content_dict[0]["content"] == 'ページ名 "quoted"'
+    assert content_dict[1]["source_number"] == 3
+    assert content_dict[1]["content"] == "مرحبا 😀"
 
 
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
@@ -624,6 +662,39 @@ def test_create_reduced_table_search_message__preserves_sql_content_AI(
     content_dict = json.loads(content)
     assert content_dict["source_number"] == 0
     assert content_dict["content"] == "SELECT * FROM users"
+
+
+@pytest.mark.ai
+def test_create_reduced_table_search_message__preserves_readable_unicode_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify reduced TableSearch messages keep non-ASCII content readable.
+    Why this matters: TableSearch reduction serializes tool content separately from chunk history.
+    """
+    table_content = {
+        "content": "ページ名 / マーケティングタグ / مرحبا 😀",
+        "other_field": "value",
+    }
+    original_message = create_tool_message("tool_1", "TableSearch", table_content)
+    chunk = create_content_chunk("chunk_1", "table result")
+
+    result = loop_token_reducer._create_reduced_table_search_message(
+        message=original_message,
+        content_chunks=[chunk],
+        source_offset=4,
+    )
+
+    content = result.content
+    assert isinstance(content, str)
+    assert "ページ名" in content
+    assert "مرحبا" in content
+    assert "😀" in content
+    assert "\\u30da" not in content
+
+    content_dict = json.loads(content)
+    assert content_dict["source_number"] == 4
+    assert content_dict["content"] == "ページ名 / マーケティングタグ / مرحبا 😀"
 
 
 @pytest.mark.ai
@@ -730,6 +801,55 @@ def test_replace_user_message__adds_user_message__when_last_is_not_user_AI(
     assert result[-1].content == "Rendered question"
 
 
+@pytest.mark.ai
+def test_replace_user_message__appends_image_urls_as_content_parts__when_provided_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify _replace_user_message appends image data URLs as image_url parts
+    with a text label before each image (so the LLM sees tool output images).
+    Why this matters: MCP/internal tool responses with images must be visible to the LLM.
+    """
+    # Arrange
+    history: list[LanguageModelMessage] = [
+        LanguageModelSystemMessage(content="System prompt"),
+        LanguageModelUserMessage(content="Original question"),
+    ]
+    original_user_message = "Original question"
+    rendered_user_message = "Rendered question with context"
+    image_data_from_tools: list[tuple[str, str]] = [
+        ("data:image/png;base64,iVBORw0KGgo=", "call_abc"),
+        ("data:image/jpeg;base64,/9j/4AAQ=", "call_xyz"),
+    ]
+
+    # Act
+    result = loop_token_reducer._replace_user_message(
+        history, original_user_message, rendered_user_message, image_data_from_tools
+    )
+
+    # Assert: one text part, then per (url, tool_call_id) a label (with ID) + image_url
+    last_msg = result[-1]
+    assert last_msg.role == LanguageModelMessageRole.USER
+    assert isinstance(last_msg.content, list)
+    assert len(last_msg.content) == 5  # text + (label + url) * 2
+    assert last_msg.content[0] == {
+        "type": "text",
+        "text": "Rendered question with context",
+    }
+    assert last_msg.content[1]["type"] == "text"
+    assert "tool call ID: call_abc" in last_msg.content[1]["text"]
+    assert last_msg.content[2] == {
+        "type": "image_url",
+        "imageUrl": {"url": "data:image/png;base64,iVBORw0KGgo="},
+    }
+    assert last_msg.content[3]["type"] == "text"
+    assert "tool call ID: call_xyz" in last_msg.content[3]["text"]
+    assert last_msg.content[4] == {
+        "type": "image_url",
+        "imageUrl": {"url": "data:image/jpeg;base64,/9j/4AAQ="},
+    }
+
+
 # Ensure Last Message is User Tests
 @pytest.mark.ai
 def test_ensure_last_message_is_user_message__returns_from_first_user_AI(
@@ -795,6 +915,149 @@ def test_limit_to_token_window__returns_empty__when_first_message_exceeds_limit_
 
     # Assert
     assert len(result) == 0
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__drops_whole_turn__when_turn_exceeds_budget_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Turn-based mode drops an entire turn when it doesn't fit.
+    Why this matters: Partial turns would leave the window starting
+    mid-sequence (e.g. ASSISTANT message before a USER), which confuses
+    the LLM.
+    """
+    # Arrange – turn 1 is large, turn 2 fits on its own
+    turn1: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="old question " * 50),
+        LanguageModelAssistantMessage(content="old answer " * 50),
+    ]
+    turn2: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="recent question"),
+        LanguageModelAssistantMessage(content="recent answer"),
+    ]
+    messages = turn1 + turn2
+
+    # Find a budget that fits turn2 but not turn1+turn2
+    turn2_tokens = loop_token_reducer._count_message_tokens(
+        LanguageModelMessages(root=turn2)
+    )
+    token_limit = turn2_tokens + 5  # a few tokens of headroom, but not enough for turn1
+
+    # Act
+    result = loop_token_reducer._limit_to_token_window(
+        messages, token_limit=token_limit
+    )
+
+    # Assert – only turn2 is included, never a partial turn1
+    assert result == turn2
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__includes_multiple_complete_turns__when_budget_allows_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Turn-based mode includes as many complete turns as the budget allows.
+    Why this matters: History should be as rich as possible without splitting turns.
+    """
+    # Arrange
+    turn1: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="q1"),
+        LanguageModelAssistantMessage(content="a1"),
+    ]
+    turn2: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="q2"),
+        LanguageModelAssistantMessage(content="a2"),
+    ]
+    turn3: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="q3"),
+        LanguageModelAssistantMessage(content="a3"),
+    ]
+    messages = turn1 + turn2 + turn3
+
+    # Act – generous budget that fits all three turns
+    result = loop_token_reducer._limit_to_token_window(messages, token_limit=10_000)
+
+    # Assert
+    assert result == messages
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__mid_turn_truncation__can_split_turn_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: allow_mid_turn_truncation=True uses per-message logic and may
+    split a turn at the budget boundary.
+    Why this matters: Some callers (e.g. those that follow up with
+    ensure_last_message_is_user_message) want the raw per-message behaviour.
+    """
+    # Arrange – turn whose ASSISTANT message would push over the limit
+    messages: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="question"),
+        LanguageModelAssistantMessage(content="answer " * 200),
+        LanguageModelUserMessage(content="follow-up"),
+    ]
+    user_only_tokens = loop_token_reducer._count_message_tokens(
+        LanguageModelMessages(root=[messages[0], messages[2]])
+    )
+    # Budget fits the two USER messages but not the large ASSISTANT message
+    token_limit = user_only_tokens + 5
+
+    # Act
+    result = loop_token_reducer._limit_to_token_window(
+        messages, token_limit=token_limit, allow_mid_turn_truncation=True
+    )
+
+    # Assert – per-message mode kept the last USER message; the large
+    # ASSISTANT message was dropped because it exceeded the budget
+    assert result[-1].content == "follow-up"
+    assert not any(m.content and "answer" in m.content for m in result)
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__turn_based_default__preserves_tool_sequence_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Turn-based mode never splits an interleaved tool-call sequence.
+    Why this matters: An assistant message referencing tool_call_ids without
+    the matching tool messages causes LLM API rejections.
+    """
+    # Arrange – turn containing a tool-call sequence
+    tool_turn: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="search for something"),
+        LanguageModelAssistantMessage(
+            content=None,
+            tool_calls=[
+                LanguageModelFunctionCall(
+                    id="tc1",
+                    function=LanguageModelFunction(name="search", arguments={}),
+                )
+            ],
+        ),
+        LanguageModelToolMessage(tool_call_id="tc1", content="results", name="search"),
+        LanguageModelAssistantMessage(content="Here is what I found."),
+    ]
+    follow_up_turn: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="thanks"),
+    ]
+    messages = tool_turn + follow_up_turn
+
+    # Budget fits only the follow-up turn
+    follow_up_tokens = loop_token_reducer._count_message_tokens(
+        LanguageModelMessages(root=follow_up_turn)
+    )
+    token_limit = follow_up_tokens + 5
+
+    # Act
+    result = loop_token_reducer._limit_to_token_window(
+        messages, token_limit=token_limit
+    )
+
+    # Assert – tool_turn is dropped as a whole unit, not partially included
+    assert result == follow_up_turn
 
 
 # Full Source Reduction Flow Tests
@@ -896,7 +1159,7 @@ def test_get_encoder__uses_model_get_encoder_AI(
 # Integration-style Tests (still unit tests but test larger flows)
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_async"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__returns_messages__when_under_limit_AI(
@@ -929,3 +1192,227 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
     # Assert
     assert isinstance(result, LanguageModelMessages)
     assert len(result.root) > 0
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_async"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_for_model_call__appends_image_urls_to_user_message__when_provided_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify get_history_for_model_call includes image_url parts when image_data_urls_from_tools provided.
+    Why this matters: Tool-returned images must appear in the user message for the LLM.
+    """
+    # Arrange
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="Original question")]
+    )
+    mock_count_tokens.return_value = 100
+
+    async def mock_remove_from_text(text: str) -> str:
+        return text
+
+    # Act
+    result = await loop_token_reducer.get_history_for_model_call(
+        original_user_message="Original question",
+        rendered_user_message_string="Rendered question",
+        rendered_system_message_string="System prompt",
+        loop_history=[],
+        remove_from_text=mock_remove_from_text,
+        image_data_urls_from_tools=[
+            ("data:image/png;base64,iVBORw0KGgo=", "call_123"),
+        ],
+    )
+
+    # Assert
+    user_messages = [m for m in result.root if m.role == LanguageModelMessageRole.USER]
+    assert user_messages
+    last_user = user_messages[-1]
+    assert isinstance(last_user.content, list)
+    image_parts = [
+        p
+        for p in last_user.content
+        if isinstance(p, dict) and p.get("type") == "image_url"
+    ]
+    assert image_parts
+    assert (
+        image_parts[0].get("imageUrl", {}).get("url")
+        == "data:image/png;base64,iVBORw0KGgo="
+    )
+
+
+# Feature flag path tests
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_async"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_without_tool_calls__when_persistence_disabled_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents_async (not the tool-call
+        variant) when enable_tool_call_persistence=False.
+    Why this matters: With the flag off, we must avoid the DB round-trip that loads ToolCall
+        records, keeping the code path identical to before the feature was introduced.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=False;
+        assert get_full_history_with_contents_async is called once.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=False,
+    )
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="hello")]
+    )
+    mock_count_tokens.return_value = 100
+
+    async def noop(text: str) -> str:
+        return text
+
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
+    )
+
+    mock_get_history.assert_called_once()
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls_async"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enabled_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents_and_tool_calls_async
+        when enable_tool_call_persistence=True.
+    Why this matters: With the flag on, prior-turn tool call records must be loaded from the
+        DB so that source numbering can continue from where the last turn left off.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=True;
+        assert get_full_history_with_contents_and_tool_calls_async is called and max_db_source_number
+        is populated from its return value.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=True,
+    )
+    mock_get_history.return_value = (
+        LanguageModelMessages(root=[LanguageModelUserMessage(content="hello")]),
+        5,
+        {},
+    )
+    mock_count_tokens.return_value = 100
+
+    async def noop(text: str) -> str:
+        return text
+
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
+    )
+
+    mock_get_history.assert_called_once()
+    assert reducer.max_db_source_number == 5
+
+
+# ---------------------------------------------------------------------------
+# get_selected_uploaded_content_ids (shared utility)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_get_selected_uploaded_content_ids_ff_disabled(test_event):
+    """When the feature flag is disabled, should return None."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        get_selected_uploaded_content_ids,
+    )
+
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
+        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
+        result = get_selected_uploaded_content_ids(test_event)
+    assert result is None
+
+
+@pytest.mark.ai
+def test_get_selected_uploaded_content_ids_ff_enabled_with_selection(test_event):
+    """When FF is enabled and files are selected, should return the selected IDs."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        get_selected_uploaded_content_ids,
+    )
+
+    additional = MagicMock()
+    additional.selected_uploaded_file_ids = ["file_1", "file_2"]
+    test_event.payload.additional_parameters = additional
+
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
+        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
+        result = get_selected_uploaded_content_ids(test_event)
+    assert result == {"file_1", "file_2"}
+
+
+@pytest.mark.ai
+def test_get_selected_uploaded_content_ids_ff_enabled_no_additional_params(
+    test_event,
+):
+    """When FF is enabled but additional_parameters is None, should return None."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        get_selected_uploaded_content_ids,
+    )
+
+    test_event.payload.additional_parameters = None
+
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
+        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
+        result = get_selected_uploaded_content_ids(test_event)
+    assert result is None
+
+
+@pytest.mark.ai
+def test_get_selected_uploaded_content_ids_ff_enabled_empty_selection(test_event):
+    """When FF is enabled but no files selected, should return empty set."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        get_selected_uploaded_content_ids,
+    )
+
+    additional = MagicMock()
+    additional.selected_uploaded_file_ids = []
+    test_event.payload.additional_parameters = additional
+
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
+        ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
+        result = get_selected_uploaded_content_ids(test_event)
+    assert result == set()

@@ -46,8 +46,12 @@ from unique_internal_search.utils import (
     SearchStringResult,
     append_metadata_in_chunks,
     clean_search_string,
+    extract_selected_uploaded_file_ids,
     interleave_search_results_round_robin,
 )
+
+AVERAGE_TOKENS_PER_CHUNK = 500
+TOKEN_BUDGET_SAFETY_FACTOR = 1.3
 
 
 class InternalSearchService:
@@ -62,6 +66,7 @@ class InternalSearchService:
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
         language_model_orchestrator: "LanguageModelInfo | None" = None,
+        selected_uploaded_file_ids: list[str] | None = None,
     ):
         self.config = config
         self.content_service = content_service
@@ -75,6 +80,7 @@ class InternalSearchService:
         self._active_message_log: MessageLog | None = None
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
+        self.selected_uploaded_file_ids: list[str] = selected_uploaded_file_ids or []
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -99,6 +105,10 @@ class InternalSearchService:
         if self.config.chat_only:
             return True
         if self.config.scope_to_chat_on_upload:
+            if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
+                self.company_id
+            ):
+                return len(self.selected_uploaded_file_ids) > 0
             chat_files = await self.get_uploaded_files()
             if len(chat_files) > 0:
                 return True
@@ -140,20 +150,29 @@ class InternalSearchService:
         ###
         chat_only = await self.is_chat_only(**kwargs)
 
-        """
-        Handle the fact that metadata can exclude uploaded content
-        and that the search service is hardcoded to use the metadata_filter 
-        from the event if set to None
-        """
-        # Take a backup of the metadata filter
+        # Workaround: The event's metadata_filter scopes searches to specific
+        # documents but does not include user-uploaded files. In "chat only" mode
+        # the filter would therefore exclude those uploads from results.
+        # ContentService.search_content_chunks_async falls back to
+        # self._metadata_filter when metadata_filter=None is passed, so we can't
+        # simply pass None to clear it. We temporarily set the service's internal
+        # _metadata_filter to None so the fallback can't re-apply it, then
+        # restore it after the search.
         metadata_filter_copy = self.content_service._metadata_filter
 
         if metadata_filter is None:
             metadata_filter = self.content_service._metadata_filter
         if chat_only and metadata_filter:
-            # if this is not set to none search_content_chunks_async will overwrite it inside its call thats why it needs to stay.
             self.content_service._metadata_filter = None
             metadata_filter = None
+
+        if (
+            feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
+                self.company_id
+            )
+            and chat_only
+        ):
+            content_ids = self.selected_uploaded_file_ids
 
         # Run all searches in parallel
         results = await asyncio.gather(
@@ -256,12 +275,13 @@ class InternalSearchService:
         content_ids: list[str] | None = None,
     ) -> SearchStringResult:
         try:
+            capped_limit = self._cap_limit_to_token_budget()
             found_chunks: list[
                 ContentChunk
             ] = await self.content_service.search_content_chunks_async(
                 search_string=search_string,  # type: ignore
                 search_type=self.config.search_type,
-                limit=self.config.limit,
+                limit=capped_limit,
                 reranker_config=self.config.reranker_config,
                 search_language=self.config.search_language,
                 scope_ids=self.config.scope_ids,
@@ -335,6 +355,24 @@ class InternalSearchService:
                 "language model input context size is not set, using default max tokens"
             )
             return self.config.max_tokens_for_sources
+
+    def _cap_limit_to_token_budget(self) -> int:
+        token_based_limit = max(
+            1,
+            int(
+                self._get_max_tokens()
+                // AVERAGE_TOKENS_PER_CHUNK
+                * TOKEN_BUDGET_SAFETY_FACTOR
+            ),
+        )
+        capped_limit = min(self.config.limit, token_based_limit)
+        if capped_limit < self.config.limit:
+            self.logger.info(
+                f"Search limit capped from {self.config.limit} to {capped_limit} (token budget)"
+            )
+        else:
+            self.logger.info(f"Search limit: {capped_limit} (within token budget)")
+        return capped_limit
 
     async def _create_or_update_active_message_log(
         self,
@@ -425,9 +463,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
-        # Determing chat_id if possible
+        selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self.event)
         if isinstance(self.event, (ChatEvent, Event)):
-            chat_id = self.event.payload.chat_id
+            if self.event.payload.correlation:
+                chat_id = self.event.payload.correlation.parent_chat_id
+            else:
+                chat_id = self.event.payload.chat_id
         else:
             chat_id = None
         self._display_name = kwargs.get("display_name", "Internal Search")
@@ -441,6 +482,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             logger=self.logger,
             message_step_logger=self._message_step_logger,
             display_name=self._display_name,
+            selected_uploaded_file_ids=selected_uploaded_file_ids,
         )
 
     async def post_progress_message(
@@ -554,7 +596,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
         self._active_message_log = await self._create_or_update_active_message_log(
-            progress_message="Retrieving search results...",
+            progress_message="_Retrieving search results_",
             search_strings_list=search_strings_list,
         )
 
@@ -586,6 +628,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             name=self.name,
             content_chunks=selected_chunks,
             debug_info=self.debug_info,
+            system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
         )
 
         if (
@@ -626,15 +669,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         # Get the maximum source number in the loop history
         max_source_number = len(agent_chunks_handler.chunks)
 
-        # Transform content chunks into sources to be appended to tool result
-        sources, _ = transform_chunks_to_string(
+        # Tool-role content must stay a JSON string, but should preserve readable Unicode.
+        serialized_sources, _ = transform_chunks_to_string(
             content_chunks,
             max_source_number,
         )
 
         # Append the result to the history
         return LanguageModelToolMessage(
-            content=sources,
+            content=serialized_sources,
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
         )

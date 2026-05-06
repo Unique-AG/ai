@@ -67,6 +67,7 @@ Work with intelligent tables that support:
     - `tableId` (str, required) - Table/sheet ID
     - `rowOrder` (int, required) - Row index (0-based)
     - `columnOrder` (int, required) - Column index (0-based)
+    - `includeRowMetadata` (bool, optional) - When true, the response may include `rowMetadata` on the cell (public `GET /magic-table/{tableId}/cell`)
 
     **Returns:**
 
@@ -139,6 +140,8 @@ Work with intelligent tables that support:
     - `includeLogHistory` (bool, optional) - Include change logs
     - `includeRowCount` (bool, optional) - Include row count
     - `includeCellMetaData` (bool, optional) - Include cell metadata
+    - `includeSheetMetadata` (bool, optional) - Include sheet-level metadata (`magicTableSheetMetadata` on the sheet)
+    - `includeRowMetadata` (bool, optional) - When supported by the gateway, include per-row metadata on each cell in `magicTableCells` (same query shape as `includeCellMetaData`; wire-up on `GET /magic-table/{tableId}` may still be rolling out)
     - `startRow` (int, optional) - Start row index for range (0-based)
     - `endRow` (int, optional) - End row index for range (0-based)
 
@@ -157,6 +160,8 @@ Work with intelligent tables that support:
         includeLogHistory=True,
         includeRowCount=True,
         includeCellMetaData=True,
+        includeSheetMetadata=False,
+        includeRowMetadata=False,
         startRow=0,
         endRow=10
     )
@@ -221,13 +226,13 @@ Work with intelligent tables that support:
     **Parameters:**
 
     - `tableId` (str, required) - Table/sheet ID
-    - `activity` (Literal["DeleteRow", "DeleteColumn", "UpdateCell", "AddQuestionText", "AddMetaData", "GenerateArtifact", "SheetCompleted", "LibrarySheetRowVerified", "RerunRow"], required) - Activity type
-    - `status` (Literal["IN_PROGRESS", "COMPLETED", "FAILED"], required) - Activity status
+    - `activity` ([`MagicTableAction`](#magictableaction) / str, required) - Workflow action (e.g. `"UpdateCell"`, `"InsertRow"`, `"GenerateOverview"`, …)
+    - `status` ([`ActivityStatus`](#activitystatus) / str, required) - Activity status: `"IN_PROGRESS"`, `"COMPLETED"`, or `"FAILED"`
     - `text` (str, required) - Activity description text
 
     **Returns:**
 
-    Returns an [`AgenticTableCell`](#agentictablecell) object.
+    Returns a [`MagicTableActivityResponse`](#magictableactivityresponse) object (`{ "status": true | false }`).
 
     **Example:**
 
@@ -249,14 +254,14 @@ Work with intelligent tables that support:
     **Parameters:**
 
     - `tableId` (str, required) - Table/sheet ID
-    - `name` (str, required) - Artifact name
     - `contentId` (str, required) - Content ID of the artifact document
-    - `mimeType` (str, required) - MIME type (e.g., "application/pdf")
-    - `artifactType` (Literal["QUESTIONS", "FULL_REPORT"], required) - Artifact type
+    - `artifactType` ([`MagicTableArtifactType`](#magictableartifacttype) / str, required) - One of `"QUESTIONS"`, `"FULL_REPORT"`, or `"AGENTIC_REPORT"`
+    - `name` (str, optional) - Artifact name
+    - `mimeType` (str, optional) - MIME type (e.g. `"application/pdf"`)
 
     **Returns:**
 
-    Returns an [`AgenticTableCell`](#agentictablecell) object.
+    Returns a [`ColumnMetadataUpdateStatus`](#columnmetadataupdatestatus) object.
 
     **Example:**
 
@@ -348,7 +353,8 @@ Work with intelligent tables that support:
 
     - `tableId` (str, required) - Table/sheet ID
     - `rowOrders` (List[int], required) - List of row indices to update (0-based)
-    - `status` (RowVerificationStatus, required) - Verification status: `"NEED_REVIEW"`, `"READY_FOR_VERIFICATION"`, or `"VERIFIED"`
+    - `status` (RowVerificationStatus, required) - Verification status: `"NEEDS_REVIEW"`, `"READY_FOR_VERIFICATION"`, or `"VERIFIED"`
+    - `locked` (bool, optional) - Row lock flag (defaults are applied server-side when omitted)
 
     **Returns:**
 
@@ -486,7 +492,7 @@ Work with intelligent tables that support:
             company_id=company_id,
             tableId=table_id,
             rowOrders=list(range(10)),  # First 10 rows
-            status="NEED_REVIEW"
+            status="NEEDS_REVIEW"
         )
     ```
 
@@ -577,6 +583,46 @@ Work with intelligent tables that support:
     )
     ```
 
+## Enumerations (public API mirror)
+
+These mirror the public magic-table REST contract (`2023-12-06` / `node-chat`).
+
+#### MagicTableAction {#magictableaction}
+
+??? note "Workflow actions for `set_activity`"
+
+    String values include: `DeleteRow`, `DeleteColumn`, `InsertRow`, `UpdateCell`, `AddQuestionText`, `AddMetaData`, `GenerateArtifact`, `SheetCompleted`, `LibrarySheetRowVerified`, `SheetCreated`, `GenerateOverview`, `RerunRow`.
+
+#### ActivityStatus {#activitystatus}
+
+??? note "Activity lifecycle for `set_activity`"
+
+    Values: `IN_PROGRESS`, `COMPLETED`, `FAILED`.
+
+#### MagicTableActivityResponse {#magictableactivityresponse}
+
+??? note "JSON body from `POST .../activity`"
+
+    - `status` (bool) - Whether the activity was published (sheet found).
+
+#### MagicTableArtifactType {#magictableartifacttype}
+
+??? note "Artifact kinds for `set_artifact`"
+
+    Values: `QUESTIONS`, `FULL_REPORT`, `AGENTIC_REPORT`.
+
+#### MagicTableMetadataEntry {#magictablemetadataentry}
+
+??? note "Row or sheet metadata entry"
+
+    Fields: `id`, `key`, `value`, and optional `exactFilter` (bool).
+
+#### AgenticTableCellMetaData {#agentictablecellmetadata}
+
+??? note "Cell-level selection metadata"
+
+    Fields may include `selected`, `selectionMethod`, `agreementStatus`, `rowOrder`, `columnOrder`.
+
 ## Input Types
 
 #### LogEntry {#logentry}
@@ -611,8 +657,10 @@ Work with intelligent tables that support:
     - `rowLocked` (bool) - Whether row is locked
     - `text` (str) - Cell text content
     - `logEntries` (List[LogEntry]) - List of log entries. See [`LogEntry`](#logentry) for structure.
+    - `metaData` ([`AgenticTableCellMetaData`](#agentictablecellmetadata), optional) - Present when sheet data is fetched with `includeCellMetaData=true`
+    - `rowMetadata` (List[[`MagicTableMetadataEntry`](#magictablemetadataentry)], optional) - On `get_cell` when `includeRowMetadata=true`; on sheet payloads when `get_sheet_data` is called with `includeRowMetadata=true` once the public `GET /magic-table/{tableId}` supports it
 
-    **Returned by:** `AgenticTable.set_cell()`, `AgenticTable.get_cell()`, `AgenticTable.set_activity()`, `AgenticTable.set_artifact()`
+    **Returned by:** `AgenticTable.set_cell()`, `AgenticTable.get_cell()`, and (when `includeCells=true`) cells inside `AgenticTable.get_sheet_data()`
 
 #### AgenticTableSheet {#agentictablesheet}
 
@@ -623,12 +671,13 @@ Work with intelligent tables that support:
     - `sheetId` (str) - Unique sheet identifier
     - `name` (str) - Sheet name
     - `state` (AgenticTableSheetState) - Current state. See [`AgenticTableSheetState`](#agentictablesheetstate).
-    - `chatId` (str) - Associated chat ID
     - `createdBy` (str) - Creator user ID
     - `companyId` (str) - Company ID
     - `createdAt` (str) - Creation timestamp (ISO 8601)
-    - `magicTableRowCount` (int) - Total number of rows
-    - `magicTableCells` (List[AgenticTableCell] | None) - List of cells (if `includeCells=True`)
+    - `chatId` (str, optional) - Associated chat ID when present
+    - `magicTableRowCount` (int, optional) - Total row count when requested with `includeRowCount=true`
+    - `magicTableCells` (List[AgenticTableCell], optional) - Cells when `includeCells=true`
+    - `magicTableSheetMetadata` (List[[`MagicTableMetadataEntry`](#magictablemetadataentry)], optional) - When `includeSheetMetadata=true`
 
     **Returned by:** `AgenticTable.get_sheet_data()`
 
@@ -653,7 +702,7 @@ Work with intelligent tables that support:
     - `status` (bool) - Whether update was successful
     - `message` (str | None) - Status message
 
-    **Returned by:** `AgenticTable.set_column_metadata()`, `AgenticTable.set_cell_metadata()`, `AgenticTable.set_multiple_cells()`, `AgenticTable.bulk_update_status()`
+    **Returned by:** `AgenticTable.set_column_metadata()`, `AgenticTable.set_cell_metadata()`, `AgenticTable.set_multiple_cells()`, `AgenticTable.set_artifact()`, `AgenticTable.bulk_update_status()`
 
 #### UpdateSheetResponse {#updatesheetresponse}
 

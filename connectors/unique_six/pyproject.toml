@@ -1,35 +1,70 @@
-[tool.poetry]
+[project]
 name = "unique_six"
-version = "0.1.2"
+version = "2026.20.0.dev14"
 description = "Unique Six API client"
 authors = [
-    "Ahmed Jellouli <ahmed.jellouli.ext@unique.ch>",
-    "Azeez Raheem <azeez.raheem.ext@unique.ai>"
+    { name = "Ahmed Jellouli", email = "ahmed.jellouli.ext@unique.ch" },
+    { name = "Azeez Raheem", email = "azeez.raheem.ext@unique.ai" },
 ]
-readme = ["README.md", "CHANGELOG.md"]
-license = "Proprietary"
+readme = "README.md"
+license = { text = "Proprietary" }
+requires-python = ">=3.12,<4"
+dependencies = [
+    "pydantic>=2.12.4",
+    "python-dotenv>=1.0.1",
+    "unique-toolkit>=2026.20.0.dev24,<2026.20.0rc0",
+    "cryptography>=46.0.5",
+    "pyopenssl>=25.0.0",
+    "requests>=2.32.0",
+    "urllib3>=2.0.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-pydantic = "^2.12.4"
-python-dotenv = "^1.0.1"
-unique-toolkit = "^1.38.3"
-cryptography = "^46.0.5"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "0.12.10"
-pytest = "^8.0.0"
-pytest-cov = "^4.1.0"
-pytest-mock = "^3.12.0"
-unique-toolkit = { path = "../../unique_toolkit",  develop = true }
-
+[dependency-groups]
+dev = [
+    "responses>=0.25.0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.7.19,<0.8"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.uv]
+exclude-newer = "2 weeks"
+constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
 
 [tool.ruff]
 target-version = "py311"
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.deptry]
+known_first_party = ["unique_six"]
+extend_exclude = ["tests", "conftest.py"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["python-dotenv", "unique-toolkit", "pyopenssl"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

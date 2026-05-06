@@ -15,10 +15,14 @@ class ToolCallResponse(BaseModel):
     id: str
     name: str
     content: str = ""
-    debug_info: Optional[dict] = None  # TODO: Make the default {}
+    debug_info: Optional[dict[str, Any]] = None  # TODO: Make the default {}
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
-    reasoning_result: Optional[dict] = None  # TODO: Make the default {}
+    reasoning_result: Optional[dict[str, Any]] = None  # TODO: Make the default {}
     error_message: str = ""
+    image_data_urls: list[str] = Field(
+        default_factory=list,
+        description="Data URLs (e.g. data:image/png;base64,...) for images returned by this tool.",
+    )
     system_reminder: str = Field(
         default="",
         description="A reminder for the agent to consider when using the tool that will be appended to the tool call response",
@@ -88,10 +92,10 @@ class Source(BaseModel):
     @field_validator("metadata", mode="before")
     def _metadata_str_to_dict(
         cls, v: str | dict[str, str] | None
-    ) -> dict[str, str] | None:
+    ) -> dict[str, str] | str | None:
         """
         Accept   • dict   → keep as-is
-                 • str    → parse tag-string back to dict
+                 • str    → parse tag-string back to dict; on no match keep raw string
         """
         if v is None or isinstance(v, dict):
             return v
@@ -106,7 +110,7 @@ class Source(BaseModel):
             if m:
                 out[key] = m.group(1).strip()
 
-        return out if out else v  # type: ignore
+        return out if out else v
 
     # Compression + Base64 for url to hide it from the LLM
     @field_serializer("url")
@@ -143,3 +147,4 @@ class ToolPrompts(BaseModel):
     tool_format_information_for_user_prompt: str
     tool_description: str
     input_model: dict[str, Any]
+    tool_system_reminder_for_user_prompt: str = ""

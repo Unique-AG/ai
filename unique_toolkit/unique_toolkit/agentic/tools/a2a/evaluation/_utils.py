@@ -9,7 +9,7 @@ from unique_toolkit.chat.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_ASSESSMENT_LABEL_COMPARISON_DICT: dict[str, int] = {
+_ASSESSMENT_LABEL_COMPARISON_DICT: dict[ChatMessageAssessmentLabel, int] = {
     ChatMessageAssessmentLabel.RED: 0,
     ChatMessageAssessmentLabel.YELLOW: 1,
     ChatMessageAssessmentLabel.GREEN: 2,
@@ -21,13 +21,15 @@ def sort_assessments(
 ) -> list[unique_sdk.Space.Assessment]:
     return sorted(
         assessments,
-        key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[x["label"]],  # type: ignore (should be checked before sorting)
+        key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[
+            ChatMessageAssessmentLabel(x["label"])
+        ],
     )
 
 
 def get_worst_label(
-    *labels: str,
-) -> str:
+    *labels: ChatMessageAssessmentLabel,
+) -> ChatMessageAssessmentLabel:
     return min(
         labels,
         key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[x],
@@ -46,7 +48,7 @@ def get_valid_assessments(
             or assessment["label"] not in ChatMessageAssessmentLabel
         ):
             logger.warning(
-                "Unkown assistant label %s for assistant %s (sequence number: %s) will be ignored",
+                "Unknown assistant label %s for assistant %s (sequence number: %s) will be ignored",
                 assessment["label"],
                 display_name,
                 sequence_number,

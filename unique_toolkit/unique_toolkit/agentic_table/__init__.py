@@ -2,6 +2,9 @@ from unique_sdk.api_resources._agentic_table import (
     ActivityStatus,
     CellRendererTypes,
     FilterTypes,
+    MagicTableActivityResponse,
+    MagicTableArtifactType,
+    MagicTableMetadataEntry,
     RowVerificationStatus,
 )
 
@@ -40,7 +43,10 @@ __all__ = [
     "CellRendererTypes",
     "FilterTypes",
     "LogEntry",
+    "MagicTableActivityResponse",
+    "MagicTableArtifactType",
     "MagicTableAction",
+    "MagicTableMetadataEntry",
     "MagicTableAddMetadataPayload",
     "MagicTableBasePayload",
     "MagicTableCell",

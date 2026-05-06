@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "1.11.4"
+version = "2026.20.0.dev16"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -23,16 +23,15 @@ dependencies = [
     "unidecode>=1.4.0,<2",
     "azure-ai-projects>=1.0.0,<2",
     "azure-identity>=1.25.0,<2",
-    "unique-toolkit>=1.46.5,<2",
+    "unique-toolkit[monitoring]>=2026.20.0.dev24,<2026.20.0rc0",
     "azure-core>=1.36.0,<2",
     "google-cloud-aiplatform>=1.128.0,<2",
     "google-auth>=2.43.0,<3",
     "google-generativeai>=0.8.5,<0.9",
-    "langchain-text-splitters>=1.0.0,<2",
+    "rapidfuzz>=3.0.0,<4",
     "httpx>=0.28.1",
-    "tiktoken>=0.12.0",
-    "openai>=1.109.1",
     "certifi>=2025.11.12",
+    "jinja2>=3.1.6",
 ]
 
 [build-system]
@@ -40,16 +39,13 @@ requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = [
-    "deptry>=0.24.0",
-    "pytest>=8.4.1,<9",
-    "pytest-asyncio>=1.2.0,<2",
-    "pytest-cov>=7.0.0,<8",
-    "pytest-mock>=3.14.0,<4",
-    "ruff>=0.12.10,<0.13",
-    "basedpyright>=1.35.0",
-    "poethepoet>=0.32.0",
-]
+dev = []
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.poe.tasks]
 lint = "ruff check ."
@@ -70,12 +66,26 @@ typeCheckingMode = "standard"
 include = ["unique_web_search"]
 exclude = ["**/tests/**", "**/test_*.py"]
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
 [tool.ruff]
 target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I"]
 
-# [tool.uv.sources]
-# unique-sdk = { path = "../../unique-sdk", editable = true }
-# unique_toolkit = { path = "../../unique_toolkit", editable = true }
+[tool.uv.sources]
+unique-toolkit = { workspace = true }

@@ -40,8 +40,20 @@ bats .github/scripts/tests/*.bats --verbose-run
 bats .github/scripts/tests/*.bats --tap
 
 # Run a specific test file
-bats .github/scripts/tests/test_validate_changelog_version_bump.bats
+bats .github/scripts/tests/test_compute_calver.bats
 ```
+
+### macOS note
+
+`compute-calver.sh` uses GNU `date -u -d "..."` syntax. macOS ships with
+BSD `date` which rejects `-d`, so install GNU coreutils first:
+
+```bash
+brew install coreutils
+```
+
+The BATS suite auto-shims `gdate` as `date` when it detects macOS, so no
+extra configuration is needed beyond having `gdate` on `PATH`.
 
 ## Test Structure
 
@@ -50,30 +62,18 @@ bats .github/scripts/tests/test_validate_changelog_version_bump.bats
 
 ## Writing New Tests
 
-1. Create a new file `test_<script_name>.bats`
-2. Load the test helper: `load test_helper`
-3. Use `@test "description" { ... }` to define tests
-4. Use `setup_test_repo` to create a mock git repository
+1. Create a new file `test_<script_name>.bats`.
+2. Load the test helper: `load test_helper`.
+3. Use `@test "description" { ... }` to define tests.
+4. For scripts that expose helper functions, prefer sourcing the script in
+   `setup()` and invoking the functions directly. Guard the script's
+   "main" block with `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]` so sourcing
+   does not execute side effects.
+5. For scripts that need a repo fixture, use `setup_test_repo` to create a
+   mock git repository.
 
-Example:
-```bash
-#!/usr/bin/env bats
-
-load test_helper
-
-@test "my test case" {
-    setup_test_repo
-    
-    # Make changes
-    echo "code" >> "$TEST_PACKAGE/src/main.py"
-    git add . && git commit -m "Change"
-    
-    # Run script and check result
-    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "expected text" ]]
-}
-```
+See `test_compute_calver.bats` for a function-level example and
+`test_helper.bash` for repo-fixture helpers.
 
 ## CI Integration
 

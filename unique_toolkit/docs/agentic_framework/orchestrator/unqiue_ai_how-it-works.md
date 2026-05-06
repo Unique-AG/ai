@@ -38,7 +38,7 @@ The orchestrator is initialized with:
   - ChatService: LLM interactions and streaming to frontend
 
 Code:
-```python
+```{.python #orchestrator-init}
 
     def __init__(
           self,
@@ -236,7 +236,7 @@ Why this design works well:
 - Extensible: Forced tools, tool control handoff, and template-driven prompts (with MCP integration) make it easy to add capabilities without changing the core loop.
 
 Code:
-```python
+```{.python #orchestrator-run}
     # @track(name="loop_agent_run")  # Group traces together
     async def run(self):
         """

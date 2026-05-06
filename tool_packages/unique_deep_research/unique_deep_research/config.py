@@ -1,9 +1,10 @@
 from enum import StrEnum
 from pathlib import Path
-from typing import Generic, Literal, TypeVar
+from typing import Annotated, Generic, Literal, TypeVar
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
@@ -81,6 +82,15 @@ class WebToolsConfig(BaseModel):
         description="Enable or disable the web fetch tool for retrieving content from URLs",
     )
 
+    show_full_page_result: bool = Field(
+        default=False,
+        description=(
+            "Show the full page content of the search results in the return of the web search tool. "
+            "This is useful if the agent doesn't have access to the web_fetch tool "
+            "as it enables it to gather more context."
+        ),
+    )
+
 
 class Tools(BaseModel):
     model_config = get_configuration_dict()
@@ -119,6 +129,24 @@ class UniqueEngineAdvancedConfig(BaseModel):
     )
 
 
+class DocxExportConfig(BaseModel):
+    """Export the final report to a Word file and append it to the final report message."""
+
+    model_config = get_configuration_dict()
+
+    export_mode: SkipJsonSchema[Literal["word"]] = Field(
+        default="word",
+    )
+    strip_markdown_dividers: bool = Field(
+        default=True,
+        description="Remove markdown lines from the report before generating the document",
+    )
+    template_content_id: str = Field(
+        default="",
+        description="Optional content id of the template to use for the report",
+    )
+
+
 class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
     model_config = get_configuration_dict()
 
@@ -132,6 +160,13 @@ class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
         default_factory=UniqueEngineAdvancedConfig,
         title="Advanced",
         description="Advanced configuration",
+    )
+    report_export: (
+        Annotated[DocxExportConfig, Field(title="Word Document")]
+        | Annotated[None, Field(title="No Export")]
+    ) = Field(
+        default=None,
+        title="Report Export",
     )
 
 

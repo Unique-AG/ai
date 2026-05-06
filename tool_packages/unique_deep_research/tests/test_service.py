@@ -2,9 +2,12 @@
 Unit tests for service.py module.
 """
 
-from unittest.mock import AsyncMock, Mock, patch
+from collections.abc import Iterator
+from contextlib import contextmanager
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
+import unique_toolkit.agentic.tools.tool as _unique_toolkit_tool
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.chat.schemas import MessageExecutionUpdateStatus
 
@@ -14,6 +17,31 @@ from unique_deep_research.service import (
     DeepResearchToolInput,
     MemorySchema,
 )
+
+
+@contextmanager
+def _patch_language_model_service_for_tool() -> Iterator[None]:
+    """Mock LanguageModelService for ``Tool`` legacy ``__init__``.
+
+    Editable toolkit uses a lazy import from ``language_model.service``; PyPI
+    wheels (CI with ``UV_NO_SOURCES=1``) may still bind ``LanguageModelService``
+    at module scope on ``agentic.tools.tool``. Patch both when the legacy name
+    exists so mocks apply in either layout.
+    """
+    mock_cls = MagicMock()
+    with patch(
+        "unique_toolkit.language_model.service.LanguageModelService",
+        mock_cls,
+    ):
+        if hasattr(_unique_toolkit_tool, "LanguageModelService"):
+            with patch.object(
+                _unique_toolkit_tool,
+                "LanguageModelService",
+                mock_cls,
+            ):
+                yield
+        else:
+            yield
 
 
 class MockRole:
@@ -49,7 +77,7 @@ def test_deep_research_tool__is_message_execution__returns_false__when_no_execut
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 result = tool.is_message_execution()
@@ -81,7 +109,7 @@ def test_deep_research_tool__is_message_execution__returns_true__when_execution_
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 result = tool.is_message_execution()
@@ -111,7 +139,7 @@ def test_deep_research_tool__get_user_request__returns_user_message_text() -> No
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 result = tool.get_user_request()
@@ -143,7 +171,7 @@ def test_deep_research_tool__get_user_request__returns_original_text__when_text_
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 result = tool.get_user_request()
@@ -175,7 +203,7 @@ def test_deep_research_tool__get_user_request__returns_empty_string__when_both_t
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 result = tool.get_user_request()
@@ -205,7 +233,7 @@ def test_deep_research_tool__tool_description__returns_correct_description() -> 
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 description = tool.tool_description()
@@ -240,7 +268,7 @@ async def test_deep_research_tool__get_followup_question_message_id__returns_non
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.memory_service.load_async = AsyncMock(return_value=None)
 
@@ -275,7 +303,7 @@ async def test_deep_research_tool__get_followup_question_message_id__returns_mes
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 mock_memory = MemorySchema(message_id="followup-msg-123")
                 tool.memory_service.load_async = AsyncMock(return_value=mock_memory)
@@ -311,7 +339,7 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(return_value=None)
 
@@ -346,7 +374,7 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(
                     return_value="followup-msg-123"
@@ -384,7 +412,7 @@ async def test_deep_research_tool__is_followup_question_answer__returns_true__wh
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(
                     return_value="followup-msg-123"
@@ -427,7 +455,7 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(
                     return_value="followup-msg-123"
@@ -470,7 +498,7 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.chat_service.update_message_execution_async = AsyncMock()
 
@@ -511,7 +539,7 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.chat_service.update_message_execution_async = AsyncMock()
 
@@ -551,7 +579,7 @@ def test_deep_research_tool__write_message_log_text_message__calls_create_messag
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 with patch(
                     "unique_deep_research.service.create_message_log_entry"
                 ) as mock_create_log:
@@ -591,7 +619,7 @@ def test_deep_research_tool__get_visible_history_messages__returns_formatted_mes
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 mock_user_msg = Mock()
@@ -643,7 +671,7 @@ def test_deep_research_tool__get_visible_history_messages__returns_formatted_mes
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 mock_msg1 = Mock()
@@ -699,7 +727,7 @@ def test_deep_research_tool__tool_description_for_system_prompt__returns_correct
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 description = tool.tool_description_for_system_prompt()
@@ -734,7 +762,7 @@ def test_deep_research_tool__evaluation_check_list__returns_hallucination_check(
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 # Act
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 checks = tool.evaluation_check_list()
@@ -767,7 +795,7 @@ def test_deep_research_tool__get_evaluation_checks_based_on_tool_response__retur
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool_response = ToolCallResponse(
                     id="test-id",
@@ -808,7 +836,7 @@ def test_deep_research_tool__get_evaluation_checks_based_on_tool_response__retur
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 # Create mock ContentChunk objects
                 from unique_toolkit.content.schemas import ContentChunk
@@ -861,7 +889,7 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
                 tool.chat_service.update_debug_info_async = AsyncMock()
@@ -916,7 +944,7 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
                 tool._update_execution_status = AsyncMock()
@@ -966,7 +994,7 @@ async def test_deep_research_tool__run_research__calls_openai_research__when_eng
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.openai_research = AsyncMock(
                     return_value=("research result", ["chunk1"])
@@ -1008,7 +1036,7 @@ async def test_deep_research_tool__run_research__calls_custom_research__when_eng
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.custom_research = AsyncMock(
                     return_value=("custom result", ["chunk1"])
@@ -1052,7 +1080,7 @@ async def test_deep_research_tool__run_research__propagates_exception__when_exce
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool.openai_research = AsyncMock(
                     side_effect=Exception("Research failed")
@@ -1091,7 +1119,7 @@ async def test_deep_research_tool__custom_research__returns_processed_result__wh
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 with patch("unique_deep_research.service.custom_agent") as mock_agent:
                     with patch(
                         "unique_deep_research.service.GlobalCitationManager"
@@ -1156,7 +1184,7 @@ async def test_deep_research_tool__custom_research__returns_empty_result__when_n
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 with patch("unique_deep_research.service.custom_agent") as mock_agent:
                     with patch(
                         "unique_deep_research.service.GlobalCitationManager"
@@ -1205,7 +1233,7 @@ async def test_deep_research_tool__custom_research__propagates_exception__when_e
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 with patch("unique_deep_research.service.custom_agent") as mock_agent:
                     with patch(
                         "unique_deep_research.service.GlobalCitationManager"
@@ -1253,7 +1281,7 @@ async def test_deep_research_tool__openai_research__returns_processed_result__wh
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 with patch(
                     "unique_deep_research.service.postprocess_research_result_with_chunks"
                 ) as mock_postprocess:
@@ -1325,7 +1353,7 @@ async def test_deep_research_tool__openai_research__returns_empty_result__when_n
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Mock OpenAI client responses
@@ -1367,7 +1395,7 @@ async def test_deep_research_tool__postprocess_report_with_gpt__returns_formatte
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Mock GPT completion
@@ -1419,7 +1447,7 @@ async def test_deep_research_tool__postprocess_report_with_gpt__returns_original
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Mock GPT completion with empty content
@@ -1467,7 +1495,7 @@ async def test_deep_research_tool__clarify_user_request__returns_clarifying_ques
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Mock chat service completion
@@ -1525,7 +1553,7 @@ async def test_deep_research_tool__generate_research_brief_from_dict__returns_re
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Mock OpenAI client completion
@@ -1576,7 +1604,7 @@ async def test_deep_research_tool__generate_research_brief__returns_research_ins
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Mock generate_research_brief_from_dict
@@ -1627,7 +1655,7 @@ async def test_deep_research_tool__generate_research_brief__handles_role_without
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Mock generate_research_brief_from_dict
@@ -1673,7 +1701,7 @@ def test_deep_research_tool__convert_annotations_to_references__returns_content_
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Create mock annotations that pass isinstance check
@@ -1736,7 +1764,7 @@ def test_deep_research_tool__convert_annotations_to_references__returns_content_
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Create mock annotation that passes isinstance check
@@ -1783,7 +1811,7 @@ def test_deep_research_tool__convert_annotations_to_references__skips_non_url_ci
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Create mock annotations with different types
@@ -1834,7 +1862,7 @@ def test_deep_research_tool__get_tool_debug_info__returns_correct_debug_info() -
 
     with patch("unique_deep_research.service.get_async_openai_client"):
         with patch("unique_deep_research.service.ContentService"):
-            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+            with _patch_language_model_service_for_tool():
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
 
                 # Act
@@ -1858,3 +1886,343 @@ def test_deep_research_tool__get_tool_debug_info__returns_correct_debug_info() -
                 assert debug_info["chosenModule"] == "Test Assistant"
                 assert debug_info["userMetadata"] == {"key": "value"}
                 assert debug_info["toolParameters"] == {"param": "test"}
+
+
+def _create_tool_with_mocks(*, message_execution_id="test-execution-id"):
+    """Helper to create a DeepResearchTool with standard mocks."""
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = message_execution_id
+    mock_event.payload.assistant_id = "test-assistant-id"
+    mock_event.payload.name = "Test Assistant"
+    mock_event.payload.user_metadata = {"key": "value"}
+    mock_event.payload.tool_parameters = {"param": "test"}
+
+    return config, mock_event, Mock()
+
+
+@pytest.mark.ai
+def test_deep_research_tool__cancelled_response__returns_stopped_response():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-1"
+
+                result = tool._cancelled_response(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.id == "tc-1"
+                assert result.name == "DeepResearch"
+                assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__on_cancellation__logs_and_updates_message():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool.write_message_log_text_message = Mock()
+                tool._update_execution_status = AsyncMock()
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+
+                from unique_toolkit.chat.cancellation import CancellationEvent
+
+                event = CancellationEvent(message_id="msg1")
+                await tool._on_cancellation(event)
+
+                tool.write_message_log_text_message.assert_called_once_with(
+                    "**Research stopped by user**"
+                )
+                tool._update_execution_status.assert_called_once_with(
+                    MessageExecutionUpdateStatus.FAILED
+                )
+                tool.chat_service.modify_assistant_message_async.assert_called_once_with(
+                    content="Research was stopped.",
+                )
+
+
+def _mock_cancellation(*, is_cancelled=False, check_returns=True):
+    """Create a mock CancellationWatcher."""
+    mock = Mock()
+    mock.is_cancelled = is_cancelled
+    mock.check_cancellation_async = AsyncMock(return_value=check_returns)
+    mock.on_cancellation.subscribe = Mock(return_value=Mock())
+    return mock
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__run__returns_cancelled_response__when_cancelled_before_research_brief():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                    check_returns=True
+                )
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._clear_original_message = AsyncMock()
+                tool.is_followup_question_answer = AsyncMock(return_value=False)
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-cancel"
+
+                result = await tool._run(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__run__returns_cancelled_response__when_cancelled_after_research_brief():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+
+                call_count = 0
+
+                async def check_cancel_side_effect():
+                    nonlocal call_count
+                    call_count += 1
+                    return call_count >= 2
+
+                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                    check_returns=False
+                )
+                tool.chat_service.cancellation.check_cancellation_async = AsyncMock(
+                    side_effect=check_cancel_side_effect
+                )
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._clear_original_message = AsyncMock()
+                tool.is_followup_question_answer = AsyncMock(return_value=False)
+                tool.write_message_log_text_message = Mock()
+                tool.generate_research_brief_from_dict = AsyncMock(return_value="brief")
+                tool.get_visible_history_messages = Mock(return_value=[])
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-cancel-2"
+
+                result = await tool._run(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__run__returns_cancelled_response__when_cancelled_after_research():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                    is_cancelled=True, check_returns=False
+                )
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._clear_original_message = AsyncMock()
+                tool.is_followup_question_answer = AsyncMock(return_value=False)
+                tool.write_message_log_text_message = Mock()
+                tool.generate_research_brief_from_dict = AsyncMock(return_value="brief")
+                tool.get_visible_history_messages = Mock(return_value=[])
+                tool.run_research = AsyncMock(return_value=("result", []))
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-cancel-3"
+
+                result = await tool._run(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__postprocess_report_with_gpt__passes_date__to_template_render() -> (
+    None
+):
+    """
+    Purpose: Verify _postprocess_report_with_gpt passes the current date to the report_cleanup_prompt template.
+    Why this matters: Ensures the cleanup prompt is rendered with the correct date context for accurate report formatting.
+    Setup summary: Mock get_today_str, template env, and OpenAI client; assert template render receives date keyword argument.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    fixed_date = "Thu Mar 5, 2026"
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                with patch(
+                    "unique_deep_research.service.get_today_str",
+                    return_value=fixed_date,
+                ) as mock_get_today_str:
+                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool.write_message_log_text_message = Mock()
+
+                    mock_response = Mock()
+                    mock_response.choices = [Mock()]
+                    mock_response.choices[0].message.content = "Formatted report"
+                    tool.client.chat.completions.create = AsyncMock(
+                        return_value=mock_response
+                    )
+
+                    mock_template = Mock()
+                    mock_template.render.return_value = "Cleanup prompt content"
+                    with patch.object(
+                        tool.env, "get_template", return_value=mock_template
+                    ):
+                        # Act
+                        result = await tool._postprocess_report_with_gpt(
+                            "Raw report content"
+                        )
+
+                        # Assert
+                        assert result == "Formatted report"
+                        mock_get_today_str.assert_called()
+                        mock_template.render.assert_called_with(date=fixed_date)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__clarify_user_request__passes_date__to_template_render() -> (
+    None
+):
+    """
+    Purpose: Verify clarify_user_request passes the current date to the clarifying_agent template.
+    Why this matters: Ensures the clarification prompt is rendered with date context so the LLM can reason about temporal relevance.
+    Setup summary: Mock get_today_str, template env, and chat service; assert template render receives date keyword argument.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    fixed_date = "Thu Mar 5, 2026"
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                with patch(
+                    "unique_deep_research.service.get_today_str",
+                    return_value=fixed_date,
+                ) as mock_get_today_str:
+                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool.get_visible_history_messages = Mock(return_value=[])
+
+                    mock_response = Mock()
+                    mock_response.choices = [Mock()]
+                    mock_response.choices[0].message.content = "Clarifying question?"
+                    tool.chat_service.complete_async = AsyncMock(
+                        return_value=mock_response
+                    )
+
+                    mock_template = Mock()
+                    mock_template.render.return_value = "Clarifying agent prompt"
+                    with patch.object(
+                        tool.env, "get_template", return_value=mock_template
+                    ):
+                        # Act
+                        result = await tool.clarify_user_request()
+
+                        # Assert
+                        assert result == "Clarifying question?"
+                        mock_get_today_str.assert_called()
+                        _, render_kwargs = mock_template.render.call_args
+                        assert render_kwargs.get("date") == fixed_date
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__generate_research_brief_from_dict__passes_date__to_template_render() -> (
+    None
+):
+    """
+    Purpose: Verify generate_research_brief_from_dict passes the current date to the research_instructions_agent template.
+    Why this matters: Ensures research instructions are rendered with date context so the LLM can frame the research appropriately.
+    Setup summary: Mock get_today_str, template env, and OpenAI client; assert template render receives date keyword argument.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    fixed_date = "Thu Mar 5, 2026"
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                with patch(
+                    "unique_deep_research.service.get_today_str",
+                    return_value=fixed_date,
+                ) as mock_get_today_str:
+                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+
+                    mock_response = Mock()
+                    mock_response.choices = [Mock()]
+                    mock_response.choices[0].message.content = "Research instructions"
+                    tool.client.chat.completions.create = AsyncMock(
+                        return_value=mock_response
+                    )
+
+                    mock_template = Mock()
+                    mock_template.render.return_value = "Research instructions prompt"
+                    with patch.object(
+                        tool.env, "get_template", return_value=mock_template
+                    ):
+                        messages = [{"role": "user", "content": "Research AI trends"}]
+
+                        # Act
+                        result = await tool.generate_research_brief_from_dict(messages)
+
+                        # Assert
+                        assert result == "Research instructions"
+                        mock_get_today_str.assert_called()
+                        _, render_kwargs = mock_template.render.call_args
+                        assert render_kwargs.get("date") == fixed_date

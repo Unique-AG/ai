@@ -5,6 +5,543 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v1.82.0...unique-toolkit-v2026.18.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* **ci:** skip no-manual-release check on release-please PRs ([#1501](https://github.com/Unique-AG/ai/issues/1501)) ([c930672](https://github.com/Unique-AG/ai/commit/c930672e6f7b21317786c68f55eedfa1a446dde9))
+* **planning:** Use tool calling for planning in responses api ([#1478](https://github.com/Unique-AG/ai/issues/1478)) ([4c2009e](https://github.com/Unique-AG/ai/commit/4c2009eac4db522965f26ed44f426c81ffeead0e))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
+## [1.82.0] - 2026-04-22
+### Added
+- Add `Tool.tool_system_reminder_for_user_prompt()` hook returning a per-turn `<system-reminder>` string that the orchestrator can inject as its own `{"type": "text"}` part on the latest user message. Override in tools whose state changes between turns (e.g. the Skill tool's list of currently loaded skills). Defaults to `""`.
+- Add `tool_system_reminder_for_user_prompt` field to `ToolPrompts`; populated automatically from the new hook in `Tool.prompts()`.
+
+## [1.81.0] - 2026-04-22
+### Added
+- `AgenticTableService.update_row_verification_status`: optional `locked` argument, forwarded to SDK `bulk_update_status` (public `POST .../rows/bulk-update-status`).
+- Re-export `MagicTableActivityResponse`, `MagicTableArtifactType`, and `MagicTableMetadataEntry` from `unique_toolkit.agentic_table`.
+- Tests: `tests/test_agentic_table_get_sheet_row_metadata.py` and `tests/test_agentic_table_service_coverage.py` exercise agentic-table sheet row metadata, `set_artifact` extras, `get_sheet_metadata`, `get_num_rows` / `get_sheet` row-count validation, `update_row_verification_status` with and without `locked`, and the row-metadata batch helper (CI diff-cover on changed lines).
+
+### Changed
+- Require `unique-sdk>=0.11.12,<0.12` (aligns with public magic-table REST typings and `includeRowMetadata` / `includeSheetMetadata` on sheet GET).
+- **Agentic table:** `get_sheet(..., include_row_metadata=True)` passes `includeRowMetadata` on batched `get_sheet_data` and skips per-row `get_cell` when cells already include `rowMetadata`; legacy `get_cell` hydration remains when the gateway omits row metadata on sheet cells.
+- **Agentic table:** `ArtifactType` is now an alias of SDK `MagicTableArtifactType`; `ArtifactData.artifact_type` is typed as `MagicTableArtifactType`.
+- **Agentic table:** `MagicTableSheet.chat_id` is optional (`str | None`) to match optional `chatId` on sheet payloads.
+- **Agentic table:** `set_artifact` accepts optional `mime_type` and `name` (omitted on the wire when `None`, matching SDK `SetArtifact`).
+
+## [1.80.3] - 2026-04-22
+### Changed
+- Code interpreter default tool description (`DEFAULT_TOOL_DESCRIPTION`) and default system-prompt descriptions (both `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): explicitly instruct the model to always use code execution for Excel (`.xls`, `.xlsx`) and CSV uploads (UN-19449), pairing with the backend auto-switch to "skip ingestion for Excel" (UN-19448). Short description now also names file uploads, chart/dashboard/visualization intents explicitly and forbids ASCII-art answers for plotting requests.
+- Code interpreter default system-prompt descriptions: return calculation, retrieval, and exploratory-analysis answers concisely as inline markdown in chat rather than emitting a separate artifact file, unless the user explicitly asked for a downloadable output (UN-19364).
+
+## [1.80.2] - 2026-04-22
+### Fixed
+- Code interpreter fence system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): tighten HTML/CSS guidance for chat iframe rendering (UN-19711) — forbid viewport/percentage heights on `html`/`body`, require bounded measurable heights for chart/dashboard containers, discourage top-level `position: fixed`/`absolute` that break auto-height measurement, and require Plotly `write_html`/`to_html` to use `include_plotlyjs="cdn"` plus `default_height` so outputs stay uploadable and measurable in chat.
+
+## [1.80.1] - 2026-04-22
+- Fix is_ingested logic on `Content`. Specifically, when ingestion mode is `SKIP_EXCEL_INGESTION`, only returns `False` is mime type is excel or csv
+
+## [1.80.0] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.content_tree` subpackage exposing `ContentTree` — a cached view of the KB content visible to the acting user — split into `schemas`, `functions`, and `service` modules. The API is experimental and may change between minor releases.
+- Add `ContentTree.render_visible_tree_async` for directory-style rendering, `list_visible_files_async` and `filter_visible_files_async` for programmatic access, and `search_visible_files_fuzzy_async` for fuzzy search over file names and/or full paths using stdlib `difflib` (case-insensitive by default, tunable via `match_on`, `case_sensitive`, `min_score`, `limit`; returns ranked `FuzzyMatch` records). All four methods share the same cached snapshot so repeated queries hit the backend once.
+
+## [1.79.0] - 2026-04-21
+- Add experimental `unique_toolkit.experimental.content_folder` subpackage exposing `ContentFolder` — the knowledge-base folder (content scope) management service — split into `schemas`, `functions`, and `service` modules. Covers `create` / `read` / `delete` folder lifecycle and `create_access` / `delete_access` for READ/WRITE ACL management, with typed overloads for the two folder-creation shapes (`paths=` accepting `str` or `list[str]`, and `parent_scope_id=` + `relative_path_segments=`) and sync/async variants throughout. Import with `from unique_toolkit.experimental.content_folder import ContentFolder`. The class is **not** registered with `UniqueServiceFactory`; it lives under `experimental` while the API stabilises.
+- Add `create_with_access` / `create_with_access_async` convenience methods on `ContentFolder` that create a folder chain and grant extra ACL entries on the leaf scope in one call, falling back to a minimal `FolderDetail` with the creator's READ+WRITE grants when no extra accesses are requested.
+
+## [1.78.1] - 2026-04-21
+
+### Added
+- Add `UniqueSettings.with_chat(chat_context)` immutable copy method for composing chat context into settings without mutating the original instance
+- Add `enable_mcp_metadata_fallback_un_19145` feature flag for gating backward-compatible flat camelCase `_meta` key parsing in MCP injectors
+## [1.78.0] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.identity` with `Identity` service (Linux-inspired wrapper over `unique_sdk.User` and `unique_sdk.Group`) exposing `list_users` / `get_user` / `groups_of` / `is_member` / `create_group` / `rename_group` / `delete_group` / `add_members` / `remove_members` / `update_user_configuration` / `update_group_configuration`, with matching async variants
+- Export `Identity` from `unique_toolkit.experimental`; expose typed schemas (`UserInfo`, `GroupInfo`, `UserGroupMembership`, `GroupMembership`, `GroupDeleted`, `UserWithConfiguration`) and low-level function wrappers in `unique_toolkit.experimental.identity.functions`
+- Add `Identity.from_settings()` auto-loading constructor (matches `KnowledgeBaseService`) and enforce `@overload` contract that `get_user` / `groups_of` accept exactly one of `user_id` / `email` / `user_name`
+
+## [1.77.3] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.scheduled_task` with `ScheduledTasks`, `Cron`, and low-level `create_scheduled_task` / `update_scheduled_task` / … function wrappers over `unique_sdk.ScheduledTask`
+### Changed
+- **Experimental:** `ScheduledTasks` uses `get` / `get_async` and `update` / `update_async` (replacing `retrieve` / `modify`), and a keyword-only `__init__(**, user_id=..., company_id=...)` constructor
+
+## [1.77.2] - 2026-04-21
+- Stop uploading orphan `code.txt` / `code_N.txt` artifacts when code interpreter runs without producing container files (UN-19770); inline assistant text is unchanged, real file outputs (charts, CSVs, etc.) are unchanged
+
+## [1.77.1] - 2026-04-20
+- Add `selected_content_ids` filtering to history construction and `OpenFileToolRuntime` so only user-selected uploaded images and files are attached when the `enable_selected_uploaded_files_un_18215` feature flag is active
+- Add `get_selected_uploaded_content_ids` utility in `history_manager/utils.py`
+- Thread `selected_content_ids` through `LoopTokenReducer`, `get_full_history_with_contents*`, and `_append_element_to_builder_async`
+- Store `company_id` as instance attribute on `ShowExecutedCodePostprocessor`
+
+## [1.77.0] - 2026-04-20
+- Add experimental `TodoWriteTool` for agent-side task tracking with persistent short-term memory, configurable Jinja prompts (RJSF-tagged for admin UI), sequential-first execution mode with optional parallel, `active_form` for live status display, verification nudge, and Steps panel logging with status icons
+
+## [1.76.0] - 2026-04-20
+- Enable `basedpyright` type-checking at `recommended` mode with zero-error CI enforcement
+- Fix type annotations across toolkit (type arguments, null guards, SDK parameter types)
+- Widen `chat_id` from `str` to `str | None` in content search functions to match actual SDK usage
+
+## [1.75.1] - 2026-04-17
+- Fix responses api returning multiple json objects
+
+## [1.75.0] - 2026-04-16
+- Add `ContentChunk.to_reference()` method to convert a chunk into a `ContentReference` with page-number info, matching the backend streaming-path format for use with `modify_assistant_message`
+- Harden `_generate_pages_postfix` to accept `None` page values (`start_page`/`end_page` are optional on `ContentChunk`), preventing `TypeError` on real API chunks
+- Fix page-postfix dedup check to handle non-contiguous page sets after `merge_content_chunks`
+
+## [1.74.2] - 2026-04-16
+- Adding model `litellm:anthropic-claude-opus-4-7` to `language_model/info.py`
+
+## [1.74.1] - 2026-04-16
+- Use non-strict structured output for planning in responses api
+
+## [1.74.0] - 2026-04-16
+- Add configuration flag to disable display of executed code
+
+## [1.73.0] - 2026-04-15
+- Add support for the Planning Middleware when using responses api
+
+## [1.72.0] - 2026-04-15
+- Add async file tree resolution to `KnowledgeBaseService`: `resolve_visible_file_paths_async`, `display_path_tree`, `extract_scope_ids`, `get_content_infos_async`, `get_folder_info_async`
+- Add concurrent scope ID translation via `_translate_scope_ids_async` with configurable `max_concurrent_requests`
+- Remove sync `resolve_visible_file_tree` and `_resolve_visible_file_tree` methods (⚠️ breaking)
+
+## [1.71.3] - 2026-04-15
+- Fix `ChatEvent.filter()`: empty `assistant_ids` / `references_in_code` mean “do not filter by this criterion” 
+- Move `find_env_file` / `EnvFileNotFoundError` to `unique_toolkit.app.find_env_file`; `find_env_file` is keyword-only (`filename=`)
+- Freeze parts of the unique toolkit settings via feature flag `FEATURE_FLAG_UN_18894_FREEZE_UNIQUE_SETTING`
+
+## [1.71.2] - 2026-04-15
+- Chore: standardize pytest configuration across workspace packages
+
+## [1.71.1] - 2026-04-14
+- Chore: add `importlib` import mode to pytest config to prevent namespace collisions
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
+
+## [1.71.0] - 2026-04-14
+- Add `is_ingested` helper method on `Content`
+
+## [1.70.8] - 2026-04-13
+### Fixed
+- Code interpreter generated-files postprocessor (`generated_files.py`): coerce container-file uploads to KB-safe MIME types (e.g. `.py` as `text/plain`) so Unique GraphQL no longer rejects uploads with `Invalid file type` (UN-19267)
+### Changed
+- KB-safe MIME check uses `FileMimeType(mime)` / `ImageMimeType(mime)` (same catalog as `_common.utils.files`; path-based `is_valid_mime` is not used here because we already have a guessed MIME string)
+
+## [1.70.7] - 2026-04-12
+- Revert fallback `📎 [filename](unique://content/...)` links from PR #1418 — when the LLM omits a sandbox reference the file is silently skipped again (warn-only) instead of appending noisy download links to the message
+- Revert `_warn_unmatched_code_blocks` return-value change; the function is fire-and-forget again
+- Revert `has_superscript` guard on `ContentReference` creation; references are added whenever a file link is replaced
+
+## [1.70.6] - 2026-04-10
+- Code interpreter postprocessor (`generated_files.py`): dangling `sandbox:/mnt/data/...` markdown links are replaced with a per-file notice naming the file and suggesting regeneration, instead of the generic download-failure message
+- Orphan code-execution runs (no container file output, fence feature flag `enable_code_execution_fence_un_17972`): uploaded `.txt` artifacts are attached as `ContentReference` entries in `message.references` instead of appending `fileWithSource` fences to `message.text`; remove unused `_build_orphan_fences` and `_get_next_fence_id`
+- Code interpreter orphan `.txt` uploads (`_upload_orphan_code_as_txt`): file body is always the executed **source code**, not stdout from `code_interpreter_call.outputs`
+- Remove dead `_collect_stdout` helper (no remaining production callers)
+
+## [1.70.5] - 2026-04-10
+- Code interpreter postprocessing: when the model generates a file but omits `sandbox:/mnt/data/...` in the assistant message, append a fallback line `📎 [filename](unique://content/<content_id>)` instead of silently dropping the file (image, HTML, and document paths)
+- `_warn_unmatched_code_blocks` now returns `{filename: content_id}` for files with no code-block match; `apply_postprocessing_to_response` logs them when the code-execution fence feature flag is on
+- Fix: prevent orphaned `ContentReference` when fallback document links have no matching `<sup>` tag
+
+## [1.70.4] - 2026-04-10
+- Fix: wrap code-interpreter `_upload_files_to_container` download and `containers.files.create` with tenacity exponential backoff (same pattern as generated-files postprocessor) so transient network or throttling does not leave the container without chat-uploaded files; log retries at WARNING and success at INFO
+
+## [1.70.3] - 2026-04-10
+- Add optional `default_string_empty_value` to `ui_schema_for_model` so bare `str` fields (and `str` items, dict values, union branches, nested models) can get `ui:emptyValue` without `Annotated[..., RJSFMetaTag]`
+- Fix `RJSFMetaTag.StringWidget.textarea`: emit `ui:emptyValue` under the correct key (was `ui:emtpyValue`)
+
+## [1.70.2] - 2026-04-10
+- Fix (UN-17927): add `powerpoint` type mapping for `.pptx` / `.ppt` in `_file_frontend_type`; previously these emitted `type="document"` in `fileWithSource` fences instead of `type="powerpoint"`
+
+## [1.70.1] - 2026-04-09
+- Add three-state `supported_reasoning_efforts` per model: `None` (unknown — pass-through), `[]` (no reasoning), `[...]` (validated list incl. `xhigh`)
+- Add `resolve_temp_and_reasoning` instance method centralising validation, defaults, and clamping for both API paths
+- Add custom `ReasoningEffort` Literal type and `to_reasoning_effort` / `reasoning_effort_to_openai` helpers (OpenAI SDK type is outdated)
+- Temperature fallback changed from `[0, 2]` to `[0, inf)` for models without declared bounds
+- Fix: apply `reasoning_effort` validation, defaults, and temperature clamping in Chat Completions path (previously only Responses API)
+- Fix: preserve extra `Reasoning` fields when updating effort; strip `effort` key when dropped
+
+## [1.70.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [1.69.8] - 2026-04-09
+- Remove `ABC` / `@abstractmethod` from `LanguageModelMessage` so the base model can be instantiated again
+- Add `LanguageModelMessageTypes` and `_language_model_message_to_subtype()` to map a plain message to the concrete type for its role
+- Update `LanguageModelMessages.to_openai()` to coerce base `LanguageModelMessage` instances via that helper before calling `to_openai` (tool role raises unless `LanguageModelToolMessage` is used)
+
+## [1.69.7] - 2026-04-09
+- changing FF from enable_selected_uploaded_files_un_18470 to enable_selected_uploaded_files_un_18215
+
+## [1.69.6] - 2026-04-09
+- Update sub agent config
+
+## [1.69.5] - 2026-04-09
+- Add `ToolCall` class and `tool_calls`, `tool_call_id` fields to `ChatMessage` for tool call persistence
+- Add `TOOL` role to `ChatMessageRole` enum
+- Add `check_tool_call_ids_for_tool_role` validator to ensure `tool_call_id` is required when role is `tool`
+
+## [1.69.4] - 2026-04-08
+- Make `LanguageModelMessage` an abstract base class with `@abstractmethod` for `to_openai()` to prevent direct instantiation
+- Move `LanguageModelMessageRole` enum to `language_model.schemas` (includes `TOOL` role, separate from `ChatMessageRole`)
+- Simplify `ChatMessage`: remove unused `ToolCall` class and `tool_calls` field, make `id` required, remove `TOOL` role from `ChatMessageRole`
+- Deprecate `map_to_chat_messages()` in favor of `ChatMessage.model_validate()`
+- Add `to_openai()` method to `LanguageModelMessages` container for batch conversion
+- Add `@override` decorators to concrete `to_openai` implementations
+- Raise `ValueError` for unknown message roles instead of falling back to base class
+
+## [1.69.3] - 2026-04-08
+- Add number zero to allowed tool name pattern
+
+## [1.69.2] - 2026-04-08
+- Code interpreter (UN-17972 / UN-17927): remove dead `htmlWithSource` fence generation and regex handling; HTML stays on the unconditional `HtmlRendering` markdown path from #1361 (all prior `HtmlRendering` edge-case fixes remain on `main`)
+
+## [1.69.1] - 2026-04-08
+- Add async variants of history construction functions and use them in `get_history_from_db` (`get_full_history_async`, `get_message_tools_async`, `search_contents_async`, `download_content_to_bytes_async`) to avoid blocking the event loop
+- Replace sync `modify_assistant_message` with async in Qwen runner
+- Replace sync `MCP.call_tool` with `MCP.call_tool_async` in MCP wrapper
+
+## [1.69.0] - 2026-04-07
+- Add optional `[monitoring]` extra with Prometheus support: `MetricNamespace`, `track()`, `MetricsMiddleware`, `get_metrics()`
+
+## [1.68.13] - 2026-04-06
+- Add concurrency diagnostic logging to code interpreter postprocessor: chunk gap detection, `tracker.update()` blocking measurement, lock contention and publish timing in `_FileProgressTracker`, `modify_assistant_message_async` latency warnings, and SDK upload duration warnings
+
+## [1.68.12] - 2026-04-05
+- Disable OpenAI SDK built-in retries (`max_retries=0`) for container file downloads to eliminate silent double-retry compounding — only the manual retry loop with full logging now retries
+- Add configurable `download_read_timeout` (default 120s) for container file downloads, down from the SDK default of 600s, to fail faster on stalled connections
+- Add background elapsed-time ticker that publishes progress updates even when the OpenAI API is slow to return the first byte
+- Add comprehensive timing instrumentation to all critical-path functions: `run()` phase breakdown (load_stm, download_upload, save_stm, orphan), per-file pipeline (download/upload split), first-byte latency, stream transfer time, and `apply_postprocessing` duration
+- Log swallowed exceptions in `PersistentShortMemoryManager` — failed short-term memory lookups now log the exception type and message instead of being silently discarded
+
+## [1.68.11] - 2026-04-05
+- Add real-time file download/upload progress reporting to code interpreter postprocessor — users see inline progress (percentage or elapsed time), retry indicators, and a summary block while files are being prepared
+- Switch container file downloads from buffered to streaming (`with_streaming_response`) to enable chunk-level progress tracking and percentage display when `content-length` is available
+- Add `_FileProgressTracker` class with asyncio lock, throttled message updates, inline sandbox-link replacement, and an appended summary block
+- Replace tenacity-based download retry with manual retry loop to support per-attempt progress and retry-count reporting to the tracker
+- Add `progress_update_interval` and `download_chunk_size` config fields to `DisplayCodeInterpreterFilesPostProcessorConfig`
+
+## [1.68.10] - 2026-04-05
+- Add detailed structured logging throughout the code interpreter citation pipeline (`run()`, download/upload, `apply_postprocessing_to_response()`) for production transparency: file counts, per-file outcomes, replacement summaries, and dangling-link detection
+- Add `_ChatLoggerAdapter` so all instance-method log messages are prefixed with `[chat_id=…]` for per-conversation traceability
+- Improve user-facing error message when file generation permanently fails after retries — now reads "File could not be generated. Please try again." instead of generic "File download failed"
+
+## [1.68.9] - 2026-04-04
+- Fix intermittent sandbox URL replacement failures in code interpreter postprocessor caused by transient short-term memory errors crashing `run()` and preventing `apply_postprocessing_to_response()` from executing
+- Add retry with exponential backoff to file upload calls (download already had retry)
+- Extract `_build_retry()` helper to share retry policy across all I/O operations
+- Fix `_replace_container_file_citation` missing `!?` prefix — LLM using `![label](sandbox:...)` syntax for non-image files caused false "download failed" error despite successful upload
+- Wrap orphan code block upload in try/except to prevent failures from blocking file replacement
+
+## [1.68.8] - 2026-04-04
+- Always render HTML code interpreter files with `HtmlRendering` block, independent of feature flags (`enable_html_rendering_un_15131` and `enable_code_execution_fence_un_17972`)
+- Exclude HTML files from fence injection (`imgWithSource`/`fileWithSource`) pipeline to avoid spurious warnings
+
+## [1.68.7] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+- Update `langchain` optional extra to `>=1.0.0,<2` (was `>=0.3.27,<0.4`) and `langchain-core` to `>=1.0.0,<2`
+
+## [1.68.6] - 2026-04-02
+- Adding `uploaded_files` and `selected_uploaded_files` to additional parameters in payload
+- Feature flag `FEATURE_FLAG_SELECTED_UPLOADED_FILES_UN_18470` added
+
+## [1.68.5] - 2026-04-01
+- Code interpreter (UN-17972): restore `htmlWithSource` fences for HTML when code-execution fence FF is on (legacy `HtmlRendering` path only when fence FF is off and HTML rendering FF is on)
+- Extend fence regexes and `_get_next_fence_id` for `htmlWithSource`; include HTML in unmatched-code-block warnings when fences are used
+
+## [1.68.4] - 2026-04-01
+- Removing feature flag for tool call persistence (`FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`)
+
+## [1.68.3] - 2026-04-01
+- `DDMetadata`: add `rerun` (optional bool, default false), aligned with `MagicTableMetadata` in node-chat; accepts legacy `Rerun` key via `validation_alias`
+
+## [1.68.2] - 2026-04-01
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [1.68.1] - 2026-04-01
+- Add retry on error when downloading code execution generated files
+
+## [1.68.0] - 2026-04-01
+- Adding experimental open pdf tool
+
+## [1.67.3] - 2026-04-01
+- Remove adding of extra references when Code Execution Fence FF is on
+
+## [1.67.2] - 2026-03-31
+- `forced_tools` and `tool_input_json_schema` were changed from their default values `None` to [] and "" respectively, to enable proper rendering in Space 2.0. Backwards compatibility is ensured.
+
+## [1.67.1] - 2026-03-31
+- Appending `chat_id`, `assistant_id`, and `display_name` to debug info for sub agent tool calls
+
+## [1.67.0] - 2026-03-31
+- Add `AUTO_CONTAINER_ONLY` model capability for models that require `container: {"type": "auto"}` instead of explicit container IDs (GPT-5.4 Pro)
+- Add `force_auto_container` parameter to `OpenAICodeInterpreterTool.build_tool` and `OpenAIBuiltInToolManager.build_manager`/`_build_tool`
+- Fix auto-container path dropping `is_exclusive` flag — now correctly forwarded to the constructor
+
+## [1.66.1] - 2026-03-31
+- Add Feature Flag `enable_web_search_argument_screening_un_18741`
+
+## [1.66.0] - 2026-03-30
+- Add `applied_ingestion_config` to `Content` schema
+
+## [1.65.2] - 2026-03-30
+- Remove experimental open pdf tool
+
+## [1.65.1] - 2026-03-30
+- Code interpreter (UN-17972): `get_tool_prompts()` now always uses the stored `tool_description_for_system_prompt` (no feature-flag substitution); UI and backend stay aligned when the config default is the fence prompt.
+- Code interpreter (UN-18561): extend `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — sandbox has no internet; do not use `requests` / `httpx` / `urllib` for web fetches; use the web search tool first, then code interpreter.
+- Code interpreter: RJSF textarea `rows` for `tool_description_for_system_prompt` is derived from `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` so the widget height matches the default body (fixes undersized editor).
+
+## [1.65.0] - 2026-03-29
+- Adding experimental open pdf tool
+
+## [1.64.7] - 2026-03-27
+- Code interpreter (UN-17972): when the sandbox HTML link is the only content on its line (including indented list continuations), replace the full line so the `HtmlRendering` opening fence starts at column 0; match is anchored to line start so mid-line links still use the separate mid-line path.
+- Code interpreter (UN-17972): strip runs of whitespace-only lines immediately preceding that link line so blank indented lines do not remain above the `HtmlRendering` block.
+- Code interpreter (UN-17972): when the link is mid-line and the response continues immediately after the closing parenthesis with no newline, append a newline after the closing fence so following text does not adjoin the fence.
+
+## [1.64.6] - 2026-03-27
+- Code interpreter (UN-17972): fix `HtmlRendering` block format for fenced code-interpreter HTML — remove an extra blank line before the `unique://content/...` URL (template had `\n\n\n`, parser expected a single blank line; broke rendering when images/PDFs were in the same message).
+- Code interpreter (UN-17972): when the model places the sandbox link mid-line (e.g. numbered list item), insert a leading newline before the `HtmlRendering` fence so it starts on its own line (same requirement as `imgWithSource` / `fileWithSource` standalone fences).
+
+## [1.64.5] - 2026-03-27
+- RJSF: Add `CustomWidgetName` values `folderScopePicker`, `selectionPolicy`, `toolIconSelect`, and `toggleSwitch` (aligned with TypeScript custom widgets).
+- RJSF: `RJSFMetaTag.custom()` accepts `name: CustomWidgetName | str` so callers can pass string widget identifiers (e.g. custom icons) in addition to enum members.
+
+## [1.64.4] - 2026-03-26
+- Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
+
+## [1.64.3] - 2026-03-26
+- Config checker: CLI and validator improvements
+
+## [1.64.2] - 2026-03-26
+- Add `UniqueSettings.with_auth` to return a new settings instance with a given auth context while preserving app, api, chat, filter options, and env file reference (UN-18484)
+- Add tests for `UniqueSettings`
+
+## [1.64.1] - 2026-03-26
+- Add `enable_tool_call_persistence_un_15977` feature flag; when disabled (default), `get_full_history_with_contents` is used instead of `get_full_history_with_contents_and_tool_calls` and `enable_tool_call_persistence` is threaded through `HistoryManagerConfig` and `LoopTokenReducer` (UN-15977)
+
+## [1.64.0] - 2026-03-25
+- Code interpreter (UN-17972): orphan code runs — synthesise a `.txt` artifact and `fileWithSource` fence when code produces no container files, gated on `enable_code_execution_fence_un_17972` (replaces legacy `<details>` for that case)
+- Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on; add `OpenAIBuiltInTool.get_required_include_params()`, `OpenAIBuiltInToolManager.get_required_include_params()`, and `ResponsesApiToolManager.get_required_include_params()`; add `_collect_stdout` for `ResponseCodeInterpreterToolCall.outputs` (end-to-end `include` requires orchestrator PR)
+- Code interpreter (UN-17972): when fence FF is on, `ShowExecutedCodePostprocessor` is a no-op; remove `strip_executed_code_blocks` and its use in `DisplayCodeInterpreterFilesPostProcessor`; add optional `company_id` on `ShowExecutedCodePostprocessor` (orchestrator should pass company id alongside generated-files postprocessor)
+- Add unit test for `message.text is None` handling in `DisplayCodeInterpreterFilesPostProcessor.apply_postprocessing_to_response`
+
+## [1.63.2] - 2026-03-25
+- Code interpreter (UN-17972): emit `htmlWithSource` fences for `.html` artifacts when `enable_code_execution_fence_un_17972` is on; HTML uses the same sandbox-link → fence injection path as other files. Legacy `HtmlRendering` block is used only when the fence FF is off and `enable_html_rendering_un_15131` is on.
+- Fence-mode system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): require HTML only as saved files under `/mnt/data/`, not inline in the assistant text; add UI-oriented best practices (HTML5 shell, self-contained CSS/JS, fluid layout, contrast, semantic elements, no parent-frame access).
+- `get_tool_prompts()`: treat stored `tool_description_for_system_prompt` as the unmodified default when it equals either `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` or `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`, so spaces created across toolkit versions still receive the fence prompt when the FF is on.
+
+## [1.63.1] - 2026-03-25
+- Broaden internal API URL matching to include hostnames that contain `.svc.` or end with `.svc`
+
+## [1.63.0] - 2026-03-24
+- Globally unique source numbering across chat turns (UN-15977): source numbers now continue from the highest index persisted in the database, ensuring `[sourceN]` citations remain unique and stable across the entire conversation
+- Add `get_content_chunks_for_backend()` to `HistoryManager`: builds a positional content-chunk list where `result[N]` contains the chunk for `[sourceN]`, including prior-turn sources reconstructed from the database
+- Remove `percent_for_tool_call_history` from `HistoryManagerConfig` and `_limit_tool_call_tokens` from `LoopTokenReducer`; history truncation now relies solely on `percent_of_max_tokens_for_history` with whole-turn dropping
+- Add `compute_max_source_number_from_tool_calls` and `build_source_map_from_tool_calls` utilities
+- `get_full_history_with_contents_and_tool_calls` now returns `(messages, max_source_number, source_map)` tuple
+
+## [1.62.4] - 2026-03-24
+- Fix tool-history source serialization to preserve readable Unicode in LLM-facing JSON payloads
+- Fix reduced tool responses to keep readable Unicode for standard source reduction and `TableSearch`
+
+## [1.62.3] - 2026-03-24
+- Add `content_id` to search result source dicts in tool call responses (`transform_chunks_to_string` and `_create_reduced_standard_sources_message`) so the LLM can associate each source with its content object
+
+## [1.62.2] - 2026-03-24
+- Code interpreter (UN-18375): harden `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — require `plt.savefig` + `plt.close` for plots, forbid `sandbox:/mnt/data/` links unless the file was created by executed code in the same response, and use `<filename>` (not a literal `filename.png`) in savefig examples so multiple plots do not overwrite the same path
+
+## [1.62.1] - 2026-03-23
+- Base `Tool.__init__` accepts config only; optional overload for backward compatibility
+- Tools not tied to chat can use `Tool(config)`; legacy tools use `Tool(config, event, tool_progress_reporter)`
+- `MCPToolWrapper`, `SubAgentTool`, `DeepResearchTool`, `PMPositionsTool` create their own services when needed
+
+## [1.62.0] - 2026-03-23
+- Add `tool_manager` parameter to `DebugInfoManager.extract_builtin_tool_debug_info` and `_extract_tool_calls_from_stream_response`; each code interpreter call entry now includes `is_exclusive` and `is_forced` flags derived from the tool manager
+## [1.61.0] - 2026-03-23
+- Add option to include Code Execution in tool analytics (Debug Info)
+
+## [1.60.0] - 2026-03-20
+- Add `MessageTool` persistence and history reconstruction (UN-15977): after each agentic loop, tool calls and their responses are persisted to the database via `unique_sdk.MessageTool`. On subsequent turns, the full tool-call history is batch-loaded and interleaved into the LLM message history (parallel calls grouped into a single assistant message per round). New `ChatService` methods: `create_message_tools`, `create_message_tools_async`, `get_message_tools`, `get_message_tools_async`. New schema types: `ChatMessageTool`, `ChatMessageToolResponse`. New `HistoryManager` methods: `extract_message_tools`, `compact_message_tools`. Requires `unique-sdk>=0.10.85`.
+
+## [1.59.1] - 2026-03-19
+- Add `UniqueServiceFactory` for registry-based service creation via `UniqueContext` (UN-18236)
+- Add `UniqueContext` with `from_chat_event` / `from_event` / `from_settings` factory methods
+- Add `AuthContext`, `AuthContextProtocol`, `ChatContext`, `ChatContextProtocol` to `unique_settings`
+- Add `ChatService.from_context` and `KnowledgeBaseService.from_context` constructors; deprecate old event-based constructors
+- Deprecate `UniqueSettings.auth` property in favour of `UniqueSettings.authcontext`
+
+## [1.59.0] - 2026-03-19
+- Introduce `AuthContextProtocol` and `AuthContext` (Pydantic `BaseModel`) for unified auth typing across MCP services and apps (UN-18234)
+- Add `ChatContextProtocol` and `ChatContext` (Pydantic `BaseModel`) for chat context (UN-18234)
+- Add `UniqueEnvironment` class grouping env-only settings (`app` + `api`) (UN-18234)
+- Add `UniqueContext` class grouping request/env context (`auth` + `chat`) (UN-18234)
+- Enhance `UniqueAuth` with `get_confidential_company_id()`, `get_confidential_user_id()`, and `to_auth_context()` methods (UN-18234)
+- Add `authcontext: AuthContextProtocol` property to `UniqueSettings`; deprecate `auth` (still returns `UniqueAuth`) (UN-18234)
+
+## [1.58.1] - 2026-03-18
+- Code interpreter fence injection (UN-17972): extend `_build_code_blocks` matching so generated images reliably map to their producing code block — secondary match on quoted filename or stem, plus last-resort assignment to the last code block when paths are fully dynamic (e.g. `f"/mnt/data/chart_{type}_{i}.png"`). Fixes bare `![image](unique://content/...)` instead of `imgWithSource` fences.
+- Secondary matching now uses last-writer-wins across code blocks (aligned with primary); only Step 1a primary matches are frozen — earlier secondary logic incorrectly used first-writer-wins.
+
+## [1.58] - 2026-03-18
+- Re-apply 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking)
+
+## [1.57] - 2026-03-18
+- Revert 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking) — safe baseline for release/2026.12 deployments
+
+## [1.56.0] - 2026-03-17
+- Add execution time tracking to `EvaluationManager`, `PostprocessorManager`, and `ToolManager` with `get_execution_times()` accessors
+- Add `get_debug_info()` / `get_debug_info_async()` to `ChatService` for retrieving debug info from the current user message
+
+## [1.55.1] - 2026-03-17
+- Add `AZURE_GPT_54_2026_0305` (`gpt-5.4-2026-03-05`): 922k input / 128k output, Chat Completions + Responses API, function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature 0.0–1.0, default `reasoning_effort: "none"`
+- Add `AZURE_GPT_54_PRO_2026_0305` (`gpt-5.4-pro-2026-03-05`): 922k input / 128k output, Responses API only (no Chat Completions), function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature fixed at 1.0, default `reasoning_effort: "medium"`
+- Add `LITELLM_OPENAI_GPT_54` (`litellm:openai-gpt-5-4`): same capabilities as `AZURE_GPT_54_2026_0305`
+- Add `LITELLM_OPENAI_GPT_54_THINKING` (`litellm:openai-gpt-5-4-thinking`): Chat Completions + Responses API, temperature fixed at 1.0, default `reasoning_effort: "medium"`
+- Fix `AZURE_GPT_51_2025_1113`: correct temperature bounds from 1.0–1.0 to 0.0–1.0 and `reasoning_effort` from `None` to `"none"`
+- Fix `AZURE_GPT_52_2025_1211` and `LITELLM_OPENAI_GPT_52`: correct `token_limit_input` from 400k to 272k, temperature bounds from 1.0–1.0 to 0.0–1.0, and `reasoning_effort` from `None` to `"none"`
+- Fix `LITELLM_OPENAI_GPT_52_THINKING`: correct `token_limit_input` from 400k to 272k
+
+## [1.55.0] - 2026-03-16
+- Align `ChatMessage` to `PublicMessageDto`: rename `original_content` → `original_text` (⚠️ breaking), add `started_streaming_at`, `stopped_streaming_at`, `assessment`, `previous_message_id` fields, change `references` default from `None` to `[]`, add `text` property as getter/setter alias for `content` (UN-18040)
+- Remove `LanguageModelStreamResponseMessage` class — replaced with backward-compatible alias `= ChatMessage`; `id` and `content` are now `str | None` instead of required `str` (UN-18040)
+- Consolidate `LanguageModelMessageRole` as a re-export of `ChatMessageRole` (same values, no runtime change) (UN-18040)
+- Add `LanguageModelTokenUsage` model and `usage: LanguageModelTokenUsage | None` field to `LanguageModelStreamResponse`, matching `PublicStreamResultDto` (UN-18040)
+
+## [1.54.1] - 2026-03-16
+- Add reusable `NoneToDefault` `BeforeValidator` that replaces incoming `None` values with the field's declared default via `PydanticUseDefault`, enabling backward-compatible migration from nullable fields to non-nullable fields with defaults
+- Apply `NoneToDefault` validator to `DocxGeneratorConfig.template_content_id`
+
+## [1.54.0] - 2026-03-16
+- Code interpreter (UN-17972 review fix): `get_tool_prompts()` now respects operator-customised `tool_description_for_system_prompt` when the fence FF is on. Previously the fence-aware prompt was applied unconditionally when the FF was enabled, silently ignoring any custom prompt. Now `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` is only substituted when the operator is still using the unmodified default; a customised prompt is always used regardless of the FF.
+
+## [1.53.4] - 2026-03-13
+- Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message in addition to logging a warning. Fence prompt updated (example blank lines, component description, "files" not "images"). Consecutive fences normalised to exactly one newline between them (same-line, list-item, and blank-line cases).
+
+## [1.53.3] - 2026-03-12
+- Code interpreter (UN-17972 follow-up): prompt update — `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` variant removes the "Descriptive Title" instruction; selected automatically in `get_tool_prompts()` when `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` is on; legacy prompt (with title) used when flag is off, preserving exact pre-fence behaviour. `company_id` stored on `OpenAICodeInterpreterTool` to enable per-company FF evaluation at prompt-render time.
+- Code interpreter: link/file validation — upgraded stage-1 replacement helpers (`_replace_container_*_citation`) from INFO to WARNING when no sandbox link is found for an uploaded file; added WARNING in `_inject_code_execution_fences` when a fence is discarded (no inline ref match); added `_warn_missing_content_ids` end-of-pipeline check that warns for any `content_id` absent from the final message text.
+- Code interpreter: fence rendering fix — added `_ensure_fences_are_standalone` (strips markdown list-item prefix before a fence) and `_CONSECUTIVE_FENCES_RE` separator pass (ensures `\n\n` between two fences that land on the same line), so `imgWithSource`/`fileWithSource` blocks are always standalone blocks parseable by the frontend. FF=on prompt updated to instruct the LLM to place a blank line before and after every file reference link.
+- Code interpreter: logging coverage — added `_warn_dangling_sandbox_links` (warns when a `sandbox:/mnt/data/` link survives into the final text, indicating a hallucinated or unmatched file) and `_warn_unmatched_code_blocks` (warns when an uploaded file could not be matched to any code block and will fall back to a plain download link without the artifact UI).
+
+## [1.53.2] - 2026-03-11
+- Code interpreter: replace all inline file refs in `message.text` with structured fences — `imgWithSource` for images (PNG etc.) and `fileWithSource` for documents (CSV, Excel, PDF, Word, HTML, Markdown). Each fence carries `id` (message-scoped counter), `contentId`, `title` (derived from filename), `type` (for fileWithSource), and the generating `code`. `<details>` blocks and trailing `</br>` from `ShowExecutedCodePostprocessor` are stripped when at least one fence is injected. Feature-flagged via `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` (default off, safe to merge). `debugInfo.code_blocks` and the `code_blocks` field on `LanguageModelStreamResponseMessage` are removed (superseded by the fences). (UN-17972)
+## [1.53.1] - 2026-03-11
+- Fix RJSF `ui_schema_for_model` and `_unwrap_optional` to handle Python 3.10+ pipe union syntax (`A | B` / `types.UnionType`) in addition to `typing.Union`, so discriminated unions produce correct `anyOf` branches with per-branch metadata
+
+## [1.53.0] - 2026-03-10
+- Responses API: rate-limit retry via **tenacity** (new dependency). Default 1 retry with ~30s backoff for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait so the user is informed.
+
+## [1.52.1] - 2026-03-10
+- Responses API: rate-limit retry via **tenacity** (new dependency). Exponential backoff (30s→60s→120s) for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait.
+
+## [1.52.0] - 2026-03-10
+- Refactor loop runner architecture: make `BasicLoopIterationRunner` an extensible base class with overridable hooks (`_handle_forced_tools`, `_handle_last_iteration`, `_handle_normal_iteration`)
+- Add `tool_choice_override` parameter to `run_forced_tools_iteration` for model-specific tool choice handling
+- Add `MistralLoopIterationRunner` (subclass of `BasicLoopIterationRunner`) that forces `tool_choice="any"` for Mistral models during forced tool iterations
+- Refactor `QwenLoopIterationRunner` to subclass `BasicLoopIterationRunner`; align constructor to accept `config: BasicLoopIterationRunnerConfig` instead of bare `max_loop_iterations`
+- Remove model-detection helpers `is_qwen_model` and `is_mistral_model` from the toolkit; runner selection is now the orchestrator's responsibility
+
+## [1.51.0] - 2026-03-10
+- Make `ToolBuildConfig` generic over the configuration type. Enables downstream consumers to parameterize the configuration type without invariant-override type errors.
+
+## [1.50.4] - 2026-03-05
+- Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
+
+## [1.50.3] - 2026-03-04
+- Docs: add minimal langchain example and langchain platform documentation
+- Docs: move manual examples to dedicated folder
+- Docs: fix missing and duplicated tags in generated examples
+
+## [1.50.2] - 2026-03-03
+- Build: migrate from Poetry to uv (PEP 621 metadata, uv_build backend, dependency-groups)
+
+## [1.50.1] - 2026-03-02
+- Security: upgrade pillow from 10.4.0 to 12.1.1 (CVE / Dependabot alert — out-of-bounds write in PSD loader)
+- Security: upgrade starlette from 0.48.0 to 0.49.1 (Dependabot alert)
+
+## [1.50.0] - 2026-03-02
+- Add async download-to-bytes functions: `download_content_to_bytes_async` on `KnowledgeBaseService`, `ContentService`, and `download_chat_content_to_bytes_async` on `ChatService`
+
+## [1.49.0] - 2026-03-02
+- Make the code execution tool always available to the agent
+
+## [1.48.1] - 2026-03-02
+- Revert `DocxGeneratorConfig` and `DocxGeneratorService` additions from 1.47.11 (broke SWOT tool, pending further testing)
+
+## [1.48.0] - 2026-02-26
+- Add pandoc markdown to docx conversion utility
+
+## [1.47.13] - 2026-02-26
+- Added support for subagent file access to the ContentService and ChatService based on correlation component of the event.
+
+## [1.47.12] - 2026-02-26
+- Attach tool result images (MCP or internal) to the user message so the LLM can see them
+- MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
+
+## [1.47.10] - 2026-02-26
+- Code interpreter: bound `expires_after_minutes` to 1–20 (OpenAI API max), add RJSF `NumberWidget.updown` for UI
+
+## [1.47.9] - 2026-02-26
+- Fixing bug with chunk relevancy sorter
+
+## [1.47.8] - 2026-02-25
+- Use `AliasGenerator` to create the sort keys in `ui_schema_for_model`
+
+## [1.47.7] - 2026-02-25
+- Additional `user_space_instructions` to `ChatEventAdditionalParameters`
+
+## [1.47.6] - 2026-02-25
+- Rename `cancelled_at` to `user_aborted_at` on `ChatMessage` and update `CancellationWatcher` to poll `userAbortedAt`
+
+## [1.47.5] - 2026-02-25
+- Code execution updates:
+  - Always upload to chat. Remove ability to upload to scope.
+  - Cleanup displayed config
+
+## [1.47.4] - 2026-02-24
+- Extend RJSF tags: add `CustomWidget.custom()` with `CustomWidgetName`, `ObjectWidget.collapsible()`, `SpecialWidget.hidden()`
+- Add RJSF meta tags to `SubAgentToolConfig` text fields (textarea with rows=5 for tool descriptions and format info)
+
+## [1.47.3] - 2026-02-24
+- Add `mcp_server` name to debug info for analytics
+
+## [1.47.2] - 2026-02-23
+- Add HTML rendering documentation (inline HTML and content references)
+
+## [1.47.1] - 2026-02-23
+- Fix bug with OpenAIBuiltinToolManager
+
+## [1.47.0] - 2026-02-23
+- Move `CodeInterpreterExtendedConfig` to toolkit for validation in `ToolBuildConfig`
+
+## [1.46.13] - 2026-02-23
+- Add easy access to decoder from llm info
+
+## [1.46.12] - 2026-02-21
+- Add `litellm:gemini-3-1-pro-preview` to `info.py`
+
+## [1.46.11] - 2026-02-20
+- Add OpenAI-proxy direct streaming with Python-side reference injection (UN-17264)
+- Add `stream_complete_with_references_openai()` using async OpenAI client and `chat.completions.stream()`
+- Add stream transformation pipeline: `StreamTransform` protocol, `TextTransformPipeline`, `ReferenceInjectionTransform` (reuses `add_references_to_message`), `NormalizationTransform` placeholder
+- Export `stream_complete_with_references_openai` and stream transform types from `unique_toolkit.language_model`
+
+## [1.46.10] - 2026-02-19
+- Add flag-based cancellation support via `CancellationWatcher` and `TypedEventBus`
+- Expose `ChatService.cancellation` property for polling, event subscription, and `run_with_cancellation` helper
+- Add `CancellationEvent`, `user_aborted_at` on `ChatMessage`, and `stopped_by_user` on `LanguageModelStreamResponse`
+
 ## [1.46.9] - 2026-02-19
 - Add `litellm:anthropic-claude-sonnet-4-6` to `info.py`
 
@@ -120,10 +657,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.43.7] - 2026-01-15
 - Cleanup hallucination config that is displayed in space config
 
-## [1.43.6] - 2026-01-13
+## [1.43.6] - 2026-01-14
 - Update message execution pipeline functions and service
 
-## [1.43.5] - 2026-01-13
+## [1.43.5] - 2026-01-14
 - Add deptry to dev dependencies for CI dependency checks
 - Fix missing base_settings fixture parameter in FastAPI test
 
@@ -139,7 +676,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.43.1] - 2026-01-12
 - Remove accidental example report.md from repo
 
-##[1.43.0] - 2026-01-11
+## [1.43.0] - 2026-01-11
 - Add `WriteUpAgent` as an experimental service
 
 ## [1.42.9] - 2026-01-11
@@ -168,10 +705,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.42.2] - 2026-01-05
 - Fix naming of code interpreter tool in its `ToolPrompts`.
 
-## [1.42.1] - 2025-01-05
+## [1.42.1] - 2026-01-05
 - Version bump of SDK
 
-## [1.42.0] - 2025-01-05
+## [1.42.0] - 2026-01-05
 - Add new params for elicitation to `call_tool` api
 
 ## [1.41.0] - 2025-12-29
@@ -236,7 +773,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.34.0] - 2025-12-02
 - Add option to upload code interpreter generated files to the chat.
 
-##[1.33.3] - 2025-12-02
+## [1.33.3] - 2025-12-02
 - Fix serialization of ToolBuildConfig `configuration` field.
 
 ## [1.33.2] - 2025-12-01
@@ -245,7 +782,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.33.1] - 2025-12-01
 - Add `data_extraction` to unique_toolkit
 
-## [1.33.0] - 2025-11-28
+## [1.33.0] - 2025-12-01
 - Add support for system reminders in sub agent responses.
 
 ## [1.32.1] - 2025-12-01
@@ -262,7 +799,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.31.1] - 2025-11-27
 - Various fixes to sub agent answers.
 
-## [1.31.0] - 2025-11-20
+## [1.31.0] - 2025-11-26
 - Adding model `litellm:anthropic-claude-opus-4-5` to `language_model/info.py`
 
 ## [1.30.0] - 2025-11-26
@@ -282,17 +819,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add early return in `create_message_log_entry` if chat_service doesn't have assistant_message_id (relevant for agentic
   table)
 
-##[1.29.0] - 2025-11-21
+## [1.29.0] - 2025-11-21
 - Add option to force include references in sub agent responses even if unused by main agent response.
 
 ## [1.28.9] - 2025-11-21
 - Remove `knolwedge_base_service` from DocXGeneratorService
 
-##[1.28.8] - 2025-11-20
+## [1.28.8] - 2025-11-20
 - Add query params to api operation
 - Add query params to endpoint builder
 
-##[1.28.7] - 2025-11-20
+## [1.28.7] - 2025-11-20
 - Adding Message Step Logger Class to the agentic tools.
 
 ## [1.28.6] - 2025-11-20
@@ -431,7 +968,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.19.0] - 2025-10-28
 - Enable additional headers on openai and langchain client
 
-
 ## [1.18.1] - 2025-10-28
 
 - Fix bug where sub agent references were not properly displayed in the main agent response when the sub agent response
@@ -455,7 +991,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.17.0] - 2025-10-22
 - Add more options to display sub agent answers in the chat.
 
-## [1.16.5] - 2025-10-16
+## [1.16.5] - 2025-10-18
 - Adding litellm models `litellm:anthropic-claude-haiku-4-5`
 
 ## [1.16.4] - 2025-10-18
@@ -526,14 +1062,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2025-10-07
 - Fix bug where failed evaluations did not show an error to the user.
 
-## [1.12.0] - 2026-10-07
+## [1.12.0] - 2025-10-07
 - Add the `OpenAIUserMessageBuilder` for complex user messages with images
 - More examples with documents/images on the chat
 
-## [1.11.4] - 2026-10-07
+## [1.11.4] - 2025-10-07
 - Make newer `MessageExecution` and `MessageLog` method keyword only
 
-## [1.11.3] - 2026-10-07
+## [1.11.3] - 2025-10-07
 - Move smart rules to content
 - Add to documentation
 
@@ -554,14 +1090,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.9.1] - 2025-10-06
 - Switch default model used in evaluation service from `GPT-3.5-turbo (0125)` to `GPT-4o (1120)`
 
-
-## [1.9.0] - 2026-10-04
+## [1.9.0] - 2025-10-04
 - Define the RequestContext and add aihttp/httpx requestors
 
-## [1.8.1] - 2026-10-03
+## [1.8.1] - 2025-10-03
 - Fix bug where sub agent evaluation config variable `include_evaluation` did not include aliases for previous names.
 
-## [1.8.0] - 2026-10-03
+## [1.8.0] - 2025-10-03
 - Sub Agents now block when executing the same sub-agent multiple times with `reuse_chat` set to `True`.
 - Sub Agents tool, evaluation and post-processing refactored and tests added.
 
@@ -592,7 +1127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.1] - 2025-09-30
 - Handle sub agent failed assessments better in sub agent evaluator.
 
-## [1.4.0] - 2025-09-29
+## [1.4.0] - 2025-09-30
 - Add ability to consolidate sub agent's assessments.
 
 ## [1.3.3] - 2025-09-30
@@ -679,10 +1214,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.53] - 2025-09-09
 - Add support for skip ingestion for only excel files.
 
-## [0.8.52] - 2025-09-06
+## [0.8.52] - 2025-09-08
 - Fix import error in token counting
 
-## [0.8.51] - 2025-09-06
+## [0.8.51] - 2025-09-08
 - Update token counter to latest version of monorepo.
 
 ## [0.8.50] - 2025-09-08
@@ -758,7 +1293,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.30] - 2025-08-28
 - Added A2A manager
 
-## [0.8.29] - 2025-08-27
+## [0.8.29] - 2025-08-28
 
 - Include `MessageExecution` and `MessageLog` in toolkit
 
@@ -777,14 +1312,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expose `LanguageModelToolDescription` and `LanguageModelName` directly
 - Get initial debug information from chat payload
 
-## [0.8.24] - 2025-08-25
+## [0.8.24] - 2025-08-27
 - Optimized hallucination manager
 
 ## [0.8.23] - 2025-08-27
 - Add MCP manager that handles MCP related logic
 
-
-## [0.8.22] - 2025-08-25
+## [0.8.22] - 2025-08-26
 - Add DeepSeek-R1, DeepSeek-V3.1, Qwen3-235B-A22B and Qwen3-235B-A22B-Thinking-2507 to supported model list
 
 ## [0.8.21] - 2025-08-26
@@ -897,7 +1431,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.35] - 2025-07-23
 - Bump version of SDK to have access to the latest features and fixes
 
-## [0.7.34] - 2025-05-30
+## [0.7.34] - 2025-06-25
 - Fix incorrect mapping in `ContentService` for the `search_content` function when mapping into `ContentChunk` object
 
 ## [0.7.33] - 2025-06-25
@@ -906,7 +1440,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.32] - 2025-06-24
 - Create `classmethod` for `LanguageModelMessages` to load raw messages to root
 
-## [0.7.31] - 2025-06-19
+## [0.7.31] - 2025-06-20
 
 - Add typings to references in payload from `LanguageModelStreamResponseMessage`
 - Add `original_index` to the base reference to reflect updated api
@@ -995,7 +1529,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.9] - 2025-04-17
 - add `AZURE_GPT_41_2025_0414` as part of the models
 
-## [0.7.8] - 2025-04-08
+## [0.7.8] - 2025-04-11
 - add `AZURE_GPT_4o_2024_1120` as part of the models
 
 ## [0.7.7] - 2025-04-11

@@ -1,7 +1,11 @@
+from unittest.mock import patch
+
 import pytest
 
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.utils import (
+    _apply_ingestion_upload_url_override,
+    _generate_pages_postfix,
     count_tokens,
     map_content,
     map_content_chunk,
@@ -163,3 +167,161 @@ class TestContentChunkUtils:
         assert result.key == "document.pdf"
         assert len(result.chunks) == 1
         assert result.chunks[0].chunk_id == "chunk_1"
+
+    @pytest.mark.ai
+    def test_map_content__ingestion_config_and_applied_ingestion_config__mapped_when_present(
+        self,
+    ):
+        """
+        Purpose: Verifies that map_content correctly maps ingestionConfig and
+        appliedIngestionConfig from the source dict to Content model fields.
+        Why this matters: Missing these fields would cause ingestion configuration
+        to be silently dropped, breaking features that rely on knowing how content
+        was ingested.
+        Setup summary: Provide a content dict with both ingestionConfig and
+        appliedIngestionConfig; assert both are present on the result.
+        """
+        content_dict = {
+            "id": "cont_abc",
+            "key": "file.pdf",
+            "title": "File",
+            "url": "https://example.com/file.pdf",
+            "chunks": [],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+            "ingestionConfig": {"chunkSize": 512, "overlap": 64},
+            "appliedIngestionConfig": {"chunkSize": 256, "overlap": 32},
+        }
+
+        result = map_content(content_dict)
+
+        assert result.ingestion_config == {"chunkSize": 512, "overlap": 64}
+        assert result.applied_ingestion_config == {"chunkSize": 256, "overlap": 32}
+
+    @pytest.mark.ai
+    def test_map_content__ingestion_config_and_applied_ingestion_config__none_when_absent(
+        self,
+    ):
+        """
+        Purpose: Verifies that map_content defaults ingestion_config and
+        applied_ingestion_config to None when absent from the source dict.
+        Why this matters: The fields are optional; code that checks for None must
+        not break when the API omits them.
+        Setup summary: Provide a content dict without ingestionConfig or
+        appliedIngestionConfig; assert both fields on the result are None.
+        """
+        content_dict = {
+            "id": "cont_xyz",
+            "key": "doc.pdf",
+            "title": "Doc",
+            "url": "https://example.com/doc.pdf",
+            "chunks": [],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+        }
+
+        result = map_content(content_dict)
+
+        assert result.ingestion_config is None
+        assert result.applied_ingestion_config is None
+
+
+class TestApplyIngestionUploadUrlOverride:
+    def test_returns_original_url_when_env_unset(self):
+        write_url = "https://gateway.example.com/ingestion/upload?key=abc123"
+        assert _apply_ingestion_upload_url_override(write_url) == write_url
+
+    def test_returns_original_url_when_env_empty(self):
+        write_url = "https://gateway.example.com/ingestion/upload?key=abc123"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal", None
+        ):
+            assert _apply_ingestion_upload_url_override(write_url) == write_url
+
+    def test_replaces_base_preserves_query_when_env_set(self):
+        write_url = "https://gateway.example.com/ingestion/upload?key=encrypted%3Dvalue"
+        internal_base = "https://node-ingestion.namespace.svc.cluster.local/upload"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+            internal_base,
+        ):
+            result = _apply_ingestion_upload_url_override(write_url)
+        assert (
+            result
+            == "https://node-ingestion.namespace.svc.cluster.local/upload?key=encrypted%3Dvalue"
+        )
+
+    def test_replaces_base_no_double_question_mark_when_no_query(self):
+        write_url = "https://gateway.example.com/ingestion/upload"
+        internal_base = "http://ingestion-internal/upload"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+            internal_base,
+        ):
+            result = _apply_ingestion_upload_url_override(write_url)
+        assert result == "http://ingestion-internal/upload"
+
+    def test_strips_trailing_slash_from_custom_base(self):
+        write_url = "https://gateway.example.com/upload?key=xyz"
+        internal_base = "https://internal/upload/"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+            internal_base,
+        ):
+            result = _apply_ingestion_upload_url_override(write_url)
+        assert result == "https://internal/upload?key=xyz"
+
+
+class TestGeneratePagesPostfix:
+    def test_single_chunk_with_page_range(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=3, end_page=5)]
+
+        assert _generate_pages_postfix(chunks) == " : 3,4,5"
+
+    def test_single_chunk_single_page(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=2, end_page=2)]
+
+        assert _generate_pages_postfix(chunks) == " : 2"
+
+    def test_none_start_and_end_returns_empty(self):
+        chunks = [
+            ContentChunk(id="1", text="t", order=1, start_page=None, end_page=None)
+        ]
+
+        assert _generate_pages_postfix(chunks) == ""
+
+    def test_none_start_with_valid_end_returns_empty(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=None, end_page=5)]
+
+        assert _generate_pages_postfix(chunks) == ""
+
+    def test_valid_start_with_none_end_returns_single_page(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=3, end_page=None)]
+
+        assert _generate_pages_postfix(chunks) == " : 3"
+
+    def test_sentinel_minus_one_start_and_end_returns_empty(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=-1, end_page=-1)]
+
+        assert _generate_pages_postfix(chunks) == ""
+
+    def test_valid_start_with_minus_one_end_returns_single_page(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=4, end_page=-1)]
+
+        assert _generate_pages_postfix(chunks) == " : 4"
+
+    def test_multiple_chunks_deduplicates_and_sorts(self):
+        chunks = [
+            ContentChunk(id="1", text="t", order=1, start_page=3, end_page=5),
+            ContentChunk(id="1", text="t", order=2, start_page=4, end_page=7),
+        ]
+
+        assert _generate_pages_postfix(chunks) == " : 3,4,5,6,7"
+
+    def test_zero_pages_are_filtered_out(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=0, end_page=2)]
+
+        assert _generate_pages_postfix(chunks) == " : 1,2"
+
+    def test_empty_chunks_list_returns_empty(self):
+        assert _generate_pages_postfix([]) == ""

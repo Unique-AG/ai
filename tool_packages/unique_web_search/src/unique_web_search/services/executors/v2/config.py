@@ -1,0 +1,54 @@
+from typing import Annotated, Literal
+
+from pydantic import Field, field_validator
+from pydantic.json_schema import SkipJsonSchema
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit.agentic.tools.config import get_configuration_dict
+
+from unique_web_search.services.executors.base_config import (
+    BaseWebSearchModeConfig,
+    WebSearchMode,
+)
+from unique_web_search.services.executors.v2.prompts import (
+    TOOL_DESCRIPTION,
+    TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+)
+from unique_web_search.services.helpers import clean_model_title_generator
+
+
+class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
+    model_config = get_configuration_dict(
+        model_title_generator=clean_model_title_generator
+    )
+    mode: SkipJsonSchema[Literal[WebSearchMode.V2]] = WebSearchMode.V2
+
+    max_steps: int = Field(
+        default=5,
+        title="Maximum Research Steps",
+        description="Maximum number of sequential actions (searches or page reads) the AI can perform in a single research plan.",
+    )
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=len(TOOL_DESCRIPTION.split("\n"))),
+    ] = Field(
+        default=TOOL_DESCRIPTION,
+        title="Tool Description",
+        description="Advanced: Description that helps the AI model decide when to use web search.",
+    )
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
+        ),
+    ] = Field(
+        default=TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        title="Tool Description For System Prompt",
+        description="Advanced: Detailed instructions for the AI model on how to plan and execute web research.",
+    )
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def validate_mode(cls, v: str) -> Literal["v2"]:
+        if "v2" in v.lower():
+            return "v2"
+        raise ValueError(f"Invalid mode: {v}")

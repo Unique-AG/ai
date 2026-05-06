@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
@@ -20,6 +18,7 @@ from unique_toolkit.language_model.schemas import (
 
 from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import UploadedSearchConfig
+from unique_internal_search.utils import extract_selected_uploaded_file_ids
 
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
@@ -43,6 +42,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             config, event, None, *args, **kwargs
         )
         self._internal_search_tool._display_name = self._display_name
+        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
         if isinstance(event, ChatEvent):
             self._user_query = event.payload.user_message.text
         else:
@@ -73,16 +73,22 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
 
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
-        now = datetime.now(timezone.utc)
+        if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
+            self._company_id
+        ):
+            documents = [
+                doc for doc in documents if doc.id in self._selected_uploaded_files
+            ]
 
-        valid_documents = [
-            doc for doc in documents if doc.expired_at is None or doc.expired_at > now
-        ]
-        expired_documents = [
-            doc
-            for doc in documents
-            if doc.expired_at is not None and doc.expired_at <= now
-        ]
+        valid_documents = []
+        expired_documents = []
+        for doc in documents:
+            if not doc.is_ingested(default_if_unknown=True):
+                continue
+            if doc.is_expired():
+                expired_documents.append(doc)
+            else:
+                valid_documents.append(doc)
 
         system_prompt_valid_documents = ""
         system_prompt_expired_documents = ""
@@ -92,7 +98,10 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             )
             system_prompt_valid_documents = (
                 system_prompt_valid_documents
-                + "\n".join(f"- {doc.title or doc.key}" for doc in valid_documents)
+                + "\n".join(
+                    f"- {doc.title or doc.key} (content_id: {doc.id})"
+                    for doc in valid_documents
+                )
                 + "\n"
             )
 
@@ -102,7 +111,10 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             )
             system_prompt_expired_documents = (
                 system_prompt_expired_documents
-                + "\n".join(f"- {doc.title or doc.key}" for doc in expired_documents)
+                + "\n".join(
+                    f"- {doc.title or doc.key} (content_id: {doc.id})"
+                    for doc in expired_documents
+                )
             )
 
         return self._config.tool_description_for_system_prompt.format(

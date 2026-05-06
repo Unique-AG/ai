@@ -170,10 +170,8 @@ def test_build_unique_custom_app__registers_health_check__at_root_path(
     mock_fastapi.return_value = mock_app
     # Act
     build_unique_custom_app(title="Test App", settings=base_settings)
-    # Assert
-    mock_app.get.assert_called_once_with(path="/")
-    # Verify the handler is registered
-    assert mock_app.get.call_count == 1
+    # Assert — app.get is called for both "/" and "/metrics" when monitoring is available
+    mock_app.get.assert_any_call(path="/")
 
 
 @pytest.mark.ai
@@ -186,6 +184,7 @@ async def test_health_check_endpoint__returns_healthy_status__with_service_name(
     Why this matters: Enables health monitoring and service identification.
     Setup summary: Create app, call health check endpoint, assert correct JSON response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     app = build_unique_custom_app(title="Test Service", settings=base_settings)
     # Act
@@ -248,6 +247,7 @@ async def test_webhook_handler__returns_401__when_signature_invalid(
     Why this matters: Prevents unauthorized access to webhook endpoint.
     Setup summary: Create app, mock invalid signature, send webhook request, assert 401 response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     mocker.patch(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
@@ -286,6 +286,7 @@ async def test_webhook_handler__returns_400__when_json_invalid(
     Why this matters: Provides clear error message for malformed requests.
     Setup summary: Create app, mock valid signature, send invalid JSON, assert 400 response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     mocker.patch(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
@@ -324,6 +325,7 @@ async def test_webhook_handler__returns_400__when_event_name_invalid(
     Why this matters: Prevents processing of unsupported event types.
     Setup summary: Create app, mock valid signature, send event with invalid name, assert 400 response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     mocker.patch(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
@@ -362,6 +364,7 @@ async def test_webhook_handler__returns_200__when_event_filtered(
     Why this matters: Ensures filtered events are handled gracefully without processing.
     Setup summary: Create app with filter options, mock valid signature and filtered event, assert 200 with filter message.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     filter_options = UniqueChatEventFilterOptions(
         assistant_ids=["other-assistant"], references_in_code=[]
@@ -397,3 +400,51 @@ async def test_webhook_handler__returns_200__when_event_filtered(
     # Assert
     assert response.status_code == 200
     assert "Event filtered out" in response.json()["error"]
+
+
+@pytest.mark.ai
+def test_build_unique_custom_app__registers_metrics_endpoint__when_monitoring_available(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Verify build_unique_custom_app registers a /metrics endpoint when prometheus_client is installed.
+    Why this matters: The /metrics endpoint is required for Prometheus scraping; missing it means no metrics are collected.
+    Setup summary: Build app with monitoring available, call /metrics, assert 200 with Prometheus content-type.
+    """
+    pytest.importorskip("fastapi")
+    pytest.importorskip("prometheus_client")
+
+    from fastapi.testclient import TestClient
+
+    app = build_unique_custom_app(title="Test Service", settings=base_settings)
+    client = TestClient(app)
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+
+
+@pytest.mark.ai
+def test_metrics_endpoint__returns_prometheus_format__bytes(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Verify /metrics endpoint returns valid Prometheus text exposition format.
+    Why this matters: Prometheus requires the specific text format to parse metrics; wrong format breaks scraping.
+    Setup summary: Build app, call /metrics, assert response body is non-empty text in Prometheus format.
+    """
+    pytest.importorskip("fastapi")
+    pytest.importorskip("prometheus_client")
+
+    from fastapi.testclient import TestClient
+
+    app = build_unique_custom_app(title="Test Service", settings=base_settings)
+    client = TestClient(app)
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    # Prometheus text format uses "# HELP" and "# TYPE" declarations
+    assert "# HELP" in response.text
+    assert "# TYPE" in response.text

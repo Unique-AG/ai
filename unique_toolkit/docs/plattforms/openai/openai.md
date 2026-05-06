@@ -167,7 +167,7 @@ Function calling enables agents and workflows to use tools. The below
 example shows how to define a function and how to pass it to the LLM.
 
 <!--
-```{python #tool_description_openai}
+```{.python #tool_description_openai}
 weather_tool_description_openai = ChatCompletionToolParam(
     function=FunctionDefinition(
         name="get_weather",

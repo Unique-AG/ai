@@ -16,6 +16,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
+    OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAIBuiltInToolManager,
@@ -48,8 +49,8 @@ class MockTool(Tool[MockToolConfig]):
 
     name = "mock_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -79,8 +80,8 @@ class MockExclusiveTool(Tool[MockToolConfig]):
 
     name = "exclusive_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -110,8 +111,8 @@ class MockControlTool(Tool[MockToolConfig]):
 
     name = "control_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -288,6 +289,37 @@ def test_responses_api_tool_manager__initializes__with_builtin_tools(
 
 
 @pytest.mark.ai
+def test_responses_api_tool_manager__get_required_include_params__delegates_to_builtin_manager(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """ResponsesApiToolManager forwards include params from OpenAIBuiltInToolManager."""
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
+    mock_builtin_manager.get_required_include_params.return_value = [
+        "code_interpreter_call.outputs",
+    ]
+    tool_manager = ResponsesApiToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+    assert tool_manager.get_required_include_params() == [
+        "code_interpreter_call.outputs",
+    ]
+    mock_builtin_manager.get_required_include_params.assert_called_once()
+
+
+@pytest.mark.ai
 def test_tool_manager__filters_disabled_tools__from_config(
     logger,
     base_event,
@@ -411,6 +443,62 @@ def test_tool_manager__filters_by_tool_choices__when_specified(
     assert "mock_tool" in tool_names
     assert "control_tool" not in tool_names
     assert len(tool_names) == 1
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__code_interpreter_always_available__when_tool_choices_specified(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """
+    Purpose: Verify code_interpreter is always included even when not in tool_choices.
+    Why this matters: Code execution tool should be always available alongside user-selected tools.
+    Setup summary: Set tool_choices to mock_tool only, include code_interpreter via builtin manager,
+    verify both mock_tool and code_interpreter are in loaded tools.
+    """
+    # Arrange
+    mock_builtin_tool = mocker.Mock(spec=OpenAIBuiltInTool)
+    mock_builtin_tool.name = OpenAIBuiltInToolName.CODE_INTERPRETER
+    mock_builtin_tool.is_enabled.return_value = True
+    mock_builtin_tool.is_exclusive.return_value = False
+
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
+
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    base_event.payload.tool_choices = ["mock_tool"]
+
+    # Act
+    tool_manager = ResponsesApiToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+
+    # Assert
+    tool_names = [t.name for t in tool_manager.get_tools()]
+    assert "mock_tool" in tool_names
+    assert OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+    assert len(tool_names) == 2
 
 
 @pytest.mark.ai
@@ -1930,3 +2018,310 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
 
     # Assert
     assert len(filtered) == 5
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__adds_execution_time_to_debug_info(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify execute_tool_call injects execution_time_s into debug_info.
+    Why this matters: Execution time tracking is critical for performance monitoring.
+    Setup summary: Execute a tool call and verify debug_info contains execution_time_s.
+    """
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    assert response.debug_info is not None
+    assert "execution_time_s" in response.debug_info
+    assert isinstance(response.debug_info["execution_time_s"], float)
+    assert response.debug_info["execution_time_s"] >= 0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__initializes_debug_info_when_none(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """
+    Purpose: Verify execute_tool_call creates debug_info dict when tool returns None.
+    Why this matters: Tools may not set debug_info, but execution time must always be recorded.
+    Setup summary: Mock tool to return None debug_info, verify dict is created with execution_time_s.
+    """
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    mock_tool = tool_manager.get_tool_by_name("mock_tool")
+    original_run = mock_tool.run
+
+    async def run_returning_none_debug(tool_call):
+        resp = await original_run(tool_call)
+        resp.debug_info = None
+        return resp
+
+    mocker.patch.object(mock_tool, "run", side_effect=run_returning_none_debug)
+
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    assert response.debug_info is not None
+    assert isinstance(response.debug_info, dict)
+    assert "execution_time_s" in response.debug_info
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__preserves_existing_debug_info(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """
+    Purpose: Verify execute_tool_call preserves existing debug_info keys from the tool.
+    Why this matters: Tools may set their own debug_info that must not be overwritten.
+    Setup summary: Mock tool to return debug_info with custom keys, verify they persist alongside execution_time_s.
+    """
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    mock_tool = tool_manager.get_tool_by_name("mock_tool")
+    original_run = mock_tool.run
+
+    async def run_with_custom_debug(tool_call):
+        resp = await original_run(tool_call)
+        resp.debug_info = {"custom_key": "custom_value", "chunks_found": 5}
+        return resp
+
+    mocker.patch.object(mock_tool, "run", side_effect=run_with_custom_debug)
+
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    assert response.debug_info["custom_key"] == "custom_value"
+    assert response.debug_info["chunks_found"] == 5
+    assert "execution_time_s" in response.debug_info
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__rounds_execution_time_to_three_decimals(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify execution_time_s is rounded to 3 decimal places.
+    Why this matters: Consistent precision for timing data.
+    Setup summary: Execute tool call and check decimal precision of execution_time_s.
+    """
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    time_value = response.debug_info["execution_time_s"]
+    parts = str(time_value).split(".")
+    if len(parts) == 2:
+        assert len(parts[1]) <= 3
+
+
+# --- Tests for add_tool, exclude_tool ---
+
+
+def test_tool_manager__add_tool__injects_external_tool(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is None
+
+    tool = MockTool(MockToolConfig(), base_event, tool_progress_reporter)
+    tm.add_tool(tool)
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+    assert any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__exclude_tool__excludes_from_all_lists(
+    logger, base_event, tool_config, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[tool_config], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+
+    result = tm.exclude_tool("mock_tool")
+
+    assert result is True
+    assert tm.get_tool_by_name("mock_tool") is None
+    assert not any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__exclude_tool__returns_false_for_missing(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    result = tm.exclude_tool("nonexistent")
+
+    assert result is False
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__exclude_tool__removes_builtin_from_all_lists(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+):
+    mock_builtin_tool = mocker.Mock(spec=OpenAIBuiltInTool)
+    mock_builtin_tool.name = OpenAIBuiltInToolName.CODE_INTERPRETER
+    mock_builtin_tool.is_enabled.return_value = True
+    mock_builtin_tool.is_exclusive.return_value = False
+
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
+
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ResponsesApiToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+
+    assert tm.get_tool_by_name(OpenAIBuiltInToolName.CODE_INTERPRETER) is not None
+
+    result = tm.exclude_tool(OpenAIBuiltInToolName.CODE_INTERPRETER)
+
+    assert result is True
+    assert tm.get_tool_by_name(OpenAIBuiltInToolName.CODE_INTERPRETER) is None
+    assert OpenAIBuiltInToolName.CODE_INTERPRETER not in [
+        tool.name for tool in tm.get_tools()
+    ]
+    filtered = tm.filter_tool_calls(
+        [
+            LanguageModelFunction(
+                id="call_1",
+                name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+                arguments={},
+            )
+        ],
+        ["openai_builtin"],
+    )
+    assert filtered == []

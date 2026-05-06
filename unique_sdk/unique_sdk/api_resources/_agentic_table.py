@@ -1,5 +1,6 @@
 from enum import StrEnum
 from typing import (
+    Any,
     Literal,
     NotRequired,
     TypedDict,
@@ -19,7 +20,7 @@ class AgenticTableSheetState(StrEnum):
 
 
 class LogDetail(TypedDict, total=False):
-    llmRequest: list[dict] | None
+    llmRequest: list[dict[str, Any]] | None
 
 
 class LogEntry(TypedDict):
@@ -28,32 +29,6 @@ class LogEntry(TypedDict):
     actorType: Literal["USER", "SYSTEM", "ASSISTANT", "TOOL"]
     messageId: NotRequired[str]
     details: NotRequired[LogDetail]
-
-
-class AgenticTableCell(TypedDict, total=False):
-    sheetId: str
-    rowOrder: int
-    columnOrder: int
-    rowLocked: bool
-    text: str
-    logEntries: list[LogEntry] | None
-
-
-class ColumnMetadataUpdateStatus(TypedDict, total=False):
-    status: bool
-    message: str | None
-
-
-class AgenticTableSheet(TypedDict):
-    sheetId: str
-    name: str
-    state: AgenticTableSheetState
-    chatId: str
-    createdBy: str
-    companyId: str
-    createdAt: str
-    magicTableRowCount: int
-    magicTableCells: NotRequired[list[AgenticTableCell]]
 
 
 class FilterTypes(StrEnum):
@@ -74,8 +49,11 @@ class CellRendererTypes(StrEnum):
 
 
 class MagicTableAction(StrEnum):
+    """Workflow action strings for `POST /magic-table/{tableId}/activity` (matches `MagicTableAgenticWorkflowAction`)."""
+
     DELETE_ROW = "DeleteRow"
     DELETE_COLUMN = "DeleteColumn"
+    INSERT_ROW = "InsertRow"
     UPDATE_CELL = "UpdateCell"
     ADD_QUESTION_TEXT = "AddQuestionText"
     ADD_META_DATA = "AddMetaData"
@@ -83,6 +61,7 @@ class MagicTableAction(StrEnum):
     SHEET_COMPLETED = "SheetCompleted"
     LIBRARY_SHEET_ROW_VERIFIED = "LibrarySheetRowVerified"
     SHEET_CREATED = "SheetCreated"
+    GENERATE_OVERVIEW = "GenerateOverview"
     RERUN_ROW = "RerunRow"
 
 
@@ -108,9 +87,79 @@ class AgreementStatus(StrEnum):
 
 
 class RowVerificationStatus(StrEnum):
-    NEED_REVIEW = "NEED_REVIEW"
+    """Row verification status for `POST .../rows/bulk-update-status` (matches `MagicTableRowStatus`)."""
+
+    NEEDS_REVIEW = "NEEDS_REVIEW"
     READY_FOR_VERIFICATION = "READY_FOR_VERIFICATION"
     VERIFIED = "VERIFIED"
+
+
+class MagicTableArtifactType(StrEnum):
+    """Artifact type for `POST /magic-table/{tableId}/artifact` (matches `MagicTableArtifactType`)."""
+
+    QUESTIONS = "QUESTIONS"
+    FULL_REPORT = "FULL_REPORT"
+    AGENTIC_REPORT = "AGENTIC_REPORT"
+
+
+class MagicTableMetadataEntry(TypedDict, total=False):
+    """Row or sheet metadata entry as returned by the public magic-table API."""
+
+    id: str
+    key: str
+    value: str
+    exactFilter: bool
+
+
+class AgenticTableCellMetaData(TypedDict, total=False):
+    """Per-cell metadata object (`metaData` on `AgenticTableCell`) when `includeCellMetaData` is used."""
+
+    selected: bool
+    selectionMethod: SelectionMethod
+    agreementStatus: AgreementStatus
+    rowOrder: int
+    columnOrder: int
+
+
+class _AgenticTableCellRequired(TypedDict):
+    rowOrder: int
+    columnOrder: int
+    text: str
+
+
+class AgenticTableCell(_AgenticTableCellRequired, total=False):
+    sheetId: str
+    rowLocked: bool
+    logEntries: list[LogEntry] | None
+    metaData: AgenticTableCellMetaData
+    rowMetadata: list[MagicTableMetadataEntry]
+
+
+class ColumnMetadataUpdateStatus(TypedDict, total=False):
+    status: bool
+    message: str | None
+
+
+class MagicTableActivityResponse(TypedDict):
+    """Response body from `POST /magic-table/{tableId}/activity` (publish activity)."""
+
+    status: bool
+
+
+class _AgenticTableSheetRequired(TypedDict):
+    sheetId: str
+    name: str
+    state: AgenticTableSheetState
+    createdBy: str
+    companyId: str
+    createdAt: str
+
+
+class AgenticTableSheet(_AgenticTableSheetRequired, total=False):
+    chatId: str
+    magicTableRowCount: int
+    magicTableCells: list[AgenticTableCell]
+    magicTableSheetMetadata: list[MagicTableMetadataEntry]
 
 
 class AgenticTable(APIResource["AgenticTable"]):
@@ -139,10 +188,10 @@ class AgenticTable(APIResource["AgenticTable"]):
 
     class SetArtifact(RequestOptions):
         tableId: str
-        name: str
         contentId: str
-        mimeType: str
-        artifactType: Literal["QUESTIONS", "FULL_REPORT"]
+        artifactType: MagicTableArtifactType
+        name: NotRequired[str]
+        mimeType: NotRequired[str]
 
     class UpdateSheet(RequestOptions):
         tableId: str
@@ -162,11 +211,15 @@ class AgenticTable(APIResource["AgenticTable"]):
         editable: NotRequired[bool]
 
     class GetSheetData(RequestOptions):
+        """Query params for `GET /magic-table/{tableId}` (public `2023-12-06`)."""
+
         tableId: str
         includeCells: NotRequired[bool]
         includeLogHistory: NotRequired[bool]
         includeRowCount: NotRequired[bool]
         includeCellMetaData: NotRequired[bool]
+        includeSheetMetadata: NotRequired[bool]
+        includeRowMetadata: NotRequired[bool]
         startRow: NotRequired[int]
         endRow: NotRequired[int]
 
@@ -182,6 +235,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         tableId: str
         rowOrders: list[int]
         status: RowVerificationStatus
+        locked: NotRequired[bool]
 
     @classmethod
     async def set_cell(
@@ -194,7 +248,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/cell"
         return cast(
             "AgenticTableCell",
-            cls._static_request(
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,
@@ -232,12 +286,11 @@ class AgenticTable(APIResource["AgenticTable"]):
         user_id: str,
         company_id: str,
         **params: Unpack["AgenticTable.SetActivityStatus"],
-    ) -> "AgenticTableCell":
-        """ """
+    ) -> MagicTableActivityResponse:
         url = f"/magic-table/{params['tableId']}/activity"
         return cast(
-            "AgenticTableCell",
-            cls._static_request(
+            MagicTableActivityResponse,
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,
@@ -252,12 +305,11 @@ class AgenticTable(APIResource["AgenticTable"]):
         user_id: str,
         company_id: str,
         **params: Unpack["AgenticTable.SetArtifact"],
-    ) -> "AgenticTableCell":
-        """ """
+    ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{params['tableId']}/artifact"
         return cast(
-            "AgenticTableCell",
-            cls._static_request(
+            ColumnMetadataUpdateStatus,
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,
@@ -276,7 +328,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}"
         return cast(
             "AgenticTable.UpdateSheetResponse",
-            cls._static_request("post", url, user_id, company_id, params),
+            await cls._static_request_async("post", url, user_id, company_id, params),
         )
 
     @classmethod
@@ -289,7 +341,9 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/column/metadata"
         # Remove tableId from params
         params.pop("tableId")
-        response = cls._static_request("post", url, user_id, company_id, params)
+        response = await cls._static_request_async(
+            "post", url, user_id, company_id, params
+        )
         return cast(
             ColumnMetadataUpdateStatus,
             response,
@@ -305,7 +359,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}"
         return cast(
             AgenticTableSheet,
-            cls._static_request("get", url, user_id, company_id, params),
+            await cls._static_request_async("get", url, user_id, company_id, params),
         )
 
     @classmethod
@@ -330,7 +384,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/cell/metadata"
         return cast(
             "ColumnMetadataUpdateStatus",
-            cls._static_request("post", url, user_id, company_id, params),
+            await cls._static_request_async("post", url, user_id, company_id, params),
         )
 
     @classmethod
@@ -342,7 +396,6 @@ class AgenticTable(APIResource["AgenticTable"]):
         cells: list[AgenticTableCell],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
-        # Map AgenticTableCell to PublicAgenticTableCellDto
         try:
             params_api = {
                 "cells": [
@@ -358,7 +411,9 @@ class AgenticTable(APIResource["AgenticTable"]):
             raise ValueError(f"Invalid data or missing required fields: {e}")
         return cast(
             "ColumnMetadataUpdateStatus",
-            cls._static_request("post", url, user_id, company_id, params=params_api),
+            await cls._static_request_async(
+                "post", url, user_id, company_id, params=params_api
+            ),
         )
 
     @classmethod
@@ -371,7 +426,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/rows/bulk-update-status"
         return cast(
             "ColumnMetadataUpdateStatus",
-            cls._static_request(
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,

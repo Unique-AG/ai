@@ -44,6 +44,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_history_manager = MagicMock()
     mock_history_manager._append_tool_calls_to_history = MagicMock()
     mock_history_manager.add_tool_call_results = MagicMock()
+    mock_history_manager.extract_message_tools.return_value = []
 
     mock_reference_manager = MagicMock()
     mock_reference_manager.extract_referenceable_chunks = MagicMock()
@@ -51,7 +52,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
 
     mock_thinking_manager = MagicMock()
     mock_debug_info_manager = MagicMock()
-    mock_debug_info_manager.get.return_value = {}
+    mock_debug_info_manager.get.return_value = {"tools": []}
     mock_debug_info_manager.extract_tool_debug_info = MagicMock()
 
     mock_tool_manager = MagicMock()
@@ -70,7 +71,13 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
         def is_empty(self):
             return False
 
+    mock_cancellation = MagicMock()
+    mock_cancellation.is_cancelled = False
+    mock_cancellation.on_cancellation.subscribe = MagicMock(return_value=MagicMock())
+    mock_cancellation.check_cancellation_async = AsyncMock(return_value=False)
+
     mock_chat_service = MagicMock()
+    mock_chat_service.cancellation = mock_cancellation
     mock_chat_service.complete_with_references_async = AsyncMock(
         return_value=DummyStreamResponse()
     )
@@ -78,6 +85,8 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_chat_service.create_assistant_message_async = AsyncMock(
         return_value=MagicMock(id="assist_new")
     )
+    mock_chat_service.get_debug_info_async = AsyncMock(return_value={})
+    mock_chat_service.update_debug_info_async = AsyncMock(return_value=None)
     mock_content_service = MagicMock()
     mock_history_manager.get_history_for_model_call = AsyncMock(
         return_value=MagicMock()
