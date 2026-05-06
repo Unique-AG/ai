@@ -218,9 +218,15 @@ class Correlation(BaseModel):
 class ChatEventSkillChoice(BaseModel):
     model_config = model_config
 
-    scope_id: str = ""
-    content_id: str = ""
-    name: str = ""
+    name: str = Field(default="", description="Skill name.")
+    scope_id: str = Field(
+        default="",
+        description="Knowledge base scope ID that contains the skill file.",
+    )
+    content_id: str = Field(
+        default="",
+        description="Knowledge base content ID of the ``SKILL.md`` file.",
+    )
 
 
 class ChatEventPayload(BaseModel):

@@ -138,7 +138,7 @@ class UniqueAI:
         self._chat_service = chat_service
         self._content_service = content_service
         self._uploaded_documents = uploaded_documents or []
-        self._skill_choices = event.payload.skill_choices
+        self._skill_choices = getattr(event.payload, "skill_choices", [])
 
         self._debug_info_manager = debug_info_manager
         self._reference_manager = reference_manager
