@@ -9,12 +9,8 @@ from unique_mcp.meta.keys import (
     CONTEXT_REQUIREMENTS_META_KEY,
     MetaKeys,
 )
-from unique_mcp.meta.tool import (
-    ConfigSchemaMeta,
-    _config_env_key,
-    get_tool_config,
-    merge_tool_meta,
-)
+from unique_mcp.meta.part import merge_tool_meta
+from unique_mcp.meta.tool import ConfigSchemaMeta, _config_env_key, get_tool_config
 
 
 @pytest.mark.ai

@@ -9,7 +9,6 @@ from pydantic import BaseModel
 from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
 
 from unique_mcp.meta.keys import CONFIG_META_KEY, CONFIG_SCHEMA_META_KEY
-from unique_mcp.meta.part import MetaPart
 
 _T = TypeVar("_T", bound=BaseModel)
 
@@ -30,26 +29,6 @@ class ConfigSchemaMeta:
                 mode="json", by_alias=True
             ),
         }
-
-
-def merge_tool_meta(
-    base: dict[str, Any] | None,
-    *parts: MetaPart,
-) -> dict[str, Any]:
-    """Merge base meta with zero or more MetaPart contributions.
-
-    Args:
-        base: Existing meta dict (e.g. ``{"unique.app/icon": "search"}``).
-        *parts: Any number of :class:`MetaPart` instances; each contributes
-            one key to the merged dict.
-
-    Returns:
-        New dict — ``base`` is never mutated.
-    """
-    out: dict[str, Any] = dict(base or {})
-    for part in parts:
-        part.merge_into_meta(out)
-    return out
 
 
 def _config_env_key(server_name: str, config_model: type) -> str:
@@ -98,5 +77,4 @@ def get_tool_config(config_model: type[_T]) -> _T:
 __all__ = [
     "ConfigSchemaMeta",
     "get_tool_config",
-    "merge_tool_meta",
 ]

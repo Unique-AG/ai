@@ -6,8 +6,8 @@ from unique_mcp.meta.keys import (
     META_FLAT_ALIASES,
     MetaKeys,
 )
-from unique_mcp.meta.part import MetaPart
-from unique_mcp.meta.tool import ConfigSchemaMeta, get_tool_config, merge_tool_meta
+from unique_mcp.meta.part import MetaPart, merge_tool_meta
+from unique_mcp.meta.tool import ConfigSchemaMeta, get_tool_config
 
 __all__ = [
     "CONTEXT_REQUIREMENTS_META_KEY",
