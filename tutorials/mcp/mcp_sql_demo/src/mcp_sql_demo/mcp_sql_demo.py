@@ -1,23 +1,23 @@
+import os
+import sys
 from pathlib import Path
 from typing import Annotated
 
-import httpx
+import requests
 from dotenv import load_dotenv
 from fastapi.responses import FileResponse, JSONResponse
 from fastmcp import FastMCP
-from fastmcp.dependencies import Depends
+from fastmcp.server.auth.oauth_proxy import OAuthProxy
+from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
+from fastmcp.server.dependencies import get_access_token
+from key_value.aio.stores.postgresql import PostgreSQLStore
 from pydantic import Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
-from mcp_sql_demo.db_tool_pm.service import PMPositionsTool
-from unique_mcp import get_unique_settings, get_unique_userinfo
-from unique_mcp.auth.zitadel.oauth_proxy import (
-    ZitadelOAuthProxySettings,
-    create_zitadel_oauth_proxy,
-)
-from unique_mcp.settings import ServerSettings
+import unique_sdk
+from db_tool_pm.service import PMPositionsTool
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.app.schemas import (
     ChatEvent,
@@ -25,21 +25,8 @@ from unique_toolkit.app.schemas import (
     ChatEventPayload,
     ChatEventUserMessage,
 )
-from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.language_model.schemas import LanguageModelFunction
-import unique_sdk
-from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
-from fastmcp.server.auth.oauth_proxy import OAuthProxy
-from key_value.aio.stores.postgresql import PostgreSQLStore
-from typing import Annotated
-from pydantic import Field
-from pathlib import Path
-from dotenv import load_dotenv
-from db_tool_pm.service import PMPositionsTool
-import os
 
-
-# Load environment variables from .env file
 load_dotenv()
 
 user_id = os.getenv("USER_ID", "default_user_id")
@@ -53,8 +40,6 @@ upstream_client_id = os.getenv("UPSTREAM_CLIENT_ID", "default_client_id")
 upstream_client_secret = os.getenv("UPSTREAM_CLIENT_SECRET", "default_client_secret")
 
 base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
-
-
 base_url_arg = sys.argv[1] if len(sys.argv) > 1 else base_url_env
 
 _pg_client_storage_url = os.getenv("PG_CLIENT_STORAGE_URL")
@@ -105,7 +90,6 @@ auth = OAuthProxy(
     client_storage=_client_storage,
 )
 
-
 custom_middleware = [
     Middleware(
         CORSMiddleware,
@@ -116,12 +100,11 @@ custom_middleware = [
     )
 ]
 
-
-chatEvent = ChatEvent(
+_PLACEHOLDER_EVENT = ChatEvent(
     event="user_message_created",
     id="event_id",
-    user_id="placeholder",
-    company_id="placeholder",
+    user_id=user_id,
+    company_id=company_id,
     payload=ChatEventPayload(
         assistant_id="assistant_xkpx89hstyjqrudl4dftiryc",
         chat_id="chat_id",
@@ -139,7 +122,7 @@ chatEvent = ChatEvent(
     ),
 )  # type: ignore
 
-tool = ToolFactory.build_tool("PM_Positions", {}, chatEvent)
+tool = ToolFactory.build_tool("PM_Positions", {}, _PLACEHOLDER_EVENT)
 
 mcp = FastMCP("Demo 🚀", auth=auth)
 
@@ -156,9 +139,9 @@ def get_user():
 
 
 @mcp.tool(
-    name=tool.name,  # Custom tool name for the LLM
-    title=tool.display_name(),  # Custom display name
-    description=tool.tool_description().description,  # Custom description
+    name=tool.name,
+    title=tool.display_name(),
+    description=tool.tool_description().description,
     meta={
         "unique.app/icon": "database-backup",
         "unique.app/system-prompt": tool.tool_description_for_system_prompt()
@@ -179,33 +162,37 @@ async def search_in_database(
     print("user", user)
     email = os.getenv("PM_POSITIONS_EMAIL") or user.get("email", "alice@alphabet.example")
 
-        per_request_event = ChatEvent(
-            event="user_message_created",
-            id="event_id",
-            user_id=user_id,
-            company_id=company_id,
-            payload=_PLACEHOLDER_EVENT.payload,
-        )  # type: ignore
-        tool = ToolFactory.build_tool("PM_Positions", {}, per_request_event)
+    per_request_event = ChatEvent(
+        event="user_message_created",
+        id="event_id",
+        user_id=user_id,
+        company_id=company_id,
+        payload=_PLACEHOLDER_EVENT.payload,
+    )  # type: ignore
+    tool = ToolFactory.build_tool("PM_Positions", {}, per_request_event)
 
-        tool_call = LanguageModelFunction(
-            id="unique_id",  # type: ignore
-            name=tool.name,
-            arguments={"search_string": query, "email": email},  # type: ignore
-        )
+    tool_call = LanguageModelFunction(
+        id="unique_id",  # type: ignore
+        name=tool.name,
+        arguments={"search_string": query, "email": email},  # type: ignore
+    )
 
-        result = await tool.run(tool_call)
-        return result.content
+    result = await tool.run(tool_call)
+    return result.content
 
-    @mcp.custom_route("/", methods=["GET"])
-    async def get_status(request: Request):
-        return JSONResponse({"server": "running"})
 
-    @mcp.custom_route("/favicon.ico", methods=["GET"])
-    async def favicon(request: Request):
-        FAVICON_PATH = Path(__file__).parent / "favicon.ico"
-        return FileResponse(FAVICON_PATH)
+@mcp.custom_route("/", methods=["GET"])
+async def get_status(request: Request):
+    return JSONResponse({"server": "running"})
 
+
+@mcp.custom_route("/favicon.ico", methods=["GET"])
+async def favicon(request: Request):
+    FAVICON_PATH = Path(__file__).parent / "favicon.ico"
+    return FileResponse(FAVICON_PATH)
+
+
+def main():
     mcp.run(
         transport="http",
         host="0.0.0.0",

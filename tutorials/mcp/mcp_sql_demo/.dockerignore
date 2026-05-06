@@ -7,5 +7,5 @@ __pycache__
 docker_compose.yaml
 .cursor
 .vscode
-deploy.sh
+deploy_pg.sh
 secrets.sh

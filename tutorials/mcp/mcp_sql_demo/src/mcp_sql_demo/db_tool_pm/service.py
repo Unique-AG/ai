@@ -1,12 +1,10 @@
 import logging
 import os
+import re
 
 import psycopg2
 from dotenv import load_dotenv
 from psycopg2.extras import RealDictCursor
-from pydantic import Field, create_model
-from typing_extensions import override
-
 from pydantic import Field, create_model
 from typing_extensions import override
 
@@ -25,12 +23,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
-
-from unique_toolkit.language_model.infos import (
-    LanguageModelName,
-)
-
-from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 from db_tool_pm.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
@@ -155,9 +147,13 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
 
         base_sql = f"SELECT * FROM (SELECT * FROM {TABLE_NAME} WHERE email = %s) AS tmp {where_clause}"
         print(base_sql, [email])
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            rows = cur.fetchall()
+        conn.set_session(readonly=True)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(base_sql, (email,))
+                rows = cur.fetchall()
+        finally:
+            conn.set_session(readonly=False)
         for r in rows:
             print(" | ".join(str(x) if x is not None else "" for x in r))
         return rows
