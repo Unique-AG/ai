@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from logging import Logger
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
@@ -204,3 +204,66 @@ class TestConfigureSkillTool:
 
         tool_manager.exclude_tool.assert_called_once_with(SkillTool.name)
         tool_manager.get_tool_by_name.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enabled_with_selectables_and_empty_registry_excludes_tool(
+        self, logger: Logger
+    ) -> None:
+        selectable_skills = [SelectableSkill(content_id="cid-1", name="Skill 1")]
+        config = self._build_config(
+            is_enabled=True, selectable_skills=selectable_skills
+        )
+        tool_manager = MagicMock()
+        content_service = MagicMock()
+
+        with patch(
+            "unique_orchestrator._builders.skill_setup.load_selectable_skills",
+            new=AsyncMock(return_value={}),
+        ) as mock_load_selectable_skills:
+            await configure_skill_tool(
+                config=config,
+                logger=logger,
+                content_service=content_service,
+                tool_manager=tool_manager,
+            )
+
+        mock_load_selectable_skills.assert_awaited_once_with(
+            content_service=content_service,
+            selectable_skills=selectable_skills,
+            logger=logger,
+        )
+        tool_manager.exclude_tool.assert_called_once_with(SkillTool.name)
+        tool_manager.get_tool_by_name.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_enabled_with_selectables_populates_tool_registry(
+        self, logger: Logger
+    ) -> None:
+        selectable_skills = [SelectableSkill(content_id="cid-1", name="Skill 1")]
+        config = self._build_config(
+            is_enabled=True, selectable_skills=selectable_skills
+        )
+        content_service = MagicMock()
+        tool_manager = MagicMock()
+        skill_tool = self._make_skill_tool()
+        tool_manager.get_tool_by_name.return_value = skill_tool
+        expected_registry = {"foo": _make_skill("foo", content="skill content")}
+
+        with patch(
+            "unique_orchestrator._builders.skill_setup.load_selectable_skills",
+            new=AsyncMock(return_value=expected_registry),
+        ) as mock_load_selectable_skills:
+            await configure_skill_tool(
+                config=config,
+                logger=logger,
+                content_service=content_service,
+                tool_manager=tool_manager,
+            )
+
+        mock_load_selectable_skills.assert_awaited_once_with(
+            content_service=content_service,
+            selectable_skills=selectable_skills,
+            logger=logger,
+        )
+        assert skill_tool.skill_registry == expected_registry
+        tool_manager.exclude_tool.assert_not_called()
