@@ -1,4 +1,4 @@
--- PostgreSQL schema and seed data for pm_positions (same data as SQLite).
+-- PostgreSQL schema and seed data for pm_positions.
 -- Database must already exist (e.g. created by az postgres flexible-server db create).
 -- Idempotent: safe to run multiple times.
 
@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS pm_positions (
 
 -- Seed data. ON CONFLICT DO NOTHING skips rows that would violate the primary key,
 -- so this script can be run multiple times without errors (idempotent).
--- Same rows as create_table_sqlite.sql.
 INSERT INTO pm_positions (row_num, sleeve, ticker, instrument, direction, target_weight, position_mm, email) VALUES
 (1, 'Equity Long', 'MSFT', 'Microsoft', 'Long', 0.05, 100, 'alice@alphabet.example'),
 (2, 'Equity Long', 'JNJ', 'Johnson & Johnson', 'Long', 0.04, 80, 'alice@alphabet.example'),

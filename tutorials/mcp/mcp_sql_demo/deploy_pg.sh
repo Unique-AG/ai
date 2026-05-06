@@ -101,7 +101,6 @@ az webapp config set -n "$APP" -g "$RG" --always-on true
 echo "[8/8] App settings..."
 PG_URL="postgresql://${PG_ADMIN_USER}:${PG_ADMIN_PASSWORD}@${PG_FQDN}:5432/${PG_DB}?sslmode=require"
 az webapp config appsettings set -n "$APP" -g "$RG" --settings \
-  DB_TYPE=postgres \
   PGHOST="$PG_FQDN" \
   PGPORT=5432 \
   PGDATABASE="$PG_DB" \

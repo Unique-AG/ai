@@ -19,7 +19,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 import unique_sdk
-from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from key_value.aio.stores.postgresql import PostgreSQLStore
 from typing import Annotated
@@ -48,30 +48,24 @@ base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
 
 base_url_arg = sys.argv[1] if len(sys.argv) > 1 else base_url_env
 
-# OAuth client_storage: use PG_CLIENT_STORAGE_URL if set (deploy_pg.sh sets this with sslmode=require),
-# else when DB_TYPE=postgres build URL from PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD (local dev).
-_db_type = os.getenv("DB_TYPE", "sqlite")
 _pg_client_storage_url = os.getenv("PG_CLIENT_STORAGE_URL")
 if _pg_client_storage_url:
-    _client_storage: PostgreSQLStore | None = PostgreSQLStore(url=_pg_client_storage_url)
-elif _db_type == "postgres":
+    _client_storage = PostgreSQLStore(url=_pg_client_storage_url)
+else:
     _pg_user = os.getenv("PGUSER", "postgres")
     _pg_password = os.getenv("PGPASSWORD", "postgres")
     _pg_host = os.getenv("PGHOST", "localhost")
-    _pg_port = os.getenv("PGPORT", "10110")
-    _pg_database = os.getenv("PGDATABASE", "testdb")
+    _pg_port = os.getenv("PGPORT", "5432")
+    _pg_database = os.getenv("PGDATABASE", "mcpdb")
     _client_storage = PostgreSQLStore(
         url=f"postgresql://{_pg_user}:{_pg_password}@{_pg_host}:{_pg_port}/{_pg_database}"
     )
-else:
-    _client_storage = None
 
-token_verifier = JWTVerifier(
-    jwks_uri=f"{ZITADEL_URL}/oauth/v2/keys",
-    issuer=f"{ZITADEL_URL}",
-    algorithm=None,
-    audience=None,
-    # required_scopes=[],
+token_verifier = IntrospectionTokenVerifier(
+    introspection_url=f"{ZITADEL_URL}/oauth/v2/introspect",
+    client_id=upstream_client_id,
+    client_secret=upstream_client_secret,
+    client_auth_method="client_secret_basic",
 )
 
 auth = OAuthProxy(
