@@ -101,17 +101,6 @@ class SkillToolConfig(BaseToolConfig):
         description="The description of the 'arguments' parameter.",
     )
 
-    scope_ids: list[str] = Field(
-        default_factory=list,
-        title="Scope IDs",
-        description=(
-            "Knowledge base scope IDs to load skills from. Each scope "
-            "acts as a subtree root — every ``SKILL.md`` reachable "
-            "under it (at any depth) is loaded. Top-level and nested "
-            "folder scope IDs are both supported."
-        ),
-    )
-
     selectable_skills: Annotated[
         SkillSelection,
         RJSFMetaTag.CustomWidget.custom(CustomWidgetName.SKILLS_PICKER),

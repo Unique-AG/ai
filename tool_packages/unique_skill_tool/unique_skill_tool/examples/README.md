@@ -14,17 +14,6 @@ official Agent Skills protocol — see
   ...               (optional: appearance and dependencies)
 ```
 
-To use them:
-
-1. Create one or more **scopes** in the knowledge base (or use existing ones).
-2. Upload each example **folder** into a scope, preserving the folder
-   structure (`<skill-name>/SKILL.md`). Sub-folders are not traversed
-   automatically — add each sub-folder's scope ID to `scope_ids` if you
-   want its skills loaded.
-3. Add every scope ID to `skill_tool_config.scope_ids` in the space
-   configuration (the field accepts a list — click "Add Item" for each).
-4. Set `skill_tool_config.enabled` to `true`.
-
 Only files whose basename is `SKILL.md` are registered as skills. Other
 markdown files in the same folder (`README.md`, `references/*.md`, etc.)
 are treated as assets, not separate skills.

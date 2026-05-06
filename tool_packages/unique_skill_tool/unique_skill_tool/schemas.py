@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
 SKILL_NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 SKILL_NAME_MAX_LENGTH = 64
@@ -9,12 +10,12 @@ SKILL_NAME_MAX_LENGTH = 64
 class SelectableSkill(BaseModel):
     """A specific skill file selected by reference from the knowledge base.
 
-    Used alongside ``scope_ids`` to let operators pin individual
-    ``SKILL.md`` files instead of (or in addition to) loading every
-    skill under a scope. Each entry resolves to exactly one knowledge
-    base document via its ``content_id``; ``scope_id`` scopes the
-    lookup so access is explicit, and ``name`` is the skill file's own frontmatter name.
+    Each entry resolves to exactly one knowledge base document via its
+    ``content_id``; ``scope_id`` scopes the lookup so access is explicit,
+    and ``name`` is the skill file's own frontmatter name.
     """
+
+    model_config = get_configuration_dict()
 
     name: str = Field(
         default="",
@@ -38,6 +39,8 @@ class SkillDefinition(BaseModel):
     the full ``content`` is only returned when the skill is actually
     invoked.
     """
+
+    model_config = get_configuration_dict()
 
     name: str = Field(
         description=(
