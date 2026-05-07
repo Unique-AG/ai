@@ -73,7 +73,9 @@ def test_add_sub_agent_references_in_place__preserves_existing_refs__when_no_sub
 
 
 @pytest.mark.ai
-def test_add_sub_agent_references_in_place__handles_none_references__without_error() -> None:
+def test_add_sub_agent_references_in_place__handles_none_references__without_error() -> (
+    None
+):
     """
     Purpose: Verify the function tolerates message.references being None.
     Why this matters: ChatMessage.references is Optional; the seeding step must coerce
