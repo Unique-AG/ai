@@ -12,21 +12,21 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-04-23T12:09:42.099923223Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-langchain-core = "2026-04-17T22:00:00Z"
+langchain-core = "2026-04-18T00:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-mcp = false
-authlib = "2026-04-17T22:00:00Z"
-litellm = "2026-04-27T22:00:00Z"
+authlib = "2026-04-18T00:00:00Z"
+litellm = "2026-04-28T00:00:00Z"
 unique-orchestrator = false
 unique-follow-up-questions = false
-langsmith = "2026-04-15T22:00:00Z"
+langsmith = "2026-04-16T00:00:00Z"
 unique-six = false
 unique-quartr = false
 unique-web-search = false
@@ -5069,8 +5069,8 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 dependencies = [
-    { name = "markdown-it-py" },
-    { name = "pygments" },
+    { name = "markdown-it-py", marker = "extra == 'group-11-ai-monorepo-dev' or extra != 'group-11-ai-monorepo-docs'" },
+    { name = "pygments", marker = "extra == 'group-11-ai-monorepo-dev' or extra != 'group-11-ai-monorepo-docs'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36", size = 230680, upload-time = "2026-04-12T08:24:00.75Z" }
 wheels = [
@@ -5812,7 +5812,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "2026.20.0.dev14"
+version = "2026.20.0.dev15"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5856,7 +5856,7 @@ dev = []
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "2026.20.0.dev14"
+version = "2026.20.0.dev15"
 source = { editable = "postprocessors/unique_follow_up_questions" }
 dependencies = [
     { name = "jinja2" },
@@ -5882,7 +5882,7 @@ dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"
-version = "2026.20.0.dev14"
+version = "2026.20.0.dev17"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic", version = "2.12.5", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
@@ -5903,7 +5903,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "2026.20.0.dev15"
+version = "2026.20.0.dev16"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5930,7 +5930,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "2026.20.0.dev20"
+version = "2026.20.0.dev27"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5974,7 +5974,7 @@ dev = []
 
 [[package]]
 name = "unique-quartr"
-version = "2026.20.0.dev14"
+version = "2026.20.0.dev15"
 source = { editable = "connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -6001,7 +6001,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "2026.20.0.dev21"
+version = "2026.20.0.dev25"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp", version = "3.13.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
@@ -6074,7 +6074,7 @@ dev = []
 
 [[package]]
 name = "unique-six"
-version = "2026.20.0.dev14"
+version = "2026.20.0.dev15"
 source = { editable = "connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -6108,7 +6108,7 @@ dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
 name = "unique-skill-tool"
-version = "2026.20.0.dev16"
+version = "2026.20.0.dev25"
 source = { editable = "tool_packages/unique_skill_tool" }
 dependencies = [
     { name = "jinja2" },
@@ -6129,7 +6129,7 @@ dev = []
 
 [[package]]
 name = "unique-stock-ticker"
-version = "2026.20.0.dev14"
+version = "2026.20.0.dev15"
 source = { editable = "postprocessors/unique_stock_ticker" }
 dependencies = [
     { name = "numerize" },
@@ -6162,7 +6162,7 @@ dev = []
 
 [[package]]
 name = "unique-swot"
-version = "2026.20.0.dev15"
+version = "2026.20.0.dev16"
 source = { editable = "tool_packages/unique_swot" }
 dependencies = [
     { name = "jinja2" },
@@ -6189,7 +6189,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "2026.20.0.dev24"
+version = "2026.20.0.dev31"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp", version = "3.13.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
@@ -6287,7 +6287,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "2026.20.0.dev16"
+version = "2026.20.0.dev18"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
