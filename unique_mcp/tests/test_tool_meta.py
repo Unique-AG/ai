@@ -94,6 +94,17 @@ def test_config_schema_meta_emits_canonical_key() -> None:
 
 
 @pytest.mark.ai
+def test_config_schema_meta_required_fields_raises_type_error() -> None:
+    """Models with required fields are rejected immediately at construction time."""
+
+    class StrictConfig(BaseModel):
+        required_field: str  # no default — must be rejected
+
+    with pytest.raises(TypeError, match="StrictConfig.*required_field"):
+        ConfigSchemaMeta(StrictConfig)
+
+
+@pytest.mark.ai
 def test_config_schema_meta_explicit_key_transform() -> None:
     from pydantic.alias_generators import to_camel
 

@@ -20,6 +20,17 @@ class ConfigSchemaMeta:
         *,
         key_transform: Callable[[str], str] | None = None,
     ) -> None:
+        required = [
+            name
+            for name, field in config_model.model_fields.items()
+            if field.is_required()
+        ]
+        if required:
+            raise TypeError(
+                f"{config_model.__name__} has required fields without defaults: "
+                f"{required}. Every field in a ConfigSchemaMeta model must have a "
+                "default so the host can build a starting config for the admin UI."
+            )
         self.config_model = config_model
         self._key_transform = key_transform
 
