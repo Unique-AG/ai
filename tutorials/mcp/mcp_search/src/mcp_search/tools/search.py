@@ -17,7 +17,6 @@ from fastmcp.tools import tool
 from mcp.types import CallToolResult, TextContent
 from mcp_search.config import SearchToolConfig
 from pydantic import Field
-from pydantic.alias_generators import to_camel
 
 from unique_mcp import (
     ConfigSchemaMeta,
@@ -45,7 +44,7 @@ _META = merge_tool_meta(
     ContextRequirements(
         required=[MetaKeys.USER_ID, MetaKeys.COMPANY_ID],
     ),
-    ConfigSchemaMeta(SearchToolConfig, key_transform=to_camel),
+    ConfigSchemaMeta(SearchToolConfig),
 )
 
 
