@@ -173,7 +173,7 @@ class SkillTool(Tool[SkillToolConfig]):
 
     async def _log_skill_loaded(self, *, skill_name: str) -> MessageLog | None:
         """Emit a completed message log entry for the loaded skill."""
-        progress_message = f"Loaded skill `{skill_name}`"
+        progress_message = f"Using /{skill_name} skill"
 
         try:
             return await self._message_step_logger.create_or_update_message_log_async(
