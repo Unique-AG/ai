@@ -6,7 +6,6 @@ from typing_extensions import override
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
-from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import (
     UploadedSearchConfig,
 )
@@ -417,12 +416,6 @@ async def _build_responses(
     if not config.agent.experimental.open_file_tool_config.enabled:
         if not has_tool_choices and has_valid_uploaded_documents:
             tool_manager.add_forced_tool(UploadedSearchTool.name)
-        _reinstate_uploaded_search_alongside_internal_search(
-            tool_manager=tool_manager,
-            common_components=common_components,
-            event=event,
-            has_valid_uploaded_documents=has_valid_uploaded_documents,
-        )
 
     agent_file_registry: list[str] = []
     if config.agent.experimental.open_file_tool_config.enabled:
@@ -516,12 +509,6 @@ async def _build_completions(
     )
     if not has_tool_choices and has_valid_uploaded_documents:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
-    _reinstate_uploaded_search_alongside_internal_search(
-        tool_manager=tool_manager,
-        common_components=common_components,
-        event=event,
-        has_valid_uploaded_documents=has_valid_uploaded_documents,
-    )
 
     await configure_skill_tool(
         config=config,
@@ -572,42 +559,6 @@ async def _build_completions(
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
     )
-
-
-def _reinstate_uploaded_search_alongside_internal_search(
-    tool_manager: ToolManager | ResponsesApiToolManager,
-    common_components: _CommonComponents,
-    event: ChatEvent,
-    has_valid_uploaded_documents: bool,
-) -> None:
-    """Restore ``UploadedSearch`` when an exclusive ``InternalSearch`` swallowed it.
-
-    The carve-out is intentionally narrow: only when ``InternalSearch`` is
-    the exclusive winner do we re-attach ``UploadedSearch``. Other exclusive
-    tools (``DeepResearch``, ``SwotAnalysis``, ...) keep their original
-    sole-tool semantics.
-
-    The helper is a no-op when:
-    - there are no valid uploaded documents (nothing to search anyway),
-    - ``UploadedSearch`` is already loaded (the common path), or
-    - ``InternalSearch`` is not present in the loaded tools (some other
-      exclusive winner, or no exclusive winner at all).
-    """
-    if not has_valid_uploaded_documents:
-        return
-
-    loaded_names = {tool.name for tool in tool_manager.get_tools()}
-    if UploadedSearchTool.name in loaded_names:
-        return
-    if InternalSearchTool.name not in loaded_names:
-        return
-
-    uploaded_search_tool = UploadedSearchTool(
-        config=UploadedSearchConfig(),
-        event=event,
-        tool_progress_reporter=common_components.tool_progress_reporter,
-    )
-    tool_manager.add_tool(uploaded_search_tool)
 
 
 def _configure_uploaded_search_tool(
