@@ -3,7 +3,7 @@ import os
 
 from fastmcp import Client
 
-from mcp_search.config import KBSearchConfig, SearchToolConfig
+from mcp_search.config import SearchToolConfig
 from unique_mcp.meta.keys import CONFIG_META_KEY, MetaKeys
 
 MCP_URL = os.environ.get("MCP_SEARCH_URL", "http://localhost:8003/mcp")
@@ -12,9 +12,7 @@ MCP_URL = os.environ.get("MCP_SEARCH_URL", "http://localhost:8003/mcp")
 SEARCH_ARGS = {"search_string": "what is unique?"}
 
 # Optional: override config injected by the host (useful for local testing).
-_CONFIG_OVERRIDE = SearchToolConfig(
-    service_config=KBSearchConfig(),
-).model_dump(mode="json", by_alias=True)
+_CONFIG_OVERRIDE = SearchToolConfig().model_dump(mode="json", by_alias=True)
 
 
 def _print_result(result: object) -> None:
