@@ -18,7 +18,7 @@ def _config_env_key(server_name: str, config_model: type) -> str:
     Example: ``mcp-search`` + ``SearchToolConfig``
     → ``UNIQUE_MCP_TOOL_MCP_SEARCH_SEARCH_TOOL_CONFIG``
     """
-    server_part = re.sub(r"[-\s]", "_", server_name).upper()
+    server_part = re.sub(r"[^A-Za-z0-9]+", "_", server_name).strip("_").upper()
     config_name = re.sub(r"Config$", "", config_model.__name__)
     config_snake = re.sub(r"(?<!^)(?=[A-Z])", "_", config_name).upper()
     return f"UNIQUE_MCP_TOOL_{server_part}_{config_snake}_CONFIG"

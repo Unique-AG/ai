@@ -9,7 +9,10 @@ from unique_mcp.meta.keys import CONFIG_SCHEMA_META_KEY
 
 
 class ConfigSchemaMeta:
-    """MetaPart that publishes RJSF schema at listTools time."""
+    """MetaPart that publishes RJSF schema at listTools time.
+
+    Implements :class:`unique_mcp.meta.part.MetaPart`.
+    """
 
     _META_KEY: ClassVar[str] = CONFIG_SCHEMA_META_KEY
 

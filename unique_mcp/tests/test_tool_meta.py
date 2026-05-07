@@ -117,6 +117,8 @@ def test_config_schema_meta_uses_alias_generator_for_ui_schema_keys() -> None:
     ConfigSchemaMeta(MyConfig).merge_into_meta(meta)
     payload = meta[CONFIG_SCHEMA_META_KEY]
     assert payload["ui_schema"].get("myField") is not None
+    assert "myField" in payload["json_schema"]["properties"]
+    assert "myField" in payload["default_config"]
 
 
 @pytest.mark.ai
@@ -161,6 +163,28 @@ def test_config_env_key_handles_spaces_in_server_name() -> None:
     assert (
         _config_env_key("my server", BarConfig)
         == "UNIQUE_MCP_TOOL_MY_SERVER_BAR_CONFIG"
+    )
+
+
+@pytest.mark.ai
+def test_config_env_key_handles_consecutive_separators() -> None:
+    class BazConfig(BaseModel):
+        pass
+
+    assert (
+        _config_env_key("my--server", BazConfig)
+        == "UNIQUE_MCP_TOOL_MY_SERVER_BAZ_CONFIG"
+    )
+
+
+@pytest.mark.ai
+def test_config_env_key_strips_non_ascii() -> None:
+    class BazConfig(BaseModel):
+        pass
+
+    assert (
+        _config_env_key("Knowledge Base Search 🚀", BazConfig)
+        == "UNIQUE_MCP_TOOL_KNOWLEDGE_BASE_SEARCH_BAZ_CONFIG"
     )
 
 
