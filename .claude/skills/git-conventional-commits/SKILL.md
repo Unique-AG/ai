@@ -21,6 +21,10 @@ metadata:
 - Use `pr-create` for end-to-end PR title/body drafting and Jira-linking workflow.
 - Use `github-pull-request-handling` for resolving and replying to existing PR review conversations.
 
+## Standard
+
+Apply the [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) specification for commit messages and PR titles.
+
 ## Allowed types
 
 Use exactly one of these types in PR titles and commits:
@@ -34,17 +38,45 @@ Use exactly one of these types in PR titles and commits:
 | `feat`        | New feature                                 |
 | `fix`         | Bug fix                                     |
 | `improvement` | General improvement (non-feature, non-fix)  |
+| `perf`        | Performance improvement                     |
+| `build`       | Build system/dependency changes             |
 | `refactor`    | Code refactoring, no behavior change        |
+| `style`       | Formatting only, no behavior change         |
 | `test`        | Adding or updating tests                    |
 
 ## Format
 
 ```
 <type>[(scope)]: <description>
+
+[optional body]
+
+[optional footer(s)]
 ```
 
 - **Scope** (optional): Must match `[a-z:_-]+` (lowercase letters, digits, underscores, colons, hyphens). Examples: `sdk`, `api`, `my_component`.
 - **Description**: Short, imperative summary. No period at the end.
+
+## Breaking changes
+
+For breaking changes, append `!` after type/scope and include a `BREAKING CHANGE:` footer when relevant.
+
+Example:
+
+```
+feat(api)!: switch auth token format
+
+BREAKING CHANGE: clients must re-authenticate with the new token format
+```
+
+## Body and footers
+
+- Body is optional and should explain motivation ("why"), not only implementation details.
+- Separate body from subject with one blank line.
+- Use explicit footers for traceability, such as:
+  - `BREAKING CHANGE: <description>`
+  - `Refs: UN-12345` or `Refs: #123`
+  - `Reviewed-by: <name>`
 
 ## Commit Summary 
 
@@ -79,3 +111,14 @@ Use exactly one of these types in PR titles and commits:
 - Use imperative language and don’t end with punctuation
 - Keep commits focused on a single concern
 - Reference tickets/issue IDs in the `Refs:` section when relevant
+
+## Quick checklist
+
+Before finalizing a commit message or PR title:
+
+- [ ] Starts with a valid type
+- [ ] Scope is specific and relevant
+- [ ] Description is imperative and has no trailing period
+- [ ] First line is under 72 characters
+- [ ] Breaking changes use `!` and/or a `BREAKING CHANGE:` footer
+- [ ] Body explains motivation for non-trivial changes
