@@ -4,7 +4,7 @@ description: Reproduce ai-repo PR checks locally with Poe and CI scripts, includ
 license: MIT
 compatibility: claude cursor opencode
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   languages: python
   audience: developers
   workflow: automation
@@ -13,34 +13,24 @@ metadata:
 
 ## What I do
 
-I run the `ai` repository checks locally with the closest possible parity to PR CI:
+Run `ai` repository checks locally with the closest possible parity to PR CI:
 
 - Map changed files to affected packages
-- Run package checks in CI order (`format --check`, lint, test, types, coverage, depcheck)
-- Apply package-specific behavior from `.github/actions/get-packages-matrix/package_configuration.json`
-- Use baseline/diff mode for packages that use it, strict mode for packages that require zero errors
-- Call out CI checks that are not fully reproducible through Poe alone
+- Run checks in CI order: format-check → lint → test → typecheck → coverage → depcheck
+- Apply per-package behavior (strict vs baseline typecheck, test args, extras)
+- Highlight checks that cannot be fully reproduced via Poe
 
 ## When to use me
 
 - User asks how to run CI checks locally in `ai`
 - User wants the exact local commands before opening/updating a PR
 - User asks about Poe tasks vs CI scripts and where they differ
-- You need to validate one package or all changed packages with CI-like behavior
 
-## Use Instead [if available]
+## Use instead
 
-- Use `ci-fix` when the primary task is diagnosing an already-failed CI run.
-- Use `ruff` for lint/format-only cleanup without CI parity requirements.
-- Use `uv` for dependency/lockfile maintenance not tied to CI parity.
-
-## Example usage
-
-```
-/ci-local-parity
-/ci-local-parity unique_toolkit
-/ci-local-parity changed-packages
-```
+- `ci-fix` — diagnosing an already-failed CI run
+- `ruff` — lint/format-only cleanup without CI parity
+- `uv` — dependency/lockfile maintenance
 
 ---
 
@@ -48,163 +38,91 @@ I run the `ai` repository checks locally with the closest possible parity to PR 
 
 ### Step 0: Preconditions
 
-Run from repository root:
-
-```bash
-cd /Users/aurelgruber/Unique/code/ai
-```
-
-Ensure tooling is available:
+Run from the repo root. Verify tooling:
 
 ```bash
 uv --version
 uv run poe --help
 ```
 
-If `uv` is missing, stop and ask the user to install/repair it before proceeding.
+If `uv` is missing, stop and ask the user to install it.
 
 ---
 
 ### Step 1: Determine target packages
 
-For changed packages in current branch:
-
 ```bash
-BASE_REF=origin/main
 git fetch origin main
-git diff --name-only "$BASE_REF"...HEAD
+git diff --name-only origin/main...HEAD
 ```
 
-Map changed files to package directories using:
+Map changed files to packages using the `dir` field in:
+`.github/actions/get-packages-matrix/package_configuration.json`
 
-- `.github/actions/get-packages-matrix/package_configuration.json`
-
-Treat the `dir` field as canonical package path.
-
-If the user asked for one package, skip auto-detection and use that package directly.
+→ See [references/package-matrix.md](references/package-matrix.md) for the full package list.
 
 ---
 
-### Step 2: Run baseline package checks (CI-like order)
+### Step 2: Run baseline checks (CI order)
 
-Inside each package directory (`cd <package_dir>`), run:
+From inside each package directory:
 
 ```bash
-uv run ruff format --check .
+uv run ruff format --check .   # CI lint = format check + lint check
 uv run poe lint
 uv run poe test
 uv run poe depcheck
 ```
 
-Then run typecheck + coverage per Step 3 and Step 4 (mode differs by package).
-
-Notes:
-
-- CI lint uses both format check and lint check.
-- `poe format` is not equivalent to CI lint because it writes files.
+> `poe format` writes files — it is **not** equivalent to the CI lint step.
 
 ---
 
-### Step 3: Typecheck mode (strict vs baseline)
+### Step 3: Typecheck (strict vs baseline)
 
-Read package behavior from matrix flags:
+Determine mode from `package_configuration.json` flags:
 
-- `typecheck_use_baseline`
-- `typecheck_require_zero_errors`
+- **Strict** (`typecheck_use_baseline: false`, `typecheck_require_zero_errors: true`):
+  ```bash
+  uv run poe typecheck
+  ```
+- **Baseline** (new errors vs `origin/main` only):
+  ```bash
+  uv run poe ci-typecheck
+  # fallback if task missing:
+  bash "$(git rev-parse --show-toplevel)/.github/scripts/dev.sh" typecheck --dir .
+  ```
 
-#### Strict/full mode
-
-Use for packages with `typecheck_use_baseline: false` and for any package requiring zero errors:
-
-- `toolkit`
-- `sdk`
-- `skill_tool`
-
-Command:
-
-```bash
-uv run poe typecheck
-```
-
-#### Baseline mode (new errors vs base)
-
-Use for packages with `typecheck_use_baseline: true`:
-
-```bash
-uv run poe ci-typecheck
-```
-
-This routes to `.github/scripts/dev.sh typecheck` and mirrors CI’s baseline behavior closely.
-
-Fallback if `ci-typecheck` task does not exist in a package:
-
-```bash
-bash "$(git rev-parse --show-toplevel)/.github/scripts/dev.sh" typecheck --dir .
-```
+→ See [references/package-matrix.md](references/package-matrix.md) for per-package mode.
 
 ---
 
-### Step 4: Coverage mode (diff-based parity)
-
-Preferred CI-like command:
+### Step 4: Coverage (diff-based)
 
 ```bash
 uv run poe ci-coverage
-```
-
-Fallback if task missing:
-
-```bash
+# fallback if task missing:
 bash "$(git rev-parse --show-toplevel)/.github/scripts/dev.sh" coverage --dir .
 ```
 
-Full-package (non-diff) coverage when requested:
-
+Full-package (non-diff) coverage:
 ```bash
 uv run poe coverage
 ```
 
 ---
 
-### Step 5: Apply package-specific CI arguments
+### Step 5: Call out CI gaps
 
-From matrix config:
+Some jobs are not reproducible via Poe. Note them explicitly; do not claim full parity.
 
-- `sdk` test args: `-m "not integration"`
-- `toolkit` install extras: `--extra fastapi --extra monitoring` (CI setup behavior)
-
-For SDK parity:
-
-```bash
-uv run poe test -- -m "not integration"
-```
-
-For toolkit parity, if needed before tests/coverage:
-
-```bash
-uv sync --locked --inexact --extra fastapi --extra monitoring
-```
+→ See [references/ci-gaps.md](references/ci-gaps.md) for the full list (min-deps, config-check, PR policy).
 
 ---
 
-### Step 6: CI checks that are not pure Poe parity
+## Quick recipes
 
-Call these out explicitly in summary; do not claim full parity:
-
-- Dependency job (`ci-dependency-checks.yaml`) uses min-deps installation strategy via `.github/actions/run-min-tests-and-deptry` (not the same as `poe depcheck`).
-- Config compatibility job (`ci-config-check.yaml`) uses `unique_toolkit._common.config_checker` export/check flow.
-- PR policy checks:
-  - PR title validation
-  - no-manual-release script
-  - gatekeeper status aggregation
-
-Run these manually only when needed with their underlying scripts/workflows.
-
----
-
-## Package quick recipes
-
-### One package, closest PR-CI parity
+### Any package — closest PR-CI parity
 
 ```bash
 cd <package_dir>
@@ -213,33 +131,27 @@ uv run poe lint
 uv run poe test
 uv run poe depcheck
 uv run poe ci-typecheck || bash "$(git rev-parse --show-toplevel)/.github/scripts/dev.sh" typecheck --dir .
-uv run poe ci-coverage || bash "$(git rev-parse --show-toplevel)/.github/scripts/dev.sh" coverage --dir .
+uv run poe ci-coverage  || bash "$(git rev-parse --show-toplevel)/.github/scripts/dev.sh" coverage  --dir .
 ```
 
-### Strict packages (`toolkit`, `sdk`, `skill_tool`)
+### Strict packages: `unique_toolkit`, `unique_sdk`, `unique_skill_tool`
 
 ```bash
 cd <package_dir>
 uv run ruff format --check .
 uv run poe lint
-uv run poe test
+uv run poe test        # sdk: add -- -m "not integration"
 uv run poe depcheck
 uv run poe typecheck
 uv run poe ci-coverage || bash "$(git rev-parse --show-toplevel)/.github/scripts/dev.sh" coverage --dir .
 ```
 
-For `sdk` test parity:
-
-```bash
-uv run poe test -- -m "not integration"
-```
-
 ---
 
-## Tips for success
+## Tips
 
-1. **Always include `ruff format --check`** for CI lint parity.
-2. **Use matrix flags, not assumptions** for strict vs baseline typecheck mode.
-3. **Prefer `ci-*` Poe tasks** for diff/baseline parity, then fall back to `dev.sh`.
-4. **Do not over-claim parity**: deps/config/policy jobs are only partially reproducible via Poe.
-5. **Run from repo root first** so relative script paths and git base refs work reliably.
+1. Always include `ruff format --check` — CI lint is two commands, not one.
+2. Check the matrix flags; don't assume strict or baseline mode.
+3. Prefer `ci-*` Poe tasks for diff parity; fall back to `dev.sh` when absent.
+4. Never claim full parity — deps/config/policy jobs require manual steps.
+5. Run from the repo root so script paths and git base refs resolve correctly.
