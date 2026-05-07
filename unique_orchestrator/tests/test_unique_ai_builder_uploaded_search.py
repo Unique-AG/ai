@@ -386,4 +386,3 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         common = self._run(docs)
         tool_names = [t.name for t in common.tool_manager_config.tools]
         assert UploadedSearchTool.name not in tool_names
-
