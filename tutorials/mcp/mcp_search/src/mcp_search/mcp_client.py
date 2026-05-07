@@ -3,7 +3,7 @@ import os
 
 from fastmcp import Client
 
-from unique_mcp.meta_keys import MetaKeys
+from unique_mcp.meta.keys import MetaKeys
 
 MCP_URL = os.environ.get("MCP_SEARCH_URL", "http://localhost:8003/mcp")
 
