@@ -22,6 +22,10 @@ from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.names import (
+    INTERNAL_SEARCH_TOOL_NAME,
+    UPLOADED_SEARCH_TOOL_NAME,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
@@ -35,11 +39,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
-
-# Keep these hardcoded to avoid importing concrete tool classes here (which can
-# create circular imports)
-_INTERNAL_SEARCH_TOOL_NAME = "InternalSearch"
-_UPLOADED_SEARCH_TOOL_NAME = "UploadedSearch"
 
 
 class ToolManagerConfig(BaseModel):
@@ -183,14 +182,14 @@ class _ToolManager(Generic[_ApiMode]):
         exclusive_tool: Tool[Any] | OpenAIBuiltInTool[Any],
     ) -> None:
         """Keep UploadedSearch available when InternalSearch wins exclusivity."""
-        if exclusive_tool.name != _INTERNAL_SEARCH_TOOL_NAME:
+        if exclusive_tool.name != INTERNAL_SEARCH_TOOL_NAME:
             return
 
         uploaded_search_tool = next(
             (
                 tool
                 for tool in self.available_tools
-                if tool.name == _UPLOADED_SEARCH_TOOL_NAME
+                if tool.name == UPLOADED_SEARCH_TOOL_NAME
             ),
             None,
         )
