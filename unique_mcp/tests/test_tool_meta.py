@@ -105,20 +105,7 @@ def test_config_schema_meta_required_fields_raises_type_error() -> None:
 
 
 @pytest.mark.ai
-def test_config_schema_meta_explicit_key_transform() -> None:
-    from pydantic.alias_generators import to_camel
-
-    class MyConfig(BaseModel):
-        my_field: int = 1
-
-    meta: dict = {}
-    ConfigSchemaMeta(MyConfig, key_transform=to_camel).merge_into_meta(meta)
-    payload = meta[CONFIG_SCHEMA_META_KEY]
-    assert payload["ui_schema"].get("myField") is not None
-
-
-@pytest.mark.ai
-def test_config_schema_meta_auto_detects_alias_generator() -> None:
+def test_config_schema_meta_uses_alias_generator_for_ui_schema_keys() -> None:
     from pydantic import ConfigDict
     from pydantic.alias_generators import to_camel
 
