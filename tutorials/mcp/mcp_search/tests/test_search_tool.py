@@ -4,39 +4,29 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from mcp.types import CallToolResult
-from mcp_search.config import ChatSearchConfig, KBSearchConfig, SearchToolConfig
+from mcp_search.config import SearchToolConfig
 from mcp_search.tools.search import search
 
 from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.experimental.components.internal_search import (
+    KnowledgeBaseInternalSearchConfig,
+)
 
 # ── Schema tests ──────────────────────────────────────────────────────────────
 
 
-def test_json_schema_has_oneof_discriminator():
+def test_json_schema_has_service_config():
     schema = SearchToolConfig.model_json_schema()
-    sc = schema["properties"]["serviceConfig"]
-    assert "oneOf" in sc
-    assert sc["discriminator"]["propertyName"] == "type"
-    assert sc["discriminator"]["mapping"] == {
-        "kb": "#/$defs/KBSearchConfig",
-        "chat": "#/$defs/ChatSearchConfig",
-    }
+    assert "serviceConfig" in schema["properties"]
 
 
-def test_json_schema_kb_variant_has_metadata_filter():
+def test_json_schema_service_config_has_metadata_filter():
     schema = SearchToolConfig.model_json_schema()
-    kb = schema["$defs"]["KBSearchConfig"]["properties"]
-    assert "metadataFilter" in kb
-    assert "type" in kb
-    assert kb["type"]["const"] == "kb"
-
-
-def test_json_schema_chat_variant_has_no_metadata_filter():
-    schema = SearchToolConfig.model_json_schema()
-    chat = schema["$defs"]["ChatSearchConfig"]["properties"]
-    assert "metadataFilter" not in chat
-    assert chat["type"]["const"] == "chat"
+    sc_ref = schema["properties"]["serviceConfig"].get("$ref", "")
+    def_name = sc_ref.split("/")[-1]
+    kb_props = schema["$defs"][def_name]["properties"]
+    assert "metadataFilter" in kb_props
 
 
 def test_ui_schema_hides_max_tokens_for_sources():
@@ -44,17 +34,10 @@ def test_ui_schema_hides_max_tokens_for_sources():
     assert ui["post_processing"]["max_tokens_for_sources"] == {"ui:widget": "hidden"}
 
 
-def test_default_config_is_kb_and_round_trips():
+def test_default_config_round_trips():
     default = SearchToolConfig().model_dump(mode="json")
-    assert default["service_config"]["type"] == "kb"
-    # Round-trip: stored config must validate back without error
     restored = SearchToolConfig.model_validate(default)
-    assert isinstance(restored.service_config, KBSearchConfig)
-
-
-def test_validate_chat_config():
-    config = SearchToolConfig.model_validate({"service_config": {"type": "chat"}})
-    assert isinstance(config.service_config, ChatSearchConfig)
+    assert isinstance(restored.service_config, KnowledgeBaseInternalSearchConfig)
 
 
 # ── Routing tests ─────────────────────────────────────────────────────────────
@@ -81,7 +64,7 @@ def _patch_post_processor(chunks: list):
 
 
 @pytest.mark.asyncio
-async def test_search_routes_to_kb_service():
+async def test_search_calls_kb_service():
     chunks = [_make_chunk("result A")]
     mock_service = MagicMock()
     mock_service.bind_settings.return_value = mock_service
@@ -97,45 +80,18 @@ async def test_search_routes_to_kb_service():
     ):
         result = await search(
             search_string="test query",
-            config=SearchToolConfig(),  # type=kb by default
+            config=SearchToolConfig(),
             settings=_make_settings(),
         )
 
     mock_from_config.assert_called_once()
-    assert isinstance(mock_from_config.call_args[0][0], KBSearchConfig)
+    assert isinstance(
+        mock_from_config.call_args[0][0], KnowledgeBaseInternalSearchConfig
+    )
     mock_service.bind_settings.assert_called_once()
     assert mock_service.state.search_queries == ["test query"]
     assert isinstance(result, CallToolResult)
     assert len(result.content) == 1
-
-
-@pytest.mark.asyncio
-async def test_search_routes_to_chat_service():
-    chunks = [_make_chunk("chat result")]
-    mock_service = MagicMock()
-    mock_service.bind_settings.return_value = mock_service
-    mock_service.state = MagicMock()
-    mock_service.run = AsyncMock(return_value=MagicMock())
-
-    config = SearchToolConfig.model_validate({"service_config": {"type": "chat"}})
-
-    with (
-        patch(
-            "mcp_search.tools.search.ChatInternalSearchService.from_config",
-            return_value=mock_service,
-        ) as mock_from_config,
-        _patch_post_processor(chunks),
-    ):
-        result = await search(
-            search_string="chat query",
-            config=config,
-            settings=_make_settings(),
-        )
-
-    mock_from_config.assert_called_once()
-    assert isinstance(mock_from_config.call_args[0][0], ChatSearchConfig)
-    assert mock_service.state.search_queries == ["chat query"]
-    assert isinstance(result, CallToolResult)
 
 
 @pytest.mark.asyncio
@@ -155,7 +111,7 @@ async def test_search_uses_defaults_when_no_config_provided():
     ):
         result = await search(
             search_string="fallback query",
-            config=SearchToolConfig(),  # explicit defaults
+            config=SearchToolConfig(),
             settings=_make_settings(),
         )
 

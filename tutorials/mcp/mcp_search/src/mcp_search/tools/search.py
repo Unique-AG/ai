@@ -2,7 +2,7 @@
 
 Separation of concerns:
 - CONFIG  (admin-set, injected via the config meta key at call time)
-  → service_config: KBSearchConfig | ChatSearchConfig — all retrieval params
+  → service_config: KnowledgeBaseInternalSearchConfig — all retrieval params
   → post_processing: PostProcessorConfig — token budget, client-side reranking
   → no LLM involvement
 - STATE   (LLM fills at call time, tool arguments)
@@ -15,8 +15,9 @@ from typing import Annotated
 from fastmcp.dependencies import Depends
 from fastmcp.tools import tool
 from mcp.types import CallToolResult, TextContent
-from mcp_search.config import KBSearchConfig, SearchToolConfig
+from mcp_search.config import SearchToolConfig
 from pydantic import Field
+from pydantic.alias_generators import to_camel
 
 from unique_mcp import (
     ConfigSchemaMeta,
@@ -28,12 +29,11 @@ from unique_mcp import (
 from unique_mcp.unique_injectors import get_unique_settings
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.experimental.components.internal_search import (
-    ChatInternalSearchService,
     InternalSearchPostProcessor,
     KnowledgeBaseInternalSearchService,
 )
 
-_logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 _META = merge_tool_meta(
     {
@@ -44,9 +44,8 @@ _META = merge_tool_meta(
     },
     ContextRequirements(
         required=[MetaKeys.USER_ID, MetaKeys.COMPANY_ID],
-        optional=[MetaKeys.CHAT_ID],
     ),
-    ConfigSchemaMeta(SearchToolConfig),
+    ConfigSchemaMeta(SearchToolConfig, key_transform=to_camel),
 )
 
 
@@ -72,13 +71,7 @@ async def search(
     """
 
     try:
-        if isinstance(config.service_config, KBSearchConfig):
-            service = KnowledgeBaseInternalSearchService.from_config(
-                config.service_config
-            )
-        else:
-            service = ChatInternalSearchService.from_config(config.service_config)
-
+        service = KnowledgeBaseInternalSearchService.from_config(config.service_config)
         service.bind_settings(settings)
         service.state.search_queries = [search_string]
 
@@ -89,7 +82,7 @@ async def search(
         )
         chunks = await post_processor.process(result)
     except Exception as exc:
-        _logger.exception("search tool error: %s", exc)
+        _LOGGER.exception("search error")
         return CallToolResult(
             isError=True, content=[TextContent(type="text", text=str(exc))]
         )
