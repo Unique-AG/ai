@@ -2,6 +2,8 @@
 
 This module intentionally contains only string constants so callers can depend on
 stable tool identifiers without importing concrete tool classes.
+
+TODO(UN-20578): Add canonical name constants for the remaining toolkit tools.
 """
 
 INTERNAL_SEARCH_TOOL_NAME = "InternalSearch"
