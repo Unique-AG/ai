@@ -20,7 +20,7 @@ class InternalSearchMessageLoggerNoop:
 
     async def finished(self) -> None:
         pass
-    
+
     async def failed(self) -> None:
         pass
 
