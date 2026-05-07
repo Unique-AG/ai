@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 
 def child_exit(server, worker) -> None:
     """Gunicorn child_exit hook: clean up dead worker's per-PID metric files.
@@ -12,7 +14,11 @@ def child_exit(server, worker) -> None:
     config file whenever a worker process exits. Without this, dead workers'
     .db files accumulate in PROMETHEUS_MULTIPROC_DIR and inflate aggregated
     metric values on every future scrape.
+
+    No-ops when PROMETHEUS_MULTIPROC_DIR is not set (single-process mode).
     """
+    if not os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        return
     from prometheus_client import multiprocess  # pyright: ignore[reportMissingImports]
 
     multiprocess.mark_process_dead(worker.pid)
