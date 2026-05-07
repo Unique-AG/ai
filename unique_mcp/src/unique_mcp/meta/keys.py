@@ -26,4 +26,16 @@ META_FLAT_ALIASES: dict[str, str] = {
     MetaKeys.USER_MESSAGE_ID: "messageId",
 }
 
-__all__ = ["MetaKeys", "META_FLAT_ALIASES"]
+CONFIG_SCHEMA_META_KEY = "unique.app/config-schema"
+
+CONFIG_META_KEY = "unique.app/config"
+
+CONTEXT_REQUIREMENTS_META_KEY = "unique.app/context-requirements"
+
+__all__ = [
+    "MetaKeys",
+    "META_FLAT_ALIASES",
+    "CONFIG_SCHEMA_META_KEY",
+    "CONFIG_META_KEY",
+    "CONTEXT_REQUIREMENTS_META_KEY",
+]
