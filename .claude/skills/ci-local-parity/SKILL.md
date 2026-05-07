@@ -4,7 +4,7 @@ description: Reproduce ai-repo PR checks locally with Poe and CI scripts, includ
 license: MIT
 compatibility: claude cursor opencode
 metadata:
-  version: "1.1.0"
+  version: "1.0.0"
   languages: python
   audience: developers
   workflow: automation
