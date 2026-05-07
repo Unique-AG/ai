@@ -28,9 +28,7 @@ def main() -> None:
 
     tools_provider = FileSystemProvider(Path(__file__).parent / "tools")
 
-    mcp = FastMCP(
-        "Knowledge Base Search 🚀", auth=oidc_proxy, providers=[tools_provider]
-    )
+    mcp = FastMCP("Knowledge Base Search", auth=oidc_proxy, providers=[tools_provider])
 
     mcp.mount(get_custom_routes_provider())
 
