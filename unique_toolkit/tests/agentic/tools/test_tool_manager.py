@@ -140,12 +140,76 @@ class MockControlTool(Tool[MockToolConfig]):
         )
 
 
+class MockUploadedSearchTool(Tool[MockToolConfig]):
+    """Mock UploadedSearch tool for InternalSearch carve-out tests."""
+
+    name = "UploadedSearch"
+
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
+
+    def tool_description(self):
+        from unique_toolkit.language_model.schemas import LanguageModelToolDescription
+
+        return LanguageModelToolDescription(
+            name=self.name,
+            description="Mock UploadedSearch tool",
+            parameters=MockParameters,
+        )
+
+    def evaluation_check_list(self):
+        return []
+
+    def get_evaluation_checks_based_on_tool_response(self, tool_response):
+        return []
+
+    async def run(self, tool_call):
+        return ToolCallResponse(
+            id=tool_call.id,
+            name=tool_call.name,
+            content="Uploaded search response",
+        )
+
+
+class MockInternalSearchExclusiveTool(Tool[MockToolConfig]):
+    """Mock InternalSearch exclusive tool for carve-out tests."""
+
+    name = "InternalSearch"
+
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
+
+    def tool_description(self):
+        from unique_toolkit.language_model.schemas import LanguageModelToolDescription
+
+        return LanguageModelToolDescription(
+            name=self.name,
+            description="Mock InternalSearch exclusive tool",
+            parameters=MockParameters,
+        )
+
+    def evaluation_check_list(self):
+        return []
+
+    def get_evaluation_checks_based_on_tool_response(self, tool_response):
+        return []
+
+    async def run(self, tool_call):
+        return ToolCallResponse(
+            id=tool_call.id,
+            name=tool_call.name,
+            content="Internal search response",
+        )
+
+
 @pytest.fixture(autouse=True)
 def register_mock_tools():
     """Register mock tools with ToolFactory"""
     ToolFactory.register_tool(MockTool, MockToolConfig)
     ToolFactory.register_tool(MockExclusiveTool, MockToolConfig)
     ToolFactory.register_tool(MockControlTool, MockToolConfig)
+    ToolFactory.register_tool(MockUploadedSearchTool, MockToolConfig)
+    ToolFactory.register_tool(MockInternalSearchExclusiveTool, MockToolConfig)
     yield
     # Cleanup not needed as registry persists across tests
 
@@ -552,6 +616,87 @@ def test_tool_manager__uses_exclusive_tool__when_in_tool_choices(
     tools = tool_manager.get_tools()
     assert len(tools) == 1
     assert tools[0].name == "exclusive_tool"
+
+
+@pytest.mark.ai
+def test_tool_manager__keeps_uploaded_search_with_internal_search_exclusive_choice(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """InternalSearch exclusivity keeps UploadedSearch available when configured."""
+    tool_configs = [
+        ToolBuildConfig(
+            name="UploadedSearch",
+            configuration=MockToolConfig(),
+            display_name="Uploaded Search",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+        ToolBuildConfig(
+            name="InternalSearch",
+            configuration=MockToolConfig(),
+            display_name="Internal Search",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=True,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    base_event.payload.tool_choices = ["InternalSearch", "UploadedSearch"]
+
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    tool_names = [tool.name for tool in tool_manager.get_tools()]
+    assert tool_names == ["InternalSearch", "UploadedSearch"]
+
+
+@pytest.mark.ai
+def test_tool_manager__internal_search_exclusive_without_uploaded_search_keeps_single_tool(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """InternalSearch remains sole tool when UploadedSearch is unavailable."""
+    tool_configs = [
+        ToolBuildConfig(
+            name="InternalSearch",
+            configuration=MockToolConfig(),
+            display_name="Internal Search",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=True,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    base_event.payload.tool_choices = ["InternalSearch"]
+
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    tool_names = [tool.name for tool in tool_manager.get_tools()]
+    assert tool_names == ["InternalSearch"]
 
 
 @pytest.mark.ai

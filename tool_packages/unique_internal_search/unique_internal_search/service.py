@@ -17,6 +17,7 @@ from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
@@ -349,7 +350,7 @@ class InternalSearchService:
 
 
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
-    name = "InternalSearch"
+    name = INTERNAL_SEARCH_TOOL_NAME
 
     def __init__(
         self,

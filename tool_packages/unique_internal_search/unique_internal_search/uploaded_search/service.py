@@ -4,6 +4,7 @@ from unique_toolkit import ContentService
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
@@ -22,7 +23,7 @@ from unique_internal_search.utils import extract_selected_uploaded_file_ids
 
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
-    name = "UploadedSearch"
+    name = UPLOADED_SEARCH_TOOL_NAME
     _display_name = "Uploaded Search"
 
     def __init__(

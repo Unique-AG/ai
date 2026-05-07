@@ -22,6 +22,10 @@ from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.names import (
+    INTERNAL_SEARCH_TOOL_NAME,
+    UPLOADED_SEARCH_TOOL_NAME,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
@@ -163,12 +167,36 @@ class _ToolManager(Generic[_ApiMode]):
             # is the tool exclusive and has been choosen by the user?
             if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:
                 self._tools = [t]  # override all other tools
+                self._restore_uploaded_search_for_internal_search_if_available(
+                    exclusive_tool=t
+                )
                 break
             # if the tool is exclusive but no tool choices are given, skip it
             if t.is_exclusive():
                 continue
 
             self._tools.append(t)
+
+    def _restore_uploaded_search_for_internal_search_if_available(
+        self,
+        exclusive_tool: Tool[Any] | OpenAIBuiltInTool[Any],
+    ) -> None:
+        """Keep UploadedSearch available when InternalSearch wins exclusivity."""
+        if exclusive_tool.name != INTERNAL_SEARCH_TOOL_NAME:
+            return
+
+        uploaded_search_tool = next(
+            (
+                tool
+                for tool in self.available_tools
+                if tool.name == UPLOADED_SEARCH_TOOL_NAME
+            ),
+            None,
+        )
+        if uploaded_search_tool is None:
+            return
+
+        self._tools.append(uploaded_search_tool)
 
     def filter_tool_calls(
         self,
