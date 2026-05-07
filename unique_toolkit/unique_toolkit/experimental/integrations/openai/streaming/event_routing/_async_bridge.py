@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import threading
 from collections.abc import Callable, Coroutine
-from typing import TypeVar, cast
+from queue import SimpleQueue
+from typing import Literal, TypeVar
 
 _T = TypeVar("_T")
 
@@ -25,20 +26,21 @@ def run_async_from_sync(
     except RuntimeError:
         return asyncio.run(coro_factory())
 
-    result: _T | None = None
-    error: BaseException | None = None
+    outcome: SimpleQueue[
+        tuple[Literal["result"], _T] | tuple[Literal["error"], BaseException]
+    ] = SimpleQueue()
 
     def runner() -> None:
-        nonlocal error, result
         try:
-            result = asyncio.run(coro_factory())
+            outcome.put(("result", asyncio.run(coro_factory())))
         except BaseException as exc:
-            error = exc
+            outcome.put(("error", exc))
 
     thread = threading.Thread(target=runner)
     thread.start()
     thread.join()
 
-    if error is not None:
-        raise error
-    return cast(_T, result)
+    thread_outcome = outcome.get()
+    if thread_outcome[0] == "error":
+        raise thread_outcome[1]
+    return thread_outcome[1]

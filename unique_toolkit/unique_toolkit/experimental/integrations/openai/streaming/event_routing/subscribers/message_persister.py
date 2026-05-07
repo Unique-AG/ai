@@ -170,7 +170,8 @@ class MessagePersistingSubscriber:
             text=final_text or None,
             originalText=event.original_text or None,
             references=filter_cited_sdk_references(chunks, event.full_text),
-            gptRequest=event.gpt_request,  # type: ignore
+            # Chat completions persist their request as a JSON array; the SDK type is narrower.
+            gptRequest=event.gpt_request,  # pyright: ignore[reportArgumentType]
             debugInfo=event.debug_info,
             stoppedStreamingAt=cast(Any, now_iso),
             completedAt=cast(Any, now_iso),

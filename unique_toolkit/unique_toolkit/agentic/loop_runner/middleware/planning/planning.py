@@ -1,12 +1,14 @@
 import json
 import logging
-from typing import Any, Unpack
+from collections.abc import Sequence
+from typing import Any, TypeGuard, Unpack
 
 from openai import AsyncOpenAI
 from openai.types.responses import (
     Response,
     ResponseFunctionToolCall,
     ResponseInputItemParam,
+    ResponseOutputItem,
     ToolParam,
 )
 from openai.types.responses.function_tool_param import FunctionToolParam
@@ -26,13 +28,17 @@ from unique_toolkit.agentic.loop_runner.middleware.planning.schema import (
     PlanningSchemaConfig,
     get_planning_schema,
 )
-from unique_toolkit.chat.responses_api import convert_messages_to_openai
+from unique_toolkit.chat.responses_api import (
+    _convert_messages_to_openai,
+    convert_messages_to_openai,
+)
 from unique_toolkit.chat.service import LanguageModelStreamResponse
 from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
     LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.schemas import (
+    LanguageModelMessageOptions,
     LanguageModelMessages,
     ResponsesLanguageModelStreamResponse,
 )
@@ -44,6 +50,30 @@ _PLAN_TOOL_NAME = "plan"
 _PLAN_TOOL_DESCRIPTION = (
     "Record the plan for the next step. Call this tool exactly once."
 )
+
+
+def _is_language_model_messages(
+    msgs: Sequence[object],
+) -> TypeGuard[list[LanguageModelMessageOptions]]:
+    return len(msgs) > 0 and all(
+        isinstance(m, LanguageModelMessageOptions) for m in msgs
+    )
+
+
+def _is_response_input_items(
+    msgs: Sequence[object],
+) -> TypeGuard[list[ResponseInputItemParam]]:
+    return len(msgs) > 0 and all(isinstance(m, dict) for m in msgs)
+
+
+def _is_response_output_items(
+    msgs: Sequence[object],
+) -> TypeGuard[list[ResponseOutputItem]]:
+    return len(msgs) > 0 and all(
+        isinstance(m, BaseModel) and not isinstance(m, LanguageModelMessageOptions)
+        for m in msgs
+    )
+
 
 # Kwargs from _ResponsesLoopIterationRunnerKwargs that make sense to forward to
 # the planning `responses.create` call. We deliberately exclude anything that
@@ -270,6 +300,22 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
                 kwargs["messages"].builder().append(assistant_message).build()
             )
         else:
-            kwargs["messages"] = list(kwargs["messages"]) + [assistant_message]
+            message_items = list(kwargs["messages"])
+            assistant_items = _convert_messages_to_openai([assistant_message])
+            if _is_language_model_messages(message_items):
+                kwargs["messages"] = [*message_items, assistant_message]
+            elif _is_response_input_items(message_items):
+                kwargs["messages"] = [*message_items, *assistant_items]
+            elif _is_response_output_items(message_items):
+                kwargs["messages"] = [
+                    *_convert_messages_to_openai(message_items),
+                    *assistant_items,
+                ]
+            else:
+                raise TypeError(
+                    "messages must be a homogeneous list of "
+                    "LanguageModelMessageOptions, ResponseInputItemParam dicts, "
+                    "or ResponseOutputItem models"
+                )
 
         return await self._loop_runner(**kwargs)

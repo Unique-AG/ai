@@ -10,7 +10,7 @@ that listens on the concrete text-lifecycle channels, so there is no
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, cast, overload
 
@@ -391,7 +391,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                 optional_create_kwargs.setdefault(k, v)
 
         gpt_request: list[dict[str, Any]] = [
-            cast("dict[str, Any]", message) for message in gpt_messages
+            dict(cast("Mapping[str, Any]", message)) for message in gpt_messages
         ]
 
         # Re-entry guard: per-instance state (``_current_*``, router
