@@ -37,6 +37,10 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
+from unique_toolkit.agentic.tools.experimental.elicit_user_tool import (
+    ElicitUserTool,
+    ElicitUserToolConfig,
+)
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -431,6 +435,12 @@ class ExperimentalConfig(BaseToolConfig):
 
     uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()
 
+    elicit_user_tool_config: ElicitUserToolConfig = Field(
+        title="Ask user (elicitation)",
+        description="Configuration for the AskUser structured elicitation tool",
+        default_factory=ElicitUserToolConfig,
+    )
+
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
@@ -589,6 +599,27 @@ class UniqueAIConfig(BaseToolConfig):
         elif not config.enabled and has_tool:
             self.space.tools = [
                 t for t in self.space.tools if t.name != TodoWriteTool.name
+            ]
+
+        return self
+
+    @model_validator(mode="after")
+    def inject_elicit_user_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = ElicitUserTool.name in tool_names
+        config = self.agent.experimental.elicit_user_tool_config
+
+        if config.enabled and not has_tool:
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=ElicitUserTool.name,
+                    display_name=config.display_name,
+                    configuration=config,
+                )
+            )
+        elif not config.enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools if t.name != ElicitUserTool.name
             ]
 
         return self
