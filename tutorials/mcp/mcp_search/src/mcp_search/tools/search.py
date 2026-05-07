@@ -70,8 +70,9 @@ async def search(
     """
 
     try:
-        service = KnowledgeBaseInternalSearchService.from_config(config.service_config)
-        service.bind_settings(settings)
+        service = KnowledgeBaseInternalSearchService.from_config(
+            config.service_config
+        ).bind_settings(settings)
         service.state.search_queries = [search_string]
 
         result = await service.run()

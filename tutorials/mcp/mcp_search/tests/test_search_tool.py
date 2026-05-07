@@ -7,7 +7,7 @@ from mcp.types import CallToolResult
 from mcp_search.config import SearchToolConfig
 from mcp_search.tools.search import search
 
-from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
+from unique_mcp.meta.rjsf import ConfigSchemaMeta
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.experimental.components.internal_search import (
     KnowledgeBaseInternalSearchConfig,
@@ -30,8 +30,10 @@ def test_json_schema_service_config_has_metadata_filter():
 
 
 def test_ui_schema_hides_max_tokens_for_sources():
-    ui = ui_schema_for_model(SearchToolConfig)
-    assert ui["post_processing"]["max_tokens_for_sources"] == {"ui:widget": "hidden"}
+    meta: dict = {}
+    ConfigSchemaMeta(SearchToolConfig).merge_into_meta(meta)
+    ui = meta["unique.app/config-schema"]["ui_schema"]
+    assert ui["postProcessing"]["maxTokensForSources"] == {"ui:widget": "hidden"}
 
 
 def test_default_config_round_trips():
@@ -84,10 +86,7 @@ async def test_search_calls_kb_service():
             settings=_make_settings(),
         )
 
-    mock_from_config.assert_called_once()
-    assert isinstance(
-        mock_from_config.call_args[0][0], KnowledgeBaseInternalSearchConfig
-    )
+    mock_from_config.assert_called_once_with(SearchToolConfig().service_config)
     mock_service.bind_settings.assert_called_once()
     assert mock_service.state.search_queries == ["test query"]
     assert isinstance(result, CallToolResult)
