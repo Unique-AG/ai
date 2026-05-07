@@ -551,7 +551,7 @@ class TestExtractInvokedSkills:
     def test_trailing_two_invokes(self) -> None:
         reg = _make_skill_registry(_make_skill("analyze"), _make_skill("analyze-data"))
         skills = extract_invoked_skills("hello /analyze-data /analyze", reg)
-        assert [s.name for s in skills] == ["analyze", "analyze-data"]
+        assert [s.name for s in skills] == ["analyze-data", "analyze"]
 
     def test_empty_input(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
