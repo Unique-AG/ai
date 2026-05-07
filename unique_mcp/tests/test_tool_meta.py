@@ -94,6 +94,34 @@ def test_config_schema_meta_emits_canonical_key() -> None:
 
 
 @pytest.mark.ai
+def test_config_schema_meta_explicit_key_transform() -> None:
+    from pydantic.alias_generators import to_camel
+
+    class MyConfig(BaseModel):
+        my_field: int = 1
+
+    meta: dict = {}
+    ConfigSchemaMeta(MyConfig, key_transform=to_camel).merge_into_meta(meta)
+    payload = meta[CONFIG_SCHEMA_META_KEY]
+    assert payload["ui_schema"].get("myField") is not None
+
+
+@pytest.mark.ai
+def test_config_schema_meta_auto_detects_alias_generator() -> None:
+    from pydantic import ConfigDict
+    from pydantic.alias_generators import to_camel
+
+    class MyConfig(BaseModel):
+        model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+        my_field: int = 1
+
+    meta: dict = {}
+    ConfigSchemaMeta(MyConfig).merge_into_meta(meta)
+    payload = meta[CONFIG_SCHEMA_META_KEY]
+    assert payload["ui_schema"].get("myField") is not None
+
+
+@pytest.mark.ai
 def test_merge_tool_meta_with_multiple_parts() -> None:
     class MyConfig(BaseModel):
         value: int = 1
