@@ -5,6 +5,17 @@ from typing import Any, ClassVar, Protocol, runtime_checkable
 
 @runtime_checkable
 class MetaPart(Protocol):
+    """Protocol for objects that contribute one key to a tool's meta dict.
+
+    Implementors must define ``_META_KEY`` (a ``ClassVar[str]``) and
+    ``merge_into_meta``.
+
+    Note: Python's ``runtime_checkable`` only verifies method presence at
+    runtime — ``isinstance(obj, MetaPart)`` returns ``True`` for any object
+    with a ``merge_into_meta`` method, even if ``_META_KEY`` is absent.
+    The ``_META_KEY`` requirement is enforced statically by mypy/pyright only.
+    """
+
     _META_KEY: ClassVar[str]
 
     def merge_into_meta(self, meta: dict[str, Any]) -> None: ...

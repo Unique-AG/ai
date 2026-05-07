@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from unique_mcp.meta.context_requirements import ContextRequirements
 from unique_mcp.meta.keys import (
+    CONFIG_META_KEY,
     CONFIG_SCHEMA_META_KEY,
     CONTEXT_REQUIREMENTS_META_KEY,
     MetaKeys,
@@ -62,6 +63,12 @@ def test_merge_tool_meta_with_none_base() -> None:
     reqs = ContextRequirements(required=[MetaKeys.USER_ID])
     merged = merge_tool_meta(None, reqs)
     assert list(merged.keys()) == [CONTEXT_REQUIREMENTS_META_KEY]
+
+
+@pytest.mark.ai
+def test_merge_tool_meta_zero_parts() -> None:
+    merged = merge_tool_meta({"unique.app/icon": "x"})
+    assert merged == {"unique.app/icon": "x"}
 
 
 @pytest.mark.ai
@@ -193,6 +200,11 @@ class _MockServer:
         self.name = name
 
 
+# NOTE: dep.factory(...) accesses fastmcp.dependencies.Depends.factory, an
+# internal attribute. If fastmcp changes its Depends internals these tests
+# will break — intentional: signals we need to update config injection tests.
+
+
 @pytest.mark.ai
 def test_get_tool_config_returns_defaults() -> None:
     class MyConfig(BaseModel):
@@ -216,3 +228,44 @@ def test_get_tool_config_env_var_fallback(monkeypatch: pytest.MonkeyPatch) -> No
     config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
     assert isinstance(config, MyConfig)
     assert config.value == 42
+
+
+@pytest.mark.ai
+def test_get_tool_config_meta_injection(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Primary production path: config injected by host via _meta[CONFIG_META_KEY]."""
+
+    class MyConfig(BaseModel):
+        value: int = 7
+
+    injected = {CONFIG_META_KEY: {"value": 99}}
+    monkeypatch.setattr(
+        "unique_mcp.unique_injectors.get_request_meta",
+        lambda: injected,
+    )
+
+    dep = get_tool_config(MyConfig)
+    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    assert isinstance(config, MyConfig)
+    assert config.value == 99
+
+
+@pytest.mark.ai
+def test_get_tool_config_meta_injection_json_string(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Host may inject config as a JSON string — both dict and str are accepted."""
+
+    class MyConfig(BaseModel):
+        value: int = 7
+
+    import json
+
+    injected = {CONFIG_META_KEY: json.dumps({"value": 55})}
+    monkeypatch.setattr(
+        "unique_mcp.unique_injectors.get_request_meta",
+        lambda: injected,
+    )
+
+    dep = get_tool_config(MyConfig)
+    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    assert config.value == 55

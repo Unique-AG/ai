@@ -1,4 +1,7 @@
 from unique_mcp.meta import (
+    CONFIG_META_KEY,
+    CONFIG_SCHEMA_META_KEY,
+    CONTEXT_REQUIREMENTS_META_KEY,
     META_FLAT_ALIASES,
     ConfigSchemaMeta,
     ContextRequirements,
@@ -15,6 +18,9 @@ from unique_mcp.unique_injectors import (
 )
 
 __all__ = [
+    "CONFIG_META_KEY",
+    "CONFIG_SCHEMA_META_KEY",
+    "CONTEXT_REQUIREMENTS_META_KEY",
     "ConfigSchemaMeta",
     "ContextRequirements",
     "META_FLAT_ALIASES",
