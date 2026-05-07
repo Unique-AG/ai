@@ -198,7 +198,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 )
 
                 active_message_log = self._create_or_update_message_log(
-                    progress_message=f"_Executing sub agent with input: {tool_input}_",
+                    progress_message=_italicize_multiline(
+                        f"Executing sub agent with input: {tool_input}"
+                    ),
                     active_message_log=active_message_log,
                 )
 
@@ -268,7 +270,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
                 # Update message log entry to completed
                 active_message_log = self._create_or_update_message_log(
-                    progress_message=f"_Completed sub agent with input: {tool_input}_",
+                    progress_message=_italicize_multiline(
+                        f"Completed sub agent with input: {tool_input}"
+                    ),
                     status=MessageLogStatus.COMPLETED,
                     active_message_log=active_message_log,
                 )
@@ -419,6 +423,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise TimeoutError(
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
+
+
+def _italicize_multiline(text: str) -> str:
+    return "\n".join(f"_{line}_" if line else line for line in text.split("\n"))
 
 
 def _format_response(tool_name: str, text: str, system_reminders: list[str]) -> str:
