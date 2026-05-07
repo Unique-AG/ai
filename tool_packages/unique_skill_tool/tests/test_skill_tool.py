@@ -533,6 +533,26 @@ class TestExtractInvokedSkills:
         skills = extract_invoked_skills("/foo-bar rest", reg)
         assert [s.name for s in skills] == ["foo-bar"]
 
+    def test_hyphenated_name_with_prefix_skill_invokes_only_exact_match(self) -> None:
+        reg = _make_skill_registry(_make_skill("analyze"), _make_skill("analyze-data"))
+        skills = extract_invoked_skills("hello /analyze-data", reg)
+        assert [s.name for s in skills] == ["analyze-data"]
+
+    def test_dot_suffix_does_not_trigger_partial_or_normalized_names(self) -> None:
+        reg = _make_skill_registry(_make_skill("analyze"), _make_skill("analyze-data"))
+        skills = extract_invoked_skills("hello /analyze.data", reg)
+        assert skills == []
+
+    def test_trailing_dot_still_invokes_hyphenated_skill(self) -> None:
+        reg = _make_skill_registry(_make_skill("analyze"), _make_skill("analyze-data"))
+        skills = extract_invoked_skills("hello /analyze-data.", reg)
+        assert [s.name for s in skills] == ["analyze-data"]
+
+    def test_trailing_two_invokes(self) -> None:
+        reg = _make_skill_registry(_make_skill("analyze"), _make_skill("analyze-data"))
+        skills = extract_invoked_skills("hello /analyze-data /analyze", reg)
+        assert [s.name for s in skills] == ["analyze-data", "analyze"]
+
     def test_empty_input(self) -> None:
         reg = _make_skill_registry(_make_skill("foo"))
         skills = extract_invoked_skills("", reg)

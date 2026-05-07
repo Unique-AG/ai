@@ -13,13 +13,17 @@ from unique_skill_tool.schemas import (
 
 MIN_DESC_LENGTH = 20
 
-# Matches a ``/skill-name`` token that is properly word-boundaried:
-# preceded by start-of-string (optionally followed by whitespace) or by
-# whitespace, and followed by whitespace or end-of-string. The leading
-# ``\A\s*|\s`` is consumed (not a lookbehind) so that, on replacement, we
-# also remove the single whitespace character that immediately preceded
-# the token and avoid leaving double spaces in the remaining text.
-_SKILL_TOKEN_RE = re.compile(r"(\A\s*|\s)/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z)")
+# Finds slash-prefixed candidate tokens (``/foo``) that are bounded by
+# start-of-string/whitespace on the left and by either:
+# - whitespace/end-of-string, or
+# - sentence punctuation immediately followed by whitespace/end-of-string.
+#
+# This keeps punctuation such as ``/analyze-data.`` detectable while still
+# avoiding partial matches inside tokens like ``/analyze``.
+_SKILL_TOKEN_RE = re.compile(
+    r"(\A\s*|\s)/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z|[.,!?;:)\]]+(?:\s|\Z))"
+)
+_VALID_SKILL_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
 
 
 def get_char_budget(
@@ -129,6 +133,8 @@ def extract_invoked_skills(
 
     for match in _SKILL_TOKEN_RE.finditer(user_text):
         name = match.group(2)
+        if _VALID_SKILL_NAME_RE.fullmatch(name) is None:
+            continue
         skill = skill_registry.get(name)
         if skill is None:
             continue
