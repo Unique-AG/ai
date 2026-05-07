@@ -1,9 +1,10 @@
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 from pydantic import Field, create_model
 from typing_extensions import override
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
@@ -14,21 +15,14 @@ from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancy
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
-from unique_toolkit.chat.schemas import (
-    MessageLog,
-    MessageLogDetails,
-    MessageLogEvent,
-    MessageLogStatus,
-)
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
+from unique_toolkit.content.schemas import Content, ContentChunk
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.content.utils import (
     merge_content_chunks,
@@ -42,6 +36,10 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.services.message_log import (
+    InternalSearchMessageLogger,
+    InternalSearchMessageLoggerNoop,
+)
 from unique_internal_search.utils import (
     SearchStringResult,
     append_metadata_in_chunks,
@@ -54,6 +52,10 @@ AVERAGE_TOKENS_PER_CHUNK = 500
 TOKEN_BUDGET_SAFETY_FACTOR = 1.3
 
 
+async def _noop_log_progress(message: str) -> None:
+    pass
+
+
 class InternalSearchService:
     def __init__(
         self,
@@ -63,8 +65,6 @@ class InternalSearchService:
         chat_id: str | None,
         logger: Logger,
         company_id: str | None = None,
-        message_step_logger: MessageStepLogger | None = None,
-        display_name: str = "Internal Search",
         language_model_orchestrator: "LanguageModelInfo | None" = None,
         selected_uploaded_file_ids: list[str] | None = None,
     ):
@@ -75,9 +75,6 @@ class InternalSearchService:
         self.company_id = company_id
         self.logger = logger
         self.tool_execution_message_name = "Internal search"
-        self._message_step_logger = message_step_logger
-        self._display_name = display_name
-        self._active_message_log: MessageLog | None = None
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
         self.selected_uploaded_file_ids: list[str] = selected_uploaded_file_ids or []
@@ -117,6 +114,7 @@ class InternalSearchService:
     async def search(
         self,
         search_string: str | list[str],
+        log_progress: Callable[[str], Awaitable[None]] = _noop_log_progress,
         content_ids: list[str] | None = None,
         metadata_filter: dict | None = None,
         **kwargs,
@@ -128,17 +126,14 @@ class InternalSearchService:
             search_string: List of search strings or single search string
             content_ids: List of content IDs
             metadata_filter: Metadata filter
+            log_progress: Async callable invoked at key progress points. Defaults
+                to a no-op so callers that don't need progress updates require no
+                changes.
         """
-
-        # Convert single string to list
         if isinstance(search_string, str):
             search_strings = [search_string]
         else:
             search_strings = search_string
-
-        """
-        Perform a search in the Vector DB based on the user's message and generate a response.
-        """
 
         # Clean search strings by removing QDF and boost operators
         search_strings = [clean_search_string(s) for s in search_strings]
@@ -198,21 +193,8 @@ class InternalSearchService:
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
-                self._active_message_log = (
-                    await self._create_or_update_active_message_log(
-                        progress_message="_Resorting search results_",
-                        search_strings_list=search_strings,
-                    )
-                )
-            for i, result in enumerate(found_chunks_per_search_string):
-                if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.company_id
-                ):
-                    await self.post_progress_message(
-                        f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
-                        **kwargs,
-                    )
+            await log_progress("_Resorting search results_")
+            for result in found_chunks_per_search_string:
                 result.chunks = await self._resort_found_chunks_if_enabled(
                     found_chunks=result.chunks,
                     search_string=result.query,
@@ -229,17 +211,8 @@ class InternalSearchService:
                 found_chunks_per_search_string
             )
 
-        if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
-            progress_message = "_Postprocessing search results_"
-            self._active_message_log = await self._create_or_update_active_message_log(
-                progress_message=progress_message,
-                search_strings_list=search_strings,
-            )
-        else:
-            await self.post_progress_message(
-                f"{', '.join(search_strings)} (_Postprocessing search results_)",
-                **kwargs,
-            )
+        await log_progress("_Postprocessing search results_")
+
         found_chunks = [
             chunk
             for result in found_chunks_per_search_string
@@ -374,80 +347,6 @@ class InternalSearchService:
             self.logger.info(f"Search limit: {capped_limit} (within token budget)")
         return capped_limit
 
-    async def _create_or_update_active_message_log(
-        self,
-        *,
-        progress_message: str | None = None,
-        chunks: list[ContentChunk] | None = None,
-        search_strings_list: list[str],
-        status: MessageLogStatus | None = None,
-    ) -> MessageLog | None:
-        if self._message_step_logger is None:
-            return None
-        message_log_reference_list = []
-        if chunks is not None:
-            message_log_reference_list = (
-                await self._define_reference_list_for_message_log(
-                    content_chunks=chunks,
-                )
-            )
-        details = await self._prepare_message_log_details(
-            query_list=search_strings_list
-        )
-        return self._message_step_logger.create_or_update_message_log(
-            active_message_log=self._active_message_log,
-            header=self._display_name,
-            progress_message=progress_message,
-            details=details,
-            references=message_log_reference_list,
-            **({"status": status} if status is not None else {}),
-        )
-
-    async def _define_reference_list_for_message_log(
-        self,
-        *,
-        content_chunks: list[ContentChunk],
-    ) -> list[ContentReference]:
-        """
-        Create a reference list for internal search content chunks.
-
-        Args:
-            content_chunks: List of ContentChunk objects to convert
-        Returns:
-            List of ContentReference objects
-        """
-        data: list[ContentReference] = []
-        for count, content_chunk in enumerate(content_chunks):
-            reference_name: str = content_chunk.title or content_chunk.key or ""
-
-            data.append(
-                ContentReference(
-                    name=reference_name,
-                    sequence_number=count,
-                    source="internal",
-                    source_id=content_chunk.id,
-                    url=f"unique://content/{content_chunk.id}",
-                )
-            )
-            count += 1
-
-        return data
-
-    async def _prepare_message_log_details(
-        self, *, query_list: list[str]
-    ) -> MessageLogDetails:
-        details = MessageLogDetails(
-            data=[
-                MessageLogEvent(
-                    type="InternalSearch",
-                    text=query_for_log,
-                )
-                for query_for_log in query_list
-            ]
-        )
-
-        return details
-
 
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     name = "InternalSearch"
@@ -480,8 +379,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             chat_id=chat_id,
             company_id=self.event.company_id,
             logger=self.logger,
-            message_step_logger=self._message_step_logger,
-            display_name=self._display_name,
             selected_uploaded_file_ids=selected_uploaded_file_ids,
         )
 
@@ -595,27 +492,31 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = list(dict.fromkeys(search_strings_list))
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
-        self._active_message_log = await self._create_or_update_active_message_log(
-            progress_message="_Retrieving search results_",
-            search_strings_list=search_strings_list,
+        new_answers_ui = feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+            self.company_id
         )
 
-        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
+        message_logger = self._get_message_logger(
+            new_answers_ui=new_answers_ui, message_step_logger=self._message_step_logger
+        )
+
+        await message_logger.log_queries(search_strings_list)
+
+        await message_logger.log_progress("_Retrieving search results_")
+
+        if not new_answers_ui:
             await self.post_progress_message(
                 f"{'; '.join(search_strings_list)}", tool_call
             )
 
         selected_chunks = await self.search(
             **tool_call.arguments,
-            tool_call=tool_call,  # Need to pass tool_call to post_progress_message
-            active_message_log=self._active_message_log,
+            log_progress=message_logger.log_progress,
+            tool_call=tool_call,
         )
 
-        self._active_message_log = await self._create_or_update_active_message_log(
-            chunks=selected_chunks,
-            search_strings_list=search_strings_list,
-            status=MessageLogStatus.COMPLETED,
-        )
+        await message_logger.log_chunks(selected_chunks)
+        await message_logger.finished()
 
         ## Modify metadata in chunks
         selected_chunks = append_metadata_in_chunks(
@@ -680,6 +581,18 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             content=serialized_sources,
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
+        )
+
+    def _get_message_logger(
+        self, new_answers_ui: bool, message_step_logger: MessageStepLogger | None
+    ) -> InternalSearchMessageLogger | InternalSearchMessageLoggerNoop:
+        return (
+            InternalSearchMessageLogger(
+                message_step_logger=message_step_logger,
+                tool_display_name=self._display_name,
+            )
+            if message_step_logger is not None and new_answers_ui
+            else InternalSearchMessageLoggerNoop()
         )
 
 
