@@ -1,6 +1,10 @@
 import pytest
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_stock_ticker.config import StockTickerConfig
+from unique_toolkit.agentic.tools.experimental.elicit_user_tool import (
+    ElicitUserTool,
+    ElicitUserToolConfig,
+)
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -424,3 +428,68 @@ class TestUniqueAIConfigInjectTodoToolValidator:
 
         assert self._todo_entries(config) == []
         assert [t.name for t in config.space.tools] == [t.name for t in default_tools]
+
+
+class TestUniqueAIConfigInjectElicitUserToolValidator:
+    """Tests for UniqueAIConfig.inject_elicit_user_tool (AskUser)."""
+
+    def _entries(self, config: UniqueAIConfig) -> list[ToolBuildConfig]:
+        return [t for t in config.space.tools if t.name == ElicitUserTool.name]
+
+    def test_appends_when_enabled(self) -> None:
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[],
+            ),
+            agent={
+                "experimental": {
+                    "elicit_user_tool_config": ElicitUserToolConfig(enabled=True)
+                }
+            },
+        )
+
+        entries = self._entries(config)
+        assert len(entries) == 1
+        assert entries[0].name == ElicitUserTool.name
+        assert isinstance(entries[0].configuration, ElicitUserToolConfig)
+        assert entries[0].configuration.enabled is True
+
+    def test_removes_when_disabled(self) -> None:
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[
+                    ToolBuildConfig(
+                        name=ElicitUserTool.name,
+                        configuration=ElicitUserToolConfig(enabled=False),
+                    )
+                ],
+            ),
+            agent={
+                "experimental": {
+                    "elicit_user_tool_config": ElicitUserToolConfig(enabled=False)
+                }
+            },
+        )
+
+        assert self._entries(config) == []
+
+    def test_idempotent_when_already_present(self) -> None:
+        existing = ToolBuildConfig(
+            name=ElicitUserTool.name,
+            configuration=ElicitUserToolConfig(enabled=True),
+        )
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[existing],
+            ),
+            agent={
+                "experimental": {
+                    "elicit_user_tool_config": ElicitUserToolConfig(enabled=True)
+                }
+            },
+        )
+
+        assert len(self._entries(config)) == 1
