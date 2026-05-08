@@ -56,6 +56,7 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
     #     tags=["basic", "scrape"],
     # )
     async def crawl(self, urls: list[str]) -> list[str]:
+        urls = self.validate_urls(urls)
         async with async_client(timeout=Timeout(self.config.timeout)) as client:
             tasks = [self._crawl_url_with_client(client, url) for url in urls]
             results = await asyncio.gather(*tasks, return_exceptions=True)

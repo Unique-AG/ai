@@ -160,10 +160,12 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
+        crawl_urls = self._validate_urls_for_crawl(
+            [result.url for result in results],
+            step_name=f"{step_name}.crawl",
+        )
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
-            crawl_results = await self.crawler_service.crawl(
-                [result.url for result in results]
-            )
+            crawl_results = await self.crawler_service.crawl(crawl_urls)
         delta_time = time() - time_start
         for result, content in zip(results, crawl_results):
             result.content = content
@@ -196,9 +198,13 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
+        crawl_urls = self._validate_urls_for_crawl(
+            [step.query_or_url],
+            step_name=f"{step_name}.crawl",
+        )
 
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
-            results = await self.crawler_service.crawl([step.query_or_url])
+            results = await self.crawler_service.crawl(crawl_urls)
         await self._message_log_callback.log_web_search_results(
             [
                 WebSearchResult(

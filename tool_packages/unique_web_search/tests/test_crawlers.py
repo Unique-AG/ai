@@ -14,6 +14,7 @@ from unique_web_search.services.crawlers.utils import (
     generate_random_email,
     get_random_user_agent,
 )
+from unique_web_search.services.url_safety import CrawlTargetValidationError
 
 
 class TestCrawlerFactory:
@@ -75,6 +76,20 @@ class TestBasicCrawler:
         """Test BasicCrawler has the expected crawl method."""
         assert hasattr(basic_crawler, "crawl")
         assert callable(getattr(basic_crawler, "crawl"))
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_basic_crawler_crawl__raises__when_url_policy_blocks_target(
+        self,
+        basic_crawler: BasicCrawler,
+    ) -> None:
+        """
+        Purpose: Verify the crawler layer enforces the shared URL policy as a backstop.
+        Why this matters: Future callers must not be able to bypass executor-level validation accidentally.
+        Setup summary: Attempt to crawl a metadata URL directly through the crawler and assert the request is rejected before any fetch starts.
+        """
+        with pytest.raises(CrawlTargetValidationError):
+            await basic_crawler.crawl(["http://169.254.169.254/latest/meta-data"])
 
     # Note: We're not testing the actual crawling functionality here
     # because it would require mocking HTTP requests and is complex.

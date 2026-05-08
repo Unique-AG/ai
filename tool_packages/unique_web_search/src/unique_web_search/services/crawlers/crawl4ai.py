@@ -165,6 +165,7 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
     #     tags=["crawl4ai", "scrape"],
     # )
     async def crawl(self, urls: list[str]) -> list[str]:
+        urls = self.validate_urls(urls)
         # Lazy import of crawl4ai - only import when actually needed
         from crawl4ai import (
             AsyncWebCrawler,

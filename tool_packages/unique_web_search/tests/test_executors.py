@@ -27,6 +27,7 @@ from unique_web_search.services.executors.v3.schema import (
     WebSearchV3ToolParameters,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.url_safety import CrawlTargetValidationError
 
 
 class TestQueryGenerationAgent:
@@ -282,6 +283,49 @@ class TestWebSearchV1ExecutorRun:
         await executor.run()
 
         mock_executor_dependencies["crawler_service"].crawl.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__raises__when_search_result_url_is_blocked_before_crawl(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """
+        Purpose: Verify V1 blocks unsafe search-result URLs before crawling begins.
+        Why this matters: Search-driven crawl flows must not bypass the shared SSRF guard.
+        Setup summary: Return a localhost URL from the search service with scraping enabled and assert the crawler is never invoked.
+        """
+        tool_parameters = WebSearchToolParameters(
+            query="test query", date_restrict=None
+        )
+
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(
+                    url="https://localhost/internal",
+                    title="Local page",
+                    snippet="Unsafe",
+                    content="",
+                )
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+
+        executor = WebSearchV1Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+            refine_query_system_prompt="test prompt",
+            mode=RefineQueryMode.DEACTIVATED,
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor.run()
+
+        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
 
 
 class TestWebSearchV1ExecutorRefineQuery:
@@ -684,6 +728,53 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_execute_search_step__raises__when_search_result_url_is_blocked(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+    ) -> None:
+        """
+        Purpose: Verify crawl handoff rejects unsafe search-result URLs before the crawler runs.
+        Why this matters: Search engines remain untrusted input sources and must not bypass the SSRF guard.
+        Setup summary: Return a metadata URL from the search service, require scraping, and assert crawl is blocked before the crawler is invoked.
+        """
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(
+                    url="http://169.254.169.254/latest/meta-data",
+                    title="Metadata",
+                    snippet="Unsafe",
+                    content="",
+                )
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
+
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+
+        step = Step(
+            step_type=StepType.SEARCH,
+            objective="Test search",
+            query_or_url="test query",
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor._execute_search_step(step)
+
+        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_execute_search_step__adds_log_entry__after_search(
         self,
         executor_context_objects: dict,
@@ -836,6 +927,39 @@ class TestWebSearchV3ExecutorFetchUrls:
         mock_executor_dependencies["search_service"].search.assert_not_called()
         mock_executor_dependencies["content_processor"].run.assert_awaited_once()
         assert isinstance(result, list)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run_fetch_urls__raises__when_payload_contains_blocked_url(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """
+        Purpose: Verify V3 read_urls rejects blocked targets before invoking the crawler.
+        Why this matters: Direct URL reads are the highest-risk ingress for SSRF-style abuse.
+        Setup summary: Provide a localhost URL in the payload and assert the crawler is never called.
+        """
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "read_urls",
+                "objective": "Read the linked articles for full text",
+                "payload": {"urls": ["https://localhost/internal"]},
+            }
+        )
+
+        executor = WebSearchV3Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor.run()
+
+        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
 
 
 class TestWebSearchV3ToolParametersValidation:
@@ -997,6 +1121,38 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies[
             "message_log_callback"
         ].log_web_search_results.assert_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_execute_read_url_step__raises__when_target_url_is_blocked(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+    ) -> None:
+        """
+        Purpose: Verify READ_URL steps reject blocked targets before crawling.
+        Why this matters: The direct URL-read path must not allow localhost or private-network access.
+        Setup summary: Execute a READ_URL step pointing at localhost and assert the crawler is never called.
+        """
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+
+        step = Step(
+            step_type=StepType.READ_URL,
+            objective="Read page",
+            query_or_url="https://localhost/private",
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor._execute_read_url_step(step)
+
+        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
 
 
 class TestWebSearchV2ExecutorEnforceMaxSteps:

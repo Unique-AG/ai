@@ -11,6 +11,7 @@ from unique_web_search.services.helpers import (
     clean_model_title_generator,
     experimental_model_title_generator,
 )
+from unique_web_search.services.url_safety import validate_crawl_urls
 
 
 class CrawlerType(StrEnum):
@@ -49,6 +50,9 @@ CrawlerConfig = TypeVar(
 class BaseCrawler(ABC, Generic[CrawlerConfig]):
     def __init__(self, config: CrawlerConfig):
         self.config = config
+
+    def validate_urls(self, urls: list[str]) -> list[str]:
+        return validate_crawl_urls(urls)
 
     @abstractmethod
     async def crawl(self, urls: list[str]) -> list[str]: ...

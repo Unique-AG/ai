@@ -12,7 +12,7 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
 
-from unique_web_search.metrics import llm_duration, llm_errors
+from unique_web_search.metrics import crawl_blocked, llm_duration, llm_errors
 from unique_web_search.schema import (
     StepDebugInfo,
     WebPageChunk,
@@ -24,6 +24,10 @@ from unique_web_search.services.executors.context import (
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
+)
+from unique_web_search.services.url_safety import (
+    CrawlTargetValidationError,
+    validate_crawl_urls,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -160,3 +164,38 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         elicitation = await self.query_elicitation(queries)
 
         return elicitation
+
+    def _validate_urls_for_crawl(
+        self,
+        urls: list[str],
+        *,
+        step_name: str,
+    ) -> list[str]:
+        try:
+            return validate_crawl_urls(urls)
+        except CrawlTargetValidationError as exc:
+            blocked_targets = [
+                {
+                    "url": target.url,
+                    "category": target.category,
+                    "reason": target.reason,
+                }
+                for target in exc.blocked_targets
+            ]
+            self.debug_info.steps.append(
+                StepDebugInfo(
+                    step_name=f"{step_name}.url_safety",
+                    execution_time=0,
+                    config="validate_crawl_urls",
+                    extra={"blocked_targets": blocked_targets},
+                )
+            )
+            for target in exc.blocked_targets:
+                crawl_blocked.labels(reason_category=target.category).inc()
+                _LOGGER.warning(
+                    "Blocked crawl target for company %s: %s (%s)",
+                    self.company_id,
+                    target.url,
+                    target.reason,
+                )
+            raise

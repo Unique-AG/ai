@@ -182,6 +182,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info("Company %s Crawling %s URLs", self.company_id, len(urls))
+        urls = self._validate_urls_for_crawl(urls, step_name="FETCH_URLS.crawl")
 
         await self._message_log_callback.log_queries(urls)
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
