@@ -50,7 +50,9 @@ class ResolvedCrawlTarget:
         if not self.used_dns_resolution:
             return None
 
-        return _build_netloc(host=self.hostname, port=urlsplit(self.normalized_url).port)
+        return _build_netloc(
+            host=self.hostname, port=urlsplit(self.normalized_url).port
+        )
 
     @property
     def sni_hostname(self) -> str | None:

@@ -84,7 +84,12 @@ class TestValidateCrawlUrls:
             ),
             ("http://127.0.0.1:8080", "127.0.0.1", "private", "private"),
             ("http://10.0.0.8", "10.0.0.8", "private", "private"),
-            ("http://169.254.169.254/latest/meta-data", "169.254.169.254", "metadata", "metadata"),
+            (
+                "http://169.254.169.254/latest/meta-data",
+                "169.254.169.254",
+                "metadata",
+                "metadata",
+            ),
             ("http://[::1]/", "::1", "private", "private"),
             (
                 "https://metadata.google.internal/computeMetadata/v1",
@@ -153,7 +158,9 @@ class TestValidateCrawlUrls:
         with pytest.raises(CrawlTargetValidationError) as exc_info:
             validate_crawl_urls(urls)
 
-        blocked_hostnames = [target.hostname for target in exc_info.value.blocked_targets]
+        blocked_hostnames = [
+            target.hostname for target in exc_info.value.blocked_targets
+        ]
         assert blocked_hostnames == ["127.0.0.1", "metadata.google.internal"]
 
     @pytest.mark.ai

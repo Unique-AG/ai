@@ -106,9 +106,9 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
 
         _ = response.raise_for_status()
 
-        content_type = str(response.headers.get("content-type", "")).lower().split(";")[
-            0
-        ]
+        content_type = (
+            str(response.headers.get("content-type", "")).lower().split(";")[0]
+        )
 
         if self._content_type_not_allowed(content_type):
             return f"Content type {content_type} is not allowed"
