@@ -45,13 +45,25 @@ class TestValidateCrawlUrls:
             ("https://app.localhost/admin", "localhost", "localhost"),
             ("https://kubernetes/api", "cluster", "single-label"),
             ("https://api.default.svc/health", "cluster", "service"),
-            ("https://api.default.svc.cluster.local/health", "cluster", "cluster-local"),
-            ("https://api.default.pod.cluster.local/health", "cluster", "cluster-local"),
+            (
+                "https://api.default.svc.cluster.local/health",
+                "cluster",
+                "cluster-local",
+            ),
+            (
+                "https://api.default.pod.cluster.local/health",
+                "cluster",
+                "cluster-local",
+            ),
             ("http://127.0.0.1:8080", "private", "private"),
             ("http://10.0.0.8", "private", "private"),
             ("http://169.254.169.254/latest/meta-data", "metadata", "metadata"),
             ("http://[::1]/", "private", "private"),
-            ("https://metadata.google.internal/computeMetadata/v1", "metadata", "metadata"),
+            (
+                "https://metadata.google.internal/computeMetadata/v1",
+                "metadata",
+                "metadata",
+            ),
         ],
     )
     def test_validate_crawl_urls__raises__when_target_is_unsafe(

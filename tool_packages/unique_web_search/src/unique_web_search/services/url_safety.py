@@ -39,9 +39,7 @@ class CrawlTargetValidationError(ValueError):
         details = "; ".join(
             f"{target.url} ({target.reason})" for target in self.blocked_targets
         )
-        super().__init__(
-            f"Blocked crawl target(s) due to URL safety policy: {details}"
-        )
+        super().__init__(f"Blocked crawl target(s) due to URL safety policy: {details}")
 
 
 def validate_crawl_urls(urls: list[str]) -> list[str]:
