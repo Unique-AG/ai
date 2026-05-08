@@ -1,0 +1,4385 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Unique Toolkit">
+      
+      
+        <meta name="author" content="Unique Team">
+      
+      
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/2026.20.0.dev24/streaming_architecture_visual/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Streaming architecture — visual walkthrough - Unique Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#streaming-architecture-visual-walkthrough" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Unique Toolkit" class="md-header__button md-logo" aria-label="Unique Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Unique Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Streaming architecture — visual walkthrough
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Unique-AG/ai" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Unique-AG/ai
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Unique Toolkit" class="md-nav__button md-logo" aria-label="Unique Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Unique Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Unique-AG/ai" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Unique-AG/ai
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://unique-ag.github.io/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unique AI Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architectural/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../setup/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Authentication
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authentication/#1-personal-api-key" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal API Key
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../authentication/#2-creating-an-app" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating an APP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Application Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Application Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../application_types/standalone_application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standalone Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../application_types/event_driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Driven Applications
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Event Driven Applications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../application_types/event_driven/event_driven_platform_setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../application_types/event_driven/event_driven_with_sse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSE Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../application_types/event_driven/event_driven_as_app_with_ngrok/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web Hooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../events/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../chat/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chat
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat/cancellation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Task Cancellation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chat/advanced_rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../knowledge_base/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Knowledge Base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knowledge_base/smart_rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Smart Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../agentic_table/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Table
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_4" id="__nav_7_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agentic Table
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_table/column_styling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Column Styling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_table/cell_rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plattforms/openai/openai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenAI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chat
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/chat/chat_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/chat/chat_document_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/chat/advanced_rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Knowledge Base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/content/kb_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/content/smart_rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Smart Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Folder(experimental)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Content Folder(experimental)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/content/content-folder/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content folder service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_5" id="__nav_8_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Tree (experimental)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Content Tree (experimental)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/experimental/content_tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content tree service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_6" id="__nav_8_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scheduled Tasks (experimental)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Scheduled Tasks (experimental)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/scheduled_task/scheduled_tasks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_7" id="__nav_8_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identity (experimental)
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Identity (experimental)
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/examples/identity/identity_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users & Groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/agentic_table_app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Table App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/code_execution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorials/file_creation_and_upload_to_chat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Creation with Upload to Chat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Framework
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agentic Framework
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestrator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/tool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/tool_call_response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Call Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/tool_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/debug_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debug Info Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/postprocessor_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Postprocessor Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/evaluation_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/reference_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/history_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_framework/tool_call_persistence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Call Persistence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_2" id="__nav_11_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/chat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chat Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/knowledge_base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/short_term_memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Short Term Memory Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/content_smart_rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Smart Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/data_extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Extraction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/agentic_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_3" id="__nav_11_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework Utilities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Framework Utilities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/openai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenAI Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/langchain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Langchain Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_4" id="__nav_11_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Experimental Modules
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Experimental Modules
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/identity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identity Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_5" id="__nav_11_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deprecated Modules
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deprecated Modules
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/content/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/embedding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../modules/language_model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language Model Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../readme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Readme
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-three-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The three layers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-runtime-participants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Runtime participants
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-data-ownership-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Data ownership graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-domain-events-on-the-bus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Domain events on the bus
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-responsibilities-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Responsibilities at a glance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Responsibilities at a glance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-completewithreferences-orchestrators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 *CompleteWithReferences orchestrators
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-stream-event-router-responsesstreameventrouter-chatcompletionstreameventrouter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Stream event router — ResponsesStreamEventRouter / ChatCompletionStreamEventRouter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-event-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Event handlers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-protocols" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Protocols
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55-events-and-bus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.5 Events and bus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#56-subscribers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.6 Subscribers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#57-pattern-replacer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.7 Pattern replacer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-uml-notation-used-in-the-class-diagrams" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. UML notation used in the class diagrams
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-package-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Package layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-class-relationships-responses-event-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Class relationships — Responses event handlers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-class-relationships-router-completewithreferences-orchestrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Class relationships — router + *CompleteWithReferences orchestrator
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-event-dataclasses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Event dataclasses
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-subscribers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Subscribers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-sequence-stream-lifecycle-happy-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Sequence — stream lifecycle (happy path)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-sequence-code-interpreter-branch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Sequence — code interpreter branch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-sequence-error-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Sequence — error path
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-completewithreferences-orchestrator-state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. *CompleteWithReferences orchestrator state machine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-inner-vs-outer-bus-identity-adapter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Inner-vs-outer bus (identity adapter)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-pattern-replacer-streaming-normalisation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Pattern replacer — streaming normalisation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#18-cascade-flush-at-end-of-stream" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        18. Cascade flush at end-of-stream
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#19-responses-vs-chat-completions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        19. Responses vs Chat Completions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#20-extension-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        20. Extension points
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#21-cheat-sheet-one-liner-per-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        21. Cheat sheet — one-liner per file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#22-elevator-pitch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        22. Elevator pitch
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/Unique-AG/ai/edit/main/unique_toolkit/docs/streaming_architecture_visual.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="streaming-architecture-visual-walkthrough">Streaming architecture — visual walkthrough<a class="headerlink" href="#streaming-architecture-visual-walkthrough" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p><strong>Audience:</strong> A colleague who needs to understand how the OpenAI streaming layer is wired, end‑to‑end.
+<strong>Package:</strong> <code>unique_toolkit.experimental.integrations.openai.streaming</code></p>
+</blockquote>
+<p>Each section gives a small diagram focused on one idea. Copy any block into a Mermaid live editor if you need to zoom.</p>
+<blockquote>
+<p><strong>Architecture goal.</strong> This layer adapts streaming APIs from provider SDKs
+into the Unique platform update model. A provider stream emits
+provider-specific chunks and events; the router/event-handler layer
+interprets those into the typical things that happen during an LLM stream:
+start, text deltas, end, tool/activity progress, function calls, usage, and
+appendices. The bus then publishes the platform-facing events that
+subscribers translate into <code>unique_sdk</code> calls, so the backend can update the
+assistant message and progress logs while the original streaming call is
+still running.</p>
+<p><strong>A note on naming.</strong> The package is <code>event_routing/</code>, and the core runtime type
+is <code>*StreamEventRouter</code>. It does not chain event handlers like a Pipes-and-Filters
+pipeline: it <strong>dispatches</strong> each incoming event to the right event handler
+(Responses), or <strong>broadcasts</strong> each chunk to interested event handlers
+(Chat Completions). Treat <code>event_routing/</code> as the package for streaming
+event-routing machinery: routers, event handlers, subscribers, events, and bus
+wiring.</p>
+</blockquote>
+<hr />
+<h2 id="1-the-three-layers">1. The three layers<a class="headerlink" href="#1-the-three-layers" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    classDef orch fill:#1f77b4,color:#fff,stroke:#0b3d66
+    classDef pure fill:#2ca02c,color:#fff,stroke:#1a6a1a
+    classDef eff  fill:#d62728,color:#fff,stroke:#7a1515
+
+    A["*CompleteWithReferences&lt;br/&gt;orchestrator"]:::orch --&gt; B[Router + event handlers]:::pure
+    B --&gt; C[Subscribers]:::eff
+    C -.-&gt; SDK[(unique_sdk)]</code></pre>
+<ul>
+<li><strong><code>*CompleteWithReferences</code> orchestrator</strong> owns the provider streaming call and the platform event bus. Today this means <code>ResponsesCompleteWithReferences</code> or <code>ChatCompletionsCompleteWithReferences</code>.</li>
+<li><strong>Router + event handlers</strong> normalize provider-specific stream events into state and platform-facing events.</li>
+<li><strong>Subscribers</strong> are the only layer allowed to touch <code>unique_sdk</code>; they send the corresponding message/log updates to the backend.</li>
+</ul>
+<hr />
+<h2 id="2-runtime-participants">2. Runtime participants<a class="headerlink" href="#2-runtime-participants" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    classDef orch fill:#1f77b4,color:#fff,stroke:#0b3d66
+    classDef pure fill:#2ca02c,color:#fff,stroke:#1a6a1a
+    classDef bus  fill:#9467bd,color:#fff,stroke:#4d2a75
+    classDef eff  fill:#d62728,color:#fff,stroke:#7a1515
+    classDef ext  fill:#7f7f7f,color:#fff,stroke:#333
+
+    OAI[Provider SDK stream&lt;br/&gt;OpenAI today]:::ext --&gt; H["*CompleteWithReferences&lt;br/&gt;orchestrator"]:::orch
+    H --&gt; P[StreamEventRouter]:::pure
+    H --&gt; BUS((StreamEventBus)):::bus
+    BUS --&gt; MP[MessagePersister]:::eff
+    BUS --&gt; PL[ProgressLogPersister]:::eff
+    MP --&gt; SDK[(unique_sdk&lt;br/&gt;Unique backend updates)]:::ext
+    PL --&gt; SDK</code></pre>
+<p>Read it as: a provider SDK feeds a <code>*CompleteWithReferences</code> orchestrator; the orchestrator fans out to a pure router (for stream interpretation and state) and a bus (for platform side effects). OpenAI Responses and Chat Completions are the current provider stream shapes, but the boundary is meant to keep the rest of the platform from depending on those wire formats.</p>
+<hr />
+<h2 id="3-data-ownership-graph">3. Data ownership graph<a class="headerlink" href="#3-data-ownership-graph" title="Permanent link">&para;</a></h2>
+<p>This is the main ownership rule: each runtime participant owns one kind of
+state, and everything crossing a bus is a copied event payload. The router
+points at event handlers but does not own their data; subscribers own the
+state needed for SDK writes.</p>
+<pre class="mermaid"><code>flowchart TB
+    classDef owner fill:#1f77b4,color:#fff,stroke:#0b3d66
+    classDef data fill:#e8f4fd,stroke:#1f77b4,color:#0b3d66
+    classDef route fill:#2ca02c,color:#fff,stroke:#1a6a1a
+    classDef hnd fill:#d9f2d9,stroke:#2ca02c,color:#1a6a1a
+    classDef event fill:#f0e6fa,stroke:#9467bd,color:#4d2a75
+    classDef sub fill:#d62728,color:#fff,stroke:#7a1515
+    classDef sdk fill:#7f7f7f,color:#fff,stroke:#333
+
+    subgraph O["*CompleteWithReferences orchestrator"]
+        ORCH[stream loop + lifecycle]:::owner
+        ODATA[request context&lt;br/&gt;message_id · chat_id · content_chunks&lt;br/&gt;gpt_request · debug_info · StreamEventBus]:::data
+    end
+
+    subgraph R["Router: *StreamEventRouter"]
+        ROUTER[dispatch + lifecycle fan-out&lt;br/&gt;result assembly]:::route
+        RDATA[event-handler references only]:::data
+    end
+
+    subgraph H["Pure event handlers"]
+        TEXT[Text event handler]:::hnd
+        TEXTDATA[TextState&lt;br/&gt;full_text · original_text&lt;br/&gt;replacers · text_bus]:::data
+        TOOLS[Tool-call event handler]:::hnd
+        TOOLSDATA[LanguageModelFunction list&lt;br/&gt;ids · names · streamed arguments]:::data
+        DONE[Responses completed event handler]:::hnd
+        DONEDATA[token usage&lt;br/&gt;Responses output items]:::data
+        CI[Code interpreter event handler]:::hnd
+        CIDATA[progress dedup map&lt;br/&gt;activity_bus]:::data
+    end
+
+    subgraph E["Copied event payloads"]
+        TF[TextFlushed&lt;br/&gt;identity-free text snapshot]:::event
+        APU[ActivityProgressUpdate&lt;br/&gt;identity-free activity update]:::event
+        SE[StreamStarted / TextDelta / StreamEnded / ActivityProgress&lt;br/&gt;with message_id + chat_id]:::event
+    end
+
+    subgraph S["Subscribers own SDK-side state"]
+        MP[MessagePersistingSubscriber]:::sub
+        MPDATA[chunks_by_message&lt;br/&gt;delta_counter_by_message]:::data
+        PL[ProgressLogPersister]:::sub
+        PLDATA[logs_by_correlation]:::data
+    end
+
+    SDK[(unique_sdk&lt;br/&gt;Message.modify_async · MessageLog.*)]:::sdk
+
+    ORCH ==&gt;|owns| ODATA
+    ROUTER ==&gt;|owns| RDATA
+    TEXT ==&gt;|owns| TEXTDATA
+    TOOLS ==&gt;|owns| TOOLSDATA
+    DONE ==&gt;|owns| DONEDATA
+    CI ==&gt;|owns| CIDATA
+    MP ==&gt;|owns| MPDATA
+    PL ==&gt;|owns| PLDATA
+
+    ORCH --&gt; ROUTER
+    ROUTER --&gt; TEXT
+    ROUTER --&gt; TOOLS
+    ROUTER --&gt; DONE
+    ROUTER --&gt; CI
+
+    TEXTDATA -.-&gt;|publishes| TF
+    CIDATA -.-&gt;|publishes| APU
+    TF -.-&gt;|orchestrator adds identity| SE
+    APU -.-&gt;|orchestrator adds identity| SE
+    ODATA -.-&gt;|creates| SE
+    SE --&gt; MP
+    SE --&gt; PL
+    MP --&gt; SDK
+    PL --&gt; SDK</code></pre>
+<p>Thick <code>owns</code> arrows are the ownership boundaries. Solid arrows are calls or
+subscriptions. Dotted arrows are copied event payloads: event handlers publish
+identity-free snapshots, then the orchestrator adds <code>message_id</code> / <code>chat_id</code>
+before publishing on <code>StreamEventBus</code>.</p>
+<hr />
+<h2 id="4-domain-events-on-the-bus">4. Domain events on the bus<a class="headerlink" href="#4-domain-events-on-the-bus" title="Permanent link">&para;</a></h2>
+<p><code>StreamEventBus</code> is the normalized platform-facing contract for a running stream. It is a <strong>routing table of typed channels</strong> — one channel per concrete event. The orchestrator publishes on the matching channel; subscribers subscribe only to the channels they care about. No runtime <code>isinstance</code> dispatch at the subscriber boundary.</p>
+<pre class="mermaid"><code>flowchart LR
+    classDef bus fill:#9467bd,color:#fff,stroke:#4d2a75
+    classDef ev  fill:#f0e6fa,stroke:#9467bd,color:#4d2a75
+
+    BUS[StreamEventBus]:::bus
+    S[stream_started: TypedEventBus&amp;lt;StreamStarted&amp;gt;]:::ev --- BUS
+    T[text_delta: TypedEventBus&amp;lt;TextDelta&amp;gt;]:::ev --- BUS
+    E[stream_ended: TypedEventBus&amp;lt;StreamEnded&amp;gt;]:::ev --- BUS
+    A[activity_progress: TypedEventBus&amp;lt;ActivityProgress&amp;gt;]:::ev --- BUS</code></pre>
+<p>Four channels, nothing else. They cover the updates the Unique backend needs during streaming: message creation/start, incremental text, final text, and tool-like progress. <code>MessagePersistingSubscriber</code> subscribes to the three text-lifecycle channels; <code>ProgressLogPersister</code> subscribes only to <code>activity_progress</code>. The orchestrator wires <code>ProgressLogPersister</code> <strong>only when</strong> the router has a progress-producing event handler.</p>
+<hr />
+<h2 id="5-responsibilities-at-a-glance">5. Responsibilities at a glance<a class="headerlink" href="#5-responsibilities-at-a-glance" title="Permanent link">&para;</a></h2>
+<p>Each component has one well-scoped responsibility. The table is the short version; sub-sections go deeper.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Owns</th>
+<th>Must do</th>
+<th>Must <em>not</em> do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>*CompleteWithReferences</code> orchestrator</strong></td>
+<td>HTTP stream, <code>StreamEventBus</code>, router instance</td>
+<td>Run <code>async for</code>, publish domain events with identity, build the final result</td>
+<td>Accumulate text, call <code>unique_sdk</code>, know regex patterns</td>
+</tr>
+<tr>
+<td><strong>Stream event router</strong> (<code>*StreamEventRouter</code>)</td>
+<td>Event-handler references</td>
+<td>Dispatch events by type (Responses) or broadcast to all event handlers (Chat Completions), fan out lifecycle, aggregate appendices, build typed result</td>
+<td>Hold state, call SDK, know about identity</td>
+</tr>
+<tr>
+<td><strong>Event handlers</strong> (<code>*TextDeltaEventHandler</code>, <code>*ToolCallEventHandler</code>, …)</td>
+<td><code>TextState</code>, tool-call list, usage/output, progress dedup state, inner <code>TypedEventBus</code></td>
+<td>Accumulate state, publish inner-bus flushes/progress</td>
+<td>Call SDK, know <code>message_id</code> / <code>chat_id</code>, see <code>ContentChunk</code>s</td>
+</tr>
+<tr>
+<td><strong>Protocols</strong> (<code>protocols/</code>)</td>
+<td>Type contracts only</td>
+<td>Define the shape event handlers must implement</td>
+<td>Contain any logic</td>
+</tr>
+<tr>
+<td><strong>Events</strong> (<code>events.py</code>)</td>
+<td>Four frozen dataclasses</td>
+<td>Be the wire format between orchestrator and subscribers</td>
+<td>Carry behavior</td>
+</tr>
+<tr>
+<td><strong><code>StreamEventBus</code></strong></td>
+<td>One <code>TypedEventBus</code> per event type (<code>stream_started</code>, <code>text_delta</code>, <code>stream_ended</code>, <code>activity_progress</code>)</td>
+<td>Fan out each event on its own typed channel; subscribers pick the channels they care about</td>
+<td>Know the event Union as a broadcast surface; require subscribers to <code>isinstance</code>-check</td>
+</tr>
+<tr>
+<td><strong><code>StreamSubscriber</code></strong> (protocol)</td>
+<td>—</td>
+<td>Expose <code>register(bus)</code> that wires per-event callbacks onto the relevant channels</td>
+<td>Receive events through a single fan-out entry point</td>
+</tr>
+<tr>
+<td><strong>Subscribers</strong> (<code>MessagePersistingSubscriber</code>, <code>ProgressLogPersister</code>)</td>
+<td>Per-stream side-effect state (<code>chunks_by_message</code>, <code>logs_by_correlation</code>)</td>
+<td>Translate domain events into SDK calls; subscribe only to the channels they handle</td>
+<td>Mutate event handler state, change event contents</td>
+</tr>
+<tr>
+<td><strong>Pattern replacer</strong> (<code>pattern_replacer.py</code>)</td>
+<td><code>NORMALIZATION_PATTERNS</code>, hold-back buffer</td>
+<td>Rewrite citation variants to <code>&lt;sup&gt;N&lt;/sup&gt;</code> across chunk boundaries</td>
+<td>Know which chunk a citation maps to</td>
+</tr>
+</tbody>
+</table>
+<h3 id="51-completewithreferences-orchestrators">5.1 <code>*CompleteWithReferences</code> orchestrators<a class="headerlink" href="#51-completewithreferences-orchestrators" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Opens the streaming call to the provider SDK (<code>responses.create</code> / <code>chat.completions.create</code> for OpenAI today).</li>
+<li>Runs its own <code>async for</code> loop so it can catch <code>httpx.RemoteProtocolError</code> and still finalise with partial output.</li>
+<li>Publishes the four domain events on the bus. Always publishes <code>StreamEnded</code> from <code>finally</code>.</li>
+<li><strong>Identity adapter:</strong> subscribes to each event handler's inner bus (<code>text_bus</code>, <code>activity_bus</code>) and re-publishes the payload on the outer bus with <code>message_id</code> / <code>chat_id</code> attached.</li>
+<li>Calls <code>router.reset()</code> at the start of every run so sequential reuse is safe.</li>
+<li>Delegates result construction to <code>router.build_result(...)</code> and returns it.</li>
+</ul>
+<h3 id="52-stream-event-router-responsesstreameventrouter-chatcompletionstreameventrouter">5.2 Stream event router — <code>ResponsesStreamEventRouter</code> / <code>ChatCompletionStreamEventRouter</code><a class="headerlink" href="#52-stream-event-router-responsesstreameventrouter-chatcompletionstreameventrouter" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Dispatch, not pipeline.</strong> The name "router" is deliberate — this type does <em>not</em> chain event handlers in a Pipes-and-Filters sense. It looks at each incoming event and decides which event handler(s) should see it.</li>
+<li><strong>Responses</strong> uses typed dispatch: each <code>ResponseStreamEvent</code> subclass maps to one event handler (text delta → text event handler, tool call → tool event handler, completed → completed event handler, code interpreter → CI event handler). Unknown events are ignored for forward compatibility.</li>
+<li><strong>Chat Completions</strong> uses broadcast dispatch: every <code>ChatCompletionChunk</code> carries mixed content (text + tool deltas), so the chunk is sent to both event handlers and each decides what to consume.</li>
+<li>Fans out lifecycle: <code>reset()</code> and <code>on_stream_end()</code> iterate every event handler.</li>
+<li>Aggregates capabilities: <code>get_appendices()</code> collects strings from any event handler implementing <code>AppendixProducer</code>.</li>
+<li>Re-exposes event handler-owned buses to the orchestrator (<code>text_bus</code>, <code>activity_bus</code>).</li>
+<li>Builds the typed result (<code>LanguageModelStreamResponse</code> / <code>ResponsesLanguageModelStreamResponse</code>).</li>
+</ul>
+<h3 id="53-event-handlers">5.3 Event handlers<a class="headerlink" href="#53-event-handlers" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Text event handler.</strong> Apply the replacer chain to each incoming delta, update <code>TextState.full_text</code> / <code>original_text</code>, publish <code>TextFlushed</code> on the event handler-local bus at each flush boundary (every non-empty delta for Responses; every <code>send_every_n_events</code> chunks for Chat Completions). On <code>on_stream_end()</code>, drain replacer residuals into <code>full_text</code>; the orchestrator then publishes one authoritative <code>StreamEnded</code>.</li>
+<li><strong>Tool call event handler.</strong> Assemble function call ids, names, and streamed arguments into <code>LanguageModelFunction</code>s.</li>
+<li><strong>Completed event handler</strong> (Responses only). Extract <code>LanguageModelTokenUsage</code> and output items from <code>ResponseCompletedEvent</code>.</li>
+<li><strong>Code interpreter event handler</strong> (Responses only). Deduplicate by <code>(status, text)</code> per <code>item_id</code> and publish <code>ActivityProgressUpdate</code> on genuine state transitions.</li>
+</ul>
+<h3 id="54-protocols">5.4 Protocols<a class="headerlink" href="#54-protocols" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>StreamEventHandlerProtocol</code> — the lifecycle contract (<code>reset</code>, <code>on_stream_end</code>).</li>
+<li><code>AppendixProducer</code> — optional capability; any event handler can opt in by defining <code>get_appendix()</code>.</li>
+<li><code>Responses*EventHandlerProtocol</code> / <code>ChatCompletion*EventHandlerProtocol</code> — API-specific method shapes so routers can be typed without inheritance.</li>
+<li>Inner-bus payloads (<code>TextFlushed</code>, <code>ActivityProgressUpdate</code>) live here so event handlers and orchestrator share one vocabulary.</li>
+</ul>
+<h3 id="55-events-and-bus">5.5 Events and bus<a class="headerlink" href="#55-events-and-bus" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>StreamStarted</code>: the contract "a stream is now alive for this <code>message_id</code>, and these <code>ContentChunk</code>s back it". Subscribers use it to seed per-stream state.</li>
+<li><code>TextDelta</code>: "the model produced observable text up to this point". Subscribers render/persist.</li>
+<li><code>StreamEnded</code>: "this is the authoritative final text + appendices". The invariant event — always fires, even on errors.</li>
+<li><code>ActivityProgress</code>: "a tool-like activity (CI, future: web search, retrieval) transitioned to this state".</li>
+<li><code>StreamEventBus</code>: a small dataclass exposing one <code>TypedEventBus</code> per event type (<code>stream_started</code>, <code>text_delta</code>, <code>stream_ended</code>, <code>activity_progress</code>). The orchestrator publishes on the matching channel (<code>self._bus.text_delta.publish_and_wait_async(...)</code>); callers attach extra subscribers per channel (<code>orchestrator.bus.text_delta.subscribe(my_fn)</code>). There is deliberately <em>no</em> broadcast "subscribe to everything" path — if a subscriber cares about multiple channels, it subscribes its own typed callbacks to each.</li>
+<li><code>StreamEvent</code>: documentation alias for the closed set of events a bus can carry. Not used as a runtime subscription surface.</li>
+</ul>
+<h3 id="56-subscribers">5.6 Subscribers<a class="headerlink" href="#56-subscribers" title="Permanent link">&para;</a></h3>
+<p>Subscribers implement the <code>StreamSubscriber</code> protocol — a single <code>register(bus)</code> method that wires per-event callbacks (<code>on_started</code>, <code>on_text_delta</code>, …) onto the channels the subscriber cares about. This replaces a fan-out <code>handle(event)</code> with <code>isinstance</code> branches: channel selection is now the subscribe-time act, and <code>on_*</code> methods only run when their channel fires.</p>
+<ul>
+<li><strong><code>MessagePersistingSubscriber</code></strong> — the <em>only</em> caller of <code>unique_sdk.Message.modify_async</code>. <code>register(bus)</code> subscribes to <code>stream_started</code>, <code>text_delta</code>, <code>stream_ended</code>. On <code>StreamStarted</code> it resets <code>references=[]</code> and stamps <code>startedStreamingAt</code>. On <code>TextDelta</code> it writes the current text + filtered references (via <code>filter_cited_sdk_references</code>). On <code>StreamEnded</code> it concatenates <code>full_text + appendices</code> and stamps <code>stoppedStreamingAt</code> / <code>completedAt</code> — a single final write.</li>
+<li><strong><code>ProgressLogPersister</code></strong> — the <em>only</em> caller of <code>unique_sdk.MessageLog.*</code>. <code>register(bus)</code> subscribes to <code>activity_progress</code> only. Keyed by <code>correlation_id</code>: creates a new log the first time it sees an id, updates on subsequent transitions, skips no-ops. The orchestrator only registers it when the router actually has a progress-producing event handler (<code>router.activity_bus is not None</code>).</li>
+</ul>
+<h3 id="57-pattern-replacer">5.7 Pattern replacer<a class="headerlink" href="#57-pattern-replacer" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>NORMALIZATION_PATTERNS</code> — 18 regex rules, single source of truth for citation normalisation. Also imported by the batch post-processing path so streaming and batch produce identical text for the same input (parity test enforces this).</li>
+<li><code>StreamingPatternReplacer</code> — holds back up to 80 trailing characters so a pattern straddling two deltas still matches; exposes <code>process(delta)</code> / <code>flush()</code>.</li>
+<li><code>filter_cited_sdk_references(chunks, text)</code> — given the accumulated normalised text, returns only the chunks whose <code>&lt;sup&gt;N&lt;/sup&gt;</code> actually appears.</li>
+</ul>
+<hr />
+<h2 id="6-uml-notation-used-in-the-class-diagrams">6. UML notation used in the class diagrams<a class="headerlink" href="#6-uml-notation-used-in-the-class-diagrams" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>classDiagram
+    direction LR
+    class Base
+    class Derived
+    class Interface {
+        &lt;&lt;Protocol&gt;&gt;
+    }
+    class Impl
+    class Whole
+    class StrongPart
+    class WeakPart
+    class User
+    class Service
+
+    Derived --|&gt; Base         : inheritance
+    Impl ..|&gt; Interface       : realization
+    Whole *-- StrongPart      : composition
+    Whole o-- WeakPart        : aggregation
+    User --&gt; Service          : association
+    User ..&gt; Service          : dependency</code></pre>
+<table>
+<thead>
+<tr>
+<th>Arrow</th>
+<th>Meaning</th>
+<th>When it applies here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--\|&gt;</code></td>
+<td>inheritance</td>
+<td>not used (we prefer protocols over base classes)</td>
+</tr>
+<tr>
+<td><code>..\|&gt;</code></td>
+<td>realization</td>
+<td>concrete event handler implements a <code>Protocol</code></td>
+</tr>
+<tr>
+<td><code>*--</code></td>
+<td>composition (filled diamond)</td>
+<td>orchestrator <em>owns</em> router and bus</td>
+</tr>
+<tr>
+<td><code>o--</code></td>
+<td>aggregation (empty diamond)</td>
+<td>router references event handlers (event handlers can outlive a router in tests)</td>
+</tr>
+<tr>
+<td><code>..&gt;</code></td>
+<td>dependency (dashed)</td>
+<td>subscriber depends on bus; class uses another class's type</td>
+</tr>
+<tr>
+<td><code>--&gt;</code></td>
+<td>association</td>
+<td>regular reference</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-package-layout">7. Package layout<a class="headerlink" href="#7-package-layout" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TB
+    classDef pkg  fill:#e8f4fd,stroke:#1f77b4,color:#0b3d66
+    classDef prot fill:#fff5e6,stroke:#ff7f0e,color:#8a4303
+    classDef hnd  fill:#e6f7e6,stroke:#2ca02c,color:#1a6a1a
+    classDef sub  fill:#fde8e8,stroke:#d62728,color:#7a1515
+    classDef ev   fill:#f0e6fa,stroke:#9467bd,color:#4d2a75
+
+    PR[pattern_replacer.py]:::pkg
+    EV[events.py]:::ev
+    PROT[protocols/]:::prot
+    RESP[responses/]:::hnd
+    CC[chat_completions/]:::hnd
+    SUBS[subscribers/]:::sub
+
+    PROT --&gt; RESP
+    PROT --&gt; CC
+    EV --&gt; RESP
+    EV --&gt; CC
+    EV --&gt; SUBS
+    PR --&gt; RESP
+    PR --&gt; CC
+    PR --&gt; SUBS</code></pre>
+<hr />
+<h2 id="8-class-relationships-responses-event-handlers">8. Class relationships — Responses event handlers<a class="headerlink" href="#8-class-relationships-responses-event-handlers" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>classDiagram
+    direction LR
+    class StreamEventHandlerProtocol {
+        &lt;&lt;Protocol&gt;&gt;
+        +reset() None
+        +on_stream_end() None
+    }
+    class AppendixProducer {
+        &lt;&lt;Protocol&gt;&gt;
+        +get_appendix() Optional~str~
+    }
+
+    class ResponsesTextDeltaEventHandler
+    class ResponsesToolCallEventHandler
+    class ResponsesCompletedEventHandler
+    class ResponsesCodeInterpreterEventHandler
+
+    ResponsesToolCallEventHandler ..|&gt; StreamEventHandlerProtocol
+    ResponsesCompletedEventHandler ..|&gt; StreamEventHandlerProtocol
+    ResponsesCodeInterpreterEventHandler ..|&gt; StreamEventHandlerProtocol</code></pre>
+<p>Event handlers realize a tiny lifecycle protocol. <code>AppendixProducer</code> is an optional extension point that the router can aggregate, but no default event handler uses it today.</p>
+<hr />
+<h2 id="9-class-relationships-router-completewithreferences-orchestrator">9. Class relationships — router + <code>*CompleteWithReferences</code> orchestrator<a class="headerlink" href="#9-class-relationships-router-completewithreferences-orchestrator" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>classDiagram
+    direction LR
+    class ResponsesStreamEventRouter {
+        +on_event(event)
+        +on_stream_end()
+        +get_text() TextState
+        +get_appendices() tuple~str~
+        +build_result(...)
+    }
+    class ResponsesCompleteWithReferences {
+        +bus
+        +complete_with_references_async(...)
+    }
+    class StreamEventBus
+    class ResponsesTextDeltaEventHandler
+    class ResponsesCodeInterpreterEventHandler
+
+    ResponsesStreamEventRouter o-- ResponsesTextDeltaEventHandler
+    ResponsesStreamEventRouter o-- ResponsesCodeInterpreterEventHandler
+    ResponsesCompleteWithReferences *-- ResponsesStreamEventRouter
+    ResponsesCompleteWithReferences *-- StreamEventBus</code></pre>
+<p>The <code>*CompleteWithReferences</code> orchestrator <strong>composes</strong> router + bus (they live and die with it). The router <strong>aggregates</strong> event handlers (event handlers can be built and tested independently).</p>
+<hr />
+<h2 id="10-event-dataclasses">10. Event dataclasses<a class="headerlink" href="#10-event-dataclasses" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>classDiagram
+    direction LR
+    class StreamStarted {
+        +message_id
+        +chat_id
+        +content_chunks
+    }
+    class TextDelta {
+        +message_id
+        +chat_id
+        +full_text
+        +original_text
+    }
+    class StreamEnded {
+        +message_id
+        +chat_id
+        +full_text
+        +original_text
+        +appendices
+    }
+    class ActivityProgress {
+        +correlation_id
+        +message_id
+        +chat_id
+        +status
+        +text
+    }</code></pre>
+<hr />
+<h2 id="11-subscribers">11. Subscribers<a class="headerlink" href="#11-subscribers" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>classDiagram
+    direction LR
+    class StreamSubscriber {
+        &lt;&lt;Protocol&gt;&gt;
+        +register(bus) None
+    }
+    class MessagePersistingSubscriber {
+        -chunks_by_message
+        +register(bus) None
+        +on_started(StreamStarted)
+        +on_text_delta(TextDelta)
+        +on_ended(StreamEnded)
+    }
+    class ProgressLogPersister {
+        -logs_by_correlation
+        +register(bus) None
+        +on_activity_progress(ActivityProgress)
+    }
+    class StreamEventBus {
+        +stream_started
+        +text_delta
+        +stream_ended
+        +activity_progress
+    }
+
+    MessagePersistingSubscriber ..|&gt; StreamSubscriber
+    ProgressLogPersister ..|&gt; StreamSubscriber
+    MessagePersistingSubscriber ..&gt; StreamEventBus
+    ProgressLogPersister ..&gt; StreamEventBus</code></pre>
+<p>One subscriber per SDK surface, each subscribed only to the channels it handles:</p>
+<ul>
+<li><code>MessagePersistingSubscriber</code> → <code>Message.modify_async</code> (reacts to <code>stream_started</code> / <code>text_delta</code> / <code>stream_ended</code>)</li>
+<li><code>ProgressLogPersister</code> → <code>MessageLog.create_async</code> / <code>update_async</code> (reacts to <code>activity_progress</code> only)</li>
+</ul>
+<hr />
+<h2 id="12-sequence-stream-lifecycle-happy-path">12. Sequence — stream lifecycle (happy path)<a class="headerlink" href="#12-sequence-stream-lifecycle-happy-path" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    participant Caller
+    participant Orch as *CompleteWithReferences orchestrator
+    participant Router
+    participant Bus
+    participant Sub as Subscribers
+
+    Caller-&gt;&gt;Orch: complete_with_references_async()
+    Orch-&gt;&gt;Router: reset()
+    Orch-&gt;&gt;Bus: stream_started.publish(StreamStarted)
+    Bus-&gt;&gt;Sub: on_started
+    loop each OpenAI event
+        Orch-&gt;&gt;Router: on_event(e)
+        Router--&gt;&gt;Orch: TextFlushed (inner bus)
+        Orch-&gt;&gt;Bus: text_delta.publish(TextDelta)
+        Bus-&gt;&gt;Sub: on_text_delta
+    end
+    Orch-&gt;&gt;Router: on_stream_end()
+    Orch-&gt;&gt;Bus: stream_ended.publish(StreamEnded)
+    Bus-&gt;&gt;Sub: on_ended
+    Orch--&gt;&gt;Caller: result</code></pre>
+<hr />
+<h2 id="13-sequence-code-interpreter-branch">13. Sequence — code interpreter branch<a class="headerlink" href="#13-sequence-code-interpreter-branch" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    participant Orch as *CompleteWithReferences orchestrator
+    participant CI as CodeInterpreter event handler
+    participant Bus
+    participant PL as ProgressLogPersister
+
+    Orch-&gt;&gt;CI: on_code_interpreter_event(e)
+    CI--&gt;&gt;Orch: ActivityProgressUpdate (inner bus)
+    Orch-&gt;&gt;Bus: activity_progress.publish(ActivityProgress + ids)
+    Bus-&gt;&gt;PL: on_activity_progress
+    alt first sighting
+        PL-&gt;&gt;PL: MessageLog.create_async
+    else transition
+        PL-&gt;&gt;PL: MessageLog.update_async
+    end</code></pre>
+<p><code>correlation_id</code> is the idempotency key — repeated updates coalesce into one log.</p>
+<hr />
+<h2 id="14-sequence-error-path">14. Sequence — error path<a class="headerlink" href="#14-sequence-error-path" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>sequenceDiagram
+    autonumber
+    participant Orch as *CompleteWithReferences orchestrator
+    participant OpenAI
+    participant Bus
+    participant Sub
+
+    Orch-&gt;&gt;OpenAI: responses.create(stream=True)
+    OpenAI--&gt;&gt;Orch: chunks...
+    OpenAI--xOrch: RemoteProtocolError
+    Note over Orch: caught, flow enters finally
+    Orch-&gt;&gt;Bus: stream_ended.publish(StreamEnded) (always)
+    Bus-&gt;&gt;Sub: on_ended</code></pre>
+<p><code>StreamEnded</code> is the invariant — it <strong>always</strong> fires from <code>finally</code>, so the UI sees a terminal state even on a broken connection.</p>
+<hr />
+<h2 id="15-completewithreferences-orchestrator-state-machine">15. <code>*CompleteWithReferences</code> orchestrator state machine<a class="headerlink" href="#15-completewithreferences-orchestrator-state-machine" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    direction LR
+    [*] --&gt; Idle
+    Idle --&gt; Started : reset + StreamStarted
+    Started --&gt; Streaming : open stream
+    Streaming --&gt; Streaming : TextDelta / ActivityProgress
+    Streaming --&gt; Ended : finally — StreamEnded
+    Ended --&gt; [*]</code></pre>
+<hr />
+<h2 id="16-inner-vs-outer-bus-identity-adapter">16. Inner-vs-outer bus (identity adapter)<a class="headerlink" href="#16-inner-vs-outer-bus-identity-adapter" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    classDef inner fill:#fff5e6,stroke:#ff7f0e,color:#8a4303
+    classDef orch  fill:#1f77b4,stroke:#0b3d66,color:#fff
+    classDef outer fill:#f0e6fa,stroke:#9467bd,color:#4d2a75
+
+    H[EventHandler]:::inner
+    IN[inner bus&amp;lt;TextFlushed&amp;gt; / inner bus&amp;lt;ActivityProgressUpdate&amp;gt;&lt;br/&gt;identity-free]:::inner
+    AD[Orchestrator&lt;br/&gt;adapter]:::orch
+    OUT[StreamEventBus&lt;br/&gt;text_delta · activity_progress&lt;br/&gt;+ message_id, chat_id]:::outer
+
+    H --&gt; IN --&gt; AD --&gt; OUT</code></pre>
+<p>Why: event handlers know nothing about <code>message_id</code> / <code>chat_id</code>, so they're trivially reusable and testable. The adapter on the orchestrator adds identity and forwards on the matching <strong>typed channel</strong> of the outer bus — no Union, no <code>isinstance</code> re-dispatch at the subscriber boundary.</p>
+<hr />
+<h2 id="17-pattern-replacer-streaming-normalisation">17. Pattern replacer — streaming normalisation<a class="headerlink" href="#17-pattern-replacer-streaming-normalisation" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    classDef raw  fill:#fde8e8,stroke:#d62728,color:#7a1515
+    classDef buf  fill:#fff5e6,stroke:#ff7f0e,color:#8a4303
+    classDef norm fill:#e6f7e6,stroke:#2ca02c,color:#1a6a1a
+    classDef out  fill:#e8f4fd,stroke:#1f77b4,color:#0b3d66
+
+    M["delta: '…see &amp;#91;source 1&amp;#93;…'"]:::raw
+    R[process]:::buf
+    B[(80-char hold-back)]:::buf
+    PAT[NORMALIZATION_PATTERNS]:::norm
+    OUT["'…see &amp;lt;sup&amp;gt;1&amp;lt;/sup&amp;gt;…'"]:::out
+
+    M --&gt; R
+    R &lt;--&gt; B
+    R --&gt; PAT
+    R --&gt; OUT</code></pre>
+<p><code>StreamingPatternReplacer</code> buffers the last 80 characters so a regex that straddles two deltas still matches.</p>
+<hr />
+<h2 id="18-cascade-flush-at-end-of-stream">18. Cascade flush at end-of-stream<a class="headerlink" href="#18-cascade-flush-at-end-of-stream" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    classDef buf fill:#fff5e6,stroke:#ff7f0e,color:#8a4303
+
+    R1[Replacer 1]:::buf --&gt; R2[Replacer 2]:::buf --&gt; R3[Replacer 3]:::buf --&gt; OUT[final text]:::buf</code></pre>
+<p>On <code>on_stream_end</code>, each replacer's tail is fed into the next replacer's <code>process()</code> before that one's <code>flush()</code>, so no partial match survives the end of the stream.</p>
+<hr />
+<h2 id="19-responses-vs-chat-completions">19. Responses vs Chat Completions<a class="headerlink" href="#19-responses-vs-chat-completions" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Responses</th>
+<th>Chat Completions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Event types</td>
+<td>Distinct per kind</td>
+<td>Unified <code>ChatCompletionChunk</code></td>
+</tr>
+<tr>
+<td>Flush rule</td>
+<td>Every non-empty delta</td>
+<td>Every <code>send_every_n_events</code> chunks</td>
+</tr>
+<tr>
+<td>Event handlers</td>
+<td>text, tools, completed, CI</td>
+<td>text, tools</td>
+</tr>
+<tr>
+<td>Appendices</td>
+<td>None by default; router supports <code>AppendixProducer</code> extensions</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>ActivityProgress</code></td>
+<td>Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Default subscribers</td>
+<td>MessagePersister + ProgressLogPersister</td>
+<td>MessagePersister</td>
+</tr>
+<tr>
+<td>Result type</td>
+<td><code>ResponsesLanguageModelStreamResponse</code></td>
+<td><code>LanguageModelStreamResponse</code></td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid"><code>flowchart LR
+    classDef shared fill:#e8f4fd,stroke:#1f77b4,color:#0b3d66
+    classDef r      fill:#e6f7e6,stroke:#2ca02c,color:#1a6a1a
+    classDef c      fill:#fff5e6,stroke:#ff7f0e,color:#8a4303
+
+    SH[Shared: replacer · events · MessagePersister]:::shared
+    R[Responses: +CI +Completed +ProgressLogPersister]:::r
+    C[Chat: +throttle]:::c
+
+    SH --&gt; R
+    SH --&gt; C</code></pre>
+<hr />
+<h2 id="20-extension-points">20. Extension points<a class="headerlink" href="#20-extension-points" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>I want to…</th>
+<th>Where to plug in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Add a provider SDK stream shape</td>
+<td>New <code>*CompleteWithReferences</code>-style orchestrator + <code>*StreamEventRouter</code>; reuse bus, subscribers, replacer</td>
+</tr>
+<tr>
+<td>Add an activity</td>
+<td>Event handler exposes <code>activity_bus</code> of <code>ActivityProgressUpdate</code></td>
+</tr>
+<tr>
+<td>Append to final message</td>
+<td>Implement <code>AppendixProducer.get_appendix()</code></td>
+</tr>
+<tr>
+<td>Tracing / analytics</td>
+<td><code>orchestrator.bus.text_delta.subscribe(my_fn)</code> (or any other typed channel)</td>
+</tr>
+<tr>
+<td>Replace persistence</td>
+<td>Implement <code>StreamSubscriber</code> (<code>register(bus)</code> + <code>on_*</code> methods), pass <code>subscribers=[MyPersister(...)]</code> to the orchestrator (defaults dropped)</td>
+</tr>
+<tr>
+<td>New citation format</td>
+<td>Add pattern to <code>NORMALIZATION_PATTERNS</code> (parity test guards drift)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="21-cheat-sheet-one-liner-per-file">21. Cheat sheet — one-liner per file<a class="headerlink" href="#21-cheat-sheet-one-liner-per-file" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>One-liner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>event_routing/events.py</code></td>
+<td>Event dataclasses + <code>StreamEventBus</code> (typed channels) + <code>StreamSubscriber</code> protocol</td>
+</tr>
+<tr>
+<td><code>experimental/components/streaming/common.py</code></td>
+<td><code>TextState</code>, event handler protocols, inner-bus payloads, <code>AppendixProducer</code></td>
+</tr>
+<tr>
+<td><code>event_routing/protocols/responses.py</code></td>
+<td>Responses event handler protocols</td>
+</tr>
+<tr>
+<td><code>event_routing/protocols/chat_completions.py</code></td>
+<td>Chat Completions event handler protocols</td>
+</tr>
+<tr>
+<td><code>event_routing/responses/stream_event_router.py</code></td>
+<td>Typed dispatch + <code>build_result</code> + <code>get_appendices</code></td>
+</tr>
+<tr>
+<td><code>event_routing/responses/complete_with_references.py</code></td>
+<td>Orchestrator — owns bus, publishes domain events</td>
+</tr>
+<tr>
+<td><code>event_routing/responses/text_delta_event_handler.py</code></td>
+<td>Pure text accumulator + inner <code>text_bus</code></td>
+</tr>
+<tr>
+<td><code>event_routing/responses/tool_call_event_handler.py</code></td>
+<td>Function tool call accumulator</td>
+</tr>
+<tr>
+<td><code>event_routing/responses/completed_event_handler.py</code></td>
+<td>Usage + output items</td>
+</tr>
+<tr>
+<td><code>event_routing/responses/code_interpreter_event_handler.py</code></td>
+<td>Progress updates for code interpreter activity</td>
+</tr>
+<tr>
+<td><code>event_routing/chat_completions/stream_event_router.py</code></td>
+<td>Broadcast dispatch over unified chunks</td>
+</tr>
+<tr>
+<td><code>event_routing/chat_completions/complete_with_references.py</code></td>
+<td>Chat Completions orchestrator</td>
+</tr>
+<tr>
+<td><code>event_routing/chat_completions/text_event_handler.py</code></td>
+<td>Throttled text accumulator</td>
+</tr>
+<tr>
+<td><code>event_routing/chat_completions/tool_call_event_handler.py</code></td>
+<td>Tool call assembler</td>
+</tr>
+<tr>
+<td><code>event_routing/subscribers/message_persister.py</code></td>
+<td>Only caller of <code>Message.modify_async</code></td>
+</tr>
+<tr>
+<td><code>event_routing/subscribers/progress_log_persister.py</code></td>
+<td>Only caller of <code>MessageLog.*</code></td>
+</tr>
+<tr>
+<td><code>event_routing/_async_bridge.py</code></td>
+<td>Run an async coroutine from sync code (sync orchestrator entrypoint)</td>
+</tr>
+<tr>
+<td><code>experimental/components/streaming/pattern_replacer.py</code></td>
+<td><code>NORMALIZATION_PATTERNS</code> + <code>StreamingPatternReplacer</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="22-elevator-pitch">22. Elevator pitch<a class="headerlink" href="#22-elevator-pitch" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p>"We adapt provider SDK streams into Unique platform updates. One streaming call is owned by a <code>*CompleteWithReferences</code> orchestrator, interpreted by a <strong>stream event router</strong>, and handled by pure event handlers that recognize the normal stream lifecycle: start, text deltas, tool/activity progress, function calls, usage, and end. A <strong>stream event bus</strong> exposes the platform-facing events on typed channels, and subscribers translate those events into <code>unique_sdk</code> calls that update the backend message and progress logs. Event handlers never call the SDK — <strong>only subscribers do</strong> — so adding another provider stream shape means writing a new <code>*CompleteWithReferences</code>-style orchestrator/router pair while reusing the bus, subscribers, citation normalization, and result assembly patterns."</p>
+</blockquote>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://unique-ag.github.io/ai/" target="_blank" rel="noopener" title="Unique AI Documentation" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M277.8 8.6c-12.3-11.4-31.3-11.4-43.5 0l-224 208c-9.6 9-12.8 22.9-8 35.1S18.8 272 32 272h16v176c0 35.3 28.7 64 64 64h288c35.3 0 64-28.7 64-64V272h16c13.2 0 25-8.1 29.8-20.3s1.6-26.2-8-35.1zM240 320h32c26.5 0 48 21.5 48 48v96H192v-96c0-26.5 21.5-48 48-48"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
