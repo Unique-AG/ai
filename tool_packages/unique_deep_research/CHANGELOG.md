@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.20.0...unique-deep-research-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* commands for local ci checks ([#908](https://github.com/Unique-AG/ai/issues/908)) ([25af0f5](https://github.com/Unique-AG/ai/commit/25af0f59b752f54815f726b1ee0d00f19ff3fbbf))
+* **deep_research:** Add report Word export functionnality ([#1099](https://github.com/Unique-AG/ai/issues/1099)) ([0828197](https://github.com/Unique-AG/ai/commit/0828197014d576188c00e17344f977ce9454354f))
+* **deep-research:** use model-specific token counting ([#985](https://github.com/Unique-AG/ai/issues/985)) ([bad965c](https://github.com/Unique-AG/ai/commit/bad965c89bb10f1762e6c227e8b82122f572e13b))
+* **deepresearch:** Add config option to show full page content (instead of snippet) in the web_search tool. ([#1044](https://github.com/Unique-AG/ai/issues/1044)) ([34e14dd](https://github.com/Unique-AG/ai/commit/34e14dd3cd0be5e4f291edd822e56ee169da3ff6))
+* **deepresearch:** Several fixes/additions to deep research ([#983](https://github.com/Unique-AG/ai/issues/983)) ([8a70af1](https://github.com/Unique-AG/ai/commit/8a70af1c69d2977a977ba5b8a4b68a454fbbb383))
+* **deepresearch:** Support other search engines for web search ([#955](https://github.com/Unique-AG/ai/issues/955)) ([e1119ca](https://github.com/Unique-AG/ai/commit/e1119ca4416f6bff055e7ad7d8be6096a6c772ef))
+* **orchestrator, deep-research:** use flag-based cancellation via CancellationWatcher ([#1034](https://github.com/Unique-AG/ai/issues/1034)) ([3be5ce3](https://github.com/Unique-AG/ai/commit/3be5ce360e26b8a7f0953d6a3166b74e3942a7d5))
+
+
+### Bug Fixes
+
+* **deep_research:** correct changelog date to 2026-03-05 ([#1152](https://github.com/Unique-AG/ai/issues/1152)) ([fa470dd](https://github.com/Unique-AG/ai/commit/fa470dd6c7fe1a9b125cd23a175d5a22c9783981))
+* **deep_research:** regenerate stale uv.lock after version bump ([#1151](https://github.com/Unique-AG/ai/issues/1151)) ([54d346d](https://github.com/Unique-AG/ai/commit/54d346db50eb8cd70b318d9b0e5304675089e468))
+* **deep_research:** Use a UI compatible config ([#961](https://github.com/Unique-AG/ai/issues/961)) ([8c79b45](https://github.com/Unique-AG/ai/commit/8c79b4502f3b1a8057de340936926d7bab7e1e14))
+* **deep-research:** Fix bug with model usage analytics ([#934](https://github.com/Unique-AG/ai/issues/934)) ([472ca1a](https://github.com/Unique-AG/ai/commit/472ca1a50c8575ea3b275c3ed48170852d6dfbef))
+* **deep-research:** Improve prompts ([#1146](https://github.com/Unique-AG/ai/issues/1146)) ([8ed1fce](https://github.com/Unique-AG/ai/commit/8ed1fce65d2cde22507b58e19722d94301622fb7))
+* **deep-research:** Use correct headers for openai client ([#975](https://github.com/Unique-AG/ai/issues/975)) ([475070b](https://github.com/Unique-AG/ai/commit/475070bcd5d4399ca646f71893a202123f869795))
+* **deepresearch:** Correcly log debug info in case of error ([#1006](https://github.com/Unique-AG/ai/issues/1006)) ([4d95452](https://github.com/Unique-AG/ai/commit/4d9545245c58b59d7490d2a9b68b76423feb219a))
+* **deepresearch:** Improve deep research error handling ([#977](https://github.com/Unique-AG/ai/issues/977)) ([31a2c11](https://github.com/Unique-AG/ai/commit/31a2c118066dae4a672198732068e689007d12ca))
+* **deepresearch:** Specify `langchain_openai` version ([#938](https://github.com/Unique-AG/ai/issues/938)) ([f90be7f](https://github.com/Unique-AG/ai/commit/f90be7fdac3468ed8eb1f23c74b3202ff74bcf32))
+* formating and dates on all changelogs ([#1114](https://github.com/Unique-AG/ai/issues/1114)) ([9a7998b](https://github.com/Unique-AG/ai/commit/9a7998b9617ee88698385537c2ecde0ab30366f4))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.18.0...unique-deep-research-v2026.20.0) (2026-05-08)
 
 

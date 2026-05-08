@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.20.0...unique-web-search-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* commands for local ci checks ([#908](https://github.com/Unique-AG/ai/issues/908)) ([25af0f5](https://github.com/Unique-AG/ai/commit/25af0f59b752f54815f726b1ee0d00f19ff3fbbf))
+* Make SearchModeV2 as default ([#909](https://github.com/Unique-AG/ai/issues/909)) ([6414b95](https://github.com/Unique-AG/ai/commit/6414b953164f56480c0d3b11df8728eb428f6f04))
+* Refactor content processing and add llm guard ([#1048](https://github.com/Unique-AG/ai/issues/1048)) ([b9c5650](https://github.com/Unique-AG/ai/commit/b9c5650205a03f564b95049adca7d73224c622bb))
+* **unique_web_search:** shared grounding module and VertexAI single-call parse ([#1440](https://github.com/Unique-AG/ai/issues/1440)) ([39e7f47](https://github.com/Unique-AG/ai/commit/39e7f4782270c5c8655f59eb21eaf05e928a536c))
+* Web search elicitation query approval ([#976](https://github.com/Unique-AG/ai/issues/976)) ([963290c](https://github.com/Unique-AG/ai/commit/963290c5a3b7237a62c84f6e735219d837474760))
+* **web_search:** Add system reminder to toolcall response ([#1269](https://github.com/Unique-AG/ai/issues/1269)) ([ee4cf43](https://github.com/Unique-AG/ai/commit/ee4cf43c40282c96f6bbf5ba01ad41bacf9c7654))
+* **web-search:** add Prometheus metrics instrumentation ([#1371](https://github.com/Unique-AG/ai/issues/1371)) ([6addaea](https://github.com/Unique-AG/ai/commit/6addaea4dd65b1f5eb616634ef14a83fc676548c))
+* **web-search:** add unique-websearch CLI for terminal-based web search ([#1347](https://github.com/Unique-AG/ai/issues/1347)) ([ed4b2bc](https://github.com/Unique-AG/ai/commit/ed4b2bcd9d5b7bcad001f65b2e387cc964986354))
+* **web-search:** Argument Screening as a guard ([#1317](https://github.com/Unique-AG/ai/issues/1317)) ([87d53cf](https://github.com/Unique-AG/ai/commit/87d53cfb37d18641b2fe76437a8a7a05dc74aff4))
+* **web-search:** Automatic Creation Of GroundingWithBing Agent ([#996](https://github.com/Unique-AG/ai/issues/996)) ([cd9e258](https://github.com/Unique-AG/ai/commit/cd9e25825e9b27215d6a04c423681da5e9073d03))
+* **web-search:** Dynamic Prompt Selection depending on the SearchEngineMode (Agent/Standard) ([#1577](https://github.com/Unique-AG/ai/issues/1577)) ([a7a583f](https://github.com/Unique-AG/ai/commit/a7a583f51438706b9a5253fdf43f0e3b0660988c))
+* **web-search:** LLM processor env-config override & Bing agent forwarding from env ([#1107](https://github.com/Unique-AG/ai/issues/1107)) ([867563e](https://github.com/Unique-AG/ai/commit/867563e54675631f9a21b7a8b630962d61c9eead))
+* **web-search:** redesign V3 as two-command (search / read_urls) tool ([#1578](https://github.com/Unique-AG/ai/issues/1578)) ([d471cf6](https://github.com/Unique-AG/ai/commit/d471cf6d216e51215ff958baef72aacebc8d0af6))
+* **web-search:** use model-specific token counting ([#984](https://github.com/Unique-AG/ai/issues/984)) ([56e5438](https://github.com/Unique-AG/ai/commit/56e54389725bb34f46f1dfd9f6af15a0d146a60a))
+* **web-search:** VertexAI ADC fallback when no explicit service account credentials ([#1375](https://github.com/Unique-AG/ai/issues/1375)) ([a0a9af7](https://github.com/Unique-AG/ai/commit/a0a9af70e63add4823cccf402582b4d590869ad9))
+* **websearch:** Add LMI config option to BingSearch ([#951](https://github.com/Unique-AG/ai/issues/951)) ([cb888c1](https://github.com/Unique-AG/ai/commit/cb888c11d904951b69fafc17a344a8585aea9476))
+* **websearch:** Fast LLM guard implementation ([#1240](https://github.com/Unique-AG/ai/issues/1240)) ([9b9f3e0](https://github.com/Unique-AG/ai/commit/9b9f3e084e21e082ec356427843ec839819b5f03))
+* **websearch:** V3 for search result judge/filter ([#1237](https://github.com/Unique-AG/ai/issues/1237)) ([f212c81](https://github.com/Unique-AG/ai/commit/f212c8157338c2b9e97eea9eb17188cad5218b61))
+
+
+### Bug Fixes
+
+* Add client config loading from env for custom_api ([#947](https://github.com/Unique-AG/ai/issues/947)) ([3fd6090](https://github.com/Unique-AG/ai/commit/3fd6090970c9b6e7fd42b20c238790c4e9b46b1e))
+* Add field validators to to parse V2 (beta) as v2 ([#916](https://github.com/Unique-AG/ai/issues/916)) ([d89c049](https://github.com/Unique-AG/ai/commit/d89c049b9e4f1e2ef4eb9f97f66385f827b3ec22))
+* **bing:** async SDK migration, configurable agent_id/endpoint, and settings validation ([#1017](https://github.com/Unique-AG/ai/issues/1017)) ([f86b0c0](https://github.com/Unique-AG/ai/commit/f86b0c0c2a0a93c1b2778bb2e4ff3828c7d87d1a))
+* formating and dates on all changelogs ([#1114](https://github.com/Unique-AG/ai/issues/1114)) ([9a7998b](https://github.com/Unique-AG/ai/commit/9a7998b9617ee88698385537c2ecde0ab30366f4))
+* Improve Search Engine names in the UI and Config Search Engine Title ([#1018](https://github.com/Unique-AG/ai/issues/1018)) ([d1cbd26](https://github.com/Unique-AG/ai/commit/d1cbd26d6c9c6d4528b5b741f95ad986de6e5a40))
+* **security:** address Dependabot alerts and remove stale unique_mcp lockfile ([#1436](https://github.com/Unique-AG/ai/issues/1436)) ([d8a616f](https://github.com/Unique-AG/ai/commit/d8a616f7f1defa4280d7175bbf5d9bc39e630168))
+* **web_search:** use randomized user agent with email in crawlers ([#1276](https://github.com/Unique-AG/ai/issues/1276)) ([5057dc7](https://github.com/Unique-AG/ai/commit/5057dc7ee577c4a0a1a9d9b947730fe8395abdb4))
+* **web-search:** correct "triggerd" typo to "triggered" in elicitation messages ([#1526](https://github.com/Unique-AG/ai/issues/1526)) ([dc3c1cc](https://github.com/Unique-AG/ai/commit/dc3c1ccd8fd8b69bf320d35178ced2977a900afc))
+* **web-search:** Fix requests to make brave search engine work ([#1427](https://github.com/Unique-AG/ai/issues/1427)) ([d1fead9](https://github.com/Unique-AG/ai/commit/d1fead9dabebfbbd388a709f71b9bc82f34f5f68))
+* **web-search:** improve-llm-guard-stability ([#1068](https://github.com/Unique-AG/ai/issues/1068)) ([bbac3f8](https://github.com/Unique-AG/ai/commit/bbac3f8002254c5efd6b3a8d55e327030bc6dd99))
+* **web-search:** Mark v3 as experimental ([#1414](https://github.com/Unique-AG/ai/issues/1414)) ([d6bb1fb](https://github.com/Unique-AG/ai/commit/d6bb1fba9d2965d1ba5c6b62c9f509a7e0e9bb7d))
+* **web-search:** Message Log improvements ([#1025](https://github.com/Unique-AG/ai/issues/1025)) ([d931739](https://github.com/Unique-AG/ai/commit/d93173905276e4c798cc85a799acb5f6bf4a7157))
+* **web-search:** method  in  shouldn't use model from settings ([#1020](https://github.com/Unique-AG/ai/issues/1020)) ([4b87220](https://github.com/Unique-AG/ai/commit/4b872205146835eced42131ebd1d0c95c34bff8f))
+* **web-search:** Remap llm configuration to correct place ([#1655](https://github.com/Unique-AG/ai/issues/1655)) ([c208527](https://github.com/Unique-AG/ai/commit/c2085271332c0a16d01fb995db3074c62506aecc))
+* **web-search:** use AsyncioRequestsTransport for Bing private endpoint connections ([#1224](https://github.com/Unique-AG/ai/issues/1224)) ([3ca89d9](https://github.com/Unique-AG/ai/commit/3ca89d965ca65341d8fe443b0949d73139810434))
+* **web-search:** validate parallel parameter to prevent silent data loss ([#1419](https://github.com/Unique-AG/ai/issues/1419)) ([05542e9](https://github.com/Unique-AG/ai/commit/05542e931ada19453e957d1d67b86068b06a0531))
+* **websearch:** Raise Error on Custom WebSearch Requests ([#954](https://github.com/Unique-AG/ai/issues/954)) ([a587bbb](https://github.com/Unique-AG/ai/commit/a587bbbd9c5ba76448a1020870795537fbd88f68))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.18.0...unique-web-search-v2026.20.0) (2026-05-08)
 
 

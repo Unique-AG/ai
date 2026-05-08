@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.20.0...unique-swot-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* commands for local ci checks ([#908](https://github.com/Unique-AG/ai/issues/908)) ([25af0f5](https://github.com/Unique-AG/ai/commit/25af0f59b752f54815f726b1ee0d00f19ff3fbbf))
+* **swot:** Dual-mode generation architecture ([#1120](https://github.com/Unique-AG/ai/issues/1120)) ([768a2b7](https://github.com/Unique-AG/ai/commit/768a2b712e30f329719831894cb9a6e7588f4aab))
+* **swot:** migrate token counting to model-agnostic encoder ([#997](https://github.com/Unique-AG/ai/issues/997)) ([7d954d7](https://github.com/Unique-AG/ai/commit/7d954d7900cfbad62794cf1f38c42889749e2ce7))
+
+
+### Bug Fixes
+
+* References swot and naming of uploaded search ([#919](https://github.com/Unique-AG/ai/issues/919)) ([3c339c1](https://github.com/Unique-AG/ai/commit/3c339c1429a0004f2dd5764d4fb48c5278f9904e))
+* **swot:** correct changelog date to 2026-03-05 ([#1154](https://github.com/Unique-AG/ai/issues/1154)) ([f7da7d2](https://github.com/Unique-AG/ai/commit/f7da7d24cf1b06e6f2b2994299799fda1b72c50d))
+* **swot:** correct spelling of 'occurred' in error messages ([#1551](https://github.com/Unique-AG/ai/issues/1551)) ([6a7b346](https://github.com/Unique-AG/ai/commit/6a7b346c5c4b6713e2a2af590f0df2a25f8aedd7))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-swot-v2026.18.0...unique-swot-v2026.20.0) (2026-05-08)
 
 

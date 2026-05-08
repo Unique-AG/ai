@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.20.0...unique-mcp-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* commands for local ci checks ([#908](https://github.com/Unique-AG/ai/issues/908)) ([25af0f5](https://github.com/Unique-AG/ai/commit/25af0f59b752f54815f726b1ee0d00f19ff3fbbf))
+* **mcp:** Add OIDC proxy helper and documentation ([#925](https://github.com/Unique-AG/ai/issues/925)) ([d5b9061](https://github.com/Unique-AG/ai/commit/d5b90618ee0bd1dfa3e608984c54dc825155add0))
+* **mcp:** Add oidc proxy with storage client ([#917](https://github.com/Unique-AG/ai/issues/917)) ([bd7fa1a](https://github.com/Unique-AG/ai/commit/bd7fa1a978b57c9ced7f7495d65945b1c7a6cdb8))
+* **unique_mcp:** add shared MCP context provider and wire tutorials ([#1255](https://github.com/Unique-AG/ai/issues/1255)) ([2c347a9](https://github.com/Unique-AG/ai/commit/2c347a9c29cc1c0b661ad682077f3f5c53b02c93))
+* **unique_mcp:** scoped MetaKeys, ContextRequirements, and injector refactor ([#1461](https://github.com/Unique-AG/ai/issues/1461)) ([7a899c1](https://github.com/Unique-AG/ai/commit/7a899c1c67305845179db0a4cb89ee45a49aaf50))
+
+
+### Bug Fixes
+
+* **ci:** exempt workspace packages from uv exclude-newer cutoff ([#1455](https://github.com/Unique-AG/ai/issues/1455)) ([28af03b](https://github.com/Unique-AG/ai/commit/28af03b8edbadeb5e5059540733eba16567aacf8))
+* formating and dates on all changelogs ([#1114](https://github.com/Unique-AG/ai/issues/1114)) ([9a7998b](https://github.com/Unique-AG/ai/commit/9a7998b9617ee88698385537c2ecde0ab30366f4))
+* Refactor how mcp servers obtain unique settings ([#1290](https://github.com/Unique-AG/ai/issues/1290)) ([56ed6b1](https://github.com/Unique-AG/ai/commit/56ed6b15452c1c8db263956b63802ba32a090af8))
+* **security:** address Dependabot alerts and remove stale unique_mcp lockfile ([#1436](https://github.com/Unique-AG/ai/issues/1436)) ([d8a616f](https://github.com/Unique-AG/ai/commit/d8a616f7f1defa4280d7175bbf5d9bc39e630168))
+* **unique-mcp:** align zitadel.env.example variable names with ZITADEL_ prefix ([#1283](https://github.com/Unique-AG/ai/issues/1283)) ([0030166](https://github.com/Unique-AG/ai/commit/0030166a3a7ed50daa5d03f159ba849617bca467))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.18.0...unique-mcp-v2026.20.0) (2026-05-08)
 
 

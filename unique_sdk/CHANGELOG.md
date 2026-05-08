@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.20.0...unique-sdk-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* Add RERUN_ROW action to MagicTableAction enum ([#970](https://github.com/Unique-AG/ai/issues/970)) ([7455938](https://github.com/Unique-AG/ai/commit/74559388a1b021dd53a7655c3d7b75f6e49f53d1))
+* add User.get_by_id method to retrieve user by ID UN-17073 ([#1013](https://github.com/Unique-AG/ai/issues/1013)) ([50fd144](https://github.com/Unique-AG/ai/commit/50fd144fb7e8c9af78b0bc30c49257b229fc35ab))
+* **cli:** add MCP tool call command to unique-cli ([#1325](https://github.com/Unique-AG/ai/issues/1325)) ([4eec9b7](https://github.com/Unique-AG/ai/commit/4eec9b7cfd1c55721280a6085606215cde04e499))
+* commands for local ci checks ([#908](https://github.com/Unique-AG/ai/issues/908)) ([25af0f5](https://github.com/Unique-AG/ai/commit/25af0f59b752f54815f726b1ee0d00f19ff3fbbf))
+* **sdk:** Add Analytics Order API and run utility ([#1503](https://github.com/Unique-AG/ai/issues/1503)) ([01f37aa](https://github.com/Unique-AG/ai/commit/01f37aa3666b66a19cb22a5636c734f57a1d0f17))
+* **sdk:** add elicit CLI command group and agent skill ([#1443](https://github.com/Unique-AG/ai/issues/1443)) ([5549f20](https://github.com/Unique-AG/ai/commit/5549f20d852ddd20bc267f32907d6058fe23dd66))
+* **sdk:** Add get_spaces API method to list spaces with filtering ([#1437](https://github.com/Unique-AG/ai/issues/1437)) ([eeb04ea](https://github.com/Unique-AG/ai/commit/eeb04ea3bce41a459c072b58dfd93e9819723157))
+* **sdk:** add message correlation [UN-16427] ([#959](https://github.com/Unique-AG/ai/issues/959)) ([e3f2282](https://github.com/Unique-AG/ai/commit/e3f228205af7e7a1c4f63077387d78a51997cc99))
+* **sdk:** add missing docs ([#1500](https://github.com/Unique-AG/ai/issues/1500)) ([73c0dcd](https://github.com/Unique-AG/ai/commit/73c0dcd7d37deb36a55d1483f64e6ae09fdb9df5))
+* **sdk:** Add Module API resource for managing assistant modules ([#1471](https://github.com/Unique-AG/ai/issues/1471)) ([b376a1d](https://github.com/Unique-AG/ai/commit/b376a1d460d52f2d34181dda801fa63111b43909))
+* **sdk:** add scheduled tasks API resource and CLI commands ([#1358](https://github.com/Unique-AG/ai/issues/1358)) ([f45941b](https://github.com/Unique-AG/ai/commit/f45941b9cecb148244a0b6087a0255f0e87397a1))
+* **sdk:** add update ingestion state sdk function [UN-16631] ([#952](https://github.com/Unique-AG/ai/issues/952)) ([b4dd0fa](https://github.com/Unique-AG/ai/commit/b4dd0fad0bce1162ea557d9fc517cdcd555aca16))
+* **sdk:** add WebSearch / WebCrawl resources and unique-cli web-search ([#1611](https://github.com/Unique-AG/ai/issues/1611)) ([2cc2fab](https://github.com/Unique-AG/ai/commit/2cc2fab0c3e19806c1797ae7b169fd71acee35e4))
+* **sdk:** Added searchtype `FULL_TEXT` and `POSTGRES_FULL_TEXT` ([#924](https://github.com/Unique-AG/ai/issues/924)) ([7208da1](https://github.com/Unique-AG/ai/commit/7208da15b80079fe37b496d0c9afc1310701b022))
+* **sdk:** align AgenticTable with public magic-table API [UN-19885] ([#1467](https://github.com/Unique-AG/ai/issues/1467)) ([f13afea](https://github.com/Unique-AG/ai/commit/f13afea2bc7f00a6d832980cf7507bf9bf03fe9f))
+* **sdk:** allow download_content to write to caller-specified target_path ([#1585](https://github.com/Unique-AG/ai/issues/1585)) ([df57cc9](https://github.com/Unique-AG/ai/commit/df57cc9610d7065fd0292a6b4211406d37c3e89c))
+* **sdk:** benchmarking script ([#1282](https://github.com/Unique-AG/ai/issues/1282)) ([244cec6](https://github.com/Unique-AG/ai/commit/244cec662889a1ad6dd89bcb0a5ef220468ccbe2))
+* **sdk:** Briefing API resource and PUT HTTP support ([#1574](https://github.com/Unique-AG/ai/issues/1574)) ([23455e7](https://github.com/Unique-AG/ai/commit/23455e7e90792767b41e43122230b52f6ef12975))
+* **sdk:** create chat fucntion ([#1277](https://github.com/Unique-AG/ai/issues/1277)) ([a866a12](https://github.com/Unique-AG/ai/commit/a866a12a02981bd8c74ba529c9f6e173c50fea35))
+* **sdk:** create folders by scope id [UN-17011] ([#1012](https://github.com/Unique-AG/ai/issues/1012)) ([5fb60b7](https://github.com/Unique-AG/ai/commit/5fb60b7e37ffe85098dcfbf276ea8a59fc2feb5a))
+* **sdk:** delete space [UN-16434] ([#930](https://github.com/Unique-AG/ai/issues/930)) ([d5407a1](https://github.com/Unique-AG/ai/commit/d5407a1d93ddec34e939518b2236e1db41220388))
+* **sdk:** implement elicitation functions [UN-16334] ([#920](https://github.com/Unique-AG/ai/issues/920)) ([bca3aab](https://github.com/Unique-AG/ai/commit/bca3aab5f03f2bfc2962ad62b23911efae07c34a))
+* **sdk:** rewrite blob upload URLs via INGESTION_UPLOAD_API_URL_INTERNAL ([#1588](https://github.com/Unique-AG/ai/issues/1588)) ([5783fb5](https://github.com/Unique-AG/ai/commit/5783fb5c4d4053ed83a505ce75b3ca271d8d1757))
+* **sdk:** search qdrant params ([#1225](https://github.com/Unique-AG/ai/issues/1225)) ([10cff12](https://github.com/Unique-AG/ai/commit/10cff126a11fd618e8fa8ae525034b30a4959e55))
+* **sdk:** ship CLI as part of unique_sdk (experimental) ([#1248](https://github.com/Unique-AG/ai/issues/1248)) ([bf947e8](https://github.com/Unique-AG/ai/commit/bf947e825e1cd16d25f120a3d896b481c926e090))
+* **sdk:** UN-15977 add ToolCall API resource ([#1102](https://github.com/Unique-AG/ai/issues/1102)) ([3fda725](https://github.com/Unique-AG/ai/commit/3fda725bbd65efa77a95b5d1d83d7f9ce288a192))
+* **sdk:** update assistant function ([#1108](https://github.com/Unique-AG/ai/issues/1108)) ([e16a138](https://github.com/Unique-AG/ai/commit/e16a1383c452384c689be685680aeba2bf12343e))
+* **unique-sdk:** derive preview-PDF blob name from content id ([#1532](https://github.com/Unique-AG/ai/issues/1532)) ([d36d130](https://github.com/Unique-AG/ai/commit/d36d130e6c38f781d767c2a53c6bf2ac933c1ccc))
+* **unique-skill:** including skill choices to payload ([#1636](https://github.com/Unique-AG/ai/issues/1636)) ([36e8275](https://github.com/Unique-AG/ai/commit/36e82750e89d350e2293b8144035bac903829445))
+
+
+### Bug Fixes
+
+* Add Literals to elicitation ([#972](https://github.com/Unique-AG/ai/issues/972)) ([f4fccfb](https://github.com/Unique-AG/ai/commit/f4fccfb3eec380f98f56fa666fa7695ca5402a84))
+* **ci:** exempt workspace packages from uv exclude-newer cutoff ([#1455](https://github.com/Unique-AG/ai/issues/1455)) ([28af03b](https://github.com/Unique-AG/ai/commit/28af03b8edbadeb5e5059540733eba16567aacf8))
+* **cli:** enforce .unique-search.json scope across search, ls, and write ops ([#1627](https://github.com/Unique-AG/ai/issues/1627)) ([7f0e6ee](https://github.com/Unique-AG/ai/commit/7f0e6eeeb2f67e8cf6ecc131110bc6287755b9b8))
+* formating and dates on all changelogs ([#1114](https://github.com/Unique-AG/ai/issues/1114)) ([9a7998b](https://github.com/Unique-AG/ai/commit/9a7998b9617ee88698385537c2ecde0ab30366f4))
+* resolve CodeQL alerts and fix gitignore negation for uv.lock ([#1408](https://github.com/Unique-AG/ai/issues/1408)) ([0969aa0](https://github.com/Unique-AG/ai/commit/0969aa07edb1b35a13dae13a98d9822a76278af9))
+* **sdk:** correct typing for integrated stream completion endpoint (UN-18109) ([#1193](https://github.com/Unique-AG/ai/issues/1193)) ([943ab57](https://github.com/Unique-AG/ai/commit/943ab579aa37c8e64574c201b76c9d0199ab0c4a))
+* **sdk:** make UNIQUE_API_KEY and UNIQUE_APP_ID optional in unique-cli ([#1428](https://github.com/Unique-AG/ai/issues/1428)) ([3412f82](https://github.com/Unique-AG/ai/commit/3412f829c8fce3ca6503fb1aef56265c82a336ee))
+* **sdk:** replace sync-in-async blocking calls in AgenticTable and file_io ([#1372](https://github.com/Unique-AG/ai/issues/1372)) ([1ad25a0](https://github.com/Unique-AG/ai/commit/1ad25a0374da6ee644bbb4c4619ecbb6b6f135d2))
+* **sdk:** tolerate MCP responses missing optional fields ([#1463](https://github.com/Unique-AG/ai/issues/1463)) ([620775b](https://github.com/Unique-AG/ai/commit/620775b69d8a8f11ba947bf9ab8d878b72729e1e))
+* **sdk:** UN-19815 elicitation visibility workaround + CLI fixes ([#1459](https://github.com/Unique-AG/ai/issues/1459)) ([9ba8dcd](https://github.com/Unique-AG/ai/commit/9ba8dcdbbe168cac06f5fd37d3d8bed6838ef4ff))
+* **sdk:** use async HTTP path in responses_stream_async ([#1368](https://github.com/Unique-AG/ai/issues/1368)) ([f3b7dfe](https://github.com/Unique-AG/ai/commit/f3b7dfe79afa81af3ff679408c3b4568fcdae78c))
+* **unique-sdk:** UN-15976 resolve all basedpyright errors under standard mode ([#1192](https://github.com/Unique-AG/ai/issues/1192)) ([a5d3d91](https://github.com/Unique-AG/ai/commit/a5d3d91a181b2b199b8dde4276b9f2c116f0c42f))
+* **unique-sdk:** UN-15976 upgrade basedpyright to recommended mode with zero errors ([#1196](https://github.com/Unique-AG/ai/issues/1196)) ([8afc0ef](https://github.com/Unique-AG/ai/commit/8afc0ef3548d3f4a4d8bd9bc65dfe67cc6f55ebf))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.18.0...unique-sdk-v2026.20.0) (2026-05-08)
 
 

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.20.0...unique-follow-up-questions-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* commands for local ci checks ([#908](https://github.com/Unique-AG/ai/issues/908)) ([25af0f5](https://github.com/Unique-AG/ai/commit/25af0f59b752f54815f726b1ee0d00f19ff3fbbf))
+
+
+### Bug Fixes
+
+* **follow-up-questions:** use async LLM call to avoid blocking the event loop ([#1364](https://github.com/Unique-AG/ai/issues/1364)) ([bded935](https://github.com/Unique-AG/ai/commit/bded935887c2f93ff3677b4ec3eae3c945e8307e))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.18.0...unique-follow-up-questions-v2026.20.0) (2026-05-08)
 
 
