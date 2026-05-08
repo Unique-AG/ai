@@ -108,7 +108,7 @@ class Base(BaseSettings):
 
     # LLM processor config override (JSON string matching LLMProcessorConfig schema)
     llm_process_config: str | None = None
-    
+
     # URL safety settings
     url_safety_enabled: bool = True
     url_safety_allowed_schemes: list[str] = ["http", "https"]
