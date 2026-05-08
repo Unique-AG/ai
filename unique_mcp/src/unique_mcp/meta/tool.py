@@ -6,9 +6,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, TypeVar
 
+from dotenv import dotenv_values
 from fastmcp.dependencies import CurrentFastMCP, Depends
-from pydantic import BaseModel, Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel
 
 from unique_mcp.meta.keys import CONFIG_META_KEY
 from unique_mcp.util.find_env_file import find_env_file
@@ -41,28 +41,16 @@ def _resolve_tool_env_file(
     return str(env_file) if env_file else None
 
 
-@lru_cache(maxsize=256)
-def _tool_config_env_settings_cls(
-    env_key: str, env_file: str | None
-) -> type[BaseSettings]:
-    class _ToolConfigEnvSettings(BaseSettings):
-        model_config = SettingsConfigDict(
-            env_file=env_file,
-            extra="ignore",
-        )
-
-        value: str | None = Field(default=None, validation_alias=env_key)
-
-    return _ToolConfigEnvSettings
-
-
 def _load_tool_config_override(env_key: str) -> str | None:
-    """Load a tool config override from env vars or env files."""
+    """Load a tool config override from process env or env file."""
+    if val := os.environ.get(env_key):
+        return val
     env_file = _resolve_tool_env_file(
         os.environ.get("ENVIRONMENT_FILE_PATH"), _cache_key_cwd=os.getcwd()
     )
-    settings_cls = _tool_config_env_settings_cls(env_key, env_file)
-    return settings_cls().value
+    if not env_file:
+        return None
+    return dotenv_values(env_file).get(env_key)
 
 
 def get_tool_config(config_model: type[_T]) -> _T:
