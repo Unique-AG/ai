@@ -7,7 +7,6 @@ from typing import Any
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
-from unique_toolkit.language_model import DEFAULT_LANGUAGE_MODEL
 
 from unique_web_search.services.content_processing.processing_strategies.prompts import (
     DEFAULT_JUDGE_AND_SANITIZE_PROMPT_TEMPLATE,
@@ -18,6 +17,7 @@ from unique_web_search.services.content_processing.processing_strategies.prompts
     DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     DEFAULT_USER_PROMPT_TEMPLATE,
 )
+from unique_web_search.settings import env_settings
 
 
 class SanitizeMode(StrEnum):
@@ -79,7 +79,7 @@ class LLMProcessorEnvConfig(BaseModel):
     model_config = get_configuration_dict()
 
     enabled: bool = False
-    language_model: Any = DEFAULT_LANGUAGE_MODEL
+    language_model: Any = env_settings.web_search_default_language_model
     min_tokens: int = 5000
 
     privacy_filter: PrivacyFilterEnvConfig = Field(

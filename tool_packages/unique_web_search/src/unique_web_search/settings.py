@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
+from unique_toolkit.language_model.infos import LanguageModelName
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,6 +29,8 @@ class Base(BaseSettings):
     env: str | None = None
     log_level: str | None = None
     tiktoken_cache_dir: str = "./tiktoken_cache/"
+
+    web_search_default_language_model: LanguageModelName = DEFAULT_LANGUAGE_MODEL
 
     web_search_mode: WebSearchMode = "v2"
 

@@ -3,6 +3,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit._common.validators import LMI, get_LMI_default_field
 
 from unique_web_search.services.argument_screening.prompts import (
     DEFAULT_GUIDELINES,
@@ -10,6 +11,7 @@ from unique_web_search.services.argument_screening.prompts import (
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_USER_PROMPT_TEMPLATE,
 )
+from unique_web_search.settings import env_settings
 
 
 class ArgumentScreeningConfig(BaseModel):
@@ -22,6 +24,14 @@ class ArgumentScreeningConfig(BaseModel):
             "When enabled, an LLM agent screens tool call arguments for "
             "sensitive information before execution. Requires the associated "
             "feature flag to be active."
+        ),
+    )
+    language_model: LMI = get_LMI_default_field(
+        env_settings.web_search_default_language_model,
+        title="Screening Language Model",
+        description=(
+            "AI model used by the screening agent to decide whether tool"
+            " call arguments are safe to forward."
         ),
     )
     guidelines: Annotated[

@@ -18,6 +18,7 @@ from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
 )
+from unique_web_search.services.argument_screening import ArgumentScreeningConfig
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
 from unique_web_search.services.executors.base_config import WebSearchMode
@@ -316,11 +317,10 @@ class TestWebSearchConfig:
             ),
         )
 
-    def test_web_search_config_defaults(self, mock_language_model_info):
+    def test_web_search_config_defaults(self):
         """Test WebSearchConfig with default values."""
-        config = WebSearchConfig(language_model=mock_language_model_info)
+        config = WebSearchConfig()
 
-        assert config.language_model == mock_language_model_info
         assert config.limit_token_sources == 60_000
         assert config.percentage_of_input_tokens_for_sources == 0.4
         assert config.language_model_max_input_tokens is None
@@ -401,10 +401,12 @@ class TestWebSearchConfig:
     ):
         """Test that query refinement is disabled for models without structured output."""
         config = WebSearchConfig(
-            language_model=mock_language_model_info_no_structured_output,
             web_search_active_mode=WebSearchMode.V1,
             web_search_mode_config_v1=WebSearchV1Config(
-                refine_query_mode=QueryRefinementConfig(mode=RefineQueryMode.BASIC)
+                refine_query_mode=QueryRefinementConfig(
+                    mode=RefineQueryMode.BASIC,
+                    language_model=mock_language_model_info_no_structured_output,
+                )
             ),
         )
 
@@ -499,7 +501,18 @@ class TestWebSearchConfig:
 
         config_dict = config.model_dump()
 
-        assert "language_model" in config_dict
+        # The deprecated top-level ``language_model`` field is excluded from
+        # ``model_dump`` (UN-17641); per-feature fields take its place.
+        assert "language_model" not in config_dict
+        assert "token_counting_language_model" in config_dict
+        assert (
+            "language_model"
+            in config_dict["web_search_mode_config_v1"]["refine_query_mode"]
+        )
+        assert (
+            "language_model"
+            in config_dict["experimental_features"]["argument_screening_config"]
+        )
         assert "search_engine_config" in config_dict
         assert "crawler_config" in config_dict
         assert "web_search_active_mode" in config_dict
@@ -507,6 +520,83 @@ class TestWebSearchConfig:
         assert "web_search_mode_config_v2" in config_dict
         assert "experimental_features" in config_dict
         assert config_dict["debug"] is True
+
+    def test_web_search_config__per_feature_defaults_present__when_constructed_empty(
+        self,
+    ):
+        """Per-feature LM fields default to a usable LMI without explicit input."""
+        config = WebSearchConfig()
+
+        assert config.token_counting_language_model is not None
+        assert (
+            config.web_search_mode_config_v1.refine_query_mode.language_model
+            is not None
+        )
+        assert (
+            config.experimental_features.argument_screening_config.language_model
+            is not None
+        )
+
+    def test_web_search_config__legacy_language_model_excluded_from_schema(self):
+        """The deprecated top-level ``language_model`` is hidden from the JSON schema."""
+        schema = WebSearchConfig.model_json_schema()
+        properties = schema.get("properties", {})
+
+        # Schema uses the model's serialization aliases (camelCase).
+        assert "language_model" not in properties
+        assert "languageModel" not in properties
+        assert "tokenCountingLanguageModel" in properties
+
+    def test_web_search_config__per_feature_language_model_fields_accept_explicit_values(
+        self, mock_language_model_info
+    ):
+        """Per-feature LM fields accept and store explicit values independently."""
+        config = WebSearchConfig(
+            token_counting_language_model=mock_language_model_info,
+            web_search_mode_config_v1=WebSearchV1Config(
+                refine_query_mode=QueryRefinementConfig(
+                    language_model=mock_language_model_info,
+                )
+            ),
+            experimental_features=ExperimentalFeatures(
+                argument_screening_config=ArgumentScreeningConfig(
+                    language_model=mock_language_model_info,
+                )
+            ),
+        )
+
+        assert config.token_counting_language_model == mock_language_model_info
+        assert (
+            config.web_search_mode_config_v1.refine_query_mode.language_model
+            == mock_language_model_info
+        )
+        assert (
+            config.experimental_features.argument_screening_config.language_model
+            == mock_language_model_info
+        )
+
+    def test_web_search_config__explicit_per_feature_values_are_used(
+        self,
+        mock_language_model_info_no_structured_output,
+    ):
+        """Explicit per-feature LM values are stored and retrieved as-is."""
+        explicit = mock_language_model_info_no_structured_output
+
+        config = WebSearchConfig(
+            token_counting_language_model=explicit,
+            web_search_mode_config_v1=WebSearchV1Config(
+                refine_query_mode=QueryRefinementConfig(
+                    mode=RefineQueryMode.DEACTIVATED,
+                    language_model=explicit,
+                ),
+            ),
+        )
+
+        assert config.token_counting_language_model == explicit
+        assert (
+            config.web_search_mode_config_v1.refine_query_mode.language_model
+            == explicit
+        )
 
     def test_web_search_config_with_all_features_v1(self, mock_language_model_info):
         """Test WebSearchConfig with all features configured using V1 mode."""
