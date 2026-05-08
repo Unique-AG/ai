@@ -52,8 +52,7 @@ class JinaCrawler(BaseCrawler[JinaCrawlerConfig]):
     # @track(
     #     tags=["jina", "scrape"],
     # )
-    async def crawl(self, urls: list[str]) -> list[str]:
-        urls = self.validate_urls(urls)
+    async def _crawl(self, urls: list[str]) -> list[str]:
         jina_settings = get_jina_search_settings()
         api_key = jina_settings.api_key
         assert api_key is not None, "Jina API key is not configured"

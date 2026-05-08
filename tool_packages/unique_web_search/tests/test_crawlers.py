@@ -123,7 +123,10 @@ class TestBasicCrawler:
                 )
             ),
         )
-        monkeypatch.setattr(basic_crawler, "validate_urls", lambda urls: urls)
+        monkeypatch.setattr(
+            "unique_web_search.services.crawlers.base.validate_crawl_urls",
+            lambda urls: urls,
+        )
 
         with pytest.raises(CrawlTargetValidationError):
             await basic_crawler.crawl(["https://example.com"])

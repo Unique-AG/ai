@@ -51,8 +51,9 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
     def __init__(self, config: CrawlerConfig):
         self.config = config
 
-    def validate_urls(self, urls: list[str]) -> list[str]:
-        return validate_crawl_urls(urls)
+    async def crawl(self, urls: list[str]) -> list[str]:
+        urls = validate_crawl_urls(urls)
+        return await self._crawl(urls)
 
     @abstractmethod
-    async def crawl(self, urls: list[str]) -> list[str]: ...
+    async def _crawl(self, urls: list[str]) -> list[str]: ...
