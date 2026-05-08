@@ -23,6 +23,12 @@ class SearchToolConfig(BaseModel):
     model_config = get_configuration_dict()
 
     service_config: KnowledgeBaseInternalSearchConfig = Field(
-        default_factory=KnowledgeBaseInternalSearchConfig
+        default_factory=lambda: KnowledgeBaseInternalSearchConfig(
+            metadata_filter={
+                "path": ["folderId"],
+                "operator": "isNotNull",
+                "value": None,
+            }
+        )
     )
     post_processing: PostProcessorConfig = Field(default_factory=PostProcessorConfig)
