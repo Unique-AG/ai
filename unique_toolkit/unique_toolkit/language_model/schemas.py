@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from enum import StrEnum
-from typing import Any, Literal, Self, TypeVar, cast, override
+from typing import Any, Literal, Self, TypeAlias, TypeVar, cast, override
 from uuid import uuid4
 
 from humps import camelize
@@ -597,6 +598,16 @@ class LanguageModelMessages(RootModel[list[LanguageModelMessageOptions]]):
         if mode == "responses":
             return [message.to_openai(mode="responses") for message in messages]
         return [message.to_openai(mode="completions") for message in messages]
+
+
+ResponsesMessageSequence: TypeAlias = (
+    Sequence[ResponseInputItemParam]
+    | Sequence[LanguageModelMessageOptions]
+    | Sequence[ResponseOutputItem]
+)
+ResponsesMessageInput: TypeAlias = (
+    str | LanguageModelMessages | ResponsesMessageSequence
+)
 
 
 # This seems similar to

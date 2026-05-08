@@ -137,6 +137,10 @@ DEP004 = ["langchain_openai", "langchain_core"]
 #   7. components never call unique_sdk directly (go through a resource)
 #   8. each integrations/<framework>/ stands alone — enabled when real modules land
 #
+# Imports under ``if TYPE_CHECKING:`` are excluded from the graph (see
+# ``exclude_type_checking_imports``) so type-only imports (e.g. ``unique_sdk``)
+# do not violate layer/forbidden contracts. Runtime imports are still enforced.
+#
 # Preference rules from the README that are NOT machine-enforced (import-linter
 # is pass/fail, not tiered): integrations prefer facades over primitives;
 # integrations importing components is "discouraged but allowed".
@@ -144,6 +148,7 @@ DEP004 = ["langchain_openai", "langchain_core"]
 [tool.importlinter]
 root_packages = ["unique_toolkit"]
 include_external_packages = true
+exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
 name = "experimental: integrations stack (integrations → resources → _internal)"

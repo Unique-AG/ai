@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Protocol, Sequence
+from typing import Any, Protocol, Sequence
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -6,8 +6,6 @@ from openai.types.chat import (
 )
 from openai.types.responses import (
     ResponseIncludable,
-    ResponseInputItemParam,
-    ResponseOutputItem,
     ResponseTextConfigParam,
     ToolParam,
     response_create_params,
@@ -28,8 +26,8 @@ from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TIMEOUT,
 )
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessageOptions,
     ResponsesLanguageModelStreamResponse,
+    ResponsesMessageInput,
 )
 
 # As soon as we have multiple, remember
@@ -54,7 +52,7 @@ class SupportsComplete(Protocol):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    ) -> Awaitable[LanguageModelResponse]: ...
+    ) -> LanguageModelResponse: ...
 
 
 class SupportCompleteWithReferences(Protocol):
@@ -92,13 +90,7 @@ class ResponsesSupportCompleteWithReferences(Protocol):
         self,
         *,
         model_name: LanguageModelName | str,
-        messages: str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam
-            | LanguageModelMessageOptions
-            | ResponseOutputItem  # History is automatically convertible
-        ],
+        messages: ResponsesMessageInput,
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -120,13 +112,7 @@ class ResponsesSupportCompleteWithReferences(Protocol):
         self,
         *,
         model_name: LanguageModelName | str,
-        messages: str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam
-            | LanguageModelMessageOptions
-            | ResponseOutputItem  # History is automatically convertible
-        ],
+        messages: ResponsesMessageInput,
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,

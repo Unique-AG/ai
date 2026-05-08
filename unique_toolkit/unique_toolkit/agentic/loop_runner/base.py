@@ -1,10 +1,8 @@
-from typing import Any, Protocol, Required, Sequence, Unpack
+from typing import Any, Protocol, Required, Unpack
 
 from openai.types.chat import ChatCompletionNamedToolChoiceParam
 from openai.types.responses import (
     ResponseIncludable,
-    ResponseInputItemParam,
-    ResponseOutputItem,
     ResponseTextConfigParam,
     ToolParam,
     response_create_params,
@@ -18,8 +16,8 @@ from unique_toolkit.chat.service import LanguageModelMessages
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessageOptions,
     ResponsesLanguageModelStreamResponse,
+    ResponsesMessageInput,
 )
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
@@ -55,13 +53,7 @@ class LoopIterationRunner(Protocol):
 class _ResponsesLoopIterationRunnerKwargs(TypedDict, total=False):
     iteration_index: Required[int]
     streaming_handler: Required[ResponsesSupportCompleteWithReferences]
-    messages: Required[
-        str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-        ]
-    ]
+    messages: Required[ResponsesMessageInput]
     model: Required[LanguageModelInfo]
     tools: list[LanguageModelToolDescription | ToolParam]
     content_chunks: list[ContentChunk]

@@ -2,8 +2,6 @@ from typing import Any, Required, Sequence
 
 from openai.types.responses import (
     ResponseIncludable,
-    ResponseInputItemParam,
-    ResponseOutputItem,
     ResponseTextConfigParam,
     ToolParam,
     response_create_params,
@@ -13,22 +11,15 @@ from typing_extensions import TypedDict
 
 from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.agentic.loop_runner.base import _ResponsesLoopIterationRunnerKwargs
-from unique_toolkit.chat.service import LanguageModelMessages
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessageOptions,
     ResponsesLanguageModelStreamResponse,
+    ResponsesMessageInput,
 )
 
 
 class _ResponsesStreamingHandlerKwargs(TypedDict, total=False):
-    messages: Required[
-        str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-        ]
-    ]
+    messages: Required[ResponsesMessageInput]
     model_name: Required[str]
     tools: Sequence[LanguageModelToolDescription | ToolParam]
     content_chunks: list[ContentChunk]
