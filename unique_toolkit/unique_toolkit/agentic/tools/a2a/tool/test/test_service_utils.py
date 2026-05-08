@@ -17,7 +17,6 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
 from unique_toolkit.agentic.tools.a2a.tool.service import (
     _format_response,
     _get_sub_agent_system_reminders,
-    _italicize_multiline,
     _prepare_sub_agent_response_refs,
     _remove_extra_refs,
     _response_has_refs,
@@ -828,25 +827,3 @@ def test_get_sub_agent_system_reminders__captures_all_regexp_matches__in_text_ma
     assert "CODE123" in result[0]
     assert "CODE456" in result[0]
     assert "CODE789" in result[0]
-
-
-class TestItalicizeMultiline:
-    def test_single_line(self):
-        assert _italicize_multiline("hello") == "_hello_"
-
-    def test_multiline_wraps_each_line(self):
-        # Each line must be wrapped individually because markdown italics
-        # do not span newlines.
-        result = _italicize_multiline("line one\nline two\nline three")
-        assert result == "_line one_\n_line two_\n_line three_"
-
-    def test_preserves_blank_lines_without_wrapping(self):
-        # Wrapping an empty line as "__" would render as bold start, not italic.
-        result = _italicize_multiline("first\n\nlast")
-        assert result == "_first_\n\n_last_"
-
-    def test_empty_string(self):
-        assert _italicize_multiline("") == ""
-
-    def test_trailing_newline(self):
-        assert _italicize_multiline("a\n") == "_a_\n"
