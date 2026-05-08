@@ -31,7 +31,7 @@ class ChatCompletionTextEventHandler:
     a flush counter that throttles observable boundaries, and a
     :class:`TypedEventBus` carrying :class:`TextFlushed` events. Expose
     the bus via :attr:`text_bus` so the orchestrator can subscribe once
-    at construction and adapt each flush into a :class:`TextDelta`.
+    at construction and adapt each flush into a :class:`TextUpdate`.
     """
 
     def __init__(

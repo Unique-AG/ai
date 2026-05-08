@@ -30,7 +30,7 @@ from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     filter_cited_sdk_references,
 )
 
-from ..events import StreamEnded, StreamEventBus, StreamStarted, TextDelta
+from ..events import StreamEnded, StreamEventBus, StreamStarted, TextUpdate
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,11 +62,11 @@ class MessagePersistingSubscriber:
     """Translates text lifecycle events into ``unique_sdk.Message.modify_async`` calls.
 
     Holds the retrieved chunks for the currently active stream (keyed by
-    ``message_id``) so reference filtering on :class:`TextDelta` and
+    ``message_id``) so reference filtering on :class:`TextUpdate` and
     :class:`StreamEnded` uses only what was retrieved for that stream.
 
     ``persist_every_n_deltas`` throttles SDK writes on the
-    :class:`TextDelta` hot path. The default (``1``) preserves the original
+    :class:`TextUpdate` hot path. The default (``1``) preserves the original
     behaviour — every flush from the event handler produces one write. The
     event handler's own ``send_every_n_events`` knob already throttles on the
     upstream side (content chunks per flush); this subscriber-level knob
@@ -117,7 +117,7 @@ class MessagePersistingSubscriber:
             startedStreamingAt=cast(Any, _now_utc_iso()),
         )
 
-    async def on_text_delta(self, event: TextDelta) -> None:
+    async def on_text_delta(self, event: TextUpdate) -> None:
         chunks = self._chunks_by_message.get(event.message_id, [])
 
         # Apply the per-subscriber throttle. We only skip intermediate

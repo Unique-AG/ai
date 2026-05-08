@@ -28,7 +28,7 @@ from unique_toolkit.experimental.integrations.openai.streaming.event_routing.eve
     StreamEnded,
     StreamEventBus,
     StreamStarted,
-    TextDelta,
+    TextUpdate,
 )
 from unique_toolkit.experimental.integrations.openai.streaming.event_routing.subscribers.message_persister import (
     MessagePersistingSubscriber,
@@ -108,10 +108,10 @@ async def test_AI_persister__stream_started__marks_message_as_streaming():
 @pytest.mark.asyncio
 async def test_AI_persister__text_delta__modifies_message_with_text_and_references():
     """
-    Purpose: Each ``TextDelta`` persists normalised text + cited references via the SDK.
+    Purpose: Each ``TextUpdate`` persists normalised text + cited references via the SDK.
     Why this matters: Users see incremental updates; references must reflect what the
       model *cited*, not the full retrieval set seeded at stream start.
-    Setup summary: Pre-seed chunks via StreamStarted; publish TextDelta that cites <sup>1</sup>;
+    Setup summary: Pre-seed chunks via StreamStarted; publish TextUpdate that cites <sup>1</sup>;
       assert modify was called with text + non-empty references.
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
@@ -126,7 +126,7 @@ async def test_AI_persister__text_delta__modifies_message_with_text_and_referenc
         modify.reset_mock()
 
         await persister.on_text_delta(
-            TextDelta(
+            TextUpdate(
                 message_id="amsg-1",
                 chat_id="chat-1",
                 full_text="Hello <sup>1</sup>",
@@ -151,7 +151,7 @@ async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunk
     Why this matters: Frontend uses ``stoppedStreamingAt`` / ``completedAt`` to mark the
       message done; cached chunks must not leak across overlapping streams.
     Setup summary: Publish StreamStarted then StreamEnded; assert final modify kwargs and
-      that a subsequent TextDelta for the same message has no chunks (empty references).
+      that a subsequent TextUpdate for the same message has no chunks (empty references).
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
     with patch(_MODIFY, new_callable=AsyncMock) as modify:
@@ -184,10 +184,10 @@ async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunk
         assert final_kwargs["gptRequest"] == {"model": "test-model", "messages": []}
         assert final_kwargs["debugInfo"] == {"trace_id": "trace-1"}
 
-        # chunks released: a further TextDelta for the same message gets empty chunk set
+        # chunks released: a further TextUpdate for the same message gets empty chunk set
         modify.reset_mock()
         await persister.on_text_delta(
-            TextDelta(
+            TextUpdate(
                 message_id="amsg-1",
                 chat_id="chat-1",
                 full_text="late <sup>1</sup>",
@@ -205,7 +205,7 @@ async def test_AI_persister__isolates_overlapping_streams_by_message_id():
     Purpose: Per-message chunk storage prevents cross-talk between parallel streams.
     Why this matters: A single persister may be reused (same settings); chunks from
       stream A must not surface in references for stream B.
-    Setup summary: Start two streams with disjoint chunks; publish TextDelta for each;
+    Setup summary: Start two streams with disjoint chunks; publish TextUpdate for each;
       assert the subscriber's internal state remains partitioned (stream end clears only one).
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
@@ -265,7 +265,7 @@ async def test_AI_persister__text_delta_sdk_failure__is_swallowed_and_logged(cap
             ),
         ):
             await persister.on_text_delta(
-                TextDelta(
+                TextUpdate(
                     message_id="amsg-1",
                     chat_id="chat-1",
                     full_text="hi",
@@ -299,7 +299,7 @@ async def test_AI_persister__register__subscribes_to_text_lifecycle_channels_onl
             StreamStarted(message_id="m", chat_id="c", content_chunks=())
         )
         await bus.text_delta.publish_and_wait_async(
-            TextDelta(message_id="m", chat_id="c", full_text="hi", original_text="hi")
+            TextUpdate(message_id="m", chat_id="c", full_text="hi", original_text="hi")
         )
         await bus.stream_ended.publish_and_wait_async(
             StreamEnded(message_id="m", chat_id="c", full_text="hi", original_text="hi")
@@ -330,7 +330,7 @@ async def test_AI_persister__persist_every_n_deltas__throttles_intermediate_writ
       lets callers coarsen the UI update cadence without losing data —
       the final write always runs.
     Setup summary: Construct the persister with ``persist_every_n_deltas=3``,
-      drive five :class:`TextDelta` events, and assert only the 3rd fires
+      drive five :class:`TextUpdate` events, and assert only the 3rd fires
       a ``modify_async``; then drive :class:`StreamEnded` and assert the
       final authoritative write still runs.
     """
@@ -349,7 +349,7 @@ async def test_AI_persister__persist_every_n_deltas__throttles_intermediate_writ
 
         for i in range(5):
             await persister.on_text_delta(
-                TextDelta(
+                TextUpdate(
                     message_id="amsg-1",
                     chat_id="chat-1",
                     full_text=f"t{i}",

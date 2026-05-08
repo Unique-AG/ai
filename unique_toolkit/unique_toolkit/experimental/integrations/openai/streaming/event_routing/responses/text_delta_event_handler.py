@@ -4,7 +4,7 @@ Pure state machine: applies streaming replacers and accumulates
 ``full_text`` and ``original_text``. Publishes a :class:`TextFlushed`
 event on its own event-handler-owned :class:`TypedEventBus` at every flush
 boundary so the orchestrator (or any other subscriber) can adapt it
-into a :class:`TextDelta` without the event handler knowing about bus-level
+into a :class:`TextUpdate` without the event handler knowing about bus-level
 identifiers.
 """
 
@@ -56,14 +56,16 @@ class ResponsesTextDeltaEventHandler:
         delta = event.delta
         for replacer in self._replacers:
             delta = replacer.process(delta)
-        self._state.full_text += delta
 
-        await self._text_bus.publish_and_wait_async(
-            TextFlushed(
-                full_text=self._state.full_text,
-                original_text=self._state.original_text,
+        if len(delta) > 0:
+            self._state.full_text += delta
+
+            await self._text_bus.publish_and_wait_async(
+                TextFlushed(
+                    full_text=self._state.full_text,
+                    original_text=self._state.original_text,
+                )
             )
-        )
 
     async def on_stream_end(self) -> None:
         """Drain replacer residuals into internal state — **no trailing publish**.

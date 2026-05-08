@@ -45,7 +45,7 @@ from ..events import (
     StreamEventBus,
     StreamStarted,
     StreamSubscriber,
-    TextDelta,
+    TextUpdate,
 )
 from ..subscribers import MessagePersistingSubscriber, ProgressLogPersister
 from .code_interpreter_event_handler import ResponsesCodeInterpreterEventHandler
@@ -328,7 +328,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             sub.cancel()
 
     async def _on_text_flushed(self, event: TextFlushed) -> None:
-        """Adapter: lift an event-handler bus :class:`TextFlushed` to an outer :class:`TextDelta`.
+        """Adapter: lift an event-handler bus :class:`TextFlushed` to an outer :class:`TextUpdate`.
 
         Uses ``return_exceptions=True`` so a flaky text-delta subscriber
         cannot abort the stream loop — failures are logged on the bus and
@@ -343,7 +343,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             )
             return
         await self._bus.text_delta.publish_and_wait_async(
-            TextDelta(
+            TextUpdate(
                 message_id=self._current_message_id,
                 chat_id=self._current_chat_id,
                 full_text=event.full_text,

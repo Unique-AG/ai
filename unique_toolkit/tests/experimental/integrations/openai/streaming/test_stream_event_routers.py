@@ -157,7 +157,7 @@ async def test_AI_chat_completion_stream_event_router__on_event__propagates_flus
     """
     Purpose: ``on_event`` must propagate the text event handler's flush via the bus.
     Why this matters: The orchestrator subscribes to ``text_bus`` to decide
-      when to publish :class:`TextDelta` — the router must re-expose the
+      when to publish :class:`TextUpdate` — the router must re-expose the
       event handler's bus faithfully.
     Setup summary: Fake text event handler configured to flush; subscribe to the
       router's ``text_bus``; assert exactly one :class:`TextFlushed`
@@ -238,7 +238,7 @@ def test_AI_chat_completion_stream_event_router__build_result__includes_tool_cal
 def test_AI_chat_completion_stream_event_router__get_text__delegates_to_text_event_handler():
     """
     Purpose: The router exposes the text event handler's accumulated state.
-    Why this matters: Orchestrators publish ``TextDelta`` using this state — keeping the access
+    Why this matters: Orchestrators publish ``TextUpdate`` using this state — keeping the access
       path on the router (not the event handler directly) avoids leaking event handler internals.
     Setup summary: Fake event handler with fixed state; ``get_text()`` returns it.
     """
@@ -331,7 +331,7 @@ def _text_delta(delta: str) -> ResponseTextDeltaEvent:
 async def test_AI_responses_stream_event_router__on_event__routes_text_delta_and_publishes_flush():
     """
     Purpose: ResponseTextDeltaEvent should reach only the text event handler and trigger a flush publish.
-    Why this matters: Wrong routing would drop tokens; a missing flush publish would suppress TextDelta events.
+    Why this matters: Wrong routing would drop tokens; a missing flush publish would suppress TextUpdate events.
     Setup summary: Fake text + completed event handlers (text flushes); subscribe to
       the router's ``text_bus``; send delta; assert routing + one bus
       publish received.
@@ -356,7 +356,7 @@ async def test_AI_responses_stream_event_router__on_event__non_text_events_do_no
     """
     Purpose: Non-text events must not trigger a flush publish on ``text_bus``.
     Why this matters: Tool / completion events don't change the accumulated text;
-      spurious publishes would produce stale :class:`TextDelta` events.
+      spurious publishes would produce stale :class:`TextUpdate` events.
     Setup summary: Route an output-item-added event through the router; assert
       the flush bus received nothing.
     """
@@ -451,7 +451,7 @@ async def test_AI_responses_stream_event_router__on_stream_end__invokes_all_even
 async def test_AI_responses_stream_event_router__on_stream_end__publishes_residual_flush():
     """
     Purpose: EventRouting publishes a residual :class:`TextFlushed` on ``on_stream_end``.
-    Why this matters: Lets the orchestrator publish a final :class:`TextDelta`
+    Why this matters: Lets the orchestrator publish a final :class:`TextUpdate`
       before :class:`StreamEnded`.
     Setup summary: Fake text event handler with ``end_flush=True``; subscribe to
       the flush bus; assert one event received.

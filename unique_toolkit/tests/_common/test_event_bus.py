@@ -154,7 +154,7 @@ async def test_AI_publish_and_wait_async__return_exceptions__isolates_flaky_subs
     """
     Purpose: ``return_exceptions=True`` must let the non-flaky subscribers
       complete while the raising one is logged and swallowed.
-    Why this matters: Hot-path publishes (e.g. TextDelta) must not be
+    Why this matters: Hot-path publishes (e.g. TextUpdate) must not be
       aborted by a single flaky analytics subscriber — otherwise one
       misbehaving add-on kills the whole stream.
     Setup summary: Two subscribers, one raises, one records; publish with

@@ -49,7 +49,7 @@ class StreamStarted:
 
 
 @dataclass(frozen=True, slots=True)
-class TextDelta:
+class TextUpdate:
     """Published whenever the text event handler crosses a flush boundary.
 
     Carries the currently-accumulated text (both normalised and raw) so
@@ -114,7 +114,7 @@ class ActivityProgress:
     order: int = 0
 
 
-StreamEvent = Union[StreamStarted, TextDelta, StreamEnded, ActivityProgress]
+StreamEvent = Union[StreamStarted, TextUpdate, StreamEnded, ActivityProgress]
 """Documentation alias for the closed set of events published on a
 :class:`StreamEventBus`. No code should subscribe to or publish this
 union directly — pick the concrete channel on the bus instead."""
@@ -139,7 +139,7 @@ class StreamEventBus:
     """
 
     stream_started: TypedEventBus[StreamStarted] = field(default_factory=TypedEventBus)
-    text_delta: TypedEventBus[TextDelta] = field(default_factory=TypedEventBus)
+    text_delta: TypedEventBus[TextUpdate] = field(default_factory=TypedEventBus)
     stream_ended: TypedEventBus[StreamEnded] = field(default_factory=TypedEventBus)
     activity_progress: TypedEventBus[ActivityProgress] = field(
         default_factory=TypedEventBus
@@ -170,5 +170,5 @@ __all__ = [
     "StreamEventBus",
     "StreamStarted",
     "StreamSubscriber",
-    "TextDelta",
+    "TextUpdate",
 ]

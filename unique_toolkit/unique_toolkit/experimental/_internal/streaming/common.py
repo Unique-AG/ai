@@ -80,7 +80,7 @@ class TextFlushed:
     """The text event handler crossed a flush boundary.
 
     Carried on the event-handler-owned :class:`TypedEventBus` so subscribers
-    (typically the orchestrator) can adapt it into a full :class:`TextDelta`
+    (typically the orchestrator) can adapt it into a full :class:`TextUpdate`
     by attaching request context (``message_id`` / ``chat_id``). The
     payload mirrors the event handler's current :meth:`get_text` state at the
     moment of the flush.
@@ -177,7 +177,7 @@ class StreamTextEventHandlerProtocol(StreamEventHandlerProtocol, Protocol):
 
     Pure state machine by design: no SDK, no outer bus, no knowledge of
     retrieved chunks — subscribers (typically the orchestrator) adapt
-    :class:`TextFlushed` into full :class:`TextDelta` events by attaching
+    :class:`TextFlushed` into full :class:`TextUpdate` events by attaching
     request context.
     """
 

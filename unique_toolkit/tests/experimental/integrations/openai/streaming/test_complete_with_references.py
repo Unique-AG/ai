@@ -143,7 +143,7 @@ async def test_AI_chat_completions__stream_started_subscriber_raises__clears_con
     Purpose: When a ``stream_started`` subscriber raises, per-request context
       must still be cleared before control returns to the caller.
     Why this matters: A leaked ``_current_message_id`` / ``_current_chat_id``
-      causes the next request's :class:`TextDelta` / :class:`ActivityProgress`
+      causes the next request's :class:`TextUpdate` / :class:`ActivityProgress`
       to publish with stale ids — silently corrupting downstream writes.
     Setup summary: Build an orchestrator with no default subscribers, subscribe
       an event handler on ``stream_started`` that raises, fake the OpenAI client so
@@ -281,7 +281,7 @@ async def test_AI_chat_completions__final_response__includes_request_and_debug_i
     """
     Purpose: Final ``LanguageModelStreamResponse.message`` keeps request and
       debug metadata supplied to the orchestrator.
-    Why this matters: ``TextDelta`` should stay narrow, but callers still need
+    Why this matters: ``TextUpdate`` should stay narrow, but callers still need
       ``gpt_request`` and ``debug_info`` on the final message for audit/debug
       workflows.
     Setup summary: Drive an empty fake stream with explicit ``debug_info`` and

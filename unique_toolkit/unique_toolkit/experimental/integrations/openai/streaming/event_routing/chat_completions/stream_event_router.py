@@ -47,7 +47,7 @@ class ChatCompletionStreamEventRouter:
     * **Lifecycle fan-out** — ``reset()`` / ``on_stream_end()`` iterate
       every attached event handler.
     * **Bus re-export** — ``text_bus`` is re-exposed so the orchestrator
-      can adapt inner-bus flushes into outer :class:`TextDelta` events.
+      can adapt inner-bus flushes into outer :class:`TextUpdate` events.
     * **Result aggregation** — ``get_text()`` / ``build_result(...)``
       pull accumulated state from event handlers and shape the toolkit result.
 

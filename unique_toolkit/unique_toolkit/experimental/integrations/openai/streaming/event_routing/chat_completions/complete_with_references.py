@@ -46,7 +46,7 @@ from ..events import (
     StreamEventBus,
     StreamStarted,
     StreamSubscriber,
-    TextDelta,
+    TextUpdate,
 )
 from ..subscribers import MessagePersistingSubscriber
 from .stream_event_router import ChatCompletionStreamEventRouter
@@ -268,7 +268,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         self._text_flush_subscription.cancel()
 
     async def _on_text_flushed(self, event: TextFlushed) -> None:
-        """Adapter: lift an event-handler bus :class:`TextFlushed` to an outer :class:`TextDelta`.
+        """Adapter: lift an event-handler bus :class:`TextFlushed` to an outer :class:`TextUpdate`.
 
         Guards on the per-request context — if the orchestrator is
         between requests (e.g. a late publish from a stalled event handler),
@@ -290,7 +290,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
             )
             return
         await self._bus.text_delta.publish_and_wait_async(
-            TextDelta(
+            TextUpdate(
                 message_id=self._current_message_id,
                 chat_id=self._current_chat_id,
                 full_text=event.full_text,

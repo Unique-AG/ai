@@ -6,7 +6,7 @@ Layout:
   ``TextFlushed``, ``ActivityProgressUpdate``, ``AppendixProducer``,
   ``UsageProducer``) live in the domain layer at
   :mod:`unique_toolkit.experimental._internal.streaming`.
-- :mod:`events` — domain events (``StreamStarted``, ``TextDelta``, ``StreamEnded``, ``ActivityProgress``) plus ``StreamEventBus`` (routing table of typed channels) and the ``StreamSubscriber`` protocol.
+- :mod:`events` — domain events (``StreamStarted``, ``TextUpdate``, ``StreamEnded``, ``ActivityProgress``) plus ``StreamEventBus`` (routing table of typed channels) and the ``StreamSubscriber`` protocol.
 - :mod:`subscribers` — default bus subscribers (e.g. ``MessagePersistingSubscriber``).
 - :mod:`chat_completions` — Chat Completions stream (``chat.completions.create``).
 - :mod:`responses` — Responses API stream (``responses.create``).
@@ -37,7 +37,7 @@ from .events import (
     StreamEventBus,
     StreamStarted,
     StreamSubscriber,
-    TextDelta,
+    TextUpdate,
 )
 from .protocols import (
     ChatCompletionTextEventHandlerProtocol,
@@ -86,7 +86,7 @@ __all__ = [
     "StreamEventHandlerProtocol",
     "StreamStarted",
     "StreamSubscriber",
-    "TextDelta",
+    "TextUpdate",
     "TextFlushed",
     "TextState",
     "UsageProducer",
