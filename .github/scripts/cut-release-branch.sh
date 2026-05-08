@@ -67,8 +67,19 @@ fi
 
 SHA=$(git rev-list -n 1 "refs/tags/${TAG}")
 
-if git ls-remote --heads "$REMOTE" "$BRANCH" | grep -qF "$BRANCH"; then
-  echo "::error::branch ${BRANCH} already exists on ${REMOTE}" >&2
+# Idempotent: if the branch already exists on the remote, treat as success
+# when it's already at the target SHA. This lets cd-release re-runs and
+# manual recovery flows converge without operator intervention. We only
+# error if the existing branch points at a different SHA, since that would
+# silently mask a divergence between the manual cut and what the sentinel
+# tag pins.
+EXISTING_SHA=$(git ls-remote --heads "$REMOTE" "$BRANCH" | awk '{print $1}')
+if [[ -n "$EXISTING_SHA" ]]; then
+  if [[ "$EXISTING_SHA" == "$SHA" ]]; then
+    echo "Branch ${BRANCH} already at ${SHA} — nothing to do."
+    exit 0
+  fi
+  echo "::error::branch ${BRANCH} exists on ${REMOTE} at ${EXISTING_SHA}, but tag ${TAG} pins ${SHA}" >&2
   exit 1
 fi
 
