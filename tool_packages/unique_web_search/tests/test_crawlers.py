@@ -14,7 +14,11 @@ from unique_web_search.services.crawlers.utils import (
     generate_random_email,
     get_random_user_agent,
 )
-from unique_web_search.services.url_safety import CrawlTargetValidationError
+from unique_web_search.services.url_safety import (
+    BlockedCrawlTarget,
+    CrawlTargetValidationError,
+    ResolvedCrawlTarget,
+)
 
 
 class TestCrawlerFactory:
@@ -90,6 +94,39 @@ class TestBasicCrawler:
         """
         with pytest.raises(CrawlTargetValidationError):
             await basic_crawler.crawl(["http://169.254.169.254/latest/meta-data"])
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_basic_crawler_crawl__raises__when_request_time_resolution_blocks_target(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify request-time safety failures are surfaced instead of being converted into generic crawl errors.
+        Why this matters: DNS rebinding protection only works if the crawler propagates the security exception to the caller.
+        Setup summary: Force the per-request crawl step to raise a validation error and assert the top-level crawl call preserves it.
+        """
+
+        monkeypatch.setattr(
+            basic_crawler,
+            "_crawl_url_with_client",
+            AsyncMock(
+                side_effect=CrawlTargetValidationError(
+                    [
+                        BlockedCrawlTarget(
+                            hostname="localhost",
+                            category="localhost",
+                            reason="Target points to a localhost host",
+                        )
+                    ]
+                )
+            ),
+        )
+        monkeypatch.setattr(basic_crawler, "validate_urls", lambda urls: urls)
+
+        with pytest.raises(CrawlTargetValidationError):
+            await basic_crawler.crawl(["https://example.com"])
 
     # Note: We're not testing the actual crawling functionality here
     # because it would require mocking HTTP requests and is complex.
@@ -182,10 +219,18 @@ class TestBasicCrawlerCrawlUrl:
         )
         client = AsyncMock(spec=httpx.AsyncClient)
         client.get.return_value = response
-
-        result = await basic_crawler._crawl_url_with_client(
-            client, "https://example.com"
-        )
+        with patch(
+            "unique_web_search.services.crawlers.basic.resolve_crawl_target",
+            return_value=ResolvedCrawlTarget(
+                normalized_url="https://example.com",
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ):
+            result = await basic_crawler._crawl_url_with_client(
+                client, "https://example.com"
+            )
 
         client.get.assert_called_once()
         call_headers = client.get.call_args[1].get(
@@ -195,6 +240,45 @@ class TestBasicCrawlerCrawlUrl:
         assert "User-Agent" in call_headers
         assert "@" in call_headers["User-Agent"]
         assert "Hello" in result
+
+    @pytest.mark.asyncio
+    async def test_crawl_url_pins_request_to_resolved_ip_for_https_targets(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        html = "<html><body><p>Hello</p></body></html>"
+        response = httpx.Response(
+            200,
+            text=html,
+            headers={"content-type": "text/html; charset=utf-8"},
+            request=httpx.Request("GET", "https://93.184.216.34/docs?q=1"),
+        )
+        client = AsyncMock(spec=httpx.AsyncClient)
+        client.get.return_value = response
+
+        monkeypatch.setattr(
+            "unique_web_search.services.crawlers.basic.resolve_crawl_target",
+            lambda url: ResolvedCrawlTarget(
+                normalized_url=url,
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        )
+
+        await basic_crawler._crawl_url_with_client(
+            client, "https://example.com/docs?q=1"
+        )
+
+        client.get.assert_called_once()
+        assert client.get.call_args.args[0] == "https://93.184.216.34/docs?q=1"
+        call_headers = client.get.call_args.kwargs["headers"]
+        assert call_headers["Host"] == "example.com"
+        assert call_headers["User-Agent"]
+        assert (
+            client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
+        )
 
     @pytest.mark.asyncio
     async def test_crawl_url_blacklisted(self, basic_crawler):

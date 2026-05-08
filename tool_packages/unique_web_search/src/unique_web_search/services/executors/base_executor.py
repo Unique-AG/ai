@@ -176,7 +176,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         except CrawlTargetValidationError as exc:
             blocked_targets = [
                 {
-                    "url": target.url,
+                    "hostname": target.hostname,
                     "category": target.category,
                     "reason": target.reason,
                 }
@@ -193,9 +193,9 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
             for target in exc.blocked_targets:
                 crawl_blocked.labels(reason_category=target.category).inc()
                 _LOGGER.warning(
-                    "Blocked crawl target for company %s: %s (%s)",
+                    "Blocked crawl target hostname for company %s: %s (%s)",
                     self.company_id,
-                    target.url,
+                    target.display_target,
                     target.reason,
                 )
             raise

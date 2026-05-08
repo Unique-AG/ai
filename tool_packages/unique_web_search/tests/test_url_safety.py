@@ -7,11 +7,36 @@ import pytest
 import unique_web_search.services.url_safety as url_safety
 from unique_web_search.services.url_safety import (
     CrawlTargetValidationError,
+    resolve_crawl_target,
     validate_crawl_urls,
 )
 
 
 class TestValidateCrawlUrls:
+    @pytest.fixture(autouse=True)
+    def stable_public_dns_for_tests(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Return a deterministic public IP for dotted hostnames in these tests."""
+
+        def fake_getaddrinfo(host: str, *args: object, **kwargs: object) -> list[tuple]:
+            normalized_host = str(host).rstrip(".").lower()
+            if "." not in normalized_host:
+                raise socket.gaierror("single-label host not resolved in tests")
+
+            return [
+                (
+                    socket.AF_INET,
+                    socket.SOCK_STREAM,
+                    6,
+                    "",
+                    ("93.184.216.34", 443),
+                )
+            ]
+
+        monkeypatch.setattr(url_safety.socket, "getaddrinfo", fake_getaddrinfo)
+
     @pytest.mark.ai
     @pytest.mark.parametrize(
         ("urls", "expected"),
@@ -37,30 +62,33 @@ class TestValidateCrawlUrls:
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
-        ("url", "category", "reason_snippet"),
+        ("url", "expected_hostname", "category", "reason_snippet"),
         [
-            ("file:///etc/passwd", "scheme", "scheme"),
-            ("ftp://example.com/file.txt", "scheme", "scheme"),
-            ("https://localhost/internal", "localhost", "localhost"),
-            ("https://app.localhost/admin", "localhost", "localhost"),
-            ("https://kubernetes/api", "cluster", "single-label"),
-            ("https://api.default.svc/health", "cluster", "service"),
+            ("file:///etc/passwd", None, "scheme", "scheme"),
+            ("ftp://example.com/file.txt", "example.com", "scheme", "scheme"),
+            ("https://localhost/internal", "localhost", "localhost", "localhost"),
+            ("https://app.localhost/admin", "app.localhost", "localhost", "localhost"),
+            ("https://kubernetes/api", "kubernetes", "cluster", "single-label"),
+            ("https://api.default.svc/health", "api.default.svc", "cluster", "service"),
             (
                 "https://api.default.svc.cluster.local/health",
+                "api.default.svc.cluster.local",
                 "cluster",
                 "cluster-local",
             ),
             (
                 "https://api.default.pod.cluster.local/health",
+                "api.default.pod.cluster.local",
                 "cluster",
                 "cluster-local",
             ),
-            ("http://127.0.0.1:8080", "private", "private"),
-            ("http://10.0.0.8", "private", "private"),
-            ("http://169.254.169.254/latest/meta-data", "metadata", "metadata"),
-            ("http://[::1]/", "private", "private"),
+            ("http://127.0.0.1:8080", "127.0.0.1", "private", "private"),
+            ("http://10.0.0.8", "10.0.0.8", "private", "private"),
+            ("http://169.254.169.254/latest/meta-data", "169.254.169.254", "metadata", "metadata"),
+            ("http://[::1]/", "::1", "private", "private"),
             (
                 "https://metadata.google.internal/computeMetadata/v1",
+                "metadata.google.internal",
                 "metadata",
                 "metadata",
             ),
@@ -69,6 +97,7 @@ class TestValidateCrawlUrls:
     def test_validate_crawl_urls__raises__when_target_is_unsafe(
         self,
         url: str,
+        expected_hostname: str | None,
         category: str,
         reason_snippet: str,
     ) -> None:
@@ -82,9 +111,30 @@ class TestValidateCrawlUrls:
 
         error = exc_info.value
         blocked_target = error.blocked_targets[0]
-        assert blocked_target.url == url
+        assert blocked_target.hostname == expected_hostname
         assert blocked_target.category == category
         assert reason_snippet in blocked_target.reason.lower()
+
+    @pytest.mark.ai
+    def test_validate_crawl_urls__reports_only_hostname__when_url_contains_credentials_and_query(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify blocked target details keep only the hostname for rejected targets.
+        Why this matters: Security logs and surfaced errors must avoid leaking credentials, query params, or paths from rejected URLs.
+        Setup summary: Reject a localhost URL that includes userinfo and secrets, then assert the structured error keeps only the hostname.
+        """
+        url = "https://alice:secret@localhost/admin?token=top-secret#frag"
+
+        with pytest.raises(CrawlTargetValidationError) as exc_info:
+            validate_crawl_urls([url])
+
+        blocked_target = exc_info.value.blocked_targets[0]
+        assert blocked_target.hostname == "localhost"
+        assert "localhost" in str(exc_info.value)
+        assert "/admin" not in str(exc_info.value)
+        assert "token" not in str(exc_info.value)
+        assert "secret" not in str(exc_info.value)
 
     @pytest.mark.ai
     def test_validate_crawl_urls__reports_all_blocked_targets__when_multiple_urls_are_unsafe(
@@ -103,8 +153,8 @@ class TestValidateCrawlUrls:
         with pytest.raises(CrawlTargetValidationError) as exc_info:
             validate_crawl_urls(urls)
 
-        blocked_urls = [target.url for target in exc_info.value.blocked_targets]
-        assert blocked_urls == urls
+        blocked_hostnames = [target.hostname for target in exc_info.value.blocked_targets]
+        assert blocked_hostnames == ["127.0.0.1", "metadata.google.internal"]
 
     @pytest.mark.ai
     def test_validate_crawl_urls__raises__when_hostname_resolves_to_private_ip(
@@ -134,5 +184,45 @@ class TestValidateCrawlUrls:
             validate_crawl_urls(["https://kubernetes.default/health"])
 
         blocked_target = exc_info.value.blocked_targets[0]
-        assert blocked_target.url == "https://kubernetes.default/health"
+        assert blocked_target.hostname == "kubernetes.default"
         assert "resolves" in blocked_target.reason.lower()
+
+    @pytest.mark.ai
+    def test_validate_crawl_urls__raises__when_hostname_cannot_be_resolved(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify unresolved hostnames fail closed during crawl safety validation.
+        Why this matters: Treating DNS lookup failures as safe leaves a gap that attackers can exploit with rebinding or transient resolution tricks.
+        Setup summary: Patch DNS resolution to fail for a public-looking hostname and assert the validator blocks the target with a DNS-specific reason.
+        """
+
+        def fake_getaddrinfo(*args: object, **kwargs: object) -> list[tuple]:
+            raise socket.gaierror("resolution failed")
+
+        monkeypatch.setattr(url_safety.socket, "getaddrinfo", fake_getaddrinfo)
+
+        with pytest.raises(CrawlTargetValidationError) as exc_info:
+            validate_crawl_urls(["https://docs.example.com/path?token=abc"])
+
+        blocked_target = exc_info.value.blocked_targets[0]
+        assert blocked_target.hostname == "docs.example.com"
+        assert blocked_target.category == "dns"
+        assert "resolved" in blocked_target.reason.lower()
+
+    @pytest.mark.ai
+    def test_resolve_crawl_target__returns_request_values__for_dns_resolved_https_target(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify the resolved target object carries the request-time values needed by crawlers.
+        Why this matters: Request construction should reuse the security-validated host, IP, and SNI details instead of rebuilding them in each crawler.
+        Setup summary: Resolve a public HTTPS hostname under the deterministic DNS fixture and assert the derived request URL and headers are exposed.
+        """
+        resolved_target = resolve_crawl_target("https://example.com/docs?q=1")
+
+        assert resolved_target.normalized_url == "https://example.com/docs?q=1"
+        assert resolved_target.request_url == "https://93.184.216.34/docs?q=1"
+        assert resolved_target.host_header == "example.com"
+        assert resolved_target.sni_hostname == "example.com"
