@@ -298,6 +298,42 @@ class TestWebSearchConfigDefaultMode:
         )
         assert config.web_search_active_mode == WebSearchMode.V1
 
+    def test_web_search_config_per_feature_language_models_direct_instantiation(
+        self, mock_language_model_info
+    ):
+        """WebSearchConfig can be instantiated using per-feature LM fields only."""
+        from unique_web_search.services.argument_screening import (
+            ArgumentScreeningConfig,
+        )
+        from unique_web_search.services.executors.v1.config import (
+            QueryRefinementConfig,
+            WebSearchV1Config,
+        )
+
+        config = WebSearchConfig(
+            token_counting_language_model=mock_language_model_info,
+            web_search_mode_config_v1=WebSearchV1Config(
+                refine_query_mode=QueryRefinementConfig(
+                    language_model=mock_language_model_info,
+                ),
+            ),
+            experimental_features={  # type: ignore[arg-type]
+                "argument_screening_config": ArgumentScreeningConfig(
+                    language_model=mock_language_model_info,
+                ),
+            },
+        )
+
+        assert config.token_counting_language_model == mock_language_model_info
+        assert (
+            config.web_search_mode_config_v1.refine_query_mode.language_model
+            == mock_language_model_info
+        )
+        assert (
+            config.experimental_features.argument_screening_config.language_model
+            == mock_language_model_info
+        )
+
 
 class TestWebSearchModeIntegration:
     """Integration tests for WebSearchMode changes across the codebase."""

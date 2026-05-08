@@ -73,9 +73,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
         **kwargs,
     ):
         super().__init__(configuration, *args, **kwargs)
-        # TODO (UN-17100): Propagate orchestrator LLM into tool initialization
+        # TODO (UN-17100): Propagate orchestrator LLM into tool initialization.
+        # Until then, fall back to the per-tool token-counting model.
         self.language_model_orchestrator = (
-            language_model_orchestrator or configuration.language_model
+            language_model_orchestrator or configuration.token_counting_language_model
         )
 
         self.search_engine_service = get_search_engine_service(
@@ -98,16 +99,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self._display_name = kwargs.get("display_name", "Web Search")
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-            language_model = (
-                self.language_model_orchestrator or self.config.language_model
-            )
 
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
                 self.config.percentage_of_input_tokens_for_sources,
                 self.config.limit_token_sources,
-                language_model,  # type: ignore
+                self.language_model_orchestrator,
                 self.chat_history_token_length,
             )
 
@@ -312,7 +310,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         config = ExecutorConfiguration(
-            language_model=self.config.language_model,
             chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
             company_id=self.company_id,
             debug_info=debug_info,
@@ -356,6 +353,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 tool_call=tool_call,
                 tool_parameters=parameters,
                 refine_query_system_prompt=search_config.refine_query_mode.system_prompt,
+                refine_query_language_model=search_config.refine_query_mode.language_model,
                 mode=search_config.refine_query_mode.mode,
                 max_queries=search_config.max_queries,
             )
@@ -381,10 +379,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
         ):
             return None
 
+        argument_screening_config = (
+            self.config.experimental_features.argument_screening_config
+        )
         return ArgumentScreeningService(
             language_model_service=self.language_model_service,
-            language_model=self.config.language_model,
-            config=self.config.experimental_features.argument_screening_config,
+            language_model=argument_screening_config.language_model,
+            config=argument_screening_config,
         )
 
     def _ff_tool_progress_reporter(self):

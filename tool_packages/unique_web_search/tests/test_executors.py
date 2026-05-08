@@ -186,6 +186,7 @@ class TestWebSearchV1ExecutorInit:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
         )
 
         assert executor.company_id == "test-company"
@@ -230,6 +231,7 @@ class TestWebSearchV1ExecutorRun:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.DEACTIVATED,
         )
 
@@ -273,6 +275,7 @@ class TestWebSearchV1ExecutorRun:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.DEACTIVATED,
         )
 
@@ -315,6 +318,7 @@ class TestWebSearchV1ExecutorRefineQuery:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.BASIC,
         )
 
@@ -358,6 +362,7 @@ class TestWebSearchV1ExecutorRefineQuery:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.ADVANCED,
         )
 
@@ -392,6 +397,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             max_queries=5,
         )
 
@@ -421,6 +427,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             max_queries=3,
         )
 

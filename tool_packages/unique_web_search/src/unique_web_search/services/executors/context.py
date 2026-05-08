@@ -12,7 +12,6 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
-from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
@@ -54,13 +53,11 @@ class ExecutorConfiguration:
     providing a clean separation between services and configuration.
 
     Attributes:
-        language_model: Language model identifier and configuration
         chunk_relevancy_sort_config: Configuration for chunk relevancy sorting
         company_id: Identifier for the company/organization
         debug_info: Container for debug information and metrics
     """
 
-    language_model: LMI
     chunk_relevancy_sort_config: ChunkRelevancySortConfig
     company_id: str
     debug_info: WebSearchDebugInfo

@@ -113,22 +113,16 @@ class TestExecutorConfiguration:
         Why this matters: Configuration values must be accessible for executor behavior.
         Setup summary: Create configuration with all values, verify storage.
         """
-        # Arrange
-        mock_lm = Mock()
         mock_sort_config = Mock(spec=ChunkRelevancySortConfig)
         company_id = "test-company-123"
         debug_info = WebSearchDebugInfo(parameters={"test": "value"})
 
-        # Act
         config = ExecutorConfiguration(
-            language_model=mock_lm,
             chunk_relevancy_sort_config=mock_sort_config,
             company_id=company_id,
             debug_info=debug_info,
         )
 
-        # Assert
-        assert config.language_model == mock_lm
         assert config.chunk_relevancy_sort_config == mock_sort_config
         assert config.company_id == company_id
         assert config.debug_info == debug_info
@@ -140,18 +134,14 @@ class TestExecutorConfiguration:
         Why this matters: Company ID is used for logging and feature flags.
         Setup summary: Create configuration with company ID, verify type and value.
         """
-        # Arrange
         company_id = "company-abc-123"
 
-        # Act
         config = ExecutorConfiguration(
-            language_model=Mock(),
             chunk_relevancy_sort_config=Mock(),
             company_id=company_id,
             debug_info=WebSearchDebugInfo(parameters={}),
         )
 
-        # Assert
         assert isinstance(config.company_id, str)
         assert config.company_id == "company-abc-123"
 
@@ -162,18 +152,14 @@ class TestExecutorConfiguration:
         Why this matters: Debug info tracks execution metrics and parameters.
         Setup summary: Create configuration with debug info, verify storage.
         """
-        # Arrange
         debug_info = WebSearchDebugInfo(parameters={"mode": "v1", "queries": 3})
 
-        # Act
         config = ExecutorConfiguration(
-            language_model=Mock(),
             chunk_relevancy_sort_config=Mock(),
             company_id="test-company",
             debug_info=debug_info,
         )
 
-        # Assert
         assert config.debug_info == debug_info
         assert config.debug_info.parameters == {"mode": "v1", "queries": 3}
 
@@ -184,17 +170,16 @@ class TestExecutorConfiguration:
         Why this matters: Dataclass provides automatic initialization and representation.
         Setup summary: Check dataclass attributes exist.
         """
-        # Arrange & Act
         config = ExecutorConfiguration(
-            language_model=Mock(),
             chunk_relevancy_sort_config=Mock(),
             company_id="test",
             debug_info=WebSearchDebugInfo(parameters={}),
         )
 
-        # Assert
         assert hasattr(config, "__dataclass_fields__")
-        assert len(config.__dataclass_fields__) == 4
+        # Post-UN-17641: language_model is gone; V1 refinement LM is passed
+        # through the V1 executor's own kwargs instead.
+        assert len(config.__dataclass_fields__) == 3
 
 
 class TestExecutorCallbacks:
@@ -506,7 +491,6 @@ class TestContextIntegration:
         )
 
         config = ExecutorConfiguration(
-            language_model=Mock(),
             chunk_relevancy_sort_config=Mock(),
             company_id="test-company",
             debug_info=WebSearchDebugInfo(parameters={}),
