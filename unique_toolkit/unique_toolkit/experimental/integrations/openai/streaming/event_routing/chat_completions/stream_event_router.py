@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING, Any
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.experimental._internal.streaming import StreamEventHandlerProtocol
+from unique_toolkit.experimental._internal.streaming import (
+    StreamEventHandlerProtocol,
+)
 from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
     filter_cited_sdk_references,
 )
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
     from unique_toolkit._common.event_bus import TypedEventBus
-    from unique_toolkit.experimental._internal.streaming import TextFlushed
+    from unique_toolkit.experimental._internal.streaming import TextFlushed, TextState
 
     from ..protocols import (
         ChatCompletionTextEventHandlerProtocol,
@@ -106,11 +108,11 @@ class ChatCompletionStreamEventRouter:
             await self._tools.on_stream_end()
 
     @property
-    def text(self):
+    def text(self) -> TextState:
         """Expose the text event handler's accumulated state for orchestrator publishing."""
         return self._text.get_text()
 
-    def get_text(self):
+    def get_text(self) -> TextState:
         """Expose the text event handler's accumulated state for result aggregation."""
         return self._text.get_text()
 

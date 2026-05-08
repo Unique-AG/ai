@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from unique_toolkit.experimental._internal.streaming import (
         ActivityProgressUpdate,
         TextFlushed,
+        TextState,
     )
 
     from ..protocols import (
@@ -146,7 +147,7 @@ class ResponsesStreamEventRouter:
         for h in self._all_event_handlers:
             await h.on_stream_end()
 
-    def get_text(self):
+    def get_text(self) -> TextState:
         """Expose the text event handler's accumulated state for orchestrator publishing."""
         return self._text.get_text()
 

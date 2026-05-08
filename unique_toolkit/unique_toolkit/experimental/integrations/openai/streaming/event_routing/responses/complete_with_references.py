@@ -592,21 +592,21 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                     "Finalizing with content received so far. Error: %s",
                     exc,
                 )
-            finally:
-                await self._router.on_stream_end()
-                text_state = self._router.get_text()
-                await self._bus.stream_ended.publish_and_wait_async(
-                    StreamEnded(
-                        message_id=message_id,
-                        chat_id=chat_id,
-                        full_text=text_state.full_text,
-                        original_text=text_state.original_text,
-                        appendices=self._router.get_appendices(),
-                        gpt_request=gpt_request,
-                        debug_info=debug_info,
-                    )
-                )
+
         finally:
+            await self._router.on_stream_end()
+            text_state = self._router.get_text()
+            await self._bus.stream_ended.publish_and_wait_async(
+                StreamEnded(
+                    message_id=message_id,
+                    chat_id=chat_id,
+                    full_text=text_state.full_text,
+                    original_text=text_state.original_text,
+                    appendices=self._router.get_appendices(),
+                    gpt_request=gpt_request,
+                    debug_info=debug_info,
+                )
+            )
             self._current_message_id = None
             self._current_chat_id = None
             self._in_flight = False
