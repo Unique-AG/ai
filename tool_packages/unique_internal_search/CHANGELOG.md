@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.18.0...unique-internal-search-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* **uploaded_search:** Update logic of Uploaded files ([#1591](https://github.com/Unique-AG/ai/issues/1591)) ([7407c95](https://github.com/Unique-AG/ai/commit/7407c95a7ac9498e268873794309c06d7c47c63b))
+
+
+### Bug Fixes
+
+* **internal-search:** Introduce message logger service for internal search and fix logger misbehaviour ([#1640](https://github.com/Unique-AG/ai/issues/1640)) ([c24d1cd](https://github.com/Unique-AG/ai/commit/c24d1cd0a24af04a4aec3040d303a456dc2155bb))
+* **unique-orchestrator:** include uploaded files when int. search is … ([#1615](https://github.com/Unique-AG/ai/issues/1615)) ([a9961b3](https://github.com/Unique-AG/ai/commit/a9961b3a909821856dfd4483d402129f7df1f678))
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v1.2.43...unique-internal-search-v2026.18.0) (2026-04-23)
 
 

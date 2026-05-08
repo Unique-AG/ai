@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.18.0...unique-toolkit-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* Activate todo tool as experimental ([#1590](https://github.com/Unique-AG/ai/issues/1590)) ([f3541ad](https://github.com/Unique-AG/ai/commit/f3541ad5c6af2a384056e4c34d37e6f5ae56879b))
+* **code_interpreter:** Add option to specify files that will be always available for code execution ([#1504](https://github.com/Unique-AG/ai/issues/1504)) ([f6e17fe](https://github.com/Unique-AG/ai/commit/f6e17fea86221097dcb88b9e5eaf03c3fda96ce7))
+* **streaming:** add OpenAI streaming event-routing package ([#1395](https://github.com/Unique-AG/ai/issues/1395)) ([4f18e3f](https://github.com/Unique-AG/ai/commit/4f18e3f12770491dc1497980fa7c61fcc6b90f69))
+* **toolkit:** add RetrieveSearchScope as experimental tool ([#1472](https://github.com/Unique-AG/ai/issues/1472)) ([d28a671](https://github.com/Unique-AG/ai/commit/d28a671b432bedcda5620bf05d0ef313f3ce8357))
+* **toolkit:** harden fence code interpreter prompt for matplotlib vs plotly ([#1561](https://github.com/Unique-AG/ai/issues/1561)) ([aed4ed5](https://github.com/Unique-AG/ai/commit/aed4ed5179668e5cb91121414d2c6a9577b4b2c1))
+* **toolkit:** improve rate-limit retry UX in Responses API ([#1545](https://github.com/Unique-AG/ai/issues/1545)) ([ab9ee7d](https://github.com/Unique-AG/ai/commit/ab9ee7df7b7ba44f68a40be39ed21e693c077450))
+* **unique_toolkit:** add internal search service components [UN-19039] ([#1393](https://github.com/Unique-AG/ai/issues/1393)) ([15513e5](https://github.com/Unique-AG/ai/commit/15513e5f155865bf71bd9dd6f7b4df397d006e96))
+* **unique-skill:** including skill choices to payload ([#1636](https://github.com/Unique-AG/ai/issues/1636)) ([36e8275](https://github.com/Unique-AG/ai/commit/36e82750e89d350e2293b8144035bac903829445))
+* **unique-skills:** Skills config update with custom widget ([#1616](https://github.com/Unique-AG/ai/issues/1616)) ([2c8acfe](https://github.com/Unique-AG/ai/commit/2c8acfe666bd47a33df3fed3ef1f51839c2bee02))
+* **unique-toolkit:** Adding gpt 5.5 to LLM infos ([#1529](https://github.com/Unique-AG/ai/issues/1529)) ([85d0833](https://github.com/Unique-AG/ai/commit/85d0833a70a959e41fd30a6ae9b7589a1eb06fdc))
+* **unique-toolkit:** Adding Vertex Models to LLM Info ([#1586](https://github.com/Unique-AG/ai/issues/1586)) ([0a0ac5a](https://github.com/Unique-AG/ai/commit/0a0ac5a1cc1ef624daa6f4d30fcdbbb6b6e809ca))
+* **uploaded_search:** Update logic of Uploaded files ([#1591](https://github.com/Unique-AG/ai/issues/1591)) ([7407c95](https://github.com/Unique-AG/ai/commit/7407c95a7ac9498e268873794309c06d7c47c63b))
+
+
+### Bug Fixes
+
+* **deps:** security maintenance — bump litellm, authlib, langchain-core, pytest ([#1575](https://github.com/Unique-AG/ai/issues/1575)) ([d9973c7](https://github.com/Unique-AG/ai/commit/d9973c759b75dd63f307ac156ea948ea8b115759))
+* **toolkit:** correct "Unkown" typo to "Unknown" in two strings ([#1521](https://github.com/Unique-AG/ai/issues/1521)) ([9a1092b](https://github.com/Unique-AG/ai/commit/9a1092b452cad91b19ab8baf9568b834107bec39))
+* **toolkit:** prefer RFC 5987 UTF-8 filename in Content-Disposition header (UN-20243) ([#1610](https://github.com/Unique-AG/ai/issues/1610)) ([34e35f5](https://github.com/Unique-AG/ai/commit/34e35f567724f8284487f95dee96240fc497acc9))
+* **toolkit:** raise httpx timeouts for async KB blob uploads ([#1589](https://github.com/Unique-AG/ai/issues/1589)) ([20b95da](https://github.com/Unique-AG/ai/commit/20b95daa6c9a903ff10c1438ad826215e6ac3444))
+* **unique_toolkit:** Fix sub agent progress message italic display ([#1650](https://github.com/Unique-AG/ai/issues/1650)) ([ce41a71](https://github.com/Unique-AG/ai/commit/ce41a71c7c2bc464a0245f4bd6b88e80fe17d788))
+* **unique_toolkit:** Fix subagents postprocessor resetting reference list ([#1644](https://github.com/Unique-AG/ai/issues/1644)) ([da9b83e](https://github.com/Unique-AG/ai/commit/da9b83e21fc33b64e5e7e9a2b4f284813079c024))
+* **unique-orchestrator:** include uploaded files when int. search is … ([#1615](https://github.com/Unique-AG/ai/issues/1615)) ([a9961b3](https://github.com/Unique-AG/ai/commit/a9961b3a909821856dfd4483d402129f7df1f678))
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v1.82.0...unique-toolkit-v2026.18.0) (2026-04-23)
 
 
