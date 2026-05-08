@@ -5,20 +5,27 @@ from dataclasses import dataclass
 from ipaddress import ip_address
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
-_ALLOWED_SCHEMES = {"http", "https"}
-_LOCALHOST_HOSTS = {
-    "localhost",
-    "localhost.localdomain",
-}
-_CLUSTER_LOCAL_SUFFIX = ".cluster.local"
-_SERVICE_SUFFIX = ".svc"
-_METADATA_HOSTS = {
-    "100.100.100.200",  # Alibaba Cloud
-    "169.254.169.254",  # AWS / GCP / Azure IMDS
-    "169.254.170.2",  # AWS ECS task credentials
-    "metadata.azure.internal",
-    "metadata.google.internal",
-}
+from unique_web_search.settings import env_settings
+
+
+def _allowed_schemes() -> frozenset[str]:
+    return frozenset(env_settings.url_safety_allowed_schemes)
+
+
+def _localhost_hosts() -> frozenset[str]:
+    return frozenset(env_settings.url_safety_localhost_hosts)
+
+
+def _metadata_hosts() -> frozenset[str]:
+    return frozenset(env_settings.url_safety_metadata_hosts)
+
+
+def _cluster_local_suffix() -> str:
+    return env_settings.url_safety_cluster_local_suffix
+
+
+def _service_suffix() -> str:
+    return env_settings.url_safety_service_suffix
 
 
 @dataclass(frozen=True)
@@ -156,7 +163,7 @@ def _validate_crawl_target(url: str) -> tuple[str, str] | None:
         return "empty", "URL is empty"
 
     parsed_url = urlsplit(url)
-    if parsed_url.scheme.lower() not in _ALLOWED_SCHEMES:
+    if parsed_url.scheme.lower() not in _allowed_schemes():
         return "scheme", "URL scheme must be http or https"
 
     hostname = parsed_url.hostname
@@ -165,16 +172,16 @@ def _validate_crawl_target(url: str) -> tuple[str, str] | None:
 
     normalized_host = hostname.rstrip(".").lower()
 
-    if normalized_host in _METADATA_HOSTS:
+    if normalized_host in _metadata_hosts():
         return "metadata", "Target points to a metadata endpoint"
 
-    if normalized_host in _LOCALHOST_HOSTS or normalized_host.endswith(".localhost"):
+    if normalized_host in _localhost_hosts() or normalized_host.endswith(".localhost"):
         return "localhost", "Target points to a localhost host"
 
-    if normalized_host.endswith(_SERVICE_SUFFIX):
+    if normalized_host.endswith(_service_suffix()):
         return "cluster", "Target points to an internal service host"
 
-    if normalized_host.endswith(_CLUSTER_LOCAL_SUFFIX):
+    if normalized_host.endswith(_cluster_local_suffix()):
         return "cluster", "Target points to an internal cluster-local host"
 
     try:
