@@ -231,6 +231,44 @@ def test_get_tool_config_env_var_fallback(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 @pytest.mark.ai
+def test_get_tool_config_env_file_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    class MyConfig(BaseModel):
+        value: int = 7
+
+    env_key = _config_env_key("test-server", MyConfig)
+    monkeypatch.delenv(env_key, raising=False)
+    env_file = tmp_path / "unique_mcp.env"
+    env_file.write_text(f'{env_key}={{"value": 88}}')
+    monkeypatch.setenv("ENVIRONMENT_FILE_PATH", str(env_file))
+    dep = get_tool_config(MyConfig)
+    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+
+    assert isinstance(config, MyConfig)
+    assert config.value == 88
+
+
+@pytest.mark.ai
+def test_get_tool_config_env_file_nonexistent_path_falls_back_to_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ENVIRONMENT_FILE_PATH pointing to a missing file should fall back to defaults."""
+
+    class MyConfig(BaseModel):
+        value: int = 7
+
+    env_key = _config_env_key("test-server", MyConfig)
+    monkeypatch.delenv(env_key, raising=False)
+    monkeypatch.setenv("ENVIRONMENT_FILE_PATH", "/nonexistent/path/unique_mcp.env")
+    dep = get_tool_config(MyConfig)
+    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+
+    assert isinstance(config, MyConfig)
+    assert config.value == 7  # default, env file was silently skipped
+
+
+@pytest.mark.ai
 def test_get_tool_config_meta_injection(monkeypatch: pytest.MonkeyPatch) -> None:
     """Primary production path: config injected by host via _meta[CONFIG_META_KEY]."""
 
