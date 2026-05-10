@@ -110,7 +110,6 @@ class Base(BaseSettings):
     llm_process_config: str | None = None
 
     # URL safety settings
-    url_safety_enabled: bool = True
     url_safety_allowed_schemes: list[str] = ["http", "https"]
     url_safety_localhost_hosts: list[str] = [
         "localhost",
