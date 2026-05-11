@@ -251,8 +251,13 @@ def _validate_crawl_target_cheap(url: str) -> tuple[str, str] | None:
     return None
 
 
-async def _validate_crawl_target(url: str) -> tuple[str, str] | None:
-    """Full validation including async DNS check."""
+async def validate_url(url: str) -> tuple[str, str] | None:
+    """Full validation including async DNS check.
+
+    Returns a ``(category, reason)`` tuple if the URL should be blocked, or
+    ``None`` if it is allowed.  Callers that need to raise should wrap the
+    result in :class:`CrawlTargetValidationError`.
+    """
     error = _validate_crawl_target_cheap(url)
     if error is not None:
         return error
@@ -405,7 +410,7 @@ async def resolve_redirect_chain(
     current = url
     async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
         for _ in range(max_hops):
-            error = await _validate_crawl_target(current)
+            error = await validate_url(current)
             if error is not None:
                 category, reason = error
                 raise CrawlTargetValidationError(
@@ -437,7 +442,7 @@ async def resolve_redirect_chain(
 
             current = urljoin(current, location)
 
-    error = await _validate_crawl_target(current)
+    error = await validate_url(current)
     if error is not None:
         category, reason = error
         raise CrawlTargetValidationError(
