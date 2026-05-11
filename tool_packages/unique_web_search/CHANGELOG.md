@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.1](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.20.0...unique-web-search-v2026.20.1) (2026-05-11)
+
+
+### Bug Fixes
+
+* **unique_web_search:** limit requests to public http(s) endpoints ([#1664](https://github.com/Unique-AG/ai/issues/1664)) ([#1669](https://github.com/Unique-AG/ai/issues/1669)) ([a8986b2](https://github.com/Unique-AG/ai/commit/a8986b20f7b86f0f79b260d82a37c22d460aaa91))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.18.0...unique-web-search-v2026.20.0) (2026-05-08)
 
 
