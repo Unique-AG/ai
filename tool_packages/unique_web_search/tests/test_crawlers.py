@@ -6,7 +6,6 @@ import pytest
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawler, BasicCrawlerConfig
-from unique_web_search.services.crawlers.crawl4ai import _ssrf_guard_hook
 from unique_web_search.services.crawlers.utils import (
     EMAIL_DOMAINS,
     FIRST_NAMES,
@@ -381,6 +380,8 @@ class TestSsrfGuardHook:
 
     async def _install_and_get_handler(self):
         """Install the hook on a mock page and return the captured route handler."""
+        from unique_web_search.services.crawlers.crawl4ai import Crawl4AiCrawler
+
         captured: list = []
 
         async def fake_page_route(pattern: str, handler) -> None:
@@ -389,7 +390,7 @@ class TestSsrfGuardHook:
         mock_page = AsyncMock()
         mock_page.route = fake_page_route
 
-        await _ssrf_guard_hook(
+        await Crawl4AiCrawler._get_ssrf_guard_hook()(
             mock_page,
             context=None,
             url="https://example.com",
@@ -527,18 +528,13 @@ class TestSsrfGuardHook:
         (lazy import, patched at the crawl4ai source module); assert the strategy is constructed
         with hooks={'before_goto': _ssrf_guard_hook}.
         """
-        import unique_web_search.services.crawlers.crawl4ai as crawl4ai_module
         from unique_web_search.services.crawlers.crawl4ai import (
             Crawl4AiCrawler,
             Crawl4AiCrawlerConfig,
-            _ssrf_guard_hook,
         )
 
         mock_strategy_instance = MagicMock()
         mock_strategy_cls = MagicMock(return_value=mock_strategy_instance)
-        monkeypatch.setattr(
-            crawl4ai_module, "AsyncPlaywrightCrawlerStrategy", mock_strategy_cls
-        )
 
         mock_crawler_instance = AsyncMock()
         mock_crawler_instance.crawler_strategy = mock_strategy_instance
@@ -547,8 +543,14 @@ class TestSsrfGuardHook:
         mock_crawler_instance.__aexit__ = AsyncMock(return_value=None)
         mock_async_web_crawler = MagicMock(return_value=mock_crawler_instance)
 
-        # AsyncWebCrawler is lazy-imported inside _crawl, so patch it at the source.
-        with patch("crawl4ai.AsyncWebCrawler", mock_async_web_crawler):
+        # Both are lazy-imported inside _crawl, so patch them at their source modules.
+        with (
+            patch(
+                "crawl4ai.async_webcrawler.AsyncPlaywrightCrawlerStrategy",
+                mock_strategy_cls,
+            ),
+            patch("crawl4ai.AsyncWebCrawler", mock_async_web_crawler),
+        ):
             crawler = Crawl4AiCrawler(
                 Crawl4AiCrawlerConfig(crawler_type=CrawlerType.CRAWL4AI)
             )
@@ -556,7 +558,12 @@ class TestSsrfGuardHook:
 
         mock_strategy_cls.assert_called_once()
         _, kwargs = mock_strategy_cls.call_args
-        assert kwargs.get("hooks") == {"before_goto": _ssrf_guard_hook}
+        hooks = kwargs.get("hooks")
+        assert hooks is not None
+        assert "before_goto" in hooks
+        # Each call to _get_ssrf_guard_hook() returns a new closure, so compare by name.
+        assert callable(hooks["before_goto"])
+        assert hooks["before_goto"].__name__ == "_ssrf_guard_hook"
 
 
 if __name__ == "__main__":
