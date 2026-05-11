@@ -9,6 +9,7 @@ from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
 import httpx
 
+from unique_web_search.metrics import crawl_blocked
 from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
@@ -84,6 +85,9 @@ class ResolvedCrawlTarget:
 class CrawlTargetValidationError(ValueError):
     def __init__(self, blocked_targets: list[BlockedCrawlTarget]):
         self.blocked_targets: list[BlockedCrawlTarget] = blocked_targets
+
+        for target in blocked_targets:
+            crawl_blocked.labels(reason_category=target.category).inc()
 
         details = "; ".join(
             f"{target.display_target} ({target.reason})"
