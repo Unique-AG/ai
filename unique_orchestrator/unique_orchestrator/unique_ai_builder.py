@@ -154,6 +154,7 @@ class _CommonComponents(NamedTuple):
     content_service: ContentService
     llm_service: LanguageModelService
     uploaded_documents: list[Content]
+    uploaded_images: list[Content]
     thinking_manager: ThinkingManager
     reference_manager: ReferenceManager
     history_manager: HistoryManager
@@ -180,7 +181,11 @@ async def _build_common(
 
     content_service = ContentService.from_event(event)
 
-    uploaded_documents = await content_service.get_documents_uploaded_to_chat_async()
+    (
+        uploaded_images,
+        uploaded_documents,
+    ) = await chat_service.download_chat_images_and_documents_async()
+
     uploaded_documents = filter_uploaded_documents_by_selection(
         documents=uploaded_documents,
         additional_parameters=event.payload.additional_parameters,
@@ -279,6 +284,7 @@ async def _build_common(
         content_service=content_service,
         llm_service=llm_service,
         uploaded_documents=uploaded_documents,
+        uploaded_images=uploaded_images,
         thinking_manager=thinking_manager,
         reference_manager=reference_manager,
         history_manager=history_manager,
@@ -394,7 +400,8 @@ async def _build_responses(
         )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
-        uploaded_files=common_components.uploaded_documents,
+        uploaded_files=common_components.uploaded_documents
+        + common_components.uploaded_images,
         content_service=common_components.content_service,
         user_id=event.user_id,
         company_id=event.company_id,
