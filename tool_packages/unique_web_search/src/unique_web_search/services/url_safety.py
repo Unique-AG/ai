@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import logging
 import socket
 from dataclasses import dataclass
 from ipaddress import ip_address
 from urllib.parse import SplitResult, urlsplit, urlunsplit
 
+import httpx
+
 from unique_web_search.settings import env_settings
+
+_LOGGER = logging.getLogger(__name__)
+
+_MAX_REDIRECT_HOPS = 10
+_REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
 
 
 def _allowed_schemes() -> frozenset[str]:
@@ -301,3 +309,66 @@ def _build_netloc(
         return f"{credential_prefix}{normalized_host}"
 
     return f"{credential_prefix}{normalized_host}:{port}"
+
+
+async def resolve_redirect_chain(
+    url: str,
+    *,
+    max_hops: int = _MAX_REDIRECT_HOPS,
+    timeout: float = 10.0,
+) -> str:
+    """Follow HTTP 3xx redirects hop-by-hop, validating each destination
+    against url_safety rules before issuing the next request.
+
+    Returns the final validated URL.
+    Raises CrawlTargetValidationError if any hop is blocked.
+    """
+    current = url
+    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+        for _ in range(max_hops):
+            error = _validate_crawl_target(current)
+            if error is not None:
+                category, reason = error
+                raise CrawlTargetValidationError(
+                    [
+                        BlockedCrawlTarget(
+                            hostname=_extract_hostname(current),
+                            category=category,
+                            reason=reason,
+                        )
+                    ]
+                )
+
+            try:
+                resp = await client.head(current)
+            except Exception as exc:
+                _LOGGER.debug(
+                    "Redirect resolution stopped at %s due to network error: %s",
+                    current,
+                    exc,
+                )
+                break
+
+            if resp.status_code not in _REDIRECT_STATUS_CODES:
+                break
+
+            location = resp.headers.get("location")
+            if not location:
+                break
+
+            current = location
+
+    error = _validate_crawl_target(current)
+    if error is not None:
+        category, reason = error
+        raise CrawlTargetValidationError(
+            [
+                BlockedCrawlTarget(
+                    hostname=_extract_hostname(current),
+                    category=category,
+                    reason=reason,
+                )
+            ]
+        )
+
+    return current
