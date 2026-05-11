@@ -3,15 +3,16 @@ import os
 
 from fastmcp import Client
 
-from unique_mcp.meta.keys import MetaKeys
+from mcp_search.config import SearchToolConfig
+from unique_mcp.meta.keys import CONFIG_META_KEY, MetaKeys
 
 MCP_URL = os.environ.get("MCP_SEARCH_URL", "http://localhost:8003/mcp")
 
-SEARCH_ARGS = {
-    "search_string": "what is unique?",
-    "search_type": "VECTOR",
-    "limit": 3,
-}
+# Only search_string is a tool argument; everything else lives in config.
+SEARCH_ARGS = {"search_string": "what is unique?"}
+
+# Optional: override config injected by the host (useful for local testing).
+_CONFIG_OVERRIDE = SearchToolConfig().model_dump(mode="json", by_alias=True)
 
 
 def _print_result(result: object) -> None:
@@ -28,13 +29,17 @@ async def main() -> None:
         tools = await client.list_tools()
         print(f"\nAvailable tools: {[t.name for t in tools]}")
 
-        # --- Call 1: normal auth (JWT claims / userinfo) ---
+        # --- Call 1: normal auth (JWT claims / userinfo), default server config ---
         print("\n--- Call 1: auth from JWT / userinfo ---")
-        result = await client.call_tool("search", SEARCH_ARGS)
+        result = await client.call_tool(
+            "search",
+            SEARCH_ARGS,
+            meta={"debug.probe": "mcp_client_call1"},
+        )
         print(f"Got {len(result.content)} result(s):")
         _print_result(result)
 
-        # --- Call 2: override auth via _meta ---
+        # --- Call 2: override auth + config via _meta ---
         meta_override = {
             MetaKeys.USER_ID.value: os.environ.get(
                 "UNIQUE_AUTH_USER_ID", "meta-test-user"
@@ -42,8 +47,9 @@ async def main() -> None:
             MetaKeys.COMPANY_ID.value: os.environ.get(
                 "UNIQUE_AUTH_COMPANY_ID", "meta-test-company"
             ),
+            CONFIG_META_KEY: _CONFIG_OVERRIDE,
         }
-        print(f"\n--- Call 2: auth from _meta {meta_override} ---")
+        print("\n--- Call 2: auth + config from _meta ---")
         result = await client.call_tool("search", SEARCH_ARGS, meta=meta_override)
         print(f"Got {len(result.content)} result(s):")
         _print_result(result)
