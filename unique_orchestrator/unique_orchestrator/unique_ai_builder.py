@@ -192,6 +192,12 @@ async def _build_common(
         company_id=event.company_id,
     )
 
+    uploaded_images = filter_uploaded_documents_by_selection(
+        documents=uploaded_images,
+        additional_parameters=event.payload.additional_parameters,
+        company_id=event.company_id,
+    )
+
     response_watcher = SubAgentResponseWatcher()
 
     tool_progress_reporter = ToolProgressReporter(
