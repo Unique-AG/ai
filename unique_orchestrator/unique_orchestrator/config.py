@@ -340,6 +340,11 @@ class UploadedSearchToolConfig(BaseToolConfig):
     )
     tool_config: UploadedSearchConfig = UploadedSearchConfig()
 
+    @model_validator(mode="after")
+    def validate_tool_config(self) -> "UploadedSearchToolConfig":
+        self.tool_config.enable_tool_call_system_reminder = self.is_forced
+        return self
+
 
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
