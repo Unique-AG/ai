@@ -6,9 +6,6 @@ from typing_extensions import override
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
-from unique_internal_search.uploaded_search.config import (
-    UploadedSearchConfig,
-)
 from unique_internal_search.uploaded_search.service import (
     UploadedSearchTool,
 )
@@ -86,7 +83,7 @@ from unique_orchestrator._builders.skill_setup import (
     configure_skill_tool,
     normalize_available_skills_for_tool,
 )
-from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai import UniqueAI
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
@@ -390,8 +387,7 @@ async def _build_responses(
         in config.space.language_model.capabilities
     )
 
-    has_valid_uploaded_documents = False
-    has_tool_choices = False
+    force_uploaded_search = False
     if config.agent.experimental.open_file_tool_config.enabled:
         handle_uploaded_file_tool_choices(
             config,
@@ -400,12 +396,11 @@ async def _build_responses(
             logger,
         )
     else:
-        has_valid_uploaded_documents, has_tool_choices = (
-            _configure_uploaded_search_tool(
-                event=event,
-                logger=logger,
-                common_components=common_components,
-            )
+        force_uploaded_search = _configure_uploaded_search_tool(
+            event=event,
+            logger=logger,
+            common_components=common_components,
+            config=config.agent.experimental.uploaded_search_tool_config,
         )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
@@ -430,7 +425,7 @@ async def _build_responses(
         builtin_tool_manager=builtin_tool_manager,
     )
     if not config.agent.experimental.open_file_tool_config.enabled:
-        if not has_tool_choices and has_valid_uploaded_documents:
+        if force_uploaded_search:
             tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     agent_file_registry: list[str] = []
@@ -512,10 +507,11 @@ async def _build_completions(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
+    force_uploaded_search = _configure_uploaded_search_tool(
         event=event,
         logger=logger,
         common_components=common_components,
+        config=config.agent.experimental.uploaded_search_tool_config,
     )
 
     tool_manager = ToolManager(
@@ -526,7 +522,7 @@ async def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
-    if not has_tool_choices and has_valid_uploaded_documents:
+    if force_uploaded_search:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     await configure_skill_tool(
@@ -587,8 +583,9 @@ def _configure_uploaded_search_tool(
     event: ChatEvent,
     logger: Logger,
     common_components: _CommonComponents,
-) -> tuple[bool, bool]:
-    """Mirror uploaded-file bootstrapping across completions and Responses API."""
+    config: UploadedSearchToolConfig,
+) -> bool:
+    """Add the uploaded search tool when documents are present and return whether it should be forced."""
     valid_uploaded_documents: list[Content] = []
     expired_uploaded_documents: list[Content] = []
     for doc in common_components.uploaded_documents:
@@ -598,29 +595,30 @@ def _configure_uploaded_search_tool(
             expired_uploaded_documents.append(doc)
         else:
             valid_uploaded_documents.append(doc)
-    has_tool_choices = len(event.payload.tool_choices) > 0
 
     if expired_uploaded_documents:
         logger.info(
             f"Number of expired uploaded documents: {len(expired_uploaded_documents)}"
         )
 
-    if valid_uploaded_documents:
-        logger.info(
-            f"Number of valid uploaded documents: {len(valid_uploaded_documents)}"
-        )
-        common_components.tool_manager_config.tools.append(
-            ToolBuildConfig(
-                name=UploadedSearchTool.name,
-                display_name=UploadedSearchTool.name,
-                configuration=UploadedSearchConfig(),
-            )
-        )
+    if not valid_uploaded_documents:
+        return False
 
-    if has_tool_choices and valid_uploaded_documents:
+    logger.info(f"Number of valid uploaded documents: {len(valid_uploaded_documents)}")
+
+    common_components.tool_manager_config.tools.append(
+        ToolBuildConfig(
+            name=UploadedSearchTool.name,
+            display_name=UploadedSearchTool.name,
+            configuration=config.tool_config,
+        )
+    )
+
+    if len(event.payload.tool_choices) > 0 and config.is_forced:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
+        return False
 
-    return bool(valid_uploaded_documents), has_tool_choices
+    return config.is_forced
 
 
 def _add_sub_agents_postprocessor(

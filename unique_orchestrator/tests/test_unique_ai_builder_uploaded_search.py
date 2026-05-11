@@ -14,7 +14,7 @@ from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 from unique_toolkit.content.schemas import Content
 
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
-from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai_builder import (
     _build_responses,
     _CommonComponents,
@@ -320,13 +320,14 @@ class TestConfigureUploadedSearchToolIngestionFilter:
             mime_type=mime_type,
         )
 
-    def _run(self, docs, tool_choices=None):
+    def _run(self, docs, tool_choices=None, config=None):
         common_components = _make_common_components(docs)
         event = self._make_event(tool_choices)
         _configure_uploaded_search_tool(
             event=event,
             logger=MagicMock(),
             common_components=common_components,
+            config=config or UploadedSearchToolConfig(),
         )
         return common_components
 
@@ -387,3 +388,46 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         common = self._run(docs)
         tool_names = [t.name for t in common.tool_manager_config.tools]
         assert UploadedSearchTool.name not in tool_names
+
+
+class TestConfigureUploadedSearchToolForcing:
+    def _make_doc(self):
+        doc = MagicMock()
+        doc.is_expired.return_value = False
+        return doc
+
+    def _run(self, docs, tool_choices=None, is_forced=True):
+        common_components = _make_common_components(docs)
+        event = _make_event(tool_choices or [])
+        config = UploadedSearchToolConfig(is_forced=is_forced)
+        should_force = _configure_uploaded_search_tool(
+            event=event,
+            logger=MagicMock(),
+            common_components=common_components,
+            config=config,
+        )
+        return should_force, common_components, event
+
+    def test_forces_when_valid_docs_and_is_forced_true(self):
+        should_force, _, _ = self._run([self._make_doc()], is_forced=True)
+        assert should_force is True
+
+    def test_does_not_force_when_is_forced_false(self):
+        should_force, _, _ = self._run([self._make_doc()], is_forced=False)
+        assert should_force is False
+
+    def test_does_not_force_when_no_docs(self):
+        should_force, _, _ = self._run([], is_forced=True)
+        assert should_force is False
+
+    def test_does_not_force_when_tool_choices_already_exist(self):
+        # Tool is added to tool_choices for availability instead of being force-called
+        should_force, _, event = self._run(
+            [self._make_doc()], tool_choices=["InternalSearch"], is_forced=True
+        )
+        assert should_force is False
+        assert UploadedSearchTool.name in event.payload.tool_choices
+
+    def test_tool_not_appended_to_empty_tool_choices(self):
+        _, _, event = self._run([self._make_doc()], tool_choices=[], is_forced=True)
+        assert event.payload.tool_choices == []
