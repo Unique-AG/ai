@@ -1,12 +1,36 @@
 import asyncio
+import socket
 from unittest.mock import Mock
 
 import pytest
 
+import unique_web_search.services.url_safety as url_safety
 from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.search_engine.schema import WebSearchResult
+
+
+@pytest.fixture(autouse=True)
+def stable_public_dns_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Return a deterministic public IP for dotted hostnames during unit tests."""
+
+    def fake_getaddrinfo(host: str, *args: object, **kwargs: object) -> list[tuple]:
+        normalized_host = str(host).rstrip(".").lower()
+        if "." not in normalized_host:
+            raise socket.gaierror("single-label host not resolved in tests")
+
+        return [
+            (
+                socket.AF_INET,
+                socket.SOCK_STREAM,
+                6,
+                "",
+                ("93.184.216.34", 443),
+            )
+        ]
+
+    monkeypatch.setattr(url_safety.socket, "getaddrinfo", fake_getaddrinfo)
 
 
 @pytest.fixture

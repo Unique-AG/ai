@@ -24,7 +24,7 @@ class FirecrawlCrawler(BaseCrawler[FirecrawlCrawlerConfig]):
     # @track(
     #     tags=["firecrawl", "scrape"],
     # )
-    async def crawl(self, urls: list[str]) -> list[str]:
+    async def _crawl(self, urls: list[str]) -> list[str]:
         api_key = get_firecrawl_search_settings().api_key
         assert api_key is not None, "Firecrawl API key is not configured"
 
