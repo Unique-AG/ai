@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.2](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.1...unique-toolkit-v2026.20.2) (2026-05-11)
+
+
+### Features
+
+* **toolkit:** Adopt settings to better manage hardcoded values ([#1626](https://github.com/Unique-AG/ai/issues/1626)) ([#1676](https://github.com/Unique-AG/ai/issues/1676)) ([9255d22](https://github.com/Unique-AG/ai/commit/9255d22aea05b2a5d244605c89e1e7a5c5baba9b))
+
 ## [2026.20.1](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.0...unique-toolkit-v2026.20.1) (2026-05-11)
 
 
