@@ -47,6 +47,7 @@ dev = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
+constraint-dependencies = ["pillow>=12.2.0"]
 
 [tool.uv.exclude-newer-package]
 "unique-mcp" = false
