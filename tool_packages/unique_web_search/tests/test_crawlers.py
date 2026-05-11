@@ -445,9 +445,7 @@ class TestSsrfGuardHook:
         Setup summary: Route handler invoked with a localhost URL; assert abort called.
         """
         handler = await self._install_and_get_handler()
-        mock_route, _ = await self._invoke_handler(
-            handler, "http://localhost/internal"
-        )
+        mock_route, _ = await self._invoke_handler(handler, "http://localhost/internal")
 
         mock_route.abort.assert_called_once_with("blockedbyclient")
         mock_route.continue_.assert_not_called()
@@ -462,9 +460,7 @@ class TestSsrfGuardHook:
         Setup summary: Route handler invoked with a private-IP URL; assert abort called.
         """
         handler = await self._install_and_get_handler()
-        mock_route, _ = await self._invoke_handler(
-            handler, "http://192.168.1.1/admin"
-        )
+        mock_route, _ = await self._invoke_handler(handler, "http://192.168.1.1/admin")
 
         mock_route.abort.assert_called_once_with("blockedbyclient")
         mock_route.continue_.assert_not_called()
@@ -512,9 +508,7 @@ class TestSsrfGuardHook:
         Setup summary: Route handler invoked with a file:// URL; assert abort called.
         """
         handler = await self._install_and_get_handler()
-        mock_route, _ = await self._invoke_handler(
-            handler, "file:///etc/passwd"
-        )
+        mock_route, _ = await self._invoke_handler(handler, "file:///etc/passwd")
 
         mock_route.abort.assert_called_once_with("blockedbyclient")
         mock_route.continue_.assert_not_called()
@@ -542,7 +536,9 @@ class TestSsrfGuardHook:
 
         mock_strategy_instance = MagicMock()
         mock_strategy_cls = MagicMock(return_value=mock_strategy_instance)
-        monkeypatch.setattr(crawl4ai_module, "AsyncPlaywrightCrawlerStrategy", mock_strategy_cls)
+        monkeypatch.setattr(
+            crawl4ai_module, "AsyncPlaywrightCrawlerStrategy", mock_strategy_cls
+        )
 
         mock_crawler_instance = AsyncMock()
         mock_crawler_instance.crawler_strategy = mock_strategy_instance
