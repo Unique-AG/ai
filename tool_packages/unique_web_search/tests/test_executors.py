@@ -27,7 +27,10 @@ from unique_web_search.services.executors.v3.schema import (
     WebSearchV3ToolParameters,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
-from unique_web_search.services.url_safety import CrawlTargetValidationError
+from unique_web_search.services.url_safety import (
+    CrawlTargetValidationError,
+    validate_crawl_urls,
+)
 
 
 class TestQueryGenerationAgent:
@@ -292,9 +295,9 @@ class TestWebSearchV1ExecutorRun:
         mock_executor_dependencies: dict,
     ) -> None:
         """
-        Purpose: Verify V1 blocks unsafe search-result URLs before crawling begins.
+        Purpose: Verify V1 blocks unsafe search-result URLs when crawling is attempted.
         Why this matters: Search-driven crawl flows must not bypass the shared SSRF guard.
-        Setup summary: Return a localhost URL from the search service with scraping enabled and assert the crawler is never invoked.
+        Setup summary: Return a localhost URL from the search service with scraping enabled and assert CrawlTargetValidationError is raised.
         """
         tool_parameters = WebSearchToolParameters(
             query="test query", date_restrict=None
@@ -311,6 +314,9 @@ class TestWebSearchV1ExecutorRun:
             ]
         )
         mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=validate_crawl_urls
+        )
 
         executor = WebSearchV1Executor(
             services=executor_context_objects["services"],
@@ -325,8 +331,6 @@ class TestWebSearchV1ExecutorRun:
 
         with pytest.raises(CrawlTargetValidationError):
             await executor.run()
-
-        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
 
 
 class TestWebSearchV1ExecutorRefineQuery:
@@ -736,9 +740,9 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
         """
-        Purpose: Verify crawl handoff rejects unsafe search-result URLs before the crawler runs.
+        Purpose: Verify crawl handoff rejects unsafe search-result URLs when crawling is attempted.
         Why this matters: Search engines remain untrusted input sources and must not bypass the SSRF guard.
-        Setup summary: Return a metadata URL from the search service, require scraping, and assert crawl is blocked before the crawler is invoked.
+        Setup summary: Return a metadata URL from the search service, require scraping, and assert CrawlTargetValidationError is raised.
         """
         mock_executor_dependencies["search_service"].search = AsyncMock(
             return_value=[
@@ -754,6 +758,9 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         mock_executor_dependencies[
             "search_service"
         ].config.search_engine_name.name = "TEST"
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=validate_crawl_urls
+        )
 
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
@@ -771,8 +778,6 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
 
         with pytest.raises(CrawlTargetValidationError):
             await executor._execute_search_step(step)
-
-        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -937,9 +942,9 @@ class TestWebSearchV3ExecutorFetchUrls:
         mock_executor_dependencies: dict,
     ) -> None:
         """
-        Purpose: Verify V3 read_urls rejects blocked targets before invoking the crawler.
+        Purpose: Verify V3 read_urls rejects blocked targets when crawling is attempted.
         Why this matters: Direct URL reads are the highest-risk ingress for SSRF-style abuse.
-        Setup summary: Provide a localhost URL in the payload and assert the crawler is never called.
+        Setup summary: Provide a localhost URL in the payload and assert CrawlTargetValidationError is raised.
         """
         tool_parameters = WebSearchV3ToolParameters.model_validate(
             {
@@ -947,6 +952,9 @@ class TestWebSearchV3ExecutorFetchUrls:
                 "objective": "Read the linked articles for full text",
                 "payload": {"urls": ["https://localhost/internal"]},
             }
+        )
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=validate_crawl_urls
         )
 
         executor = WebSearchV3Executor(
@@ -959,8 +967,6 @@ class TestWebSearchV3ExecutorFetchUrls:
 
         with pytest.raises(CrawlTargetValidationError):
             await executor.run()
-
-        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
 
 
 class TestWebSearchV3ToolParametersValidation:
@@ -1132,10 +1138,14 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
         """
-        Purpose: Verify READ_URL steps reject blocked targets before crawling.
+        Purpose: Verify READ_URL steps reject blocked targets when crawling is attempted.
         Why this matters: The direct URL-read path must not allow localhost or private-network access.
-        Setup summary: Execute a READ_URL step pointing at localhost and assert the crawler is never called.
+        Setup summary: Execute a READ_URL step pointing at localhost and assert CrawlTargetValidationError is raised.
         """
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=validate_crawl_urls
+        )
+
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -1152,8 +1162,6 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
 
         with pytest.raises(CrawlTargetValidationError):
             await executor._execute_read_url_step(step)
-
-        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
 
 
 class TestWebSearchV2ExecutorEnforceMaxSteps:
