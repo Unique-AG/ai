@@ -424,9 +424,11 @@ async def _build_responses(
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
     )
-    if not config.agent.experimental.open_file_tool_config.enabled:
-        if force_uploaded_search:
-            tool_manager.add_forced_tool(UploadedSearchTool.name)
+    if (
+        not config.agent.experimental.open_file_tool_config.enabled
+        and force_uploaded_search
+    ):
+        tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     agent_file_registry: list[str] = []
     if config.agent.experimental.open_file_tool_config.enabled:
