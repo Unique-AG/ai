@@ -335,9 +335,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
 
         # Ignore old memory schema
         memory = await failsafe_async(
-            failure_return_value=None,
-            exceptions=(ValidationError,),
-            log_exceptions=False,
+            failure_return_value=None, exceptions=(ValidationError,), log_exc_info=False
         )(memory_manager.load_async)()
 
         container_updated = False
