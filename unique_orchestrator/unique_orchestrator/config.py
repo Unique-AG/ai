@@ -333,16 +333,16 @@ class ResponsesApiConfig(BaseToolConfig):
 
 
 class UploadedSearchToolConfig(BaseToolConfig):
-    is_forced: bool = Field(
+    force: bool = Field(
         default=True,
         title="Force tool",
-        description="Whether the search is forced when the user uploads files",
+        description="If set, the tool will be forced when the user uploads a file",
     )
     tool_config: UploadedSearchConfig = UploadedSearchConfig()
 
     @model_validator(mode="after")
     def validate_tool_config(self) -> "UploadedSearchToolConfig":
-        self.tool_config.enable_tool_call_system_reminder = self.is_forced
+        self.tool_config.enable_tool_call_system_reminder = self.force
         return self
 
 

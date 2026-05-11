@@ -396,10 +396,10 @@ class TestConfigureUploadedSearchToolForcing:
         doc.is_expired.return_value = False
         return doc
 
-    def _run(self, docs, tool_choices=None, is_forced=True):
+    def _run(self, docs, tool_choices=None, force=True):
         common_components = _make_common_components(docs)
         event = _make_event(tool_choices or [])
-        config = UploadedSearchToolConfig(is_forced=is_forced)
+        config = UploadedSearchToolConfig(force=force)
         should_force = _configure_uploaded_search_tool(
             event=event,
             logger=MagicMock(),
@@ -408,26 +408,26 @@ class TestConfigureUploadedSearchToolForcing:
         )
         return should_force, common_components, event
 
-    def test_forces_when_valid_docs_and_is_forced_true(self):
-        should_force, _, _ = self._run([self._make_doc()], is_forced=True)
+    def test_forces_when_valid_docs_and_force_true(self):
+        should_force, _, _ = self._run([self._make_doc()], force=True)
         assert should_force is True
 
-    def test_does_not_force_when_is_forced_false(self):
-        should_force, _, _ = self._run([self._make_doc()], is_forced=False)
+    def test_does_not_force_when_force_false(self):
+        should_force, _, _ = self._run([self._make_doc()], force=False)
         assert should_force is False
 
     def test_does_not_force_when_no_docs(self):
-        should_force, _, _ = self._run([], is_forced=True)
+        should_force, _, _ = self._run([], force=True)
         assert should_force is False
 
     def test_does_not_force_when_tool_choices_already_exist(self):
         # Tool is added to tool_choices for availability instead of being force-called
         should_force, _, event = self._run(
-            [self._make_doc()], tool_choices=["InternalSearch"], is_forced=True
+            [self._make_doc()], tool_choices=["InternalSearch"], force=True
         )
         assert should_force is False
         assert UploadedSearchTool.name in event.payload.tool_choices
 
     def test_tool_not_appended_to_empty_tool_choices(self):
-        _, _, event = self._run([self._make_doc()], tool_choices=[], is_forced=True)
+        _, _, event = self._run([self._make_doc()], tool_choices=[], force=True)
         assert event.payload.tool_choices == []

@@ -77,7 +77,7 @@ class TestUploadedSearchTool:
     """Tests for UploadedSearchTool class."""
 
     @pytest.mark.ai
-    def test_tool_description_for_system_prompt__returns_formatted_prompt__with_valid_documents_only(
+    def test_tool_description_for_system_prompt__returns_formatted_prompt__with_searchable_documents_only(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_chat_event: ChatEvent,
@@ -85,9 +85,9 @@ class TestUploadedSearchTool:
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt returns formatted prompt with valid documents listed.
+        Purpose: Verify tool_description_for_system_prompt returns formatted prompt with searchable documents listed.
         Why this matters: Ensures the system prompt includes information about available uploaded documents.
-        Setup summary: Mock ContentService to return valid documents only, verify formatted output.
+        Setup summary: Mock ContentService to return searchable documents only, verify formatted output.
         """
         # Arrange
         with (
@@ -177,9 +177,9 @@ class TestUploadedSearchTool:
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt lists only valid documents when uploads are mixed.
+        Purpose: Verify tool_description_for_system_prompt lists only searchable documents when uploads are mixed.
         Why this matters: Expired uploads must not appear alongside searchable documents.
-        Setup summary: Mock ContentService to return mixed documents, verify only valid documents appear.
+        Setup summary: Mock ContentService to return mixed documents, verify only searchable documents appear.
         """
         # Arrange
         with (
@@ -395,12 +395,12 @@ class TestUploadedSearchTool:
             # Assert
             assert "Still Valid" in result
             assert "Just Expired" not in result
-            valid_section_start = result.find(
+            searchable_section_start = result.find(
                 "**The currently uploaded and searchable documents are the following**"
             )
             still_valid_pos = result.find("Still Valid")
 
-            assert valid_section_start < still_valid_pos
+            assert searchable_section_start < still_valid_pos
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__formats_multiple_documents_with_newlines(
@@ -442,12 +442,12 @@ class TestUploadedSearchTool:
             assert "- Q2 Financial Report (content_id: doc_1)" in result
             assert "- policy_document.pdf (content_id: doc_2)" in result
             # Verify documents are on separate lines by checking the searchable documents section
-            valid_section = result.split(
+            searchable_section = result.split(
                 "**The currently uploaded and searchable documents are the following**"
             )[1]
             # Make sure both documents appear in the searchable section
-            assert "Q2 Financial Report" in valid_section
-            assert "policy_document.pdf" in valid_section
+            assert "Q2 Financial Report" in searchable_section
+            assert "policy_document.pdf" in searchable_section
 
     @pytest.mark.ai
     def test_display_name__returns_uploaded_search(
@@ -643,7 +643,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         return tool
 
     @pytest.mark.ai
-    def test_skip_ingestion_doc_excluded_from_valid_section(
+    def test_skip_ingestion_doc_excluded_from_searchable_section(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_chat_event,
@@ -653,10 +653,10 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         Purpose: Verify that a doc with SKIP_INGESTION mode does not appear in
                  the searchable documents section of the system prompt.
         Why this matters: Non-ingested docs cannot be searched, so surfacing them
-                          as "valid" would mislead the model into attempting searches
+                          as searchable would mislead the model into attempting searches
                           that would return no results.
         Setup summary: Create a Content with SKIP_INGESTION applied_ingestion_config
-                       and expired_at=None; assert neither the doc name nor the valid
+                       and expired_at=None; assert neither the doc name nor the searchable
                        section header appears in the rendered prompt.
         """
         skip_doc = Content(
@@ -692,7 +692,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         Purpose: Verify that ingested docs still appear in the prompt when mixed
                  with non-ingested (SKIP_INGESTION) docs.
         Why this matters: The ingestion filter must only suppress non-ingested docs —
-                          valid ingested docs must remain visible.
+                          searchable ingested docs must remain visible.
         Setup summary: Mix one SKIP_INGESTION doc with one normally-ingested doc
                        (applied_ingestion_config=None); assert only the ingested doc
                        appears in the searchable section.

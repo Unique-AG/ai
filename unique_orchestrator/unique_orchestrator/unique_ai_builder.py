@@ -616,11 +616,11 @@ def _configure_uploaded_search_tool(
         )
     )
 
-    if len(event.payload.tool_choices) > 0 and config.is_forced:
+    if len(event.payload.tool_choices) > 0 and config.force:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
         return False
 
-    return config.is_forced
+    return config.force
 
 
 def _add_sub_agents_postprocessor(
