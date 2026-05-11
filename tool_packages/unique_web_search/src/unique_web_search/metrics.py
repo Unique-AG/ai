@@ -39,3 +39,8 @@ crawl_duration = m.histogram("crawl_duration_seconds", "Crawl latency", ["crawle
 crawl_errors = m.counter(
     "crawl_errors_total", "Crawl failures", ["crawler", "error_type"]
 )
+crawl_blocked = m.counter(
+    "crawl_blocked_total",
+    "Crawl targets blocked by URL safety policy",
+    ["reason_category"],
+)
