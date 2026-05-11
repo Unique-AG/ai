@@ -113,7 +113,7 @@ class TestUploadedSearchTool:
 
             # Assert
             assert (
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 in result
             )
             assert "Q2 Financial Report (content_id: doc_1)" in result
@@ -163,7 +163,7 @@ class TestUploadedSearchTool:
             # Assert
             assert "Old Report (content_id: doc_expired_1)" not in result
             assert (
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 not in result
             )
             assert "You can use the UploadedSearch tool" in result
@@ -205,7 +205,7 @@ class TestUploadedSearchTool:
 
             # Assert
             assert (
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 in result
             )
             assert "Valid Document (content_id: doc_valid_1)" in result
@@ -247,7 +247,7 @@ class TestUploadedSearchTool:
             # Assert
             assert "You can use the UploadedSearch tool" in result
             assert (
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 not in result
             )
 
@@ -396,7 +396,7 @@ class TestUploadedSearchTool:
             assert "Still Valid" in result
             assert "Just Expired" not in result
             valid_section_start = result.find(
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
             )
             still_valid_pos = result.find("Still Valid")
 
@@ -441,11 +441,11 @@ class TestUploadedSearchTool:
             # Verify bullet points are present
             assert "- Q2 Financial Report (content_id: doc_1)" in result
             assert "- policy_document.pdf (content_id: doc_2)" in result
-            # Verify documents are on separate lines by checking the valid documents section
+            # Verify documents are on separate lines by checking the searchable documents section
             valid_section = result.split(
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
             )[1]
-            # Make sure both documents appear in the valid section
+            # Make sure both documents appear in the searchable section
             assert "Q2 Financial Report" in valid_section
             assert "policy_document.pdf" in valid_section
 
@@ -617,7 +617,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
     """Tests for ingestion filtering in tool_description_for_system_prompt.
 
     Docs whose is_ingested() returns False (e.g. SKIP_INGESTION mode) must be
-    excluded from the valid document list in the system prompt.
+    excluded from the searchable document list in the system prompt.
     """
 
     def _make_tool(
@@ -651,7 +651,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
     ) -> None:
         """
         Purpose: Verify that a doc with SKIP_INGESTION mode does not appear in
-                 the valid documents section of the system prompt.
+                 the searchable documents section of the system prompt.
         Why this matters: Non-ingested docs cannot be searched, so surfacing them
                           as "valid" would mislead the model into attempting searches
                           that would return no results.
@@ -677,7 +677,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
 
         assert "Skipped Document" not in result
         assert (
-            "**The currently uploaded and valid documents are the following**"
+            "**The currently uploaded and searchable documents are the following**"
             not in result
         )
 
@@ -695,7 +695,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
                           valid ingested docs must remain visible.
         Setup summary: Mix one SKIP_INGESTION doc with one normally-ingested doc
                        (applied_ingestion_config=None); assert only the ingested doc
-                       appears in the valid section.
+                       appears in the searchable section.
         """
         skip_doc = Content(
             id="skip_2",
@@ -723,5 +723,6 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         assert "Ingested File (content_id: ingested_1)" in result
         assert "Skipped File" not in result
         assert (
-            "**The currently uploaded and valid documents are the following**" in result
+            "**The currently uploaded and searchable documents are the following**"
+            in result
         )
