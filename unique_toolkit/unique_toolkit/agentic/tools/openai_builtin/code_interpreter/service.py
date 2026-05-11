@@ -8,10 +8,10 @@ from openai import (
     AsyncOpenAI,
     BaseModel,
     NotFoundError,
-    OpenAIError,
 )
 from openai.types.responses import ResponseCodeInterpreterToolCall, ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
+from pydantic import ValidationError
 from tenacity import (
     AsyncRetrying,
     before_sleep_log,
@@ -20,7 +20,11 @@ from tenacity import (
 )
 
 from unique_toolkit import ContentService, ShortTermMemoryService
-from unique_toolkit._common.execution import SafeTaskExecutor
+from unique_toolkit._common.execution import (
+    SafeTaskExecutor,
+    failsafe_async,
+)
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
@@ -31,6 +35,9 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     OpenAICodeInterpreterConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.artifacts import (
+    load_code_execution_metadata,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
 from unique_toolkit.content.schemas import (
@@ -62,13 +69,13 @@ def _build_upload_retry() -> AsyncRetrying:
 _SHORT_TERM_MEMORY_NAME = "container_code_execution"
 
 
-class CodeExecutionShortTermMemorySchema(BaseModel):
+class _CodeExecutionShortTermMemorySchema(BaseModel):
     container_id: str
-    file_ids: dict[str, str] = {}  # Mapping of unique file id to openai file id
+    file_paths: dict[str, str] = {}
 
 
 CodeExecutionMemoryManager = PersistentShortMemoryManager[
-    CodeExecutionShortTermMemorySchema
+    _CodeExecutionShortTermMemorySchema
 ]
 
 
@@ -83,7 +90,7 @@ def _get_container_code_execution_short_term_memory_manager(
     )
     short_term_memory_manager = PersistentShortMemoryManager(
         short_term_memory_service=short_term_memory_service,
-        short_term_memory_schema=CodeExecutionShortTermMemorySchema,
+        short_term_memory_schema=_CodeExecutionShortTermMemorySchema,
         short_term_memory_name=_SHORT_TERM_MEMORY_NAME,
     )
     return short_term_memory_manager
@@ -91,7 +98,7 @@ def _get_container_code_execution_short_term_memory_manager(
 
 async def _check_container_exists(
     client: AsyncOpenAI,
-    memory: CodeExecutionShortTermMemorySchema,
+    memory: _CodeExecutionShortTermMemorySchema,
 ) -> bool:
     try:
         container = await client.containers.retrieve(memory.container_id)
@@ -129,27 +136,15 @@ async def _create_container(
     return container.id
 
 
-async def _check_file_already_uploaded(
-    client: AsyncOpenAI,
+def _check_file_already_uploaded(
     content_id: str,
-    memory: CodeExecutionShortTermMemorySchema,
+    memory: _CodeExecutionShortTermMemorySchema,
 ) -> bool:
-    container_id = memory.container_id
-
-    if content_id not in memory.file_ids:
+    if content_id not in memory.file_paths:
         logger.info("File with id %s not in short term memory", content_id)
         return False
 
-    file_id = memory.file_ids[content_id]
-    try:
-        await client.containers.files.retrieve(
-            container_id=container_id, file_id=file_id
-        )
-        logger.info("File with id %s already uploaded to container", content_id)
-        return True
-    except OpenAIError:  # Azure API Errors are not stable
-        logger.exception("Error while retrieving file %s", file_id)
-        return False
+    return True
 
 
 async def _upload_file_to_container(
@@ -189,20 +184,17 @@ async def _upload_file_to_container(
         container_id,
     )
 
-    return openai_file.id
+    return openai_file.path
 
 
 async def _upload_files_to_container(
     client: AsyncOpenAI,
     uploaded_files: list[Content],
-    memory: CodeExecutionShortTermMemorySchema,
+    memory: _CodeExecutionShortTermMemorySchema,
     content_service: ContentService,
-) -> tuple[CodeExecutionShortTermMemorySchema, bool]:
-
+) -> tuple[_CodeExecutionShortTermMemorySchema, bool]:
     async def _check_and_upload(content: Content) -> str | None:
-        if await _check_file_already_uploaded(
-            client=client, content_id=content.id, memory=memory
-        ):
+        if _check_file_already_uploaded(content_id=content.id, memory=memory):
             return None
 
         return await _upload_file_to_container(
@@ -227,8 +219,8 @@ async def _upload_files_to_container(
 
     updated = False
     for content, result in zip(unique_contents, results):
-        if result.success and (file_id := result.unpack()) is not None:
-            memory.file_ids[content.id] = file_id
+        if result.success and (filepath := result.unpack()) is not None:
+            memory.file_paths[content.id] = filepath
             updated = True
 
     return memory, updated
@@ -263,6 +255,9 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         container_id: str | None,
         company_id: str = "",
         is_exclusive: bool = False,
+        user_uploaded_files: list[str] | None = None,
+        kb_uploaded_files: list[str] | None = None,
+        code_execution_files: list[str] | None = None,
     ) -> None:
         self._config = config
 
@@ -272,6 +267,10 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         self._container_id = container_id
         self._company_id = company_id
         self._is_exclusive = is_exclusive
+
+        self._user_uploaded_files = user_uploaded_files
+        self._kb_uploaded_files = kb_uploaded_files
+        self._code_interpreter_artifacts = code_execution_files
 
     @property
     @override
@@ -334,7 +333,10 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             chat_id=chat_id,
         )
 
-        memory = await memory_manager.load_async()
+        # Ignore old memory schema
+        memory = await failsafe_async(
+            failure_return_value=None, exceptions=(ValidationError,), log_exc_info=False
+        )(memory_manager.load_async)()
 
         container_updated = False
         if memory is None or not await _check_container_exists(
@@ -347,20 +349,32 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
                 company_id=company_id,
                 expires_after_minutes=config.expires_after_minutes,
             )
-            memory = CodeExecutionShortTermMemorySchema(container_id=container_id)
+            memory = _CodeExecutionShortTermMemorySchema(container_id=container_id)
             container_updated = True
 
+        code_execution_files = []
+        user_uploaded_files = []
+        for content in uploaded_files:
+            if (metadata := load_code_execution_metadata(content)) is not None:
+                code_execution_files.append(content)
+                if metadata.container_id == memory.container_id:
+                    # Already available in container
+                    memory.file_paths[content.id] = metadata.filepath
+            else:
+                user_uploaded_files.append(content)
+
         files_to_upload: list[Content] = []
+
         if config.upload_files_in_chat_to_container:
             files_to_upload.extend(uploaded_files)
 
+        kb_files = []
         if config.additional_uploaded_documents:
-            files_to_upload.extend(
-                await _resolve_kb_contents(
-                    content_service=content_service,
-                    content_ids=config.additional_uploaded_documents,
-                )
+            kb_files = await _resolve_kb_contents(
+                content_service=content_service,
+                content_ids=config.additional_uploaded_documents,
             )
+            files_to_upload.extend(kb_files)
 
         files_updated = False
         if files_to_upload:
@@ -374,20 +388,36 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         if container_updated or files_updated:
             await memory_manager.save_async(memory)
 
+        def _extract_paths(contents: list[Content]) -> list[str]:
+            return [
+                memory.file_paths[content.id]
+                for content in contents
+                if content.id in memory.file_paths
+            ]
+
         return OpenAICodeInterpreterTool(
             config=config,
             container_id=memory.container_id,
             company_id=company_id,
             is_exclusive=is_exclusive,
+            user_uploaded_files=_extract_paths(user_uploaded_files),
+            kb_uploaded_files=_extract_paths(kb_files),
+            code_execution_files=_extract_paths(code_execution_files),
         )
 
     @override
     def get_tool_prompts(self) -> ToolPrompts:
+        rendered_prompt = render_template(
+            self._config.tool_description_for_system_prompt,
+            user_uploaded_files=self._user_uploaded_files,
+            kb_uploaded_files=self._kb_uploaded_files,
+            code_interpreter_artifacts=self._code_interpreter_artifacts,
+        )
         return ToolPrompts(
             name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter
             display_name=self.DISPLAY_NAME,
             tool_description=self._config.tool_description,
-            tool_system_prompt=self._config.tool_description_for_system_prompt,
+            tool_system_prompt=rendered_prompt,
             tool_format_information_for_system_prompt="",
             tool_user_prompt=self._config.tool_description_for_user_prompt,
             tool_format_information_for_user_prompt="",

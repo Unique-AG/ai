@@ -12,6 +12,9 @@ from openai.types.responses.response_output_text import AnnotationContainerFileC
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors import (
     generated_files as gen_mod,
 )
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.artifacts import (
+    _kb_safe_mime,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
     DisplayCodeInterpreterFilesPostProcessor,
     DisplayCodeInterpreterFilesPostProcessorConfig,
@@ -23,7 +26,6 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     _FileProgressTracker,
     _FileState,
     _inject_code_execution_fences,
-    _kb_safe_mime,
     _replace_dangling_sandbox_links,
     _warn_missing_content_ids,
     _warn_unmatched_code_blocks,

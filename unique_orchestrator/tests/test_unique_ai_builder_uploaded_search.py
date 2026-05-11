@@ -29,6 +29,7 @@ def _make_common_components(uploaded_documents):
         content_service=MagicMock(),
         llm_service=MagicMock(),
         uploaded_documents=uploaded_documents,
+        uploaded_images=[],
         thinking_manager=MagicMock(),
         reference_manager=MagicMock(),
         history_manager=MagicMock(),
