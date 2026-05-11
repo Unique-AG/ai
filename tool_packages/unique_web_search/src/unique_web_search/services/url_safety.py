@@ -5,7 +5,7 @@ import logging
 import socket
 from dataclasses import dataclass
 from ipaddress import ip_address
-from urllib.parse import SplitResult, urlsplit, urlunsplit
+from urllib.parse import SplitResult, urljoin, urlsplit, urlunsplit
 
 import httpx
 
@@ -431,7 +431,7 @@ async def resolve_redirect_chain(
             if not location:
                 break
 
-            current = location
+            current = urljoin(current, location)
 
     error = await _validate_crawl_target(current)
     if error is not None:

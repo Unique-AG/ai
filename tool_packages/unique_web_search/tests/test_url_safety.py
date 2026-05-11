@@ -407,3 +407,62 @@ class TestResolveRedirectChain:
         # After 10 hops the loop exits; current URL is the 10th redirect destination
         assert result == "https://hop9.example.com/"
         assert mock_client.head.call_count == 10
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_resolve_redirect_chain__relative_path_redirect__resolves_against_base(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify that a relative-path Location header (e.g. /new-path) is resolved
+        against the current URL rather than used verbatim.
+        Why this matters: RFC 7231 permits relative references in Location headers. Without
+        urljoin the raw relative value becomes `current`, which has no scheme and is
+        rejected by _validate_crawl_target_cheap, producing a false CrawlTargetValidationError.
+        Setup summary: Mock HEAD to return 301 with a relative Location, then 200; assert
+        the final URL is the correctly resolved absolute URL.
+        """
+        mock_client = self._make_mock_client(
+            [
+                (301, "/new-path"),
+                (200, None),
+            ]
+        )
+
+        with patch(
+            "unique_web_search.services.url_safety.httpx.AsyncClient",
+            return_value=mock_client,
+        ):
+            result = await resolve_redirect_chain("https://example.com/old-path")
+
+        assert result == "https://example.com/new-path"
+        assert mock_client.head.call_count == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_resolve_redirect_chain__relative_dotdot_redirect__resolves_against_base(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify that a relative Location with parent-directory traversal (../other)
+        is resolved correctly against the base URL.
+        Why this matters: Multi-segment relative references are valid per RFC 3986 and must
+        not be treated as a scheme error.
+        Setup summary: Mock HEAD to return 302 with ../other, then 200; assert the resolved
+        URL matches the expected absolute form.
+        """
+        mock_client = self._make_mock_client(
+            [
+                (302, "../other"),
+                (200, None),
+            ]
+        )
+
+        with patch(
+            "unique_web_search.services.url_safety.httpx.AsyncClient",
+            return_value=mock_client,
+        ):
+            result = await resolve_redirect_chain("https://example.com/a/b/page")
+
+        assert result == "https://example.com/a/other"
+        assert mock_client.head.call_count == 2
