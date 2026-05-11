@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -125,7 +125,7 @@ class TestBasicCrawler:
         )
         monkeypatch.setattr(
             "unique_web_search.services.crawlers.base.validate_crawl_urls",
-            lambda urls: urls,
+            AsyncMock(side_effect=lambda urls: urls),
         )
 
         with pytest.raises(CrawlTargetValidationError):
@@ -262,11 +262,13 @@ class TestBasicCrawlerCrawlUrl:
 
         monkeypatch.setattr(
             "unique_web_search.services.crawlers.basic.resolve_crawl_target",
-            lambda url: ResolvedCrawlTarget(
-                normalized_url=url,
-                hostname="example.com",
-                resolved_ip="93.184.216.34",
-                used_dns_resolution=True,
+            AsyncMock(
+                side_effect=lambda url: ResolvedCrawlTarget(
+                    normalized_url=url,
+                    hostname="example.com",
+                    resolved_ip="93.184.216.34",
+                    used_dns_resolution=True,
+                )
             ),
         )
 
@@ -291,6 +293,77 @@ class TestBasicCrawlerCrawlUrl:
         )
         assert "blacklisted" in result
         client.get.assert_not_called()
+
+
+class TestBaseCrawlerRedirectResolutionSetting:
+    """Test that BaseCrawler.crawl() honours url_safety_resolve_redirects."""
+
+    @pytest.fixture
+    def basic_crawler(self) -> BasicCrawler:
+        return BasicCrawler(BasicCrawlerConfig(crawler_type=CrawlerType.BASIC))
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl__calls_resolve_redirect_chain__when_setting_is_enabled(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify resolve_redirect_chain is invoked for each URL when the setting is True.
+        Why this matters: The setting must engage the full redirect-resolution guard in the default configuration.
+        Setup summary: Patch the setting to True, mock the resolver and _crawl; assert resolver was called.
+        """
+        import unique_web_search.services.crawlers.base as base_module
+
+        mock_settings = MagicMock()
+        mock_settings.url_safety_resolve_redirects = True
+        monkeypatch.setattr(base_module, "env_settings", mock_settings)
+        monkeypatch.setattr(
+            base_module, "validate_crawl_urls", AsyncMock(side_effect=lambda urls: urls)
+        )
+
+        mock_resolve = AsyncMock(side_effect=lambda u: u)
+        monkeypatch.setattr(base_module, "resolve_redirect_chain", mock_resolve)
+        monkeypatch.setattr(
+            basic_crawler, "_crawl", AsyncMock(return_value=["content"])
+        )
+
+        await basic_crawler.crawl(["https://example.com"])
+
+        mock_resolve.assert_called_once_with("https://example.com")
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl__skips_resolve_redirect_chain__when_setting_is_disabled(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify resolve_redirect_chain is not invoked when the setting is False.
+        Why this matters: Operators must be able to disable the redirect resolver for environments
+        where outbound HEAD requests are restricted.
+        Setup summary: Patch the setting to False, mock the resolver and _crawl; assert resolver was not called.
+        """
+        import unique_web_search.services.crawlers.base as base_module
+
+        mock_settings = MagicMock()
+        mock_settings.url_safety_resolve_redirects = False
+        monkeypatch.setattr(base_module, "env_settings", mock_settings)
+        monkeypatch.setattr(
+            base_module, "validate_crawl_urls", AsyncMock(side_effect=lambda urls: urls)
+        )
+
+        mock_resolve = AsyncMock(side_effect=lambda u: u)
+        monkeypatch.setattr(base_module, "resolve_redirect_chain", mock_resolve)
+        monkeypatch.setattr(
+            basic_crawler, "_crawl", AsyncMock(return_value=["content"])
+        )
+
+        await basic_crawler.crawl(["https://example.com"])
+
+        mock_resolve.assert_not_called()
 
 
 if __name__ == "__main__":

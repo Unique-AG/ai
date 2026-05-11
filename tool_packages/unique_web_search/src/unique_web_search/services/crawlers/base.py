@@ -57,7 +57,7 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         self.config = config
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        urls = validate_crawl_urls(urls)
+        urls = await validate_crawl_urls(urls)
         if env_settings.url_safety_resolve_redirects:
             urls = list(
                 await asyncio.gather(*[resolve_redirect_chain(u) for u in urls])

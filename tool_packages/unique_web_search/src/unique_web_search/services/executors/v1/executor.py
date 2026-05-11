@@ -304,7 +304,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         crawler = self.crawler_service.config.crawler_type.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-        crawl_urls = self._validate_urls_for_crawl(
+        crawl_urls = await self._validate_urls_for_crawl(
             [result.url for result in web_search_results],
             step_name="crawl",
         )

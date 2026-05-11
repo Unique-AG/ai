@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import socket
 from dataclasses import dataclass
@@ -91,13 +92,13 @@ class CrawlTargetValidationError(ValueError):
         super().__init__(f"Blocked crawl target(s) due to URL safety policy: {details}")
 
 
-def validate_crawl_urls(urls: list[str]) -> list[str]:
+async def validate_crawl_urls(urls: list[str]) -> list[str]:
     normalized_urls: list[str] = []
     blocked_targets: list[BlockedCrawlTarget] = []
 
     for raw_url in urls:
         normalized_url = raw_url.strip()
-        validation_error = _validate_crawl_target(normalized_url)
+        validation_error = _validate_crawl_target_cheap(normalized_url)
         if validation_error is not None:
             category, reason = validation_error
             blocked_targets.append(
@@ -107,18 +108,55 @@ def validate_crawl_urls(urls: list[str]) -> list[str]:
                     reason=reason,
                 )
             )
-            continue
-
-        normalized_urls.append(normalized_url)
+        else:
+            normalized_urls.append(normalized_url)
 
     if blocked_targets:
         raise CrawlTargetValidationError(blocked_targets)
 
+    # Validate hostnames via DNS concurrently to avoid blocking the event loop
+    urls_needing_dns = [
+        (url, h)
+        for url in normalized_urls
+        if (h := _hostname_requiring_dns(url)) is not None
+    ]
+    if urls_needing_dns:
+        dns_results = await asyncio.gather(
+            *[_validate_resolved_host(h) for _, h in urls_needing_dns]
+        )
+        dns_blocked = [
+            BlockedCrawlTarget(
+                hostname=_extract_hostname(url),
+                category=category,
+                reason=reason,
+            )
+            for (url, _), dns_error in zip(urls_needing_dns, dns_results)
+            if dns_error is not None
+            for category, reason in [dns_error]
+        ]
+        if dns_blocked:
+            raise CrawlTargetValidationError(dns_blocked)
+
     return normalized_urls
 
 
-def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
-    normalized_url = validate_crawl_urls([url])[0]
+async def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
+    """Validate and resolve a single URL, performing DNS exactly once."""
+    normalized_url = url.strip()
+
+    validation_error = _validate_crawl_target_cheap(normalized_url)
+    if validation_error is not None:
+        category, reason = validation_error
+        raise CrawlTargetValidationError(
+            [
+                BlockedCrawlTarget(
+                    hostname=_extract_hostname(normalized_url),
+                    category=category,
+                    reason=reason,
+                )
+            ]
+        )
+
     parsed_url = urlsplit(normalized_url)
     hostname = parsed_url.hostname
     if hostname is None:
@@ -137,7 +175,7 @@ def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
     try:
         target_ip = ip_address(normalized_host)
     except ValueError:
-        resolved_addresses, validation_error = _resolve_and_validate_host(
+        resolved_addresses, validation_error = await _resolve_and_validate_host(
             normalized_host
         )
         if validation_error is not None:
@@ -166,7 +204,8 @@ def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
     )
 
 
-def _validate_crawl_target(url: str) -> tuple[str, str] | None:
+def _validate_crawl_target_cheap(url: str) -> tuple[str, str] | None:
+    """Static validation only — no DNS. Returns (category, reason) if blocked, None otherwise."""
     if not url:
         return "empty", "URL is empty"
 
@@ -205,7 +244,40 @@ def _validate_crawl_target(url: str) -> tuple[str, str] | None:
     if "." not in normalized_host:
         return "cluster", "Target points to a single-label internal host"
 
-    return _validate_resolved_host(normalized_host)
+    return None
+
+
+async def _validate_crawl_target(url: str) -> tuple[str, str] | None:
+    """Full validation including async DNS check."""
+    error = _validate_crawl_target_cheap(url)
+    if error is not None:
+        return error
+
+    hostname = urlsplit(url).hostname
+    if hostname is None:
+        return None
+
+    normalized_host = hostname.rstrip(".").lower()
+    try:
+        ip_address(normalized_host)
+        return None
+    except ValueError:
+        pass
+
+    return await _validate_resolved_host(normalized_host)
+
+
+def _hostname_requiring_dns(url: str) -> str | None:
+    """Return the normalized hostname if DNS validation is needed, None otherwise."""
+    hostname = urlsplit(url).hostname
+    if hostname is None:
+        return None
+    normalized_host = hostname.rstrip(".").lower()
+    try:
+        ip_address(normalized_host)
+        return None
+    except ValueError:
+        return normalized_host
 
 
 def _extract_hostname(url: str) -> str | None:
@@ -220,16 +292,16 @@ def _extract_hostname(url: str) -> str | None:
     return hostname.rstrip(".").lower()
 
 
-def _validate_resolved_host(host: str) -> tuple[str, str] | None:
-    _, validation_error = _resolve_and_validate_host(host)
+async def _validate_resolved_host(host: str) -> tuple[str, str] | None:
+    _, validation_error = await _resolve_and_validate_host(host)
     return validation_error
 
 
-def _resolve_and_validate_host(
+async def _resolve_and_validate_host(
     host: str,
 ) -> tuple[tuple[str, ...], tuple[str, str] | None]:
     try:
-        resolved_addresses = _resolve_host_addresses(host)
+        resolved_addresses = await _resolve_host_addresses(host)
     except socket.gaierror:
         return (), (
             "dns",
@@ -239,8 +311,11 @@ def _resolve_and_validate_host(
     return resolved_addresses, _block_reason_for_resolved_addresses(resolved_addresses)
 
 
-def _resolve_host_addresses(host: str) -> tuple[str, ...]:
-    resolved = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+async def _resolve_host_addresses(host: str) -> tuple[str, ...]:
+    loop = asyncio.get_running_loop()
+    resolved = await loop.run_in_executor(
+        None, lambda: socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    )
     return tuple(
         dict.fromkeys(str(ip_address(sockaddr[0])) for _, _, _, _, sockaddr in resolved)
     )
@@ -326,7 +401,7 @@ async def resolve_redirect_chain(
     current = url
     async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
         for _ in range(max_hops):
-            error = _validate_crawl_target(current)
+            error = await _validate_crawl_target(current)
             if error is not None:
                 category, reason = error
                 raise CrawlTargetValidationError(
@@ -358,7 +433,7 @@ async def resolve_redirect_chain(
 
             current = location
 
-    error = _validate_crawl_target(current)
+    error = await _validate_crawl_target(current)
     if error is not None:
         category, reason = error
         raise CrawlTargetValidationError(

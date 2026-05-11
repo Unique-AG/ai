@@ -165,14 +165,14 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
 
         return elicitation
 
-    def _validate_urls_for_crawl(
+    async def _validate_urls_for_crawl(
         self,
         urls: list[str],
         *,
         step_name: str,
     ) -> list[str]:
         try:
-            return validate_crawl_urls(urls)
+            return await validate_crawl_urls(urls)
         except CrawlTargetValidationError as exc:
             blocked_targets = [
                 {

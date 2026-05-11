@@ -94,9 +94,11 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
         if self._is_url_blacklisted(url):
             return "Unable to crawl URL due to blacklisted pattern"
 
-        request_url, request_headers, request_extensions = self._build_request_target(
-            url, headers
-        )
+        (
+            request_url,
+            request_headers,
+            request_extensions,
+        ) = await self._build_request_target(url, headers)
         response = await client.get(
             request_url,
             headers=request_headers,
@@ -126,12 +128,12 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
     def _content_type_not_allowed(self, content_type: str) -> bool:
         return content_type in self.config.unwanted_content_types
 
-    def _build_request_target(
+    async def _build_request_target(
         self,
         url: str,
         headers: dict[str, str],
     ) -> tuple[str, dict[str, str], dict[str, str]]:
-        resolved_target = resolve_crawl_target(url)
+        resolved_target = await resolve_crawl_target(url)
 
         request_headers = dict(headers)
         request_extensions: dict[str, str] = {}
