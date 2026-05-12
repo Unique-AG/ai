@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-04-28T09:50:38.977803Z"
+exclude-newer = "2026-04-28T11:32:37.574184Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -50,6 +50,7 @@ members = [
     "unique-swot",
     "unique-toolkit",
     "unique-web-search",
+    "uqadm",
 ]
 constraints = [
     { name = "aiohttp", specifier = ">=3.13.4" },
@@ -6359,6 +6360,29 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = []
+
+[[package]]
+name = "uqadm"
+version = "2026.20.0"
+source = { editable = "uqadm" }
+dependencies = [
+    { name = "click", version = "8.1.8", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
+    { name = "click", version = "8.3.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-docs' or extra != 'group-11-ai-monorepo-dev'" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "rich", version = "13.9.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-docs'" },
+    { name = "rich", version = "15.0.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev' or extra != 'group-11-ai-monorepo-docs'" },
+    { name = "unique-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "click", specifier = ">=8.1.0,<9" },
+    { name = "python-dotenv", specifier = ">=1.0.0,<2" },
+    { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "rich", specifier = ">=13.3.5" },
+    { name = "unique-sdk", editable = "unique_sdk" },
+]
 
 [[package]]
 name = "uritemplate"
