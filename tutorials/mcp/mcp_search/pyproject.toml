@@ -47,8 +47,20 @@ dev = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
-constraint-dependencies = ["pillow>=12.2.0"]
+constraint-dependencies = [
+    "aiohttp>=3.13.4",
+    "authlib>=1.6.11",
+    "cryptography>=46.0.7",
+    "pillow>=12.2.0",
+    "pygments>=2.20.0",
+    "pytest>=9.0.3",
+    "python-multipart>=0.0.27",
+    "requests>=2.33.0",
+    "urllib3>=2.7.0",
+]
 
 [tool.uv.exclude-newer-package]
 "unique-mcp" = false
 "unique-toolkit" = false
+# urllib3 2.7.0 (GHSA-48p4-8xcf-vxj5) uploaded 2026-05-07; remove after 2026-05-22.
+"urllib3" = "2026-05-08"
