@@ -6370,7 +6370,7 @@ dependencies = [
     { name = "click", version = "8.3.2", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-docs' or extra != 'group-11-ai-monorepo-dev'" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "rich" },
+    { name = "rich", version = "15.0.0", source = { registry = "https://pypi.org/simple" } },
     { name = "unique-sdk" },
 ]
 
@@ -6379,7 +6379,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.0,<9" },
     { name = "python-dotenv", specifier = ">=1.0.0,<2" },
     { name = "pyyaml", specifier = ">=6.0,<7" },
-    { name = "rich", specifier = ">=13.7,<15" },
+    { name = "rich", specifier = ">=15" },
     { name = "unique-sdk", editable = "unique_sdk" },
 ]
 
