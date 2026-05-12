@@ -673,6 +673,8 @@ def reasoning_effort_to_openai(effort: str) -> OpenAIReasoningEffort:
 
 # This is tailored for unique and only used in language model info
 class LanguageModelTokenLimits(BaseModel):
+    model_config = model_config
+
     token_limit_input: int
     token_limit_output: int
 
