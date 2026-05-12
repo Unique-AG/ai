@@ -19,6 +19,9 @@
     {"type": "build", "section": "Build", "hidden": true}
   ],
   "packages": {
+    "uqadm": {
+      "component": "uqadm"
+    },
     "unique_sdk": {
       "component": "unique-sdk"
     },
@@ -64,6 +67,7 @@
       "type": "linked-versions",
       "groupName": "ai",
       "components": [
+        "uqadm",
         "unique-sdk",
         "unique-toolkit",
         "unique-mcp",
