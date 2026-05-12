@@ -1,7 +1,7 @@
 [project]
 name = "uqadm"
 version = "0.1.0"
-description = "Unique admin CLI (space list, migrate): separate from unique-cli"
+description = "Unique admin CLI (space list, export, upsert, migrate, delete): separate from unique-cli"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -9,6 +9,7 @@ dependencies = [
     "click>=8.1.0,<9",
     "python-dotenv>=1.0.0,<2",
     "pyyaml>=6.0,<7",
+    "rich>=13.7,<15",
 ]
 
 [project.scripts]

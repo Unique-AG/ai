@@ -1,6 +1,6 @@
 # uqadm
 
-Admin CLI for the Unique platform: **list** spaces, **export** a space to JSON or YAML, **diff** two spaces, and **migrate** space (assistant) configuration between environments defined by per-slot env files. It is separate from `unique-cli` (the agent-oriented file explorer).
+Admin CLI for the Unique platform: **list** spaces, **export** a space to JSON or YAML, **upsert** from such a snapshot (create or update on a slot), **diff** two spaces, **migrate** assistant configuration between slots/environments, and **delete** a space — all via per-slot env files. It is separate from `unique-cli` (the agent-oriented file explorer).
 
 Configuration is normalized into the same **`UNIQUE_*`** variables that **`unique_sdk.cli.config.load_config()`** expects (same path as `unique-cli`). You may mix **SDK** names with **toolkit** names from `unique_toolkit` settings: **`unique_auth_*`** (user/company), **`unique_app_key`** / **`unique_app_id`** (API key / app id, same as `UniqueApp`), and **`unique_api_base_url`** (gateway base, same as `UniqueApi`). Uppercase variants like **`UNIQUE_APP_KEY`** and **`UNIQUE_API_BASE_URL`** are also accepted. If both a `UNIQUE_*` variable and its toolkit alias are set, **`UNIQUE_*` wins**. Bare names like `KEY` or `BASE_URL` are **not** read (too ambiguous).
 
@@ -83,9 +83,20 @@ These apply to all subcommands (they must appear **before** the subcommand group
 **Examples:**
 
 ```bash
-uqadm --cwd /path/to/secrets space list qa
+uqadm --cwd /path/to/secrets space list --slot qa
 uqadm --version
 ```
+
+## CLI operand flags
+
+Every subcommand uses **named options** for required operands (no bare `SPEC` / `SLOT` positionals):
+
+| Flag | Used for |
+|------|----------|
+| **`--slot SLOT`** | **`space list`** — which credential env file to load (not a space id). |
+| **`--source SPEC`** | **`space export`**, **`space delete`**, **`space migrate --source`**, and **`space diff`** (first space). |
+| **`--destination SPEC`** | **`space migrate --destination`**, **`space upsert`**, and **`space diff`** (second space). |
+| **`--file` / `-f`** | **`space upsert`** — local snapshot path. |
 
 ## `uqadm space`
 
@@ -102,12 +113,12 @@ Lists spaces visible to the credentials in `.{SLOT}.env` or `{SLOT}.env` (see **
 **Syntax:**
 
 ```text
-uqadm [GLOBAL_OPTS...] space list SLOT [OPTIONS]
+uqadm [GLOBAL_OPTS...] space list --slot SLOT [OPTIONS]
 ```
 
-| Argument / option | Required | Description |
-|-------------------|----------|---------------|
-| `SLOT` | Yes | Slot name; loads `.{SLOT}.env` or `{SLOT}.env` (under `--cwd` if set). |
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--slot SLOT` | Yes | Slot name; loads `.{SLOT}.env` or `{SLOT}.env` (under `--cwd` if set). |
 | `--name TEXT` | No | Case-insensitive **partial** filter on space name; forwarded to the API. |
 | `--json` | No | Print the full result list as JSON instead of a text table. |
 
@@ -116,9 +127,9 @@ uqadm [GLOBAL_OPTS...] space list SLOT [OPTIONS]
 **Examples:**
 
 ```bash
-uqadm space list 1
-uqadm space list qa --name Report
-uqadm space list prod --json
+uqadm space list --slot 1
+uqadm space list --slot qa --name Report
+uqadm space list --slot prod --json
 ```
 
 ---
@@ -137,60 +148,109 @@ If `-o` is set but the suffix is **missing** or **not** one of `.json`, `.yaml`,
 **Syntax:**
 
 ```text
-uqadm [GLOBAL_OPTS...] space export SPEC [-o PATH|--output PATH]
+uqadm [GLOBAL_OPTS...] space export --source SPEC [-o PATH|--output PATH]
 ```
 
-| Argument / option | Required | Description |
-|-------------------|----------|-------------|
-| `SPEC` | Yes | Same endpoint forms as **`migrate --source`**: `slot:space_id` or `slot:https://...` with a path containing `/space/<id>` (or `custom-space` / `swappable-intelligence-space`). A **space id is required**. |
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--source SPEC` | Yes | Same endpoint forms as **`migrate --source`**: `slot:space_id` or `slot:https://...` with a path containing `/space/<id>` (or `custom-space` / `swappable-intelligence-space`). A **space id is required**. |
 | `-o`, `--output PATH` | No | Write the snapshot to this file; suffix must be **`.json`**, **`.yaml`**, or **`.yml`**. Parent directories are created if needed. Default: **stdout** (JSON only). |
 
 **Examples:**
 
 ```bash
-uqadm space export "1:space_abc123"
-uqadm space export "qa:https://example.com/app/space/space_xyz" -o backup.json
-uqadm space export "qa:space_xyz" -o backup.yaml
+uqadm space export --source "1:space_abc123"
+uqadm space export --source "qa:https://example.com/app/space/space_xyz" -o backup.json
+uqadm space export --source "qa:space_xyz" -o backup.yaml
+```
+
+To push an edited snapshot back onto the API (inverse of export), use **`uqadm space upsert`** below.
+
+---
+
+### `uqadm space upsert`
+
+Reads a **local snapshot** file (JSON or YAML with the same suffix rules as **`space export`**) and either **creates** a new space or **updates** an existing one on the destination slot. Behavior matches **`space migrate`** create/update paths (same `Space.create_space` / `Space.update_space` field mapping, module matching **by name**, and **`add_space_access`** from snapshot `assistantAccess`).
+
+- **Create**: **`--destination`** is **`slot`** or **`slot:`** only (no space id). The snapshot must include **`name`** and **`fallbackModule`** (same as migrate create).
+- **Update**: **`--destination`** is **`slot:space_id`** or **`slot:https://...`** (space id required). The snapshot must include a non-null **`name`**; modules are merged into the destination by name like migrate.
+
+Warnings for **scope rules** and **MCP server bindings** in the snapshot mirror migrate (they are not applied via this command).
+
+If the file suffix is not **`.json`**, **`.yaml`**, or **`.yml`**, or the root document is not a JSON object, the command **exits with code 2**.
+
+**Syntax:**
+
+```text
+uqadm [GLOBAL_OPTS...] space upsert --destination SPEC -f FILE|--file FILE [OPTIONS]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--destination SPEC` | Yes | Space endpoint to create or update: same forms as **`migrate --destination`** (`slot` / `slot:` to create; `slot:space_id` or `slot:URL` to update). |
+| `-f`, `--file FILE` | Yes | Path to snapshot (`.json`, `.yaml`, or `.yml`). |
+| `--dry-run` | No | Do **not** call create/update or `add_space_access`; may still call **`get_space`** when updating to preview module mapping. |
+
+**Examples:**
+
+```bash
+uqadm space upsert --destination "2:" --file backup.yaml
+uqadm space upsert --destination "qa:space_dst456" -f ./edited.json --dry-run
 ```
 
 ---
 
 ### `uqadm space diff`
 
-Loads two spaces (two **`Space.get_space`** calls, potentially via **different** slots/env files), renders each side as **canonical JSON**, and prints a **unified diff** (`difflib.unified_diff`).
+Loads two spaces (two **`Space.get_space`** calls, potentially via **different** slots/env files), canonicalizes JSON (`sort_keys`, stable stringification), then compares.
+
+**Default (recommended):** both payloads are **normalized** before compare: recursively drops common ephemeral keys so you see **meaningful config drift**, not noise from ids and timestamps:
+
+`createdAt`, `updatedAt`, `id`, `moduleId`, `companyId`, `createdBy`, `updatedBy`
+
+Use **`--strict`** to compare **raw** API payloads (no stripping).
+
+**Display**
+
+| `--format` | Behaviour |
+|------------|-----------|
+| **`unified`** (default) | If **stdout is a TTY**: Rich **two-column** view with **inline word-level** red/green highlights (similar to many editors’ split diff). If **not a TTY** (pipe/file): classic **`difflib.unified_diff`** text. |
+| **`side-by-side`** | Two **syntax-highlighted JSON** panes (Rich), best on a **wide** terminal — good for scanning whole structures after normalization. |
 
 **Syntax:**
 
 ```text
-uqadm [GLOBAL_OPTS...] space diff --a SPEC --b SPEC [OPTIONS]
+uqadm [GLOBAL_OPTS...] space diff --source SPEC --destination SPEC [OPTIONS]
 ```
 
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--a SPEC` | Yes | First space (`slot:space_id` or `slot:URL` with extractable id); same rules as **`migrate --source`**. |
-| `--b SPEC` | Yes | Second space (same spec forms). |
-| `--ignore-timestamps` | No | Before comparing, **remove** every `createdAt` and `updatedAt` key **recursively** from both payloads (useful to hide churn from timestamps only). |
+| `--source SPEC` | Yes | First space (`slot:space_id` or `slot:URL` with extractable id); same rules as **`migrate --source`**. |
+| `--destination SPEC` | Yes | Second space (same spec forms). |
+| `--strict` | No | Compare **full** payloads (keep ids, timestamps, etc.). |
+| `--format` | No | `unified` (default) or `side-by-side`; see **Display** table. |
 
 **Exit codes:**
 
 | Code | Meaning |
 |------|---------|
-| `0` | No differences after normalization (or only suppressed timestamps when `--ignore-timestamps` makes payloads identical). |
-| `1` | Differences found (**stdout** contains the diff) **or** an unexpected API/network error during fetch. |
+| `0` | No differences after the chosen normalization / strict compare. |
+| `1` | Differences remain **or** an unexpected API/network error during fetch. |
 | `2` | Invalid endpoint spec (e.g. missing space id). |
 
 **Examples:**
 
 ```bash
-uqadm space diff --a "1:space_a" --b "1:space_b"
-uqadm space diff --a "qa:space_x" --b "prod:space_y" --ignore-timestamps
+uqadm space diff --source "1:space_a" --destination "1:space_b"
+uqadm space diff --source "qa:space_x" --destination "prod:space_y" --format side-by-side
+uqadm space diff --source "qa:x" --destination "prod:y" --strict
 ```
 
 ---
 
 ### `uqadm space migrate`
 
-Copies assistant configuration from a **source** space to a **destination** (either a **new** space on the destination slot or an **existing** space id).
+Copies assistant configuration from a **source** space to a **destination** (either a **new** space on the destination slot or an **existing** space id). To apply a **local snapshot file** instead of copying from another live space, use **`uqadm space upsert`**.
 
 **Syntax:**
 
@@ -205,7 +265,9 @@ uqadm [GLOBAL_OPTS...] space migrate --source SPEC --destination SPEC [OPTIONS]
 | `--dry-run` | No | Do **not** call create/update or `add_space_access`. Still performs **read** calls (`get_space`, etc.) to build the preview where applicable. |
 | `--with-knowledge` | No | Reserved for same-environment extended migration; currently **informational only** (messages when scope rules exist; does not migrate folders/content graphs via API). |
 
-#### Endpoint spec (`migrate --source` / `--destination`, and **`export` / `diff`** where a space id is required)
+#### Endpoint spec (`--source` / `--destination` space endpoints)
+
+Used by **`space export --source`**, **`space delete --source`**, **`space diff --source` / `--destination`**, **`space migrate`**, and **`space upsert --destination`** (and **`migrate --source` / `--destination`**).
 
 The spec string selects:
 
@@ -257,6 +319,34 @@ The spec string selects:
 - **`--dry-run`**: skips create/update/access writes; may still call read APIs to describe actions.
 
 For edge cases and API limits, see the implementation in `uqadm/space_migrate.py`.
+
+---
+
+### `uqadm space delete`
+
+Deletes one space via **`Space.delete_space`**. Fetches the space first (**`Space.get_space`**) to show **id**, **name**, and **uiType** in the confirmation prompt (unless you skip the prompt).
+
+**Syntax:**
+
+```text
+uqadm [GLOBAL_OPTS...] space delete --source SPEC [OPTIONS]
+```
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--source SPEC` | Yes | Same endpoint forms as **`migrate --source`** / **`space export --source`**: `slot:space_id` or `slot:https://...` with extractable id. A **space id is required**. |
+| `-y`, `--yes` | No | Skip the interactive confirmation prompt. |
+| `--dry-run` | No | Still calls **`get_space`** to resolve the space; prints what would be deleted without calling **`delete_space`**. |
+
+If you decline the confirmation prompt, the command exits **0** and prints `Aborted.`
+
+**Examples:**
+
+```bash
+uqadm space delete --source "1:space_old123"
+uqadm space delete --source "prod:https://host/app/space/space_x" --dry-run
+uqadm space delete --source "qa:space_x" -y
+```
 
 ## Python module entry
 

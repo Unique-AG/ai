@@ -47,7 +47,7 @@ def test_cli_missing_env_file_exits_2_with_instructions(tmp_path: Path) -> None:
     runner = CliRunner(mix_stderr=False)
     result = runner.invoke(
         main,
-        ["--cwd", str(tmp_path), "space", "list", "missing_slot"],
+        ["--cwd", str(tmp_path), "space", "list", "--slot", "missing_slot"],
         catch_exceptions=False,
     )
     assert result.exit_code == 2

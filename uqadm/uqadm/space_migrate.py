@@ -15,7 +15,7 @@ from uqadm.endpoint import EndpointParseError, parse_endpoint, parse_source_endp
 from uqadm.env import config_for_slot, normalize_api_base
 
 
-def _module_params_from_source(mod: dict[str, Any]) -> dict[str, Any]:
+def module_params_from_source(mod: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {"name": mod["name"]}
     if mod.get("description") is not None:
         out["description"] = mod["description"]
@@ -32,7 +32,7 @@ def _module_params_from_source(mod: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _match_modules_by_name(
+def match_modules_by_name(
     source_modules: list[dict[str, Any]],
     dest_modules: list[dict[str, Any]],
 ) -> tuple[list[tuple[dict[str, Any], dict[str, Any]]], list[str]]:
@@ -49,8 +49,8 @@ def _match_modules_by_name(
     return pairs, unmatched_names
 
 
-def _build_create_params(src: dict[str, Any]) -> dict[str, Any]:
-    modules = [_module_params_from_source(m) for m in src.get("modules") or []]
+def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
+    modules = [module_params_from_source(m) for m in src.get("modules") or []]
     params: dict[str, Any] = {
         "name": src["name"],
         "fallbackModule": src["fallbackModule"],
@@ -72,7 +72,7 @@ def _build_create_params(src: dict[str, Any]) -> dict[str, Any]:
     return params
 
 
-def _build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
+def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     simple = (
         "name",
@@ -92,7 +92,7 @@ def _build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
     return kwargs
 
 
-def _sync_assistant_access(
+def sync_assistant_access(
     user_id: str,
     company_id: str,
     space_id: str,
@@ -100,6 +100,7 @@ def _sync_assistant_access(
     *,
     dry_run: bool,
     debug_cfg: Config | None = None,
+    credential_debug_label: str = "space migrate add_space_access",
 ) -> None:
     if dry_run or not assistant_access:
         return
@@ -123,7 +124,7 @@ def _sync_assistant_access(
         )
         if debug_cfg is not None:
             echo_credential_debug_if_auth_failure(
-                debug_cfg, exc, label="space migrate add_space_access"
+                debug_cfg, exc, label=credential_debug_label
             )
 
 
@@ -214,7 +215,7 @@ def cmd_migrate(
     assistant_access = list(src_space.get("assistantAccess") or [])
 
     if dst_space_id is None:
-        create_params = _build_create_params(src_space)
+        create_params = build_create_params(src_space)
         if dry_run:
             click.echo(
                 f"Dry-run: would create_space on destination with name="
@@ -239,7 +240,7 @@ def cmd_migrate(
             sys.exit(1)
         new_id = created["id"]
         click.echo(f"Created space {new_id}")
-        _sync_assistant_access(
+        sync_assistant_access(
             dst_cfg.user_id,
             dst_cfg.company_id,
             new_id,
@@ -264,7 +265,7 @@ def cmd_migrate(
             dst_cfg, exc, label="space migrate destination get_space"
         )
         sys.exit(1)
-    pairs, unmatched = _match_modules_by_name(
+    pairs, unmatched = match_modules_by_name(
         list(src_space.get("modules") or []),
         list(dest_space.get("modules") or []),
     )
@@ -288,7 +289,7 @@ def cmd_migrate(
             um["weight"] = sm["weight"]
         update_modules.append(um)
 
-    update_kw = _build_update_kwargs(src_space)
+    update_kw = build_update_kwargs(src_space)
     if update_modules:
         update_kw["modules"] = update_modules
 
@@ -319,7 +320,7 @@ def cmd_migrate(
         sys.exit(1)
 
     click.echo(f"Updated space {dst_space_id}")
-    _sync_assistant_access(
+    sync_assistant_access(
         dst_cfg.user_id,
         dst_cfg.company_id,
         dst_space_id,
