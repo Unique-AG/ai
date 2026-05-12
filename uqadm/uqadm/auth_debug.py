@@ -26,10 +26,7 @@ def _describe_api_key(api_key: str) -> str:
             "(empty — often OK on localhost / secured cluster; otherwise set "
             "UNIQUE_API_KEY)"
         )
-    n = len(api_key)
-    if n <= 12:
-        return f"set, length {n} (redacted)"
-    return f"set, length {n}, prefix {api_key[:8]}…, suffix …{api_key[-4:]}"
+    return f"set, length {len(api_key)} (redacted)"
 
 
 def _describe_optional(value: str, *, empty_label: str) -> str:

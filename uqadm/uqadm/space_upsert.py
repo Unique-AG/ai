@@ -16,6 +16,7 @@ from uqadm.endpoint import EndpointParseError, parse_endpoint
 from uqadm.env import config_for_slot
 from uqadm.space_migrate import (
     build_create_params,
+    build_module_updates_from_pairs,
     build_update_kwargs,
     match_modules_by_name,
     sync_assistant_access,
@@ -179,18 +180,7 @@ def cmd_upsert(
             err=True,
         )
 
-    update_modules: list[dict[str, Any]] = []
-    for sm, dm in pairs:
-        um: dict[str, Any] = {"moduleId": dm["id"]}
-        if sm.get("configuration") is not None:
-            um["configuration"] = sm["configuration"]
-        if sm.get("name") is not None:
-            um["name"] = sm["name"]
-        if sm.get("description") is not None:
-            um["description"] = sm["description"]
-        if sm.get("weight") is not None:
-            um["weight"] = sm["weight"]
-        update_modules.append(um)
+    update_modules = build_module_updates_from_pairs(pairs)
 
     update_kw = build_update_kwargs(snapshot)
     if update_modules:

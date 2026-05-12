@@ -72,6 +72,31 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
     return params
 
 
+def build_module_updates_from_pairs(
+    pairs: list[tuple[dict[str, Any], dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Build per-module update payloads from matched (source, destination) pairs.
+
+    Each entry carries the destination ``moduleId`` plus any fields present on
+    the source side: ``configuration``, ``name``, ``description``, ``weight``.
+    Centralizes the payload shape used by both ``cmd_migrate`` and
+    ``cmd_upsert``.
+    """
+    updates: list[dict[str, Any]] = []
+    for sm, dm in pairs:
+        um: dict[str, Any] = {"moduleId": dm["id"]}
+        if sm.get("configuration") is not None:
+            um["configuration"] = sm["configuration"]
+        if sm.get("name") is not None:
+            um["name"] = sm["name"]
+        if sm.get("description") is not None:
+            um["description"] = sm["description"]
+        if sm.get("weight") is not None:
+            um["weight"] = sm["weight"]
+        updates.append(um)
+    return updates
+
+
 def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     simple = (
@@ -276,18 +301,7 @@ def cmd_migrate(
             err=True,
         )
 
-    update_modules: list[dict[str, Any]] = []
-    for sm, dm in pairs:
-        um: dict[str, Any] = {"moduleId": dm["id"]}
-        if sm.get("configuration") is not None:
-            um["configuration"] = sm["configuration"]
-        if sm.get("name") is not None:
-            um["name"] = sm["name"]
-        if sm.get("description") is not None:
-            um["description"] = sm["description"]
-        if sm.get("weight") is not None:
-            um["weight"] = sm["weight"]
-        update_modules.append(um)
+    update_modules = build_module_updates_from_pairs(pairs)
 
     update_kw = build_update_kwargs(src_space)
     if update_modules:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -13,11 +14,31 @@ from uqadm.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.endpoint import EndpointParseError, parse_source_endpoint
 from uqadm.env import config_for_slot
 
+_ALLOWED_WHITESPACE = {"\t", "\n", "\r"}
+
+
+def sanitize_terminal_label(value: object) -> str:
+    """Coerce ``value`` to ``str`` and strip C0/C1 control characters.
+
+    Tabs, newlines and carriage returns are preserved; every other character
+    in the C0 (U+0000–U+001F, U+007F) and C1 (U+0080–U+009F) ranges is
+    replaced with a Unicode replacement marker. Defense-in-depth against
+    terminal-escape injection from API-provided strings echoed in
+    destructive flows.
+    """
+    text = value if isinstance(value, str) else str(value)
+    return "".join(
+        ch
+        if ch in _ALLOWED_WHITESPACE or unicodedata.category(ch) != "Cc"
+        else "\ufffd"
+        for ch in text
+    )
+
 
 def _format_space_label(space: dict[str, Any]) -> str:
-    name = space.get("name") or "(unnamed)"
-    ui_type = space.get("uiType") or "?"
-    return f"{name!r} (uiType={ui_type})"
+    name = sanitize_terminal_label(space.get("name") or "(unnamed)")
+    ui_type = sanitize_terminal_label(space.get("uiType") or "?")
+    return f"{name!r} (uiType={ui_type!r})"
 
 
 def cmd_delete(
