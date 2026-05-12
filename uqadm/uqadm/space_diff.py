@@ -223,11 +223,18 @@ def cmd_diff(
     if fmt == "side-by-side":
         _print_side_by_side_json(a_payload, b_payload, spec_a, spec_b)
         click.echo("", err=True)
-        click.echo(
-            "Tip: payloads still differ after normalization. "
-            "Use --format unified for a line/word-oriented diff, or --strict to include ids/timestamps.",
-            err=True,
-        )
+        if strict:
+            click.echo(
+                "Tip: full payloads still differ. "
+                "Use --format unified for a line/word-oriented diff.",
+                err=True,
+            )
+        else:
+            click.echo(
+                "Tip: payloads still differ after normalization. "
+                "Use --format unified for a line/word-oriented diff, or --strict to include ids/timestamps.",
+                err=True,
+            )
         sys.exit(1)
 
     lines_a = _canonical_lines(a_payload)
@@ -235,9 +242,12 @@ def cmd_diff(
 
     if use_color:
         console = _console_for_stdout(color=True)
-        console.print(
-            "[dim]Diff (normalized JSON; use --strict for full payloads)[/dim]"
-        )
+        if strict:
+            console.print("[dim]Diff (full payloads)[/dim]")
+        else:
+            console.print(
+                "[dim]Diff (normalized JSON; use --strict for full payloads)[/dim]"
+            )
         _print_unified_inline_diff(lines_a, lines_b, color=True)
         sys.exit(1)
 
