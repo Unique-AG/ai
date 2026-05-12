@@ -16,6 +16,27 @@ dependencies = [
     "unique-toolkit>=2026.20.0",
 ]
 
+[tool.uv]
+exclude-newer = "2 weeks"
+constraint-dependencies = [
+    "authlib>=1.6.11",
+    "cryptography>=46.0.7",
+    "fastmcp>=3.2.0",
+    "pillow>=12.2.0",
+    "pyjwt>=2.12.0",
+    "pygments>=2.20.0",
+    "python-dotenv>=1.2.2",
+    "python-multipart>=0.0.27",
+    "requests>=2.33.0",
+    "urllib3>=2.7.0",
+]
+
+[tool.uv.exclude-newer-package]
+"unique-mcp" = false
+"unique-toolkit" = false
+# urllib3 2.7.0 (GHSA-48p4-8xcf-vxj5) uploaded 2026-05-07; remove after 2026-05-22.
+"urllib3" = "2026-05-08"
+
 [tool.uv.sources]
 unique-mcp = { path = "../../../unique_mcp", editable = true }
 unique-toolkit = { path = "../../../unique_toolkit", editable = true }
