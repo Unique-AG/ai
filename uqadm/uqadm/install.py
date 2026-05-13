@@ -80,7 +80,9 @@ def _install_completion(shell: str, *, dry_run: bool) -> None:
         if result.returncode == 0:
             typer.echo(f"  Shell completion for {shell} installed.")
         else:
-            raise RuntimeError(result.stderr.strip() or f"exit code {result.returncode}")
+            raise RuntimeError(
+                result.stderr.strip() or f"exit code {result.returncode}"
+            )
     except Exception as exc:
         typer.echo(f"  Warning: could not auto-install completion: {exc}", err=True)
         typer.echo(

@@ -27,7 +27,9 @@ def _get_cwd(ctx: typer.Context) -> Path | None:
     return (ctx.obj or {}).get("cwd")
 
 
-@chat_app.command("send", short_help="Send a message to an assistant and print the reply.")
+@chat_app.command(
+    "send", short_help="Send a message to an assistant and print the reply."
+)
 def chat_send(
     ctx: typer.Context,
     assistant_id: Annotated[
@@ -169,7 +171,9 @@ def chat_history(
     ] = 4,
     show_full: Annotated[
         bool,
-        typer.Option("--full", help="Show the full history instead of the selected window."),
+        typer.Option(
+            "--full", help="Show the full history instead of the selected window."
+        ),
     ] = False,
     as_json: Annotated[
         bool,

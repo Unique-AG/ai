@@ -82,9 +82,7 @@ def space_export(
             help="Space id or URL to export (e.g. assistant_abc or https://host/.../space/assistant_abc).",
         ),
     ],
-    slot: Annotated[
-        Optional[str], typer.Option("--slot", help=_SLOT_HELP)
-    ] = None,
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
     output: Annotated[
         Optional[Path],
         typer.Option(
@@ -116,9 +114,7 @@ def space_upsert(
             readable=True,
         ),
     ],
-    slot: Annotated[
-        Optional[str], typer.Option("--slot", help=_SLOT_HELP)
-    ] = None,
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
     target: Annotated[
         Optional[str],
         typer.Option(
@@ -261,9 +257,7 @@ def space_delete(
             help="Space id or URL to delete (e.g. assistant_abc or https://host/.../space/assistant_abc).",
         ),
     ],
-    slot: Annotated[
-        Optional[str], typer.Option("--slot", help=_SLOT_HELP)
-    ] = None,
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
     yes: Annotated[
         bool,
         typer.Option("-y", "--yes", help="Skip the confirmation prompt."),
