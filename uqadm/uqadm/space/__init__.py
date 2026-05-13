@@ -27,6 +27,7 @@ _SLOT_HELP = (
     "Omit to use the configured default (see `uqadm env set-default`)."
 )
 
+
 def _get_cwd(ctx: typer.Context) -> Path | None:
     return (ctx.obj or {}).get("cwd")
 

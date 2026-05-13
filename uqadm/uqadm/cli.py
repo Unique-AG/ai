@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -65,4 +66,4 @@ def main() -> None:
         app()
     except MissingSlotEnvFileError as exc:
         typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
+        sys.exit(2)
