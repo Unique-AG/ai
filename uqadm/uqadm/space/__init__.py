@@ -26,8 +26,6 @@ _SLOT_HELP = (
     "Credential slot: loads .{SLOT}.env or {SLOT}.env. "
     "Omit to use the configured default (see `uqadm env set-default`)."
 )
-_CWD_HELP = "Override directory for env file lookup (see `uqadm --cwd`)."
-
 
 def _get_cwd(ctx: typer.Context) -> Path | None:
     return (ctx.obj or {}).get("cwd")
