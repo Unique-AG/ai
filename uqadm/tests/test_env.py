@@ -44,7 +44,7 @@ def test_missing_slot_env_is_file_not_found_subclass(tmp_path: Path) -> None:
 
 
 def test_cli_missing_env_file_exits_2_with_instructions(tmp_path: Path) -> None:
-    runner = CliRunner(mix_stderr=False)
+    runner = CliRunner()
     result = runner.invoke(
         main,
         ["--cwd", str(tmp_path), "space", "list", "--slot", "missing_slot"],

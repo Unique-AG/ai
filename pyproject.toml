@@ -50,13 +50,6 @@ docs = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
-# Override litellm's `click==8.1.8` exact pin so all groups resolve to 8.3.x.
-# litellm pins click==8.1.8 but is forward-compatible with any click 8.x.
-# Without this, `uv sync --only-dev` would downgrade click from 8.3.2 to 8.1.8
-# in the workspace venv, breaking uqadm's `from click import HelpOption`.
-override-dependencies = [
-    "click>=8.3.0",
-]
 constraint-dependencies = [
     "aiohttp>=3.13.4",
     "authlib>=1.6.11",

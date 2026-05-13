@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import click
-from click import HelpOption
 from click.formatting import HelpFormatter
 
 from uqadm import __version__
@@ -113,7 +112,9 @@ class ShowsRootGlobalOptionsMixin:
         if ctx.command is not root_ctx.command:
             rows: list[tuple[str, str]] = []
             for param in root_ctx.command.params:
-                if isinstance(param, HelpOption):
+                # click.HelpOption existed only in 8.1.8 and was removed in 8.2.0;
+                # match the help option by name instead.
+                if param.name == "help":
                     continue
                 if not isinstance(param, click.Option):
                     continue
