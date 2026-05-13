@@ -6,11 +6,11 @@ import json
 import sys
 from typing import Any
 
-import click
+import typer
 from unique_sdk import Space
 from unique_sdk.cli.config import Config
 
-from uqadm.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 
 PAGE_SIZE = 1000
 
@@ -38,7 +38,7 @@ def fetch_all_spaces(
 
 def print_spaces_table(rows: list[dict[str, Any]]) -> None:
     if not rows:
-        click.echo("No spaces found.")
+        typer.echo("No spaces found.")
         return
     headers = ("id", "name", "uiType", "isPinned")
     widths = [len(h) for h in headers]
@@ -57,14 +57,14 @@ def print_spaces_table(rows: list[dict[str, Any]]) -> None:
         widths[3] = max(widths[3], len(line[3]))
 
     fmt = "  ".join([f"{{:{w}}}" for w in widths])
-    click.echo(fmt.format(*headers))
-    click.echo(fmt.format(*["-" * w for w in widths]))
+    typer.echo(fmt.format(*headers))
+    typer.echo(fmt.format(*["-" * w for w in widths]))
     for line in lines:
-        click.echo(fmt.format(*line))
+        typer.echo(fmt.format(*line))
 
 
-def print_spaces_json(rows: list[dict[str, Any]]) -> None:
-    click.echo(json.dumps(rows, indent=2, default=str))
+def print_spaces_json(rows: list[dict[str, Any]], *, slot: str) -> None:
+    typer.echo(json.dumps({"slot": slot, "spaces": rows}, indent=2, default=str))
 
 
 def cmd_list(
@@ -72,14 +72,16 @@ def cmd_list(
     *,
     name_filter: str | None,
     as_json: bool,
+    slot: str,
 ) -> None:
     try:
         rows = fetch_all_spaces(cfg.user_id, cfg.company_id, name_filter=name_filter)
     except Exception as exc:
-        click.echo(f"Error listing spaces: {exc}", err=True)
+        typer.echo(f"Error listing spaces: {exc}", err=True)
         echo_credential_debug_if_auth_failure(cfg, exc, label="space list")
         sys.exit(1)
     if as_json:
-        print_spaces_json(rows)
+        print_spaces_json(rows, slot=slot)
     else:
+        typer.echo(f"Slot: {slot}")
         print_spaces_table(rows)

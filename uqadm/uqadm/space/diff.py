@@ -8,7 +8,7 @@ from difflib import SequenceMatcher, unified_diff
 from pathlib import Path
 from typing import Any, Literal
 
-import click
+import typer
 from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
@@ -18,9 +18,9 @@ from rich.text import Text
 from unique_sdk import Space
 from unique_sdk.cli.config import Config
 
-from uqadm.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.endpoint import EndpointParseError, parse_source_endpoint
-from uqadm.env import config_for_slot
+from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.core.endpoint import EndpointParseError, parse_source_endpoint
+from uqadm.core.env import config_for_slot
 
 # Stripped in the default (non-strict) mode so diffs focus on meaningful config drift.
 _NORMALIZE_KEYS = frozenset(
@@ -179,10 +179,10 @@ def cmd_diff(
             Space.get_space(cfg_a.user_id, cfg_a.company_id, space_id_a),
         )
     except EndpointParseError as exc:
-        click.echo(str(exc), err=True)
+        typer.echo(str(exc), err=True)
         sys.exit(2)
     except Exception as exc:
-        click.echo(f"diff failed fetching --source space ({spec_a!r}): {exc}", err=True)
+        typer.echo(f"diff failed fetching --source space ({spec_a!r}): {exc}", err=True)
         if cfg_a is not None:
             echo_credential_debug_if_auth_failure(
                 cfg_a, exc, label=f"space diff --source ({spec_a!r})"
@@ -197,10 +197,10 @@ def cmd_diff(
             Space.get_space(cfg_b.user_id, cfg_b.company_id, space_id_b),
         )
     except EndpointParseError as exc:
-        click.echo(str(exc), err=True)
+        typer.echo(str(exc), err=True)
         sys.exit(2)
     except Exception as exc:
-        click.echo(
+        typer.echo(
             f"diff failed fetching --destination space ({spec_b!r}): {exc}", err=True
         )
         if cfg_b is not None:
@@ -215,22 +215,22 @@ def cmd_diff(
     text_a = json.dumps(a_payload, sort_keys=True, default=str)
     text_b = json.dumps(b_payload, sort_keys=True, default=str)
     if text_a == text_b:
-        click.echo("No differences.")
+        typer.echo("No differences.")
         return
 
     use_color = sys.stdout.isatty()
 
     if fmt == "side-by-side":
         _print_side_by_side_json(a_payload, b_payload, spec_a, spec_b)
-        click.echo("", err=True)
+        typer.echo("", err=True)
         if strict:
-            click.echo(
+            typer.echo(
                 "Tip: full payloads still differ. "
                 "Use --format unified for a line/word-oriented diff.",
                 err=True,
             )
         else:
-            click.echo(
+            typer.echo(
                 "Tip: payloads still differ after normalization. "
                 "Use --format unified for a line/word-oriented diff, or --strict to include ids/timestamps.",
                 err=True,

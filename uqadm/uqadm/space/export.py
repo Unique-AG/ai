@@ -7,13 +7,13 @@ import sys
 from pathlib import Path
 from typing import Any, Literal
 
-import click
+import typer
 from unique_sdk import Space
+from unique_sdk.cli.config import Config
 
-from uqadm.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.endpoint import EndpointParseError, parse_source_endpoint
-from uqadm.env import config_for_slot
-from uqadm.space_export_yaml import dump_space_snapshot_yaml
+from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
+from uqadm.space.export_yaml import dump_space_snapshot_yaml
 
 
 def export_format_for_output_path(path: Path) -> Literal["json", "yaml"]:
@@ -29,30 +29,27 @@ def export_format_for_output_path(path: Path) -> Literal["json", "yaml"]:
 
 
 def cmd_export(
-    spec: str,
+    raw_space_id: str,
     *,
+    cfg: Config,
     output: Path | None,
-    cwd: Path | None,
 ) -> None:
     """Fetch ``Space.get_space`` and write canonical JSON or YAML to stdout or ``output``."""
     try:
-        slot, space_id = parse_source_endpoint(spec)
+        space_id = parse_bare_endpoint(raw_space_id)
     except EndpointParseError as exc:
-        click.echo(str(exc), err=True)
+        typer.echo(str(exc), err=True)
         sys.exit(2)
 
-    cfg = None
     try:
-        cfg = config_for_slot(slot, cwd=cwd)
         payload = Space.get_space(
             cfg.user_id,
             cfg.company_id,
             space_id,
         )
     except Exception as exc:
-        click.echo(f"export failed: {exc}", err=True)
-        if cfg is not None:
-            echo_credential_debug_if_auth_failure(cfg, exc, label="space export")
+        typer.echo(f"export failed: {exc}", err=True)
+        echo_credential_debug_if_auth_failure(cfg, exc, label="space export")
         sys.exit(1)
 
     normalized: dict[str, Any] = json.loads(
@@ -61,13 +58,13 @@ def cmd_export(
 
     if output is None:
         text = json.dumps(normalized, indent=2, sort_keys=True)
-        click.echo(text)
+        typer.echo(text)
         return
 
     try:
         fmt = export_format_for_output_path(output)
     except ValueError as exc:
-        click.echo(str(exc), err=True)
+        typer.echo(str(exc), err=True)
         sys.exit(2)
 
     if fmt == "json":
