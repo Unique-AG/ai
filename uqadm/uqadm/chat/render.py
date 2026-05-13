@@ -45,6 +45,33 @@ def rule() -> None:
     typer.echo("─" * width)
 
 
+def _render_references(references: list[dict[str, Any]]) -> None:
+    rule()
+    typer.echo("References")
+    for ref in sorted(references, key=lambda r: r.get("sequenceNumber", 0)):
+        seq = ref.get("sequenceNumber", "?")
+        name = _sanitize(ref.get("name") or ref.get("source") or "(unknown)")
+        url = _sanitize(ref.get("url") or "")
+        line = f"  [{seq}] {name}"
+        if url:
+            line += f"  {url}"
+        typer.echo(line)
+
+
+def _render_assessments(assessments: list[dict[str, Any]]) -> None:
+    rule()
+    typer.echo("Evaluation")
+    for a in assessments:
+        status = _sanitize(a.get("status") or "")
+        label = _sanitize(a.get("label") or "")
+        title = _sanitize(a.get("title") or "")
+        explanation = _sanitize((a.get("explanation") or "").strip())
+        header_parts = [p for p in [status, label, title] if p]
+        typer.echo(f"  {' · '.join(header_parts)}" if header_parts else "")
+        if explanation:
+            typer.echo(f"  {explanation}")
+
+
 def print_framed_message(result: dict[str, Any]) -> None:
     """Print a single assistant reply with chat_id, answer, references, evaluation."""
     chat_id = _sanitize(result.get("chatId") or result.get("chat_id") or "")
@@ -58,29 +85,9 @@ def print_framed_message(result: dict[str, Any]) -> None:
     typer.echo(reply_text)
 
     if references:
-        rule()
-        typer.echo("References")
-        for ref in sorted(references, key=lambda r: r.get("sequenceNumber", 0)):
-            seq = ref.get("sequenceNumber", "?")
-            name = _sanitize(ref.get("name") or ref.get("source") or "(unknown)")
-            url = _sanitize(ref.get("url") or "")
-            line = f"  [{seq}] {name}"
-            if url:
-                line += f"  {url}"
-            typer.echo(line)
-
+        _render_references(references)
     if assessments:
-        rule()
-        typer.echo("Evaluation")
-        for a in assessments:
-            status = _sanitize(a.get("status") or "")
-            label = _sanitize(a.get("label") or "")
-            title = _sanitize(a.get("title") or "")
-            explanation = _sanitize((a.get("explanation") or "").strip())
-            header_parts = [p for p in [status, label, title] if p]
-            typer.echo(f"  {' · '.join(header_parts)}" if header_parts else "")
-            if explanation:
-                typer.echo(f"  {explanation}")
+        _render_assessments(assessments)
 
     rule()
 
@@ -100,28 +107,8 @@ def print_framed_history(messages: list[dict[str, Any]]) -> None:
         typer.echo(text)
 
         if references:
-            rule()
-            typer.echo("References")
-            for ref in sorted(references, key=lambda r: r.get("sequenceNumber", 0)):
-                seq = ref.get("sequenceNumber", "?")
-                name = _sanitize(ref.get("name") or ref.get("source") or "(unknown)")
-                url = _sanitize(ref.get("url") or "")
-                line = f"  [{seq}] {name}"
-                if url:
-                    line += f"  {url}"
-                typer.echo(line)
-
+            _render_references(references)
         if assessments:
-            rule()
-            typer.echo("Evaluation")
-            for a in assessments:
-                status = _sanitize(a.get("status") or "")
-                label_text = _sanitize(a.get("label") or "")
-                title = _sanitize(a.get("title") or "")
-                explanation = _sanitize((a.get("explanation") or "").strip())
-                header_parts = [p for p in [status, label_text, title] if p]
-                typer.echo(f"  {' · '.join(header_parts)}" if header_parts else "")
-                if explanation:
-                    typer.echo(f"  {explanation}")
+            _render_assessments(assessments)
 
     rule()
