@@ -6,15 +6,18 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Literal, cast
 
 import typer
+from unique_sdk import Space
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from uqadm.chat.render import print_framed_message
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
+
+StopCondition = Literal["stoppedStreamingAt", "completedAt"]
 
 
 def _read_message_text(
@@ -71,7 +74,7 @@ def cmd_send(
         unique_sdk.app_id = cfg.app_id
         unique_sdk.api_base = cfg.api_base
 
-        result: dict[str, Any] = asyncio.run(
+        result: Space.Message = asyncio.run(
             send_message_and_wait_for_completion(
                 user_id=cfg.user_id,
                 company_id=cfg.company_id,
@@ -81,7 +84,7 @@ def cmd_send(
                 tool_choices=tool_choices or None,
                 poll_interval=poll_interval,
                 max_wait=max_wait,
-                stop_condition=stop_on,  # type: ignore[arg-type]
+                stop_condition=cast(StopCondition, stop_on),
             )
         )
     except TimeoutError:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from uqadm.space.diff import _normalize_for_diff, _strip_volatile
+from uqadm.space.diff import _normalize_for_diff
 
 
 def test_normalize_strips_ephemeral_keys_recursively() -> None:
@@ -34,8 +34,8 @@ def test_normalize_strict_preserves_ephemeral_keys() -> None:
     assert _normalize_for_diff(payload, strict=True) == payload
 
 
-def test_strip_volatile_alias_matches_non_strict_normalize() -> None:
-    assert _strip_volatile({"id": 1, "a": 2}) == {"a": 2}
+def test_non_strict_normalize_strips_id() -> None:
+    assert _normalize_for_diff({"id": 1, "a": 2}, strict=False) == {"a": 2}
 
 
 def test_normalize_non_container() -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
+from collections.abc import Mapping
 from typing import Any
 
 import typer
@@ -72,7 +73,7 @@ def _render_assessments(assessments: list[dict[str, Any]]) -> None:
             typer.echo(f"  {explanation}")
 
 
-def print_framed_message(result: dict[str, Any]) -> None:
+def print_framed_message(result: Mapping[str, Any]) -> None:
     """Print a single assistant reply with chat_id, answer, references, evaluation."""
     chat_id = _sanitize(result.get("chatId") or result.get("chat_id") or "")
     reply_text = _sanitize((result.get("text") or "").strip())

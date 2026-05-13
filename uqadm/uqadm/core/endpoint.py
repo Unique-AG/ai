@@ -10,7 +10,7 @@ class EndpointParseError(ValueError):
 
 
 def extract_space_id_from_url(url: str) -> str:
-    """Extract space id from admin-style paths."""
+    """Extract space ID from admin-style paths."""
     parsed = urlparse(url.strip())
     segments = [s for s in parsed.path.strip("/").split("/") if s]
     for i, seg in enumerate(segments):

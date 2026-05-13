@@ -53,11 +53,6 @@ def _normalize_for_diff(obj: Any, *, strict: bool) -> Any:
     return obj
 
 
-def _strip_volatile(obj: Any) -> Any:
-    """Backward-compatible name: non-strict normalization (used by tests)."""
-    return _normalize_for_diff(obj, strict=False)
-
-
 def _canonical_text(payload: dict[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n"
 

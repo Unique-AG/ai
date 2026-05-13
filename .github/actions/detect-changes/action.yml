@@ -59,6 +59,9 @@ runs:
           search_proxy:
             - 'connectors/unique_search_proxy/**'
             - '!connectors/unique_search_proxy/**/*.md'
+          uqadm:
+            - 'uqadm/**'
+            - '!uqadm/**/*.md'
     - id: serialize
       shell: bash
       run: |

@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-04-28T15:25:48.252861Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -6388,7 +6388,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "python-dotenv", specifier = ">=1.0.0,<2" },
-    { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "pyyaml", specifier = ">=6.0.1,<7" },
     { name = "rich", specifier = ">=13.3.5" },
     { name = "tomli-w", specifier = ">=1.0,<2" },
     { name = "typer", specifier = ">=0.12,<1" },

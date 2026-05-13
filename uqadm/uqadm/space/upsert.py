@@ -90,14 +90,14 @@ def cmd_upsert(
     """Apply ``file_path`` snapshot to ``slot`` (create if ``target_space_id`` is None)."""
     try:
         snapshot = load_space_snapshot(file_path)
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
-        sys.exit(2)
     except json.JSONDecodeError as exc:
         typer.echo(f"Invalid JSON in snapshot: {exc}", err=True)
         sys.exit(2)
     except yaml.YAMLError as exc:
         typer.echo(f"Invalid YAML in snapshot: {exc}", err=True)
+        sys.exit(2)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
         sys.exit(2)
 
     dst_space_id = target_space_id

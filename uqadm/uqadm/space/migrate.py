@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import typer
 from unique_sdk import Space
@@ -127,15 +127,18 @@ def sync_assistant_access(
 ) -> None:
     if dry_run or not assistant_access:
         return
-    access = [
-        {
-            "entityId": e["entityId"],
-            "entityType": e["entityType"],
-            "type": e["type"],
-        }
-        for e in assistant_access
-        if e.get("entityId") and e.get("entityType") and e.get("type")
-    ]
+    access = cast(
+        "list[Space.AccessEntry]",
+        [
+            {
+                "entityId": e["entityId"],
+                "entityType": e["entityType"],
+                "type": e["type"],
+            }
+            for e in assistant_access
+            if e.get("entityId") and e.get("entityType") and e.get("type")
+        ],
+    )
     if not access:
         return
     try:

@@ -79,15 +79,27 @@ def test_cli_missing_env_file_exits_2_with_instructions(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("UQADM_HOME", str(tmp_path))
-    runner = CliRunner()
+    # click/Typer <8.2 defaults mix_stderr=True; pass mix_stderr=False for a
+    # separate stderr stream. Newer versions removed the kwarg (stderr separate).
+    try:
+        runner = CliRunner(mix_stderr=False)  # type: ignore[call-arg]
+    except TypeError:
+        runner = CliRunner()
     result = runner.invoke(
         app,
         ["--cwd", str(tmp_path), "space", "list", "--slot", "missing_slot"],
     )
     assert result.exit_code != 0
-    assert "no credentials file" in result.output
-    assert ".missing_slot.env" in result.output
-    assert "UNIQUE_USER_ID" in result.output
+    try:
+        out = (result.stdout or "") + (result.stderr or "")
+    except ValueError:
+        out = result.output or ""
+    assert "no credentials file" in out
+    assert "Searched in" in out
+    assert ".missing_slot.env" in out
+    assert "missing_slot.env" in out
+    assert "UNIQUE_USER_ID" in out
+    assert "unique_auth_user_id" in out
 
 
 def test_env_file_hidden_only(tmp_path: Path) -> None:
