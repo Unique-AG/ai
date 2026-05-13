@@ -13,7 +13,7 @@ from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from uqadm.chat.render import print_framed_message
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.core.env import config_for_slot
+from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 
 
@@ -58,11 +58,15 @@ def cmd_send(
 
     message_text = _read_message_text(text, file)
 
-    cfg = None
+    try:
+        cfg = config_for_slot(resolved_slot, cwd=cwd)
+    except MissingSlotEnvFileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2)
+
     try:
         import unique_sdk
 
-        cfg = config_for_slot(resolved_slot, cwd=cwd)
         unique_sdk.api_key = cfg.api_key
         unique_sdk.app_id = cfg.app_id
         unique_sdk.api_base = cfg.api_base
@@ -87,8 +91,7 @@ def cmd_send(
         raise typer.Exit(1)
     except Exception as exc:
         typer.echo(f"chat send failed: {exc}", err=True)
-        if cfg is not None:
-            echo_credential_debug_if_auth_failure(cfg, exc, label="chat send")
+        echo_credential_debug_if_auth_failure(cfg, exc, label="chat send")
         raise typer.Exit(1)
 
     if as_json:

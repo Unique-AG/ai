@@ -11,7 +11,7 @@ from unique_sdk.utils.chat_history import load_history
 
 from uqadm.chat.render import print_framed_history
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.core.env import config_for_slot
+from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 
 
@@ -33,11 +33,15 @@ def cmd_history(
         typer.echo(str(exc), err=True)
         raise typer.Exit(2)
 
-    cfg = None
+    try:
+        cfg = config_for_slot(resolved_slot, cwd=cwd)
+    except MissingSlotEnvFileError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2)
+
     try:
         import unique_sdk
 
-        cfg = config_for_slot(resolved_slot, cwd=cwd)
         unique_sdk.api_key = cfg.api_key
         unique_sdk.app_id = cfg.app_id
         unique_sdk.api_base = cfg.api_base
@@ -64,8 +68,7 @@ def cmd_history(
             target = selected_history
     except Exception as exc:
         typer.echo(f"chat history failed: {exc}", err=True)
-        if cfg is not None:
-            echo_credential_debug_if_auth_failure(cfg, exc, label="chat history")
+        echo_credential_debug_if_auth_failure(cfg, exc, label="chat history")
         raise typer.Exit(1)
 
     if as_json:
