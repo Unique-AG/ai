@@ -450,6 +450,7 @@ async def _build_responses(
         logger=logger,
         content_service=common_components.content_service,
         tool_manager=tool_manager,
+        available_skills=event.payload.available_skills,
     )
 
     loop_iteration_runner = build_responses_loop_iteration_runner(
@@ -528,6 +529,7 @@ async def _build_completions(
         logger=logger,
         content_service=common_components.content_service,
         tool_manager=tool_manager,
+        available_skills=event.payload.available_skills,
     )
 
     postprocessor_manager = common_components.postprocessor_manager
