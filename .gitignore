@@ -136,11 +136,18 @@ celerybeat.pid
 .env.test
 unique.env
 .venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 .env/
 .venv/
 .ENV/
 .env.bak/
 .venv.bak/
+# uqadm source package — must not be treated as a venv dir
+!uqadm/uqadm/env/
 
 # Spyder project settings
 .spyderproject
