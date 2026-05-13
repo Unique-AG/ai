@@ -71,17 +71,16 @@ def _install_completion(shell: str, *, dry_run: bool) -> None:
     if dry_run:
         typer.echo(f"  [dry-run] Would install {shell} completion for uqadm.")
         return
-    env_var = f"_{('uqadm').upper()}_COMPLETE"
-    complete_var = f"{shell}_source"
     try:
         result = subprocess.run(
-            ["uqadm"],
-            env={**os.environ, env_var: complete_var},
+            ["uqadm", "--install-completion", shell],
             capture_output=True,
             text=True,
         )
-        typer.echo(f"  Shell completion for {shell} installed.")
-        _ = result  # output is handled by the shell's sourcing mechanism
+        if result.returncode == 0:
+            typer.echo(f"  Shell completion for {shell} installed.")
+        else:
+            raise RuntimeError(result.stderr.strip() or f"exit code {result.returncode}")
     except Exception as exc:
         typer.echo(f"  Warning: could not auto-install completion: {exc}", err=True)
         typer.echo(
