@@ -1,12 +1,32 @@
 """Tests for CLI help output (Typer-based entry point)."""
 
+import os
+import re
 from typing import Callable
 
 from typer.testing import CliRunner
 
 from uqadm.cli import app
 
-# Plain help text: Rich markup + ANSI breaks substring assertions in CI narrow TTY.
+# Plain help text: Typer renders help with Rich; on Linux CI, CliRunner(color=False)
+# still yields ANSI/markup sequences that split tokens, so assertions must see
+# plaintext. NO_COLOR/dumb terminal + stripping matches human-readable `--foo`.
+_HELP_ENV = {
+    **os.environ,
+    "NO_COLOR": "1",
+    "FORCE_COLOR": "0",
+    "TERM": "dumb",
+    "COLUMNS": "200",
+    "LINES": "100",
+}
+
+_STRIP_ESC = re.compile(r"\x1b\[[^m]*?m")
+
+
+def _plain_help_text(raw: str) -> str:
+    return _STRIP_ESC.sub("", raw)
+
+
 _HelpInvoker = Callable[[list[str]], str]
 
 
@@ -14,9 +34,9 @@ def _make_help_invoker() -> _HelpInvoker:
     runner = CliRunner()
 
     def _invoke(args: list[str]) -> str:
-        result = runner.invoke(app, args, color=False)
+        result = runner.invoke(app, args, color=False, env=_HELP_ENV)
         assert result.exit_code == 0
-        return result.output
+        return _plain_help_text(result.output)
 
     return _invoke
 
