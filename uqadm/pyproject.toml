@@ -48,6 +48,9 @@ reportUnknownLambdaType = "none"
 # Third-party libraries that ship no type stubs.
 reportMissingTypeStubs = "none"
 
+# Typer/options use typing.Optional idioms aligned with codebase style.
+reportDeprecated = "none"
+
 # Style preferences.
 reportImplicitStringConcatenation = "none"
 
