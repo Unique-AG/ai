@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from uqadm.endpoint import (
+from uqadm.core.endpoint import (
     EndpointParseError,
     extract_space_id_from_url,
     parse_endpoint,

@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from uqadm.space_export import export_format_for_output_path
-from uqadm.space_export_yaml import dump_space_snapshot_yaml
+from uqadm.space.export import export_format_for_output_path
+from uqadm.space.export_yaml import dump_space_snapshot_yaml
 
 
 def test_export_format_json_suffix_case_insensitive() -> None:

@@ -6,13 +6,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import click
+import typer
 from unique_sdk import Space
 from unique_sdk.cli.config import Config
 
-from uqadm.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.endpoint import EndpointParseError, parse_endpoint, parse_source_endpoint
-from uqadm.env import config_for_slot, normalize_api_base
+from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.core.endpoint import (
+    EndpointParseError,
+    parse_endpoint,
+    parse_source_endpoint,
+)
+from uqadm.core.env import config_for_slot, normalize_api_base
 
 
 def module_params_from_source(mod: dict[str, Any]) -> dict[str, Any]:
@@ -75,13 +79,7 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
 def build_module_updates_from_pairs(
     pairs: list[tuple[dict[str, Any], dict[str, Any]]],
 ) -> list[dict[str, Any]]:
-    """Build per-module update payloads from matched (source, destination) pairs.
-
-    Each entry carries the destination ``moduleId`` plus any fields present on
-    the source side: ``configuration``, ``name``, ``description``, ``weight``.
-    Centralizes the payload shape used by both ``cmd_migrate`` and
-    ``cmd_upsert``.
-    """
+    """Build per-module update payloads from matched (source, destination) pairs."""
     updates: list[dict[str, Any]] = []
     for sm, dm in pairs:
         um: dict[str, Any] = {"moduleId": dm["id"]}
@@ -143,7 +141,7 @@ def sync_assistant_access(
     try:
         Space.add_space_access(user_id, company_id, space_id, access=access)
     except Exception as exc:
-        click.echo(
+        typer.echo(
             f"Warning: could not sync space access entries: {exc}",
             err=True,
         )
@@ -165,10 +163,10 @@ def cmd_migrate(
         src_slot, src_space_id = parse_source_endpoint(source)
         dst_slot, dst_space_id = parse_endpoint(destination)
     except EndpointParseError as exc:
-        click.echo(str(exc), err=True)
+        typer.echo(str(exc), err=True)
         sys.exit(2)
 
-    click.echo(f"Loading source slot {src_slot!r} …")
+    typer.echo(f"Loading source slot {src_slot!r} …")
     src_cfg = config_for_slot(src_slot, cwd=cwd)
     src_company = src_cfg.company_id
     src_base = normalize_api_base(src_cfg.api_base)
@@ -180,13 +178,13 @@ def cmd_migrate(
             src_space_id,
         )
     except Exception as exc:
-        click.echo(f"Error fetching source space {src_space_id!r}: {exc}", err=True)
+        typer.echo(f"Error fetching source space {src_space_id!r}: {exc}", err=True)
         echo_credential_debug_if_auth_failure(
             src_cfg, exc, label="space migrate source get_space"
         )
         sys.exit(1)
 
-    click.echo(f"Loading destination slot {dst_slot!r} …")
+    typer.echo(f"Loading destination slot {dst_slot!r} …")
     dst_cfg = config_for_slot(dst_slot, cwd=cwd)
     dst_company = dst_cfg.company_id
     dst_base = normalize_api_base(dst_cfg.api_base)
@@ -194,7 +192,7 @@ def cmd_migrate(
     cross_env = src_company != dst_company or src_base != dst_base
 
     if cross_env:
-        click.echo(
+        typer.echo(
             "Warning: source and destination use different company_id and/or "
             "UNIQUE_API_BASE — treating as cross-environment migrate. "
             "Folder/knowledge-linked scope data is not copied (IDs are not portable).",
@@ -204,19 +202,19 @@ def cmd_migrate(
     scope_rules = src_space.get("scopeRules") or []
     if scope_rules:
         if cross_env:
-            click.echo(
+            typer.echo(
                 f"Warning: skipping {len(scope_rules)} scope rule(s); "
                 "not portable across environments.",
                 err=True,
             )
         elif with_knowledge:
-            click.echo(
+            typer.echo(
                 "Note: --with-knowledge does not yet migrate scope rules or folder "
                 "graphs via API; only space payload fields handled here.",
                 err=True,
             )
         else:
-            click.echo(
+            typer.echo(
                 "Note: source has scope rules; extended same-environment migration "
                 "(folders/knowledge) is available with tooling flags in future — "
                 "currently only assistant configuration fields are migrated.",
@@ -224,14 +222,14 @@ def cmd_migrate(
 
     mcp = src_space.get("assistantMcpServers") or []
     if mcp:
-        click.echo(
+        typer.echo(
             f"Warning: source lists {len(mcp)} MCP server binding(s); "
             "these are not migrated by this command.",
             err=True,
         )
 
     if with_knowledge and cross_env:
-        click.echo(
+        typer.echo(
             "Warning: --with-knowledge applies only when source and destination "
             "share the same company_id and UNIQUE_API_BASE; ignoring for this run.",
             err=True,
@@ -242,12 +240,12 @@ def cmd_migrate(
     if dst_space_id is None:
         create_params = build_create_params(src_space)
         if dry_run:
-            click.echo(
+            typer.echo(
                 f"Dry-run: would create_space on destination with name="
                 f"{create_params['name']!r} and {len(create_params['modules'])} module(s)."
             )
             if assistant_access:
-                click.echo(
+                typer.echo(
                     f"Dry-run: would sync {len(assistant_access)} access entr(y/ies)."
                 )
             return
@@ -258,13 +256,13 @@ def cmd_migrate(
                 **create_params,
             )
         except Exception as exc:
-            click.echo(f"create_space failed: {exc}", err=True)
+            typer.echo(f"create_space failed: {exc}", err=True)
             echo_credential_debug_if_auth_failure(
                 dst_cfg, exc, label="space migrate create_space"
             )
             sys.exit(1)
         new_id = created["id"]
-        click.echo(f"Created space {new_id}")
+        typer.echo(f"Created space {new_id}")
         sync_assistant_access(
             dst_cfg.user_id,
             dst_cfg.company_id,
@@ -282,7 +280,7 @@ def cmd_migrate(
             dst_space_id,
         )
     except Exception as exc:
-        click.echo(
+        typer.echo(
             f"Error fetching destination space {dst_space_id!r}: {exc}",
             err=True,
         )
@@ -295,7 +293,7 @@ def cmd_migrate(
         list(dest_space.get("modules") or []),
     )
     if unmatched:
-        click.echo(
+        typer.echo(
             "Warning: no matching destination module for source module(s) named: "
             + ", ".join(unmatched),
             err=True,
@@ -308,12 +306,12 @@ def cmd_migrate(
         update_kw["modules"] = update_modules
 
     if dry_run:
-        click.echo(
+        typer.echo(
             f"Dry-run: would update_space {dst_space_id!r} with fields "
             f"{sorted(update_kw.keys())!r}."
         )
         if assistant_access:
-            click.echo(
+            typer.echo(
                 f"Dry-run: would merge access via add_space_access "
                 f"({len(assistant_access)} entr(y/ies))."
             )
@@ -327,13 +325,13 @@ def cmd_migrate(
             **update_kw,
         )
     except Exception as exc:
-        click.echo(f"update_space failed: {exc}", err=True)
+        typer.echo(f"update_space failed: {exc}", err=True)
         echo_credential_debug_if_auth_failure(
             dst_cfg, exc, label="space migrate update_space"
         )
         sys.exit(1)
 
-    click.echo(f"Updated space {dst_space_id}")
+    typer.echo(f"Updated space {dst_space_id}")
     sync_assistant_access(
         dst_cfg.user_id,
         dst_cfg.company_id,

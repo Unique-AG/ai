@@ -1,12 +1,19 @@
 # uqadm
 
-Admin CLI for the Unique platform: **list** spaces, **export** a space to JSON or YAML, **upsert** from such a snapshot (create or update on a slot), **diff** two spaces, **migrate** assistant configuration between slots/environments, and **delete** a space — all via per-slot env files. It is separate from `unique-cli` (the agent-oriented file explorer).
+Admin CLI for the Unique platform. It groups four command families:
 
-Configuration is normalized into the same **`UNIQUE_*`** variables that **`unique_sdk.cli.config.load_config()`** expects (same path as `unique-cli`). You may mix **SDK** names with **toolkit** names from `unique_toolkit` settings: **`unique_auth_*`** (user/company), **`unique_app_key`** / **`unique_app_id`** (API key / app id, same as `UniqueApp`), and **`unique_api_base_url`** (gateway base, same as `UniqueApi`). Uppercase variants like **`UNIQUE_APP_KEY`** and **`UNIQUE_API_BASE_URL`** are also accepted. If both a `UNIQUE_*` variable and its toolkit alias are set, **`UNIQUE_*` wins**. Bare names like `KEY` or `BASE_URL` are **not** read (too ambiguous).
+- **`space`** — list, export, diff, migrate, upsert, and delete assistant spaces.
+- **`chat`** — send messages to an assistant and inspect chat history.
+- **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
+- **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
+
+It is separate from `unique-cli` (the agent-oriented file explorer) and shares the same `UNIQUE_*` environment variable conventions as `unique_sdk`.
+
+---
 
 ## Installation
 
-From the AI monorepo root (workspace package):
+From the AI monorepo root:
 
 ```bash
 cd /path/to/ai
@@ -14,345 +21,446 @@ uv sync --package uqadm
 uv run uqadm --help
 ```
 
-Or install the `uqadm` package in any environment that already has `unique-sdk` and run `uqadm` on your `PATH`.
-
-## Credential slots and env files
-
-Commands refer to an environment by **slot** — a short label you choose (e.g. `1`, `qa`, `prod`).
-
-For slot `<slot>`, credentials are read from **one** of these files under the chosen directory (see resolution order below):
-
-```text
-.{slot}.env
-{slot}.env
-```
-
-Resolved relative to the **current working directory**, unless you pass **`uqadm --cwd <DIR>`** (see below).
-
-**Which file is used:** if **`.{slot}.env`** exists, it is loaded; otherwise if **`{slot}.env`** exists, that is loaded. If **both** exist, the **hidden** file (`.{slot}.env`) wins. If neither exists, `uqadm` prints a short guide to **stderr** (which directory was searched, the exact filenames, required variables, and how to use `--cwd`) and exits with code **2** — no Python traceback.
-
-Before loading a slot file, `uqadm` **clears** SDK `UNIQUE_*` variables, optional `UNIQUE_API_*` / `UNIQUE_APP_ID`, and toolkit keys (`unique_auth_*`, `unique_app_*`, `unique_api_*`, plus selected `UNIQUE_*` toolkit aliases) so values from a previous slot do not leak.
-
-| Variable | Purpose |
-|----------|---------|
-| `UNIQUE_USER_ID` | **Required** for API calls (unless you set one of the aliases below). |
-| `unique_auth_user_id` or `UNIQUE_AUTH_USER_ID` | Alternative to `UNIQUE_USER_ID` (same meaning as in `unique_toolkit` `UniqueAuth`). Ignored if `UNIQUE_USER_ID` is set. |
-| `UNIQUE_COMPANY_ID` | **Required** for API calls (unless you set one of the aliases below). |
-| `unique_auth_company_id` or `UNIQUE_AUTH_COMPANY_ID` | Alternative to `UNIQUE_COMPANY_ID`. Ignored if `UNIQUE_COMPANY_ID` is set. |
-| `UNIQUE_API_KEY` | Optional (not needed on localhost / secured cluster per SDK docs). |
-| `unique_app_key` or `UNIQUE_APP_KEY` | Alternative to `UNIQUE_API_KEY` (`UniqueApp.key`). Ignored if `UNIQUE_API_KEY` is set. |
-| `UNIQUE_APP_ID` | Optional (same as SDK docs). |
-| `unique_app_id` | Alternative to `UNIQUE_APP_ID` (`UniqueApp.id`). Ignored if `UNIQUE_APP_ID` is set. |
-| `UNIQUE_API_BASE` | Optional; default applied inside `load_config()` if unset. |
-| `unique_api_base_url` or `UNIQUE_API_BASE_URL` | Alternative to `UNIQUE_API_BASE` (`UniqueApi.base_url`). Ignored if `UNIQUE_API_BASE` is set. **Host-only** URLs (no path, or `/` only) get **`/public/chat`** appended (e.g. `https://gateway.example` → `https://gateway.example/public/chat`). If the URL **already includes a path** (e.g. `http://localhost:8092/public` or `…/public/chat-gen2`), it is copied to **`UNIQUE_API_BASE` unchanged**. |
-
-The file is loaded with **`python-dotenv`** (`override=True`) so keys in the file replace any existing values for that load.
-
-If an API call fails with something that looks like **authentication** (HTTP **401**, `AuthenticationError`, or messages containing **“unauthorized”** / **“401”**), `uqadm` prints an extra **credential snapshot** to **stderr**: resolved `UNIQUE_USER_ID`, `UNIQUE_COMPANY_ID`, `UNIQUE_APP_ID`, `UNIQUE_API_BASE`, and a **redacted** description of `UNIQUE_API_KEY` (never the full key), plus HTTP status / `Request-Id` when the SDK exposes them. This matches what was passed into the SDK after env normalization.
-
-Example **`.1.env`** (or non-hidden **`1.env`** with the same contents):
+Or install the `uqadm` package into any environment that already has `unique-sdk`:
 
 ```bash
+pip install -e uqadm/
+uqadm --help
+```
+
+---
+
+## `uqadm install`
+
+One-time bootstrap for a new machine or user. Safe to re-run (idempotent).
+
+```bash
+uqadm install                           # interactive
+uqadm install --dry-run                 # preview without changes
+uqadm install --no-rc                   # skip rc file patching
+uqadm install --shell bash              # force bash (auto-detected by default)
+uqadm install --rc-file ~/.zshrc        # explicit rc file path
+```
+
+What it does:
+
+1. Creates `~/.uqadm/` (mode `0700`) and `~/.uqadm/envs/`.
+2. Installs shell completion for `uqadm`.
+3. Offers to create your first credential slot interactively (skipped if slots already exist).
+4. Appends an idempotent `export UQADM_HOME=...` block to your shell rc file.
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Print what would be done without making any changes. |
+| `--no-rc` | Skip patching the shell rc file. |
+| `--shell SHELL` | Shell to configure: `zsh` or `bash` (auto-detected from `$SHELL`). |
+| `--rc-file PATH` | Explicit path to the rc file to patch. |
+
+---
+
+## Quick start
+
+```bash
+# 1. Bootstrap directories, shell completion, and first credential slot
+uqadm install
+
+# 2. (Optional) add more slots or set a different default
+uqadm env create prod --set-default
+
+# 3. List spaces — uses the configured default slot
+uqadm space list
+
+# 4. Send a message to an assistant
+uqadm chat send asst_abc123 --text "Hello!"
+
+# 5. Continue the same thread using the chat_id printed after step 4
+uqadm chat send asst_abc123 --text "Tell me more" --chat-id chat_xyz789
+```
+
+---
+
+## Credential slots
+
+A **slot** is a short name (e.g. `qa`, `prod`, `1`) that maps to a `.env` file holding `UNIQUE_*` credentials.
+
+### File locations (resolution order)
+
+1. `~/.uqadm/envs/.{slot}.env` — managed by `uqadm env create`; this is the primary location.
+2. If not found there, falls back to the **current working directory** (or `--cwd` if set):
+   - `.{slot}.env` (hidden file wins)
+   - `{slot}.env`
+
+If no file is found, `uqadm` prints a short guide to stderr and exits with code **2** — no Python traceback.
+
+### Default slot
+
+Running `uqadm env set-default qa` writes the default slot to `~/.uqadm/config.toml`. All commands that accept `--slot` will use this default when the option is omitted.
+
+### Env file format
+
+```bash
+# ~/.uqadm/envs/.qa.env
 UNIQUE_USER_ID=user_...
 UNIQUE_COMPANY_ID=company_...
 UNIQUE_API_KEY=ukey_...
 UNIQUE_APP_ID=app_...
-UNIQUE_API_BASE=https://gateway.unique.app/public/chat-gen2
+UNIQUE_API_BASE=https://unique_api_base_url
 ```
 
-Or the same credentials using toolkit-style names (no `UNIQUE_*` lines required except where you prefer them):
+Toolkit-style names are also accepted (lowercase `unique_auth_user_id`, `unique_app_key`, etc.). If both `UNIQUE_*` and its alias are present, `UNIQUE_*` wins.
 
-```bash
-unique_auth_user_id=user_...
-unique_auth_company_id=company_...
-unique_app_key=ukey_...
-unique_app_id=app_...
-unique_api_base_url=https://gateway.unique.app/public/chat-gen2
-```
+### Supported variables
+
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `UNIQUE_USER_ID` | Yes | Also: `unique_auth_user_id` / `UNIQUE_AUTH_USER_ID` |
+| `UNIQUE_COMPANY_ID` | Yes | Also: `unique_auth_company_id` / `UNIQUE_AUTH_COMPANY_ID` |
+| `UNIQUE_API_KEY` | No | Also: `unique_app_key` / `UNIQUE_APP_KEY` |
+| `UNIQUE_APP_ID` | No | Also: `unique_app_id` |
+| `UNIQUE_API_BASE` | No | Also: `unique_api_base_url` / `UNIQUE_API_BASE_URL`. Host-only URLs get `/public/chat` appended automatically. |
+
+### Authentication debug output
+
+If an API call fails with HTTP 401 or an authentication error, `uqadm` prints a redacted credential snapshot to stderr (user id, company id, app id, base URL, and a masked description of the API key — never the full key).
+
+---
 
 ## Global options
 
-These apply to all subcommands (they must appear **before** the subcommand group).
+These must appear **before** the subcommand:
 
 | Option | Description |
 |--------|-------------|
-| `--help` | Show help and exit. |
+| `--help` / `-h` | Show help and exit. |
 | `--version` | Print `uqadm` version and exit. |
-| `--cwd DIRECTORY` | Directory in which per-slot env files (`.{slot}.env` or `{slot}.env`) are resolved. Default: process current working directory. Must be an existing directory. |
-
-**Examples:**
+| `--cwd DIRECTORY` | Override the directory used for local env file lookup. |
 
 ```bash
-uqadm --cwd /path/to/secrets space list --slot qa
 uqadm --version
+uqadm --cwd /path/to/secrets space list --slot qa
 ```
 
-## CLI operand flags
+---
 
-Every subcommand uses **named options** for required operands (no bare `SPEC` / `SLOT` positionals):
+## `uqadm env`
 
-| Flag | Used for |
-|------|----------|
-| **`--slot SLOT`** | **`space list`** — which credential env file to load (not a space id). |
-| **`--source SPEC`** | **`space export`**, **`space delete`**, **`space migrate --source`**, and **`space diff`** (first space). |
-| **`--destination SPEC`** | **`space migrate --destination`**, **`space upsert`**, and **`space diff`** (second space). |
-| **`--file` / `-f`** | **`space upsert`** — local snapshot path. |
+Manage credential slots in `~/.uqadm/envs/`.
+
+```bash
+uqadm env --help
+```
+
+### `env create SLOT`
+
+Interactively (or non-interactively) create a credential slot file at `~/.uqadm/envs/.{SLOT}.env`.
+
+```bash
+uqadm env create qa
+uqadm env create prod --set-default
+uqadm env create staging --force               # overwrite if already exists
+uqadm env create ci --non-interactive \
+  --user-id user_abc \
+  --company-id company_xyz \
+  --api-key ukey_... \
+  --api-base https://gateway.unique.app/public/chat-gen2
+```
+
+| Option | Description |
+|--------|-------------|
+| `--set-default` | Mark this slot as the default after creation. |
+| `--force` | Overwrite an existing slot file without prompting. |
+| `--non-interactive` | Skip prompts; supply values via flags below. |
+| `--user-id TEXT` | `UNIQUE_USER_ID` value. |
+| `--company-id TEXT` | `UNIQUE_COMPANY_ID` value. |
+| `--api-key TEXT` | `UNIQUE_API_KEY` value (optional). |
+| `--app-id TEXT` | `UNIQUE_APP_ID` value (optional). |
+| `--api-base TEXT` | `UNIQUE_API_BASE` value (optional). |
+
+### `env list`
+
+List all available slots; the default slot is marked with `*`.
+
+```bash
+uqadm env list
+# * qa
+#   prod
+#   staging
+```
+
+### `env show [SLOT]`
+
+Print the resolved credential values for a slot (API key is redacted). Omit `SLOT` to use the default.
+
+```bash
+uqadm env show
+uqadm env show prod
+```
+
+### `env set-default SLOT`
+
+Set the default slot written to `~/.uqadm/config.toml`.
+
+```bash
+uqadm env set-default prod
+```
+
+### `env delete SLOT`
+
+Remove the env file for a slot (prompts for confirmation unless `-y`).
+
+```bash
+uqadm env delete staging
+uqadm env delete staging -y
+```
+
+---
 
 ## `uqadm space`
 
-Space-related commands. Run:
+Space administration commands.
 
 ```bash
 uqadm space --help
 ```
 
-### `uqadm space list`
+### `space list`
 
-Lists spaces visible to the credentials in `.{SLOT}.env` or `{SLOT}.env` (see **Credential slots and env files**). Uses **`Space.get_spaces`** with pagination (`take` up to 1000 per page) until all pages are fetched.
-
-**Syntax:**
-
-```text
-uqadm [GLOBAL_OPTS...] space list --slot SLOT [OPTIONS]
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--slot SLOT` | Yes | Slot name; loads `.{SLOT}.env` or `{SLOT}.env` (under `--cwd` if set). |
-| `--name TEXT` | No | Case-insensitive **partial** filter on space name; forwarded to the API. |
-| `--json` | No | Print the full result list as JSON instead of a text table. |
-
-**Table columns** (non-JSON): `id`, `name`, `uiType`, `isPinned`.
-
-**Examples:**
+List all spaces visible to the resolved slot credentials.
 
 ```bash
-uqadm space list --slot 1
-uqadm space list --slot qa --name Report
+uqadm space list                        # uses default slot
+uqadm space list --slot qa
+uqadm space list --slot prod --name Report
 uqadm space list --slot prod --json
 ```
 
----
+| Option | Description |
+|--------|-------------|
+| `--slot SLOT` | Credential slot (default: configured default slot). |
+| `--name TEXT` | Case-insensitive partial filter on space name. |
+| `--json` | Print full result as JSON instead of a table. |
 
-### `uqadm space export`
+### `space export SPACE_ID`
 
-Fetches a single space via **`Space.get_space`**. The payload is normalized the same way for every output path: **`json.dumps(..., sort_keys=True, default=str)`** then **`json.loads`**, so values match canonical JSON semantics before writing.
-
-- **No `-o`**: prints **canonical JSON** to stdout (`indent=2`, sorted keys).
-- **With `-o PATH`**: the file **suffix** selects the format (case-insensitive):
-  - **`.json`** — canonical JSON (`indent=2`, sorted keys).
-  - **`.yaml`** or **`.yml`** — YAML for easier editing of long prompts. Multi-line strings are written as **literal block scalars** (`|`), similar to the internal **config-converter** tool, so **Jinja**-style `{{` / `{%` in text stays readable. The same heuristic as config-converter turns literal two-character `\` + `n` sequences into newlines and trims spaces before newlines when choosing block style; if you must preserve a literal `\n` in a string, be aware of that edge case.
-
-If `-o` is set but the suffix is **missing** or **not** one of `.json`, `.yaml`, or `.yml`, the command **exits with code 2** and prints an error listing the allowed suffixes.
-
-**Syntax:**
-
-```text
-uqadm [GLOBAL_OPTS...] space export --source SPEC [-o PATH|--output PATH]
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--source SPEC` | Yes | Same endpoint forms as **`migrate --source`**: `slot:space_id` or `slot:https://...` with a path containing `/space/<id>` (or `custom-space` / `swappable-intelligence-space`). A **space id is required**. |
-| `-o`, `--output PATH` | No | Write the snapshot to this file; suffix must be **`.json`**, **`.yaml`**, or **`.yml`**. Parent directories are created if needed. Default: **stdout** (JSON only). |
-
-**Examples:**
+Export a space snapshot to stdout (JSON) or a file.
 
 ```bash
-uqadm space export --source "1:space_abc123"
-uqadm space export --source "qa:https://example.com/app/space/space_xyz" -o backup.json
-uqadm space export --source "qa:space_xyz" -o backup.yaml
+uqadm space export space_abc123                              # JSON to stdout
+uqadm space export space_abc123 --slot prod
+uqadm space export space_abc123 -o backup.yaml              # YAML file
+uqadm space export space_abc123 -o backup.json
 ```
 
-To push an edited snapshot back onto the API (inverse of export), use **`uqadm space upsert`** below.
+| Option | Description |
+|--------|-------------|
+| `SPACE_ID` | Space id or `https://` URL containing `/space/<id>`. |
+| `--slot SLOT` | Credential slot (default: configured default slot). |
+| `-o`, `--output PATH` | Write to file; suffix must be `.json`, `.yaml`, or `.yml`. Default: stdout. |
 
----
+### `space upsert`
 
-### `uqadm space upsert`
-
-Reads a **local snapshot** file (JSON or YAML with the same suffix rules as **`space export`**) and either **creates** a new space or **updates** an existing one on the destination slot. Behavior matches **`space migrate`** create/update paths (same `Space.create_space` / `Space.update_space` field mapping, module matching **by name**, and **`add_space_access`** from snapshot `assistantAccess`).
-
-- **Create**: **`--destination`** is **`slot`** or **`slot:`** only (no space id). The snapshot must include **`name`** and **`fallbackModule`** (same as migrate create).
-- **Update**: **`--destination`** is **`slot:space_id`** or **`slot:https://...`** (space id required). The snapshot must include a non-null **`name`**; modules are merged into the destination by name like migrate.
-
-Warnings for **scope rules** and **MCP server bindings** in the snapshot mirror migrate (they are not applied via this command).
-
-If the file suffix is not **`.json`**, **`.yaml`**, or **`.yml`**, or the root document is not a JSON object, the command **exits with code 2**.
-
-**Syntax:**
-
-```text
-uqadm [GLOBAL_OPTS...] space upsert --destination SPEC -f FILE|--file FILE [OPTIONS]
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--destination SPEC` | Yes | Space endpoint to create or update: same forms as **`migrate --destination`** (`slot` / `slot:` to create; `slot:space_id` or `slot:URL` to update). |
-| `-f`, `--file FILE` | Yes | Path to snapshot (`.json`, `.yaml`, or `.yml`). |
-| `--dry-run` | No | Do **not** call create/update or `add_space_access`; may still call **`get_space`** when updating to preview module mapping. |
-
-**Examples:**
+Create or update a space from a local snapshot file. Omit `--target` to create a new space; provide `--target` to update an existing one.
 
 ```bash
-uqadm space upsert --destination "2:" --file backup.yaml
-uqadm space upsert --destination "qa:space_dst456" -f ./edited.json --dry-run
+uqadm space upsert -f backup.yaml                            # create on default slot
+uqadm space upsert -f backup.yaml --slot qa                  # create on specific slot
+uqadm space upsert -f edited.json --target space_dst456      # update existing space
+uqadm space upsert -f backup.yaml --slot prod --target space_dst456
+uqadm space upsert -f backup.yaml --dry-run
 ```
 
----
+| Option | Description |
+|--------|-------------|
+| `-f`, `--file FILE` | Local snapshot (`.json`, `.yaml`, or `.yml`). Required. |
+| `--slot SLOT` | Credential slot (default: configured default slot). |
+| `--target SPACE_ID` | Space id or URL to update. Omit to create a new space. |
+| `--dry-run` | Print actions without calling create/update APIs. |
 
-### `uqadm space diff`
+### `space diff`
 
-Loads two spaces (two **`Space.get_space`** calls, potentially via **different** slots/env files), canonicalizes JSON (`sort_keys`, stable stringification), then compares.
-
-**Default (recommended):** both payloads are **normalized** before compare: recursively drops common ephemeral keys so you see **meaningful config drift**, not noise from ids and timestamps:
-
-`createdAt`, `updatedAt`, `id`, `moduleId`, `companyId`, `createdBy`, `updatedBy`
-
-Use **`--strict`** to compare **raw** API payloads (no stripping).
-
-**Display**
-
-| `--format` | Behaviour |
-|------------|-----------|
-| **`unified`** (default) | If **stdout is a TTY**: Rich **two-column** view with **inline word-level** red/green highlights (similar to many editors’ split diff). If **not a TTY** (pipe/file): classic **`difflib.unified_diff`** text. |
-| **`side-by-side`** | Two **syntax-highlighted JSON** panes (Rich), best on a **wide** terminal — good for scanning whole structures after normalization. |
-
-**Syntax:**
-
-```text
-uqadm [GLOBAL_OPTS...] space diff --source SPEC --destination SPEC [OPTIONS]
-```
-
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--source SPEC` | Yes | First space (`slot:space_id` or `slot:URL` with extractable id); same rules as **`migrate --source`**. |
-| `--destination SPEC` | Yes | Second space (same spec forms). |
-| `--strict` | No | Compare **full** payloads (keep ids, timestamps, etc.). |
-| `--format` | No | `unified` (default) or `side-by-side`; see **Display** table. |
-
-**Exit codes:**
-
-| Code | Meaning |
-|------|---------|
-| `0` | No differences after the chosen normalization / strict compare. |
-| `1` | Differences remain **or** an unexpected API/network error during fetch. |
-| `2` | Invalid endpoint spec (e.g. missing space id). |
-
-**Examples:**
+Compare two spaces. Exits **0** if identical, **1** if differences exist.
 
 ```bash
-uqadm space diff --source "1:space_a" --destination "1:space_b"
+uqadm space diff --source "qa:space_a" --destination "qa:space_b"
 uqadm space diff --source "qa:space_x" --destination "prod:space_y" --format side-by-side
 uqadm space diff --source "qa:x" --destination "prod:y" --strict
 ```
 
----
+| Option | Description |
+|--------|-------------|
+| `--source SPEC` | First space (`slot:space_id` or `slot:URL`). |
+| `--destination SPEC` | Second space (same format). |
+| `--strict` | Compare raw payloads (skip normalization). |
+| `--format` | `unified` (default) or `side-by-side`. |
 
-### `uqadm space migrate`
+By default, ephemeral keys (`id`, `createdAt`, `updatedAt`, etc.) are stripped before comparison so you see meaningful config drift.
 
-Copies assistant configuration from a **source** space to a **destination** (either a **new** space on the destination slot or an **existing** space id). To apply a **local snapshot file** instead of copying from another live space, use **`uqadm space upsert`**.
+### `space migrate`
 
-**Syntax:**
+Copy assistant configuration from a source space to a destination (new or existing).
 
-```text
-uqadm [GLOBAL_OPTS...] space migrate --source SPEC --destination SPEC [OPTIONS]
+```bash
+uqadm space migrate --source "qa:space_src123" --destination "prod:"          # create new
+uqadm space migrate --source "qa:space_src123" --destination "prod:space_dst" # update existing
+uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 ```
 
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--source SPEC` | Yes | Source endpoint (see **Endpoint spec** below). A space id is **required** (plain id or extracted from a URL). |
-| `--destination SPEC` | Yes | Destination endpoint (see **Endpoint spec** below). Space id **optional** — omit or use `slot:` / `slot` only to **create** a new space. |
-| `--dry-run` | No | Do **not** call create/update or `add_space_access`. Still performs **read** calls (`get_space`, etc.) to build the preview where applicable. |
-| `--with-knowledge` | No | Reserved for same-environment extended migration; currently **informational only** (messages when scope rules exist; does not migrate folders/content graphs via API). |
+| Option | Description |
+|--------|-------------|
+| `--source SPEC` | Source space (`slot:space_id` or `slot:URL`). Space id required. |
+| `--destination SPEC` | `slot` / `slot:` to create; `slot:space_id` or `slot:URL` to update. |
+| `--dry-run` | Print actions without making API write calls. |
+| `--with-knowledge` | Reserved; currently informational only. |
 
-#### Endpoint spec (`--source` / `--destination` space endpoints)
+**Endpoint spec format** (`slot:space_id` or `slot:URL`):
 
-Used by **`space export --source`**, **`space delete --source`**, **`space diff --source` / `--destination`**, **`space migrate`**, and **`space upsert --destination`** (and **`migrate --source` / `--destination`**).
+| Spec | Slot | Space id |
+|------|------|----------|
+| `qa` | `qa` | *(none — create)* |
+| `qa:` | `qa` | *(none — create)* |
+| `qa:space_abc123` | `qa` | `space_abc123` |
+| `prod:https://host/app/space/space_xyz` | `prod` | `space_xyz` |
 
-The spec string selects:
+Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-intelligence-space/<id>`.
 
-1. Which **slot env file** to load (`slot`): `.{slot}.env` or `{slot}.env` (same resolution as elsewhere).
-2. Optionally which **space id** to use (`space_id`).
+### `space delete SPACE_ID`
 
-**Parsing rules:**
+Delete a space (prompts for confirmation unless `-y`).
 
-- Split on the **first** colon only: `slot` = left side (trimmed), remainder = right side (trimmed).
-- If there is **no** colon, the whole string is the **`slot`** and **`space_id` is omitted** (valid only for **destination** when creating a new space).
-- If there is a colon and the right side is **empty** after trimming (`2:`), **`space_id` is omitted** (create on destination slot `2`).
-- If the right side starts with **`http://`** or **`https://`**, it is treated as a URL: **`space_id`** is parsed from the URL path (see **URL paths** below).
+```bash
+uqadm space delete space_old123
+uqadm space delete space_old123 --slot prod -y
+uqadm space delete space_old123 --dry-run
+```
 
-**Examples:**
-
-| Spec | Slot | Space id | Meaning |
-|------|------|----------|---------|
-| `1` | `1` | *(none)* | Destination: create new space using slot `1` env (`.1.env` or `1.env`). |
-| `2:` | `2` | *(none)* | Same as above. |
-| `1:space_abc123` | `1` | `space_abc123` | Space `space_abc123` using slot `1` credentials. |
-| `prod:https://host/app/space/space_xyz` | `prod` | `space_xyz` | Credentials from slot `prod` env; id parsed from URL path. |
-
-**Supported URL path shapes** (segment after the marker must not be `create`):
-
-- `.../space/<id>`
-- `.../custom-space/<id>`
-- `.../swappable-intelligence-space/<id>`
-
-**Typical flows:**
-
-- **Create** new space on destination slot `2` from source slot `1`:
-
-  ```bash
-  uqadm space migrate --source "1:space_src123" --destination "2:"
-  ```
-
-- **Update** existing destination space:
-
-  ```bash
-  uqadm space migrate --source "1:space_src123" --destination "2:space_dst456"
-  ```
-
-#### Migrate behavior (summary)
-
-- **Cross-environment** (different `UNIQUE_COMPANY_ID` or normalized `UNIQUE_API_BASE` between source and destination): warns that folder/knowledge-linked scope data is not copied; scope rules are skipped; MCP server bindings are not migrated (warning).
-- **Create**: builds `Space.create_space` from source snapshot (modules without instance ids, settings, etc.).
-- **Update**: matches modules **by name** between source and destination; sends `update_space` with destination **`moduleId`** values; warns on unmatched source modules.
-- After create/update, attempts **`add_space_access`** from source `assistantAccess`; failures are warned, not fatal.
-- **`--dry-run`**: skips create/update/access writes; may still call read APIs to describe actions.
-
-For edge cases and API limits, see the implementation in `uqadm/space_migrate.py`.
+| Option | Description |
+|--------|-------------|
+| `SPACE_ID` | Space id or `https://` URL containing `/space/<id>`. |
+| `--slot SLOT` | Credential slot (default: configured default slot). |
+| `-y`, `--yes` | Skip the confirmation prompt. |
+| `--dry-run` | Fetch and describe what would be deleted, without deleting. |
 
 ---
 
-### `uqadm space delete`
+## `uqadm chat`
 
-Deletes one space via **`Space.delete_space`**. Fetches the space first (**`Space.get_space`**) to show **id**, **name**, and **uiType** in the confirmation prompt (unless you skip the prompt).
+Send messages to an assistant and inspect conversation history.
 
-**Syntax:**
-
-```text
-uqadm [GLOBAL_OPTS...] space delete --source SPEC [OPTIONS]
+```bash
+uqadm chat --help
 ```
 
-| Option | Required | Description |
-|--------|----------|-------------|
-| `--source SPEC` | Yes | Same endpoint forms as **`migrate --source`** / **`space export --source`**: `slot:space_id` or `slot:https://...` with extractable id. A **space id is required**. |
-| `-y`, `--yes` | No | Skip the interactive confirmation prompt. |
-| `--dry-run` | No | Still calls **`get_space`** to resolve the space; prints what would be deleted without calling **`delete_space`**. |
+### `chat send ASSISTANT_ID`
 
-If you decline the confirmation prompt, the command exits **0** and prints `Aborted.`
+Send a message and print the reply. The `chat_id` of the thread is always shown in the framed header so you can copy it for follow-up messages.
+
+**Message input** (pick one):
+
+| Method | Flag / Usage |
+|--------|-------------|
+| Inline text | `--text "your message"` |
+| File | `--file ./prompt.txt` |
+| stdin | `echo "message" \| uqadm chat send ASSISTANT_ID` |
+
+**Output format:**
+
+```
+────────────────────────────────────────────────────────────
+chat_id: chat_xyz789
+────────────────────────────────────────────────────────────
+Here are the latest F1 headlines...
+────────────────────────────────────────────────────────────
+References
+  [1] Formula 1 Official  https://www.formula1.com/...
+────────────────────────────────────────────────────────────
+Evaluation
+  APPROVED · accurate
+  The answer correctly summarizes recent race results.
+────────────────────────────────────────────────────────────
+```
+
+References and Evaluation sections only appear when the response includes them. Use `--json` to get the full raw `Space.Message` object instead.
 
 **Examples:**
 
 ```bash
-uqadm space delete --source "1:space_old123"
-uqadm space delete --source "prod:https://host/app/space/space_x" --dry-run
-uqadm space delete --source "qa:space_x" -y
+# First message — starts a new thread
+uqadm chat send asst_abc123 --text "What are the latest F1 news?"
+
+# Follow-up in the same thread
+uqadm chat send asst_abc123 --text "Tell me more about the race" --chat-id chat_xyz789
+
+# Specific slot
+uqadm chat send asst_abc123 --text "Hello" --slot prod
+
+# Force a tool
+uqadm chat send asst_abc123 --text "Search the web" --tool web_search
+
+# Force multiple tools
+uqadm chat send asst_abc123 --text "Run and explain" --tool code_interpreter --tool web_search
+
+# Message from a file
+uqadm chat send asst_abc123 --file ./prompt.txt
+
+# Piped from stdin
+echo "Summarize this" | uqadm chat send asst_abc123
+
+# Increase timeout (default: 300 s)
+uqadm chat send asst_abc123 --text "Complex question" --max-wait 600
+
+# Raw JSON output
+uqadm chat send asst_abc123 --text "Hello" --json
 ```
+
+**All options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `ASSISTANT_ID` | — | The assistant to message. |
+| `--slot SLOT` | default slot | Credential slot. |
+| `--text TEXT` | — | Inline message text. |
+| `--file PATH` | — | Read message from file. |
+| `--chat-id ID` | — | Continue an existing chat thread. |
+| `--tool NAME` | — | Force a tool (repeatable). |
+| `--max-wait SECS` | `300` | Timeout waiting for a response. |
+| `--poll-interval SECS` | `1.0` | Polling interval between status checks. |
+| `--stop-on` | `stoppedStreamingAt` | Stop condition: `stoppedStreamingAt` or `completedAt`. |
+| `--json` | off | Print raw `Space.Message` JSON. |
+
+### `chat history CHAT_ID`
+
+Fetch and display conversation history.
+
+By default, shows the **selected token window** (last N messages within a token budget) — useful for reviewing context. Use `--full` to see every message in the thread exactly as stored.
+
+```bash
+uqadm chat history chat_xyz789
+uqadm chat history chat_xyz789 --full
+uqadm chat history chat_xyz789 --full --json
+uqadm chat history chat_xyz789 --slot prod
+```
+
+Output uses the same framed style as `chat send`, with each message in its own block labeled `You` or `Assistant`.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `CHAT_ID` | — | Chat thread to fetch. |
+| `--slot SLOT` | default slot | Credential slot. |
+| `--full` | off | Show all messages (bypasses token-window selection). |
+| `--json` | off | Print raw message list as JSON. |
+| `--max-tokens INT` | `8000` | Token budget for the windowed view. |
+| `--percent FLOAT` | `0.15` | Fraction of `max-tokens` allocated to history. |
+| `--max-messages INT` | `4` | Maximum number of messages in the windowed view. |
+
+---
 
 ## Python module entry
 
 ```bash
 python -m uqadm --help
 ```
+
+---
 
 ## Related
 

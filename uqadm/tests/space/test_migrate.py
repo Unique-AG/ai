@@ -1,10 +1,10 @@
-"""Tests for ``uqadm space_migrate`` module-level helpers."""
+"""Tests for ``uqadm space migrate`` module-level helpers."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from uqadm.space_migrate import build_module_updates_from_pairs
+from uqadm.space.migrate import build_module_updates_from_pairs
 
 
 def test_build_module_updates_from_pairs_returns_destination_module_id() -> None:

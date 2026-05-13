@@ -6,10 +6,11 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "unique-sdk>=2026.20.0.dev8",
-    "click>=8.1.0,<9",
+    "typer>=0.12,<1",
     "python-dotenv>=1.0.0,<2",
     "pyyaml>=6.0,<7",
     "rich>=13.3.5",
+    "tomli-w>=1.0,<2",
 ]
 
 [project.scripts]
@@ -30,3 +31,12 @@ extend-select = ["I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_web_search --cov-report=term-missing"
