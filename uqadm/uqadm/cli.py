@@ -134,7 +134,7 @@ class UqadmNestedCommand(ShowsRootGlobalOptionsMixin, click.Command):
 class UqadmNestedGroup(ShowsRootGlobalOptionsMixin, click.Group):
     """Group whose ``--help`` lists inherited ``uqadm`` flags; subcommands use :class:`UqadmNestedCommand`."""
 
-    command_class = UqadmNestedCommand
+    command_class: type[click.Command] | None = UqadmNestedCommand
 
 
 class UqadmMainGroup(click.Group):

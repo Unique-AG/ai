@@ -44,9 +44,6 @@ reportUnknownVariableType = "none"
 reportUnknownParameterType = "none"
 reportUnknownLambdaType = "none"
 
-# basedpyright-only: mixin/base-class patterns make per-attribute annotations impractical.
-reportUnannotatedClassAttribute = "none"
-
 # Third-party libraries that ship no type stubs.
 reportMissingTypeStubs = "none"
 
@@ -55,7 +52,6 @@ reportImplicitStringConcatenation = "none"
 
 # CLI tools intentionally discard many return values.
 reportUnusedCallResult = "none"
-reportUnusedFunction = "none"
 
 # uqadm accesses SDK-internal symbols.
 reportPrivateUsage = "none"
