@@ -96,11 +96,11 @@ def cmd_upsert(
 
     try:
         snapshot = load_space_snapshot(file_path)
-    except ValueError as exc:
-        click.echo(str(exc), err=True)
-        sys.exit(2)
     except json.JSONDecodeError as exc:
         click.echo(f"Invalid JSON in snapshot: {exc}", err=True)
+        sys.exit(2)
+    except ValueError as exc:
+        click.echo(str(exc), err=True)
         sys.exit(2)
     except yaml.YAMLError as exc:
         click.echo(f"Invalid YAML in snapshot: {exc}", err=True)

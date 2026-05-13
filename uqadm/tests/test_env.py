@@ -44,14 +44,23 @@ def test_missing_slot_env_is_file_not_found_subclass(tmp_path: Path) -> None:
 
 
 def test_cli_missing_env_file_exits_2_with_instructions(tmp_path: Path) -> None:
-    runner = CliRunner()
+    # click <8.2 defaults mix_stderr=True; pass mix_stderr=False to get a
+    # separate stderr stream.  click 8.2+ removed the parameter entirely
+    # (stderr is always separate), so fall back to the plain constructor.
+    try:
+        runner = CliRunner(mix_stderr=False)  # type: ignore[call-arg]
+    except TypeError:
+        runner = CliRunner()
     result = runner.invoke(
         main,
         ["--cwd", str(tmp_path), "space", "list", "--slot", "missing_slot"],
         catch_exceptions=False,
     )
     assert result.exit_code == 2
-    err = result.stderr or ""
+    try:
+        err = result.stderr or ""
+    except ValueError:
+        err = result.output or ""
     assert "no credentials file" in err
     assert "Searched in" in err
     assert ".missing_slot.env" in err

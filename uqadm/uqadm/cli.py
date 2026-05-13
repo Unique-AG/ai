@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import click
 from click.formatting import HelpFormatter
@@ -124,7 +124,7 @@ class ShowsRootGlobalOptionsMixin:
             if rows:
                 with formatter.section("Global options (uqadm)"):
                     formatter.write_dl(rows)
-        super().format_options(ctx, formatter)
+        cast(click.Command, super()).format_options(ctx, formatter)
 
 
 class UqadmNestedCommand(ShowsRootGlobalOptionsMixin, click.Command):
