@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import click
+import typer
 from unique_sdk import AuthenticationError
 from unique_sdk.cli.config import Config
 
@@ -80,6 +80,6 @@ def echo_credential_debug_if_auth_failure(
     """If ``exc`` looks like an auth problem, print ``cfg`` to stderr."""
     if not is_likely_auth_failure(exc):
         return
-    click.echo("", err=True)
+    typer.echo("", err=True)
     for line in format_credential_debug_lines(cfg, label=label, exc=exc):
-        click.echo(line, err=True)
+        typer.echo(line, err=True)

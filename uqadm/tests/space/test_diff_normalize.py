@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from uqadm.space_diff import _normalize_for_diff
+from uqadm.space.diff import _normalize_for_diff
 
 
 def test_normalize_strips_ephemeral_keys_recursively() -> None:

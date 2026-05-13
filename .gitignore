@@ -141,6 +141,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.env/
+.venv/
+.ENV/
+.env.bak/
+.venv.bak/
+# uqadm source package — must not be treated as a venv dir
+!uqadm/uqadm/env/
 
 # Spyder project settings
 .spyderproject
@@ -196,3 +203,7 @@ test_code_interpreter_retry.py
 
 # Local SDK smoke scripts (credentials go here — do not commit)
 unique_sdk/examples/briefing_manual_smoke.py
+
+
+tool_packages/unique_web_search/docs/*
+tool_packages/unique_web_search/ssrf_test_server/*

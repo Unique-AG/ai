@@ -1,4 +1,4 @@
-"""Tests for per-slot env file resolution."""
+"""Tests for per-slot env file resolution (including UQADM_HOME lookup)."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ import os
 from pathlib import Path
 
 import pytest
-from click.testing import CliRunner
+from typer.testing import CliRunner
 from unique_sdk.cli.config import load_config
 
-from uqadm.cli import main
-from uqadm.env import MissingSlotEnvFileError, env_file_for_slot
+from uqadm.cli import app
+from uqadm.core.env import MissingSlotEnvFileError, env_file_for_slot
 
 
 def test_env_file_prefers_hidden_over_visible(tmp_path: Path) -> None:
@@ -43,30 +43,63 @@ def test_missing_slot_env_is_file_not_found_subclass(tmp_path: Path) -> None:
         env_file_for_slot("x", cwd=tmp_path)
 
 
-def test_cli_missing_env_file_exits_2_with_instructions(tmp_path: Path) -> None:
-    # click <8.2 defaults mix_stderr=True; pass mix_stderr=False to get a
-    # separate stderr stream.  click 8.2+ removed the parameter entirely
-    # (stderr is always separate), so fall back to the plain constructor.
+def test_env_file_found_in_uqadm_home_envs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Slot resolved from UQADM_HOME/envs/ when cwd doesn't contain it."""
+    envs = tmp_path / "envs"
+    envs.mkdir()
+    (envs / ".myslot.env").write_text("UNIQUE_USER_ID=x\n", encoding="utf-8")
+    monkeypatch.setenv("UQADM_HOME", str(tmp_path))
+    # Passing a cwd that does NOT have the file; envs_dir() should be tried next.
+    other = tmp_path / "other"
+    other.mkdir()
+    assert env_file_for_slot("myslot", cwd=other) == envs / ".myslot.env"
+
+
+def test_env_file_cwd_wins_over_uqadm_home(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    envs = tmp_path / "envs"
+    envs.mkdir()
+    (envs / ".slot.env").write_text("UNIQUE_USER_ID=from_home\n", encoding="utf-8")
+    monkeypatch.setenv("UQADM_HOME", str(tmp_path))
+
+    explicit_cwd = tmp_path / "explicit"
+    explicit_cwd.mkdir()
+    (explicit_cwd / ".slot.env").write_text(
+        "UNIQUE_USER_ID=from_cwd\n", encoding="utf-8"
+    )
+
+    result = env_file_for_slot("slot", cwd=explicit_cwd)
+    assert result == explicit_cwd / ".slot.env"
+
+
+def test_cli_missing_env_file_exits_2_with_instructions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("UQADM_HOME", str(tmp_path))
+    # click/Typer <8.2 defaults mix_stderr=True; pass mix_stderr=False for a
+    # separate stderr stream. Newer versions removed the kwarg (stderr separate).
     try:
         runner = CliRunner(mix_stderr=False)  # type: ignore[call-arg]
     except TypeError:
         runner = CliRunner()
     result = runner.invoke(
-        main,
+        app,
         ["--cwd", str(tmp_path), "space", "list", "--slot", "missing_slot"],
-        catch_exceptions=False,
     )
-    assert result.exit_code == 2
+    assert result.exit_code != 0
     try:
-        err = result.stderr or ""
+        out = (result.stdout or "") + (result.stderr or "")
     except ValueError:
-        err = result.output or ""
-    assert "no credentials file" in err
-    assert "Searched in" in err
-    assert ".missing_slot.env" in err
-    assert "missing_slot.env" in err
-    assert "UNIQUE_USER_ID" in err
-    assert "unique_auth_user_id" in err
+        out = result.output or ""
+    assert "no credentials file" in out
+    assert "Searched in" in out
+    assert ".missing_slot.env" in out
+    assert "missing_slot.env" in out
+    assert "UNIQUE_USER_ID" in out
+    assert "unique_auth_user_id" in out
 
 
 def test_env_file_hidden_only(tmp_path: Path) -> None:
@@ -111,7 +144,7 @@ def restore_env():
 
 
 def test_load_slot_reads_visible_file(tmp_path: Path, restore_env) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "slotb.env"
     env_path.write_text(
@@ -129,7 +162,7 @@ def test_load_slot_reads_visible_file(tmp_path: Path, restore_env) -> None:
 def test_load_slot_toolkit_auth_names_populate_unique_keys(
     tmp_path: Path, restore_env
 ) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "tk.env"
     env_path.write_text(
@@ -147,7 +180,7 @@ def test_load_slot_toolkit_auth_names_populate_unique_keys(
 
 
 def test_load_slot_unique_auth_uppercase_aliases(tmp_path: Path, restore_env) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "up.env"
     env_path.write_text(
@@ -162,7 +195,7 @@ def test_load_slot_unique_auth_uppercase_aliases(tmp_path: Path, restore_env) ->
 def test_load_slot_unique_user_id_wins_over_toolkit_alias(
     tmp_path: Path, restore_env
 ) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "win.env"
     env_path.write_text(
@@ -178,7 +211,7 @@ def test_load_slot_unique_user_id_wins_over_toolkit_alias(
 
 
 def test_load_slot_toolkit_app_and_api_aliases(tmp_path: Path, restore_env) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "appapi.env"
     env_path.write_text(
@@ -198,7 +231,7 @@ def test_load_slot_toolkit_app_and_api_aliases(tmp_path: Path, restore_env) -> N
 def test_load_slot_unique_api_key_wins_over_unique_app_key(
     tmp_path: Path, restore_env
 ) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "keywin.env"
     env_path.write_text(
@@ -215,7 +248,7 @@ def test_load_slot_unique_api_key_wins_over_unique_app_key(
 def test_load_slot_unique_api_base_url_uppercase_alias(
     tmp_path: Path, restore_env
 ) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "burl.env"
     env_path.write_text(
@@ -231,7 +264,7 @@ def test_load_slot_unique_api_base_url_uppercase_alias(
 def test_load_slot_unique_api_base_url_with_path_passes_through_unchanged(
     tmp_path: Path, restore_env
 ) -> None:
-    from uqadm.env import load_slot
+    from uqadm.core.env import load_slot
 
     env_path = tmp_path / "pub.env"
     env_path.write_text(

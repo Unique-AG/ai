@@ -5,7 +5,7 @@ from __future__ import annotations
 from unique_sdk import AuthenticationError
 from unique_sdk.cli.config import Config
 
-from uqadm.auth_debug import (
+from uqadm.core.auth_debug import (
     format_credential_debug_lines,
     is_likely_auth_failure,
 )
