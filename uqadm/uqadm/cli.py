@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, override
 
 import click
 from click.formatting import HelpFormatter
@@ -140,6 +140,7 @@ class UqadmNestedGroup(ShowsRootGlobalOptionsMixin, click.Group):
 class UqadmMainGroup(click.Group):
     """Catch missing slot env files and exit with instructions (no traceback)."""
 
+    @override
     def invoke(self, ctx: click.Context) -> Any:
         try:
             return super().invoke(ctx)

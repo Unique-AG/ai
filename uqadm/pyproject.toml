@@ -47,30 +47,19 @@ reportUnknownLambdaType = "none"
 # basedpyright-only: mixin/base-class patterns make per-attribute annotations impractical.
 reportUnannotatedClassAttribute = "none"
 
-# SDK deprecations tracked separately.
-reportDeprecated = "none"
-
 # Third-party libraries that ship no type stubs.
 reportMissingTypeStubs = "none"
 
 # Style preferences.
 reportImplicitStringConcatenation = "none"
-reportCallInDefaultInitializer = "none"
 
 # CLI tools intentionally discard many return values.
 reportUnusedCallResult = "none"
-reportUnusedParameter = "none"
 reportUnusedFunction = "none"
 
 # uqadm accesses SDK-internal symbols.
 reportPrivateUsage = "none"
 reportPrivateLocalImportUsage = "none"
-
-# Requires adding @override to every overriding method — separate PR.
-reportImplicitOverride = "none"
-
-# Missing parameter type annotations on callbacks / dynamic patterns.
-reportMissingParameterType = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
