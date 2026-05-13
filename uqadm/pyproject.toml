@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "unique-sdk>=2026.20.0.dev8",
-    "click>=8.1.0,<9",
+    "click>=8.1.8,<9",
     "python-dotenv>=1.0.0,<2",
     "pyyaml>=6.0.1,<7",
     "rich>=13.3.5",

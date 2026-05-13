@@ -6377,7 +6377,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "click", specifier = ">=8.1.0,<9" },
+    { name = "click", specifier = ">=8.1.8,<9" },
     { name = "python-dotenv", specifier = ">=1.0.0,<2" },
     { name = "pyyaml", specifier = ">=6.0.1,<7" },
     { name = "rich", specifier = ">=13.3.5" },

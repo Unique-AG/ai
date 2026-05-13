@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import click
+from click import HelpOption
 from click.formatting import HelpFormatter
 
 from uqadm import __version__
@@ -112,12 +113,7 @@ class ShowsRootGlobalOptionsMixin:
         if ctx.command is not root_ctx.command:
             rows: list[tuple[str, str]] = []
             for param in root_ctx.command.params:
-                # Skip the standard help option. We check by name rather than
-                # `isinstance(param, click.HelpOption)` because HelpOption was
-                # introduced in click 8.2.0, but the workspace dev group pulls in
-                # litellm (via opik) which pins click==8.1.8 exactly, making a
-                # click>=8.2.0 requirement unsatisfiable in the shared venv.
-                if param.name == "help":
+                if isinstance(param, HelpOption):
                     continue
                 if not isinstance(param, click.Option):
                     continue
