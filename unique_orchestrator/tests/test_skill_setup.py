@@ -6,10 +6,9 @@ from logging import Logger
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
+from unique_skill_tool.schemas import SkillReference, SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.app.schemas import ChatEventSkillChoice
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_orchestrator._builders.skill_setup import (
@@ -17,12 +16,14 @@ from unique_orchestrator._builders.skill_setup import (
     _parse_frontmatter,
     configure_skill_tool,
     load_selectable_skills,
+    message_skills_as_selectable,
     preload_invoked_skills,
 )
 
 
 def _make_skill(name: str, content: str = "skill body") -> SkillDefinition:
     return SkillDefinition(name=name, description="desc", content=content)
+
 
 class _FakeToolManager:
     def __init__(self, skill_tool: SkillTool | None) -> None:
@@ -78,7 +79,7 @@ class TestPreloadInvokedSkills:
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
-            skill_choices=[SelectableSkill(name="foo", content_id="cid-1")],
+            skill_choices=[SkillReference(name="foo", content_id="cid-1")],
         )
 
         history_manager.add_tool_call.assert_called_once()
@@ -106,7 +107,7 @@ class TestPreloadInvokedSkills:
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
-            skill_choices=[SelectableSkill(name="foo", content_id="cid-1")],
+            skill_choices=[SkillReference(name="foo", content_id="cid-1")],
         )
 
         history_manager.add_tool_call.assert_called_once()
@@ -144,9 +145,9 @@ class TestPreloadInvokedSkills:
             history_manager=history_manager,
             logger=logger,
             skill_choices=[
-                SelectableSkill(name="foo", content_id="cid-1"),
-                SelectableSkill(name="/foo", content_id="cid-2"),
-                SelectableSkill(name="foo", content_id="cid-3"),
+                SkillReference(name="foo", content_id="cid-1"),
+                SkillReference(name="/foo", content_id="cid-2"),
+                SkillReference(name="foo", content_id="cid-3"),
             ],
         )
 
@@ -187,6 +188,29 @@ class TestParseFrontmatter:
         assert body == "hello"
 
 
+class TestMessageSkillsAsSelectable:
+    def test_empty_input(self) -> None:
+        assert message_skills_as_selectable([]) == []
+
+    def test_skips_empty_content_id(self) -> None:
+        rows = message_skills_as_selectable(
+            [
+                SkillReference(content_id="", scope_id="s", name="n"),
+                SkillReference(content_id="cid-1", scope_id="", name="ok"),
+            ]
+        )
+        assert rows == [SkillReference(name="ok", scope_id="", content_id="cid-1")]
+
+    def test_dedupes_by_content_id_keeps_first(self) -> None:
+        rows = message_skills_as_selectable(
+            [
+                SkillReference(content_id="x", scope_id="a", name="first"),
+                SkillReference(content_id="x", scope_id="b", name="second"),
+            ]
+        )
+        assert rows == [SkillReference(name="first", scope_id="a", content_id="x")]
+
+
 class TestLoadSelectableSkills:
     @pytest.mark.asyncio
     async def test_empty_list_returns_empty(self, logger: Logger) -> None:
@@ -208,7 +232,7 @@ class TestConfigureSkillTool:
         self,
         *,
         is_enabled: bool | None,
-        selectable_skills: list[SelectableSkill] | None = None,
+        selectable_skills: list[SkillReference] | None = None,
     ) -> MagicMock:
         from unique_skill_tool.config import SkillSelection, SkillToolConfig
         from unique_toolkit.agentic.tools.config import ToolBuildConfig
@@ -257,7 +281,7 @@ class TestConfigureSkillTool:
     async def test_space_selectables_ignored_without_available_skills(
         self, logger: Logger
     ) -> None:
-        selectable_skills = [SelectableSkill(content_id="cid-1", name="Skill 1")]
+        selectable_skills = [SkillReference(content_id="cid-1", name="Skill 1")]
         config = self._build_config(
             is_enabled=True, selectable_skills=selectable_skills
         )
@@ -286,7 +310,7 @@ class TestConfigureSkillTool:
         config = self._build_config(
             is_enabled=True,
             selectable_skills=[
-                SelectableSkill(content_id="space-only", name="Ignored in space"),
+                SkillReference(content_id="space-only", name="Ignored in space"),
             ],
         )
         content_service = MagicMock()
@@ -295,10 +319,10 @@ class TestConfigureSkillTool:
         tool_manager.get_tool_by_name.return_value = skill_tool
         expected_registry = {"foo": _make_skill("foo", content="skill content")}
         from_message = [
-            ChatEventSkillChoice(content_id="cid-1", scope_id="", name="Skill 1")
+            SkillReference(content_id="cid-1", scope_id="", name="Skill 1")
         ]
         expected_selectable = [
-            SelectableSkill(name="Skill 1", scope_id="", content_id="cid-1")
+            SkillReference(name="Skill 1", scope_id="", content_id="cid-1")
         ]
 
         with patch(
@@ -310,7 +334,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                available_skills=from_message,
+                selectable_skills=message_skills_as_selectable(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -331,12 +355,12 @@ class TestConfigureSkillTool:
         skill_tool = self._make_skill_tool()
         tool_manager.get_tool_by_name.return_value = skill_tool
         from_message = [
-            ChatEventSkillChoice(content_id="cid-1", scope_id="", name="Skill 1"),
-            ChatEventSkillChoice(content_id="cid-2", scope_id="", name="Skill 2"),
+            SkillReference(content_id="cid-1", scope_id="", name="Skill 1"),
+            SkillReference(content_id="cid-2", scope_id="", name="Skill 2"),
         ]
         expected_selectable = [
-            SelectableSkill(name="Skill 1", scope_id="", content_id="cid-1"),
-            SelectableSkill(name="Skill 2", scope_id="", content_id="cid-2"),
+            SkillReference(name="Skill 1", scope_id="", content_id="cid-1"),
+            SkillReference(name="Skill 2", scope_id="", content_id="cid-2"),
         ]
         expected_registry = {
             "foo": _make_skill("foo", content="skill content"),
@@ -352,7 +376,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                available_skills=from_message,
+                selectable_skills=message_skills_as_selectable(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -373,10 +397,10 @@ class TestConfigureSkillTool:
         skill_tool = self._make_skill_tool()
         tool_manager.get_tool_by_name.return_value = skill_tool
         from_message = [
-            ChatEventSkillChoice(content_id="cid-1", scope_id="", name="Skill 1")
+            SkillReference(content_id="cid-1", scope_id="", name="Skill 1")
         ]
         expected_selectable = [
-            SelectableSkill(name="Skill 1", scope_id="", content_id="cid-1")
+            SkillReference(name="Skill 1", scope_id="", content_id="cid-1")
         ]
         expected_registry = {"foo": _make_skill("foo", content="skill content")}
 
@@ -389,7 +413,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                available_skills=from_message,
+                selectable_skills=message_skills_as_selectable(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -407,7 +431,7 @@ class TestConfigureSkillTool:
         config = self._build_config(
             is_enabled=True,
             selectable_skills=[
-                SelectableSkill(content_id="space-only", name="Space skill"),
+                SkillReference(content_id="space-only", name="Space skill"),
             ],
         )
         content_service = MagicMock()
@@ -415,14 +439,14 @@ class TestConfigureSkillTool:
         skill_tool = self._make_skill_tool()
         tool_manager.get_tool_by_name.return_value = skill_tool
         from_message = [
-            ChatEventSkillChoice(
+            SkillReference(
                 content_id="cid-msg",
                 scope_id="scope_1",
                 name="",
             )
         ]
         expected_merged = [
-            SelectableSkill(
+            SkillReference(
                 name="",
                 scope_id="scope_1",
                 content_id="cid-msg",
@@ -439,7 +463,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                available_skills=from_message,
+                selectable_skills=message_skills_as_selectable(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -455,7 +479,7 @@ class TestConfigureSkillTool:
         self, logger: Logger
     ) -> None:
         from_message = [
-            ChatEventSkillChoice(content_id="cid-1", scope_id="", name="Skill 1")
+            SkillReference(content_id="cid-1", scope_id="", name="Skill 1")
         ]
         config = self._build_config(is_enabled=True, selectable_skills=[])
         tool_manager = MagicMock()
@@ -470,7 +494,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                available_skills=from_message,
+                selectable_skills=message_skills_as_selectable(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once()

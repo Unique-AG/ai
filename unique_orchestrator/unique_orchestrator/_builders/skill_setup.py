@@ -2,7 +2,8 @@
 
 Loads skill definitions from the knowledge base and registers the
 SkillTool with the tool manager. Which files to load is determined only
-by the chat event's ``available_skills`` (per-message).
+by the per-message skill list: callers map ``ChatEventPayload.available_skills``
+through ``message_skills_as_selectable`` before ``configure_skill_tool``.
 
 Skill discovery follows the official Agent Skills protocol — see
 https://agentskills.io/home. Each skill is a **folder**
@@ -46,12 +47,11 @@ from typing import TYPE_CHECKING, Any
 
 import frontmatter
 from pydantic import ValidationError
-from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
+from unique_skill_tool.schemas import SkillReference, SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.app.schemas import ChatEventSkillChoice
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 if TYPE_CHECKING:
@@ -98,23 +98,24 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     return dict(metadata), body
 
 
-def _message_skills_as_selectable(
-    available_skills: list[ChatEventSkillChoice],
-) -> list[SelectableSkill]:
-    """Map per-message ``available_skills`` to ``SelectableSkill`` rows.
+def message_skills_as_selectable(
+    available_skills: list[SkillReference],
+) -> list[SkillReference]:
+    """Normalize ``ChatEventPayload.available_skills`` for the Skill tool.
 
-    Deduplicates by ``content_id`` while preserving first-seen order.
-    Entries without a ``content_id`` are skipped.
+    Call this at the orchestration boundary (e.g. when building ``UniqueAI``)
+    before ``configure_skill_tool``. Deduplicates by ``content_id`` while
+    preserving first-seen order. Entries without a ``content_id`` are skipped.
     """
     seen: set[str] = set()
-    out: list[SelectableSkill] = []
+    out: list[SkillReference] = []
     for choice in available_skills:
         cid = choice.content_id
         if not cid or cid in seen:
             continue
         seen.add(cid)
         out.append(
-            SelectableSkill(
+            SkillReference(
                 name=choice.name,
                 scope_id=choice.scope_id,
                 content_id=choice.content_id,
@@ -175,10 +176,10 @@ def _build_skill(
 async def load_selectable_skills(
     *,
     content_service: ContentService,
-    selectable_skills: list[SelectableSkill],
+    selectable_skills: list[SkillReference],
     logger: Logger,
 ) -> dict[str, SkillDefinition]:
-    """Load skills from an explicit list of ``SelectableSkill`` references.
+    """Load skills from an explicit list of ``SkillReference`` references.
 
     Entries with an empty ``content_id`` are skipped (admin UIs commonly
     leave a blank row as a placeholder). Failures are logged and do not
@@ -258,24 +259,20 @@ async def configure_skill_tool(
     logger: Logger,
     content_service: ContentService,
     tool_manager: ToolManager | ResponsesApiToolManager,
-    available_skills: list[ChatEventSkillChoice] | None = None,
+    selectable_skills: list[SkillReference] | None = None,
 ) -> None:
     """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
-
-    Skills are loaded from the per-message ``available_skills``
-    payload (each entry references a ``SKILL.md`` document via
-    ``content_id``).
     """
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
         return
 
-    to_load = _message_skills_as_selectable(list(available_skills or []))
+    to_load = list(selectable_skills or [])
     skill_tool_build_config.configuration.selectable_skills.selected = to_load
 
     if not to_load:
         logger.warning(
-            "SkillTool is enabled but available_skills is empty — "
+            "SkillTool is enabled but selectable_skills is empty — "
             "no skills will be loaded."
         )
         tool_manager.exclude_tool(SkillTool.name)
@@ -309,7 +306,7 @@ async def preload_invoked_skills(
     tool_manager: ToolManager | ResponsesApiToolManager,
     history_manager: HistoryManager,
     logger: Logger,
-    skill_choices: list[SelectableSkill],
+    skill_choices: list[SkillReference],
 ) -> None:
     """Preload skills selected in ``skill_choices`` before the first model turn.
 

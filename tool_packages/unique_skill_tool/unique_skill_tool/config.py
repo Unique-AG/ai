@@ -15,7 +15,7 @@ from unique_skill_tool.prompts import (
     DEFAULT_TOOL_PARAMETER_SKILL_NAME_DESCRIPTION,
     DEFAULT_TOOL_SYSTEM_REMINDER_FOR_USER_MESSAGE,
 )
-from unique_skill_tool.schemas import SelectableSkill
+from unique_skill_tool.schemas import SkillReference
 
 CHARS_PER_TOKEN = 4
 DEFAULT_CHAR_BUDGET = 8_000
@@ -37,7 +37,7 @@ class SkillSelection(BaseModel):
         default="",
         description="The root skills folder ID.",
     )
-    selected: list[SelectableSkill] = Field(
+    selected: list[SkillReference] = Field(
         default_factory=list,
         description="Individual skills selected from the knowledge base.",
     )
