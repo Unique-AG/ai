@@ -25,6 +25,10 @@ class SelectableSkill(BaseModel):
         default="",
         description="Knowledge base scope ID that contains the skill file.",
     )
+    content_id: str = Field(
+        default="",
+        description="Knowledge base content ID of the ``SKILL.md`` file.",
+    )
 
 
 class SkillDefinition(BaseModel):
@@ -52,11 +56,4 @@ class SkillDefinition(BaseModel):
     )
     content: str = Field(
         description="Full prompt / instructions injected when the skill is invoked.",
-    )
-    source_content_id: str = Field(
-        default="",
-        description=(
-            "Knowledge base content id this definition was loaded from; "
-            "used to match per-message skill choices that omit ``name``."
-        ),
     )
