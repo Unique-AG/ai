@@ -3,7 +3,7 @@
 Loads skill definitions from the knowledge base and registers the
 SkillTool with the tool manager. Which files to load is determined only
 by the per-message skill list: callers map ``ChatEventPayload.available_skills``
-through ``message_skills_as_selectable`` before ``configure_skill_tool``.
+through ``normalize_available_skills_for_tool`` before ``configure_skill_tool``.
 
 Skill discovery follows the official Agent Skills protocol — see
 https://agentskills.io/home. Each skill is a **folder**
@@ -47,7 +47,7 @@ from typing import TYPE_CHECKING, Any
 
 import frontmatter
 from pydantic import ValidationError
-from unique_skill_tool.schemas import SkillReference, SkillDefinition
+from unique_skill_tool.schemas import SkillDefinition, SkillReference
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
@@ -98,7 +98,7 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     return dict(metadata), body
 
 
-def message_skills_as_selectable(
+def normalize_available_skills_for_tool(
     available_skills: list[SkillReference],
 ) -> list[SkillReference]:
     """Normalize ``ChatEventPayload.available_skills`` for the Skill tool.
@@ -261,8 +261,7 @@ async def configure_skill_tool(
     tool_manager: ToolManager | ResponsesApiToolManager,
     selectable_skills: list[SkillReference] | None = None,
 ) -> None:
-    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
-    """
+    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``."""
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
         return

@@ -6,7 +6,7 @@ from logging import Logger
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unique_skill_tool.schemas import SkillReference, SkillDefinition
+from unique_skill_tool.schemas import SkillDefinition, SkillReference
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -16,7 +16,7 @@ from unique_orchestrator._builders.skill_setup import (
     _parse_frontmatter,
     configure_skill_tool,
     load_selectable_skills,
-    message_skills_as_selectable,
+    normalize_available_skills_for_tool,
     preload_invoked_skills,
 )
 
@@ -190,10 +190,10 @@ class TestParseFrontmatter:
 
 class TestMessageSkillsAsSelectable:
     def test_empty_input(self) -> None:
-        assert message_skills_as_selectable([]) == []
+        assert normalize_available_skills_for_tool([]) == []
 
     def test_skips_empty_content_id(self) -> None:
-        rows = message_skills_as_selectable(
+        rows = normalize_available_skills_for_tool(
             [
                 SkillReference(content_id="", scope_id="s", name="n"),
                 SkillReference(content_id="cid-1", scope_id="", name="ok"),
@@ -202,7 +202,7 @@ class TestMessageSkillsAsSelectable:
         assert rows == [SkillReference(name="ok", scope_id="", content_id="cid-1")]
 
     def test_dedupes_by_content_id_keeps_first(self) -> None:
-        rows = message_skills_as_selectable(
+        rows = normalize_available_skills_for_tool(
             [
                 SkillReference(content_id="x", scope_id="a", name="first"),
                 SkillReference(content_id="x", scope_id="b", name="second"),
@@ -318,9 +318,7 @@ class TestConfigureSkillTool:
         skill_tool = self._make_skill_tool()
         tool_manager.get_tool_by_name.return_value = skill_tool
         expected_registry = {"foo": _make_skill("foo", content="skill content")}
-        from_message = [
-            SkillReference(content_id="cid-1", scope_id="", name="Skill 1")
-        ]
+        from_message = [SkillReference(content_id="cid-1", scope_id="", name="Skill 1")]
         expected_selectable = [
             SkillReference(name="Skill 1", scope_id="", content_id="cid-1")
         ]
@@ -334,7 +332,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                selectable_skills=message_skills_as_selectable(from_message),
+                selectable_skills=normalize_available_skills_for_tool(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -376,7 +374,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                selectable_skills=message_skills_as_selectable(from_message),
+                selectable_skills=normalize_available_skills_for_tool(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -396,9 +394,7 @@ class TestConfigureSkillTool:
         tool_manager = MagicMock()
         skill_tool = self._make_skill_tool()
         tool_manager.get_tool_by_name.return_value = skill_tool
-        from_message = [
-            SkillReference(content_id="cid-1", scope_id="", name="Skill 1")
-        ]
+        from_message = [SkillReference(content_id="cid-1", scope_id="", name="Skill 1")]
         expected_selectable = [
             SkillReference(name="Skill 1", scope_id="", content_id="cid-1")
         ]
@@ -413,7 +409,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                selectable_skills=message_skills_as_selectable(from_message),
+                selectable_skills=normalize_available_skills_for_tool(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -463,7 +459,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                selectable_skills=message_skills_as_selectable(from_message),
+                selectable_skills=normalize_available_skills_for_tool(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once_with(
@@ -478,9 +474,7 @@ class TestConfigureSkillTool:
     async def test_available_skills_empty_registry_after_load_excludes_tool(
         self, logger: Logger
     ) -> None:
-        from_message = [
-            SkillReference(content_id="cid-1", scope_id="", name="Skill 1")
-        ]
+        from_message = [SkillReference(content_id="cid-1", scope_id="", name="Skill 1")]
         config = self._build_config(is_enabled=True, selectable_skills=[])
         tool_manager = MagicMock()
         content_service = MagicMock()
@@ -494,7 +488,7 @@ class TestConfigureSkillTool:
                 logger=logger,
                 content_service=content_service,
                 tool_manager=tool_manager,
-                selectable_skills=message_skills_as_selectable(from_message),
+                selectable_skills=normalize_available_skills_for_tool(from_message),
             )
 
         mock_load_selectable_skills.assert_awaited_once()
