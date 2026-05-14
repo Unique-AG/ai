@@ -11,14 +11,14 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressRepo
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.language_model.schemas import (
+    REASONING_EFFORT_ORDER,
     LanguageModelFunction,
     LanguageModelToolDescription,
+    ReasoningEffort,
 )
 
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.schemas import (
-    SkillDefinition,
-)
+from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.utils import (
     format_skill_listing,
     normalize_skill_name,
@@ -46,6 +46,7 @@ class SkillTool(Tool[SkillToolConfig]):
     ) -> None:
         super().__init__(config, event, tool_progress_reporter)
         self._skill_registry: dict[str, SkillDefinition] = {}
+        self._activated_skills: list[SkillDefinition] = []
 
     @property
     def skill_registry(self) -> dict[str, SkillDefinition]:
@@ -54,6 +55,23 @@ class SkillTool(Tool[SkillToolConfig]):
     @skill_registry.setter
     def skill_registry(self, value: dict[str, SkillDefinition]) -> None:
         self._skill_registry = value
+
+    @property
+    def activated_skills(self) -> list[SkillDefinition]:
+        """All skills successfully activated in this run, in activation order."""
+        return self._activated_skills
+
+    @property
+    def max_thinking_level(self) -> ReasoningEffort | None:
+        """Highest ``thinking_level`` across all skills activated in this run.
+
+        Returns ``None`` when no activated skill declares a ``thinking_level``.
+        The ordering is ``none < minimal < low < medium < high < xhigh``.
+        """
+        levels = [s.thinking_level for s in self._activated_skills if s.thinking_level is not None]
+        if not levels:
+            return None
+        return max(levels, key=REASONING_EFFORT_ORDER.index)
 
     @override
     def display_name(self) -> str:
@@ -153,6 +171,7 @@ class SkillTool(Tool[SkillToolConfig]):
                 ),
             )
 
+        self._activated_skills.append(skill)
         self._active_message_log = await self._log_skill_loaded(skill_name=skill_name)
 
         content_parts = [

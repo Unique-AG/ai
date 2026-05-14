@@ -6,6 +6,7 @@ from typing import Any, cast, overload
 
 import jinja2
 from typing_extensions import deprecated
+from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -42,6 +43,7 @@ from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
+    REASONING_EFFORT_ORDER,
     LanguageModelMessages,
     LanguageModelStreamResponse,
     ResponsesLanguageModelStreamResponse,
@@ -327,6 +329,33 @@ class UniqueAI:
         finally:
             sub.cancel()
 
+    def _resolve_other_options(self) -> dict:
+        """Build ``other_options`` for the LLM call.
+
+        Merges ``additional_llm_options`` from config with the highest
+        ``thinking_level`` declared across all skills activated in this run.
+        The final ``reasoning_effort`` is the highest value among the config
+        setting (if any) and the skill hint (if any).
+
+        ``reasoning_effort`` is the universal key for both the completions and
+        responses APIs — the toolkit translates it to the correct wire format:
+        - completions: passed as a top-level kwarg
+        - responses: mapped to ``reasoning.effort`` (see ``responses_api.py``)
+        """
+        options: dict = dict(self._config.agent.experimental.additional_llm_options)
+        skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)
+        if isinstance(skill_tool, SkillTool):
+            skill_max = skill_tool.max_thinking_level
+            if skill_max is not None:
+                config_effort = options.get("reasoning_effort")
+                if config_effort is None:
+                    options["reasoning_effort"] = skill_max
+                else:
+                    options["reasoning_effort"] = max(
+                        [config_effort, skill_max], key=REASONING_EFFORT_ORDER.index
+                    )
+        return options
+
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
         self._logger.info("Planning or executing the loop.")
@@ -345,7 +374,7 @@ class UniqueAI:
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
-            other_options=self._config.agent.experimental.additional_llm_options,
+            other_options=self._resolve_other_options(),
         )
 
         # Experimental Feature UN-17905
