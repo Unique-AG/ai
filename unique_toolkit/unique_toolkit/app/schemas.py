@@ -226,10 +226,7 @@ class ChatEventSkillChoice(BaseModel):
 
     model_config = model_config
 
-    name: str = Field(
-        default="",
-        description="Skill name (from the skill file frontmatter when known).",
-    )
+    name: str = Field(default="", description="Skill name.")
     scope_id: str = Field(
         default="",
         description="Knowledge base scope ID that contains the skill file.",
