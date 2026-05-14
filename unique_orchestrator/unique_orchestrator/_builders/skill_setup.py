@@ -47,11 +47,12 @@ from typing import TYPE_CHECKING, Any
 
 import frontmatter
 from pydantic import ValidationError
-from unique_skill_tool.schemas import SkillDefinition, SkillReference
+from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 if TYPE_CHECKING:

@@ -6,9 +6,10 @@ from logging import Logger
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unique_skill_tool.schemas import SkillDefinition, SkillReference
+from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_orchestrator._builders.skill_setup import (
