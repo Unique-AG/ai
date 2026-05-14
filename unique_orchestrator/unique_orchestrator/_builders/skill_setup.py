@@ -129,7 +129,6 @@ def _build_skill(
     content_key: str,
     file_text: str,
     logger: Logger,
-    source_content_id: str,
 ) -> SkillDefinition | None:
     """Build a ``SkillDefinition`` from the raw file text of a KB document.
 
@@ -162,7 +161,6 @@ def _build_skill(
             name=name,
             description=description,
             content=body,
-            source_content_id=source_content_id,
         )
     except ValidationError as exc:
         logger.warning(
@@ -228,7 +226,6 @@ async def load_selectable_skills(
             content_key=label,
             file_text=file_text,
             logger=logger,
-            source_content_id=entry.content_id,
         )
         if skill is None:
             logger.debug(
@@ -344,11 +341,6 @@ async def preload_invoked_skills(
         if choice.name:
             normalized_name = normalize_skill_name(choice.name)
             forced_skill = skill_tool.skill_registry.get(normalized_name)
-        elif choice.content_id:
-            for candidate in skill_tool.skill_registry.values():
-                if candidate.source_content_id == choice.content_id:
-                    forced_skill = candidate
-                    break
         if forced_skill is None:
             continue
         if forced_skill.name in seen_forced:

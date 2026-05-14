@@ -24,14 +24,11 @@ from unique_orchestrator._builders.skill_setup import (
 def _make_skill(
     name: str,
     content: str = "skill body",
-    *,
-    source_content_id: str = "",
 ) -> SkillDefinition:
     return SkillDefinition(
         name=name,
         description="desc",
         content=content,
-        source_content_id=source_content_id,
     )
 
 
@@ -150,7 +147,7 @@ class TestPreloadInvokedSkills:
     ) -> None:
         history_manager = MagicMock()
         skill_tool = _make_skill_tool(
-            [_make_skill("foo", content="FOO BODY", source_content_id="cid-1")]
+            [_make_skill("foo", content="FOO BODY")]
         )
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
@@ -203,14 +200,12 @@ class TestBuildSkill:
             content_key="summarize.md",
             file_text=file_text,
             logger=logger,
-            source_content_id="c1",
         )
 
         assert skill is not None
         assert skill.name == "summarize"
         assert skill.description == "Summarize a document."
         assert skill.content == "# Summarize\nDo the thing."
-        assert skill.source_content_id == "c1"
 
 
 class TestParseFrontmatter:

@@ -25,10 +25,6 @@ class SelectableSkill(BaseModel):
         default="",
         description="Knowledge base scope ID that contains the skill file.",
     )
-    content_id: str = Field(
-        default="",
-        description="Knowledge base content ID of the ``SKILL.md`` file.",
-    )
 
 
 class SkillDefinition(BaseModel):
