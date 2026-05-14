@@ -309,8 +309,6 @@ async def preload_invoked_skills(
 ) -> None:
     """Preload skills selected in ``skill_choices`` before the first model turn.
 
-    Only explicit per-turn ``skill_choices`` are considered.
-
     Mirrors the normal mid-loop activation path so preloaded skills are
     indistinguishable from skills the model activates itself:
 
