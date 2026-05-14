@@ -2,8 +2,7 @@
 
 Loads skill definitions from the knowledge base and registers the
 SkillTool with the tool manager. Which files to load is determined only
-by the chat event's ``available_skills`` (per-message); space
-``selectable_skills`` admin configuration is not used for discovery.
+by the chat event's ``available_skills`` (per-message).
 
 Skill discovery follows the official Agent Skills protocol — see
 https://agentskills.io/home. Each skill is a **folder**
@@ -266,10 +265,9 @@ async def configure_skill_tool(
 ) -> None:
     """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
 
-    Skills are loaded **only** from the per-message ``available_skills``
+    Skills are loaded from the per-message ``available_skills``
     payload (each entry references a ``SKILL.md`` document via
-    ``content_id``). Space ``selectable_skills`` configuration is not used
-    for discovery.
+    ``content_id``).
     """
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
@@ -318,8 +316,7 @@ async def preload_invoked_skills(
 ) -> None:
     """Preload skills selected in ``skill_choices`` before the first model turn.
 
-    Only explicit per-turn ``skill_choices`` are considered; the user
-    message is not scanned for ``/skill-name`` tokens.
+    Only explicit per-turn ``skill_choices`` are considered.
 
     Mirrors the normal mid-loop activation path so preloaded skills are
     indistinguishable from skills the model activates itself:

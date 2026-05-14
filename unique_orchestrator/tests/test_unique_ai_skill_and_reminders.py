@@ -4,7 +4,7 @@ These tests exercise the *new* code paths added to ``UniqueAI`` when the
 Skill tool was introduced:
 
 * ``run()`` preloads skills from per-turn ``skill_choices`` before the
-  first LLM call (user message text is not scanned for ``/skill-name``).
+  first LLM call.
 * ``_compose_message_plan_execution()`` injects per-turn
   ``tool_system_reminder_for_user_prompt`` strings on the latest
   user message.
