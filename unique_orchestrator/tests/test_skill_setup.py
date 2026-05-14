@@ -21,16 +21,8 @@ from unique_orchestrator._builders.skill_setup import (
 )
 
 
-def _make_skill(
-    name: str,
-    content: str = "skill body",
-) -> SkillDefinition:
-    return SkillDefinition(
-        name=name,
-        description="desc",
-        content=content,
-    )
-
+def _make_skill(name: str, content: str = "skill body") -> SkillDefinition:
+    return SkillDefinition(name=name, description="desc", content=content)
 
 class _FakeToolManager:
     def __init__(self, skill_tool: SkillTool | None) -> None:
