@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit.language_model.schemas import ReasoningEffort
 
 SKILL_NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 SKILL_NAME_MAX_LENGTH = 64
@@ -32,4 +33,13 @@ class SkillDefinition(BaseModel):
     )
     content: str = Field(
         description="Full prompt / instructions injected when the skill is invoked.",
+    )
+    thinking_level: ReasoningEffort | None = Field(
+        default=None,
+        description=(
+            "Optional reasoning effort hint declared in the skill's SKILL.md "
+            "frontmatter under ``metadata.thinking_level``. "
+            "The orchestrator uses the highest level across all activated skills "
+            "in a run to set ``reasoning_effort`` on the LLM call."
+        ),
     )

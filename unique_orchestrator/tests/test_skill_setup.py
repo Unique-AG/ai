@@ -40,6 +40,7 @@ def _make_skill_tool(skills: list[SkillDefinition]) -> SkillTool:
     registry = {s.name: s for s in skills}
     tool = SkillTool.__new__(SkillTool)
     tool._skill_registry = registry  # type: ignore[attr-defined]
+    tool._activated_skills = []  # type: ignore[attr-defined]
     tool._message_step_logger = MagicMock()  # type: ignore[attr-defined]
     tool._message_step_logger.create_or_update_message_log_async = AsyncMock(
         return_value=MagicMock()
@@ -178,6 +179,76 @@ class TestBuildSkill:
         assert skill.name == "summarize"
         assert skill.description == "Summarize a document."
         assert skill.content == "# Summarize\nDo the thing."
+
+
+    def test_thinking_level_parsed_from_metadata(self, logger: Logger) -> None:
+        file_text = (
+            "---\n"
+            "name: deep-analysis\n"
+            "description: Deep analysis skill.\n"
+            "metadata:\n"
+            "  thinking_level: high\n"
+            "---\n"
+            "\n"
+            "Analyse deeply.\n"
+        )
+
+        skill = _build_skill(
+            content_id="c2",
+            content_key="deep-analysis.md",
+            file_text=file_text,
+            logger=logger,
+        )
+
+        assert skill is not None
+        assert skill.thinking_level == "high"
+
+    def test_thinking_level_absent_when_metadata_missing(self, logger: Logger) -> None:
+        file_text = (
+            "---\n"
+            "name: simple\n"
+            "description: Simple skill.\n"
+            "---\n"
+            "\n"
+            "Do the simple thing.\n"
+        )
+
+        skill = _build_skill(
+            content_id="c3",
+            content_key="simple.md",
+            file_text=file_text,
+            logger=logger,
+        )
+
+        assert skill is not None
+        assert skill.thinking_level is None
+
+    def test_invalid_thinking_level_is_ignored_with_warning(
+        self, logger: Logger
+    ) -> None:
+        file_text = (
+            "---\n"
+            "name: quirky\n"
+            "description: Quirky skill.\n"
+            "metadata:\n"
+            "  thinking_level: turbo\n"
+            "---\n"
+            "\n"
+            "Do something quirky.\n"
+        )
+
+        skill = _build_skill(
+            content_id="c4",
+            content_key="quirky.md",
+            file_text=file_text,
+            logger=logger,
+        )
+
+        assert skill is not None
+        assert skill.thinking_level is None
+        logger.warning.assert_called()
+        warning_msg = logger.warning.call_args[0][0]
+        assert "thinking_level" in warning_msg
 
 
 class TestParseFrontmatter:

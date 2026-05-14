@@ -53,8 +53,11 @@ from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.app.schemas import SkillReference
-from unique_toolkit.language_model.schemas import LanguageModelFunction
+from unique_toolkit.language_model.schemas import (
+    LanguageModelFunction,
+    ReasoningEffort,
+    to_reasoning_effort,
+)
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -159,11 +162,25 @@ def _build_skill(
         )
         return None
 
+    thinking_level: ReasoningEffort | None = None
+    raw_thinking = (metadata.get("metadata") or {}).get("thinking_level")
+    if raw_thinking is not None:
+        try:
+            thinking_level = to_reasoning_effort(str(raw_thinking))
+        except ValueError:
+            logger.warning(
+                "Skill '%s' (%s): unknown thinking_level %r — ignoring.",
+                content_key,
+                content_id,
+                raw_thinking,
+            )
+
     try:
         return SkillDefinition(
             name=name,
             description=description,
             content=body,
+            thinking_level=thinking_level,
         )
     except ValidationError as exc:
         logger.warning(
