@@ -215,15 +215,7 @@ class Correlation(BaseModel):
     parent_assistant_id: str
 
 
-class ChatEventSkillChoice(BaseModel):
-    """One selected or available skill on a chat event payload.
-
-    Reference to a specific ``SKILL.md`` in the knowledge base. Used on
-    ``ChatEventPayload`` for ``skill_choices`` and ``available_skills``. Each
-    entry resolves via ``content_id``; ``scope_id`` scopes lookup; ``name`` is
-    the skill file's frontmatter name when known.
-    """
-
+class ChatEventSkill(BaseModel):
     model_config = model_config
 
     name: str = Field(default="", description="Skill name.")
@@ -237,7 +229,7 @@ class ChatEventSkillChoice(BaseModel):
     )
 
 
-SkillReference = ChatEventSkillChoice
+SkillReference = ChatEventSkill
 
 
 class ChatEventPayload(BaseModel):
@@ -259,14 +251,14 @@ class ChatEventPayload(BaseModel):
         default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
     )
-    skill_choices: list[ChatEventSkillChoice] = Field(
+    skill_choices: list[ChatEventSkill] = Field(
         default_factory=list,
         description=(
             "A list containing selected skills with ``scope_id``, "
             "``content_id``, and ``name``."
         ),
     )
-    available_skills: list[ChatEventSkillChoice] = Field(
+    available_skills: list[ChatEventSkill] = Field(
         default_factory=list,
         description=(
             "Per-turn skills exposed for this message (``content_id`` + "
