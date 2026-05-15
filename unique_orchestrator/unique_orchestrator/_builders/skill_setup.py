@@ -273,9 +273,10 @@ async def configure_skill_tool(
     if not isinstance(skill_tool_build_config.configuration, SkillToolConfig):
         logger.warning(
             "SkillTool build config has unexpected configuration type '%s' — "
-            "skills will not be loaded.",
+            "skills will not be loaded and the tool will be excluded.",
             type(skill_tool_build_config.configuration).__name__,
         )
+        tool_manager.exclude_tool(SkillTool.name)
         return
 
     skill_tool_build_config.configuration.selectable_skills.selected = to_load
