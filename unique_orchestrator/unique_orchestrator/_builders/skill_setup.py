@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING, Any
 
 import frontmatter
 from pydantic import ValidationError
+from unique_skill_tool.config import SkillToolConfig
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import normalize_skill_name
@@ -268,6 +269,15 @@ async def configure_skill_tool(
         return
 
     to_load = list(selectable_skills or [])
+
+    if not isinstance(skill_tool_build_config.configuration, SkillToolConfig):
+        logger.warning(
+            "SkillTool build config has unexpected configuration type '%s' — "
+            "skills will not be loaded.",
+            type(skill_tool_build_config.configuration).__name__,
+        )
+        return
+
     skill_tool_build_config.configuration.selectable_skills.selected = to_load
 
     if not to_load:
