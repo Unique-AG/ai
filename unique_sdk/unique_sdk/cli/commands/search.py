@@ -72,8 +72,9 @@ def cmd_search(
     folder: str | None = None,
     metadata: list[tuple[str, str]] | None = None,
     limit: int = DEFAULT_LIMIT,
+    content_ids: list[str] | None = None,
 ) -> str:
-    """Execute a combined search with optional folder and metadata filters."""
+    """Execute a combined search with optional folder, metadata, and content-ID filters."""
     try:
         folder_scope_id: str | None = None
         if folder:
@@ -101,6 +102,8 @@ def cmd_search(
             search_params["scopeIds"] = scope_ids
         if metadata_filter:
             search_params["metaDataFilter"] = metadata_filter
+        if content_ids:
+            search_params["contentIds"] = content_ids
 
         results = unique_sdk.Search.create(
             user_id=state.config.user_id,

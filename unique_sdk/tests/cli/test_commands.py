@@ -695,6 +695,15 @@ class TestSearch:
         call_kwargs = mock.call_args[1]
         assert call_kwargs["scopeIds"] == ["scope_explicit"]
 
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_passes_content_ids(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        result = cmd_search(_state(), "", content_ids=["cont_test123"])
+        assert "No results found" in result
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_test123"]
+        assert call_kwargs["searchString"] == ""
+
 
 class TestReadPayload:
     def test_inline_payload(self) -> None:

@@ -348,6 +348,13 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
     show_default=True,
     help="Maximum number of results to return.",
 )
+@click.option(
+    "--content-id",
+    "-i",
+    "content_ids",
+    multiple=True,
+    help="Fetch all indexed chunks for a specific content ID (cont_*). Can be repeated.",
+)
 @click.pass_context
 def search(
     ctx: click.Context,
@@ -355,6 +362,7 @@ def search(
     folder: str | None,
     metadata: tuple[str, ...],
     limit: int,
+    content_ids: tuple[str, ...],
 ) -> None:
     """Search the knowledge base using combined (vector + full-text) search.
 
@@ -364,8 +372,9 @@ def search(
 
     \b
     By default, searches within the current directory scope with up
-    to 200 results. Use --folder to target a different folder, and
-    --metadata to filter by custom metadata fields.
+    to 200 results. Use --folder to target a different folder,
+    --metadata to filter by custom metadata fields, and --content-id
+    to retrieve all indexed text chunks for a specific file.
 
     \b
     Examples:
@@ -373,6 +382,8 @@ def search(
       unique-cli search "earnings" --folder /Reports/Q1 --limit 50
       unique-cli search "compliance" -f scope_abc123
       unique-cli search "audit" -m department=Legal -m year=2025
+      unique-cli search "" --content-id cont_abc123
+      unique-cli search "" -i cont_abc123 -i cont_def456
     """
     state = LazyState.get(ctx)
     parsed_metadata: list[tuple[str, str]] | None = None
@@ -386,7 +397,14 @@ def search(
             parsed_metadata.append((k, v))
 
     click.echo(
-        cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit)
+        cmd_search(
+            state,
+            query,
+            folder=folder,
+            metadata=parsed_metadata,
+            limit=limit,
+            content_ids=list(content_ids) if content_ids else None,
+        )
     )
 
 

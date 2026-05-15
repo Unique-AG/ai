@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `unique-cli search`: `--content-id` / `-i` (repeatable) passes `contentIds` to the Search API so agents can retrieve all indexed text chunks for known file IDs without broad vector search or downloading binaries ([UN-20639](https://unique-ch.atlassian.net/browse/UN-20639)). Interactive shell accepts the same flags; empty query is allowed when at least one `--content-id` is given. Bundled `unique-cli-search` skill updated with usage guidance.
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v0.11.12...unique-sdk-v2026.18.0) (2026-04-23)
 
 

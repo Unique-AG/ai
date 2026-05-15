@@ -58,6 +58,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --folder <path|id>        Restrict to a folder
         --metadata <key=value>    Filter by metadata (repeatable)
         --limit <N>               Max results (default: 200)
+        --content-id <cont_*>     All chunks for a specific file (repeatable)
 
     MCP:
       mcp [options] <json>      Call an MCP server tool
@@ -406,28 +407,33 @@ class UniqueShell(cmd.Cmd):
     def do_search(self, arg: str) -> None:
         """Search the knowledge base using combined search.
 
-        Usage: search <query> [--folder <path|id>] [--metadata key=value ...] [--limit N]
+        Usage: search <query> [--folder <path|id>] [--metadata key=value ...]
+                              [--limit N] [--content-id cont_*]
 
         Performs a combined (vector + full-text) search across the knowledge
         base. By default searches within the current directory scope with a
         limit of 200 results.
 
         Options:
-          --folder <path|id>     Restrict search to a specific folder
-          --metadata <key=value> Filter by metadata field (can be repeated)
-          --limit <N>            Maximum number of results (default: 200)
+          --folder <path|id>        Restrict search to a specific folder
+          --metadata <key=value>    Filter by metadata field (can be repeated)
+          --limit <N>               Maximum number of results (default: 200)
+          --content-id <cont_*>     Fetch all indexed chunks for a file ID
+                                    (can be repeated; query may be empty)
 
         Examples:
           /Reports> search "revenue growth"
           /Reports> search "quarterly earnings" --folder /Reports/Q1 --limit 10
           /> search "AI strategy" --folder scope_abc123
           /> search "compliance" --metadata department=Legal --metadata year=2025
+          /> search "" --content-id cont_abc123
+          /> search "" -i cont_abc123 -i cont_def456
         """
         parts = shlex.split(arg)
         if not parts:
             self._print(
                 "Usage: search <query> [--folder <path|id>] "
-                "[--metadata key=value ...] [--limit N]"
+                "[--metadata key=value ...] [--limit N] [--content-id cont_*]"
             )
             return
 
@@ -435,6 +441,7 @@ class UniqueShell(cmd.Cmd):
         folder: str | None = None
         metadata: list[tuple[str, str]] = []
         limit = 200
+        content_ids: list[str] = []
 
         i = 0
         while i < len(parts):
@@ -457,15 +464,18 @@ class UniqueShell(cmd.Cmd):
                     self._print(f"Invalid limit: {parts[i + 1]}")
                     return
                 i += 2
+            elif parts[i] in ("--content-id", "-i") and i + 1 < len(parts):
+                content_ids.append(parts[i + 1])
+                i += 2
             else:
                 query_parts.append(parts[i])
                 i += 1
 
         query = " ".join(query_parts)
-        if not query:
+        if not query and not content_ids:
             self._print(
                 "Usage: search <query> [--folder <path|id>] "
-                "[--metadata key=value ...] [--limit N]"
+                "[--metadata key=value ...] [--limit N] [--content-id cont_*]"
             )
             return
 
@@ -476,6 +486,7 @@ class UniqueShell(cmd.Cmd):
                 folder=folder,
                 metadata=metadata if metadata else None,
                 limit=limit,
+                content_ids=content_ids if content_ids else None,
             )
         )
 
