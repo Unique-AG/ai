@@ -125,7 +125,7 @@ from unique_toolkit.short_term_memory.functions import (
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
 if TYPE_CHECKING:
-    from unique_toolkit.app.schemas import ChatEvent
+    from unique_toolkit.app.schemas import AssistantWebhookEvent
 
 _LOGGER = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -138,7 +138,7 @@ class ChatService(ChatServiceDeprecated):
     )
     def __init__(
         self,
-        event: "ChatEvent",
+        event: "AssistantWebhookEvent[Any, Any]",
         content_scope_chat_id: str | None = None,
     ) -> None:
         """Initialize ChatService from an event (deprecated). Use :meth:`from_context` instead."""

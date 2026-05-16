@@ -4,12 +4,12 @@ import json
 from enum import StrEnum
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Generic, Optional, TypeVar, override
+from typing import Any, Generic, Optional, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 from pydantic_settings import BaseSettings
-from typing_extensions import deprecated
+from typing_extensions import Self, TypeVar, deprecated
 
 from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit.app.chat_event_filter_options_settings import (
@@ -19,6 +19,11 @@ from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
 FilterOptionsT = TypeVar("FilterOptionsT", bound=BaseSettings)
+
+# Event name typing: wire values are strings; subclasses specialize (e.g. StrEnum).
+# Defaults to plain ``str`` so no ``# pyright: ignore`` on generic definitions — use
+# ``AssistantWebhookEvent[PayloadType, NarrowEventEnum]`` for parameterized envelopes.
+EventNameT = TypeVar("EventNameT", bound=str, default=str)
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -42,16 +47,16 @@ class EventName(StrEnum):
     MAGIC_TABLE_UPDATE_CELL = "unique.magic-table.update-cell"
 
 
-class BaseEvent(BaseModel, Generic[FilterOptionsT]):
+class BaseEvent(BaseModel, Generic[FilterOptionsT, EventNameT]):
     model_config = model_config
 
     id: str
-    event: str
+    event: EventNameT
     user_id: str
     company_id: str
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> BaseEvent[Any]:
+    def from_json_file(cls, file_path: Path) -> Self:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
@@ -229,16 +234,32 @@ class ChatEventSkillChoice(BaseModel):
     )
 
 
-class ChatEventPayload(BaseModel):
+class BaseEventPayload(BaseModel):
+    """Fields shared across chat and magic-table (and related) webhook payloads."""
+
     model_config = model_config
 
     name: str
-    description: str
     configuration: dict[str, Any]
     chat_id: str
     assistant_id: str
     user_message: ChatEventUserMessage
     assistant_message: ChatEventAssistantMessage
+    # Default is None as empty dict triggers error in `backend-ingestion`
+    metadata_filter: dict[str, Any] | None = Field(
+        default=None,
+        description="Metadata filter compiled after module selection function calling and scope rules.",
+    )
+    correlation: Correlation | None = Field(
+        default=None,
+        description="The correlation to parent message in another chat.",
+    )
+
+
+class ChatEventPayload(BaseEventPayload):
+    model_config = model_config
+
+    description: str
     text: str | None = None
     additional_parameters: ChatEventAdditionalParameters | None = None
     user_metadata: dict[str, Any] | None = Field(
@@ -263,11 +284,6 @@ class ChatEventPayload(BaseModel):
         default_factory=dict,
         description="Parameters extracted from module selection function calling the tool.",
     )
-    # Default is None as empty dict triggers error in `backend-ingestion`
-    metadata_filter: dict[str, Any] | None = Field(
-        default=None,
-        description="Metadata filter compiled after module selection function calling and scope rules.",
-    )
     raw_scope_rules: UniqueQL | None = Field(
         default=None,
         description="Raw UniqueQL rule that can be compiled to a metadata filter.",
@@ -283,10 +299,6 @@ class ChatEventPayload(BaseModel):
     session_config: JsonValue | None = Field(
         default=None,
         description="The session configuration for the chat session.",
-    )
-    correlation: Correlation | None = Field(
-        default=None,
-        description="The correlation to parent message in another chat.",
     )
 
     @field_validator("raw_scope_rules", mode="before")
@@ -304,12 +316,29 @@ class EventPayload(ChatEventPayload):
     # additional_parameters: Optional[EventAdditionalParameters] = None
 
 
-class ChatEvent(BaseEvent[UniqueChatEventFilterOptions]):
+PayloadT = TypeVar("PayloadT", bound=BaseEventPayload, default=ChatEventPayload)
+
+
+class AssistantWebhookEvent(
+    BaseEvent[UniqueChatEventFilterOptions, EventNameT],
+    Generic[PayloadT, EventNameT],
+):
+    """Inbound assistant webhook envelope shared by chat and magic-table (and related) flows.
+
+    Chat-specific behavior (env-driven assistant/module filtering, debug overlays) lives
+    on :class:`ChatEvent`. Subclasses that don't opt in inherit :class:`BaseEvent`'s
+    no-op :meth:`filter` / :meth:`filter_event` defaults.
+    """
+
     model_config = model_config
 
-    payload: ChatEventPayload
+    payload: PayloadT
     created_at: Optional[int] = None
     version: Optional[str] = None
+
+
+class ChatEvent(AssistantWebhookEvent[ChatEventPayload, str]):
+    """Inbound chat webhook (`ChatEventPayload` + plain string ``event`` field)."""
 
     class FilterOptions(BaseSettings):
         assistant_ids: list[str] = Field(
@@ -322,25 +351,6 @@ class ChatEvent(BaseEvent[UniqueChatEventFilterOptions]):
         )
 
         model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
-
-    @classmethod
-    def from_json_file(cls, file_path: Path) -> ChatEvent:
-        if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
-        with file_path.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-        return cls.model_validate(data)
-
-    def get_initial_debug_info(self) -> dict[str, Any]:
-        """Get the debug information for the chat event"""
-
-        # TODO: Make sure this coincides with what is shown in the first user message
-        return {
-            "user_metadata": self.payload.user_metadata,
-            "tool_parameters": self.payload.tool_parameters,
-            "chosen_module": self.payload.name,
-            "assistant": {"id": self.payload.assistant_id},
-        }
 
     @override
     def filter(self) -> bool:
@@ -395,6 +405,30 @@ class ChatEvent(BaseEvent[UniqueChatEventFilterOptions]):
             return True
 
         return super().filter_event(filter_options=filter_options)
+
+    def get_initial_debug_info(self) -> dict[str, Any]:
+        """Return a small dict for tooling / first-message debug overlays.
+
+        Chat pipelines only — not part of other :class:`AssistantWebhookEvent`
+        specializations (e.g. magic-table).
+        """
+        payload = self.payload
+        user_metadata = payload.user_metadata
+        # TODO: Make sure this coincides with what is shown in the first user message
+        return {
+            "user_metadata": {} if user_metadata is None else user_metadata,
+            "tool_parameters": payload.tool_parameters,
+            "chosen_module": payload.name,
+            "assistant": {"id": payload.assistant_id},
+        }
+
+    @classmethod
+    def from_json_file(cls, file_path: Path) -> ChatEvent:
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+        with file_path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls.model_validate(data)
 
 
 @deprecated(

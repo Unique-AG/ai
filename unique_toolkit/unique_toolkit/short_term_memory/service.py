@@ -4,7 +4,7 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app import Event
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent
 from unique_toolkit.short_term_memory.functions import (
     create_memory,
     create_memory_async,
@@ -24,7 +24,9 @@ class ShortTermMemoryService:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
+    def __init__(
+        self, event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any]
+    ): ...
 
     """
         Initialize the ShortTermMemoryService with an event (deprecated)
@@ -46,7 +48,7 @@ class ShortTermMemoryService:
 
     def __init__(
         self,
-        event: Event | ChatEvent | BaseEvent[Any] | None = None,
+        event: Event | AssistantWebhookEvent[Any, Any] | BaseEvent[Any] | None = None,
         user_id: str | None = None,
         company_id: str | None = None,
         chat_id: str | None = None,
@@ -56,7 +58,7 @@ class ShortTermMemoryService:
         if event:
             self._company_id: str = event.company_id
             self._user_id: str = event.user_id
-            if isinstance(event, (ChatEvent, Event)):
+            if isinstance(event, AssistantWebhookEvent):
                 self._chat_id = event.payload.chat_id
                 self._message_id = event.payload.user_message.id
         else:
@@ -71,7 +73,7 @@ class ShortTermMemoryService:
             self._message_id = message_id
 
     @classmethod
-    def from_event(cls, event: ChatEvent):
+    def from_event(cls, event: AssistantWebhookEvent[Any, Any]):
         """
         Initialize the ShortTermMemoryService with a chat event.
         """

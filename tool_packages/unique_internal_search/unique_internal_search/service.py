@@ -1,6 +1,6 @@
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable
 
 from pydantic import Field, create_model
 from typing_extensions import override
@@ -21,7 +21,7 @@ from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.schemas import AssistantWebhookEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import Content, ContentChunk
 from unique_toolkit.content.service import ContentService
@@ -355,7 +355,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     def __init__(
         self,
         configuration: InternalSearchConfig,
-        event: BaseEvent,
+        event: AssistantWebhookEvent[Any, Any],
         *args,
         **kwargs,
     ):
@@ -364,7 +364,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
         selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self.event)
-        if isinstance(self.event, (ChatEvent, Event)):
+        if isinstance(self.event, AssistantWebhookEvent):
             if self.event.payload.correlation:
                 chat_id = self.event.payload.correlation.parent_chat_id
             else:

@@ -8,7 +8,13 @@ from .performance.async_tasks import (
 )
 from .performance.async_wrapper import to_async as to_async
 from .schemas import (
+    AssistantWebhookEvent as AssistantWebhookEvent,
+)
+from .schemas import (
     BaseEvent as BaseEvent,
+)
+from .schemas import (
+    BaseEventPayload as BaseEventPayload,
 )
 from .schemas import (
     ChatEvent as ChatEvent,

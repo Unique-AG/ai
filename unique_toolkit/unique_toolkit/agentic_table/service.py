@@ -52,7 +52,7 @@ class AgenticTableService:
     Provides methods to interact with the Agentic Table.
 
     Attributes:
-        #event (ChatEvent): The ChatEvent object.
+        # event (AssistantWebhookEvent): inbound webhook event (chat or magic-table payload).
         logger (Optional[logging.Logger]): The logger object. Defaults to None.
     """
 

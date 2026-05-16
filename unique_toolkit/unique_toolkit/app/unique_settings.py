@@ -25,7 +25,7 @@ from unique_toolkit.app.feature_flags import UNIQUE_TOOLKIT_FEATURE_FLAGS
 from unique_toolkit.app.find_env_file import EnvFileNotFoundError, find_env_file
 
 if TYPE_CHECKING:
-    from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+    from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent
 
 
 logger = getLogger(__name__)
@@ -237,7 +237,7 @@ class ChatContext(BaseModel):
         self._parent_chat_id = value
 
     @classmethod
-    def from_chat_event(cls, event: ChatEvent) -> Self:
+    def from_chat_event(cls, event: AssistantWebhookEvent[Any, Any]) -> Self:
         return cls(
             chat_id=event.payload.chat_id,
             assistant_id=event.payload.assistant_id,
@@ -453,8 +453,8 @@ class UniqueContext:
         return self._chat
 
     @classmethod
-    def from_chat_event(cls, event: ChatEvent) -> UniqueContext:
-        """Build a full (auth + chat) context from a ChatEvent."""
+    def from_chat_event(cls, event: AssistantWebhookEvent[Any, Any]) -> UniqueContext:
+        """Build a full (auth + chat) context from an AssistantWebhookEvent."""
 
         return cls(
             auth=AuthContext.from_event(event),
@@ -582,15 +582,15 @@ class UniqueSettings:
         return settings
 
     @classmethod
-    def from_chat_event(cls, event: ChatEvent) -> UniqueSettings:
-        """Build a :class:`UniqueSettings` from a :class:`ChatEvent`.
+    def from_chat_event(cls, event: AssistantWebhookEvent[Any, Any]) -> UniqueSettings:
+        """Build :class:`UniqueSettings` from an :class:`AssistantWebhookEvent`.
 
         Auth and chat context are extracted from the event.  App and API
         settings are left at their default values; override them via the
         returned instance's properties if needed.
 
         Args:
-            event: The incoming chat event.
+            event: The incoming webhook event (chat or magic-table, etc.).
 
         Returns:
             UniqueSettings with auth + chat context populated from the event.

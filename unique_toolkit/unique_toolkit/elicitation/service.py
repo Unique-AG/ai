@@ -1,7 +1,7 @@
 from typing import Any
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import ChatEvent, Correlation
+from unique_toolkit.app.schemas import AssistantWebhookEvent, Correlation
 from unique_toolkit.elicitation.functions import (
     create_elicitation,
     create_elicitation_async,
@@ -51,7 +51,7 @@ class ElicitationService:
         self._message_id = message_id
 
     @classmethod
-    def from_chat_event(cls, event: ChatEvent):
+    def from_chat_event(cls, event: AssistantWebhookEvent[Any, Any]):
         """
         Create an ElicitationService from an event.
         """

@@ -38,7 +38,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricResult,
 )
 from unique_toolkit.app.performance.async_tasks import run_async_tasks_parallel
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.app.schemas import BaseEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
@@ -54,7 +54,7 @@ class ChunkRelevancySorter:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: ChatEvent | BaseEvent[Any]):
+    def __init__(self, event: BaseEvent[Any]):
         """
         Initialize the ChunkRelevancySorter with an event (deprecated)
         """
@@ -67,11 +67,11 @@ class ChunkRelevancySorter:
 
     def __init__(
         self,
-        event: ChatEvent | BaseEvent[Any] | None = None,
+        event: BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
     ):
-        if isinstance(event, (ChatEvent, BaseEvent)):
+        if event is not None:
             self.chunk_relevancy_evaluator = ContextRelevancyEvaluator.from_event(event)
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
@@ -82,7 +82,7 @@ class ChunkRelevancySorter:
         self.logger = logging.getLogger(f"{module_name}.{__name__}")
 
     @classmethod
-    def from_event(cls, event: ChatEvent | BaseEvent[Any]):
+    def from_event(cls, event: BaseEvent[Any]):
         return cls(company_id=event.company_id, user_id=event.user_id)
 
     @classmethod

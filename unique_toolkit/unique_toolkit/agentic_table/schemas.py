@@ -22,10 +22,10 @@ from unique_sdk.api_resources._agentic_table import (
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.app.schemas import (
-    ChatEvent,
+    AssistantWebhookEvent,
+    BaseEventPayload,
     ChatEventAssistantMessage,
     ChatEventUserMessage,
-    Correlation,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
@@ -112,27 +112,22 @@ A = TypeVar("A", bound=MagicTableAction)
 T = TypeVar("T", bound=BaseMetadata)
 
 
-class MagicTableBasePayload(BaseModel, Generic[A, T]):
-    model_config = get_configuration_dict()
-    name: str = Field(description="The name of the module")
+class MagicTableBasePayload(BaseEventPayload, Generic[A, T]):
+    configuration: dict[str, Any] = Field(default_factory=dict)
     sheet_name: str
 
     action: A
-    chat_id: str
-    assistant_id: str
     table_id: str
     user_message: ChatEventUserMessage = Field(
-        default=ChatEventUserMessage(
+        default_factory=lambda: ChatEventUserMessage(
             id="", text="", original_text="", created_at="", language=""
-        )
+        ),
     )
     assistant_message: ChatEventAssistantMessage = Field(
-        default=ChatEventAssistantMessage(id="", created_at="")
+        default_factory=lambda: ChatEventAssistantMessage(id="", created_at=""),
     )
-    configuration: dict[str, Any] = {}
+
     metadata: T
-    metadata_filter: dict[str, Any] | None = None
-    correlation: Correlation | None = None
 
 
 ########### Specialized Payload definitions ###########
@@ -256,10 +251,8 @@ PayloadTypes = (
 MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]
 
 
-class MagicTableEvent(ChatEvent):
-    # TODO(UN-19532): investigate making ChatEvent generic to avoid these overrides
-    event: MagicTableEventTypes  # pyright: ignore[reportIncompatibleVariableOverride]
-    payload: MagicTablePayloadTypes  # pyright: ignore[reportIncompatibleVariableOverride]
+class MagicTableEvent(AssistantWebhookEvent[MagicTablePayloadTypes, MagicTableEventTypes]):
+    """Magic-table webhooks: payload union + event names as :class:`MagicTableEventTypes`."""
 
 
 class LogDetail(BaseModel):

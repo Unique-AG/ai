@@ -1,14 +1,17 @@
 import logging
 import re
+from typing import Any
 
 from pydantic import BaseModel
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import AssistantWebhookEvent
 from unique_toolkit.content.schemas import ContentChunk
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def extract_selected_uploaded_file_ids(event: ChatEvent) -> list[str]:
+def extract_selected_uploaded_file_ids(
+    event: AssistantWebhookEvent[Any, Any],
+) -> list[str]:
     """Extract selected uploaded file IDs from the event's additional parameters."""
     if (
         hasattr(event.payload, "additional_parameters")
