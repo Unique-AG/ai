@@ -47,7 +47,7 @@ UniqueQLDict = Annotated[
     # "additionalProperties" node.  The actual stored value is always
     # dict[str, Any] | None — enforced by _parse_and_validate_uniqueql —
     # and the JSON schema is fully overridden by WithJsonSchema below.
-    dict | None,
+    dict | None,  # type: ignore[type-arg]
     BeforeValidator(_parse_and_validate_uniqueql),
     WithJsonSchema(
         {
@@ -113,7 +113,7 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
     )
 
     @field_serializer("metadata_filter")
-    def _serialize_metadata_filter(self, value: dict | None) -> str | None:
+    def _serialize_metadata_filter(self, value: dict[str, Any] | None) -> str | None:
         """Serialize back to a JSON string so the output matches the JSON schema (string | null)."""
         if value is None:
             return None
