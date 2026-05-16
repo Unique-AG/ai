@@ -82,7 +82,10 @@ from unique_orchestrator._builders.open_file_setup import (
     configure_file_payload,
     handle_uploaded_file_tool_choices,
 )
-from unique_orchestrator._builders.skill_setup import configure_skill_tool
+from unique_orchestrator._builders.skill_setup import (
+    configure_skill_tool,
+    normalize_available_skills_for_tool,
+)
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
@@ -450,6 +453,9 @@ async def _build_responses(
         logger=logger,
         content_service=common_components.content_service,
         tool_manager=tool_manager,
+        selectable_skills=normalize_available_skills_for_tool(
+            event.payload.available_skills
+        ),
     )
 
     loop_iteration_runner = build_responses_loop_iteration_runner(
@@ -528,6 +534,9 @@ async def _build_completions(
         logger=logger,
         content_service=common_components.content_service,
         tool_manager=tool_manager,
+        selectable_skills=normalize_available_skills_for_tool(
+            event.payload.available_skills
+        ),
     )
 
     postprocessor_manager = common_components.postprocessor_manager

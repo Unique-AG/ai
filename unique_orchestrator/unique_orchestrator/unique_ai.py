@@ -214,7 +214,6 @@ class UniqueAI:
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
-            text=self._event.payload.user_message.text,
             tool_manager=self._tool_manager,
             history_manager=self._history_manager,
             logger=self._logger,
