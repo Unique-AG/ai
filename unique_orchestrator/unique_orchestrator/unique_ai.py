@@ -347,7 +347,9 @@ class UniqueAI:
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
-            other_options=resolve_other_options(self._config, self._tool_manager, self._logger),
+            other_options=resolve_other_options(
+                self._config, self._tool_manager, self._logger
+            ),
         )
 
         # Experimental Feature UN-17905
