@@ -334,26 +334,53 @@ class UniqueAI:
 
         Merges ``additional_llm_options`` from config with the highest
         ``thinking_level`` declared across all skills activated in this run.
-        The final ``reasoning_effort`` is the highest value among the config
-        setting (if any) and the skill hint (if any).
+        The final effort level is the highest value among the config setting
+        (if any) and the skill hint (if any).
 
-        ``reasoning_effort`` is the universal key for both the completions and
-        responses APIs — the toolkit translates it to the correct wire format:
-        - completions: passed as a top-level kwarg
-        - responses: mapped to ``reasoning.effort`` (see ``responses_api.py``)
+        Determines the active API first, then reads the effort from the
+        matching format and writes the resolved value back in that same format:
+        - completions API: ``reasoning_effort: "high"``
+        - responses API: ``reasoning: {"effort": "high"}``
         """
         options: dict = dict(self._config.agent.experimental.additional_llm_options)
+
+        use_responses_api: bool = (
+            self._config.agent.experimental.responses_api_config.use_responses_api
+            or self._config.agent.experimental.use_responses_api
+        )
+
+        if use_responses_api:
+            reasoning_dict = options.get("reasoning")
+            config_effort: str | None = (
+                reasoning_dict.get("effort") if isinstance(reasoning_dict, dict) else None
+            )
+        else:
+            config_effort = options.get("reasoning_effort")
+
         skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)
+        resolved_effort: str | None = config_effort
         if isinstance(skill_tool, SkillTool):
             skill_max = skill_tool.max_thinking_level
             if skill_max is not None:
-                config_effort = options.get("reasoning_effort")
                 if config_effort is None:
-                    options["reasoning_effort"] = skill_max
+                    resolved_effort = skill_max
                 else:
-                    options["reasoning_effort"] = max(
+                    resolved_effort = max(
                         [config_effort, skill_max], key=REASONING_EFFORT_ORDER.index
                     )
+
+        if resolved_effort is not None:
+            if use_responses_api:
+                existing_reasoning: dict = (
+                    dict(options["reasoning"])
+                    if isinstance(options.get("reasoning"), dict)
+                    else {}
+                )
+                existing_reasoning["effort"] = resolved_effort
+                options["reasoning"] = existing_reasoning
+            else:
+                options["reasoning_effort"] = resolved_effort
+
         return options
 
     # @track()
