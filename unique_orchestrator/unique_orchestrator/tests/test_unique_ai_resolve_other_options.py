@@ -10,8 +10,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 
 
@@ -36,6 +34,7 @@ def _make_unique_ai(
 
     instance._config = config  # type: ignore[attr-defined]
     instance._tool_manager = tool_manager  # type: ignore[attr-defined]
+    instance._logger = MagicMock()  # type: ignore[attr-defined]
     return instance
 
 
@@ -170,6 +169,35 @@ class TestResolveOtherOptions:
         result = ai._resolve_other_options()  # type: ignore[attr-defined]
         assert result["reasoning_effort"] == "high"
         assert result.get("reasoning") == {"effort": "low"}  # passed through untouched
+
+    # ── Invalid config effort ─────────────────────────────────────────────────
+
+    def test_unrecognised_config_effort_falls_back_to_skill_max(self) -> None:
+        """An unrecognised effort string must not crash; skill max is used instead."""
+        skill_tool = _make_skill_tool_with_max("high")
+        ai = _make_unique_ai({"reasoning_effort": "very_high"}, skill_tool=skill_tool)
+        result = ai._resolve_other_options()  # type: ignore[attr-defined]
+        assert result["reasoning_effort"] == "high"
+
+    def test_unrecognised_config_effort_passes_through_when_no_skill_max(self) -> None:
+        """When no skill thinking_level is active the invalid value passes through unchanged."""
+        skill_tool = _make_skill_tool_with_max(None)
+        ai = _make_unique_ai({"reasoning_effort": "very_high"}, skill_tool=skill_tool)
+        result = ai._resolve_other_options()  # type: ignore[attr-defined]
+        assert result["reasoning_effort"] == "very_high"
+
+    def test_unrecognised_nested_effort_falls_back_to_skill_max_responses_api(
+        self,
+    ) -> None:
+        """Same guard for the responses-API nested path."""
+        skill_tool = _make_skill_tool_with_max("medium")
+        ai = _make_unique_ai(
+            {"reasoning": {"effort": "very_high"}},
+            skill_tool=skill_tool,
+            use_responses_api=True,
+        )
+        result = ai._resolve_other_options()  # type: ignore[attr-defined]
+        assert result["reasoning"] == {"effort": "medium"}
 
     # ── No effort resolved ────────────────────────────────────────────────────
 

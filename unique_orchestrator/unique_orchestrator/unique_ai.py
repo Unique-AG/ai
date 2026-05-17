@@ -47,6 +47,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
     ResponsesLanguageModelStreamResponse,
+    to_reasoning_effort,
 )
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
@@ -352,7 +353,9 @@ class UniqueAI:
         if use_responses_api:
             reasoning_dict = options.get("reasoning")
             config_effort: str | None = (
-                reasoning_dict.get("effort") if isinstance(reasoning_dict, dict) else None
+                reasoning_dict.get("effort")
+                if isinstance(reasoning_dict, dict)
+                else None
             )
         else:
             config_effort = options.get("reasoning_effort")
@@ -362,11 +365,25 @@ class UniqueAI:
         if isinstance(skill_tool, SkillTool):
             skill_max = skill_tool.max_thinking_level
             if skill_max is not None:
-                if config_effort is None:
+                valid_config_effort: str | None = None
+                if config_effort is not None:
+                    try:
+                        valid_config_effort = to_reasoning_effort(config_effort)
+                    except ValueError:
+                        self._logger.warning(
+                            "additional_llm_options contains an unrecognised "
+                            "reasoning_effort value %r — cannot compare it with "
+                            "the skill's thinking_level; using skill minimum %r instead.",
+                            config_effort,
+                            skill_max,
+                        )
+
+                if valid_config_effort is None:
                     resolved_effort = skill_max
                 else:
                     resolved_effort = max(
-                        [config_effort, skill_max], key=REASONING_EFFORT_ORDER.index
+                        [valid_config_effort, skill_max],
+                        key=REASONING_EFFORT_ORDER.index,
                     )
 
         if resolved_effort is not None:
