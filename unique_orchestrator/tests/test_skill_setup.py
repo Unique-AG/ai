@@ -148,6 +148,13 @@ class TestPreloadInvokedSkills:
 
     @pytest.mark.asyncio
     async def test_duplicate_skill_choices_preload_once(self, logger: Logger) -> None:
+        """Three choices that all resolve to the same skill are deduplicated to one call.
+
+        Deduplication is keyed on the resolved skill name (seen_forced).  All
+        three choices carry the same content_id so they each resolve to the same
+        SkillDefinition, exercising the seen_forced guard on the second and third
+        entries.
+        """
         history_manager = MagicMock()
         skill_tool = _make_skill_tool(
             [_make_skill("foo", content="FOO BODY", content_id="cid-1")]
@@ -159,15 +166,9 @@ class TestPreloadInvokedSkills:
             history_manager=history_manager,
             logger=logger,
             skill_choices=[
-                SkillReference(
-                    name="foo", content_id="cid-1"
-                ),  # resolves by content_id
-                SkillReference(
-                    name="/foo", content_id="cid-2"
-                ),  # different cid, falls back to name → duplicate
-                SkillReference(
-                    name="foo", content_id="cid-3"
-                ),  # different cid, falls back to name → duplicate
+                SkillReference(name="foo", content_id="cid-1"),  # first: resolves & added
+                SkillReference(name="foo", content_id="cid-1"),  # duplicate: seen_forced skips
+                SkillReference(name="foo", content_id="cid-1"),  # duplicate: seen_forced skips
             ],
         )
 
