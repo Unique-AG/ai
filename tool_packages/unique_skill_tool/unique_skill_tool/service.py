@@ -69,9 +69,9 @@ class SkillTool(Tool[SkillToolConfig]):
         The ordering is ``none < minimal < low < medium < high < xhigh``.
         """
         levels = [
-            s.thinking_level
+            s.metadata.thinking_level
             for s in self._activated_skills
-            if s.thinking_level is not None
+            if s.metadata is not None and s.metadata.thinking_level is not None
         ]
         if not levels:
             return None

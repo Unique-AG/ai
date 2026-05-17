@@ -48,14 +48,13 @@ from typing import TYPE_CHECKING, Any
 import frontmatter
 from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.schemas import SkillDefinition, SkillMetadata
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
-    ReasoningEffort,
     to_reasoning_effort,
 )
 
@@ -162,7 +161,7 @@ def _build_skill(
         )
         return None
 
-    thinking_level: ReasoningEffort | None = None
+    skill_meta: SkillMetadata | None = None
     raw_meta = metadata.get("metadata")
     if raw_meta is not None and not isinstance(raw_meta, dict):
         logger.warning(
@@ -172,17 +171,20 @@ def _build_skill(
             type(raw_meta).__name__,
         )
         raw_meta = None
-    raw_thinking = raw_meta.get("thinking_level") if raw_meta is not None else None
-    if raw_thinking is not None:
-        try:
-            thinking_level = to_reasoning_effort(str(raw_thinking))
-        except ValueError:
-            logger.warning(
-                "Skill '%s' (%s): unknown thinking_level %r — ignoring.",
-                content_key,
-                content_id,
-                raw_thinking,
-            )
+    if raw_meta is not None:
+        raw_thinking = raw_meta.get("thinking_level")
+        thinking_level = None
+        if raw_thinking is not None:
+            try:
+                thinking_level = to_reasoning_effort(str(raw_thinking))
+            except ValueError:
+                logger.warning(
+                    "Skill '%s' (%s): unknown thinking_level %r — ignoring.",
+                    content_key,
+                    content_id,
+                    raw_thinking,
+                )
+        skill_meta = SkillMetadata(thinking_level=thinking_level)
 
     try:
         return SkillDefinition(
@@ -190,7 +192,7 @@ def _build_skill(
             description=description,
             content=body,
             content_id=content_id,
-            thinking_level=thinking_level,
+            metadata=skill_meta,
         )
     except ValidationError as exc:
         logger.warning(
