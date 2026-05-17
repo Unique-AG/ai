@@ -180,7 +180,6 @@ class TestBuildSkill:
         assert skill.description == "Summarize a document."
         assert skill.content == "# Summarize\nDo the thing."
 
-
     def test_thinking_level_parsed_from_metadata(self, logger: Logger) -> None:
         file_text = (
             "---\n"
