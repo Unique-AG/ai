@@ -155,6 +155,30 @@ class TestResolveOtherOptions:
         result = ai._resolve_other_options()  # type: ignore[attr-defined]
         assert result["reasoning"] == {"effort": "high", "summary": "auto"}
 
+    def test_json_string_reasoning_is_parsed_for_responses_api(self) -> None:
+        """``reasoning`` stored as a JSON string must be parsed before use."""
+        skill_tool = _make_skill_tool_with_max("high")
+        ai = _make_unique_ai(
+            {"reasoning": '{"effort": "low"}'},
+            skill_tool=skill_tool,
+            use_responses_api=True,
+        )
+        result = ai._resolve_other_options()  # type: ignore[attr-defined]
+        assert result["reasoning"] == {"effort": "high"}
+
+    def test_invalid_json_string_reasoning_treated_as_empty_for_responses_api(
+        self,
+    ) -> None:
+        """An unparseable string must not crash; skill max is used as effort."""
+        skill_tool = _make_skill_tool_with_max("medium")
+        ai = _make_unique_ai(
+            {"reasoning": "not-json"},
+            skill_tool=skill_tool,
+            use_responses_api=True,
+        )
+        result = ai._resolve_other_options()  # type: ignore[attr-defined]
+        assert result["reasoning"] == {"effort": "medium"}
+
     # ── Completions API ───────────────────────────────────────────────────────
 
     def test_nested_reasoning_effort_ignored_when_completions_api_active(self) -> None:

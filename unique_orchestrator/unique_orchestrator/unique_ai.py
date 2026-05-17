@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from datetime import datetime
 from logging import Logger
@@ -351,12 +352,17 @@ class UniqueAI:
         )
 
         if use_responses_api:
-            reasoning_dict = options.get("reasoning")
-            config_effort: str | None = (
-                reasoning_dict.get("effort")
-                if isinstance(reasoning_dict, dict)
-                else None
-            )
+            reasoning_raw = options.get("reasoning")
+            if isinstance(reasoning_raw, str):
+                try:
+                    reasoning_dict: dict = json.loads(reasoning_raw)
+                except (json.JSONDecodeError, ValueError):
+                    reasoning_dict = {}
+            elif isinstance(reasoning_raw, dict):
+                reasoning_dict = reasoning_raw
+            else:
+                reasoning_dict = {}
+            config_effort: str | None = reasoning_dict.get("effort")
         else:
             config_effort = options.get("reasoning_effort")
 
