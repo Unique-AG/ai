@@ -166,9 +166,15 @@ class TestPreloadInvokedSkills:
             history_manager=history_manager,
             logger=logger,
             skill_choices=[
-                SkillReference(name="foo", content_id="cid-1"),  # first: resolves & added
-                SkillReference(name="foo", content_id="cid-1"),  # duplicate: seen_forced skips
-                SkillReference(name="foo", content_id="cid-1"),  # duplicate: seen_forced skips
+                SkillReference(
+                    name="foo", content_id="cid-1"
+                ),  # first: resolves & added
+                SkillReference(
+                    name="foo", content_id="cid-1"
+                ),  # duplicate: seen_forced skips
+                SkillReference(
+                    name="foo", content_id="cid-1"
+                ),  # duplicate: seen_forced skips
             ],
         )
 
