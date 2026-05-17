@@ -273,7 +273,6 @@ class TestPreloadInvokedSkills:
         assert skill.content == "# Summarize\nDo the thing."
         assert skill.content_id == "c1"
 
-
     def test_thinking_level_parsed_from_metadata(self, logger: Logger) -> None:
         file_text = (
             "---\n"
