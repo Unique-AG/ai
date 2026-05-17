@@ -50,7 +50,6 @@ from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
-from unique_skill_tool.utils import normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
@@ -140,8 +139,8 @@ def _build_skill(
     is rejected by ``SkillDefinition`` rather than silently flowing into
     the OpenAI tool enum where the model could never emit it verbatim.
 
-    ``content_id`` and ``content_key`` are used only for log messages so
-    operators can locate the offending file in the knowledge base.
+    ``content_id`` is stored on the returned definition so it can be used
+    as a lookup key to load the SKILL.md.
     """
     if not file_text.strip():
         return None
@@ -164,6 +163,7 @@ def _build_skill(
             name=name,
             description=description,
             content=body,
+            content_id=content_id,
         )
     except ValidationError as exc:
         logger.warning(
@@ -325,7 +325,8 @@ async def preload_invoked_skills(
     indistinguishable from skills the model activates itself:
 
     1. Resolves each ``skill_choices`` entry against the registered
-       ``SkillTool`` registry (by normalized name or ``content_id``).
+       ``SkillTool`` registry by ``content_id``. Entries without a
+       ``content_id`` are skipped — every skill choice must carry one.
     2. For each matched skill, synthesizes a ``LanguageModelFunction``
        and runs it through the already-registered ``SkillTool`` — the
        exact same code path ``UniqueAI._handle_tool_calls`` uses.
@@ -340,13 +341,17 @@ async def preload_invoked_skills(
     if not isinstance(skill_tool, SkillTool):
         return
 
+    # content_id → skill.
+    content_id_index: dict[str, SkillDefinition] = {
+        s.content_id: s for s in skill_tool.skill_registry.values() if s.content_id
+    }
+
     forced_skills: list[SkillDefinition] = []
     seen_forced: set[str] = set()
     for choice in skill_choices:
         forced_skill: SkillDefinition | None = None
-        if choice.name:
-            normalized_name = normalize_skill_name(choice.name)
-            forced_skill = skill_tool.skill_registry.get(normalized_name)
+        if choice.content_id:
+            forced_skill = content_id_index.get(choice.content_id)
         if forced_skill is None:
             continue
         if forced_skill.name in seen_forced:
