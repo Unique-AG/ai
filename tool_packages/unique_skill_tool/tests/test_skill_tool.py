@@ -520,12 +520,8 @@ class TestMaxThinkingLevel:
         hint_skill = SkillDefinition(
             name="hint-skill", description="d", content="c", thinking_level="medium"
         )
-        plain_skill = SkillDefinition(
-            name="plain-skill", description="d", content="c"
-        )
-        tool = _make_tool(
-            skill_registry=_make_skill_registry(hint_skill, plain_skill)
-        )
+        plain_skill = SkillDefinition(name="plain-skill", description="d", content="c")
+        tool = _make_tool(skill_registry=_make_skill_registry(hint_skill, plain_skill))
 
         await tool.run(_make_tool_call("hint-skill"))
         await tool.run(_make_tool_call("plain-skill"))

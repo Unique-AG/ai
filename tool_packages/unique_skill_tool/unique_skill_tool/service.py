@@ -68,7 +68,11 @@ class SkillTool(Tool[SkillToolConfig]):
         Returns ``None`` when no activated skill declares a ``thinking_level``.
         The ordering is ``none < minimal < low < medium < high < xhigh``.
         """
-        levels = [s.thinking_level for s in self._activated_skills if s.thinking_level is not None]
+        levels = [
+            s.thinking_level
+            for s in self._activated_skills
+            if s.thinking_level is not None
+        ]
         if not levels:
             return None
         return max(levels, key=REASONING_EFFORT_ORDER.index)
