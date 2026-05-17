@@ -33,3 +33,6 @@ class SkillDefinition(BaseModel):
     content: str = Field(
         description="Full prompt / instructions injected when the skill is invoked.",
     )
+    content_id: str = Field(
+        description="Knowledge-base content ID this skill was loaded from.",
+    )
