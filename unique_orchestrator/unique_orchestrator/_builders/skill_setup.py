@@ -65,6 +65,7 @@ if TYPE_CHECKING:
         ResponsesApiToolManager,
         ToolManager,
     )
+    from unique_toolkit.app.schemas import SkillReference
     from unique_toolkit.content.service import ContentService
 
     from unique_orchestrator.config import UniqueAIConfig
