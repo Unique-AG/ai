@@ -200,7 +200,8 @@ class TestBuildSkill:
         )
 
         assert skill is not None
-        assert skill.thinking_level == "high"
+        assert skill.metadata is not None
+        assert skill.metadata.thinking_level == "high"
 
     def test_thinking_level_absent_when_metadata_missing(self, logger: Logger) -> None:
         file_text = (
@@ -220,7 +221,7 @@ class TestBuildSkill:
         )
 
         assert skill is not None
-        assert skill.thinking_level is None
+        assert skill.metadata is None
 
     def test_invalid_thinking_level_is_ignored_with_warning(
         self, logger: Logger
@@ -244,7 +245,7 @@ class TestBuildSkill:
         )
 
         assert skill is not None
-        assert skill.thinking_level is None
+        assert not (skill.metadata and skill.metadata.thinking_level)
         logger.warning.assert_called()
         warning_msg = logger.warning.call_args[0][0]
         assert "thinking_level" in warning_msg

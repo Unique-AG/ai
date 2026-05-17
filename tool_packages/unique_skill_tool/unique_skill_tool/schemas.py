@@ -8,6 +8,21 @@ SKILL_NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 SKILL_NAME_MAX_LENGTH = 64
 
 
+class SkillMetadata(BaseModel):
+    """Typed representation of a skill's SKILL.md ``metadata`` frontmatter block."""
+
+    model_config = get_configuration_dict()
+
+    thinking_level: ReasoningEffort | None = Field(
+        default=None,
+        description=(
+            "Optional reasoning effort hint. The orchestrator uses the highest "
+            "level across all activated skills in a run to set "
+            "``reasoning_effort`` on the LLM call."
+        ),
+    )
+
+
 class SkillDefinition(BaseModel):
     """A skill that the agent can activate via the SkillTool.
 
@@ -34,12 +49,7 @@ class SkillDefinition(BaseModel):
     content: str = Field(
         description="Full prompt / instructions injected when the skill is invoked.",
     )
-    thinking_level: ReasoningEffort | None = Field(
+    metadata: SkillMetadata | None = Field(
         default=None,
-        description=(
-            "Optional reasoning effort hint declared in the skill's SKILL.md "
-            "frontmatter under ``metadata.thinking_level``. "
-            "The orchestrator uses the highest level across all activated skills "
-            "in a run to set ``reasoning_effort`` on the LLM call."
-        ),
+        description="Parsed ``metadata`` block from the skill's SKILL.md frontmatter.",
     )
