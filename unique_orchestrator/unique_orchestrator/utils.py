@@ -5,7 +5,10 @@ from logging import Logger
 
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.tools.tool_manager import ToolManager
+from unique_toolkit.agentic.tools.tool_manager import (
+    ResponsesApiToolManager,
+    ToolManager,
+)
 from unique_toolkit.app.schemas import ChatEventAdditionalParameters
 from unique_toolkit.content import Content
 from unique_toolkit.language_model.schemas import (
@@ -18,7 +21,7 @@ from unique_orchestrator.config import UniqueAIConfig
 
 def resolve_other_options(
     config: UniqueAIConfig,
-    tool_manager: ToolManager,
+    tool_manager: ToolManager | ResponsesApiToolManager,
     logger: Logger,
 ) -> dict:
     """Build ``other_options`` for the LLM call.
