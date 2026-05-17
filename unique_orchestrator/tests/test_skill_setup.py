@@ -25,7 +25,7 @@ from unique_orchestrator._builders.skill_setup import (
 def _make_skill(
     name: str,
     content: str = "skill body",
-    content_id: str | None = None,
+    content_id: str = "test-cid",
 ) -> SkillDefinition:
     return SkillDefinition(
         name=name, description="desc", content=content, content_id=content_id
