@@ -343,9 +343,7 @@ async def preload_invoked_skills(
 
     # content_id → skill.
     content_id_index: dict[str, SkillDefinition] = {
-        s.content_id: s
-        for s in skill_tool.skill_registry.values()
-        if s.content_id
+        s.content_id: s for s in skill_tool.skill_registry.values() if s.content_id
     }
 
     forced_skills: list[SkillDefinition] = []

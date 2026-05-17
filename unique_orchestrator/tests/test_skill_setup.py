@@ -27,7 +27,9 @@ def _make_skill(
     content: str = "skill body",
     content_id: str | None = None,
 ) -> SkillDefinition:
-    return SkillDefinition(name=name, description="desc", content=content, content_id=content_id)
+    return SkillDefinition(
+        name=name, description="desc", content=content, content_id=content_id
+    )
 
 
 class _FakeToolManager:
@@ -157,14 +159,19 @@ class TestPreloadInvokedSkills:
             history_manager=history_manager,
             logger=logger,
             skill_choices=[
-                SkillReference(name="foo", content_id="cid-1"),   # resolves by content_id
-                SkillReference(name="/foo", content_id="cid-2"),  # different cid, falls back to name → duplicate
-                SkillReference(name="foo", content_id="cid-3"),   # different cid, falls back to name → duplicate
+                SkillReference(
+                    name="foo", content_id="cid-1"
+                ),  # resolves by content_id
+                SkillReference(
+                    name="/foo", content_id="cid-2"
+                ),  # different cid, falls back to name → duplicate
+                SkillReference(
+                    name="foo", content_id="cid-3"
+                ),  # different cid, falls back to name → duplicate
             ],
         )
 
         history_manager.add_tool_call.assert_called_once()
-
 
     @pytest.mark.asyncio
     async def test_content_id_resolves_even_when_payload_name_mismatches(
@@ -192,9 +199,7 @@ class TestPreloadInvokedSkills:
         assert synthetic_call.arguments == {"skill_name": "actual-skill-name"}
 
     @pytest.mark.asyncio
-    async def test_choice_without_content_id_is_skipped(
-        self, logger: Logger
-    ) -> None:
+    async def test_choice_without_content_id_is_skipped(self, logger: Logger) -> None:
         """A choice with no content_id is silently ignored."""
         history_manager = MagicMock()
         skill_tool = _make_skill_tool(
@@ -235,6 +240,7 @@ class TestPreloadInvokedSkills:
         history_manager.add_tool_call.assert_not_called()
         history_manager._append_tool_calls_to_history.assert_not_called()
         history_manager.add_tool_call_results.assert_not_called()
+
     def test_parses_frontmatter_and_body(self, logger: Logger) -> None:
         file_text = (
             "---\n"

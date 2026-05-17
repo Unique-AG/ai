@@ -35,7 +35,5 @@ class SkillDefinition(BaseModel):
     )
     content_id: str | None = Field(
         default=None,
-        description=(
-            "Knowledge-base content ID this skill was loaded from."
-        ),
+        description=("Knowledge-base content ID this skill was loaded from."),
     )
