@@ -22,8 +22,12 @@ from unique_orchestrator._builders.skill_setup import (
 )
 
 
-def _make_skill(name: str, content: str = "skill body") -> SkillDefinition:
-    return SkillDefinition(name=name, description="desc", content=content)
+def _make_skill(
+    name: str,
+    content: str = "skill body",
+    content_id: str | None = None,
+) -> SkillDefinition:
+    return SkillDefinition(name=name, description="desc", content=content, content_id=content_id)
 
 
 class _FakeToolManager:
@@ -73,7 +77,9 @@ class TestPreloadInvokedSkills:
     @pytest.mark.asyncio
     async def test_single_skill_preloaded(self, logger: Logger) -> None:
         history_manager = MagicMock()
-        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
+        skill_tool = _make_skill_tool(
+            [_make_skill("foo", content="FOO BODY", content_id="cid-1")]
+        )
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
         await preload_invoked_skills(
@@ -100,8 +106,11 @@ class TestPreloadInvokedSkills:
     async def test_forced_skill_choice_preloaded_without_slash_token(
         self, logger: Logger
     ) -> None:
+        """Payload name without a leading ``/`` resolves via content_id."""
         history_manager = MagicMock()
-        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
+        skill_tool = _make_skill_tool(
+            [_make_skill("foo", content="FOO BODY", content_id="cid-1")]
+        )
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
         await preload_invoked_skills(
@@ -138,7 +147,9 @@ class TestPreloadInvokedSkills:
     @pytest.mark.asyncio
     async def test_duplicate_skill_choices_preload_once(self, logger: Logger) -> None:
         history_manager = MagicMock()
-        skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
+        skill_tool = _make_skill_tool(
+            [_make_skill("foo", content="FOO BODY", content_id="cid-1")]
+        )
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
         await preload_invoked_skills(
@@ -146,16 +157,84 @@ class TestPreloadInvokedSkills:
             history_manager=history_manager,
             logger=logger,
             skill_choices=[
-                SkillReference(name="foo", content_id="cid-1"),
-                SkillReference(name="/foo", content_id="cid-2"),
-                SkillReference(name="foo", content_id="cid-3"),
+                SkillReference(name="foo", content_id="cid-1"),   # resolves by content_id
+                SkillReference(name="/foo", content_id="cid-2"),  # different cid, falls back to name → duplicate
+                SkillReference(name="foo", content_id="cid-3"),   # different cid, falls back to name → duplicate
             ],
         )
 
         history_manager.add_tool_call.assert_called_once()
 
 
-class TestBuildSkill:
+    @pytest.mark.asyncio
+    async def test_content_id_resolves_even_when_payload_name_mismatches(
+        self, logger: Logger
+    ) -> None:
+        """content_id is the primary lookup — a mismatched payload name is irrelevant."""
+        history_manager = MagicMock()
+        skill_tool = _make_skill_tool(
+            [_make_skill("actual-skill-name", content="BODY", content_id="cid-99")]
+        )
+        tool_manager = _FakeToolManager(skill_tool=skill_tool)
+
+        await preload_invoked_skills(
+            tool_manager=tool_manager,  # type: ignore[arg-type]
+            history_manager=history_manager,
+            logger=logger,
+            skill_choices=[
+                SkillReference(name="wrong-display-label", content_id="cid-99")
+            ],
+        )
+
+        history_manager.add_tool_call.assert_called_once()
+        synthetic_call = history_manager.add_tool_call.call_args.args[0]
+        assert isinstance(synthetic_call, LanguageModelFunction)
+        assert synthetic_call.arguments == {"skill_name": "actual-skill-name"}
+
+    @pytest.mark.asyncio
+    async def test_choice_without_content_id_is_skipped(
+        self, logger: Logger
+    ) -> None:
+        """A choice with no content_id is silently ignored."""
+        history_manager = MagicMock()
+        skill_tool = _make_skill_tool(
+            [_make_skill("my-skill", content="BODY", content_id="cid-1")]
+        )
+        tool_manager = _FakeToolManager(skill_tool=skill_tool)
+
+        await preload_invoked_skills(
+            tool_manager=tool_manager,  # type: ignore[arg-type]
+            history_manager=history_manager,
+            logger=logger,
+            skill_choices=[SkillReference(name="my-skill", content_id="")],
+        )
+
+        history_manager.add_tool_call.assert_not_called()
+        history_manager._append_tool_calls_to_history.assert_not_called()
+        history_manager.add_tool_call_results.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_no_match_on_either_name_or_content_id_skips(
+        self, logger: Logger
+    ) -> None:
+        history_manager = MagicMock()
+        skill_tool = _make_skill_tool(
+            [_make_skill("some-skill", content="BODY", content_id="cid-1")]
+        )
+        tool_manager = _FakeToolManager(skill_tool=skill_tool)
+
+        await preload_invoked_skills(
+            tool_manager=tool_manager,  # type: ignore[arg-type]
+            history_manager=history_manager,
+            logger=logger,
+            skill_choices=[
+                SkillReference(name="unknown-name", content_id="unknown-cid")
+            ],
+        )
+
+        history_manager.add_tool_call.assert_not_called()
+        history_manager._append_tool_calls_to_history.assert_not_called()
+        history_manager.add_tool_call_results.assert_not_called()
     def test_parses_frontmatter_and_body(self, logger: Logger) -> None:
         file_text = (
             "---\n"
@@ -178,6 +257,7 @@ class TestBuildSkill:
         assert skill.name == "summarize"
         assert skill.description == "Summarize a document."
         assert skill.content == "# Summarize\nDo the thing."
+        assert skill.content_id == "c1"
 
 
 class TestParseFrontmatter:
