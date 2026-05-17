@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import override
+from typing import cast, override
 
 from jinja2.sandbox import SandboxedEnvironment
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -75,7 +75,7 @@ class SkillTool(Tool[SkillToolConfig]):
         ]
         if not levels:
             return None
-        return max(levels, key=REASONING_EFFORT_ORDER.index)
+        return cast(ReasoningEffort, max(levels, key=REASONING_EFFORT_ORDER.index))
 
     @override
     def display_name(self) -> str:
