@@ -1,5 +1,4 @@
 import asyncio
-import json
 import time
 from datetime import datetime
 from logging import Logger
@@ -7,7 +6,7 @@ from typing import Any, cast, overload
 
 import jinja2
 from typing_extensions import deprecated
-from unique_skill_tool.service import SkillTool
+
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -44,11 +43,9 @@ from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
-    REASONING_EFFORT_ORDER,
     LanguageModelMessages,
     LanguageModelStreamResponse,
     ResponsesLanguageModelStreamResponse,
-    to_reasoning_effort,
 )
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
@@ -61,6 +58,7 @@ from unique_orchestrator._builders.inject_tool_reminders import (
 from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.settings import env_settings
+from unique_orchestrator.utils import resolve_other_options
 
 
 class UniqueAI:
@@ -331,81 +329,6 @@ class UniqueAI:
         finally:
             sub.cancel()
 
-    def _resolve_other_options(self) -> dict:
-        """Build ``other_options`` for the LLM call.
-
-        Merges ``additional_llm_options`` from config with the highest
-        ``thinking_level`` declared across all skills activated in this run.
-        The final effort level is the highest value among the config setting
-        (if any) and the skill hint (if any).
-
-        Determines the active API first, then reads the effort from the
-        matching format and writes the resolved value back in that same format:
-        - completions API: ``reasoning_effort: "high"``
-        - responses API: ``reasoning: {"effort": "high"}``
-        """
-        options: dict = dict(self._config.agent.experimental.additional_llm_options)
-
-        use_responses_api: bool = (
-            self._config.agent.experimental.responses_api_config.use_responses_api
-            or self._config.agent.experimental.use_responses_api
-        )
-
-        if use_responses_api:
-            reasoning_raw = options.get("reasoning")
-            if isinstance(reasoning_raw, str):
-                try:
-                    reasoning_dict: dict = json.loads(reasoning_raw)
-                except (json.JSONDecodeError, ValueError):
-                    reasoning_dict = {}
-            elif isinstance(reasoning_raw, dict):
-                reasoning_dict = reasoning_raw
-            else:
-                reasoning_dict = {}
-            config_effort: str | None = reasoning_dict.get("effort")
-        else:
-            config_effort = options.get("reasoning_effort")
-
-        skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)
-        resolved_effort: str | None = config_effort
-        if isinstance(skill_tool, SkillTool):
-            skill_max = skill_tool.max_thinking_level
-            if skill_max is not None:
-                valid_config_effort: str | None = None
-                if config_effort is not None:
-                    try:
-                        valid_config_effort = to_reasoning_effort(config_effort)
-                    except ValueError:
-                        self._logger.warning(
-                            "additional_llm_options contains an unrecognised "
-                            "reasoning_effort value %r — cannot compare it with "
-                            "the skill's thinking_level; using skill minimum %r instead.",
-                            config_effort,
-                            skill_max,
-                        )
-
-                if valid_config_effort is None:
-                    resolved_effort = skill_max
-                else:
-                    resolved_effort = max(
-                        [valid_config_effort, skill_max],
-                        key=REASONING_EFFORT_ORDER.index,
-                    )
-
-        if resolved_effort is not None:
-            if use_responses_api:
-                existing_reasoning: dict = (
-                    dict(options["reasoning"])
-                    if isinstance(options.get("reasoning"), dict)
-                    else {}
-                )
-                existing_reasoning["effort"] = resolved_effort
-                options["reasoning"] = existing_reasoning
-            else:
-                options["reasoning_effort"] = resolved_effort
-
-        return options
-
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
         self._logger.info("Planning or executing the loop.")
@@ -424,7 +347,7 @@ class UniqueAI:
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
-            other_options=self._resolve_other_options(),
+            other_options=resolve_other_options(self._config, self._tool_manager, self._logger),
         )
 
         # Experimental Feature UN-17905
