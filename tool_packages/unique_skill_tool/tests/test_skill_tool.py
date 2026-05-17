@@ -19,6 +19,7 @@ from unique_skill_tool.config import (
 )
 from unique_skill_tool.schemas import (
     SkillDefinition,
+    SkillMetadata,
 )
 from unique_skill_tool.service import (
     SkillTool,
@@ -435,6 +436,128 @@ class TestFormatSkillListing:
         desc_part = result.split(": ", 1)[1]
         assert len(desc_part) <= config.max_listing_desc_chars
         assert desc_part.endswith("...")
+
+
+# ---------------------------------------------------------------------------
+# activated_skills tracking and max_thinking_level
+# ---------------------------------------------------------------------------
+
+
+class TestActivatedSkillsTracking:
+    """SkillTool accumulates every successfully activated skill in _activated_skills."""
+
+    async def test_empty_on_init(self) -> None:
+        tool = _make_tool()
+        assert tool.activated_skills == []
+
+    async def test_appended_on_successful_run(self) -> None:
+        skill = _make_skill("alpha")
+        tool = _make_tool(skill_registry=_make_skill_registry(skill))
+
+        await tool.run(_make_tool_call("alpha"))
+
+        assert len(tool.activated_skills) == 1
+        assert tool.activated_skills[0].name == "alpha"
+
+    async def test_not_appended_on_unknown_skill_error(self) -> None:
+        tool = _make_tool()
+
+        await tool.run(_make_tool_call("nonexistent"))
+
+        assert tool.activated_skills == []
+
+    async def test_accumulates_across_multiple_runs(self) -> None:
+        skills = [_make_skill("alpha"), _make_skill("beta")]
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
+
+        await tool.run(_make_tool_call("alpha"))
+        await tool.run(_make_tool_call("beta"))
+
+        assert [s.name for s in tool.activated_skills] == ["alpha", "beta"]
+
+
+class TestMaxThinkingLevel:
+    """max_thinking_level returns the highest thinking_level across activated skills."""
+
+    async def test_none_when_no_skills_activated(self) -> None:
+        tool = _make_tool()
+        assert tool.max_thinking_level is None
+
+    async def test_none_when_activated_skill_has_no_hint(self) -> None:
+        skill = SkillDefinition(name="plain", description="d", content="c")
+        tool = _make_tool(skill_registry=_make_skill_registry(skill))
+
+        await tool.run(_make_tool_call("plain"))
+
+        assert tool.max_thinking_level is None
+
+    async def test_single_skill_hint_returned(self) -> None:
+        skill = SkillDefinition(
+            name="deep",
+            description="d",
+            content="c",
+            metadata=SkillMetadata(thinking_level="high"),
+        )
+        tool = _make_tool(skill_registry=_make_skill_registry(skill))
+
+        await tool.run(_make_tool_call("deep"))
+
+        assert tool.max_thinking_level == "high"
+
+    async def test_highest_level_wins_across_multiple_skills(self) -> None:
+        low_skill = SkillDefinition(
+            name="low-skill",
+            description="d",
+            content="c",
+            metadata=SkillMetadata(thinking_level="low"),
+        )
+        high_skill = SkillDefinition(
+            name="high-skill",
+            description="d",
+            content="c",
+            metadata=SkillMetadata(thinking_level="high"),
+        )
+        tool = _make_tool(skill_registry=_make_skill_registry(low_skill, high_skill))
+
+        await tool.run(_make_tool_call("low-skill"))
+        await tool.run(_make_tool_call("high-skill"))
+
+        assert tool.max_thinking_level == "high"
+
+    async def test_skill_without_hint_does_not_lower_max(self) -> None:
+        hint_skill = SkillDefinition(
+            name="hint-skill",
+            description="d",
+            content="c",
+            metadata=SkillMetadata(thinking_level="medium"),
+        )
+        plain_skill = SkillDefinition(name="plain-skill", description="d", content="c")
+        tool = _make_tool(skill_registry=_make_skill_registry(hint_skill, plain_skill))
+
+        await tool.run(_make_tool_call("hint-skill"))
+        await tool.run(_make_tool_call("plain-skill"))
+
+        assert tool.max_thinking_level == "medium"
+
+    async def test_ordering_none_is_lowest(self) -> None:
+        none_skill = SkillDefinition(
+            name="none-skill",
+            description="d",
+            content="c",
+            metadata=SkillMetadata(thinking_level="none"),
+        )
+        min_skill = SkillDefinition(
+            name="min-skill",
+            description="d",
+            content="c",
+            metadata=SkillMetadata(thinking_level="minimal"),
+        )
+        tool = _make_tool(skill_registry=_make_skill_registry(none_skill, min_skill))
+
+        await tool.run(_make_tool_call("none-skill"))
+        await tool.run(_make_tool_call("min-skill"))
+
+        assert tool.max_thinking_level == "minimal"
 
 
 # ---------------------------------------------------------------------------

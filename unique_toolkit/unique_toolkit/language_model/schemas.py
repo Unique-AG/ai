@@ -648,6 +648,17 @@ class LanguageModelResponse(BaseModel):
 # complete type here as the source of truth.
 ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
 
+# Ordered from lowest to highest reasoning effort. Used wherever effort levels must be
+# compared or ranked (e.g. picking the maximum across multiple skill hints).
+REASONING_EFFORT_ORDER: tuple[ReasoningEffort, ...] = (
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+)
+
 
 def to_reasoning_effort(value: str) -> ReasoningEffort:
     """Narrow a raw string to ReasoningEffort, raising ValueError for unrecognised values."""

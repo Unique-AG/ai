@@ -48,13 +48,16 @@ from typing import TYPE_CHECKING, Any
 import frontmatter
 from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.schemas import SkillDefinition, SkillMetadata
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
-from unique_toolkit.language_model.schemas import LanguageModelFunction
+from unique_toolkit.language_model.schemas import (
+    LanguageModelFunction,
+    to_reasoning_effort,
+)
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -159,11 +162,37 @@ def _build_skill(
         )
         return None
 
+    skill_meta: SkillMetadata | None = None
+    raw_meta = metadata.get("metadata")
+    if raw_meta is not None and not isinstance(raw_meta, dict):
+        logger.warning(
+            "Skill '%s' (%s): 'metadata' must be a key-value mapping, got %r — ignoring.",
+            content_key,
+            content_id,
+            type(raw_meta).__name__,
+        )
+        raw_meta = None
+    if raw_meta is not None:
+        raw_thinking = raw_meta.get("thinking_level")
+        thinking_level = None
+        if raw_thinking is not None:
+            try:
+                thinking_level = to_reasoning_effort(str(raw_thinking))
+            except ValueError:
+                logger.warning(
+                    "Skill '%s' (%s): unknown thinking_level %r — ignoring.",
+                    content_key,
+                    content_id,
+                    raw_thinking,
+                )
+        skill_meta = SkillMetadata(thinking_level=thinking_level)
+
     try:
         return SkillDefinition(
             name=name,
             description=description,
             content=body,
+            metadata=skill_meta,
         )
     except ValidationError as exc:
         logger.warning(
@@ -224,12 +253,22 @@ async def load_selectable_skills(
             )
             continue
 
-        skill = _build_skill(
-            content_id=entry.content_id,
-            content_key=label,
-            file_text=file_text,
-            logger=logger,
-        )
+        try:
+            skill = _build_skill(
+                content_id=entry.content_id,
+                content_key=label,
+                file_text=file_text,
+                logger=logger,
+            )
+        except Exception:
+            logger.warning(
+                "Unexpected error building selectable skill '%s' (%s) — skipping.",
+                label,
+                entry.content_id,
+                exc_info=True,
+            )
+            continue
+
         if skill is None:
             logger.debug(
                 "Skipping selectable skill '%s' (%s): empty or invalid file.",
