@@ -66,15 +66,19 @@ class KnowledgeBaseInternalSearchService(
         return debug_info
 
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
-        metadata_filter = self._effective_metadata_filter
+        metadata_filter: dict[str, Any] | None
+        effective = self._effective_metadata_filter
         scope_ids = self._effective_scope_ids
 
         if scope_ids is not None:
             clause = build_folder_id_in_clause(scope_ids)
-            metadata_filter = merge_scope_clause_into_metadata_filter(
-                clause, metadata_filter
-            )
+            metadata_filter = merge_scope_clause_into_metadata_filter(clause, effective)
             self._resolved_metadata_filter = metadata_filter
+        else:
+            # _effective_metadata_filter always holds a dict at runtime;
+            # Mapping is used on the config field only to avoid a spurious
+            # "additionalProperties" node in the RJSF UI schema.
+            metadata_filter = cast("dict[str, Any] | None", effective)
 
         if metadata_filter is None:
             raise RuntimeError(
