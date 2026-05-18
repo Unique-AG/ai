@@ -302,6 +302,10 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     def is_exclusive(self) -> bool:
         return self._is_exclusive
 
+    @override
+    def is_capability(self) -> bool:
+        return True
+
     @classmethod
     async def build_tool(
         cls,
