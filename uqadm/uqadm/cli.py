@@ -13,15 +13,17 @@ from uqadm.chat import chat_app
 from uqadm.core.env import MissingSlotEnvFileError
 from uqadm.env import env_app
 from uqadm.install import install_command
+from uqadm.kb import kb_app
 from uqadm.space import space_app
 
 app = typer.Typer(
     name="uqadm",
-    help="Unique admin CLI — space admin (uses same UNIQUE_* env as unique-cli).",
+    help="Unique admin CLI — space and knowledge-base admin (uses same UNIQUE_* env as unique-cli).",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 app.add_typer(space_app, name="space")
+app.add_typer(kb_app, name="kb")
 app.add_typer(chat_app, name="chat")
 app.add_typer(env_app, name="env")
 app.command("install")(install_command)

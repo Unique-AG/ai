@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, List, Literal, Optional
 
 import typer
 
 from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
+from uqadm.space.access_grant import cmd_space_access_grant
 from uqadm.space.delete import cmd_delete
 from uqadm.space.diff import cmd_diff
 from uqadm.space.export import cmd_export
+from uqadm.space.ingestion_set import cmd_space_ingestion_set
 from uqadm.space.list import cmd_list
 from uqadm.space.migrate import cmd_migrate
 from uqadm.space.upsert import cmd_upsert
@@ -243,6 +245,128 @@ def space_migrate(
         dry_run=dry_run,
         with_knowledge=with_knowledge,
         cwd=_get_cwd(ctx),
+    )
+
+
+@space_app.command(
+    "access-grant",
+    short_help="Add user/group space access (merged with existing ACL).",
+)
+def space_access_grant(
+    ctx: typer.Context,
+    space_id: Annotated[
+        str,
+        typer.Argument(
+            metavar="SPACE_ID",
+            help="Space id or URL (e.g. assistant_abc or https://host/.../space/assistant_abc).",
+        ),
+    ],
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    group: Annotated[
+        Optional[List[str]],
+        typer.Option("--group", help="Group id (repeatable)."),
+    ] = None,
+    user: Annotated[
+        Optional[List[str]],
+        typer.Option("--user", help="User id (repeatable)."),
+    ] = None,
+    access_type: Annotated[
+        Literal["USE", "MANAGE", "UPLOAD"],
+        typer.Option(
+            "--type",
+            help="Access level for every ``--group`` / ``--user`` on this call.",
+            show_default=True,
+        ),
+    ] = "USE",
+) -> None:
+    """Add USE / MANAGE / UPLOAD entries for users and/or groups.
+
+    Each run posts to ``Space.add_space_access``; entries are merged with the existing
+    ACL rather than replacing it. Repeat ``--group`` / ``--user`` for multiple principals.
+
+    Examples:
+
+      uqadm space access-grant asst_abc --group grp_1
+      uqadm space access-grant asst_abc --group grp_1 --group grp_2
+      uqadm space access-grant asst_abc --user user_1 --type MANAGE --slot qa
+    """
+    from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
+
+    resolved_slot = _resolve(slot)
+    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    try:
+        sid = parse_bare_endpoint(space_id)
+    except EndpointParseError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2)
+    cmd_space_access_grant(
+        cfg,
+        space_id=sid,
+        group_ids=tuple(group or []),
+        user_ids=tuple(user or []),
+        access_type=access_type,
+    )
+
+
+@space_app.command(
+    "ingestion-set",
+    short_help="Merge settings.ingestionConfig from a JSON/YAML file.",
+)
+def space_ingestion_set(
+    ctx: typer.Context,
+    space_id: Annotated[
+        str,
+        typer.Argument(
+            metavar="SPACE_ID",
+            help="Space id or URL to patch.",
+        ),
+    ],
+    config_file: Annotated[
+        Path,
+        typer.Argument(
+            metavar="CONFIG_FILE",
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help=(
+                "JSON or YAML file whose root is a mapping; becomes "
+                "settings.ingestionConfig (assistant chat/file ingestion, not folder API)."
+            ),
+        ),
+    ],
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Show which settings keys would be patched."),
+    ] = False,
+) -> None:
+    """Merge ``settings.ingestionConfig`` from a JSON/YAML file.
+
+    Fetches the space, shallow-merges top-level ``settings``, and sets
+    ``ingestionConfig`` to the file contents (replacing the previous object).
+    Use ``--dry-run`` to print which settings keys would be sent. For KB folder
+    ingestion, use ``uqadm kb ingestion set``.
+
+    Examples:
+
+      uqadm space ingestion-set asst_abc ./ingestion.json
+      uqadm space ingestion-set asst_abc ./ingestion.yaml --slot prod
+      uqadm space ingestion-set asst_abc ./ingestion.json --dry-run
+    """
+    from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
+
+    resolved_slot = _resolve(slot)
+    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    try:
+        sid = parse_bare_endpoint(space_id)
+    except EndpointParseError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2)
+    cmd_space_ingestion_set(
+        cfg,
+        space_id=sid,
+        config_path=config_file,
+        dry_run=dry_run,
     )
 
 
