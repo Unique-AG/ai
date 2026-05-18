@@ -9,6 +9,9 @@ from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
+from unique_internal_search.uploaded_search.config import (
+    UploadedSearchConfig,
+)
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.validators import (
@@ -329,6 +332,20 @@ class ResponsesApiConfig(BaseToolConfig):
     )
 
 
+class UploadedSearchToolConfig(BaseToolConfig):
+    force: bool = Field(
+        default=True,
+        title="Force tool",
+        description="If set, the tool will be forced when the user uploads a file",
+    )
+    tool_config: UploadedSearchConfig = UploadedSearchConfig()
+
+    @model_validator(mode="after")
+    def validate_tool_config(self) -> "UploadedSearchToolConfig":
+        self.tool_config.enable_tool_call_system_reminder = self.force
+        return self
+
+
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -366,6 +383,8 @@ class ExperimentalConfig(BaseToolConfig):
         description="Configuration for the todo tool",
         default_factory=TodoConfig,
     )
+
+    uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()
 
     use_responses_api: bool = Field(
         default=False,

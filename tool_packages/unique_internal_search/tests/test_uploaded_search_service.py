@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import Content
@@ -76,7 +77,7 @@ class TestUploadedSearchTool:
     """Tests for UploadedSearchTool class."""
 
     @pytest.mark.ai
-    def test_tool_description_for_system_prompt__returns_formatted_prompt__with_valid_documents_only(
+    def test_tool_description_for_system_prompt__returns_formatted_prompt__with_searchable_documents_only(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_chat_event: ChatEvent,
@@ -84,9 +85,9 @@ class TestUploadedSearchTool:
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt returns formatted prompt with valid documents listed.
+        Purpose: Verify tool_description_for_system_prompt returns formatted prompt with searchable documents listed.
         Why this matters: Ensures the system prompt includes information about available uploaded documents.
-        Setup summary: Mock ContentService to return valid documents only, verify formatted output.
+        Setup summary: Mock ContentService to return searchable documents only, verify formatted output.
         """
         # Arrange
         with (
@@ -112,7 +113,7 @@ class TestUploadedSearchTool:
 
             # Assert
             assert (
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 in result
             )
             assert "Q2 Financial Report (content_id: doc_1)" in result
@@ -125,7 +126,7 @@ class TestUploadedSearchTool:
             assert "You can use the UploadedSearch tool" in result
 
     @pytest.mark.ai
-    def test_tool_description_for_system_prompt__returns_formatted_prompt__with_expired_documents_only(
+    def test_tool_description_for_system_prompt__omits_expired_documents(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_chat_event: ChatEvent,
@@ -133,9 +134,9 @@ class TestUploadedSearchTool:
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt returns formatted prompt with expired documents listed.
-        Why this matters: Ensures the system knows which documents are expired and unavailable.
-        Setup summary: Mock ContentService to return expired documents only, verify formatted output.
+        Purpose: Verify tool_description_for_system_prompt omits expired documents from the prompt.
+        Why this matters: Expired uploads should not be surfaced as searchable context.
+        Setup summary: Mock ContentService to return expired documents only, verify they are absent.
         """
         # Arrange
         with (
@@ -160,15 +161,12 @@ class TestUploadedSearchTool:
             result = tool.tool_description_for_system_prompt()
 
             # Assert
+            assert "Old Report (content_id: doc_expired_1)" not in result
             assert (
-                "**The currently uploaded and expired documents are the following**"
-                in result
-            )
-            assert "Old Report (content_id: doc_expired_1)" in result
-            assert (
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 not in result
             )
+            assert "You can use the UploadedSearch tool" in result
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__returns_formatted_prompt__with_mixed_documents(
@@ -179,9 +177,9 @@ class TestUploadedSearchTool:
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt correctly separates valid and expired documents.
-        Why this matters: Ensures proper categorization when both valid and expired documents exist.
-        Setup summary: Mock ContentService to return mixed documents, verify both sections present.
+        Purpose: Verify tool_description_for_system_prompt lists only searchable documents when uploads are mixed.
+        Why this matters: Expired uploads must not appear alongside searchable documents.
+        Setup summary: Mock ContentService to return mixed documents, verify only searchable documents appear.
         """
         # Arrange
         with (
@@ -207,16 +205,12 @@ class TestUploadedSearchTool:
 
             # Assert
             assert (
-                "**The currently uploaded and valid documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 in result
             )
             assert "Valid Document (content_id: doc_valid_1)" in result
             assert "another_valid.pdf (content_id: doc_valid_2)" in result
-            assert (
-                "**The currently uploaded and expired documents are the following**"
-                in result
-            )
-            assert "Expired Document (content_id: doc_expired_1)" in result
+            assert "Expired Document (content_id: doc_expired_1)" not in result
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__returns_base_prompt__with_no_documents(
@@ -253,11 +247,7 @@ class TestUploadedSearchTool:
             # Assert
             assert "You can use the UploadedSearch tool" in result
             assert (
-                "**The currently uploaded and valid documents are the following**"
-                not in result
-            )
-            assert (
-                "**The currently uploaded and expired documents are the following**"
+                "**The currently uploaded and searchable documents are the following**"
                 not in result
             )
 
@@ -404,21 +394,13 @@ class TestUploadedSearchTool:
 
             # Assert
             assert "Still Valid" in result
-            assert "Just Expired" in result
-            # Verify they are in the correct sections
-            valid_section_start = result.find(
-                "**The currently uploaded and valid documents are the following**"
-            )
-            expired_section_start = result.find(
-                "**The currently uploaded and expired documents are the following**"
+            assert "Just Expired" not in result
+            searchable_section_start = result.find(
+                "**The currently uploaded and searchable documents are the following**"
             )
             still_valid_pos = result.find("Still Valid")
-            just_expired_pos = result.find("Just Expired")
 
-            # "Still Valid" should appear after valid section header and before expired section
-            assert valid_section_start < still_valid_pos < expired_section_start
-            # "Just Expired" should appear after expired section header
-            assert expired_section_start < just_expired_pos
+            assert searchable_section_start < still_valid_pos
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__formats_multiple_documents_with_newlines(
@@ -459,13 +441,13 @@ class TestUploadedSearchTool:
             # Verify bullet points are present
             assert "- Q2 Financial Report (content_id: doc_1)" in result
             assert "- policy_document.pdf (content_id: doc_2)" in result
-            # Verify documents are on separate lines by checking the valid documents section
-            valid_section = result.split(
-                "**The currently uploaded and valid documents are the following**"
+            # Verify documents are on separate lines by checking the searchable documents section
+            searchable_section = result.split(
+                "**The currently uploaded and searchable documents are the following**"
             )[1]
-            # Make sure both documents appear in the valid section
-            assert "Q2 Financial Report" in valid_section
-            assert "policy_document.pdf" in valid_section
+            # Make sure both documents appear in the searchable section
+            assert "Q2 Financial Report" in searchable_section
+            assert "policy_document.pdf" in searchable_section
 
     @pytest.mark.ai
     def test_display_name__returns_uploaded_search(
@@ -543,13 +525,99 @@ class TestUploadedSearchTool:
         assert UploadedSearchTool._display_name == "Uploaded Search"
         assert hasattr(UploadedSearchTool, "_display_name")
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__overrides_internal_search_system_reminder__when_enabled(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify run replaces the internal-search reminder with the uploaded-search reminder by default.
+        Why this matters: Preserves current uploaded-search behavior unless the new toggle is disabled.
+        Setup summary: Mock internal search to return a reminder, run the tool, and assert uploaded-search text is used.
+        """
+        # Arrange
+        with patch(
+            "unique_internal_search.uploaded_search.service.ContentService"
+        ) as mock_content_service_class:
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
+            mock_content_service_class.from_event.return_value = mock_content_service
+
+            tool = UploadedSearchTool(
+                config=uploaded_search_config,
+                event=mock_chat_event,
+                tool_progress_reporter=None,
+            )
+            tool._internal_search_tool.run = AsyncMock(
+                return_value=ToolCallResponse(
+                    id="tool_call_123",
+                    name="InternalSearch",
+                    system_reminder="Internal reminder",
+                )
+            )
+            tool_call = Mock()
+            tool_call.arguments = {"search_string": "test query"}
+
+            # Act
+            result = await tool.run(tool_call)
+
+            # Assert
+            assert result.name == "UploadedSearch"
+            assert "automatically executed to retrieve" in result.system_reminder
+            assert "Internal reminder" not in result.system_reminder
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__preserves_internal_search_system_reminder__when_disabled(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify run keeps the internal-search reminder when the uploaded-search reminder is disabled.
+        Why this matters: Disabling the uploaded-search reminder should not discard configured InternalSearch reminders.
+        Setup summary: Disable the toggle, mock internal search to return a reminder, and assert it remains unchanged.
+        """
+        # Arrange
+        uploaded_search_config.enable_tool_call_system_reminder = False
+        with patch(
+            "unique_internal_search.uploaded_search.service.ContentService"
+        ) as mock_content_service_class:
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
+            mock_content_service_class.from_event.return_value = mock_content_service
+
+            tool = UploadedSearchTool(
+                config=uploaded_search_config,
+                event=mock_chat_event,
+                tool_progress_reporter=None,
+            )
+            tool._internal_search_tool.run = AsyncMock(
+                return_value=ToolCallResponse(
+                    id="tool_call_123",
+                    name="InternalSearch",
+                    system_reminder="Internal reminder",
+                )
+            )
+            tool_call = Mock()
+            tool_call.arguments = {"search_string": "test query"}
+
+            # Act
+            result = await tool.run(tool_call)
+
+            # Assert
+            assert result.name == "UploadedSearch"
+            assert result.system_reminder == "Internal reminder"
+
 
 @pytest.mark.ai
 class TestToolDescriptionForSystemPromptIngestionFilter:
     """Tests for ingestion filtering in tool_description_for_system_prompt.
 
     Docs whose is_ingested() returns False (e.g. SKIP_INGESTION mode) must be
-    excluded from both the valid and expired document lists in the system prompt.
+    excluded from the searchable document list in the system prompt.
     """
 
     def _make_tool(
@@ -575,7 +643,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         return tool
 
     @pytest.mark.ai
-    def test_skip_ingestion_doc_excluded_from_valid_section(
+    def test_skip_ingestion_doc_excluded_from_searchable_section(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_chat_event,
@@ -583,12 +651,12 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
     ) -> None:
         """
         Purpose: Verify that a doc with SKIP_INGESTION mode does not appear in
-                 the valid documents section of the system prompt.
+                 the searchable documents section of the system prompt.
         Why this matters: Non-ingested docs cannot be searched, so surfacing them
-                          as "valid" would mislead the model into attempting searches
+                          as searchable would mislead the model into attempting searches
                           that would return no results.
         Setup summary: Create a Content with SKIP_INGESTION applied_ingestion_config
-                       and expired_at=None; assert neither the doc name nor the valid
+                       and expired_at=None; assert neither the doc name nor the searchable
                        section header appears in the rendered prompt.
         """
         skip_doc = Content(
@@ -609,47 +677,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
 
         assert "Skipped Document" not in result
         assert (
-            "**The currently uploaded and valid documents are the following**"
-            not in result
-        )
-
-    @pytest.mark.ai
-    def test_skip_ingestion_doc_excluded_from_expired_section(
-        self,
-        uploaded_search_config: UploadedSearchConfig,
-        mock_chat_event,
-        mock_tool_progress_reporter,
-    ) -> None:
-        """
-        Purpose: Verify that a doc with SKIP_INGESTION mode does not appear in
-                 the expired documents section even when its expired_at is in the past.
-        Why this matters: Docs skipped from ingestion should be invisible in all
-                          sections of the system prompt regardless of their expiry state.
-        Setup summary: Create a Content with SKIP_INGESTION and a past expired_at;
-                       assert the doc name and the expired section header are absent.
-        """
-        now = datetime.now(timezone.utc)
-        past_expiry = now - timedelta(days=1)
-
-        skip_expired_doc = Content(
-            id="skip_expired_1",
-            key="skip_expired.pdf",
-            title="Skipped Expired Document",
-            expired_at=past_expiry,
-            applied_ingestion_config={"uniqueIngestionMode": "SKIP_INGESTION"},
-        )
-
-        tool = self._make_tool(
-            [skip_expired_doc],
-            uploaded_search_config,
-            mock_chat_event,
-            mock_tool_progress_reporter,
-        )
-        result = tool.tool_description_for_system_prompt()
-
-        assert "Skipped Expired Document" not in result
-        assert (
-            "**The currently uploaded and expired documents are the following**"
+            "**The currently uploaded and searchable documents are the following**"
             not in result
         )
 
@@ -664,10 +692,10 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         Purpose: Verify that ingested docs still appear in the prompt when mixed
                  with non-ingested (SKIP_INGESTION) docs.
         Why this matters: The ingestion filter must only suppress non-ingested docs —
-                          valid ingested docs must remain visible.
+                          searchable ingested docs must remain visible.
         Setup summary: Mix one SKIP_INGESTION doc with one normally-ingested doc
                        (applied_ingestion_config=None); assert only the ingested doc
-                       appears in the valid section.
+                       appears in the searchable section.
         """
         skip_doc = Content(
             id="skip_2",
@@ -695,5 +723,6 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         assert "Ingested File (content_id: ingested_1)" in result
         assert "Skipped File" not in result
         assert (
-            "**The currently uploaded and valid documents are the following**" in result
+            "**The currently uploaded and searchable documents are the following**"
+            in result
         )

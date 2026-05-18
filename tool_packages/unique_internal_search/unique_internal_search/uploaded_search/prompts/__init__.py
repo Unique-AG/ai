@@ -1,18 +1,11 @@
-DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
-    "You can use the UploadedSearch tool to access and analyze documents uploaded by users during a chat. This tool is designed to handle a variety of document-related tasks, including summarization, explanation, and detailed information retrieval. "
-    "Use cases for the UploadedSearch tool include:\n"
-    "- Document Analysis: When a user uploads a document and asks for a summary, explanation, or specific details, this tool can extract and provide the requested information.\n"
-    "- Named Document Queries: If a user refers to a previously uploaded document by name (e.g., 'What does the Q2_Report.pdf say about revenue?'), this tool can locate and analyze the document to answer the query.\n"
-    "- Policy and Procedure Verification: Use the tool to find the most current company policies, procedures, or guidelines within uploaded documents.\n"
-    "- Project-Specific Information: Access project documents, reports, or meeting notes uploaded by users to provide precise details.\n"
-    "- Confidential and Proprietary Information: Ensure that sensitive topics requiring proprietary knowledge or confidential data are sourced securely from uploaded documents.\n\n"
-    "**Instruction Query Splitting**\n"
-    "You should split the user question into multiple search strings when the user's question needs to be decomposed / rewritten to find different facts. Perform an individual tool call for each search string. Avoid overly broad queries that may return unrelated results. Ensure the search string is specific and relevant to the uploaded document(s).\n\n"
-    "Examples:\n"
-    'User: "What does the Q2_Report.pdf say about revenue and expenses?" => search strings: ["Q2_Report.pdf revenue", "Q2_Report.pdf expenses"]\n'
-    'User: "Summarize the uploaded document." => search string: ["Summarize the uploaded document"]\n\n'
-    "{system_prompt_valid_documents}"
-    "{system_prompt_expired_documents}"
+from pathlib import Path
+
+from unique_toolkit._common.utils.jinja.helpers import load_template
+
+_PROMPTS_DIR = Path(__file__).parent
+
+DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = load_template(
+    _PROMPTS_DIR, "tool_description_for_system_prompt.j2"
 )
 
 DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = (
