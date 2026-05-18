@@ -40,15 +40,10 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, object], str]:
     """
     try:
         post = frontmatter.loads(text)
-        raw: object = post.metadata
         body = post.content
+        return dict(post.metadata), body
     except Exception:
         return {}, text
-
-    if not isinstance(raw, dict):
-        return {}, body
-
-    return {str(k): v for k, v in raw.items()}, body
 
 
 def parse_skill_file(
@@ -86,7 +81,12 @@ def parse_skill_file(
     name = metadata.get("name")
     description = metadata.get("description")
 
-    if not name or not description:
+    if (
+        not isinstance(name, str)
+        or not isinstance(description, str)
+        or not name
+        or not description
+    ):
         if logger is not None:
             logger.warning(
                 "Skipping '%s': wrong skill format.",
@@ -104,7 +104,7 @@ def parse_skill_file(
                 type(raw_meta).__name__,
             )
         raw_meta = None
-    if raw_meta is not None:
+    if isinstance(raw_meta, dict):
         raw_thinking = raw_meta.get("thinking_level")
         thinking_level = None
         if raw_thinking is not None:
