@@ -46,19 +46,14 @@ from logging import Logger
 from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
-from tool_packages.unique_skill_tool.unique_skill_tool.loader import _parse_frontmatter
-from tool_packages.unique_skill_tool.unique_skill_tool.schemas import SkillMetadata
-from tool_packages.unique_skill_tool.unique_skill_tool.service import (
-    to_reasoning_effort,
-)
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.loader import parse_skill_file
-from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.loader import _parse_frontmatter, parse_skill_file
+from unique_skill_tool.schemas import SkillDefinition, SkillMetadata
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
-from unique_toolkit.language_model.schemas import LanguageModelFunction
+from unique_toolkit.language_model.schemas import LanguageModelFunction, to_reasoning_effort
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
