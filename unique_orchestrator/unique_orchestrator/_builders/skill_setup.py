@@ -233,6 +233,7 @@ async def load_selectable_skills(
         try:
             skill = parse_skill_file(
                 file_text=file_text,
+                content_id=entry.content_id,
                 source_label=label,
                 logger=logger,
             )

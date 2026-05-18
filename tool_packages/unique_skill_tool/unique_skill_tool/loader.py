@@ -55,6 +55,7 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
 def parse_skill_file(
     *,
     file_text: str,
+    content_id: str,
     source_label: str = "",
     logger: Logger | None = None,
 ) -> SkillDefinition | None:
@@ -67,6 +68,7 @@ def parse_skill_file(
 
     Args:
         file_text: Raw UTF-8 text of the SKILL.md file.
+        content_id: Knowledge-base content ID this skill was loaded from.
         source_label: Human-readable identifier used only in warning messages
             so callers can locate the offending file (e.g. a knowledge-base
             content key or file path).
@@ -123,6 +125,7 @@ def parse_skill_file(
             name=name,
             description=description,
             content=body,
+            content_id=content_id,
             metadata=skill_meta,
         )
     except ValidationError as exc:
