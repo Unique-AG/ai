@@ -79,7 +79,18 @@ class MetricNamespace:
         name: str,
         description: str,
         labels: list[str],
-        multiprocess_mode: Literal["all", "livesum", "liveall", "min", "max"] = "all",
+        multiprocess_mode: Literal[
+            "all",
+            "liveall",
+            "min",
+            "livemin",
+            "max",
+            "livemax",
+            "sum",
+            "livesum",
+            "mostrecent",
+            "livemostrecent",
+        ] = "all",
     ) -> Gauge:
         return Gauge(
             f"{self._prefix}_{name}",
