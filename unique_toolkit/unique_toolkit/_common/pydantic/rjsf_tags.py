@@ -974,7 +974,10 @@ def ui_schema_for_model(
             node["items"] = item_node
 
         # Dict -> additionalProperties (value side)
-        elif origin is dict:
+        # Skip when field-level RJSF metadata is already present: the widget/
+        # layout is fully specified and walking the value type would add a
+        # spurious "additionalProperties" node that confuses RJSF renderers.
+        elif origin is dict and not meta:
             _key_t, val_t = get_args(base) or (Any, Any)
             val_base, val_meta = _walk_annotated_chain(val_t)
             val_base = _unwrap_optional(val_base)

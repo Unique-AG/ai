@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections.abc import Mapping
 from typing import Annotated, Any, Self, Union
 
 from pydantic import (
@@ -43,14 +42,7 @@ def _parse_and_validate_uniqueql(v: Any) -> dict[str, Any] | None:
 
 
 UniqueQLDict = Annotated[
-    # `Mapping[str, Any] | None` rather than `dict[str, Any] | None` is
-    # intentional: get_origin(Mapping[str, Any]) is collections.abc.Mapping,
-    # not `dict`, so ui_schema_for_model skips the dict branch and does NOT
-    # add a spurious "additionalProperties" node to the UI schema.
-    # The actual stored value is always dict[str, Any] | None — enforced by
-    # _parse_and_validate_uniqueql — and the JSON schema is fully overridden
-    # by WithJsonSchema below.
-    Mapping[str, Any] | None,
+    dict[str, Any] | None,
     BeforeValidator(_parse_and_validate_uniqueql),
     WithJsonSchema(
         {

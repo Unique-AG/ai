@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any, Self, cast
 
 from unique_toolkit._common.metadata_filter_scope import (
@@ -66,19 +65,15 @@ class KnowledgeBaseInternalSearchService(
         return debug_info
 
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
-        metadata_filter: dict[str, Any] | None
-        effective = self._effective_metadata_filter
+        metadata_filter = self._effective_metadata_filter
         scope_ids = self._effective_scope_ids
 
         if scope_ids is not None:
             clause = build_folder_id_in_clause(scope_ids)
-            metadata_filter = merge_scope_clause_into_metadata_filter(clause, effective)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
             self._resolved_metadata_filter = metadata_filter
-        else:
-            # _effective_metadata_filter always holds a dict at runtime;
-            # Mapping is used on the config field only to avoid a spurious
-            # "additionalProperties" node in the RJSF UI schema.
-            metadata_filter = cast("dict[str, Any] | None", effective)
 
         if metadata_filter is None:
             raise RuntimeError(
@@ -105,7 +100,7 @@ class KnowledgeBaseInternalSearchService(
         return SearchStringResult(query=query, chunks=chunks)
 
     @property
-    def _effective_metadata_filter(self) -> Mapping[str, Any] | None:
+    def _effective_metadata_filter(self) -> dict[str, Any] | None:
         if self._state.metadata_filter_override is not UNSET:
             return cast("dict[str, Any] | None", self._state.metadata_filter_override)
         if self._context.chat is not None:
