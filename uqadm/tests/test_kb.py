@@ -115,3 +115,191 @@ def test_ingestion_set_from_file(mock_uic: MagicMock, tmp_path: Path) -> None:
         applyToSubScopes=False,
         folderPath="/Docs",
     )
+
+
+def test_access_grant_requires_groups() -> None:
+    with pytest.raises(SystemExit) as ei:
+        cmd_access_grant(
+            _cfg(),
+            folder_path="/Docs",
+            scope_id=None,
+            group_ids=(),
+            permission="READ",
+            apply_to_subfolders=True,
+        )
+    assert ei.value.code == 2
+
+
+@patch("uqadm.kb.access.Folder.add_access")
+def test_access_grant_folder_path(mock_aa: MagicMock) -> None:
+    cmd_access_grant(
+        _cfg(),
+        folder_path="/Docs",
+        scope_id=None,
+        group_ids=("g1",),
+        permission="READ",
+        apply_to_subfolders=False,
+    )
+    mock_aa.assert_called_once_with(
+        "u1",
+        "c1",
+        folderPath="/Docs",
+        scopeAccesses=[
+            {"entityId": "g1", "entityType": "GROUP", "type": "READ"},
+        ],
+        applyToSubScopes=False,
+    )
+
+
+@patch("uqadm.kb.access.Folder.add_access", side_effect=RuntimeError("api down"))
+def test_access_grant_api_failure(
+    mock_aa: MagicMock, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as ei:
+        cmd_access_grant(
+            _cfg(),
+            folder_path="/Docs",
+            scope_id=None,
+            group_ids=("g1",),
+            permission="READ",
+            apply_to_subfolders=True,
+        )
+    assert ei.value.code == 1
+    mock_aa.assert_called_once()
+    err = capsys.readouterr().err
+    assert "add_access failed" in err
+
+
+@patch("uqadm.kb.mkdir.Folder.create_paths", side_effect=OSError("disk"))
+def test_mkdir_api_failure(
+    mock_cp: MagicMock, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as ei:
+        cmd_mkdir(
+            _cfg(),
+            extra_paths=("/X",),
+            paths_file=None,
+            parent_scope_id=None,
+            inherit_access=True,
+        )
+    assert ei.value.code == 1
+    assert "create_paths failed" in capsys.readouterr().err
+
+
+@patch("uqadm.kb.mkdir.Folder.create_paths")
+def test_mkdir_no_new_folders_message(
+    mock_cp: MagicMock, capsys: pytest.CaptureFixture[str]
+) -> None:
+    mock_cp.return_value = {"createdFolders": []}
+    cmd_mkdir(
+        _cfg(),
+        extra_paths=("/exists",),
+        paths_file=None,
+        parent_scope_id=None,
+        inherit_access=True,
+    )
+    assert "No new folders" in capsys.readouterr().out
+
+
+def test_ingestion_set_requires_folder_xor_scope() -> None:
+    with pytest.raises(SystemExit) as ei:
+        cmd_ingestion_set(
+            _cfg(),
+            config_path=Path("unused.json"),
+            folder_path="/a",
+            scope_id="s",
+            apply_to_subfolders=True,
+        )
+    assert ei.value.code == 2
+
+
+def test_ingestion_set_invalid_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "bad.json"
+    p.write_text("{not json", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_ingestion_set(
+            _cfg(),
+            config_path=p,
+            folder_path="/Docs",
+            scope_id=None,
+            apply_to_subfolders=True,
+        )
+    assert ei.value.code == 2
+    assert "Invalid JSON" in capsys.readouterr().err
+
+
+def test_ingestion_set_invalid_yaml(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "bad.yaml"
+    p.write_text("key: [unclosed", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_ingestion_set(
+            _cfg(),
+            config_path=p,
+            folder_path="/Docs",
+            scope_id=None,
+            apply_to_subfolders=True,
+        )
+    assert ei.value.code == 2
+    assert "Invalid YAML" in capsys.readouterr().err
+
+
+def test_ingestion_set_non_mapping_root(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "arr.json"
+    p.write_text("[]", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_ingestion_set(
+            _cfg(),
+            config_path=p,
+            folder_path="/Docs",
+            scope_id=None,
+            apply_to_subfolders=True,
+        )
+    assert ei.value.code == 2
+    assert "mapping" in capsys.readouterr().err
+
+
+@patch("uqadm.kb.ingestion.Folder.update_ingestion_config")
+def test_ingestion_set_scope_id(mock_uic: MagicMock, tmp_path: Path) -> None:
+    p = tmp_path / "ing.json"
+    p.write_text("{}", encoding="utf-8")
+    cmd_ingestion_set(
+        _cfg(),
+        config_path=p,
+        folder_path=None,
+        scope_id="scope_1",
+        apply_to_subfolders=True,
+    )
+    mock_uic.assert_called_once_with(
+        "u1",
+        "c1",
+        ingestionConfig={},
+        applyToSubScopes=True,
+        scopeId="scope_1",
+    )
+
+
+@patch(
+    "uqadm.kb.ingestion.Folder.update_ingestion_config",
+    side_effect=RuntimeError("fail"),
+)
+def test_ingestion_set_api_failure(
+    mock_uic: MagicMock, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "ing.json"
+    p.write_text("{}", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_ingestion_set(
+            _cfg(),
+            config_path=p,
+            folder_path="/Docs",
+            scope_id=None,
+            apply_to_subfolders=False,
+        )
+    assert ei.value.code == 1
+    assert "update_ingestion_config failed" in capsys.readouterr().err

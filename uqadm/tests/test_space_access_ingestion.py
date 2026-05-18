@@ -93,3 +93,113 @@ def test_space_ingestion_dry_run_skips_patch(
         dry_run=True,
     )
     mock_up.assert_not_called()
+
+
+@patch(
+    "uqadm.space.access_grant.Space.add_space_access",
+    side_effect=RuntimeError("denied"),
+)
+def test_space_access_grant_api_failure(
+    mock_add: MagicMock, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as ei:
+        cmd_space_access_grant(
+            _cfg(),
+            space_id="asst_1",
+            group_ids=("g1",),
+            user_ids=(),
+            access_type="USE",
+        )
+    assert ei.value.code == 1
+    assert "add_space_access failed" in capsys.readouterr().err
+
+
+def test_space_ingestion_invalid_json(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "bad.json"
+    p.write_text("{", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_space_ingestion_set(
+            _cfg(),
+            space_id="asst_x",
+            config_path=p,
+            dry_run=False,
+        )
+    assert ei.value.code == 2
+    assert "Invalid JSON" in capsys.readouterr().err
+
+
+def test_space_ingestion_invalid_yaml(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "bad.yaml"
+    p.write_text("x: [", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_space_ingestion_set(
+            _cfg(),
+            space_id="asst_x",
+            config_path=p,
+            dry_run=False,
+        )
+    assert ei.value.code == 2
+    assert "Invalid YAML" in capsys.readouterr().err
+
+
+def test_space_ingestion_non_mapping_root(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "arr.json"
+    p.write_text("[]", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_space_ingestion_set(
+            _cfg(),
+            space_id="asst_x",
+            config_path=p,
+            dry_run=False,
+        )
+    assert ei.value.code == 2
+    assert "mapping" in capsys.readouterr().err
+
+
+@patch(
+    "uqadm.space.ingestion_set.Space.get_space", side_effect=RuntimeError("not found")
+)
+def test_space_ingestion_get_space_failure(
+    mock_get: MagicMock, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p = tmp_path / "ing.json"
+    p.write_text("{}", encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_space_ingestion_set(
+            _cfg(),
+            space_id="asst_x",
+            config_path=p,
+            dry_run=False,
+        )
+    assert ei.value.code == 1
+    assert "get_space failed" in capsys.readouterr().err
+
+
+@patch(
+    "uqadm.space.ingestion_set.Space.update_space",
+    side_effect=RuntimeError("patch fail"),
+)
+@patch("uqadm.space.ingestion_set.Space.get_space", return_value={"settings": {}})
+def test_space_ingestion_update_failure(
+    mock_get: MagicMock,
+    mock_up: MagicMock,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    p = tmp_path / "ing.json"
+    p.write_text('{"mode": "full"}', encoding="utf-8")
+    with pytest.raises(SystemExit) as ei:
+        cmd_space_ingestion_set(
+            _cfg(),
+            space_id="asst_x",
+            config_path=p,
+            dry_run=False,
+        )
+    assert ei.value.code == 1
+    assert "update_space failed" in capsys.readouterr().err
