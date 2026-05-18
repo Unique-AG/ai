@@ -7,7 +7,6 @@ from typing import Annotated, Any, Self
 from pydantic import (
     BeforeValidator,
     Field,
-    TypeAdapter,
     field_serializer,
     model_validator,
 )
@@ -17,12 +16,10 @@ from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit.content.schemas import ContentRerankerConfig
-from unique_toolkit.content.smart_rules import UniqueQL
+from unique_toolkit.content.smart_rules import parse_uniqueql
 from unique_toolkit.experimental.components.internal_search.base.config import (
     InternalSearchConfig,
 )
-
-_uniqueql_adapter = TypeAdapter(UniqueQL)
 
 
 def _parse_and_validate_uniqueql(v: Any) -> dict[str, Any] | None:
@@ -36,7 +33,7 @@ def _parse_and_validate_uniqueql(v: Any) -> dict[str, Any] | None:
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON: {e}") from e
     if isinstance(v, dict):
-        _uniqueql_adapter.validate_python(v)
+        parse_uniqueql(v)  # validates structure; discard model, keep raw dict
         return v
     raise ValueError(f"Expected JSON string or dict, got {type(v).__name__}")
 
