@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.0...unique-toolkit-v2026.22.0) (2026-05-18)
+
+
+### Features
+
+* **toolkit:** Adopt settings to better manage hardcoded values ([#1626](https://github.com/Unique-AG/ai/issues/1626)) ([ebdb018](https://github.com/Unique-AG/ai/commit/ebdb018e9ff2c5f874d9d28d715ba14de142466b))
+* **unique_toolkit:** Add display of code interpreter files to the co… ([#1665](https://github.com/Unique-AG/ai/issues/1665)) ([4d661da](https://github.com/Unique-AG/ai/commit/4d661dabb0269061b3833c36872ff70e9de49fd0))
+
+
+### Bug Fixes
+
+* **toolkit:** add enable_html_with_fence_un_17927 FF to opt in to htmlWithSource for HTML files (UN-17927) ([#1695](https://github.com/Unique-AG/ai/issues/1695)) ([60b129a](https://github.com/Unique-AG/ai/commit/60b129ab1a31466fb17b4db031356f927268640c))
+* **toolkit:** Add model config to camelize language model token limits attributes ([#1684](https://github.com/Unique-AG/ai/issues/1684)) ([522f29f](https://github.com/Unique-AG/ai/commit/522f29f9d760818f18d92bd963d534b98b1a5739))
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([b8c35b4](https://github.com/Unique-AG/ai/commit/b8c35b41466ab23165ccde8e1bd6b5dc4a0f1c62))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.18.0...unique-toolkit-v2026.20.0) (2026-05-08)
 
 

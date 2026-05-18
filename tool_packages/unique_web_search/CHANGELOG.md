@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.20.0...unique-web-search-v2026.22.0) (2026-05-18)
+
+
+### Bug Fixes
+
+* **unique_web_search:** limit requests to public http(s) endpoints ([#1664](https://github.com/Unique-AG/ai/issues/1664)) ([342265b](https://github.com/Unique-AG/ai/commit/342265be0f9f9545bd2e32d594560ae00b713522))
+* **web-search:** Local import of crawl4ai libraries ([#1678](https://github.com/Unique-AG/ai/issues/1678)) ([a5e72d7](https://github.com/Unique-AG/ai/commit/a5e72d7f2383933ac7b9bf606b99e1d4f602f1a4))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.18.0...unique-web-search-v2026.20.0) (2026-05-08)
 
 
