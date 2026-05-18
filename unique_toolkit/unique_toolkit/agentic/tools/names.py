@@ -8,3 +8,4 @@ TODO(UN-20578): Add canonical name constants for the remaining toolkit tools.
 
 INTERNAL_SEARCH_TOOL_NAME = "InternalSearch"
 UPLOADED_SEARCH_TOOL_NAME = "UploadedSearch"
+SKILL_TOOL_NAME = "Skill"
