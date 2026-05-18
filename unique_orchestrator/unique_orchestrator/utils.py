@@ -73,7 +73,7 @@ def resolve_other_options(
             logger.warning(
                 "additional_llm_options contains an unrecognised "
                 "reasoning_effort value %r — cannot compare it with "
-                "the skill's thinking_level; using skill minimum %r instead.",
+                "the skill's thinking_level; using skill maximum %r instead.",
                 config_effort,
                 skill_max,
             )

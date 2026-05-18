@@ -45,18 +45,14 @@ import asyncio
 from logging import Logger
 from typing import TYPE_CHECKING
 
-from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.loader import _parse_frontmatter, parse_skill_file
-from unique_skill_tool.schemas import SkillDefinition, SkillMetadata
+from unique_skill_tool.loader import parse_skill_file
+from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
-from unique_toolkit.language_model.schemas import (
-    LanguageModelFunction,
-    to_reasoning_effort,
-)
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -103,82 +99,6 @@ def normalize_available_skills_for_tool(
             )
         )
     return out
-
-
-def _build_skill(
-    *,
-    content_id: str,
-    content_key: str,
-    file_text: str,
-    logger: Logger,
-) -> SkillDefinition | None:
-    """Build a ``SkillDefinition`` from the raw file text of a KB document.
-
-    Parses YAML frontmatter for ``name`` and ``description``. A malformed
-    ``name`` (non-kebab-case, contains whitespace/punctuation, too long)
-    is rejected by ``SkillDefinition`` rather than silently flowing into
-    the OpenAI tool enum where the model could never emit it verbatim.
-
-    ``content_id`` is stored on the returned definition so it can be used
-    as a lookup key to load the SKILL.md.
-    """
-    if not file_text.strip():
-        return None
-
-    metadata, body = _parse_frontmatter(text=file_text)
-
-    name = metadata.get("name")
-    description = metadata.get("description")
-
-    if not name or not description:
-        logger.warning(
-            "Skipping '%s' (%s): wrong skill format.",
-            content_key,
-            content_id,
-        )
-        return None
-
-    skill_meta: SkillMetadata | None = None
-    raw_meta = metadata.get("metadata")
-    if raw_meta is not None and not isinstance(raw_meta, dict):
-        logger.warning(
-            "Skill '%s' (%s): 'metadata' must be a key-value mapping, got %r — ignoring.",
-            content_key,
-            content_id,
-            type(raw_meta).__name__,
-        )
-        raw_meta = None
-    if raw_meta is not None:
-        raw_thinking = raw_meta.get("thinking_level")
-        thinking_level = None
-        if raw_thinking is not None:
-            try:
-                thinking_level = to_reasoning_effort(str(raw_thinking))
-            except ValueError:
-                logger.warning(
-                    "Skill '%s' (%s): unknown thinking_level %r — ignoring.",
-                    content_key,
-                    content_id,
-                    raw_thinking,
-                )
-        skill_meta = SkillMetadata(thinking_level=thinking_level)
-
-    try:
-        return SkillDefinition(
-            name=name,
-            description=description,
-            content=body,
-            content_id=content_id,
-            metadata=skill_meta,
-        )
-    except ValidationError as exc:
-        logger.warning(
-            "Skipping '%s' (%s): invalid skill definition: %s",
-            content_key,
-            content_id,
-            exc.errors(include_url=False),
-        )
-        return None
 
 
 async def load_selectable_skills(

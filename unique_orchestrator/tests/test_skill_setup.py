@@ -13,8 +13,6 @@ from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_orchestrator._builders.skill_setup import (
-    _build_skill,
-    _parse_frontmatter,
     configure_skill_tool,
     load_selectable_skills,
     normalize_available_skills_for_tool,
@@ -248,109 +246,6 @@ class TestPreloadInvokedSkills:
         history_manager.add_tool_call.assert_not_called()
         history_manager._append_tool_calls_to_history.assert_not_called()
         history_manager.add_tool_call_results.assert_not_called()
-
-    def test_parses_frontmatter_and_body(self, logger: Logger) -> None:
-        file_text = (
-            "---\n"
-            "name: summarize\n"
-            "description: Summarize a document.\n"
-            "---\n"
-            "\n"
-            "# Summarize\n"
-            "Do the thing.\n"
-        )
-
-        skill = _build_skill(
-            content_id="c1",
-            content_key="summarize.md",
-            file_text=file_text,
-            logger=logger,
-        )
-
-        assert skill is not None
-        assert skill.name == "summarize"
-        assert skill.description == "Summarize a document."
-        assert skill.content == "# Summarize\nDo the thing."
-        assert skill.content_id == "c1"
-
-    def test_thinking_level_parsed_from_metadata(self, logger: Logger) -> None:
-        file_text = (
-            "---\n"
-            "name: deep-analysis\n"
-            "description: Deep analysis skill.\n"
-            "metadata:\n"
-            "  thinking_level: high\n"
-            "---\n"
-            "\n"
-            "Analyse deeply.\n"
-        )
-
-        skill = _build_skill(
-            content_id="c2",
-            content_key="deep-analysis.md",
-            file_text=file_text,
-            logger=logger,
-        )
-
-        assert skill is not None
-        assert skill.metadata is not None
-        assert skill.metadata.thinking_level == "high"
-
-    def test_thinking_level_absent_when_metadata_missing(self, logger: Logger) -> None:
-        file_text = (
-            "---\n"
-            "name: simple\n"
-            "description: Simple skill.\n"
-            "---\n"
-            "\n"
-            "Do the simple thing.\n"
-        )
-
-        skill = _build_skill(
-            content_id="c3",
-            content_key="simple.md",
-            file_text=file_text,
-            logger=logger,
-        )
-
-        assert skill is not None
-        assert skill.metadata is None
-
-    def test_invalid_thinking_level_is_ignored_with_warning(
-        self, logger: Logger
-    ) -> None:
-        file_text = (
-            "---\n"
-            "name: quirky\n"
-            "description: Quirky skill.\n"
-            "metadata:\n"
-            "  thinking_level: turbo\n"
-            "---\n"
-            "\n"
-            "Do something quirky.\n"
-        )
-
-        skill = _build_skill(
-            content_id="c4",
-            content_key="quirky.md",
-            file_text=file_text,
-            logger=logger,
-        )
-
-        assert skill is not None
-        assert not (skill.metadata and skill.metadata.thinking_level)
-        logger.warning.assert_called()
-        warning_msg = logger.warning.call_args[0][0]
-        assert "thinking_level" in warning_msg
-
-
-class TestParseFrontmatter:
-    def test_parses_valid_frontmatter(self) -> None:
-        fm, body = _parse_frontmatter(
-            text="---\nname: foo\ndescription: bar\n---\nhello\n"
-        )
-        assert fm == {"name": "foo", "description": "bar"}
-        assert body == "hello"
 
 
 class TestMessageSkillsAsSelectable:
