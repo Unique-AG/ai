@@ -84,6 +84,24 @@ def resolve_other_options(
         else max([valid_config_effort, skill_max], key=REASONING_EFFORT_ORDER.index)
     )
 
+    supported_efforts = config.space.language_model.supported_reasoning_efforts
+    if supported_efforts is not None:
+        if len(supported_efforts) == 0:
+            logger.warning(
+                "Skipping reasoning_effort %r: model %s does not support reasoning_effort.",
+                resolved_effort,
+                config.space.language_model.name,
+            )
+            return options
+        if resolved_effort not in supported_efforts:
+            logger.warning(
+                "Skipping reasoning_effort %r: model %s only supports %s.",
+                resolved_effort,
+                config.space.language_model.name,
+                supported_efforts,
+            )
+            return options
+
     if use_responses_api:
         existing_reasoning: dict = (
             dict(options["reasoning"])

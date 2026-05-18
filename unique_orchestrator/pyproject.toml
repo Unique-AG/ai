@@ -22,7 +22,6 @@ dependencies = [
     "unique-swot>=2026.22.0.dev0,<2026.22.0rc0",
     "unique-skill-tool>=2026.22.0.dev0,<2026.22.0rc0",
     "openai>=1.109.1,<3",
-    "python-frontmatter>=1.1.0,<2",
 ]
 
 [build-system]

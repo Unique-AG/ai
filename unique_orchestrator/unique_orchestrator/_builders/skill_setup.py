@@ -43,20 +43,16 @@ from __future__ import annotations
 
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import frontmatter
-from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.schemas import SkillDefinition, SkillMetadata
+from unique_skill_tool.loader import parse_skill_file
+from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import SkillReference
-from unique_toolkit.language_model.schemas import (
-    LanguageModelFunction,
-    to_reasoning_effort,
-)
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -77,29 +73,6 @@ def _find_skill_tool_build_config(
         if tool.name == SkillTool.name:
             return tool
     return None
-
-
-def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
-    """Split YAML frontmatter from the markdown body.
-
-    Thin wrapper around ``python-frontmatter``. On a YAML parse error,
-    or when the frontmatter parses to a non-mapping (e.g. a top-level
-    YAML list), we fall back to ``({}, <stripped body>)`` so a broken
-    skill file never leaks its raw ``---\\nname: ...\\n---`` block into
-    the LLM prompt, but also never crashes ``_build_skill`` with an
-    unhandled ``TypeError``/``ValueError`` from ``dict(...)``.
-    """
-    try:
-        post = frontmatter.loads(text)
-        metadata = post.metadata
-        body = post.content
-    except Exception:
-        return {}, text
-
-    if not isinstance(metadata, dict):
-        return {}, body
-
-    return dict(metadata), body
 
 
 def normalize_available_skills_for_tool(
@@ -254,10 +227,9 @@ async def load_selectable_skills(
             continue
 
         try:
-            skill = _build_skill(
-                content_id=entry.content_id,
-                content_key=label,
+            skill = parse_skill_file(
                 file_text=file_text,
+                source_label=label,
                 logger=logger,
             )
         except Exception:
