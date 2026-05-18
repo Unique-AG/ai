@@ -22,7 +22,6 @@ when the file is empty or malformed.
 from __future__ import annotations
 
 from logging import Logger
-from typing import Any
 
 import frontmatter
 from pydantic import ValidationError
@@ -31,7 +30,7 @@ from unique_toolkit.language_model.schemas import to_reasoning_effort
 from unique_skill_tool.schemas import SkillDefinition, SkillMetadata
 
 
-def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
+def _parse_frontmatter(*, text: str) -> tuple[dict[str, object], str]:
     """Split YAML frontmatter from the markdown body.
 
     Thin wrapper around ``python-frontmatter``. On a YAML parse error, or when
@@ -41,15 +40,15 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     """
     try:
         post = frontmatter.loads(text)
-        metadata = post.metadata
+        raw: object = post.metadata
         body = post.content
     except Exception:
         return {}, text
 
-    if not isinstance(metadata, dict):
+    if not isinstance(raw, dict):
         return {}, body
 
-    return dict(metadata), body
+    return {str(k): v for k, v in raw.items()}, body
 
 
 def parse_skill_file(

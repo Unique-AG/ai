@@ -16,7 +16,6 @@ import pytest
 from unique_skill_tool.loader import _parse_frontmatter, parse_skill_file
 from unique_skill_tool.schemas import SkillDefinition
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
