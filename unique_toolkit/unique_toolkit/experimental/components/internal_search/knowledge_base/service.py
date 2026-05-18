@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Self, cast
 
 from unique_toolkit._common.metadata_filter_scope import (
@@ -100,7 +101,7 @@ class KnowledgeBaseInternalSearchService(
         return SearchStringResult(query=query, chunks=chunks)
 
     @property
-    def _effective_metadata_filter(self) -> dict[str, Any] | None:
+    def _effective_metadata_filter(self) -> Mapping[str, Any] | None:
         if self._state.metadata_filter_override is not UNSET:
             return cast("dict[str, Any] | None", self._state.metadata_filter_override)
         if self._context.chat is not None:

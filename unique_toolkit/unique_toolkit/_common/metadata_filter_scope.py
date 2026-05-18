@@ -29,7 +29,7 @@ def build_folder_id_in_clause(scope_ids: list[str]) -> dict[str, Any]:
 
 def merge_scope_clause_into_metadata_filter(
     scope_clause: Mapping[str, Any],
-    metadata_filter: dict[str, Any] | None,
+    metadata_filter: Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """AND-merge *scope_clause* with *metadata_filter*, flattening a top-level ``and``."""
     scope_dict = dict(scope_clause)
