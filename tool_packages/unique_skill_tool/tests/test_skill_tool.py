@@ -486,7 +486,9 @@ class TestMaxThinkingLevel:
         assert tool.max_thinking_level is None
 
     async def test_none_when_activated_skill_has_no_hint(self) -> None:
-        skill = SkillDefinition(name="plain", description="d", content="c")
+        skill = SkillDefinition(
+            name="plain", description="d", content="c", content_id="cid"
+        )
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
 
         await tool.run(_make_tool_call("plain"))
@@ -498,6 +500,7 @@ class TestMaxThinkingLevel:
             name="deep",
             description="d",
             content="c",
+            content_id="cid",
             metadata=SkillMetadata(thinking_level="high"),
         )
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
@@ -511,12 +514,14 @@ class TestMaxThinkingLevel:
             name="low-skill",
             description="d",
             content="c",
+            content_id="cid",
             metadata=SkillMetadata(thinking_level="low"),
         )
         high_skill = SkillDefinition(
             name="high-skill",
             description="d",
             content="c",
+            content_id="cid",
             metadata=SkillMetadata(thinking_level="high"),
         )
         tool = _make_tool(skill_registry=_make_skill_registry(low_skill, high_skill))
@@ -531,9 +536,12 @@ class TestMaxThinkingLevel:
             name="hint-skill",
             description="d",
             content="c",
+            content_id="cid",
             metadata=SkillMetadata(thinking_level="medium"),
         )
-        plain_skill = SkillDefinition(name="plain-skill", description="d", content="c")
+        plain_skill = SkillDefinition(
+            name="plain-skill", description="d", content="c", content_id="cid"
+        )
         tool = _make_tool(skill_registry=_make_skill_registry(hint_skill, plain_skill))
 
         await tool.run(_make_tool_call("hint-skill"))
@@ -546,12 +554,14 @@ class TestMaxThinkingLevel:
             name="none-skill",
             description="d",
             content="c",
+            content_id="cid",
             metadata=SkillMetadata(thinking_level="none"),
         )
         min_skill = SkillDefinition(
             name="min-skill",
             description="d",
             content="c",
+            content_id="cid",
             metadata=SkillMetadata(thinking_level="minimal"),
         )
         tool = _make_tool(skill_registry=_make_skill_registry(none_skill, min_skill))
