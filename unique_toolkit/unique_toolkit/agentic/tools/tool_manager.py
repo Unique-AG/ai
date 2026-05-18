@@ -24,7 +24,6 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.names import (
     INTERNAL_SEARCH_TOOL_NAME,
-    SKILL_TOOL_NAME,
     UPLOADED_SEARCH_TOOL_NAME,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import (
@@ -162,11 +161,6 @@ class _ToolManager(Generic[_ApiMode]):
                 continue
             # if tool choices are given, only include those tools
             if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
-                if (
-                    t.name == OpenAIBuiltInToolName.CODE_INTERPRETER
-                    or t.name == SKILL_TOOL_NAME
-                ):
-                    self._tools.append(t)
                 continue
             # is the tool exclusive and has been choosen by the user?
             if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:
@@ -180,6 +174,18 @@ class _ToolManager(Generic[_ApiMode]):
                 continue
 
             self._tools.append(t)
+
+        # Capability tools bypass tool_choices filtering — they are always
+        # included when enabled, regardless of what was force-selected.
+        active_names = {t.name for t in self._tools}
+        for t in self.available_tools:
+            if (
+                t.is_enabled()
+                and t.name not in self._disabled_tools
+                and t.is_capability()
+                and t.name not in active_names
+            ):
+                self._tools.append(t)
 
     def _restore_uploaded_search_for_internal_search_if_available(
         self,

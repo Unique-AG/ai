@@ -124,6 +124,10 @@ class SkillTool(Tool[SkillToolConfig]):
         )
 
     @override
+    def is_capability(self) -> bool:
+        return True
+
+    @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}
         raw_skill_name: str = args.get("skill_name", "")
