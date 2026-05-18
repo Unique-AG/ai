@@ -103,11 +103,7 @@ def resolve_other_options(
             return options
 
     if use_responses_api:
-        existing_reasoning: dict = (
-            dict(options["reasoning"])
-            if isinstance(options.get("reasoning"), dict)
-            else {}
-        )
+        existing_reasoning: dict = dict(reasoning_dict)
         existing_reasoning["effort"] = resolved_effort
         options["reasoning"] = existing_reasoning
     else:
