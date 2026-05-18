@@ -46,6 +46,13 @@ class OpenAIBuiltInTool(ABC, Generic[ToolType]):
     def display_name(self) -> str:
         raise NotImplementedError()
 
+    def is_capability(self) -> bool:
+        """Return True if this tool is a capability that must remain in the
+        active tool set regardless of ``tool_choices`` filtering.
+        Default: False.
+        """
+        return False
+
     def get_required_include_params(self) -> list[ResponseIncludable]:
         """Return Responses API `include` values required by this tool.
 
