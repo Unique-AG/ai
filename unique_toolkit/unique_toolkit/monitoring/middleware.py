@@ -11,22 +11,23 @@ from prometheus_client import (  # pyright: ignore[reportMissingImports]
 from .registry import REGISTRY
 
 _http_requests_total = Counter(
-    "http_requests_total",
+    "python_http_requests_total",
     "Total HTTP requests",
     ["method", "path", "status_code"],
     registry=REGISTRY,
 )
 _http_request_duration_seconds = Histogram(
-    "http_request_duration_seconds",
+    "python_http_request_duration_seconds",
     "HTTP request duration",
     ["method", "path"],
     registry=REGISTRY,
 )
 _http_requests_in_progress = Gauge(
-    "http_requests_in_progress",
+    "python_http_requests_in_progress",
     "In-flight HTTP requests",
     ["method"],
     registry=REGISTRY,
+    multiprocess_mode="livesum",
 )
 
 _DEFAULT_EXCLUDED_PATHS = frozenset({"/health", "/metrics", "/"})
