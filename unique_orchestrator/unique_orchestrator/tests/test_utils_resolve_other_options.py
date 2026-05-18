@@ -18,11 +18,15 @@ from unique_orchestrator.utils import resolve_other_options
 def _make_config(
     additional_llm_options: dict,
     use_responses_api: bool = False,
+    supported_reasoning_efforts: list[str] | None = None,
 ) -> MagicMock:
     config = MagicMock()
     config.agent.experimental.additional_llm_options = additional_llm_options
     config.agent.experimental.responses_api_config.use_responses_api = use_responses_api
     config.agent.experimental.use_responses_api = use_responses_api
+    config.space.language_model.supported_reasoning_efforts = (
+        supported_reasoning_efforts
+    )
     return config
 
 
@@ -42,9 +46,12 @@ def _call(
     additional_llm_options: dict,
     skill_tool: SkillTool | None = None,
     use_responses_api: bool = False,
+    supported_reasoning_efforts: list[str] | None = None,
 ) -> dict:
     return resolve_other_options(
-        config=_make_config(additional_llm_options, use_responses_api),
+        config=_make_config(
+            additional_llm_options, use_responses_api, supported_reasoning_efforts
+        ),
         tool_manager=_make_tool_manager(skill_tool),
         logger=MagicMock(),
     )
@@ -205,6 +212,44 @@ class TestResolveOtherOptions:
             use_responses_api=True,
         )
         assert result["reasoning"] == {"effort": "medium"}
+
+    # ── Supported reasoning efforts ───────────────────────────────────────────
+
+    def test_effort_written_when_within_supported_list(self) -> None:
+        """Resolved effort is written when it appears in the supported list."""
+        skill_tool = _make_skill_tool_with_max("high")
+        result = _call(
+            {},
+            skill_tool=skill_tool,
+            supported_reasoning_efforts=["low", "medium", "high"],
+        )
+        assert result["reasoning_effort"] == "high"
+
+    def test_effort_skipped_when_model_does_not_support_reasoning(self) -> None:
+        """Empty supported list means the model does not support reasoning_effort at all."""
+        skill_tool = _make_skill_tool_with_max("high")
+        result = _call({}, skill_tool=skill_tool, supported_reasoning_efforts=[])
+        assert "reasoning_effort" not in result
+
+    def test_effort_skipped_when_resolved_effort_not_in_supported_list(self) -> None:
+        """Resolved effort outside the supported list is not written."""
+        skill_tool = _make_skill_tool_with_max("high")
+        result = _call(
+            {},
+            skill_tool=skill_tool,
+            supported_reasoning_efforts=["low"],
+        )
+        assert "reasoning_effort" not in result
+
+    def test_original_options_preserved_when_effort_skipped(self) -> None:
+        """Other options survive when the effort is skipped due to model constraints."""
+        skill_tool = _make_skill_tool_with_max("high")
+        result = _call(
+            {"temperature": 0.5},
+            skill_tool=skill_tool,
+            supported_reasoning_efforts=[],
+        )
+        assert result == {"temperature": 0.5}
 
     # ── No effort resolved ────────────────────────────────────────────────────
 
