@@ -685,6 +685,7 @@ class TestMCPToolWrapperRun:
                 messageId="assistant_message_202",
                 chatId=mock_chat_event.payload.chat_id,
                 arguments={"query": "test", "limit": 5},
+                assistantId="assistant_101",
             )
 
     @pytest.mark.ai
