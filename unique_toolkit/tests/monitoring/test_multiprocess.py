@@ -81,7 +81,11 @@ def test_get_metrics__multiprocess__sums_two_worker_pids(
     assert p1.exitcode == 0, f"Worker 1 failed with exit code {p1.exitcode}"
     assert p2.exitcode == 0, f"Worker 2 failed with exit code {p2.exitcode}"
 
-    output = get_metrics().decode()
+    # The test process imported prometheus_client before PROMETHEUS_MULTIPROC_DIR was set,
+    # so get_metrics() correctly warns about the import-order violation. We acknowledge it
+    # explicitly here so it doesn't leak as an uncaught warning in CI output.
+    with pytest.warns(RuntimeWarning, match="imported before the env var"):
+        output = get_metrics().decode()
 
     assert "test_multiprocess_requests_total" in output
     # Prometheus text format: name{labels} value — the total line is the _total suffix
@@ -108,7 +112,9 @@ def test_get_metrics__multiprocess__contains_python_http_metric_name(
     p.join()
     assert p.exitcode == 0
 
-    output = get_metrics().decode()
+    # Same import-order caveat as the aggregation test above — acknowledge the warning.
+    with pytest.warns(RuntimeWarning, match="imported before the env var"):
+        output = get_metrics().decode()
 
     assert "python_http_request_duration_seconds" in output
     assert "http_request_duration_seconds" not in output.replace(
