@@ -8,6 +8,7 @@ from pathlib import Path
 class FileMimeType(StrEnum):
     PDF = "application/pdf"
     DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    DOTX = "application/vnd.openxmlformats-officedocument.wordprocessingml.template"
     DOC = "application/msword"
     # TODO: clean up duplicates and make the monolith compatible with this.
     XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -41,7 +42,7 @@ class FileMimeType(StrEnum):
     @property
     def is_docx(self) -> bool:
         cls = self.__class__
-        return self in {cls.DOCX, cls.DOC}
+        return self in {cls.DOCX, cls.DOTX, cls.DOC}
 
     @property
     def is_pdf(self) -> bool:
@@ -98,7 +99,7 @@ class FileMimeType(StrEnum):
 
 def get_common_name(extension: FileMimeType) -> str:
     match extension:
-        case FileMimeType.DOCX | FileMimeType.DOC:
+        case FileMimeType.DOCX | FileMimeType.DOTX | FileMimeType.DOC:
             return "docx"
         case (
             FileMimeType.XLSX
