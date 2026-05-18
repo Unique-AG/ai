@@ -387,6 +387,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 messageId=self._event.payload.assistant_message.id,
                 chatId=self._event.payload.chat_id,
                 arguments=arguments,
+                assistantId=self._event.payload.assistant_id,
             )
 
             self.logger.debug(f"Result: {result}")
