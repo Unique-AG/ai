@@ -503,6 +503,15 @@ class DisplayCodeInterpreterFilesPostProcessor(
         fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
             self._company_id
         )
+        # HTML uses htmlWithSource only when BOTH the code-execution fence FF AND the
+        # dedicated HTML-fence FF are on. Default (FF off) keeps HtmlRendering so
+        # existing deployments are unaffected.
+        html_fence_ff_on = (
+            fence_ff_on
+            and feature_flags.enable_html_with_fence_un_17927.is_enabled(
+                self._company_id
+            )
+        )
 
         replaced_files: list[str] = []
         missed_files: list[str] = []
@@ -534,7 +543,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            elif is_html:
+            # HTML rendered as HtmlRendering block unless the dedicated html-fence FF
+            # is on (enable_html_with_fence_un_17927). Default keeps HtmlRendering.
+            elif is_html and not html_fence_ff_on:
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text or "",
                     filename=filename,
@@ -542,6 +553,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
+            # Non-HTML files, or HTML when html_fence_ff_on → inline content link for
+            # subsequent fence injection (htmlWithSource / imgWithSource / fileWithSource)
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text or "",
@@ -563,6 +576,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             else:
                 missed_files.append(filename)
 
+            # HtmlRendering and htmlWithSource both embed contentId directly — no ContentReference needed
             is_html_rendered = is_html
             if replaced and not (is_image or is_html_rendered or fence_ff_on):
                 loop_response.message.references.append(
@@ -584,13 +598,17 @@ class DisplayCodeInterpreterFilesPostProcessor(
         )
 
         if fence_ff_on:
-            code_blocks = _build_code_blocks(loop_response, self._content_map)
+            code_blocks = _build_code_blocks(
+                loop_response, self._content_map, include_html=html_fence_ff_on
+            )
             self._log.info(
                 "Fence injection — %d code block(s), files: %s",
                 len(code_blocks),
                 [f.filename for b in code_blocks for f in b.files],
             )
-            _warn_unmatched_code_blocks(self._content_map, code_blocks)
+            _warn_unmatched_code_blocks(
+                self._content_map, code_blocks, include_html=html_fence_ff_on
+            )
             text_before = loop_response.message.text
             loop_response.message.text = _inject_code_execution_fences(
                 loop_response.message.text or "",
@@ -971,12 +989,9 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     content_id, a title derived from the filename, the type, and the
     escaped source code.
 
-    HTML is not emitted here in normal flow: it is rendered via ``HtmlRendering`` blocks
-    in message text and excluded from fence injection. If ``type="html"`` is passed (e.g.
-    orphan path), fall through to ``fileWithSource`` like other non-image artifacts.
-
     Format (4 backticks so inner code backticks never close the fence):
       ````imgWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
+      ````htmlWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
       ````fileWithSource(id='{n}', contentId='{id}', title="{title}", type="{type}", code="{escaped_code}")````
     """
     title = _file_title(file.filename)
@@ -984,6 +999,8 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     outer = "````"
     if file.type == "image":
         tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
+    elif file.type == "html":
+        tag = f"htmlWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
     else:
         ftype = _file_frontend_type(file.filename)
         tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
@@ -1007,7 +1024,7 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
 
 
 _FENCE_BLOCK_START = re.compile(
-    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource)\()",
+    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource|htmlWithSource)\()",
     re.MULTILINE,
 )
 
@@ -1017,9 +1034,9 @@ _FENCE_BLOCK_START = re.compile(
 #   - cross-line: 1 or 2 newlines optionally surrounded by horizontal whitespace
 #     (list-item linebreak, or blank-line paragraph gap)
 _CONSECUTIVE_FENCES_RE = re.compile(
-    r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
+    r"(````(?:imgWithSource|fileWithSource|htmlWithSource)\([^\n]*\)````)"
     r"(?:[^\n`]*|[ \t]*\n{1,2}[ \t]*)"
-    r"(?=````(?:imgWithSource|fileWithSource)\()"
+    r"(?=````(?:imgWithSource|fileWithSource|htmlWithSource)\()"
 )
 
 
@@ -1083,6 +1100,7 @@ def _inject_code_execution_fences(
 def _build_code_blocks(
     loop_response: ResponsesLanguageModelStreamResponse,
     content_map: dict[str, str | None],
+    include_html: bool = False,
 ) -> list[CodeInterpreterBlock]:
     """Map each code interpreter call to the files it produced via /mnt/data/ path matching.
 
@@ -1180,11 +1198,9 @@ def _build_code_blocks(
     # overwritten across executions. Using a dict keyed by filename ensures each
     # file appears exactly once per block (last annotation wins, consistent with
     # the last-writer-wins rule applied in step 1).
-    # HTML files are excluded: they are always rendered via HtmlRendering blocks
-    # and never participate in fence injection.
     block_file_map: dict[int, dict[str, CodeInterpreterFile]] = {}
     for annotation in loop_response.container_files:
-        if _get_file_type(annotation.filename) == "html":
+        if not include_html and _get_file_type(annotation.filename) == "html":
             continue
         content_id = content_map.get(annotation.filename)
         if content_id is None:
@@ -1268,6 +1284,7 @@ def _replace_dangling_sandbox_links(text: str) -> tuple[str, bool]:
 def _warn_unmatched_code_blocks(
     content_map: dict[str, str | None],
     code_blocks: list[CodeInterpreterBlock],
+    include_html: bool = False,
 ) -> None:
     """Warn for files that were uploaded but could not be matched to any code block.
 
@@ -1281,7 +1298,7 @@ def _warn_unmatched_code_blocks(
     for filename, content_id in content_map.items():
         if content_id is None:
             continue
-        if _get_file_type(filename) == "html":
+        if not include_html and _get_file_type(filename) == "html":
             continue
         if filename not in fenced_filenames:
             logger.warning(

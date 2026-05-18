@@ -936,12 +936,12 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
-def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
+def test_build_file_fence__html__produces_htmlWithSource() -> None:
     """
-    Purpose: HTML ``CodeInterpreterFile`` passed to ``_build_file_fence`` uses
-    ``fileWithSource`` (not a dedicated HTML fence tag).
-    Why this matters: In normal flow HTML is shown via ``HtmlRendering`` blocks and is
-    excluded from fence injection; this path only applies to edge cases (e.g. orphans).
+    Purpose: HTML ``CodeInterpreterFile`` passed to ``_build_file_fence`` uses the
+    dedicated ``htmlWithSource`` fence tag.
+    Why this matters: When the fence FF is on, HTML files render via ``htmlWithSource``
+    so the frontend receives the generating code alongside the content ID.
     """
     file = CodeInterpreterFile(
         filename="report.html", content_id="cont_html1", type="html"
@@ -949,9 +949,9 @@ def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
     fence = _build_file_fence(
         file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
     )
-    assert fence.startswith("````fileWithSource(")
+    assert fence.startswith("````htmlWithSource(")
     assert "cont_html1" in fence
-    assert "htmlWithSource" not in fence
+    assert "fileWithSource" not in fence
 
 
 @pytest.mark.ai
@@ -1037,12 +1037,13 @@ def test_inject_code_execution_fences__replaces_document_inline_ref__with_fileWi
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__html_file__is_not_injected() -> None:
+def test_inject_code_execution_fences__html_file__produces_htmlWithSource() -> None:
     """
-    Purpose: HTML files are rendered via HtmlRendering blocks (not fence injection),
-    so an HTML block passed to _inject_code_execution_fences leaves the text unchanged.
-    Why this matters: In normal flow HTML never reaches fence injection — this guards
-    against accidental regressions where an htmlWithSource fence is emitted.
+    Purpose: HTML files with an inline unique://content ref are wrapped in an
+    ``htmlWithSource`` fence by _inject_code_execution_fences.
+    Why this matters: When the fence FF is on, HTML goes through
+    _replace_container_file_citation (same as other files) and then fence injection
+    converts the inline ref to an htmlWithSource fence.
     """
     block = CodeInterpreterBlock(
         code='open("/mnt/data/page.html", "w").write("<html></html>")',
@@ -1052,15 +1053,14 @@ def test_inject_code_execution_fences__html_file__is_not_injected() -> None:
             )
         ],
     )
-    # HTML produces no unique://content inline ref (it was replaced by HtmlRendering),
-    # so there is nothing for the injector to match.
-    text = "```HtmlRendering\nunique://content/cont_html1\n```"
+    # When fence FF is on, _replace_container_file_citation produces this inline ref.
+    text = "[page.html](unique://content/cont_html1)"
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert "htmlWithSource" not in result
-    assert "HtmlRendering" in result
+    assert "````htmlWithSource(" in result
     assert "cont_html1" in result
+    assert "[page.html](unique://content/cont_html1)" not in result
 
 
 @pytest.mark.ai
@@ -1845,8 +1845,9 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
     _mock_fence_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML always uses _replace_container_html_citation regardless of feature flags.
-    Why this matters: HTML rendering via HtmlRendering blocks is unconditional.
+    Purpose: HTML uses HtmlRendering when the code-execution fence FF is off.
+    Why this matters: Default path — HtmlRendering is the correct output when the
+    code-execution fence feature is disabled (html_fence FF is irrelevant here).
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"report.html": "cid_html"}
@@ -1876,13 +1877,14 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=True,
 )
-def test_apply_postprocessing_to_response__html_uses_HtmlRendering__even_when_fence_ff_on(
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_on_but_html_fence_ff_off(
     _mock_fence_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML always uses HtmlRendering blocks, even when the fence FF is on.
-    Why this matters: HTML rendering is unconditional; the fence FF only affects
-    non-HTML files (images → imgWithSource, documents → fileWithSource).
+    Purpose: HTML still uses HtmlRendering when the fence FF is on but the html-fence FF
+    (enable_html_with_fence_un_17927) is off (the default).
+    Why this matters: The html-fence FF defaults to False so existing deployments are
+    unaffected when they turn on the code-execution fence FF.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -1907,6 +1909,51 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__even_when_fe
     assert "HtmlRendering" in message.text
     assert "unique://content/cid_page" in message.text
     assert "htmlWithSource" not in message.text
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_html_with_fence_un_17927.is_enabled",
+    return_value=True,
+)
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=True,
+)
+def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_ffs_on(
+    _mock_fence_ff: MagicMock,
+    _mock_html_fence_ff: MagicMock,
+) -> None:
+    """
+    Purpose: HTML uses htmlWithSource fence injection when BOTH the code-execution
+    fence FF and the html-fence FF (enable_html_with_fence_un_17927) are on.
+    Why this matters: The html-fence FF is the opt-in gate for the new behavior.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"page.html": "cid_page"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[page.html](sandbox:/mnt/data/page.html)",
+        references=refs,
+    )
+    call = _make_ci_call('open("/mnt/data/page.html", "w").write("x")')
+    ann = _make_annotation("page.html", file_id="f_html", container_id="cntr_x")
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[ann],
+        code_interpreter_calls=[call],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert len(refs) == 0
+    assert "````htmlWithSource(" in message.text
+    assert "cid_page" in message.text
+    assert "HtmlRendering" not in message.text
 
 
 # ---------------------------------------------------------------------------
