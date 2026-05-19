@@ -39,11 +39,13 @@ def _make_skill(
     name: str = "test-skill",
     description: str = "A test skill",
     content: str = "Do the test thing.",
+    content_id: str = "test-cid",
 ) -> SkillDefinition:
     return SkillDefinition(
         name=name,
         description=description,
         content=content,
+        content_id=content_id,
     )
 
 

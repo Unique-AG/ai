@@ -1,7 +1,9 @@
 """Helpers for the Skill tool.
 
 Loads skill definitions from the knowledge base and registers the
-SkillTool with the tool manager.
+SkillTool with the tool manager. Which files to load is determined only
+by the per-message skill list: callers map ``ChatEventPayload.available_skills``
+through ``normalize_available_skills_for_tool`` before ``configure_skill_tool``.
 
 Skill discovery follows the official Agent Skills protocol — see
 https://agentskills.io/home. Each skill is a **folder**
@@ -41,16 +43,16 @@ from __future__ import annotations
 
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import frontmatter
 from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.schemas import SelectableSkill, SkillDefinition
+from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
-from unique_skill_tool.utils import extract_invoked_skills, normalize_skill_name
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 if TYPE_CHECKING:
@@ -97,6 +99,32 @@ def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     return dict(metadata), body
 
 
+def normalize_available_skills_for_tool(
+    available_skills: list[SkillReference],
+) -> list[SkillReference]:
+    """Normalize ``ChatEventPayload.available_skills`` for the Skill tool.
+
+    Call this at the orchestration boundary (e.g. when building ``UniqueAI``)
+    before ``configure_skill_tool``. Deduplicates by ``content_id`` while
+    preserving first-seen order. Entries without a ``content_id`` are skipped.
+    """
+    seen: set[str] = set()
+    out: list[SkillReference] = []
+    for choice in available_skills:
+        cid = choice.content_id
+        if not cid or cid in seen:
+            continue
+        seen.add(cid)
+        out.append(
+            SkillReference(
+                name=choice.name,
+                scope_id=choice.scope_id,
+                content_id=choice.content_id,
+            )
+        )
+    return out
+
+
 def _build_skill(
     *,
     content_id: str,
@@ -111,8 +139,8 @@ def _build_skill(
     is rejected by ``SkillDefinition`` rather than silently flowing into
     the OpenAI tool enum where the model could never emit it verbatim.
 
-    ``content_id`` and ``content_key`` are used only for log messages so
-    operators can locate the offending file in the knowledge base.
+    ``content_id`` is stored on the returned definition so it can be used
+    as a lookup key to load the SKILL.md.
     """
     if not file_text.strip():
         return None
@@ -135,6 +163,7 @@ def _build_skill(
             name=name,
             description=description,
             content=body,
+            content_id=content_id,
         )
     except ValidationError as exc:
         logger.warning(
@@ -149,10 +178,10 @@ def _build_skill(
 async def load_selectable_skills(
     *,
     content_service: ContentService,
-    selectable_skills: list[SelectableSkill],
+    selectable_skills: list[SkillReference],
     logger: Logger,
 ) -> dict[str, SkillDefinition]:
-    """Load skills from an explicit list of ``SelectableSkill`` references.
+    """Load skills from an explicit list of ``SkillReference`` references.
 
     Entries with an empty ``content_id`` are skipped (admin UIs commonly
     leave a blank row as a placeholder). Failures are logged and do not
@@ -232,28 +261,37 @@ async def configure_skill_tool(
     logger: Logger,
     content_service: ContentService,
     tool_manager: ToolManager | ResponsesApiToolManager,
+    selectable_skills: list[SkillReference] | None = None,
 ) -> None:
-    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
-
-    Skills are loaded from ``selectable_skills`` only. Each entry should
-    reference a ``SKILL.md`` document via ``content_id``.
-    """
+    """Populate the SkillTool's skill registry when it is enabled in ``space.tools``."""
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
         return
 
-    skill_config = cast(SkillToolConfig, skill_tool_build_config.configuration)
+    to_load = list(selectable_skills or [])
 
-    if not skill_config.selectable_skills.selected:
+    if not isinstance(skill_tool_build_config.configuration, SkillToolConfig):
         logger.warning(
-            "SkillTool is enabled but no skills are configured — no skills will be loaded."
+            "SkillTool build config has unexpected configuration type '%s' — "
+            "skills will not be loaded and the tool will be excluded.",
+            type(skill_tool_build_config.configuration).__name__,
+        )
+        tool_manager.exclude_tool(SkillTool.name)
+        return
+
+    skill_tool_build_config.configuration.selectable_skills.selected = to_load
+
+    if not to_load:
+        logger.warning(
+            "SkillTool is enabled but selectable_skills is empty — "
+            "no skills will be loaded."
         )
         tool_manager.exclude_tool(SkillTool.name)
         return
 
     skill_registry = await load_selectable_skills(
         content_service=content_service,
-        selectable_skills=skill_config.selectable_skills.selected,
+        selectable_skills=to_load,
         logger=logger,
     )
 
@@ -276,58 +314,50 @@ async def configure_skill_tool(
 
 async def preload_invoked_skills(
     *,
-    text: str,
     tool_manager: ToolManager | ResponsesApiToolManager,
     history_manager: HistoryManager,
     logger: Logger,
-    skill_choices: list[SelectableSkill],
+    skill_choices: list[SkillReference],
 ) -> None:
-    """Preload forced and slash-invoked skills before the first model turn.
+    """Preload skills selected in ``skill_choices`` before the first model turn.
 
     Mirrors the normal mid-loop activation path so preloaded skills are
     indistinguishable from skills the model activates itself:
 
-    1. Resolves forced ``skill_choices`` first.
-    2. If no forced skills are found, pulls every ``/skill-name`` token
-       out of the user message — whether at the start, between words, or
-       at the end — as long as it is properly word-boundaried so URLs and
-       file paths are not mistaken for invocations. Unknown tokens are
-       left as ordinary text.
+    1. Resolves each ``skill_choices`` entry against the registered
+       ``SkillTool`` registry by ``content_id``. Entries without a
+       ``content_id`` are skipped — every skill choice must carry one.
     2. For each matched skill, synthesizes a ``LanguageModelFunction``
        and runs it through the already-registered ``SkillTool`` — the
        exact same code path ``UniqueAI._handle_tool_calls`` uses.
     3. Appends the synthetic assistant tool-call message plus the
        resulting tool-result messages to history, so the first model
        turn sees the skills as already-activated tool calls.
-    ``skill_choices`` are treated as forced skills and loaded even when
-    the user message does not contain ``/skill-name`` tokens. Duplicate
-    choices that resolve to the same registered skill are ignored after
-    the first (same deduplication idea as ``extract_invoked_skills``).
-    User message text is never modified in this preload step.
+
+    Duplicate choices that resolve to the same registered skill are
+    ignored after the first.
     """
     skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
     if not isinstance(skill_tool, SkillTool):
         return
 
-    forced_skills = []
+    # content_id → skill.
+    content_id_index: dict[str, SkillDefinition] = {
+        s.content_id: s for s in skill_tool.skill_registry.values() if s.content_id
+    }
 
-    if skill_choices:
-        seen_forced: set[str] = set()
-        for choice in skill_choices:
-            if not choice.name:
-                continue
-            normalized_name = normalize_skill_name(choice.name)
-            forced_skill = skill_tool.skill_registry.get(normalized_name)
-            if forced_skill is None:
-                continue
-            if forced_skill.name in seen_forced:
-                continue
-            seen_forced.add(forced_skill.name)
-            forced_skills.append(forced_skill)
-
-    else:
-        if text:
-            forced_skills = extract_invoked_skills(text, skill_tool.skill_registry)
+    forced_skills: list[SkillDefinition] = []
+    seen_forced: set[str] = set()
+    for choice in skill_choices:
+        forced_skill: SkillDefinition | None = None
+        if choice.content_id:
+            forced_skill = content_id_index.get(choice.content_id)
+        if forced_skill is None:
+            continue
+        if forced_skill.name in seen_forced:
+            continue
+        seen_forced.add(forced_skill.name)
+        forced_skills.append(forced_skill)
 
     if not forced_skills:
         return
