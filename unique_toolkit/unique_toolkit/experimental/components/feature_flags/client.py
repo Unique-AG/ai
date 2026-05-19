@@ -45,16 +45,21 @@ class FeatureFlagClient:
         self,
         *,
         url: str | None,
-        service_id: str,
+        service_id: str | None = None,
         ttl_ms: int = 30_000,
     ) -> None:
         self._url = url
         self._service_id = service_id
-        self._available = url is not None
+        self._available = url is not None and service_id is not None
         self._cache = AsyncTTLCache(ttl=ttl_ms / 1000)
-        if not self._available:
+        if url is None:
             logger.warning(
                 "FeatureFlagClient: CONFIGURATION_BACKEND_URL is not set — "
+                "all flag evaluations will use env-var fallback"
+            )
+        elif service_id is None:
+            logger.warning(
+                "FeatureFlagClient: FEATURE_FLAG_SERVICE_ID is not set — "
                 "all flag evaluations will use env-var fallback"
             )
 
@@ -100,7 +105,7 @@ class FeatureFlagClient:
                 lambda: evaluate_flag(
                     url=self._url,  # type: ignore[arg-type]  # _available guards None
                     flag=flag,
-                    service_id=self._service_id,
+                    service_id=self._service_id,  # type: ignore[arg-type]  # _available guards None
                     company_id=company_id,
                     user_id=user_id,
                 ),
