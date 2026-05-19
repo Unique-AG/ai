@@ -2,6 +2,7 @@ import logging
 import os
 import re
 import tempfile
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -725,6 +726,26 @@ async def request_content_by_id_async(
         return await client.get(url, headers=headers)
 
 
+def _extract_filename(content_disposition: str) -> str | None:
+    """Extract filename from a Content-Disposition header.
+
+    Prefers the RFC 5987 ``filename*=UTF-8''...`` parameter (which carries
+    properly percent-encoded UTF-8 filenames) and falls back to the legacy
+    ASCII ``filename="..."`` parameter.
+    """
+    utf8_match = re.search(
+        r"filename\*=UTF-8'[^']*'(.+?)(?:;|$)", content_disposition, re.IGNORECASE
+    )
+    if utf8_match:
+        return urllib.parse.unquote(utf8_match.group(1))
+
+    ascii_match = re.search(r'filename="([^"]+)"', content_disposition)
+    if ascii_match:
+        return ascii_match.group(1)
+
+    return None
+
+
 def download_content_to_file_by_id(
     user_id: str,
     company_id: str,
@@ -759,10 +780,11 @@ def download_content_to_file_by_id(
         if filename:
             content_path = Path(random_dir) / filename
         else:
-            pattern = r'filename="([^"]+)"'
-            match = re.search(pattern, response.headers.get("Content-Disposition", ""))
-            if match:
-                content_path = Path(random_dir) / match.group(1)
+            extracted = _extract_filename(
+                response.headers.get("Content-Disposition", "")
+            )
+            if extracted:
+                content_path = Path(random_dir) / extracted
             else:
                 error_msg = "Error downloading file: Filename could not be determined"
                 logger.error(error_msg)

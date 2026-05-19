@@ -9,7 +9,6 @@ from openai.types.responses import (
     ResponseIncludable,
     ResponseInputItemParam,
     ResponseInputParam,
-    ResponseOutputItem,
     ResponseTextConfigParam,
     ToolParam,
     response_create_params,
@@ -50,6 +49,8 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
     LanguageModelUserMessage,
     ResponsesLanguageModelStreamResponse,
+    ResponsesMessageInput,
+    ResponsesMessageSequence,
     reasoning_effort_to_openai,
 )
 
@@ -101,9 +102,7 @@ def _convert_to_specific_message(
 
 
 def _convert_messages_to_openai(
-    messages: Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ],
+    messages: ResponsesMessageSequence,
 ) -> ResponseInputParam:
     res = []
     for message in messages:
@@ -121,11 +120,7 @@ def _convert_messages_to_openai(
 
 
 def convert_messages_to_openai(
-    messages: str
-    | LanguageModelMessages
-    | Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ],
+    messages: ResponsesMessageInput,
 ) -> str | list[ResponseInputItemParam]:
     if isinstance(messages, str):
         return messages
@@ -149,11 +144,7 @@ def _prepare_responses_params_util(
     content_chunks: list[ContentChunk] | None,
     temperature: float,
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None,
-    messages: str
-    | LanguageModelMessages
-    | Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ],
+    messages: ResponsesMessageInput,
     reasoning: Reasoning | None,
     text: ResponseTextConfigParam | None,
     other_options: dict[str, Any] | None = None,
@@ -463,11 +454,7 @@ def stream_responses_with_references(
     chat_id: str,
     assistant_id: str,
     model_name: LanguageModelName | str,
-    messages: str
-    | LanguageModelMessages
-    | Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ],
+    messages: ResponsesMessageInput,
     content_chunks: list[ContentChunk] | None = None,
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -531,11 +518,7 @@ async def stream_responses_with_references_async(
     chat_id: str,
     assistant_id: str,
     model_name: LanguageModelName | str,
-    messages: str
-    | LanguageModelMessages
-    | Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ],
+    messages: ResponsesMessageInput,
     content_chunks: list[ContentChunk] | None = None,
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,

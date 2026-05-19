@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastmcp import FastMCP
@@ -16,6 +17,8 @@ from unique_mcp.settings import ServerSettings
 def main() -> None:
     """Main entry point for the MCP Search server."""
 
+    logging.getLogger("mcp_search").setLevel(logging.DEBUG)
+
     server_settings = ServerSettings()
 
     oidc_proxy = create_zitadel_oidc_proxy(
@@ -25,9 +28,7 @@ def main() -> None:
 
     tools_provider = FileSystemProvider(Path(__file__).parent / "tools")
 
-    mcp = FastMCP(
-        "Knowledge Base Search 🚀", auth=oidc_proxy, providers=[tools_provider]
-    )
+    mcp = FastMCP("Knowledge Base Search", auth=oidc_proxy, providers=[tools_provider])
 
     mcp.mount(get_custom_routes_provider())
 

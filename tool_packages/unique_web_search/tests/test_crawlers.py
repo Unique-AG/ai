@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -13,6 +13,11 @@ from unique_web_search.services.crawlers.utils import (
     SEPARATORS,
     generate_random_email,
     get_random_user_agent,
+)
+from unique_web_search.services.url_safety import (
+    BlockedCrawlTarget,
+    CrawlTargetValidationError,
+    ResolvedCrawlTarget,
 )
 
 
@@ -75,6 +80,56 @@ class TestBasicCrawler:
         """Test BasicCrawler has the expected crawl method."""
         assert hasattr(basic_crawler, "crawl")
         assert callable(getattr(basic_crawler, "crawl"))
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_basic_crawler_crawl__raises__when_url_policy_blocks_target(
+        self,
+        basic_crawler: BasicCrawler,
+    ) -> None:
+        """
+        Purpose: Verify the crawler layer enforces the shared URL policy as a backstop.
+        Why this matters: Future callers must not be able to bypass executor-level validation accidentally.
+        Setup summary: Attempt to crawl a metadata URL directly through the crawler and assert the request is rejected before any fetch starts.
+        """
+        with pytest.raises(CrawlTargetValidationError):
+            await basic_crawler.crawl(["http://169.254.169.254/latest/meta-data"])
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_basic_crawler_crawl__raises__when_request_time_resolution_blocks_target(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify request-time safety failures are surfaced instead of being converted into generic crawl errors.
+        Why this matters: DNS rebinding protection only works if the crawler propagates the security exception to the caller.
+        Setup summary: Force the per-request crawl step to raise a validation error and assert the top-level crawl call preserves it.
+        """
+
+        monkeypatch.setattr(
+            basic_crawler,
+            "_crawl_url_with_client",
+            AsyncMock(
+                side_effect=CrawlTargetValidationError(
+                    [
+                        BlockedCrawlTarget(
+                            hostname="localhost",
+                            category="localhost",
+                            reason="Target points to a localhost host",
+                        )
+                    ]
+                )
+            ),
+        )
+        monkeypatch.setattr(
+            "unique_web_search.services.crawlers.base.validate_crawl_urls",
+            AsyncMock(side_effect=lambda urls: urls),
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await basic_crawler.crawl(["https://example.com"])
 
     # Note: We're not testing the actual crawling functionality here
     # because it would require mocking HTTP requests and is complex.
@@ -167,10 +222,18 @@ class TestBasicCrawlerCrawlUrl:
         )
         client = AsyncMock(spec=httpx.AsyncClient)
         client.get.return_value = response
-
-        result = await basic_crawler._crawl_url_with_client(
-            client, "https://example.com"
-        )
+        with patch(
+            "unique_web_search.services.crawlers.basic.resolve_crawl_target",
+            return_value=ResolvedCrawlTarget(
+                normalized_url="https://example.com",
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ):
+            result = await basic_crawler._crawl_url_with_client(
+                client, "https://example.com"
+            )
 
         client.get.assert_called_once()
         call_headers = client.get.call_args[1].get(
@@ -182,6 +245,47 @@ class TestBasicCrawlerCrawlUrl:
         assert "Hello" in result
 
     @pytest.mark.asyncio
+    async def test_crawl_url_pins_request_to_resolved_ip_for_https_targets(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        html = "<html><body><p>Hello</p></body></html>"
+        response = httpx.Response(
+            200,
+            text=html,
+            headers={"content-type": "text/html; charset=utf-8"},
+            request=httpx.Request("GET", "https://93.184.216.34/docs?q=1"),
+        )
+        client = AsyncMock(spec=httpx.AsyncClient)
+        client.get.return_value = response
+
+        monkeypatch.setattr(
+            "unique_web_search.services.crawlers.basic.resolve_crawl_target",
+            AsyncMock(
+                side_effect=lambda url: ResolvedCrawlTarget(
+                    normalized_url=url,
+                    hostname="example.com",
+                    resolved_ip="93.184.216.34",
+                    used_dns_resolution=True,
+                )
+            ),
+        )
+
+        await basic_crawler._crawl_url_with_client(
+            client, "https://example.com/docs?q=1"
+        )
+
+        client.get.assert_called_once()
+        assert client.get.call_args.args[0] == "https://93.184.216.34/docs?q=1"
+        call_headers = client.get.call_args.kwargs["headers"]
+        assert call_headers["Host"] == "example.com"
+        assert call_headers["User-Agent"]
+        assert (
+            client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
+        )
+
+    @pytest.mark.asyncio
     async def test_crawl_url_blacklisted(self, basic_crawler):
         client = AsyncMock(spec=httpx.AsyncClient)
         result = await basic_crawler._crawl_url_with_client(
@@ -189,6 +293,277 @@ class TestBasicCrawlerCrawlUrl:
         )
         assert "blacklisted" in result
         client.get.assert_not_called()
+
+
+class TestBaseCrawlerRedirectResolutionSetting:
+    """Test that BaseCrawler.crawl() honours url_safety_resolve_redirects."""
+
+    @pytest.fixture
+    def basic_crawler(self) -> BasicCrawler:
+        return BasicCrawler(BasicCrawlerConfig(crawler_type=CrawlerType.BASIC))
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl__calls_resolve_redirect_chain__when_setting_is_enabled(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify resolve_redirect_chain is invoked for each URL when the setting is True.
+        Why this matters: The setting must engage the full redirect-resolution guard in the default configuration.
+        Setup summary: Patch the setting to True, mock the resolver and _crawl; assert resolver was called.
+        """
+        import unique_web_search.services.crawlers.base as base_module
+
+        mock_settings = MagicMock()
+        mock_settings.url_safety_resolve_redirects = True
+        monkeypatch.setattr(base_module, "env_settings", mock_settings)
+        monkeypatch.setattr(
+            base_module, "validate_crawl_urls", AsyncMock(side_effect=lambda urls: urls)
+        )
+
+        mock_resolve = AsyncMock(side_effect=lambda u: u)
+        monkeypatch.setattr(base_module, "resolve_redirect_chain", mock_resolve)
+        monkeypatch.setattr(
+            basic_crawler, "_crawl", AsyncMock(return_value=["content"])
+        )
+
+        await basic_crawler.crawl(["https://example.com"])
+
+        mock_resolve.assert_called_once_with("https://example.com")
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl__skips_resolve_redirect_chain__when_setting_is_disabled(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify resolve_redirect_chain is not invoked when the setting is False.
+        Why this matters: Operators must be able to disable the redirect resolver for environments
+        where outbound HEAD requests are restricted.
+        Setup summary: Patch the setting to False, mock the resolver and _crawl; assert resolver was not called.
+        """
+        import unique_web_search.services.crawlers.base as base_module
+
+        mock_settings = MagicMock()
+        mock_settings.url_safety_resolve_redirects = False
+        monkeypatch.setattr(base_module, "env_settings", mock_settings)
+        monkeypatch.setattr(
+            base_module, "validate_crawl_urls", AsyncMock(side_effect=lambda urls: urls)
+        )
+
+        mock_resolve = AsyncMock(side_effect=lambda u: u)
+        monkeypatch.setattr(base_module, "resolve_redirect_chain", mock_resolve)
+        monkeypatch.setattr(
+            basic_crawler, "_crawl", AsyncMock(return_value=["content"])
+        )
+
+        await basic_crawler.crawl(["https://example.com"])
+
+        mock_resolve.assert_not_called()
+
+
+class TestSsrfGuardHook:
+    """Unit tests for the Playwright route interceptor installed by _ssrf_guard_hook.
+
+    The hook is tested by:
+    1. Calling _ssrf_guard_hook with a mock Page whose .route() captures the handler.
+    2. Invoking the captured handler with mock Route / Request objects.
+    3. Asserting route.abort() vs route.continue_() was called.
+
+    This isolates the guard logic from the Chromium runtime without launching a
+    real browser process.
+    """
+
+    async def _install_and_get_handler(self):
+        """Install the hook on a mock page and return the captured route handler."""
+        from unique_web_search.services.crawlers.crawl4ai import Crawl4AiCrawler
+
+        captured: list = []
+
+        async def fake_page_route(pattern: str, handler) -> None:
+            captured.append((pattern, handler))
+
+        mock_page = AsyncMock()
+        mock_page.route = fake_page_route
+
+        await Crawl4AiCrawler._get_ssrf_guard_hook()(
+            mock_page,
+            context=None,
+            url="https://example.com",
+            config=None,
+        )
+
+        assert len(captured) == 1, "hook must register exactly one route pattern"
+        pattern, handler = captured[0]
+        assert pattern == "**/*"
+        return handler
+
+    async def _invoke_handler(self, handler, url: str) -> tuple[AsyncMock, AsyncMock]:
+        """Run the route handler for a given URL and return (route_mock, request_mock)."""
+        mock_route = AsyncMock()
+        mock_request = MagicMock()
+        mock_request.url = url
+        await handler(mock_route, mock_request)
+        return mock_route, mock_request
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_ssrf_guard_hook__registers_wildcard_route_on_page(self) -> None:
+        """
+        Purpose: Verify the hook registers a '**/*' route handler on the page.
+        Why this matters: Without a registered handler Chromium requests are never intercepted.
+        Setup summary: Capture page.route calls; assert one handler is registered.
+        """
+        await self._install_and_get_handler()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_ssrf_guard_hook__aborts__for_metadata_ip(self) -> None:
+        """
+        Purpose: Verify requests to the AWS/GCP/Azure IMDS IP are aborted.
+        Why this matters: IMDS access is the canonical SSRF target; guard must block it unconditionally.
+        Setup summary: Route handler invoked with metadata URL; assert abort called.
+        """
+        handler = await self._install_and_get_handler()
+        mock_route, _ = await self._invoke_handler(
+            handler, "http://169.254.169.254/latest/meta-data"
+        )
+
+        mock_route.abort.assert_called_once_with("blockedbyclient")
+        mock_route.continue_.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_ssrf_guard_hook__aborts__for_localhost_url(self) -> None:
+        """
+        Purpose: Verify requests to localhost are aborted (bypass A — redirect after HEAD 200).
+        Why this matters: A server can return 200 on HEAD but 302→localhost on GET; the guard
+        must catch the actual GET that Chromium issues after following the redirect.
+        Setup summary: Route handler invoked with a localhost URL; assert abort called.
+        """
+        handler = await self._install_and_get_handler()
+        mock_route, _ = await self._invoke_handler(handler, "http://localhost/internal")
+
+        mock_route.abort.assert_called_once_with("blockedbyclient")
+        mock_route.continue_.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_ssrf_guard_hook__aborts__for_private_ip(self) -> None:
+        """
+        Purpose: Verify requests to RFC-1918 addresses are aborted.
+        Why this matters: Internal services often sit on 10.x / 192.168.x / 172.16.x; guard
+        must block direct-IP accesses that bypass DNS.
+        Setup summary: Route handler invoked with a private-IP URL; assert abort called.
+        """
+        handler = await self._install_and_get_handler()
+        mock_route, _ = await self._invoke_handler(handler, "http://192.168.1.1/admin")
+
+        mock_route.abort.assert_called_once_with("blockedbyclient")
+        mock_route.continue_.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_ssrf_guard_hook__aborts__for_cluster_local_host(self) -> None:
+        """
+        Purpose: Verify requests to cluster-internal service names are aborted.
+        Why this matters: Kubernetes service DNS names (*.svc.cluster.local) must not be
+        reachable via a crafted redirect or JS fetch.
+        Setup summary: Route handler invoked with a cluster-local URL; assert abort called.
+        """
+        handler = await self._install_and_get_handler()
+        mock_route, _ = await self._invoke_handler(
+            handler, "http://my-service.default.svc.cluster.local/secret"
+        )
+
+        mock_route.abort.assert_called_once_with("blockedbyclient")
+        mock_route.continue_.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_ssrf_guard_hook__continues__for_public_url(self) -> None:
+        """
+        Purpose: Verify legitimate public requests are allowed through.
+        Why this matters: The guard must not break normal crawl operations.
+        Setup summary: Route handler invoked with a public URL; assert continue_ called.
+        """
+        handler = await self._install_and_get_handler()
+        mock_route, _ = await self._invoke_handler(
+            handler, "https://example.com/article"
+        )
+
+        mock_route.continue_.assert_called_once()
+        mock_route.abort.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_ssrf_guard_hook__aborts__for_non_http_scheme(self) -> None:
+        """
+        Purpose: Verify non-http/https scheme URLs are aborted (e.g. file:// or ftp://).
+        Why this matters: Chromium can sometimes be directed to fetch file:// URIs via
+        crafted redirects; scheme allowlisting must be enforced at the route level.
+        Setup summary: Route handler invoked with a file:// URL; assert abort called.
+        """
+        handler = await self._install_and_get_handler()
+        mock_route, _ = await self._invoke_handler(handler, "file:///etc/passwd")
+
+        mock_route.abort.assert_called_once_with("blockedbyclient")
+        mock_route.continue_.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl4ai_crawler_passes_ssrf_guard_hook_to_strategy_constructor(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify Crawl4AiCrawler._crawl passes _ssrf_guard_hook to AsyncPlaywrightCrawlerStrategy.
+        Why this matters: Without hook registration the interceptor is never installed and all
+        bypass vectors remain open.
+        Setup summary: Mock AsyncPlaywrightCrawlerStrategy (top-level import) and AsyncWebCrawler
+        (lazy import, patched at the crawl4ai source module); assert the strategy is constructed
+        with hooks={'before_goto': _ssrf_guard_hook}.
+        """
+        from unique_web_search.services.crawlers.crawl4ai import (
+            Crawl4AiCrawler,
+            Crawl4AiCrawlerConfig,
+        )
+
+        mock_strategy_instance = MagicMock()
+        mock_strategy_cls = MagicMock(return_value=mock_strategy_instance)
+
+        mock_crawler_instance = AsyncMock()
+        mock_crawler_instance.crawler_strategy = mock_strategy_instance
+        mock_crawler_instance.arun_many = AsyncMock(return_value=[])
+        mock_crawler_instance.__aenter__ = AsyncMock(return_value=mock_crawler_instance)
+        mock_crawler_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_async_web_crawler = MagicMock(return_value=mock_crawler_instance)
+
+        # Both are lazy-imported inside _crawl, so patch them at their source modules.
+        with (
+            patch(
+                "crawl4ai.async_webcrawler.AsyncPlaywrightCrawlerStrategy",
+                mock_strategy_cls,
+            ),
+            patch("crawl4ai.AsyncWebCrawler", mock_async_web_crawler),
+        ):
+            crawler = Crawl4AiCrawler(
+                Crawl4AiCrawlerConfig(crawler_type=CrawlerType.CRAWL4AI)
+            )
+            await crawler._crawl(["https://example.com"])
+
+        mock_strategy_cls.assert_called_once()
+        _, kwargs = mock_strategy_cls.call_args
+        hooks = kwargs.get("hooks")
+        assert hooks is not None
+        assert "before_goto" in hooks
+        # Each call to _get_ssrf_guard_hook() returns a new closure, so compare by name.
+        assert callable(hooks["before_goto"])
+        assert hooks["before_goto"].__name__ == "_ssrf_guard_hook"
 
 
 if __name__ == "__main__":

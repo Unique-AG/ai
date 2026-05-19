@@ -1,9 +1,11 @@
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
@@ -22,7 +24,7 @@ from unique_internal_search.utils import extract_selected_uploaded_file_ids
 
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
-    name = "UploadedSearch"
+    name = UPLOADED_SEARCH_TOOL_NAME
     _display_name = "Uploaded Search"
 
     def __init__(
@@ -81,45 +83,19 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             ]
 
         valid_documents = []
-        expired_documents = []
         for doc in documents:
-            if not doc.is_ingested(default_if_unknown=True):
+            if not doc.is_ingested(default_if_unknown=True) or doc.is_expired():
                 continue
-            if doc.is_expired():
-                expired_documents.append(doc)
-            else:
-                valid_documents.append(doc)
-
-        system_prompt_valid_documents = ""
-        system_prompt_expired_documents = ""
-        if valid_documents:
-            system_prompt_valid_documents = (
-                "**The currently uploaded and valid documents are the following**\n"
-            )
-            system_prompt_valid_documents = (
-                system_prompt_valid_documents
-                + "\n".join(
-                    f"- {doc.title or doc.key} (content_id: {doc.id})"
-                    for doc in valid_documents
-                )
-                + "\n"
+            valid_documents.append(
+                {
+                    "name": doc.title or doc.key,
+                    "id": doc.id,
+                }
             )
 
-        if expired_documents:
-            system_prompt_expired_documents = (
-                "**The currently uploaded and expired documents are the following**\n"
-            )
-            system_prompt_expired_documents = (
-                system_prompt_expired_documents
-                + "\n".join(
-                    f"- {doc.title or doc.key} (content_id: {doc.id})"
-                    for doc in expired_documents
-                )
-            )
-
-        return self._config.tool_description_for_system_prompt.format(
-            system_prompt_valid_documents=system_prompt_valid_documents,
-            system_prompt_expired_documents=system_prompt_expired_documents,
+        return render_template(
+            self._config.tool_description_for_system_prompt,
+            valid_documents=valid_documents,
         )
 
     def tool_format_information_for_system_prompt(self) -> str:
@@ -152,7 +128,10 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
                 state=ProgressState.FINISHED,
             )
         tool_response.name = self.name
-        tool_response.system_reminder = self._get_tool_call_response_system_reminder()
+        if self._config.enable_tool_call_system_reminder:
+            tool_response.system_reminder = (
+                self._get_tool_call_response_system_reminder()
+            )
         return tool_response
 
     def _get_tool_call_response_system_reminder(self) -> str:

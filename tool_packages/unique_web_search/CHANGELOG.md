@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.18.0...unique-web-search-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* **web-search:** Dynamic Prompt Selection depending on the SearchEngineMode (Agent/Standard) ([#1577](https://github.com/Unique-AG/ai/issues/1577)) ([a7a583f](https://github.com/Unique-AG/ai/commit/a7a583f51438706b9a5253fdf43f0e3b0660988c))
+* **web-search:** redesign V3 as two-command (search / read_urls) tool ([#1578](https://github.com/Unique-AG/ai/issues/1578)) ([d471cf6](https://github.com/Unique-AG/ai/commit/d471cf6d216e51215ff958baef72aacebc8d0af6))
+
+
+### Bug Fixes
+
+* **web-search:** correct "triggerd" typo to "triggered" in elicitation messages ([#1526](https://github.com/Unique-AG/ai/issues/1526)) ([dc3c1cc](https://github.com/Unique-AG/ai/commit/dc3c1ccd8fd8b69bf320d35178ced2977a900afc))
+* **web-search:** Remap llm configuration to correct place ([#1655](https://github.com/Unique-AG/ai/issues/1655)) ([c208527](https://github.com/Unique-AG/ai/commit/c2085271332c0a16d01fb995db3074c62506aecc))
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v1.17.0...unique-web-search-v2026.18.0) (2026-04-23)
 
 

@@ -198,7 +198,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 )
 
                 active_message_log = self._create_or_update_message_log(
-                    progress_message=f"_Executing sub agent with input: {tool_input}_",
+                    progress_message=f"<em>Executing sub agent with input: {tool_input}</em>",
                     active_message_log=active_message_log,
                 )
 
@@ -268,7 +268,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
                 # Update message log entry to completed
                 active_message_log = self._create_or_update_message_log(
-                    progress_message=f"_Completed sub agent with input: {tool_input}_",
+                    progress_message=f"<em>Completed sub agent with input: {tool_input}</em>",
                     status=MessageLogStatus.COMPLETED,
                     active_message_log=active_message_log,
                 )

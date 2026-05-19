@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
+from unique_mcp.meta.keys import META_FLAT_ALIASES, MetaKeys
 
 
 @pytest.mark.ai

@@ -49,7 +49,6 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         self.chunk_relevancy_sorter = services.chunk_relevancy_sorter
 
         # Extract from configuration
-        self.language_model = config.language_model
         self.chunk_relevancy_sort_config = config.chunk_relevancy_sort_config
         self.company_id = config.company_id
         self.debug_info = config.debug_info

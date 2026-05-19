@@ -187,7 +187,7 @@ async def test_responses_planning__handles_sequence_messages() -> None:
     """
     Purpose: Verify that a plain sequence of messages gets the plan appended.
     Why this matters: Messages can also be a Sequence[ResponseInputItemParam | ...].
-    Setup summary: Pass a list of dicts as messages, verify plan is appended.
+    Setup summary: Pass a list of dicts as messages, verify plan is appended as a dict.
     """
     middleware, runner, openai_client = _make_middleware()
     openai_client.responses.create = AsyncMock(
@@ -202,7 +202,7 @@ async def test_responses_planning__handles_sequence_messages() -> None:
     messages = call_kwargs["messages"]
     assert isinstance(messages, list)
     assert len(messages) == 2
-    assert isinstance(messages[-1], LanguageModelAssistantMessage)
+    assert messages[-1] == {"role": "assistant", "content": '{"plan": "go"}'}
 
 
 @pytest.mark.asyncio

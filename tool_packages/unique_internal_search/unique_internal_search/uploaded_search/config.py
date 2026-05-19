@@ -1,5 +1,7 @@
 from typing import Annotated
 
+from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_internal_search.config import InternalSearchConfig
@@ -50,4 +52,10 @@ class UploadedSearchConfig(InternalSearchConfig):
     ] = get_string_field_with_pattern_validation(
         DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
         description="Tool format information for the system prompt.",
+    )
+    # This is a hack to ensure that the system reminder is enabled when the tool is forced,
+    # as we cannot at the moment easily pass extra values to the tool constructor
+    enable_tool_call_system_reminder: SkipJsonSchema[bool] = Field(
+        default=True,
+        description="Whether to attach the uploaded-search system reminder to tool responses.",
     )

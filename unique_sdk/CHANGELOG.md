@@ -11,6 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `unique-cli search`: `--content-id` / `-i` (repeatable) passes `contentIds` to the Search API so agents can retrieve all indexed text chunks for known file IDs without broad vector search or downloading binaries ([UN-20639](https://unique-ch.atlassian.net/browse/UN-20639)). Interactive shell accepts the same flags; empty query is allowed when at least one `--content-id` is given. Bundled `unique-cli-search` skill updated with usage guidance.
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.18.0...unique-sdk-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* **sdk:** Add Analytics Order API and run utility ([#1503](https://github.com/Unique-AG/ai/issues/1503)) ([01f37aa](https://github.com/Unique-AG/ai/commit/01f37aa3666b66a19cb22a5636c734f57a1d0f17))
+* **sdk:** add missing docs ([#1500](https://github.com/Unique-AG/ai/issues/1500)) ([73c0dcd](https://github.com/Unique-AG/ai/commit/73c0dcd7d37deb36a55d1483f64e6ae09fdb9df5))
+* **sdk:** Add Module API resource for managing assistant modules ([#1471](https://github.com/Unique-AG/ai/issues/1471)) ([b376a1d](https://github.com/Unique-AG/ai/commit/b376a1d460d52f2d34181dda801fa63111b43909))
+* **sdk:** add WebSearch / WebCrawl resources and unique-cli web-search ([#1611](https://github.com/Unique-AG/ai/issues/1611)) ([2cc2fab](https://github.com/Unique-AG/ai/commit/2cc2fab0c3e19806c1797ae7b169fd71acee35e4))
+* **sdk:** allow download_content to write to caller-specified target_path ([#1585](https://github.com/Unique-AG/ai/issues/1585)) ([df57cc9](https://github.com/Unique-AG/ai/commit/df57cc9610d7065fd0292a6b4211406d37c3e89c))
+* **sdk:** Briefing API resource and PUT HTTP support ([#1574](https://github.com/Unique-AG/ai/issues/1574)) ([23455e7](https://github.com/Unique-AG/ai/commit/23455e7e90792767b41e43122230b52f6ef12975))
+* **sdk:** rewrite blob upload URLs via INGESTION_UPLOAD_API_URL_INTERNAL ([#1588](https://github.com/Unique-AG/ai/issues/1588)) ([5783fb5](https://github.com/Unique-AG/ai/commit/5783fb5c4d4053ed83a505ce75b3ca271d8d1757))
+* **unique-sdk:** derive preview-PDF blob name from content id ([#1532](https://github.com/Unique-AG/ai/issues/1532)) ([d36d130](https://github.com/Unique-AG/ai/commit/d36d130e6c38f781d767c2a53c6bf2ac933c1ccc))
+* **unique-skill:** including skill choices to payload ([#1636](https://github.com/Unique-AG/ai/issues/1636)) ([36e8275](https://github.com/Unique-AG/ai/commit/36e82750e89d350e2293b8144035bac903829445))
+
+
+### Bug Fixes
+
+* **cli:** enforce .unique-search.json scope across search, ls, and write ops ([#1627](https://github.com/Unique-AG/ai/issues/1627)) ([7f0e6ee](https://github.com/Unique-AG/ai/commit/7f0e6eeeb2f67e8cf6ecc131110bc6287755b9b8))
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v0.11.12...unique-sdk-v2026.18.0) (2026-04-23)
 
 

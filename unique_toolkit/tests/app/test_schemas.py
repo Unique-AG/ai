@@ -204,6 +204,35 @@ class TestEventSchemas:
             payload.additional_parameters.user_space_instructions == "some instructions"
         )
 
+    def test_chat_event_payload_deserializes_available_skills(self) -> None:
+        json_data = """{
+            "name": "unique.chat.external-module.chosen",
+            "description": "Test description",
+            "configuration": {"key": "value"},
+            "chatId": "chat1",
+            "assistantId": "assistant1",
+            "userMessage": {
+                "id": "msg1",
+                "text": "Hello",
+                "createdAt": "2023-01-01T00:00:00Z",
+                "originalText": "Hello",
+                "language": "en"
+            },
+            "assistantMessage": {
+                "id": "msg2",
+                "createdAt": "2023-01-01T00:01:00Z"
+            },
+            "availableSkills": [
+                {"contentId": "cont_a", "scopeId": "scope_b"}
+            ]
+        }"""
+        payload = ChatEventPayload.model_validate_json(json_data)
+
+        assert len(payload.available_skills) == 1
+        assert payload.available_skills[0].content_id == "cont_a"
+        assert payload.available_skills[0].scope_id == "scope_b"
+        assert payload.available_skills[0].name == ""
+
     def test_additional_parameters__uploaded_files__object_format_deserialization(self):
         json_data = """{
             "userSpaceInstructions": "",

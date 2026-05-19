@@ -3,7 +3,7 @@
   "release-type": "python",
   "versioning": "always-bump-patch",
   "separate-pull-requests": false,
-  "group-pull-request-title-pattern": "chore: hotfix ${branch} to ${version}",
+  "group-pull-request-title-pattern": "chore: hotfix ${branch}",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
   "tag-separator": "-",
@@ -20,6 +20,9 @@
     {"type": "build", "section": "Build", "hidden": true}
   ],
   "packages": {
+    "uqadm": {
+      "component": "uqadm"
+    },
     "unique_sdk": {
       "component": "unique-sdk"
     },
@@ -65,6 +68,7 @@
       "type": "linked-versions",
       "groupName": "ai",
       "components": [
+        "uqadm",
         "unique-sdk",
         "unique-toolkit",
         "unique-mcp",

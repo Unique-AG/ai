@@ -146,6 +146,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchToolParameters,
         refine_query_system_prompt: str,
+        refine_query_language_model: LMI,
         mode: RefineQueryMode = RefineQueryMode.BASIC,
         max_queries: int = 10,
     ):
@@ -158,6 +159,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         )
         self.mode = mode
         self.refine_query_system_prompt = refine_query_system_prompt
+        self.refine_query_language_model = refine_query_language_model
         self.max_queries = max_queries
 
     async def run(self) -> list[ContentChunk]:
@@ -237,7 +239,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
             refined_query = await query_generation_agent(
                 query,
                 self.language_model_service,
-                self.language_model,
+                self.refine_query_language_model,
                 self.refine_query_system_prompt,
                 self.mode,
             )

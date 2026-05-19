@@ -2,32 +2,24 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit.language_model.schemas import ReasoningEffort
 
 SKILL_NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 SKILL_NAME_MAX_LENGTH = 64
 
 
-class SelectableSkill(BaseModel):
-    """A specific skill file selected by reference from the knowledge base.
-
-    Each entry resolves to exactly one knowledge base document via its
-    ``content_id``; ``scope_id`` scopes the lookup so access is explicit,
-    and ``name`` is the skill file's own frontmatter name.
-    """
+class SkillMetadata(BaseModel):
+    """Typed representation of a skill's SKILL.md ``metadata`` frontmatter block."""
 
     model_config = get_configuration_dict()
 
-    name: str = Field(
-        default="",
-        description=("Skill name"),
-    )
-    scope_id: str = Field(
-        default="",
-        description="Knowledge base scope ID that contains the skill file.",
-    )
-    content_id: str = Field(
-        default="",
-        description="Knowledge base content ID of the ``SKILL.md`` file.",
+    thinking_level: ReasoningEffort | None = Field(
+        default=None,
+        description=(
+            "Optional reasoning effort hint. The orchestrator uses the highest "
+            "level across all activated skills in a run to set "
+            "``reasoning_effort`` on the LLM call."
+        ),
     )
 
 
@@ -56,4 +48,11 @@ class SkillDefinition(BaseModel):
     )
     content: str = Field(
         description="Full prompt / instructions injected when the skill is invoked.",
+    )
+    content_id: str = Field(
+        description="Knowledge-base content ID this skill was loaded from.",
+    )
+    metadata: SkillMetadata | None = Field(
+        default=None,
+        description="Parsed ``metadata`` block from the skill's SKILL.md frontmatter.",
     )

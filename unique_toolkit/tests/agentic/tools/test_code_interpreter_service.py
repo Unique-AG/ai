@@ -7,11 +7,9 @@ import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
 
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
-    CodeExecutionShortTermMemorySchema,
     OpenAICodeInterpreterTool,
     _check_container_exists,
     _check_file_already_uploaded,
@@ -19,6 +17,9 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import
     _resolve_kb_contents,
     _upload_file_to_container,
     _upload_files_to_container,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
+    _CodeExecutionShortTermMemorySchema as CodeExecutionShortTermMemorySchema,
 )
 from unique_toolkit.content.schemas import Content
 
@@ -158,16 +159,17 @@ def test_get_required_include_params__returns_code_interpreter_outputs__when_ff_
 
 @pytest.mark.ai
 def test_get_tool_prompts__uses_config_system_prompt__when_uncustomised() -> None:
-    """Purpose: Effective system prompt is always the stored config value (fence default)."""
+    """Purpose: Rendered system prompt contains static content and no Jinja syntax when no files provided."""
     config = OpenAICodeInterpreterConfig()
     tool = _auto_container_tool(config)
 
     prompts = tool.get_tool_prompts()
 
-    assert (
-        prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
-    )
     assert "NO internet access" in prompts.tool_system_prompt
+    assert "{%" not in prompts.tool_system_prompt
+    assert "User Uploaded Files" not in prompts.tool_system_prompt
+    assert "Knowledge Base Files" not in prompts.tool_system_prompt
+    assert "Code Interpreter Artifacts" not in prompts.tool_system_prompt
 
 
 @pytest.mark.ai
@@ -271,7 +273,7 @@ async def test_upload_files_to_container__downloads_and_creates__when_file_not_i
     """
     memory = CodeExecutionShortTermMemorySchema(
         container_id="ctr_test",
-        file_ids={},
+        file_paths={},
     )
     uploaded = Content(id="cont_upload_1", key="data.csv")
     content_service = MagicMock()
@@ -279,7 +281,7 @@ async def test_upload_files_to_container__downloads_and_creates__when_file_not_i
         return_value=b"a,b\n1,2\n",
     )
     openai_file = MagicMock()
-    openai_file.id = "file_openai_1"
+    openai_file.path = "/mnt/data/data.csv"
     files_create = AsyncMock(return_value=openai_file)
     client = MagicMock()
     client.containers.files.create = files_create
@@ -292,7 +294,7 @@ async def test_upload_files_to_container__downloads_and_creates__when_file_not_i
     )
 
     assert updated is True
-    assert result.file_ids["cont_upload_1"] == "file_openai_1"
+    assert result.file_paths["cont_upload_1"] == "/mnt/data/data.csv"
     content_service.download_content_to_bytes_async.assert_awaited_once_with(
         content_id="cont_upload_1",
     )
@@ -312,7 +314,7 @@ async def test_upload_files_to_container__retries_download__after_transient_erro
     """
     memory = CodeExecutionShortTermMemorySchema(
         container_id="ctr_retry",
-        file_ids={},
+        file_paths={},
     )
     uploaded = Content(id="cont_retry_1", key="f.bin")
     content_service = MagicMock()
@@ -320,7 +322,7 @@ async def test_upload_files_to_container__retries_download__after_transient_erro
         side_effect=[ConnectionError("blip"), b"payload"],
     )
     openai_file = MagicMock()
-    openai_file.id = "file_after_retry"
+    openai_file.path = "/mnt/data/f.bin"
     files_create = AsyncMock(return_value=openai_file)
     client = MagicMock()
     client.containers.files.create = files_create
@@ -333,7 +335,7 @@ async def test_upload_files_to_container__retries_download__after_transient_erro
     )
 
     assert updated is True
-    assert result.file_ids["cont_retry_1"] == "file_after_retry"
+    assert result.file_paths["cont_retry_1"] == "/mnt/data/f.bin"
     assert content_service.download_content_to_bytes_async.await_count == 2
     files_create.assert_awaited_once()
 
@@ -356,12 +358,12 @@ async def test_upload_files_to_container__deduplicates_by_content_id__when_dupli
     Setup summary: Pass a list with two entries sharing the same id; assert download
     and containers.files.create are each awaited exactly once.
     """
-    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_dedup", file_ids={})
+    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_dedup", file_paths={})
     duplicate = Content(id="cont_dup", key="dup.csv")
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock(return_value=b"x")
     openai_file = MagicMock()
-    openai_file.id = "file_dup"
+    openai_file.path = "/mnt/data/dup.csv"
     files_create = AsyncMock(return_value=openai_file)
     client = MagicMock()
     client.containers.files.create = files_create
@@ -374,81 +376,60 @@ async def test_upload_files_to_container__deduplicates_by_content_id__when_dupli
     )
 
     assert updated is True
-    assert result.file_ids == {"cont_dup": "file_dup"}
+    assert result.file_paths == {"cont_dup": "/mnt/data/dup.csv"}
     assert content_service.download_content_to_bytes_async.await_count == 1
     files_create.assert_awaited_once()
 
 
 @pytest.mark.ai
-@pytest.mark.asyncio
-async def test_check_file_already_uploaded__returns_true__when_retrieve_succeeds() -> (
-    None
-):
+def test_check_file_already_uploaded__returns_true__when_content_id_in_memory() -> None:
     """
-    Purpose: Verify that _check_file_already_uploaded returns True when memory has a
-    mapping for the content id and containers.files.retrieve succeeds.
+    Purpose: Verify that _check_file_already_uploaded returns True when memory already
+    has a filepath mapping for the content id — no API call required.
     Why this matters: This is the short-circuit that avoids redundant uploads on
     repeated tool builds within a chat.
     """
     memory = CodeExecutionShortTermMemorySchema(
         container_id="ctr_skip",
-        file_ids={"cont_skip": "file_existing"},
+        file_paths={"cont_skip": "/mnt/data/existing.csv"},
     )
-    client = MagicMock()
-    client.containers.files.retrieve = AsyncMock(return_value=MagicMock())
-
-    result = await _check_file_already_uploaded(
-        client=client, content_id="cont_skip", memory=memory
-    )
+    result = _check_file_already_uploaded(content_id="cont_skip", memory=memory)
 
     assert result is True
-    client.containers.files.retrieve.assert_awaited_once_with(
-        container_id="ctr_skip", file_id="file_existing"
-    )
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_upload_files_to_container__reuploads__when_retrieve_raises_error() -> (
+async def test_upload_files_to_container__skips_upload__when_filepath_already_in_memory() -> (
     None
 ):
     """
-    Purpose: Verify that when the cached container file id no longer exists (the retrieve
-    call raises), _upload_files_to_container re-downloads and re-uploads the file and
-    records the new openai file id in memory.
-    Why this matters: Container files expire; stale memory entries must not permanently
-    block re-uploads.
-    Setup summary: Seed memory with a stale mapping; retrieve raises OpenAIError; create
-    returns a new file; assert memory is updated with the new openai file id.
+    Purpose: Verify that a content id already present in memory.file_paths is not
+    re-downloaded or re-uploaded.
+    Why this matters: file_paths is now the sole source of truth for skip detection;
+    no API round-trip is needed.
     """
-    from openai import OpenAIError
-
     memory = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_stale",
-        file_ids={"cont_stale": "file_gone"},
+        container_id="ctr_cached",
+        file_paths={"cont_cached": "/mnt/data/cached.csv"},
     )
-    stale = Content(id="cont_stale", key="stale.csv")
+    cached = Content(id="cont_cached", key="cached.csv")
     content_service = MagicMock()
-    content_service.download_content_to_bytes_async = AsyncMock(return_value=b"bytes")
-    new_file = MagicMock()
-    new_file.id = "file_new"
+    content_service.download_content_to_bytes_async = AsyncMock()
     client = MagicMock()
-    client.containers.files.retrieve = AsyncMock(side_effect=OpenAIError("gone"))
-    client.containers.files.create = AsyncMock(return_value=new_file)
+    client.containers.files.create = AsyncMock()
 
     result, updated = await _upload_files_to_container(
         client=client,
-        uploaded_files=[stale],
+        uploaded_files=[cached],
         memory=memory,
         content_service=content_service,
     )
 
-    assert updated is True
-    assert result.file_ids["cont_stale"] == "file_new"
-    content_service.download_content_to_bytes_async.assert_awaited_once_with(
-        content_id="cont_stale",
-    )
-    client.containers.files.create.assert_awaited_once()
+    assert updated is False
+    assert result.file_paths == {"cont_cached": "/mnt/data/cached.csv"}
+    content_service.download_content_to_bytes_async.assert_not_awaited()
+    client.containers.files.create.assert_not_awaited()
 
 
 @pytest.mark.ai
@@ -463,11 +444,11 @@ async def test_upload_file_to_container__returns_new_file_id__on_successful_uplo
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock(return_value=b"data")
     openai_file = MagicMock()
-    openai_file.id = "file_created"
+    openai_file.path = "/mnt/data/new.csv"
     client = MagicMock()
     client.containers.files.create = AsyncMock(return_value=openai_file)
 
-    file_id = await _upload_file_to_container(
+    filepath = await _upload_file_to_container(
         client=client,
         content_id="cont_new",
         filename="new.csv",
@@ -475,7 +456,7 @@ async def test_upload_file_to_container__returns_new_file_id__on_successful_uplo
         container_id="ctr_upload",
     )
 
-    assert file_id == "file_created"
+    assert filepath == "/mnt/data/new.csv"
     content_service.download_content_to_bytes_async.assert_awaited_once_with(
         content_id="cont_new",
     )
@@ -578,7 +559,7 @@ async def test_build_tool__uploads_kb_documents__when_additional_uploaded_docume
     content_service.search_contents_async = AsyncMock(return_value=[kb_file])
 
     memory_after_create = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_built", file_ids={}
+        container_id="ctr_built", file_paths={}
     )
     memory_manager = MagicMock()
     memory_manager.load_async = AsyncMock(return_value=None)
@@ -642,7 +623,7 @@ async def test_build_tool__skips_upload__when_no_sources_enabled() -> None:
     content_service.search_contents_async = AsyncMock()
 
     memory_after_create = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_empty", file_ids={}
+        container_id="ctr_empty", file_paths={}
     )
     memory_manager = MagicMock()
     memory_manager.load_async = AsyncMock(return_value=None)
@@ -819,9 +800,11 @@ async def test_upload_files_to_container__isolates_failures__one_file_fails_othe
     ``asyncio.gather``; without isolation one bad file would cancel every other upload
     in the batch.
     Setup summary: Two files; downloader raises for ``bad``, returns bytes for ``good``.
-    Assert only the good one lands in memory.file_ids and ``updated`` is True.
+    Assert only the good one lands in memory.file_paths and ``updated`` is True.
     """
-    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_isolate", file_ids={})
+    memory = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_isolate", file_paths={}
+    )
     good = Content(id="cont_good", key="good.csv")
     bad = Content(id="cont_bad", key="bad.csv")
 
@@ -833,7 +816,7 @@ async def test_upload_files_to_container__isolates_failures__one_file_fails_othe
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock(side_effect=download)
     openai_file = MagicMock()
-    openai_file.id = "file_good"
+    openai_file.path = "/mnt/data/good.csv"
     client = MagicMock()
     client.containers.files.create = AsyncMock(return_value=openai_file)
 
@@ -845,8 +828,8 @@ async def test_upload_files_to_container__isolates_failures__one_file_fails_othe
     )
 
     assert updated is True
-    assert result.file_ids == {"cont_good": "file_good"}
-    assert "cont_bad" not in result.file_ids
+    assert result.file_paths == {"cont_good": "/mnt/data/good.csv"}
+    assert "cont_bad" not in result.file_paths
 
 
 @pytest.mark.ai
@@ -863,14 +846,13 @@ async def test_upload_files_to_container__returns_updated_false__when_all_files_
     """
     memory = CodeExecutionShortTermMemorySchema(
         container_id="ctr_allcached",
-        file_ids={"cont_a": "file_a", "cont_b": "file_b"},
+        file_paths={"cont_a": "/mnt/data/a.csv", "cont_b": "/mnt/data/b.csv"},
     )
     a = Content(id="cont_a", key="a.csv")
     b = Content(id="cont_b", key="b.csv")
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock()
     client = MagicMock()
-    client.containers.files.retrieve = AsyncMock(return_value=MagicMock())
     client.containers.files.create = AsyncMock()
 
     result, updated = await _upload_files_to_container(
@@ -881,7 +863,10 @@ async def test_upload_files_to_container__returns_updated_false__when_all_files_
     )
 
     assert updated is False
-    assert result.file_ids == {"cont_a": "file_a", "cont_b": "file_b"}
+    assert result.file_paths == {
+        "cont_a": "/mnt/data/a.csv",
+        "cont_b": "/mnt/data/b.csv",
+    }
     content_service.download_content_to_bytes_async.assert_not_awaited()
     client.containers.files.create.assert_not_awaited()
 
@@ -910,7 +895,7 @@ async def test_build_tool__skips_save_async__when_container_and_files_unchanged(
     chat_file = Content(id="cont_cached", key="c.csv")
 
     memory_loaded = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_existing", file_ids={"cont_cached": "file_cached"}
+        container_id="ctr_existing", file_paths={"cont_cached": "/mnt/data/c.csv"}
     )
     memory_manager = MagicMock()
     memory_manager.load_async = AsyncMock(return_value=memory_loaded)
@@ -969,10 +954,10 @@ async def test_build_tool__saves_when_files_updated__even_if_container_unchanged
     chat_file = Content(id="cont_new", key="n.csv")
 
     memory_loaded = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_live", file_ids={}
+        container_id="ctr_live", file_paths={}
     )
     memory_after_upload = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_live", file_ids={"cont_new": "file_new"}
+        container_id="ctr_live", file_paths={"cont_new": "/mnt/data/n.csv"}
     )
     memory_manager = MagicMock()
     memory_manager.load_async = AsyncMock(return_value=memory_loaded)
@@ -1037,12 +1022,12 @@ async def test_build_tool__deduplicates_chat_and_kb_overlap__uploads_each_conten
     content_service.download_content_to_bytes_async = AsyncMock(return_value=b"x")
 
     openai_file = MagicMock()
-    openai_file.id = "file_shared"
+    openai_file.path = "/mnt/data/shared.csv"
     client = MagicMock()
     client.containers.files.create = AsyncMock(return_value=openai_file)
 
     memory_loaded = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_dedup_e2e", file_ids={}
+        container_id="ctr_dedup_e2e", file_paths={}
     )
     memory_manager = MagicMock()
     memory_manager.load_async = AsyncMock(return_value=memory_loaded)

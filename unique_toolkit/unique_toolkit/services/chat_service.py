@@ -9,8 +9,6 @@ from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import (
     ResponseIncludable,
-    ResponseInputItemParam,
-    ResponseOutputItem,
     ResponseTextConfigParam,
     ToolParam,
     response_create_params,
@@ -110,13 +108,13 @@ from unique_toolkit.language_model.infos import (
     LanguageModelName,
 )
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessageOptions,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolDescription,
     ResponsesLanguageModelStreamResponse,
+    ResponsesMessageInput,
 )
 from unique_toolkit.short_term_memory.functions import (
     create_memory,
@@ -1679,13 +1677,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         model_name: LanguageModelName | str,
-        messages: str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam
-            | LanguageModelMessageOptions
-            | ResponseOutputItem  # History is automatically convertible
-        ],
+        messages: ResponsesMessageInput,
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -1732,11 +1724,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         model_name: LanguageModelName | str,
-        messages: str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-        ],
+        messages: ResponsesMessageInput,
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -1998,6 +1986,19 @@ class ChatService(ChatServiceDeprecated):
             chat_id=self._content_scope_chat_id,
         )
 
+    @staticmethod
+    def _filter_images_and_documents(
+        contents: list[Content],
+    ) -> tuple[list[Content], list[Content]]:
+        images: list[Content] = []
+        files: list[Content] = []
+        for c in contents:
+            if is_file_content(filename=c.key):
+                files.append(c)
+            if is_image_content(filename=c.key):
+                images.append(c)
+        return images, files
+
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
         """Return images and documents from the content-scope chat (e.g. parent chat when subagent).
 
@@ -2007,19 +2008,34 @@ class ChatService(ChatServiceDeprecated):
         Returns:
             tuple[list[Content], list[Content]]: (images, documents) from the content-scope chat.
         """
-        images: list[Content] = []
-        files: list[Content] = []
-        for c in search_contents(
+        contents = search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
             chat_id=self._content_scope_chat_id,
             where={"ownerId": {"equals": self._content_scope_chat_id}},
-        ):
-            if is_file_content(filename=c.key):
-                files.append(c)
-            if is_image_content(filename=c.key):
-                images.append(c)
-        return images, files
+        )
+        return self._filter_images_and_documents(contents)
+
+    async def download_chat_images_and_documents_async(
+        self,
+    ) -> tuple[list[Content], list[Content]]:
+        """Async version of download_chat_images_and_documents.
+
+        Return images and documents from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Returns:
+            tuple[list[Content], list[Content]]: (images, documents) from the content-scope chat.
+        """
+        contents = await search_contents_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            where={"ownerId": {"equals": self._content_scope_chat_id}},
+        )
+        return self._filter_images_and_documents(contents)
 
     async def search_content_chunks_async(
         self,

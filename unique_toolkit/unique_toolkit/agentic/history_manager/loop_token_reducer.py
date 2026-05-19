@@ -13,6 +13,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     get_full_history_with_contents_and_tool_calls_async,
     get_full_history_with_contents_async,
 )
+from unique_toolkit.agentic.history_manager.settings import env_settings
 from unique_toolkit.agentic.history_manager.utils import (
     get_selected_uploaded_content_ids,
     serialize_tool_content_json,
@@ -33,10 +34,8 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.services.factory import UniqueServiceFactory
 
-MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = (
-    0.1  # 10% safety margin for input tokens we need 10% less does not work.
-)
-SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION = 0.9
+MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = env_settings.input_correction_reduction_factor
+SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION = env_settings.input_aggressive_reduction_factor
 
 
 class SourceReductionResult(BaseModel):

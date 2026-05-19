@@ -57,6 +57,7 @@ from unique_orchestrator._builders.inject_tool_reminders import (
 from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.settings import env_settings
+from unique_orchestrator.utils import resolve_other_options
 
 
 class UniqueAI:
@@ -214,7 +215,6 @@ class UniqueAI:
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
-            text=self._event.payload.user_message.text,
             tool_manager=self._tool_manager,
             history_manager=self._history_manager,
             logger=self._logger,
@@ -346,7 +346,9 @@ class UniqueAI:
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
-            other_options=self._config.agent.experimental.additional_llm_options,
+            other_options=resolve_other_options(
+                self._config, self._tool_manager, self._logger
+            ),
         )
 
         # Experimental Feature UN-17905
