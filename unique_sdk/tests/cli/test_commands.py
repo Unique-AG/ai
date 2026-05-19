@@ -704,6 +704,162 @@ class TestSearch:
         assert call_kwargs["contentIds"] == ["cont_test123"]
         assert call_kwargs["searchString"] == ""
 
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_content_ids_bypass_cwd_scope(self, mock: MagicMock) -> None:
+        """Content IDs are authoritative: the REPL's current folder must not narrow the lookup.
+
+        Without this, `search "" -i cont_X` from `/Reports/Q1` would AND scopeIds=[scope_q1]
+        with contentIds=[cont_X] and silently return nothing if cont_X lives elsewhere.
+        Regression guard for UN-20639.
+        """
+        mock.return_value = []
+        state = _state(path="/Reports/Q1", scope_id="scope_q1")
+        cmd_search(state, "", content_ids=["cont_abc"])
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+        assert "scopeIds" not in call_kwargs
+
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_content_ids_bypass_workspace_scopes(
+        self, mock: MagicMock
+    ) -> None:
+        """Workspace restriction must not narrow a content-ID lookup.
+
+        Matches the SOW use case in UN-20639: a known file may live outside the
+        workspace's configured scopes (e.g. a chat-scoped upload), and an
+        implicit AND would silently drop it from the result.
+        """
+        mock.return_value = []
+        state = _state()
+        state.workspace_scope_ids = ["scope_ws1", "scope_ws2"]
+        cmd_search(state, "", content_ids=["cont_abc"])
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+        assert "scopeIds" not in call_kwargs
+
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_explicit_folder_still_wins_with_content_ids(
+        self, mock: MagicMock
+    ) -> None:
+        """An explicit --folder is the user opting in; it must still narrow the lookup."""
+        mock.return_value = []
+        with patch("unique_sdk.Folder.get_info", return_value={"id": "scope_explicit"}):
+            state = _state()
+            state.workspace_scope_ids = ["scope_ws"]
+            cmd_search(state, "", folder="/Explicit", content_ids=["cont_abc"])
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["scopeIds"] == ["scope_explicit"]
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_content_ids_compose_with_metadata(
+        self, mock: MagicMock
+    ) -> None:
+        """--metadata still composes alongside --content-id (independent filters)."""
+        mock.return_value = []
+        cmd_search(
+            _state(),
+            "",
+            metadata=[("dept", "Legal")],
+            content_ids=["cont_abc"],
+        )
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+        assert call_kwargs["metaDataFilter"]["path"] == ["dept"]
+        assert call_kwargs["metaDataFilter"]["value"] == "Legal"
+
+    @patch("unique_sdk.Search.create")
+    def test_cmd_search_passes_multiple_content_ids(self, mock: MagicMock) -> None:
+        """Multiple content IDs are passed verbatim, in order."""
+        mock.return_value = []
+        cmd_search(_state(), "", content_ids=["cont_a", "cont_b", "cont_c"])
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_a", "cont_b", "cont_c"]
+
+
+class TestSearchClick:
+    """Click one-shot CLI surface (cli.py `search` command).
+
+    Covers the wiring from `multiple=True` Click options -> tuple -> list -> cmd_search.
+    Backstops Click-side regressions in addition to the cmd_search unit tests above.
+    """
+
+    @staticmethod
+    def _invoke(args: list[str]) -> tuple[Any, MagicMock]:
+        """Invoke `unique-cli` with a fresh ShellState injected via ctx.obj."""
+        from click.testing import CliRunner
+
+        from unique_sdk.cli.cli import main as cli_main
+
+        runner = CliRunner()
+        state = ShellState(_config())
+        with patch("unique_sdk.Search.create", return_value=[]) as mock:
+            result = runner.invoke(cli_main, args, obj=state, catch_exceptions=False)
+        return result, mock
+
+    def test_cli_search_passes_content_ids(self) -> None:
+        result, mock = self._invoke(["search", "", "--content-id", "cont_abc"])
+        assert result.exit_code == 0
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+        assert call_kwargs["searchString"] == ""
+
+    def test_cli_search_short_flag_repeatable(self) -> None:
+        result, mock = self._invoke(["search", "", "-i", "cont_a", "-i", "cont_b"])
+        assert result.exit_code == 0
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_a", "cont_b"]
+
+
+class TestSearchRepl:
+    """Interactive REPL parser (shell.py `do_search`).
+
+    The hand-rolled flag parser had zero coverage before. These tests exercise
+    the parser surface that ships in this PR.
+    """
+
+    @staticmethod
+    def _run(state: ShellState, arg: str) -> tuple[str, MagicMock]:
+        from unique_sdk.cli.shell import UniqueShell
+
+        shell = UniqueShell(state)
+        captured: list[str] = []
+        shell._print = captured.append  # type: ignore[method-assign]
+        with patch("unique_sdk.Search.create", return_value=[]) as mock:
+            shell.do_search(arg)
+        return "\n".join(captured), mock
+
+    def test_repl_search_content_id_long_flag(self) -> None:
+        """`search "" --content-id cont_X` -> Search.create called with the ID."""
+        _, mock = self._run(_state(), '"" --content-id cont_abc')
+        assert mock.called
+        assert mock.call_args[1]["contentIds"] == ["cont_abc"]
+        assert mock.call_args[1]["searchString"] == ""
+
+    def test_repl_search_short_flag_repeatable(self) -> None:
+        """`-i` accepted, repeatable, order preserved."""
+        _, mock = self._run(_state(), '"" -i cont_a -i cont_b')
+        assert mock.call_args[1]["contentIds"] == ["cont_a", "cont_b"]
+
+    def test_repl_search_empty_query_without_content_id_prints_usage(self) -> None:
+        """Empty query AND no --content-id is still a no-op that prints usage.
+
+        Regression guard for the relaxed-validation change: empty input alone
+        must not reach Search.create.
+        """
+        out, mock = self._run(_state(), "")
+        assert not mock.called
+        assert "Usage: search" in out
+        assert "--content-id" in out
+
+    def test_repl_search_content_ids_bypass_cwd_scope(self) -> None:
+        """REPL surface of the UN-20639 fix: cwd scope must not narrow content-ID lookup."""
+        state = _state(path="/Reports/Q1", scope_id="scope_q1")
+        _, mock = self._run(state, '"" --content-id cont_abc')
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+        assert "scopeIds" not in call_kwargs
+
 
 class TestReadPayload:
     def test_inline_payload(self) -> None:

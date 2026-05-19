@@ -67,6 +67,10 @@ Use this instead of `unique-cli download` when you need the document text but
 not the original file bytes. Particularly useful when iterating over a known
 set of files (e.g. all SOW documents, all KYC forms for a client).
 
+`--content-id` retrieves chunks regardless of your current directory or any
+workspace restriction. Pass an explicit `--folder` if you want to additionally
+constrain the lookup.
+
 ## Metadata Filtering
 
 Filter by metadata fields using `--metadata key=value` (repeatable, AND logic):

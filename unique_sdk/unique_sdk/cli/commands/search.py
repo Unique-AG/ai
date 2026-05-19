@@ -79,13 +79,13 @@ def cmd_search(
         folder_scope_id: str | None = None
         if folder:
             folder_scope_id = _resolve_folder_to_scope_id(state, folder)
-        elif state.scope_id:
+        elif state.scope_id and not content_ids:
             folder_scope_id = state.scope_id
 
         scope_ids: list[str] | None = None
         if folder_scope_id:
             scope_ids = [folder_scope_id]
-        elif not folder and state.workspace_scope_ids:
+        elif not folder and not content_ids and state.workspace_scope_ids:
             scope_ids = state.workspace_scope_ids
 
         metadata_filter = _build_metadata_filter(
