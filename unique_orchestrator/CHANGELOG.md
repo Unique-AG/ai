@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.4](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.20.3...unique-orchestrator-v2026.20.4) (2026-05-19)
+
+
+### Features
+
+* **unique-skill-tool:** load skill by content_id and not name  ([#1698](https://github.com/Unique-AG/ai/issues/1698)) ([3296f3b](https://github.com/Unique-AG/ai/commit/3296f3bdf5cd3e81fe8cd3210542bdfebddc3c73))
+
+
+### Bug Fixes
+
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([6b1b658](https://github.com/Unique-AG/ai/commit/6b1b658850b3924584522847fe979b7ef037f8db))
+
 ## [2026.20.3](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.20.2...unique-orchestrator-v2026.20.3) (2026-05-11)
 
 
