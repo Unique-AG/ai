@@ -7,6 +7,7 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.chat import cmd_chat_info
 from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_ask,
     cmd_elicit_create,
@@ -16,6 +17,7 @@ from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_wait,
 )
 from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
+from unique_sdk.cli.commands.folder_access import cmd_folder_access
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
@@ -27,6 +29,12 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_update,
 )
 from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.share_artifact import cmd_share_artifact
+from unique_sdk.cli.commands.users import (
+    cmd_group_members,
+    cmd_groups_list,
+    cmd_users_search,
+)
 from unique_sdk.cli.config import load_config
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
@@ -74,6 +82,9 @@ Examples:
   unique-cli upload ./file.pdf      Upload to current folder
   unique-cli download cont_abc123   Download by content ID
   unique-cli elicit ask "Which?"    Ask the user a question synchronously
+  unique-cli users search "Peter"   Look up users by display name
+  unique-cli chat info chat_abc     Show chat metadata (incl. projectScopeId)
+  unique-cli share-artifact cont_x  Share an artifact from a chat with users/groups
 """
 
 
@@ -1070,5 +1081,295 @@ def elicit_respond(
             elicitation_id,
             action=action,
             content=content,
+        )
+    )
+
+
+# -- Users / Groups --------------------------------------------------------
+
+
+@main.group()
+def users() -> None:
+    """Look up users by display name or email.
+
+    \b
+    Subcommands:
+      search    Search company users (id / displayName / email)
+    """
+
+
+@users.command(name="search")
+@click.argument("query", required=False, default=None)
+@click.option(
+    "--email",
+    default=None,
+    help="Filter by exact email instead of partial display name.",
+)
+@click.option(
+    "--limit",
+    "-l",
+    type=int,
+    default=50,
+    show_default=True,
+    help="Max users to return.",
+)
+@click.pass_context
+def users_search(
+    ctx: click.Context,
+    query: str | None,
+    email: str | None,
+    limit: int,
+) -> None:
+    """Search company users by partial display name (or exact email).
+
+    \b
+    Examples:
+      unique-cli users search "Peter"
+      unique-cli users search --email peter@unique.ch
+      unique-cli users search "An" -l 10
+    """
+    click.echo(cmd_users_search(LazyState.get(ctx), query, email=email, limit=limit))
+
+
+@main.group()
+def groups() -> None:
+    """List groups in the company.
+
+    \b
+    Subcommands:
+      list      List groups (optional name filter)
+    """
+
+
+@groups.command(name="list")
+@click.option(
+    "--name",
+    "query",
+    default=None,
+    help="Filter groups by partial name (case-insensitive).",
+)
+@click.option(
+    "--limit",
+    "-l",
+    type=int,
+    default=100,
+    show_default=True,
+    help="Max groups to return.",
+)
+@click.pass_context
+def groups_list(ctx: click.Context, query: str | None, limit: int) -> None:
+    """List groups visible to the caller.
+
+    \b
+    Examples:
+      unique-cli groups list
+      unique-cli groups list --name "Sales"
+    """
+    click.echo(cmd_groups_list(LazyState.get(ctx), query=query, limit=limit))
+
+
+@main.group()
+def group() -> None:
+    """Inspect a single group.
+
+    \b
+    Subcommands:
+      members   List users in a group (id / name)
+    """
+
+
+@group.command(name="members")
+@click.argument("group_id")
+@click.pass_context
+def group_members(ctx: click.Context, group_id: str) -> None:
+    """List the users that belong to GROUP_ID.
+
+    \b
+    Examples:
+      unique-cli group members grp_abc123
+    """
+    click.echo(cmd_group_members(LazyState.get(ctx), group_id))
+
+
+# -- Chat ------------------------------------------------------------------
+
+
+@main.group()
+def chat() -> None:
+    """Inspect a chat by id.
+
+    \b
+    Subcommands:
+      info      Show chat metadata (title, assistantId, projectScopeId)
+    """
+
+
+@chat.command(name="info")
+@click.argument("chat_id")
+@click.pass_context
+def chat_info(ctx: click.Context, chat_id: str) -> None:
+    """Show metadata for CHAT_ID.
+
+    \b
+    Used by the SI share-artifact skill to detect whether the source
+    chat is already anchored to a Project Scope (projectScopeId).
+    The chat must belong to the caller.
+
+    \b
+    Examples:
+      unique-cli chat info chat_abc123
+    """
+    click.echo(cmd_chat_info(LazyState.get(ctx), chat_id))
+
+
+# -- Folder access ---------------------------------------------------------
+
+
+@main.group()
+def folder() -> None:
+    """Inspect folder-level data not covered by ls/mkdir/rmdir.
+
+    \b
+    Subcommands:
+      access    Show the ScopeAccess list of a folder (users/groups + READ/WRITE)
+    """
+
+
+@folder.command(name="access")
+@click.argument("target")
+@click.pass_context
+def folder_access(ctx: click.Context, target: str) -> None:
+    """Print the ScopeAccess list of TARGET (folder path or scope id).
+
+    \b
+    Examples:
+      unique-cli folder access /Projects/Q3-Sales-Deck
+      unique-cli folder access scope_abc123
+    """
+    click.echo(cmd_folder_access(LazyState.get(ctx), target))
+
+
+# -- Share artifact --------------------------------------------------------
+
+
+@main.command(name="share-artifact")
+@click.argument("content_id")
+@click.option(
+    "--source-chat-id",
+    "-c",
+    required=True,
+    help="Chat id the artifact was produced in (must belong to the caller).",
+)
+@click.option(
+    "--project-name",
+    "-n",
+    required=True,
+    help="Suggested project folder name (used when the project is created or forked).",
+)
+@click.option(
+    "--user-id",
+    "user_ids",
+    multiple=True,
+    help="Recipient user id. Repeatable. Comma-separated also accepted.",
+)
+@click.option(
+    "--group-id",
+    "group_ids",
+    multiple=True,
+    help="Recipient group id. Repeatable. Comma-separated also accepted.",
+)
+@click.option(
+    "--expand-project",
+    "expand_project_flag",
+    is_flag=True,
+    default=False,
+    help=(
+        "Extend the source chat's existing project to include new recipients. "
+        "Mutually exclusive with --fork-project."
+    ),
+)
+@click.option(
+    "--fork-project",
+    "fork_project_flag",
+    is_flag=True,
+    default=False,
+    help=(
+        "Create a new sibling project for the new recipients only. "
+        "Mutually exclusive with --expand-project."
+    ),
+)
+@click.option(
+    "--message",
+    "-m",
+    default=None,
+    help="Optional short note (≤1000 chars) shown in the notification body.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    default=False,
+    help="Print the raw JSON response instead of a human-readable summary.",
+)
+@click.pass_context
+def share_artifact(
+    ctx: click.Context,
+    content_id: str,
+    source_chat_id: str,
+    project_name: str,
+    user_ids: tuple[str, ...],
+    group_ids: tuple[str, ...],
+    expand_project_flag: bool,
+    fork_project_flag: bool,
+    message: str | None,
+    output_json: bool,
+) -> None:
+    """Share an artifact from a chat with users and/or groups.
+
+    \b
+    CONTENT_ID is the Unique Content id of the artifact (e.g. cont_abc123).
+    The artifact must belong to --source-chat-id.
+
+    \b
+    Project resolution:
+      * If the source chat has no project yet, one is created.
+      * If it already has one and all recipients are inside it, that
+        project is reused.
+      * If new recipients are outside, the server requires exactly one
+        of --expand-project / --fork-project.
+
+    \b
+    Examples:
+      unique-cli share-artifact cont_abc123 \\
+        --source-chat-id chat_xyz --project-name "2026-05-18 Q3 Sales Deck" \\
+        --user-id user_aaa --user-id user_bbb
+
+      unique-cli share-artifact cont_abc123 \\
+        -c chat_xyz -n "2026-05-18 Q3 Sales Deck" \\
+        --user-id user_aaa,user_bbb --group-id grp_sales \\
+        --message "Please review slide 7" --expand-project
+    """
+    if expand_project_flag and fork_project_flag:
+        click.echo(
+            "share-artifact: --expand-project and --fork-project are mutually exclusive."
+        )
+        return
+    expand_project: bool | None = None
+    if expand_project_flag:
+        expand_project = True
+    elif fork_project_flag:
+        expand_project = False
+
+    click.echo(
+        cmd_share_artifact(
+            LazyState.get(ctx),
+            content_id,
+            source_chat_id=source_chat_id,
+            project_name=project_name,
+            user_ids=user_ids,
+            group_ids=group_ids,
+            expand_project=expand_project,
+            message=message,
+            output_json=output_json,
         )
     )

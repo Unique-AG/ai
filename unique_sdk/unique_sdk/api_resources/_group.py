@@ -70,6 +70,21 @@ class Group(APIResource["Group"]):
 
         entityId: str
 
+    class GroupMemberInfo(TypedDict):
+        """
+        Public-API representation of a group member (id + display name).
+        """
+
+        id: str
+        name: str
+
+    class GroupMembersResponse(TypedDict):
+        """
+        Response for listing the users of a group.
+        """
+
+        members: list["Group.GroupMemberInfo"]
+
     class GroupMembership(TypedDict):
         """
         Represents a membership relationship between a user and a group.
@@ -380,6 +395,48 @@ class Group(APIResource["Group"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def get_group_members(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+    ) -> "Group.GroupMembersResponse":
+        """
+        List the users that belong to a group.
+
+        Calls ``GET /groups/{group_id}/users``. The caller must have access
+        to the group (USER role inside the company); the server returns
+        ``404`` otherwise.
+        """
+        return cast(
+            "Group.GroupMembersResponse",
+            cls._static_request(
+                "get",
+                f"/groups/{group_id}/users",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_group_members_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        group_id: str,
+    ) -> "Group.GroupMembersResponse":
+        """Async list the users that belong to a group."""
+        return cast(
+            "Group.GroupMembersResponse",
+            await cls._static_request_async(
+                "get",
+                f"/groups/{group_id}/users",
+                user_id,
+                company_id,
             ),
         )
 

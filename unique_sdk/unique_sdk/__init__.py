@@ -91,6 +91,8 @@ from unique_sdk.api_resources._message_assessment import (
     MessageAssessment as MessageAssessment,
 )
 from unique_sdk.api_resources._space import Space as Space
+from unique_sdk.api_resources._chat import Chat as Chat
+from unique_sdk.api_resources._share_artifact import ShareArtifact as ShareArtifact
 from unique_sdk.api_resources._mcp import MCP as MCP
 from unique_sdk.api_resources._message_execution import (
     MessageExecution as MessageExecution,
