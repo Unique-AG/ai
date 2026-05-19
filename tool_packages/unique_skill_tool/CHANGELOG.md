@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.20.4](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.20.3...unique-skill-tool-v2026.20.4) (2026-05-19)
+
+
+### Features
+
+* **unique-skill-tool:** load skill by content_id and not name  ([#1698](https://github.com/Unique-AG/ai/issues/1698)) ([3296f3b](https://github.com/Unique-AG/ai/commit/3296f3bdf5cd3e81fe8cd3210542bdfebddc3c73))
+
+
+### Bug Fixes
+
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([6b1b658](https://github.com/Unique-AG/ai/commit/6b1b658850b3924584522847fe979b7ef037f8db))
+* **unique-toolkit:** adding skill as capability ([#1707](https://github.com/Unique-AG/ai/issues/1707)) ([b3cd7a5](https://github.com/Unique-AG/ai/commit/b3cd7a523e2dbcf5833accbbcc4d55c675306c90))
+
 ## [2026.20.3](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.20.2...unique-skill-tool-v2026.20.3) (2026-05-11)
 
 

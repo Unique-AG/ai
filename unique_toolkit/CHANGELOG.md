@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.4](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.3...unique-toolkit-v2026.20.4) (2026-05-19)
+
+
+### Bug Fixes
+
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([6b1b658](https://github.com/Unique-AG/ai/commit/6b1b658850b3924584522847fe979b7ef037f8db))
+* **unique-toolkit:** adding skill as capability ([#1707](https://github.com/Unique-AG/ai/issues/1707)) ([b3cd7a5](https://github.com/Unique-AG/ai/commit/b3cd7a523e2dbcf5833accbbcc4d55c675306c90))
+
 ## [2026.20.3](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.2...unique-toolkit-v2026.20.3) (2026-05-11)
 
 
