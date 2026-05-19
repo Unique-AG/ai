@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-05-13T12:59:17.240112Z"
+exclude-newer = "2026-05-13T12:59:34.900481Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5896,6 +5896,7 @@ version = "2026.22.0"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
+    { name = "cachetools" },
     { name = "click" },
     { name = "deepdiff" },
     { name = "docxtpl" },
@@ -5929,9 +5930,6 @@ fastapi = [
     { name = "starlette" },
     { name = "uvicorn" },
 ]
-feature-flags = [
-    { name = "cachetools" },
-]
 langchain = [
     { name = "langchain" },
     { name = "langchain-core" },
@@ -5950,7 +5948,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.0,<4" },
-    { name = "cachetools", marker = "extra == 'feature-flags'", specifier = ">=5.0,<6" },
+    { name = "cachetools", specifier = ">=5.0,<6" },
     { name = "click", specifier = ">=8.1.0,<9" },
     { name = "deepdiff", specifier = ">=8.6.1,<9" },
     { name = "docxtpl", specifier = ">=0.20.1,<0.21" },
@@ -5985,7 +5983,7 @@ requires-dist = [
     { name = "unique-sdk", editable = "unique_sdk" },
     { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
 ]
-provides-extras = ["langchain", "fastapi", "monitoring", "feature-flags"]
+provides-extras = ["langchain", "fastapi", "monitoring"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "types-cachetools", specifier = ">=5.0,<6" }]
