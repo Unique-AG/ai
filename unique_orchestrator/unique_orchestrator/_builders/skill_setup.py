@@ -43,11 +43,10 @@ from __future__ import annotations
 
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import frontmatter
-from pydantic import ValidationError
 from unique_skill_tool.config import SkillToolConfig
+from unique_skill_tool.loader import parse_skill_file
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
@@ -76,29 +75,6 @@ def _find_skill_tool_build_config(
     return None
 
 
-def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
-    """Split YAML frontmatter from the markdown body.
-
-    Thin wrapper around ``python-frontmatter``. On a YAML parse error,
-    or when the frontmatter parses to a non-mapping (e.g. a top-level
-    YAML list), we fall back to ``({}, <stripped body>)`` so a broken
-    skill file never leaks its raw ``---\\nname: ...\\n---`` block into
-    the LLM prompt, but also never crashes ``_build_skill`` with an
-    unhandled ``TypeError``/``ValueError`` from ``dict(...)``.
-    """
-    try:
-        post = frontmatter.loads(text)
-        metadata = post.metadata
-        body = post.content
-    except Exception:
-        return {}, text
-
-    if not isinstance(metadata, dict):
-        return {}, body
-
-    return dict(metadata), body
-
-
 def normalize_available_skills_for_tool(
     available_skills: list[SkillReference],
 ) -> list[SkillReference]:
@@ -123,56 +99,6 @@ def normalize_available_skills_for_tool(
             )
         )
     return out
-
-
-def _build_skill(
-    *,
-    content_id: str,
-    content_key: str,
-    file_text: str,
-    logger: Logger,
-) -> SkillDefinition | None:
-    """Build a ``SkillDefinition`` from the raw file text of a KB document.
-
-    Parses YAML frontmatter for ``name`` and ``description``. A malformed
-    ``name`` (non-kebab-case, contains whitespace/punctuation, too long)
-    is rejected by ``SkillDefinition`` rather than silently flowing into
-    the OpenAI tool enum where the model could never emit it verbatim.
-
-    ``content_id`` is stored on the returned definition so it can be used
-    as a lookup key to load the SKILL.md.
-    """
-    if not file_text.strip():
-        return None
-
-    metadata, body = _parse_frontmatter(text=file_text)
-
-    name = metadata.get("name")
-    description = metadata.get("description")
-
-    if not name or not description:
-        logger.warning(
-            "Skipping '%s' (%s): wrong skill format.",
-            content_key,
-            content_id,
-        )
-        return None
-
-    try:
-        return SkillDefinition(
-            name=name,
-            description=description,
-            content=body,
-            content_id=content_id,
-        )
-    except ValidationError as exc:
-        logger.warning(
-            "Skipping '%s' (%s): invalid skill definition: %s",
-            content_key,
-            content_id,
-            exc.errors(include_url=False),
-        )
-        return None
 
 
 async def load_selectable_skills(
@@ -224,12 +150,22 @@ async def load_selectable_skills(
             )
             continue
 
-        skill = _build_skill(
-            content_id=entry.content_id,
-            content_key=label,
-            file_text=file_text,
-            logger=logger,
-        )
+        try:
+            skill = parse_skill_file(
+                file_text=file_text,
+                content_id=entry.content_id,
+                source_label=label,
+                logger=logger,
+            )
+        except Exception:
+            logger.warning(
+                "Unexpected error building selectable skill '%s' (%s) — skipping.",
+                label,
+                entry.content_id,
+                exc_info=True,
+            )
+            continue
+
         if skill is None:
             logger.debug(
                 "Skipping selectable skill '%s' (%s): empty or invalid file.",

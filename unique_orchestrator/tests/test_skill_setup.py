@@ -13,8 +13,6 @@ from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_orchestrator._builders.skill_setup import (
-    _build_skill,
-    _parse_frontmatter,
     configure_skill_tool,
     load_selectable_skills,
     normalize_available_skills_for_tool,
@@ -46,6 +44,7 @@ def _make_skill_tool(skills: list[SkillDefinition]) -> SkillTool:
     registry = {s.name: s for s in skills}
     tool = SkillTool.__new__(SkillTool)
     tool._skill_registry = registry  # type: ignore[attr-defined]
+    tool._activated_skills = []  # type: ignore[attr-defined]
     tool._message_step_logger = MagicMock()  # type: ignore[attr-defined]
     tool._message_step_logger.create_or_update_message_log_async = AsyncMock(
         return_value=MagicMock()
@@ -247,39 +246,6 @@ class TestPreloadInvokedSkills:
         history_manager.add_tool_call.assert_not_called()
         history_manager._append_tool_calls_to_history.assert_not_called()
         history_manager.add_tool_call_results.assert_not_called()
-
-    def test_parses_frontmatter_and_body(self, logger: Logger) -> None:
-        file_text = (
-            "---\n"
-            "name: summarize\n"
-            "description: Summarize a document.\n"
-            "---\n"
-            "\n"
-            "# Summarize\n"
-            "Do the thing.\n"
-        )
-
-        skill = _build_skill(
-            content_id="c1",
-            content_key="summarize.md",
-            file_text=file_text,
-            logger=logger,
-        )
-
-        assert skill is not None
-        assert skill.name == "summarize"
-        assert skill.description == "Summarize a document."
-        assert skill.content == "# Summarize\nDo the thing."
-        assert skill.content_id == "c1"
-
-
-class TestParseFrontmatter:
-    def test_parses_valid_frontmatter(self) -> None:
-        fm, body = _parse_frontmatter(
-            text="---\nname: foo\ndescription: bar\n---\nhello\n"
-        )
-        assert fm == {"name": "foo", "description": "bar"}
-        assert body == "hello"
 
 
 class TestMessageSkillsAsSelectable:
