@@ -4,7 +4,7 @@ Create (upsert), retrieve, and delete an assistant briefing via unique_sdk.
 
 Run from the ``unique_sdk`` project directory::
 
-    uv run python -m unique_sdk.examples.basics.briefing_crud
+    uv run python examples/basics/briefing_crud.py
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import os
 import sys
 from logging import getLogger
 
-from unique_sdk.examples.basics.sdk_env import configure_sdk
+from sdk_env import configure_sdk
 
 logging.basicConfig(level=logging.INFO)
 logger = getLogger(__name__)
