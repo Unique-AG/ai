@@ -1573,6 +1573,153 @@ class TestInternalSearchTool:
                 assert "language" in params or "properties" in params
 
     @pytest.mark.ai
+    def test_tool_description__no_content_ids__when_flag_off(
+        self,
+        mock_chat_event: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify content_ids is absent from schema when enable_content_id_filter=False.
+        Why this matters: Ensures the LLM is not exposed to the parameter unless explicitly enabled.
+        Setup summary: Create tool with default config (flag off), assert content_ids not in schema.
+        """
+        config = InternalSearchConfig(enable_content_id_filter=False)
+
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
+
+            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+                tool = InternalSearchTool(configuration=config, event=mock_chat_event)
+                setattr(tool, "_event", mock_chat_event)
+
+            result = tool.tool_description()
+
+        assert hasattr(result.parameters, "model_fields")
+        assert "content_ids" not in result.parameters.model_fields  # type: ignore
+
+    @pytest.mark.ai
+    def test_tool_description__content_ids_present__when_flag_on(
+        self,
+        mock_chat_event: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify content_ids appears as an optional field when enable_content_id_filter=True.
+        Why this matters: Ensures the LLM can pass content_ids only when the feature is enabled.
+        Setup summary: Create tool with flag enabled, assert content_ids is in schema as optional list.
+        """
+        config = InternalSearchConfig(enable_content_id_filter=True)
+
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
+
+            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+                tool = InternalSearchTool(configuration=config, event=mock_chat_event)
+                setattr(tool, "_event", mock_chat_event)
+
+            result = tool.tool_description()
+
+        assert hasattr(result.parameters, "model_fields")
+        assert "content_ids" in result.parameters.model_fields  # type: ignore
+        # Field must be optional (default None)
+        field_info = result.parameters.model_fields["content_ids"]  # type: ignore
+        assert field_info.default is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__passes_content_ids__to_search(
+        self,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify that content_ids supplied by the LLM are forwarded to search_content_chunks_async.
+        Why this matters: Ensures the LLM can actually scope searches to specific documents end-to-end.
+        Setup summary: Create tool with flag on, call run() with content_ids, assert service receives them.
+        """
+        config = InternalSearchConfig(enable_content_id_filter=True)
+
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service.search_content_chunks_async = AsyncMock(
+                return_value=sample_content_chunks
+            )
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+            mock_feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
+
+            with (
+                patch("unique_internal_search.service.Tool.__init__", setup_tool),
+                patch.object(
+                    InternalSearchTool,
+                    "tool_progress_reporter",
+                    new_callable=PropertyMock,
+                    return_value=None,
+                ),
+            ):
+                tool = InternalSearchTool(configuration=config, event=mock_chat_event)
+                setattr(tool, "_event", mock_chat_event)
+
+            tool_call = Mock(spec=["id", "arguments"])
+            tool_call.id = "call_123"
+            tool_call.arguments = {
+                "search_string": "quarterly revenue",
+                "content_ids": ["cont_abc123", "cont_def456"],
+            }
+
+            await tool.run(tool_call)
+
+        mock_content_service.search_content_chunks_async.assert_called_once()
+        _, call_kwargs = mock_content_service.search_content_chunks_async.call_args
+        assert call_kwargs["content_ids"] == ["cont_abc123", "cont_def456"]
+
+    @pytest.mark.ai
     def test_tool_description_for_system_prompt__returns_config_value(
         self,
         base_internal_search_config: InternalSearchConfig,

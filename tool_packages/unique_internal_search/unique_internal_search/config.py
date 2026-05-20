@@ -23,6 +23,7 @@ from unique_toolkit.content.schemas import (
 )
 
 from unique_internal_search.prompts import (
+    DEFAULT_CONTENT_IDS_PARAM_DESCRIPTION,
     DEFAULT_LANGUAGE_PARAM_DESCRIPTION,
     DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION,
@@ -207,6 +208,18 @@ class InternalSearchConfig(BaseToolConfig):
     enable_multiple_search_strings_execution: bool = Field(
         default=True,
         description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
+    )
+
+    enable_content_id_filter: bool = Field(
+        default=False,
+        description=(
+            "When True, exposes an optional `content_ids` parameter in the tool schema so the LLM can restrict the search to specific documents. "
+        ),
+    )
+
+    param_description_content_ids: str = Field(
+        default=DEFAULT_CONTENT_IDS_PARAM_DESCRIPTION,
+        description="`content_ids` parameter description shown to the LLM.",
     )
 
     metadata_chunk_sections: dict[str, str] = Field(
