@@ -162,7 +162,7 @@ class WebSearchConfig(BaseToolConfig):
         title="Search Mode V3 Settings (Experimental)",
         description="Settings for the agent-driven search mode (V3): the model itself chains snippet-only `search` calls with on-demand full-page `read_urls` calls per task.",
     )
-    
+
     query_elicitation_config: QueryElicitationConfig = Field(
         default_factory=QueryElicitationConfig,
         title="Query Elicitation",
