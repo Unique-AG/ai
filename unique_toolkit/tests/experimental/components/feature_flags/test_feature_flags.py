@@ -125,20 +125,19 @@ async def test_evaluate__transport_failure__env_var_true__returns_true(
 
 
 @pytest.mark.ai
-async def test_evaluate__no_url__immediate_fallback_no_http(
+def test_from_settings__no_url__raises_value_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
-    Purpose: Verify that a client constructed without a URL never makes HTTP calls.
-    Why this matters: Services without CONFIGURATION_BACKEND_URL must still work via env-vars.
-    Setup summary: Construct client with url=None; assert reason="fallback" without any HTTP mock.
+    Purpose: Verify from_settings() raises ValueError when CONFIGURATION_BACKEND_URL is absent.
+    Why this matters: Prevents silent misconfiguration — callers must set the URL explicitly.
+    Setup summary: Unset CONFIGURATION_BACKEND_URL; assert ValueError is raised.
     """
-    monkeypatch.setenv(_FLAG, "false")
+    monkeypatch.delenv("CONFIGURATION_BACKEND_URL", raising=False)
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "agentic-ingestion")
 
-    client = _make_client(url=None)
-    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
-
-    assert result == FlagEvaluation(value=False, reason="fallback")
+    with pytest.raises(ValueError, match="CONFIGURATION_BACKEND_URL"):
+        FeatureFlagClient.from_settings()
 
 
 # ---------------------------------------------------------------------------
@@ -293,22 +292,3 @@ def test_from_settings__constructs_client_from_env_vars(
 
     assert client._url == "https://config.test"
     assert client._service_id == "agentic-ingestion"
-    assert client._available is True
-
-
-@pytest.mark.ai
-def test_from_settings__no_url__client_unavailable(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """
-    Purpose: Verify from_settings() produces an unavailable client when URL is absent.
-    Why this matters: Ensures _available=False is set correctly for the fallback path.
-    Setup summary: Set only FEATURE_FLAG_SERVICE_ID; assert _available is False.
-    """
-    monkeypatch.delenv("CONFIGURATION_BACKEND_URL", raising=False)
-    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "agentic-ingestion")
-
-    client = FeatureFlagClient.from_settings()
-
-    assert client._url is None
-    assert client._available is False
