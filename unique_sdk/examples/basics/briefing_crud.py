@@ -27,7 +27,7 @@ def main() -> None:
     assistant_id = os.getenv("ASSISTANT_ID", "")
     if not assistant_id:
         logger.error(
-            "Set ASSISTANT_ID in unique_sdk/.env to the target assistant (space) id."
+            "Set ASSISTANT_ID in examples/basics/.env to the target assistant (space) id."
         )
         sys.exit(1)
 
