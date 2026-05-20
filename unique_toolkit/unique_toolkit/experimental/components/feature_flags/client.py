@@ -91,7 +91,7 @@ class FeatureFlagClient:
             A :class:`.FlagEvaluation` with ``value`` and ``reason``.
         """
         try:
-            cache_key = f"{flag}:{company_id}:{user_id or '__none__'}"
+            cache_key = f"{flag}:{company_id}:{user_id!r}"
             value, from_cache = await self._cache.get_or_fetch(
                 cache_key,
                 lambda: evaluate_flag(
