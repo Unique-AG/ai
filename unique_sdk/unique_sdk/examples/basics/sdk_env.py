@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 
 from unique_sdk.cli.config import Config, load_config
 
-_PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+# Project root (``unique_sdk/`` with ``pyproject.toml`` and ``.env``).
+_PACKAGE_ROOT = Path(__file__).resolve().parents[3]
 _DEFAULT_ENV_FILE = _PACKAGE_ROOT / ".env"
 
 # Legacy tutorial / custom-assistant names → CLI ``load_config`` expects UNIQUE_*.
