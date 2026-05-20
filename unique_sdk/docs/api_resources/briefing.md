@@ -16,7 +16,7 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
 
 ## Example: create, retrieve, and delete
 
-Runnable script: [`examples/basics/briefing_crud.py`](../../examples/basics/briefing_crud.py). From the `unique_sdk` directory, set credentials and `ASSISTANT_ID` in `.env` (or export them), then:
+Runnable script: [`examples/basics/briefing_crud.py`](../../examples/basics/briefing_crud.py) (SDK setup via [`sdk_env.py`](../../examples/basics/sdk_env.py) → `unique_sdk.cli.config.load_config`). From the `unique_sdk` directory, set `UNIQUE_*` credentials and `ASSISTANT_ID` in `.env` (`API_KEY` / `USER_ID` aliases are also accepted), then:
 
 ```bash
 uv run python examples/basics/briefing_crud.py
