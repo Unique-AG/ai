@@ -105,11 +105,6 @@ class AnswerGenerationConfig(BaseModel):
 
 
 class ExperimentalFeatures(FeatureExtendedSourceSerialization):
-    query_elicitation_config: QueryElicitationConfig = Field(
-        default_factory=QueryElicitationConfig,
-        title="Query Review",
-        description="Allow users to review and modify search queries before execution.",
-    )
     tool_response_system_reminder: ToolResponseSystemReminderConfig = Field(
         default_factory=ToolResponseSystemReminderConfig,
         title="Tool Response System Reminder",
@@ -167,8 +162,13 @@ class WebSearchConfig(BaseToolConfig):
         title="Search Mode V3 Settings (Experimental)",
         description="Settings for the agent-driven search mode (V3): the model itself chains snippet-only `search` calls with on-demand full-page `read_urls` calls per task.",
     )
+    
+    query_elicitation_config: QueryElicitationConfig = Field(
+        default_factory=QueryElicitationConfig,
+        title="Query Elicitation",
+        description="Allow users to review and modify search queries before execution.",
+    )
 
-    # Todo [UN-17655] RJSF Tags don't function properly when using union + dscriminator
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         title="Search Engine",
