@@ -277,7 +277,25 @@ async def test_evaluate__different_contexts__cached_independently() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 10. from_settings() constructs client from env vars
+# 10. empty company_id raises ValueError
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+async def test_evaluate__empty_company_id__raises_value_error() -> None:
+    """
+    Purpose: Verify that an empty company_id is rejected before any HTTP call.
+    Why this matters: An empty company_id would send a meaningless x-company-id header and produce an ambiguous cache key.
+    Setup summary: Call evaluate with company_id=""; assert ValueError is raised.
+    """
+    client = _make_client()
+
+    with pytest.raises(ValueError, match="company_id"):
+        await client.evaluate(_FLAG, company_id="")
+
+
+# ---------------------------------------------------------------------------
+# 11. from_settings() constructs client from env vars
 # ---------------------------------------------------------------------------
 
 
