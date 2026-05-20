@@ -19,8 +19,14 @@ _USER_ID = "user-123"
 _GQL_ENDPOINT = f"{_URL}/graphql"
 
 
-def _make_client(url: str | None = _URL, ttl_ms: int = 30_000) -> FeatureFlagClient:
+def _make_client(url: str = _URL, ttl_ms: int = 30_000) -> FeatureFlagClient:
     return FeatureFlagClient(url=url, service_id=_SERVICE_ID, ttl_ms=ttl_ms)
+
+
+@pytest.fixture(autouse=True)
+def clear_from_settings_cache() -> None:
+    """Reset the from_settings() singleton between tests so monkeypatch env changes take effect."""
+    FeatureFlagClient.from_settings.cache_clear()  # type: ignore[attr-defined]
 
 
 def _gql_response(value: bool) -> dict:
