@@ -45,6 +45,19 @@ def _apply_env_aliases() -> None:
             os.environ[canonical] = value
 
 
+def _normalize_api_base() -> None:
+    """Bare gateway host → ``/unique-api`` (Briefings and public OpenAPI surface)."""
+    raw = os.environ.get("UNIQUE_API_BASE", "").strip().strip("'\"")
+    if not raw:
+        return
+    base = raw.rstrip("/")
+    if "/unique-api" in base or "/public/" in base:
+        return
+    # e.g. https://gateway.unique.app → https://gateway.unique.app/unique-api
+    if "gateway" in base and base.count("/") <= 2:
+        os.environ["UNIQUE_API_BASE"] = f"{base}/unique-api"
+
+
 def configure_sdk(env_file: Path | None = None) -> Config:
     """Load ``.env``, map legacy env names, and wire ``unique_sdk`` via ``load_config``.
 
@@ -58,4 +71,5 @@ def configure_sdk(env_file: Path | None = None) -> Config:
     if path.exists():
         load_dotenv(path)
     _apply_env_aliases()
+    _normalize_api_base()
     return load_config()

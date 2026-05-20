@@ -12,11 +12,11 @@ Use this API when you need to:
 
 Callers must have permission to manage the target assistant; the server returns `403` when access is denied and `404` when the assistant or briefing attachment does not exist.
 
-With the default [`api_base`](../getting_started/configuration.md) (typically ending in `/public/chat-gen2`), the SDK issues requests under `{api_base}/briefings/{assistantId}`. Override `unique_sdk.api_base` or `UNIQUE_API_BASE` if your deployment uses a different gateway prefix.
+Briefings are served on the **unique-api** gateway surface (see QA OpenAPI at `https://gateway.qa.unique.app/unique-api/openapi.json`). Set `unique_sdk.api_base` (or `UNIQUE_API_BASE` / `UNIQUE_API_BASE_URL`) to your gateway prefix ending in **`/unique-api`**, e.g. `https://gateway.unique.app/unique-api` — not `/public/chat-gen2` and not the bare gateway host alone.
 
 ## Example: create, retrieve, and delete
 
-Runnable script: [`examples/basics/briefing_crud.py`](../../examples/basics/briefing_crud.py) (SDK setup via [`sdk_env.py`](../../examples/basics/sdk_env.py) → `unique_sdk.cli.config.load_config`; not shipped in the PyPI wheel). Add `examples/basics/.env` with `UNIQUE_*` credentials and `ASSISTANT_ID` (`API_KEY` / `USER_ID` aliases are also accepted). From the `unique_sdk` directory:
+Runnable script: [`examples/basics/briefing_crud.py`](../../examples/basics/briefing_crud.py) (SDK setup via [`sdk_env.py`](../../examples/basics/sdk_env.py) → `unique_sdk.cli.config.load_config`; not shipped in the PyPI wheel). Add `examples/basics/.env` with `UNIQUE_*` credentials, `ASSISTANT_ID`, and `UNIQUE_API_BASE_URL` (a bare `https://gateway…` host is auto-suffixed with `/unique-api` in the example helper). From the `unique_sdk` directory:
 
 ```bash
 uv run python examples/basics/briefing_crud.py
