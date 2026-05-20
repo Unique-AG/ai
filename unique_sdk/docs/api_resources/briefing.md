@@ -1,13 +1,13 @@
 # Briefing API
 
-The Briefing API manages the briefing attached to an assistant using the assistant’s identifier (see `/briefings/{assistantId}` in the public OpenAPI specification).
+The Briefing API manages the briefing attached to an assistant using the assistant’s identifier (see `PUT /briefings/{assistantId}` and `#/components/schemas/PublicUpsertBriefingRequestDto` in the public OpenAPI specification).
 
 ## Overview
 
 Use this API when you need to:
 
 - Read, attach, or update briefing text for a specific assistant (space)
-- Detach a briefing from an assistant without deleting the shared record
+- Remove a briefing attachment from an assistant (the shared record may remain)
 - Keep assistant briefing content in sync from automation or admin tools
 
 Callers must have permission to manage the target assistant; the server returns `403` when access is denied and `404` when the assistant or briefing attachment does not exist.
@@ -16,7 +16,7 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
 
 ## Methods
 
-??? example "`unique_sdk.Briefing.get_for_assistant` - Get briefing for an assistant"
+??? example "`unique_sdk.Briefing.retrieve_for_assistant` - Retrieve briefing for an assistant"
 
     Returns the briefing attached to the assistant identified by `assistant_id` (`GET /briefings/{assistantId}`).
 
@@ -28,13 +28,13 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
 
     **Returns:** A [`Briefing`](#briefing) instance (`200`).
 
-??? example "`unique_sdk.Briefing.get_for_assistant_async` - Async get"
+??? example "`unique_sdk.Briefing.retrieve_for_assistant_async` - Async retrieve"
 
-    Same as **`get_for_assistant`**, but asynchronous.
+    Same as **`retrieve_for_assistant`**, but asynchronous.
 
 ??? example "`unique_sdk.Briefing.upsert_for_assistant` - Upsert briefing for an assistant"
 
-    Create or update the briefing for the assistant identified by `assistant_id` (`PUT /briefings/{assistantId}`) with a JSON body matching OpenAPI `UpsertBriefingRequestDto`:
+    Create or update the briefing for the assistant identified by `assistant_id` (`PUT /briefings/{assistantId}`) with a JSON body matching OpenAPI `PublicUpsertBriefingRequestDto`:
 
     - **`text`** (required, non-empty, max **4000**)
     - **`generatedAt`** (ISO 8601 — if omitted or blank, the SDK sends current UTC time)
@@ -69,21 +69,21 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
 
     Same behavior as **`upsert_for_assistant`**, but asynchronous.
 
-??? example "`unique_sdk.Briefing.detach_for_assistant` - Detach briefing from an assistant"
+??? example "`unique_sdk.Briefing.delete_for_assistant` - Delete briefing attachment for an assistant"
 
-    Removes the briefing attachment for the assistant (`DELETE /briefings/{assistantId}`). The underlying briefing record is preserved when other assistants in the tenant still reference it.
+    Detaches the briefing from the assistant (`DELETE /briefings/{assistantId}`). The underlying briefing record is preserved when other assistants in the tenant still reference it.
 
-    **Returns:** A [`DetachResult`](#detachresult) (`200`).
+    **Returns:** A [`DeletedObject`](#deletedobject) (`200`).
 
-??? example "`unique_sdk.Briefing.detach_for_assistant_async` - Async detach"
+??? example "`unique_sdk.Briefing.delete_for_assistant_async` - Async delete"
 
-    Same as **`detach_for_assistant`**, but asynchronous.
+    Same as **`delete_for_assistant`**, but asynchronous.
 
 ## Input and return types
 
 #### UpsertForAssistantParams {#upsertforassistantparams}
 
-??? note "Request body (`UpsertBriefingRequestDto`)"
+??? note "Request body (`PublicUpsertBriefingRequestDto`)"
 
     - `text`, `generatedAt`, `prompts` — Required on the wire (see upsert method above).
     - `title` — Optional display title (max **100**).
@@ -93,26 +93,26 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
 
 #### Briefing {#briefing}
 
-??? note "The `Briefing` resource object (`BriefingDto`)"
+??? note "The `Briefing` resource object (`PublicBriefingDto`)"
 
     - `object` — `"briefing"`
     - `externalId` — Stable external identifier (assistant id when attached per-assistant)
     - `text`, `generatedAt`, `title`, `createdAt`, `updatedAt`
-    - `prompts` — List of `BriefingPromptDto` rows (`id`, `title`, `body`, `order`, timestamps)
+    - `prompts` — Ordered prompt rows when returned
 
     Legacy fields such as `assistantId` or `id` may still appear depending on API version.
 
-    **Returned by:** `get_for_assistant()`, `upsert_for_assistant()` (+ async variants)
+    **Returned by:** `retrieve_for_assistant()`, `upsert_for_assistant()` (+ async variants)
 
-#### DetachResult {#detachresult}
+#### DeletedObject {#deletedobject}
 
-??? note "Detach response (`DeleteBriefingResultDto`)"
+??? note "Delete response"
 
     - `object` — `"deleted-briefing"`
     - `id` — Echoes the `assistantId` from the URL
     - `deleted` — Whether the detach succeeded
 
-    **Returned by:** `detach_for_assistant()` (+ async variant)
+    **Returned by:** `delete_for_assistant()` (+ async variant)
 
 ## HTTP status semantics
 

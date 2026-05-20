@@ -286,8 +286,8 @@ def test_AI_upsert_raises_when_prompt_body_too_long():
 
 @pytest.mark.ai
 @patch.object(Briefing, "_static_request", autospec=True)
-def test_AI_get_for_assistant_calls_get(mock_static):
-    """get_for_assistant issues GET on /briefings/{assistantId}."""
+def test_AI_retrieve_for_assistant_calls_get(mock_static):
+    """retrieve_for_assistant issues GET on /briefings/{assistantId}."""
     mock_static.return_value = {
         "object": "briefing",
         "externalId": "as/x",
@@ -298,7 +298,7 @@ def test_AI_get_for_assistant_calls_get(mock_static):
         "updatedAt": "t2",
     }
 
-    Briefing.get_for_assistant(
+    Briefing.retrieve_for_assistant(
         user_id="u1",
         company_id="co1",
         assistant_id="as/x",
@@ -310,8 +310,8 @@ def test_AI_get_for_assistant_calls_get(mock_static):
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch.object(Briefing, "_static_request_async", autospec=True)
-async def test_AI_get_for_assistant_async_calls_get(mock_async):
-    """Async get mirrors sync GET URL and method."""
+async def test_AI_retrieve_for_assistant_async_calls_get(mock_async):
+    """Async retrieve mirrors sync GET URL and method."""
     mock_async.return_value = {
         "object": "briefing",
         "externalId": "aid",
@@ -322,7 +322,7 @@ async def test_AI_get_for_assistant_async_calls_get(mock_async):
         "updatedAt": "t2",
     }
 
-    await Briefing.get_for_assistant_async(
+    await Briefing.retrieve_for_assistant_async(
         user_id="u1",
         company_id="co1",
         assistant_id="aid",
@@ -333,15 +333,15 @@ async def test_AI_get_for_assistant_async_calls_get(mock_async):
 
 @pytest.mark.ai
 @patch.object(Briefing, "_static_request", autospec=True)
-def test_AI_detach_for_assistant_calls_delete(mock_static):
-    """detach_for_assistant issues DELETE on /briefings/{assistantId}."""
+def test_AI_delete_for_assistant_calls_delete(mock_static):
+    """delete_for_assistant issues DELETE on /briefings/{assistantId}."""
     mock_static.return_value = {
         "object": "deleted-briefing",
         "id": "as/x",
         "deleted": True,
     }
 
-    result = Briefing.detach_for_assistant(
+    result = Briefing.delete_for_assistant(
         user_id="u1",
         company_id="co1",
         assistant_id="as/x",
@@ -355,15 +355,15 @@ def test_AI_detach_for_assistant_calls_delete(mock_static):
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch.object(Briefing, "_static_request_async", autospec=True)
-async def test_AI_detach_for_assistant_async_calls_delete(mock_async):
-    """Async detach mirrors sync DELETE semantics."""
+async def test_AI_delete_for_assistant_async_calls_delete(mock_async):
+    """Async delete mirrors sync DELETE semantics."""
     mock_async.return_value = {
         "object": "deleted-briefing",
         "id": "aid",
         "deleted": True,
     }
 
-    await Briefing.detach_for_assistant_async(
+    await Briefing.delete_for_assistant_async(
         user_id="u1",
         company_id="co1",
         assistant_id="aid",
