@@ -18,11 +18,9 @@ class FeatureFlagClient:
     the OpenFeature Python SDK.
 
     Evaluation order:
-    1. If the client was constructed without a URL (``_available=False``),
-       return the env-var fallback immediately.
-    2. Check the in-process TTL cache; return a cached value if present.
-    3. Call configuration-backend's ``evaluateFlag`` GraphQL query.
-    4. On any transport or GraphQL error, log a warning and return the
+    1. Check the in-process TTL cache; return a cached value if present.
+    2. Call configuration-backend's ``evaluateFlag`` GraphQL query.
+    3. On any transport or GraphQL error, log a warning and return the
        env-var fallback.
 
     The ``flag`` argument must be the upper-snake env-var-style key, e.g.
