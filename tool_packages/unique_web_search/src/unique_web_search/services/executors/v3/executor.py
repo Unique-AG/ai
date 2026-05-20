@@ -79,7 +79,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         self.notify_message = objective
         await self.notify_callback()
 
-        elicited = await self._ff_elicitate_queries([query])
+        elicited = await self.query_elicitation([query])
         query = elicited[0]
 
         self.debug_info.steps.append(

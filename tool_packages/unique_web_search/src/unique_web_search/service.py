@@ -297,7 +297,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         elicitation_service = QueryElicitationService(
             chat_service=self._chat_service,
             display_name=self.display_name(),
-            config=self.config.experimental_features.query_elicitation_config,
+            config=self.config.query_elicitation_config,
         )
 
         # Build context objects

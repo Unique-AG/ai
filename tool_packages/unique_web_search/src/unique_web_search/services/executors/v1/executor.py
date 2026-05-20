@@ -175,7 +175,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         )
         refined_queries, objective = await self._refine_query(query)
 
-        elicitated_queries = await self._ff_elicitate_queries(refined_queries)
+        elicitated_queries = await self.query_elicitation(refined_queries)
 
         web_search_results = []
 
