@@ -14,6 +14,51 @@ Callers must have permission to manage the target assistant; the server returns 
 
 With the default [`api_base`](../getting_started/configuration.md) (typically ending in `/public/chat-gen2`), the SDK issues requests under `{api_base}/briefings/{assistantId}`. Override `unique_sdk.api_base` or `UNIQUE_API_BASE` if your deployment uses a different gateway prefix.
 
+## Example: create, retrieve, and delete
+
+The snippet below attaches a briefing to an assistant, reads it back, then removes the attachment. Configure `unique_sdk.api_key` and `unique_sdk.app_id` first (see [Configuration](../getting_started/configuration.md)).
+
+```python
+import unique_sdk
+
+user_id = "user_…"
+company_id = "company_…"
+assistant_id = "assistant_…"  # space / assistant the briefing is attached to
+
+# Create or replace the briefing (PUT)
+briefing = unique_sdk.Briefing.upsert_for_assistant(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id=assistant_id,
+    text="## Market overview\nKey themes from overnight news…",
+    title="Today's Briefing",
+    generatedAt="2026-05-20T07:00:00.000Z",
+    prompts=[
+        {"title": "Summarise", "body": "Give me a one-paragraph summary."},
+        {"title": "Deep dive", "body": "Which story deserves more attention?"},
+    ],
+)
+print(f"Upserted briefing for {assistant_id}: {briefing['text'][:40]}…")
+
+# Retrieve the briefing (GET)
+loaded = unique_sdk.Briefing.retrieve_for_assistant(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id=assistant_id,
+)
+print(f"Retrieved {len(loaded['prompts'])} prompt(s), title={loaded.get('title')!r}")
+
+# Delete the attachment from this assistant (DELETE; shared record may remain)
+result = unique_sdk.Briefing.delete_for_assistant(
+    user_id=user_id,
+    company_id=company_id,
+    assistant_id=assistant_id,
+)
+print(f"Deleted attachment: {result['deleted']}")  # result['id'] echoes assistant_id
+```
+
+Async equivalents: `upsert_for_assistant_async`, `retrieve_for_assistant_async`, `delete_for_assistant_async`.
+
 ## Methods
 
 ??? example "`unique_sdk.Briefing.retrieve_for_assistant` - Retrieve briefing for an assistant"
@@ -27,6 +72,17 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
     - `assistant_id` (str, required) — Max length **128** on the API.
 
     **Returns:** A [`Briefing`](#briefing) instance (`200`).
+
+    **Example:**
+
+    ```python
+    briefing = unique_sdk.Briefing.retrieve_for_assistant(
+        user_id=user_id,
+        company_id=company_id,
+        assistant_id=assistant_id,
+    )
+    print(briefing["text"])
+    ```
 
 ??? example "`unique_sdk.Briefing.retrieve_for_assistant_async` - Async retrieve"
 
@@ -74,6 +130,17 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
     Detaches the briefing from the assistant (`DELETE /briefings/{assistantId}`). The underlying briefing record is preserved when other assistants in the tenant still reference it.
 
     **Returns:** A [`DeletedObject`](#deletedobject) (`200`).
+
+    **Example:**
+
+    ```python
+    result = unique_sdk.Briefing.delete_for_assistant(
+        user_id=user_id,
+        company_id=company_id,
+        assistant_id=assistant_id,
+    )
+    assert result["deleted"] is True
+    ```
 
 ??? example "`unique_sdk.Briefing.delete_for_assistant_async` - Async delete"
 
