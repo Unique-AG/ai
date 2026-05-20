@@ -4,17 +4,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class FeatureFlagSettings(BaseSettings):
     """Settings for the feature flag client.
 
-    All fields are read from environment variables. When
-    ``CONFIGURATION_BACKEND_URL`` is ``None``, all evaluations fall back to
-    env-var defaults and ``FEATURE_FLAG_SERVICE_ID`` is not required.
+    All fields are read from environment variables. Both
+    ``CONFIGURATION_BACKEND_URL`` and ``FEATURE_FLAG_SERVICE_ID`` are required;
+    :meth:`FeatureFlagClient.from_settings` raises ``ValueError`` if either is
+    absent or empty.
 
     Attributes:
         CONFIGURATION_BACKEND_URL: Base URL of the configuration-backend service
-            (e.g. ``https://<your-configuration-backend>``). When ``None``,
-            all evaluations fall back to env-var defaults immediately.
+            (e.g. ``http://localhost:8095`` locally,
+            ``https://<your-configuration-backend>`` in k8s).
         FEATURE_FLAG_SERVICE_ID: Identifier sent as ``x-service-id`` header.
-            Must match a value in configuration-backend's ``Service`` enum.
-            Required only when ``CONFIGURATION_BACKEND_URL`` is set.
+            Must match a value in configuration-backend's ``Service`` enum
+            (e.g. ``agentic-ingestion``).
         FEATURE_FLAG_CACHE_TTL_MS: TTL for the in-process flag cache in
             milliseconds. Defaults to 30 000 ms (30 s).
     """
