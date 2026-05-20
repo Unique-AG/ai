@@ -16,48 +16,20 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
 
 ## Example: create, retrieve, and delete
 
-The snippet below attaches a briefing to an assistant, reads it back, then removes the attachment. Configure `unique_sdk.api_key` and `unique_sdk.app_id` first (see [Configuration](../getting_started/configuration.md)).
+Runnable script: [`examples/briefing_crud.py`](../../examples/briefing_crud.py). From the `unique_sdk` directory:
 
-```python
-import unique_sdk
+```bash
+export UNIQUE_API_KEY="ukey_…"
+export UNIQUE_APP_ID="app_…"
+export UNIQUE_USER_ID="user_…"
+export UNIQUE_COMPANY_ID="company_…"
+export ASSISTANT_ID="assistant_…"
+# optional: export UNIQUE_API_BASE="https://gateway.qa.unique.app/public/chat-gen2"
 
-user_id = "user_…"
-company_id = "company_…"
-assistant_id = "assistant_…"  # space / assistant the briefing is attached to
-
-# Create or replace the briefing (PUT)
-briefing = unique_sdk.Briefing.upsert_for_assistant(
-    user_id=user_id,
-    company_id=company_id,
-    assistant_id=assistant_id,
-    text="## Market overview\nKey themes from overnight news…",
-    title="Today's Briefing",
-    generatedAt="2026-05-20T07:00:00.000Z",
-    prompts=[
-        {"title": "Summarise", "body": "Give me a one-paragraph summary."},
-        {"title": "Deep dive", "body": "Which story deserves more attention?"},
-    ],
-)
-print(f"Upserted briefing for {assistant_id}: {briefing['text'][:40]}…")
-
-# Retrieve the briefing (GET)
-loaded = unique_sdk.Briefing.retrieve_for_assistant(
-    user_id=user_id,
-    company_id=company_id,
-    assistant_id=assistant_id,
-)
-print(f"Retrieved {len(loaded['prompts'])} prompt(s), title={loaded.get('title')!r}")
-
-# Delete the attachment from this assistant (DELETE; shared record may remain)
-result = unique_sdk.Briefing.delete_for_assistant(
-    user_id=user_id,
-    company_id=company_id,
-    assistant_id=assistant_id,
-)
-print(f"Deleted attachment: {result['deleted']}")  # result['id'] echoes assistant_id
+uv run python examples/briefing_crud.py
 ```
 
-Async equivalents: `upsert_for_assistant_async`, `retrieve_for_assistant_async`, `delete_for_assistant_async`.
+The script upserts a briefing (`upsert_for_assistant`), retrieves it (`retrieve_for_assistant`), then deletes the attachment (`delete_for_assistant`). Async variants: `*_async` on the same methods.
 
 ## Methods
 
