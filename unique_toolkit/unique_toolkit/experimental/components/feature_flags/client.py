@@ -41,27 +41,10 @@ class FeatureFlagClient:
             ...
     """
 
-    def __init__(
-        self,
-        *,
-        url: str | None,
-        service_id: str | None = None,
-        ttl_ms: int = 30_000,
-    ) -> None:
-        self._url = url or None  # coerce empty string → None
-        self._service_id = service_id or None  # coerce empty string → None
-        self._available = bool(self._url) and bool(self._service_id)
+    def __init__(self, *, url: str, service_id: str, ttl_ms: int = 30_000) -> None:
+        self._url = url
+        self._service_id = service_id
         self._cache = AsyncTTLCache(ttl=ttl_ms / 1000)
-        if not self._url:
-            logger.warning(
-                "FeatureFlagClient: CONFIGURATION_BACKEND_URL is not set — "
-                "all flag evaluations will use env-var fallback"
-            )
-        elif not self._service_id:
-            logger.warning(
-                "FeatureFlagClient: FEATURE_FLAG_SERVICE_ID is not set — "
-                "all flag evaluations will use env-var fallback"
-            )
 
     @classmethod
     def from_settings(cls) -> "FeatureFlagClient":
@@ -69,8 +52,20 @@ class FeatureFlagClient:
 
         Reads :class:`.FeatureFlagSettings` (``CONFIGURATION_BACKEND_URL``,
         ``FEATURE_FLAG_SERVICE_ID``, ``FEATURE_FLAG_CACHE_TTL_MS``).
+
+        Raises:
+            ValueError: If ``CONFIGURATION_BACKEND_URL`` or
+                ``FEATURE_FLAG_SERVICE_ID`` are not set.
         """
         s = FeatureFlagSettings()
+        if not s.CONFIGURATION_BACKEND_URL:
+            raise ValueError(
+                "CONFIGURATION_BACKEND_URL is required to use FeatureFlagClient"
+            )
+        if not s.FEATURE_FLAG_SERVICE_ID:
+            raise ValueError(
+                "FEATURE_FLAG_SERVICE_ID is required to use FeatureFlagClient"
+            )
         return cls(
             url=s.CONFIGURATION_BACKEND_URL,
             service_id=s.FEATURE_FLAG_SERVICE_ID,
@@ -95,21 +90,14 @@ class FeatureFlagClient:
         Returns:
             A :class:`.FlagEvaluation` with ``value`` and ``reason``.
         """
-        if not self._available:
-            return FlagEvaluation(value=self._env_fallback(flag), reason="fallback")
-
-        assert self._url is not None  # _available guards this
-        assert self._service_id is not None  # _available guards this
-        url: str = self._url
-        service_id: str = self._service_id
         try:
             cache_key = f"{flag}:{company_id}:{user_id or '__none__'}"
             value, from_cache = await self._cache.get_or_fetch(
                 cache_key,
                 lambda: evaluate_flag(
-                    url=url,
+                    url=self._url,
                     flag=flag,
-                    service_id=service_id,
+                    service_id=self._service_id,
                     company_id=company_id,
                     user_id=user_id,
                 ),
