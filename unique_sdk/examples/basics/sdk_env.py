@@ -25,6 +25,7 @@ _ENV_ALIASES: tuple[tuple[str, str], ...] = (
     ("UNIQUE_AUTH_COMPANY_ID", "UNIQUE_COMPANY_ID"),
     ("API_BASE", "UNIQUE_API_BASE"),
     ("UNIQUE_API_BASE_URL", "UNIQUE_API_BASE"),
+    ("UNIQUE_API_VERSION", "UNIQUE_API_VERSION"),
 )
 
 
@@ -51,11 +52,15 @@ def _normalize_api_base() -> None:
     if not raw:
         return
     base = raw.rstrip("/")
-    if "/unique-api" in base or "/public/" in base:
+    if "/unique-api" in base:
+        os.environ.setdefault("UNIQUE_API_VERSION", "2026-03-01")
+        return
+    if "/public/" in base:
         return
     # e.g. https://gateway.unique.app → https://gateway.unique.app/unique-api
     if "gateway" in base and base.count("/") <= 2:
         os.environ["UNIQUE_API_BASE"] = f"{base}/unique-api"
+        os.environ.setdefault("UNIQUE_API_VERSION", "2026-03-01")
 
 
 def configure_sdk(env_file: Path | None = None) -> Config:
@@ -72,4 +77,10 @@ def configure_sdk(env_file: Path | None = None) -> Config:
         load_dotenv(path)
     _apply_env_aliases()
     _normalize_api_base()
-    return load_config()
+    config = load_config()
+    import unique_sdk
+
+    base = (os.environ.get("UNIQUE_API_BASE") or unique_sdk.api_base).rstrip("/")
+    if "/unique-api" in base:
+        unique_sdk.api_version = os.environ.get("UNIQUE_API_VERSION", "2026-03-01")
+    return config
