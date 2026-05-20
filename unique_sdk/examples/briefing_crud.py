@@ -18,7 +18,7 @@ logger = getLogger(__name__)
 def main() -> None:
     import unique_sdk
 
-    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
     unique_sdk.api_key = os.getenv("API_KEY", "")
     unique_sdk.app_id = os.getenv("APP_ID", "")
@@ -31,9 +31,7 @@ def main() -> None:
     assistant_id = os.getenv("ASSISTANT_ID", "")
 
     if not all((unique_sdk.api_key, unique_sdk.app_id, user_id, company_id)):
-        logger.error(
-            "Set API_KEY, APP_ID, USER_ID, and COMPANY_ID in .env (see tutorials/unique_basics)."
-        )
+        logger.error("Set API_KEY, APP_ID, USER_ID, and COMPANY_ID in unique_sdk/.env")
         sys.exit(1)
     if not assistant_id:
         logger.error("Set ASSISTANT_ID in .env to the target assistant (space) id.")

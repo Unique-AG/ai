@@ -16,10 +16,10 @@ With the default [`api_base`](../getting_started/configuration.md) (typically en
 
 ## Example: create, retrieve, and delete
 
-Runnable script: [`briefing_crud.py`](../../../../tutorials/unique_basics/src/tutorials/sdk_examples/briefing_crud.py) in `tutorials/unique_basics` (same folder as other [SDK examples](../../../../tutorials/unique_basics/src/tutorials/sdk_examples/)). Add `ASSISTANT_ID` to your `.env` alongside `API_KEY`, `APP_ID`, `USER_ID`, and `COMPANY_ID`, then from `tutorials/unique_basics`:
+Runnable script: [`examples/briefing_crud.py`](../../examples/briefing_crud.py). From the `unique_sdk` directory, set credentials and `ASSISTANT_ID` in `.env` (or export them), then:
 
 ```bash
-uv run python src/tutorials/sdk_examples/briefing_crud.py
+uv run python examples/briefing_crud.py
 ```
 
 The script upserts a briefing (`upsert_for_assistant`), retrieves it (`retrieve_for_assistant`), then deletes the attachment (`delete_for_assistant`). Async variants: `*_async` on the same methods.
