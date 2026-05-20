@@ -1,5 +1,6 @@
 import logging
 import os
+from functools import lru_cache
 
 from ._graphql_client import evaluate_flag
 from ._ttl_cache import AsyncTTLCache
@@ -47,6 +48,7 @@ class FeatureFlagClient:
         self._cache = AsyncTTLCache(ttl=ttl_ms / 1000)
 
     @classmethod
+    @lru_cache(maxsize=1)
     def from_settings(cls) -> "FeatureFlagClient":
         """Construct a client from environment variables.
 
