@@ -188,6 +188,7 @@ class UniqueAI:
 
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
+        self._loop_debug_params: list[dict[str, Any]] = []
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -212,6 +213,7 @@ class UniqueAI:
             )
 
         self._execution_times = []
+        self._loop_debug_params = []
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
@@ -306,6 +308,7 @@ class UniqueAI:
                     "total_time": round(time.perf_counter() - run_start, 3),
                 },
             )
+            self._debug_info_manager.add("loop_params", self._loop_debug_params)
 
             tool_names = [
                 tool["name"] for tool in self._debug_info_manager.get()["tools"]
@@ -328,12 +331,31 @@ class UniqueAI:
         finally:
             sub.cancel()
 
+    def _record_loop_debug_params(self, other_options: dict) -> None:
+        reasoning = other_options.get("reasoning")
+        thinking_level: str = (
+            other_options.get("reasoning_effort")
+            if not isinstance(reasoning, dict)
+            else reasoning.get("effort")
+        ) or "None"
+        self._loop_debug_params.append(
+            {
+                "loop_number": self.current_iteration_index,
+                "thinking_level": thinking_level,
+            }
+        )
+
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
         self._logger.info("Planning or executing the loop.")
         messages = await self._compose_message_plan_execution()
 
         self._logger.info("Done composing message plan execution.")
+
+        other_options = resolve_other_options(
+            self._config, self._tool_manager, self._logger
+        )
+        self._record_loop_debug_params(other_options)
 
         kwargs: dict = dict(
             messages=messages,
@@ -346,9 +368,7 @@ class UniqueAI:
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
-            other_options=resolve_other_options(
-                self._config, self._tool_manager, self._logger
-            ),
+            other_options=other_options,
         )
 
         # Experimental Feature UN-17905
