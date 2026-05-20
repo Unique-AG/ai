@@ -39,15 +39,25 @@ def main() -> None:
     ]
 
     logger.info("Upsert briefing on assistant %s", assistant_id)
-    briefing = unique_sdk.Briefing.upsert_for_assistant(
-        user_id=config.user_id,
-        company_id=config.company_id,
-        assistant_id=assistant_id,
-        text=text,
-        title="Today's Briefing",
-        generatedAt=generated_at,
-        prompts=prompts,
-    )
+    try:
+        briefing = unique_sdk.Briefing.upsert_for_assistant(
+            user_id=config.user_id,
+            company_id=config.company_id,
+            assistant_id=assistant_id,
+            text=text,
+            title="Today's Briefing",
+            generatedAt=generated_at,
+            prompts=prompts,
+        )
+    except unique_sdk.AuthenticationError as exc:
+        logger.error(
+            "401 Unauthorized — the gateway rejected your credentials. "
+            "Use a valid ukey_ API key and matching UNIQUE_APP_ID, "
+            "UNIQUE_AUTH_USER_ID, and UNIQUE_AUTH_COMPANY_ID for the same tenant; "
+            "UNIQUE_API_BASE_URL must target the same environment (prod vs QA). "
+            "Generate or rotate keys in the Unique admin UI if needed."
+        )
+        raise exc
     logger.info("Upserted text preview: %s…", (briefing.get("text") or "")[:60])
 
     logger.info("Retrieve briefing")
