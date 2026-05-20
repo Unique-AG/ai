@@ -98,8 +98,10 @@ class FeatureFlagClient:
         if not self._available:
             return FlagEvaluation(value=self._env_fallback(flag), reason="fallback")
 
-        url: str = self._url  # type: ignore[assignment]  # _available guards None
-        service_id: str = self._service_id  # type: ignore[assignment]  # _available guards None
+        assert self._url is not None  # _available guards this
+        assert self._service_id is not None  # _available guards this
+        url: str = self._url
+        service_id: str = self._service_id
         try:
             cache_key = f"{flag}:{company_id}:{user_id or '__none__'}"
             value, from_cache = await self._cache.get_or_fetch(
