@@ -14,13 +14,17 @@ _PACKAGE_ROOT = _BASICS_DIR.parents[
     1
 ]  # ``unique_sdk/`` project root (``pyproject.toml``)
 
-# Legacy tutorial / custom-assistant names → CLI ``load_config`` expects UNIQUE_*.
+# Alternate env names → names ``load_config`` reads (first match wins per target).
 _ENV_ALIASES: tuple[tuple[str, str], ...] = (
     ("API_KEY", "UNIQUE_API_KEY"),
+    ("UNIQUE_APP_KEY", "UNIQUE_API_KEY"),
     ("APP_ID", "UNIQUE_APP_ID"),
     ("USER_ID", "UNIQUE_USER_ID"),
+    ("UNIQUE_AUTH_USER_ID", "UNIQUE_USER_ID"),
     ("COMPANY_ID", "UNIQUE_COMPANY_ID"),
+    ("UNIQUE_AUTH_COMPANY_ID", "UNIQUE_COMPANY_ID"),
     ("API_BASE", "UNIQUE_API_BASE"),
+    ("UNIQUE_API_BASE_URL", "UNIQUE_API_BASE"),
 )
 
 
