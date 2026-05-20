@@ -55,7 +55,6 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
             response["results"].extend(result.get("results", []))
             response["failed_results"].extend(result.get("failed_results", []))
 
-
         # Create a mapping from URL to content
         url_to_content = {}
 
