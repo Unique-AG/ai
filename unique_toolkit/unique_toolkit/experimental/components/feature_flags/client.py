@@ -90,6 +90,9 @@ class FeatureFlagClient:
         Returns:
             A :class:`.FlagEvaluation` with ``value`` and ``reason``.
         """
+        if not company_id:
+            raise ValueError("company_id must be a non-empty string")
+
         try:
             cache_key = f"{flag}:{company_id}:{user_id!r}"
             value, from_cache = await self._cache.get_or_fetch(
