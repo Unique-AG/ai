@@ -55,18 +55,6 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
             response["results"].extend(result.get("results", []))
             response["failed_results"].extend(result.get("failed_results", []))
 
-        for i in range(0, len(urls), batch_size):
-            batch_urls = urls[i : i + batch_size]
-            batch_response = await client.extract(
-                urls=batch_urls,
-                format="markdown",
-                include_images=False,
-                extract_depth=self.config.depth,
-                timeout=self.config.timeout,
-                include_favicon=False,
-            )
-            response["results"].extend(batch_response.get("results", []))
-            response["failed_results"].extend(batch_response.get("failed_results", []))
 
         # Create a mapping from URL to content
         url_to_content = {}
