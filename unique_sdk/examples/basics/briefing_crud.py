@@ -7,13 +7,14 @@ Run from the ``unique_sdk`` package directory::
     uv run python examples/basics/briefing_crud.py
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import sys
 from logging import getLogger
-from pathlib import Path
 
-from dotenv import load_dotenv
+from sdk_env import configure_sdk
 
 logging.basicConfig(level=logging.INFO)
 logger = getLogger(__name__)
@@ -22,23 +23,12 @@ logger = getLogger(__name__)
 def main() -> None:
     import unique_sdk
 
-    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
-
-    unique_sdk.api_key = os.getenv("API_KEY", "")
-    unique_sdk.app_id = os.getenv("APP_ID", "")
-    api_base = os.getenv("API_BASE")
-    if api_base:
-        unique_sdk.api_base = api_base.rstrip("/")
-
-    user_id = os.getenv("USER_ID", "")
-    company_id = os.getenv("COMPANY_ID", "")
+    config = configure_sdk()
     assistant_id = os.getenv("ASSISTANT_ID", "")
-
-    if not all((unique_sdk.api_key, unique_sdk.app_id, user_id, company_id)):
-        logger.error("Set API_KEY, APP_ID, USER_ID, and COMPANY_ID in unique_sdk/.env")
-        sys.exit(1)
     if not assistant_id:
-        logger.error("Set ASSISTANT_ID in .env to the target assistant (space) id.")
+        logger.error(
+            "Set ASSISTANT_ID in unique_sdk/.env to the target assistant (space) id."
+        )
         sys.exit(1)
 
     generated_at = "2026-05-20T07:00:00.000Z"
@@ -50,8 +40,8 @@ def main() -> None:
 
     logger.info("Upsert briefing on assistant %s", assistant_id)
     briefing = unique_sdk.Briefing.upsert_for_assistant(
-        user_id=user_id,
-        company_id=company_id,
+        user_id=config.user_id,
+        company_id=config.company_id,
         assistant_id=assistant_id,
         text=text,
         title="Today's Briefing",
@@ -62,8 +52,8 @@ def main() -> None:
 
     logger.info("Retrieve briefing")
     loaded = unique_sdk.Briefing.retrieve_for_assistant(
-        user_id=user_id,
-        company_id=company_id,
+        user_id=config.user_id,
+        company_id=config.company_id,
         assistant_id=assistant_id,
     )
     logger.info(
@@ -74,8 +64,8 @@ def main() -> None:
 
     logger.info("Delete briefing attachment")
     result = unique_sdk.Briefing.delete_for_assistant(
-        user_id=user_id,
-        company_id=company_id,
+        user_id=config.user_id,
+        company_id=config.company_id,
         assistant_id=assistant_id,
     )
     logger.info("Deleted=%s id=%r", result.get("deleted"), result.get("id"))
