@@ -1,7 +1,7 @@
 """Assistant briefing operations on ``/briefings/{assistantId}``.
 
-Request and response shapes follow OpenAPI ``UpsertBriefingRequestDto`` and
-``BriefingDto``. See :class:`Briefing.UpsertForAssistantParams`.
+Request and response shapes follow OpenAPI ``PublicUpsertBriefingRequestDto`` and
+``PublicBriefingDto``. See :class:`Briefing.UpsertForAssistantParams`.
 """
 
 from __future__ import annotations
@@ -30,12 +30,12 @@ def _utc_iso8601_now() -> str:
 
 
 def _validate_prompts(raw: Any) -> list[dict[str, str]]:
-    """Normalize ``prompts`` for ``UpsertBriefingRequestDto`` (max 200 items)."""
+    """Normalize ``prompts`` for ``PublicUpsertBriefingRequestDto`` (max 200 items)."""
     if raw is None:
         raise ValueError(
             "Briefing upsert requires prompts= — a list of up to "
             f"{_MAX_PROMPTS} objects with title and body (OpenAPI "
-            "UpsertBriefingRequestDto). Use [] to clear prompts."
+            "PublicUpsertBriefingRequestDto). Use [] to clear prompts."
         )
     if not isinstance(raw, list):
         raise TypeError(f"prompts must be a list, got {type(raw)!r}")
@@ -65,8 +65,8 @@ def _validate_prompts(raw: Any) -> list[dict[str, str]]:
     return out
 
 
-class _UpsertBriefingWire(TypedDict):
-    """Exact JSON keys for ``PUT`` body (``UpsertBriefingRequestDto``)."""
+class _PublicUpsertBriefingWire(TypedDict):
+    """Exact JSON keys for ``PUT`` body (``PublicUpsertBriefingRequestDto``)."""
 
     text: str
     generatedAt: str
@@ -90,7 +90,7 @@ class Briefing(APIResource["Briefing"]):
         body: str
 
     class UpsertForAssistantParams(RequestOptions):
-        """HTTP body matching OpenAPI ``UpsertBriefingRequestDto``."""
+        """HTTP body matching OpenAPI ``PublicUpsertBriefingRequestDto``."""
 
         text: NotRequired[str]
         generatedAt: NotRequired[str]
@@ -99,8 +99,8 @@ class Briefing(APIResource["Briefing"]):
         markdown: NotRequired[str]
         content: NotRequired[str]
 
-    class DetachResult(TypedDict):
-        """Response from ``DELETE /briefings/{assistantId}`` (``DeleteBriefingResultDto``)."""
+    class DeletedObject(TypedDict):
+        """Response from ``DELETE /briefings/{assistantId}`` (detach; record may remain)."""
 
         id: str
         object: str
@@ -113,7 +113,7 @@ class Briefing(APIResource["Briefing"]):
     @classmethod
     def _wire_json_from_upsert_params(
         cls, params: Mapping[str, Any]
-    ) -> _UpsertBriefingWire:
+    ) -> _PublicUpsertBriefingWire:
         """Reduce :class:`UpsertForAssistantParams` kwargs to wire JSON keys only."""
         kw = dict(params)
         for key in _REQUEST_OPTION_KEYS:
@@ -163,7 +163,7 @@ class Briefing(APIResource["Briefing"]):
         prompts_raw = kw.pop("prompts", None)
         prompts_list = _validate_prompts(prompts_raw)
 
-        wire: _UpsertBriefingWire = {
+        wire: _PublicUpsertBriefingWire = {
             "text": text,
             "generatedAt": ga,
             "prompts": prompts_list,
@@ -197,7 +197,7 @@ class Briefing(APIResource["Briefing"]):
     updatedAt: str | None
 
     @classmethod
-    def get_for_assistant(
+    def retrieve_for_assistant(
         cls,
         *,
         user_id: str,
@@ -215,14 +215,14 @@ class Briefing(APIResource["Briefing"]):
         )
 
     @classmethod
-    async def get_for_assistant_async(
+    async def retrieve_for_assistant_async(
         cls,
         *,
         user_id: str,
         company_id: str,
         assistant_id: str,
     ) -> "Briefing":
-        """Async variant of :meth:`get_for_assistant`."""
+        """Async variant of :meth:`retrieve_for_assistant`."""
         url = cls._assistant_url(assistant_id)
         return cast(
             "Briefing",
@@ -267,13 +267,13 @@ class Briefing(APIResource["Briefing"]):
         )
 
     @classmethod
-    def detach_for_assistant(
+    def delete_for_assistant(
         cls,
         *,
         user_id: str,
         company_id: str,
         assistant_id: str,
-    ) -> "Briefing.DetachResult":
+    ) -> "Briefing.DeletedObject":
         """Detach the briefing from ``assistant_id`` (underlying record may remain).
 
         Mirrors ``BriefingController_detachForAssistant`` (
@@ -281,21 +281,21 @@ class Briefing(APIResource["Briefing"]):
         """
         url = cls._assistant_url(assistant_id)
         return cast(
-            "Briefing.DetachResult",
+            "Briefing.DeletedObject",
             cls._static_request("delete", url, user_id, company_id),
         )
 
     @classmethod
-    async def detach_for_assistant_async(
+    async def delete_for_assistant_async(
         cls,
         *,
         user_id: str,
         company_id: str,
         assistant_id: str,
-    ) -> "Briefing.DetachResult":
-        """Async variant of :meth:`detach_for_assistant`."""
+    ) -> "Briefing.DeletedObject":
+        """Async variant of :meth:`delete_for_assistant`."""
         url = cls._assistant_url(assistant_id)
         return cast(
-            "Briefing.DetachResult",
+            "Briefing.DeletedObject",
             await cls._static_request_async("delete", url, user_id, company_id),
         )
