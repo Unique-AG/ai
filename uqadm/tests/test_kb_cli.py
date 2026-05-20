@@ -1,0 +1,113 @@
+"""CLI integration tests for ``uqadm kb`` Typer commands."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from typer.testing import CliRunner
+
+from uqadm.cli import app
+from uqadm.core.env import MissingSlotEnvFileError
+from uqadm.core.slot import MissingDefaultSlotError
+
+
+def _runner() -> CliRunner:
+    return CliRunner()
+
+
+@patch("uqadm.kb.cmd_mkdir")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_mkdir_cli_invokes_helper(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_mkdir: MagicMock,
+) -> None:
+    mock_cfg.return_value = MagicMock(user_id="u1", company_id="c1")
+    result = _runner().invoke(app, ["kb", "mkdir", "/A", "/B", "--slot", "qa"])
+    assert result.exit_code == 0
+    mock_resolve.assert_called_once_with("qa")
+    mock_cfg.assert_called_once()
+    mock_mkdir.assert_called_once()
+    call_kw = mock_mkdir.call_args.kwargs
+    assert call_kw["extra_paths"] == ["/A", "/B"]
+
+
+@patch("uqadm.kb.resolve_slot", side_effect=MissingDefaultSlotError("no default"))
+def test_kb_mkdir_missing_default_slot_exits_2(mock_resolve: MagicMock) -> None:
+    result = _runner().invoke(app, ["kb", "mkdir", "/A"])
+    assert result.exit_code == 2
+    assert "no default" in (result.output or result.stderr or "")
+
+
+@patch("uqadm.kb.config_for_slot", side_effect=MissingSlotEnvFileError("missing env"))
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_mkdir_missing_env_exits_2(
+    mock_resolve: MagicMock, mock_cfg: MagicMock
+) -> None:
+    result = _runner().invoke(app, ["kb", "mkdir", "/A", "--slot", "qa"])
+    assert result.exit_code == 2
+    assert "missing env" in (result.output or result.stderr or "")
+
+
+@patch("uqadm.kb.cmd_access_grant")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_access_grant_cli(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_grant: MagicMock,
+) -> None:
+    mock_cfg.return_value = MagicMock()
+    result = _runner().invoke(
+        app,
+        [
+            "kb",
+            "access",
+            "grant",
+            "--folder-path",
+            "/HR",
+            "--group",
+            "g1",
+            "--permission",
+            "WRITE",
+        ],
+    )
+    assert result.exit_code == 0
+    mock_grant.assert_called_once()
+    kw = mock_grant.call_args.kwargs
+    assert kw["folder_path"] == "/HR"
+    assert kw["group_ids"] == ("g1",)
+    assert kw["permission"] == "WRITE"
+
+
+@patch("uqadm.kb.cmd_ingestion_set")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_ingestion_set_cli(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_set: MagicMock,
+    tmp_path: Path,
+) -> None:
+    cfg_file = tmp_path / "ing.json"
+    cfg_file.write_text("{}", encoding="utf-8")
+    mock_cfg.return_value = MagicMock()
+    result = _runner().invoke(
+        app,
+        [
+            "kb",
+            "ingestion",
+            "set",
+            str(cfg_file),
+            "--scope-id",
+            "scope_x",
+            "--no-subfolders",
+        ],
+    )
+    assert result.exit_code == 0
+    mock_set.assert_called_once()
+    kw = mock_set.call_args.kwargs
+    assert kw["scope_id"] == "scope_x"
+    assert kw["apply_to_subfolders"] is False

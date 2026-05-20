@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import typer
 import yaml
@@ -13,6 +13,7 @@ from unique_sdk import Space
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.env import config_for_slot
+from uqadm.core.payload_files import load_json_or_yaml_mapping
 from uqadm.space.migrate import (
     build_create_params,
     build_module_updates_from_pairs,
@@ -22,30 +23,9 @@ from uqadm.space.migrate import (
 )
 
 
-def snapshot_format_for_path(path: Path) -> Literal["json", "yaml"]:
-    """Return file format from ``path`` suffix, or raise ``ValueError`` if invalid."""
-    suffix = path.suffix.lower()
-    if suffix == ".json":
-        return "json"
-    if suffix in (".yaml", ".yml"):
-        return "yaml"
-    raise ValueError(
-        f"Snapshot file must end with .json, .yaml, or .yml (got: {path.name!r})."
-    )
-
-
 def load_space_snapshot(path: Path) -> dict[str, Any]:
     """Load a JSON or YAML space snapshot from disk."""
-    fmt = snapshot_format_for_path(path)
-    raw_text = path.read_text(encoding="utf-8")
-    if fmt == "json":
-        data = json.loads(raw_text)
-    else:
-        data = yaml.safe_load(raw_text)
-    if not isinstance(data, dict):
-        detail = type(data).__name__
-        raise ValueError(f"Snapshot root must be a mapping (got {detail}).")
-    return dict(data)
+    return load_json_or_yaml_mapping(path)
 
 
 def _emit_snapshot_warnings(snapshot: dict[str, Any]) -> None:
