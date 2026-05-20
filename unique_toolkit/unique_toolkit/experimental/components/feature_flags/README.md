@@ -14,7 +14,7 @@ directly to avoid SDK overhead.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CONFIGURATION_BACKEND_URL` | No | `None` | Base URL of configuration-backend (e.g. `https://<your-configuration-backend>`). When absent, all evaluations use env-var fallback immediately. |
+| `CONFIGURATION_BACKEND_URL` | **Yes** | — | Base URL of configuration-backend (e.g. `https://<your-configuration-backend>|
 | `FEATURE_FLAG_SERVICE_ID` | **Yes** | — | Service identifier sent as `x-service-id`. Must match a value in configuration-backend's `Service` enum (e.g. `agentic-ingestion`). |
 | `FEATURE_FLAG_CACHE_TTL_MS` | No | `30000` | In-process cache TTL in milliseconds. |
 
@@ -65,21 +65,21 @@ enabled = await client.is_enabled(
 )
 ```
 
-### `from_settings()` factory (reads env vars)
+### `from_settings()` factory (recommended for services)
+
+`from_settings()` is a process-level singleton — repeated calls always return
+the same instance, keeping the TTL cache warm across requests.
 
 ```python
+# Call lazily — inside a request handler or app startup hook,
+# NOT at module import time. Env vars must be fully injected before
+# the first call or a ValueError is raised.
 client = FeatureFlagClient.from_settings()
 ```
 
-### Singleton pattern (recommended for services)
-
-```python
-from functools import lru_cache
-
-@lru_cache
-def get_feature_flag_client() -> FeatureFlagClient:
-    return FeatureFlagClient.from_settings()
-```
+> **⚠️ Do not call `from_settings()` at module level.** In some container
+> runtimes, env vars are not yet available when Python modules are imported.
+> Call it inside your app's startup hook or on first request.
 
 ---
 
@@ -96,7 +96,7 @@ def get_feature_flag_client() -> FeatureFlagClient:
 
 ## Adopting in another Python service
 
-1. Install the optional dep group: `uv add unique-toolkit[feature_flags]`
+1. Install `unique-toolkit` (cachetools is a core dep, no extra group needed): `uv add unique-toolkit`
 2. Set env vars: `CONFIGURATION_BACKEND_URL`, `FEATURE_FLAG_SERVICE_ID`
 3. Add the service ID to configuration-backend's `Service` enum (`tyk-auth`)
    and to the `@AllowAccess` whitelist on the `evaluateFlag` resolver.
