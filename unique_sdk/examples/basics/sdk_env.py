@@ -9,9 +9,10 @@ from dotenv import load_dotenv
 
 from unique_sdk.cli.config import Config, load_config
 
-# Project root (``unique_sdk/`` with ``pyproject.toml`` and ``.env``).
-_PACKAGE_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_ENV_FILE = _PACKAGE_ROOT / ".env"
+_BASICS_DIR = Path(__file__).resolve().parent
+_PACKAGE_ROOT = _BASICS_DIR.parents[
+    1
+]  # ``unique_sdk/`` project root (``pyproject.toml``)
 
 # Legacy tutorial / custom-assistant names → CLI ``load_config`` expects UNIQUE_*.
 _ENV_ALIASES: tuple[tuple[str, str], ...] = (
@@ -21,6 +22,14 @@ _ENV_ALIASES: tuple[tuple[str, str], ...] = (
     ("COMPANY_ID", "UNIQUE_COMPANY_ID"),
     ("API_BASE", "UNIQUE_API_BASE"),
 )
+
+
+def _default_env_file() -> Path:
+    """Prefer ``examples/basics/.env``, then project-root ``.env``."""
+    local = _BASICS_DIR / ".env"
+    if local.exists():
+        return local
+    return _PACKAGE_ROOT / ".env"
 
 
 def _apply_env_aliases() -> None:
@@ -36,12 +45,12 @@ def configure_sdk(env_file: Path | None = None) -> Config:
     """Load ``.env``, map legacy env names, and wire ``unique_sdk`` via ``load_config``.
 
     Args:
-        env_file: Path to a dotenv file. Defaults to ``unique_sdk/.env``.
+        env_file: Path to a dotenv file. Defaults to ``examples/basics/.env`` when present.
 
     Returns:
         Resolved :class:`~unique_sdk.cli.config.Config` (also sets ``unique_sdk`` globals).
     """
-    path = env_file if env_file is not None else _DEFAULT_ENV_FILE
+    path = env_file if env_file is not None else _default_env_file()
     if path.exists():
         load_dotenv(path)
     _apply_env_aliases()
