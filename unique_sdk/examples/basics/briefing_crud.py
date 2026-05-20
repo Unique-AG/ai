@@ -1,6 +1,10 @@
 """Briefing CRUD.
 
 Create (upsert), retrieve, and delete an assistant briefing via unique_sdk.
+
+Run from the ``unique_sdk`` package directory::
+
+    uv run python examples/basics/briefing_crud.py
 """
 
 import logging
@@ -18,7 +22,7 @@ logger = getLogger(__name__)
 def main() -> None:
     import unique_sdk
 
-    load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
     unique_sdk.api_key = os.getenv("API_KEY", "")
     unique_sdk.app_id = os.getenv("APP_ID", "")
