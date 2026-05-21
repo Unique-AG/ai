@@ -7,6 +7,7 @@ from unique_mcp.meta import (
     ContextRequirements,
     MetaKeys,
     MetaPart,
+    UniqueAIToolMeta,
     get_tool_config,
     merge_tool_meta,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "META_FLAT_ALIASES",
     "MetaKeys",
     "MetaPart",
+    "UniqueAIToolMeta",
     "get_request_meta",
     "get_tool_config",
     "get_unique_service_factory",
