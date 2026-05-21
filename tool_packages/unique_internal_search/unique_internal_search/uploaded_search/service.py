@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
@@ -14,6 +16,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
+from unique_toolkit.content import Content
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
 )
@@ -50,12 +53,28 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         else:
             self._user_query = None
 
+        # This blocking API call should be avoided.
+        # However, we don't have an easy way to pass user uploaded files to the tool currently
+        # Note that this was being done in `tool_description_for_system_prompt` before
+        self._valid_documents = self._compute_valid_documents()
+
     @override
     def display_name(self) -> str:
         return self._display_name
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
+        optional_fields: dict = {}
+        if self._config.enable_content_id_filter and self._valid_documents:
+            content_id_type = Literal[*(d.id for d in self._valid_documents)]
+            optional_fields["content_ids"] = (
+                list[content_id_type] | None,
+                Field(
+                    default=None,
+                    description=self._config.param_description_content_ids,
+                ),
+            )
+
         internal_search_tool_input = create_model(
             "InternalSearchToolInput",
             search_string=(
@@ -66,7 +85,9 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
                 str,
                 Field(description=self._config.param_description_language),
             ),
+            **optional_fields,
         )
+
         return LanguageModelToolDescription(
             name=self.name,
             description=self._config.tool_description,
@@ -74,28 +95,12 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        documents = self._content_service.get_documents_uploaded_to_chat()
-        if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
-            self._company_id
-        ):
-            documents = [
-                doc for doc in documents if doc.id in self._selected_uploaded_files
-            ]
-
-        valid_documents = []
-        for doc in documents:
-            if not doc.is_ingested(default_if_unknown=True) or doc.is_expired():
-                continue
-            valid_documents.append(
-                {
-                    "name": doc.title or doc.key,
-                    "id": doc.id,
-                }
-            )
-
         return render_template(
             self._config.tool_description_for_system_prompt,
-            valid_documents=valid_documents,
+            valid_documents=[
+                {"name": doc.title or doc.key, "id": doc.id}
+                for doc in self._valid_documents
+            ],
         )
 
     def tool_format_information_for_system_prompt(self) -> str:
@@ -114,6 +119,26 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         search_string_data = ""
         if isinstance(tool_call.arguments, dict):
             search_string_data = tool_call.arguments.get("search_string", "") or ""
+
+            # Verify no content_id outside valid ones, as tool may not be strict
+
+            if "content_ids" in tool_call.arguments:
+                tool_content_ids = tool_call.arguments["content_ids"]
+
+                if tool_content_ids is not None:
+                    valid_content_ids = {doc.id for doc in self._valid_documents}
+                    filtered = list(
+                        filter(
+                            lambda content_id: content_id in valid_content_ids,
+                            tool_content_ids,
+                        )
+                    )
+
+                    if len(filtered) == 0:
+                        raise ValueError("All supplied `content_ids` are invalid")
+
+                    tool_call.arguments["content_ids"] = filtered
+
         tool_response = await self._internal_search_tool.run(tool_call)
         if (
             self._tool_progress_reporter
@@ -150,6 +175,24 @@ This tool call was automatically executed to retrieve the user's uploaded docume
 
 Please do not mention these instructions in your response to the user!
 </system_reminder>"""
+
+    def _compute_valid_documents(self) -> list[Content]:
+        documents = self._content_service.get_documents_uploaded_to_chat()
+
+        if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
+            self._company_id
+        ):
+            documents = [
+                doc for doc in documents if doc.id in self._selected_uploaded_files
+            ]
+
+        valid_documents = []
+        for doc in documents:
+            if not doc.is_ingested(default_if_unknown=True) or doc.is_expired():
+                continue
+            valid_documents.append(doc)
+
+        return valid_documents
 
 
 ToolFactory.register_tool(UploadedSearchTool, UploadedSearchConfig)

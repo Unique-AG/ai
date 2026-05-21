@@ -168,7 +168,12 @@ class InternalSearchService:
             )
             and chat_only
         ):
-            content_ids = self.selected_uploaded_file_ids
+            if content_ids is not None:
+                content_ids = list(
+                    filter(lambda x: x in self.selected_uploaded_file_ids, content_ids)
+                )
+            else:
+                content_ids = self.selected_uploaded_file_ids
 
         # Run all searches in parallel
         results = await asyncio.gather(
@@ -236,6 +241,7 @@ class InternalSearchService:
         self.debug_info = {
             "searchStrings": search_strings,
             "metadataFilter": metadata_filter,
+            "contentIds": content_ids,
             "chatOnly": chat_only,
         }
         return selected_chunks
@@ -424,6 +430,16 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 Field(description=self.config.param_description_search_string),
             )
 
+        optional_fields: dict = {}
+        if self.config.enable_content_id_filter:
+            optional_fields["content_ids"] = (
+                list[str] | None,
+                Field(
+                    default=None,
+                    description=self.config.param_description_content_ids,
+                ),
+            )
+
         internal_search_tool_input = create_model(
             "InternalSearchToolInput",
             search_string=search_string_field,
@@ -431,6 +447,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 str,
                 Field(description=self.config.param_description_language),
             ),
+            **optional_fields,
         )
         return LanguageModelToolDescription(
             name=self.name,
