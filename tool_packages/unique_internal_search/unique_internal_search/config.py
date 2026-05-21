@@ -220,15 +220,10 @@ class InternalSearchConfig(BaseToolConfig):
     param_description_content_ids: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(
-                len(DEFAULT_CONTENT_IDS_PARAM_DESCRIPTION.split("\n")) 
-            )
+            rows=int(len(DEFAULT_CONTENT_IDS_PARAM_DESCRIPTION.split("\n")))
         ),
     ] = get_string_field_with_pattern_validation(
         DEFAULT_CONTENT_IDS_PARAM_DESCRIPTION,
-        description="`content_ids` parameter description shown to the LLM.",
-    )
-        default=DEFAULT_CONTENT_IDS_PARAM_DESCRIPTION,
         description="`content_ids` parameter description shown to the LLM.",
     )
 
