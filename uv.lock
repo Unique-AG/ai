@@ -12,14 +12,14 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-05-07T11:16:55.988324592Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-urllib3 = "2026-05-08T22:00:00Z"
-langchain-core = "2026-05-06T22:00:00Z"
+urllib3 = "2026-05-09T00:00:00Z"
+langchain-core = "2026-05-07T00:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-mcp = false
@@ -5836,7 +5836,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "2026.22.0.dev0"
+version = "2026.22.0.dev2"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5880,7 +5880,7 @@ dev = []
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "2026.22.0.dev0"
+version = "2026.22.0.dev2"
 source = { editable = "postprocessors/unique_follow_up_questions" }
 dependencies = [
     { name = "jinja2" },
@@ -5906,7 +5906,7 @@ dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"
-version = "2026.22.0.dev0"
+version = "2026.22.0.dev4"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic", version = "2.12.5", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
@@ -5927,7 +5927,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "2026.22.0.dev1"
+version = "2026.22.0.dev4"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5956,7 +5956,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "2026.22.0.dev1"
+version = "2026.22.0.dev8"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5998,7 +5998,7 @@ dev = []
 
 [[package]]
 name = "unique-quartr"
-version = "2026.22.0.dev0"
+version = "2026.22.0.dev2"
 source = { editable = "connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -6025,7 +6025,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "2026.22.0.dev1"
+version = "2026.22.0.dev3"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp", version = "3.13.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
@@ -6098,7 +6098,7 @@ dev = []
 
 [[package]]
 name = "unique-six"
-version = "2026.22.0.dev1"
+version = "2026.22.0.dev3"
 source = { editable = "connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -6132,7 +6132,7 @@ dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
 name = "unique-skill-tool"
-version = "2026.22.0.dev0"
+version = "2026.22.0.dev6"
 source = { editable = "tool_packages/unique_skill_tool" }
 dependencies = [
     { name = "jinja2" },
@@ -6155,7 +6155,7 @@ dev = []
 
 [[package]]
 name = "unique-stock-ticker"
-version = "2026.22.0.dev0"
+version = "2026.22.0.dev2"
 source = { editable = "postprocessors/unique_stock_ticker" }
 dependencies = [
     { name = "numerize" },
@@ -6188,7 +6188,7 @@ dev = []
 
 [[package]]
 name = "unique-swot"
-version = "2026.22.0.dev0"
+version = "2026.22.0.dev2"
 source = { editable = "tool_packages/unique_swot" }
 dependencies = [
     { name = "jinja2" },
@@ -6215,7 +6215,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "2026.22.0.dev1"
+version = "2026.22.0.dev13"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp", version = "3.13.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
@@ -6313,7 +6313,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "2026.22.0.dev1"
+version = "2026.22.0.dev5"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -6372,7 +6372,7 @@ dev = []
 
 [[package]]
 name = "uqadm"
-version = "2026.20.0"
+version = "2026.22.0.dev1"
 source = { editable = "uqadm" }
 dependencies = [
     { name = "python-dotenv" },
