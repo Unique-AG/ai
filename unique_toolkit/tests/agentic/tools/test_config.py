@@ -12,6 +12,7 @@ import json
 from typing import Any
 
 import pytest
+from pydantic import BaseModel
 
 from unique_toolkit.agentic.tools.config import (
     ToolBuildConfig,
@@ -1028,3 +1029,283 @@ def test_tool_build_config__serializes_to_json_with_subclass__using_model_serial
 
     # Cleanup
     ToolFactory.tool_config_map.pop("detailed_tool", None)
+
+
+# ============================================================================
+# model_dump kwargs: by_alias, exclude_defaults, exclude_none
+# ============================================================================
+
+
+class _NullableConfig(BaseToolConfig):
+    """Config with an optional field to test exclude_none."""
+
+    value: str = "default_value"
+    optional_note: str | None = None
+
+
+class _AnotherConfig(BaseToolConfig):
+    """Second config subclass with distinct fields for list heterogeneity tests."""
+
+    threshold: float = 0.5
+    label: str = "default_label"
+    optional_note: str | None = None
+
+
+@pytest.mark.ai
+def test_tool_build_config__by_alias__camelcases_top_level_fields() -> None:
+    """
+    Purpose: Verify model_dump(by_alias=True) produces camelCase keys for ToolBuildConfig fields.
+    Why this matters: The API layer consumes camelCase JSON; snake_case keys would break it.
+    Setup summary: Create config, dump with by_alias=True, assert camelCase keys present.
+    """
+    ToolFactory.tool_config_map["alias_tool"] = SimpleToolConfig
+    try:
+        config = ToolBuildConfig(
+            name="alias_tool",
+            configuration=SimpleToolConfig(param_one="x", param_two=1),
+            display_name="Alias Tool",
+            selection_policy=ToolSelectionPolicy.ON_BY_DEFAULT,
+            is_exclusive=True,
+        )
+
+        result = config.model_dump(by_alias=True)
+
+        assert "displayName" in result
+        assert "selectionPolicy" in result
+        assert "isExclusive" in result
+        assert "isSubAgent" in result
+        assert "isEnabled" in result
+        assert "display_name" not in result
+        assert "is_exclusive" not in result
+    finally:
+        ToolFactory.tool_config_map.pop("alias_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__by_alias__camelcases_nested_configuration_fields() -> None:
+    """
+    Purpose: Verify by_alias=True propagates into the nested configuration dict.
+    Why this matters: SerializeAsAny must respect dump kwargs end-to-end, not just at the top level.
+    Setup summary: Use a subclass with snake_case fields, dump by_alias, assert camelCase in config.
+    """
+    ToolFactory.tool_config_map["alias_nested_tool"] = _AnotherConfig
+    try:
+        config = ToolBuildConfig(
+            name="alias_nested_tool",
+            configuration=_AnotherConfig(
+                threshold=0.9, label="custom", optional_note=None
+            ),
+        )
+
+        result = config.model_dump(by_alias=True)
+        cfg = result["configuration"]
+
+        assert "optionalNote" in cfg
+        assert "optional_note" not in cfg
+    finally:
+        ToolFactory.tool_config_map.pop("alias_nested_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__list_container__by_alias__all_items_camelcased() -> None:
+    """
+    Purpose: Verify by_alias=True works across all items in a list[ToolBuildConfig] container.
+    Why this matters: Tool lists are the primary serialization target; every item must be camelCased.
+    Setup summary: Wrap two differently-typed configs in a ToolSet, dump by_alias, assert all keys.
+    """
+
+    class ToolSet(BaseModel):
+        tools: list[ToolBuildConfig]
+
+    ToolFactory.tool_config_map["list_alias_tool_a"] = SimpleToolConfig
+    ToolFactory.tool_config_map["list_alias_tool_b"] = _AnotherConfig
+    try:
+        tool_set = ToolSet(
+            tools=[
+                ToolBuildConfig(
+                    name="list_alias_tool_a",
+                    configuration=SimpleToolConfig(param_one="p", param_two=5),
+                    display_name="Tool A",
+                ),
+                ToolBuildConfig(
+                    name="list_alias_tool_b",
+                    configuration=_AnotherConfig(threshold=0.7, label="lbl"),
+                    is_exclusive=True,
+                ),
+            ]
+        )
+
+        result = tool_set.model_dump(by_alias=True)
+        tools = result["tools"]
+
+        assert len(tools) == 2
+
+        t0 = tools[0]
+        assert "displayName" in t0
+        assert "isExclusive" in t0
+        assert "display_name" not in t0
+        cfg0 = t0["configuration"]
+        assert "paramOne" in cfg0
+        assert "paramTwo" in cfg0
+        assert "param_one" not in cfg0
+
+        t1 = tools[1]
+        assert "isExclusive" in t1
+        cfg1 = t1["configuration"]
+        assert "optionalNote" in cfg1
+        assert "optional_note" not in cfg1
+    finally:
+        ToolFactory.tool_config_map.pop("list_alias_tool_a", None)
+        ToolFactory.tool_config_map.pop("list_alias_tool_b", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__list_container__heterogeneous_subclasses_serialize_correctly() -> (
+    None
+):
+    """
+    Purpose: Verify each item in list[ToolBuildConfig] serializes using its own subclass schema.
+    Why this matters: Without SerializeAsAny, all items would be truncated to BaseToolConfig fields.
+    Setup summary: Two configs with non-overlapping subclass fields; assert both are fully present.
+    """
+
+    class ToolSet(BaseModel):
+        tools: list[ToolBuildConfig]
+
+    ToolFactory.tool_config_map["hetero_tool_a"] = SimpleToolConfig
+    ToolFactory.tool_config_map["hetero_tool_b"] = _AnotherConfig
+    try:
+        tool_set = ToolSet(
+            tools=[
+                ToolBuildConfig(
+                    name="hetero_tool_a",
+                    configuration=SimpleToolConfig(param_one="hello", param_two=42),
+                ),
+                ToolBuildConfig(
+                    name="hetero_tool_b",
+                    configuration=_AnotherConfig(threshold=0.8, label="my_label"),
+                ),
+            ]
+        )
+
+        result = tool_set.model_dump()
+        tools = result["tools"]
+
+        assert len(tools) == 2
+        assert tools[0]["configuration"]["param_one"] == "hello"
+        assert tools[0]["configuration"]["param_two"] == 42
+        assert tools[1]["configuration"]["threshold"] == 0.8
+        assert tools[1]["configuration"]["label"] == "my_label"
+    finally:
+        ToolFactory.tool_config_map.pop("hetero_tool_a", None)
+        ToolFactory.tool_config_map.pop("hetero_tool_b", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__exclude_defaults__omits_default_top_level_fields() -> None:
+    """
+    Purpose: Verify exclude_defaults=True omits fields equal to their declared default.
+    Why this matters: Reduces payload size; only non-default values should be transmitted.
+    Setup summary: Set some fields to non-default, leave others at default, assert correctly included/excluded.
+    """
+    ToolFactory.tool_config_map["excl_defaults_tool"] = SimpleToolConfig
+    try:
+        config = ToolBuildConfig(
+            name="excl_defaults_tool",
+            configuration=SimpleToolConfig(param_one="test", param_two=200),
+            display_name="My Tool",
+            selection_policy=ToolSelectionPolicy.ON_BY_DEFAULT,
+        )
+
+        result = config.model_dump(exclude_defaults=True)
+
+        # Non-defaults must be present
+        assert result.get("display_name") == "My Tool"
+        assert result.get("selection_policy") == ToolSelectionPolicy.ON_BY_DEFAULT
+        # Defaults must be absent: is_exclusive=False, is_sub_agent=False, is_enabled=True
+        assert "is_exclusive" not in result
+        assert "is_sub_agent" not in result
+        assert "is_enabled" not in result
+    finally:
+        ToolFactory.tool_config_map.pop("excl_defaults_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__exclude_defaults__propagates_into_configuration() -> None:
+    """
+    Purpose: Verify exclude_defaults=True drops default-valued fields inside the nested configuration.
+    Why this matters: SerializeAsAny must forward dump kwargs into the subclass serialization.
+    Setup summary: Config with mix of default/non-default subclass fields; assert correct exclusion.
+    """
+    ToolFactory.tool_config_map["excl_defaults_nested_tool"] = SimpleToolConfig
+    try:
+        # param_one default is "default", param_two default is 100
+        config = ToolBuildConfig(
+            name="excl_defaults_nested_tool",
+            configuration=SimpleToolConfig(param_one="custom", param_two=100),
+        )
+
+        result = config.model_dump(exclude_defaults=True)
+        cfg = result["configuration"]
+
+        assert cfg.get("param_one") == "custom"  # non-default
+        assert "param_two" not in cfg  # equals default 100
+    finally:
+        ToolFactory.tool_config_map.pop("excl_defaults_nested_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__exclude_none__drops_none_fields_in_configuration() -> None:
+    """
+    Purpose: Verify exclude_none=True removes None-valued fields from the nested configuration.
+    Why this matters: Prevents null noise in serialized payloads sent to downstream services.
+    Setup summary: Config with optional None field; dump with exclude_none, assert field absent.
+    """
+    ToolFactory.tool_config_map["excl_none_tool"] = _NullableConfig
+    try:
+        config = ToolBuildConfig(
+            name="excl_none_tool",
+            configuration=_NullableConfig(value="present", optional_note=None),
+        )
+
+        result = config.model_dump(exclude_none=True)
+        cfg = result["configuration"]
+
+        assert cfg.get("value") == "present"
+        assert "optional_note" not in cfg
+    finally:
+        ToolFactory.tool_config_map.pop("excl_none_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__by_alias_and_exclude_defaults__combined() -> None:
+    """
+    Purpose: Verify by_alias=True and exclude_defaults=True work correctly together.
+    Why this matters: Real API serialization uses both flags simultaneously.
+    Setup summary: Non-default fields should appear camelCased; default fields should be absent.
+    """
+    ToolFactory.tool_config_map["combined_tool"] = _AnotherConfig
+    try:
+        config = ToolBuildConfig(
+            name="combined_tool",
+            configuration=_AnotherConfig(threshold=0.99, label="custom_label"),
+            display_name="Combined",
+            is_exclusive=True,
+        )
+
+        result = config.model_dump(by_alias=True, exclude_defaults=True)
+
+        # Non-default top-level fields — camelCased
+        assert result.get("displayName") == "Combined"
+        assert result.get("isExclusive") is True
+        # Default top-level fields — absent
+        assert "isEnabled" not in result
+        assert "isSubAgent" not in result
+        # Non-default config fields — camelCased
+        cfg = result["configuration"]
+        assert cfg.get("threshold") == 0.99
+        assert cfg.get("label") == "custom_label"
+        # Default config field — absent (optional_note=None is the default)
+        assert "optionalNote" not in cfg
+    finally:
+        ToolFactory.tool_config_map.pop("combined_tool", None)
