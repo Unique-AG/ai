@@ -63,6 +63,11 @@ DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = "An expanded term that is optimized fo
 
 DEFAULT_LANGUAGE_PARAM_DESCRIPTION = "The language that the user wrote the query in"
 
+DEFAULT_CONTENT_IDS_PARAM_DESCRIPTION = (
+    "Optional list of document IDs (e.g cont_sx6neydisjrdvq59q39s89cg) to restrict the search "
+    "to specific documents. Use `null` to search all available documents."
+)
+
 
 DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT = """
 ## Reminder: Cite Every Fact from These Results

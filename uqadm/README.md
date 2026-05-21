@@ -1,8 +1,9 @@
 # uqadm
 
-Admin CLI for the Unique platform. It groups four command families:
+Admin CLI for the Unique platform. It groups these command families:
 
-- **`space`** — list, export, diff, migrate, upsert, and delete assistant spaces.
+- **`space`** — list, export, diff, migrate, upsert, access grants, ingestion settings, and delete assistant spaces.
+- **`kb`** — knowledge-base folders: create paths, grant group access, set folder ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -323,6 +324,40 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 
 Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-intelligence-space/<id>`.
 
+### `space access-grant SPACE_ID`
+
+Add **user or group** entries to a space ACL via ``Space.add_space_access``. The API **merges** new entries with existing access; it does not replace the full ACL.
+
+```bash
+uqadm space access-grant asst_abc --group grp_1 --group grp_2
+uqadm space access-grant asst_abc --user user_1 --type MANAGE --slot qa
+```
+
+| Option | Description |
+|--------|-------------|
+| `SPACE_ID` | Space id or URL (same rules as ``space export``). |
+| `--group ID` | Repeat for each group. |
+| `--user ID` | Repeat for each user. |
+| `--type` | `USE` (default), `MANAGE`, or `UPLOAD`. |
+| `--slot SLOT` | Credential slot (default: configured default). |
+
+### `space ingestion-set SPACE_ID CONFIG_FILE`
+
+Load a JSON/YAML **mapping** from disk and assign it to **``settings.ingestionConfig``** on the assistant. Other top-level ``settings`` keys are preserved (shallow merge); the file content **replaces** the previous ``ingestionConfig`` object.
+
+Folder-level ingestion (knowledge base) uses a different shape; use ``uqadm kb ingestion set`` for scopes/folders.
+
+```bash
+uqadm space ingestion-set asst_abc ./ingestion.json
+uqadm space ingestion-set asst_abc ./ingestion.yaml --slot prod --dry-run
+```
+
+| Option | Description |
+|--------|-------------|
+| `CONFIG_FILE` | ``.json``, ``.yaml``, or ``.yml``; root must be a mapping. |
+| `--dry-run` | Print which ``settings`` keys would be sent without PATCHing. |
+| `--slot SLOT` | Credential slot (default: configured default). |
+
 ### `space delete SPACE_ID`
 
 Delete a space (prompts for confirmation unless `-y`).
@@ -339,6 +374,53 @@ uqadm space delete space_old123 --dry-run
 | `--slot SLOT` | Credential slot (default: configured default slot). |
 | `-y`, `--yes` | Skip the confirmation prompt. |
 | `--dry-run` | Fetch and describe what would be deleted, without deleting. |
+
+---
+
+## `uqadm kb`
+
+Manage **knowledge-base folder** paths and metadata via ``unique_sdk.Folder``.
+
+```bash
+uqadm kb --help
+```
+
+### `kb mkdir`
+
+Create one or more folder paths. Pass paths as arguments, with ``--path`` (repeatable), and/or ``--paths-file`` (one path per line; ``#`` starts a comment). Use ``--parent-scope-id`` with relative path segments instead of absolute ``paths``.
+
+```bash
+uqadm kb mkdir /Dept/HR /Dept/Legal
+uqadm kb mkdir --paths-file folders.txt --slot qa
+uqadm kb mkdir rel/sub --parent-scope-id scope_parent123
+uqadm kb mkdir /Private --no-inherit-access
+```
+
+| Option | Description |
+|--------|-------------|
+| `--paths-file` | Text file of paths (one per line). |
+| `--path` | Single path (repeatable). |
+| `--parent-scope-id` | Use ``relativePaths`` under this scope. |
+| `--inherit-access / --no-inherit-access` | Passed to ``Folder.create_paths`` (default: inherit). |
+| `--slot SLOT` | Credential slot. |
+
+### `kb access grant`
+
+Grant **group** ``READ`` or ``WRITE`` on a folder. By default the change **applies to subfolders** (``applyToSubScopes``); pass ``--no-subfolders`` for this folder only.
+
+```bash
+uqadm kb access grant --folder-path /Dept/HR --group grp_1 --permission READ
+uqadm kb access grant --scope-id scope_abc --group grp_1 --group grp_2 --permission WRITE --no-subfolders
+```
+
+### `kb ingestion set CONFIG_FILE`
+
+Apply **folder** ingestion settings from a JSON/YAML file (mapping root) using ``Folder.update_ingestion_config``. Default applies to **subfolders**; use ``--no-subfolders`` for this folder only.
+
+```bash
+uqadm kb ingestion set ./folder-ingest.json --folder-path /Dept/HR
+uqadm kb ingestion set ./ingest.yaml --scope-id scope_abc --slot qa
+```
 
 ---
 

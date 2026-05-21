@@ -274,7 +274,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             return read_url_steps
 
         search_queries = [step.query_or_url for step in search_steps]
-        elicited_queries = await self._ff_elicitate_queries(search_queries)
+        elicited_queries = await self.query_elicitation(search_queries)
 
         elicited_search_steps = [
             Step(step_type=StepType.SEARCH, query_or_url=query, objective="")

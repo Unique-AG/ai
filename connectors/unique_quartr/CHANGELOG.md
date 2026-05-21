@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-quartr-v2026.20.0...unique-quartr-v2026.22.0) (2026-05-21)
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-quartr-v2026.18.0...unique-quartr-v2026.20.0) (2026-05-08)
 
 

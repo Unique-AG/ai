@@ -80,6 +80,7 @@ def test_top_level_help_shows_commands_and_globals() -> None:
     invoke_help = _make_help_invoker()
     result_output = invoke_help(["--help"])
     assert "space" in result_output
+    assert "kb" in result_output
     assert "chat" in result_output
     assert "env" in result_output
     assert "install" in result_output
@@ -118,6 +119,74 @@ def test_env_help_shows_subcommands() -> None:
     assert "show" in result_output
     assert "set-default" in result_output
     assert "delete" in result_output
+
+
+def test_kb_mkdir_help_shows_paths_file() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "mkdir", "--help"])
+    assert "--paths-file" in result_output
+    assert "--slot" in result_output
+    assert "Examples:" in result_output
+
+
+def test_kb_root_help_lists_access_and_ingestion_summaries() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "--help"])
+    assert "Folder.add_access" in result_output
+    assert "Folder.update_ingestion_config" in result_output
+    assert "access" in result_output
+    assert "ingestion" in result_output
+
+
+def test_kb_access_subgroup_help_shows_summary() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "access", "--help"])
+    assert "Folder.add_access" in result_output
+    assert "grant" in result_output
+
+
+def test_kb_ingestion_subgroup_help_shows_summary() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "ingestion", "--help"])
+    assert "Folder.update_ingestion_config" in result_output
+    assert "set" in result_output
+
+
+def test_kb_access_grant_help() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "access", "grant", "--help"])
+    assert "--folder-path" in result_output
+    assert "--group" in result_output
+    assert "applyToSubScopes" in result_output or "subfolders" in result_output
+    assert "Examples:" in result_output
+    assert "uqadm kb access grant" in result_output
+
+
+def test_kb_ingestion_set_help() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "ingestion", "set", "--help"])
+    assert "CONFIG_FILE" in result_output
+    assert "ingestionConfig" in result_output
+    assert "Examples:" in result_output
+    assert "uqadm kb ingestion set" in result_output
+
+
+def test_space_access_grant_help() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["space", "access-grant", "--help"])
+    assert "SPACE_ID" in result_output
+    assert "--group" in result_output
+    assert "add_space_access" in result_output
+    assert "Examples:" in result_output
+
+
+def test_space_ingestion_set_help() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["space", "ingestion-set", "--help"])
+    assert "CONFIG_FILE" in result_output
+    assert "--dry-run" in result_output
+    assert "settings" in result_output.lower()
+    assert "Examples:" in result_output
 
 
 def test_version_flag() -> None:
