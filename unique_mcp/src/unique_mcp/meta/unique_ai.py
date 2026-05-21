@@ -13,11 +13,9 @@ class UniqueAIToolMeta(MetaPart):
         self,
         *,
         tool_description_for_system_prompt: str = "",
-        tool_description_for_user_prompt: str = "",
         tool_format_information_for_system_prompt: str = "",
     ) -> None:
         self._tool_description_for_system_prompt = tool_description_for_system_prompt
-        self._tool_description_for_user_prompt = tool_description_for_user_prompt
         self._tool_format_information_for_system_prompt = (
             tool_format_information_for_system_prompt
         )
@@ -25,9 +23,6 @@ class UniqueAIToolMeta(MetaPart):
     def merge_into_meta(self, meta: dict[str, Any]) -> None:
         meta[MetaKeys.UNIQUE_AI_TOOL_SYSTEM_PROMPT.value] = (
             self._tool_description_for_system_prompt
-        )
-        meta[MetaKeys.UNIQUE_AI_TOOL_USER_PROMPT.value] = (
-            self._tool_description_for_user_prompt
         )
         meta[MetaKeys.UNIQUE_AI_TOOL_FORMAT_INFORMATION.value] = (
             self._tool_format_information_for_system_prompt
