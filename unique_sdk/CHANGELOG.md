@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.20.0...unique-sdk-v2026.22.0) (2026-05-21)
+
+
+### Bug Fixes
+
+* **security:** address Dependabot pillow alerts and CodeQL finding ([#1617](https://github.com/Unique-AG/ai/issues/1617)) ([6e49fcb](https://github.com/Unique-AG/ai/commit/6e49fcbf59fd6e93e36326869038b1f89f4c23d0))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.18.0...unique-sdk-v2026.20.0) (2026-05-08)
 
 
