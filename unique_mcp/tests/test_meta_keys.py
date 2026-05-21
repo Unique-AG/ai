@@ -40,4 +40,4 @@ def test_flat_aliases_are_camel_case_strings() -> None:
 def test_metakeys_reverse_lookup() -> None:
     """Round-tripping a wire value produces the matching enum member."""
     assert MetaKeys("unique.app/chat/chat-id") is MetaKeys.CHAT_ID
-    assert MetaKeys("unique.app/system-prompt") is MetaKeys.SYSTEM_PROMPT
+    assert MetaKeys("unique.app/system-prompt") is MetaKeys.UNIQUE_AI_TOOL_SYSTEM_PROMPT
