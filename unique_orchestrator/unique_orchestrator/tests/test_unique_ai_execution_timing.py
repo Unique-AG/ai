@@ -831,6 +831,28 @@ class TestRunExecutionTimingIntegration:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__does_not_complete_parent_message__when_tool_took_control(
+        self, monkeypatch
+    ) -> None:
+        """
+        Purpose: Verify the parent loop does not complete the message after a control tool.
+        Why this matters: A take-control subagent completes the mirrored parent answer itself.
+        Setup summary: Run with a control tool call and assert final parent completion is skipped.
+        """
+        ua = self._build_run_ua(
+            monkeypatch,
+            tool_took_control=True,
+            include_tool_calls=True,
+        )
+
+        await ua.run()
+
+        ua._chat_service.modify_assistant_message_async.assert_called_once_with(
+            set_completed_at=False,
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__debug_info_update_failure__propagates_exception(
         self, monkeypatch
     ) -> None:

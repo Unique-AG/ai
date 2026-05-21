@@ -20,6 +20,10 @@ from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
+from unique_toolkit.agentic.tools.a2a.postprocessing._ref_utils import (
+    add_content_refs_and_replace_in_text,
+    remove_unused_refs,
+)
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -43,7 +47,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 from unique_toolkit.app import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content import ContentChunk
+from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -151,6 +155,14 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         return [EvaluationMetricName.SUB_AGENT] if self._should_run_evaluation else []
 
     @override
+    def takes_control(self) -> bool:
+        return self.config.take_control
+
+    @override
+    def is_exclusive(self) -> bool:
+        return super().is_exclusive() or self.config.take_control
+
+    @override
     def get_evaluation_checks_based_on_tool_response(
         self,
         tool_response: ToolCallResponse,
@@ -205,12 +217,20 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 # Check if there is a saved chat id in short term memory
                 chat_id = await self._get_chat_id()
 
-                response = await self._execute_and_handle_timeout(
-                    tool_user_message=tool_input,
-                    chat_id=chat_id,
-                    tool_call=tool_call,
-                    active_message_log=active_message_log,
-                )
+                if self.config.take_control:
+                    response = await self._execute_take_control_and_handle_timeout(
+                        tool_user_message=tool_input,
+                        chat_id=chat_id,
+                        tool_call=tool_call,
+                        active_message_log=active_message_log,
+                    )
+                else:
+                    response = await self._execute_and_handle_timeout(
+                        tool_user_message=tool_input,
+                        chat_id=chat_id,
+                        tool_call=tool_call,
+                        active_message_log=active_message_log,
+                    )
 
                 self._should_run_evaluation |= (
                     response["assessment"] is not None
@@ -224,6 +244,34 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
                 if response["text"] is None:
                     raise ValueError("No response returned from sub agent")
+
+                if self.config.take_control:
+                    content, references = _prepare_take_control_final_message(response)
+                    await self._chat_service.modify_assistant_message_async(
+                        content=content,
+                        references=references,
+                        set_completed_at=True,
+                    )
+                    await self._notify_progress(
+                        tool_call=tool_call,
+                        message=tool_input,
+                        state=ProgressState.FINISHED,
+                    )
+                    active_message_log = self._create_or_update_message_log(
+                        progress_message=f"<em>Completed sub agent with input: {tool_input}</em>",
+                        status=MessageLogStatus.COMPLETED,
+                        active_message_log=active_message_log,
+                    )
+                    return ToolCallResponse(
+                        id=tool_call.id,
+                        name=tool_call.name,
+                        content=content,
+                        debug_info={
+                            "chat_id": response["chatId"],
+                            "assistant_id": self.config.assistant_id,
+                            "display_name": self._display_name,
+                        },
+                    )
 
                 has_refs = False
                 content = ""
@@ -419,6 +467,122 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise TimeoutError(
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
+
+    async def _execute_take_control_and_handle_timeout(
+        self,
+        tool_user_message: str,
+        chat_id: str | None,
+        tool_call: LanguageModelFunction,
+        active_message_log: MessageLog | None = None,
+    ) -> unique_sdk.Space.Message:
+        try:
+            return await self._send_message_and_stream_to_parent(
+                tool_user_message=tool_user_message,
+                chat_id=chat_id,
+            )
+        except TimeoutError as e:
+            await self._notify_progress(
+                tool_call=tool_call,
+                message="Timeout while waiting for response from sub agent.",
+                state=ProgressState.FAILED,
+            )
+            active_message_log = self._create_or_update_message_log(
+                progress_message="_Timeout while waiting for response from sub agent_",
+                status=MessageLogStatus.FAILED,
+                active_message_log=active_message_log,
+            )
+
+            raise TimeoutError(
+                "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
+            ) from e
+
+    async def _send_message_and_stream_to_parent(
+        self,
+        tool_user_message: str,
+        chat_id: str | None,
+    ) -> unique_sdk.Space.Message:
+        response = await Space.create_message_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            assistantId=self.config.assistant_id,
+            chatId=chat_id,
+            text=tool_user_message,
+            toolChoices=self.config.forced_tools or None,
+            correlation=Space.Correlation(
+                parentMessageId=self._chat_service._assistant_message_id,
+                parentChatId=self._event.payload.chat_id,
+                parentAssistantId=self.config.assistant_id,
+            ),
+        )
+        sub_agent_chat_id = response.get("chatId")
+        sub_agent_user_message_id = response.get("id")
+
+        if sub_agent_chat_id is None:
+            raise ValueError("No chat ID returned from sub agent")
+
+        previous_text: str | None = None
+        max_attempts = int(self.config.max_wait // self.config.poll_interval)
+        for _ in range(max_attempts):
+            if await self._chat_service.cancellation.check_cancellation_async():
+                raise asyncio.CancelledError
+
+            answer = await Space.get_latest_message_async(
+                self._user_id,
+                self._company_id,
+                sub_agent_chat_id,
+            )
+            answer_text = answer.get("text")
+
+            if answer_text is not None and answer_text != previous_text:
+                await self._chat_service.modify_assistant_message_async(
+                    content=answer_text,
+                )
+                previous_text = answer_text
+
+            if answer.get(self.config.stop_condition) is not None:
+                if sub_agent_user_message_id is not None:
+                    try:
+                        user_message = await unique_sdk.Message.retrieve_async(
+                            self._user_id,
+                            self._company_id,
+                            sub_agent_user_message_id,
+                            chatId=sub_agent_chat_id,
+                        )
+                        answer["debugInfo"] = user_message.get("debugInfo")
+                    except Exception:
+                        logger.warning(
+                            "Failed to load debug info from sub agent user message",
+                            exc_info=True,
+                        )
+
+                return answer
+
+            await asyncio.sleep(self.config.poll_interval)
+
+        raise TimeoutError("Timed out waiting for prompt completion.")
+
+
+def _prepare_take_control_final_message(
+    response: unique_sdk.Space.Message,
+) -> tuple[str, list[ContentReference]]:
+    text = response["text"]
+    if text is None:
+        raise ValueError("No response returned from sub agent")
+
+    references = response["references"] or []
+    content_references = [
+        ContentReference.from_sdk_reference(reference) for reference in references
+    ]
+    content_references = remove_unused_refs(
+        references=content_references,
+        text=text,
+    )
+
+    return add_content_refs_and_replace_in_text(
+        message_text=text,
+        message_refs=[],
+        new_refs=content_references,
+    )
 
 
 def _format_response(tool_name: str, text: str, system_reminders: list[str]) -> str:

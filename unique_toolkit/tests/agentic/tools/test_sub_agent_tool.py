@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -217,6 +218,30 @@ class TestSubAgentToolDescription:
 
         # Assert
         assert format_info == "Format info for user prompt"
+
+    @pytest.mark.ai
+    def test_takes_control__returns_config_value__when_enabled_AI(
+        self,
+        mock_sub_agent_config: SubAgentToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify take-control configuration is exposed through the tool interface.
+        Why this matters: The parent orchestrator relies on takes_control() to stop rewriting the answer.
+        Setup summary: Enable take_control, build a tool, and assert control/exclusivity behavior.
+        """
+        # Arrange
+        mock_sub_agent_config.take_control = True
+        tool = SubAgentTool(
+            configuration=mock_sub_agent_config,
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+        )
+
+        # Act & Assert
+        assert tool.takes_control() is True
+        assert tool.is_exclusive() is True
 
 
 class TestSubAgentToolProgressNotifications:
@@ -833,6 +858,209 @@ class TestSubAgentToolRun:
         # Last call should be FAILED status
         last_call = calls[-1]
         assert last_call.kwargs["status"] == MessageLogStatus.FAILED
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__streams_parent_updates_and_final_references__when_take_control_AI(
+        self,
+        mock_sub_agent_config: SubAgentToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify take-control subagents mirror running text and finalize with references.
+        Why this matters: The parent answer must be exactly the subagent answer while still owning citations.
+        Setup summary: Mock the subagent chat polling flow, run the tool, and assert parent message updates.
+        """
+        # Arrange
+        mock_sub_agent_config.take_control = True
+        mock_sub_agent_config.poll_interval = 1.0
+        mock_sub_agent_config.max_wait = 3.0
+        tool = SubAgentTool(
+            configuration=mock_sub_agent_config,
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+        )
+        tool._chat_service.modify_assistant_message_async = AsyncMock()
+        tool._chat_service.cancellation.check_cancellation_async = AsyncMock(
+            return_value=False
+        )
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=Mock()
+        )
+
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="TestSubAgent",
+            arguments={"user_message": "test message"},
+        )
+        sdk_reference = {
+            "name": "Source",
+            "url": "https://example.com/source",
+            "sequenceNumber": 1,
+            "source": "content",
+            "sourceId": "content_1",
+        }
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.Space.create_message_async",
+                new_callable=AsyncMock,
+                return_value={"chatId": "sub_chat_id", "id": "sub_user_message_id"},
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.Space.get_latest_message_async",
+                new_callable=AsyncMock,
+                side_effect=[
+                    {
+                        "text": "Partial answer",
+                        "assessment": None,
+                        "chatId": "sub_chat_id",
+                        "references": [],
+                        "completedAt": None,
+                    },
+                    {
+                        "text": "Final answer <sup>1</sup>",
+                        "assessment": None,
+                        "chatId": "sub_chat_id",
+                        "references": [sdk_reference],
+                        "completedAt": "2026-05-21T04:00:00Z",
+                    },
+                ],
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.unique_sdk.Message.retrieve_async",
+                new_callable=AsyncMock,
+                return_value={"debugInfo": {"trace": "subagent"}},
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                tool, "_get_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                tool, "_save_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+        ):
+            # Act
+            response = await tool.run(tool_call)
+
+        # Assert
+        modify_calls = tool._chat_service.modify_assistant_message_async.call_args_list
+        assert modify_calls[0].kwargs["content"] == "Partial answer"
+        assert modify_calls[1].kwargs["content"] == "Final answer <sup>1</sup>"
+        final_update = modify_calls[-1].kwargs
+        assert final_update["content"] == "Final answer <sup>1</sup>"
+        assert final_update["set_completed_at"] is True
+        assert final_update["references"][0].source_id == "content_1"
+        assert final_update["references"][0].sequence_number == 1
+        assert response.content == "Final answer <sup>1</sup>"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__raises_timeout__when_take_control_polling_expires_AI(
+        self,
+        mock_sub_agent_config: SubAgentToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify take-control polling preserves timeout behavior.
+        Why this matters: A stalled subagent must fail instead of leaving the parent answer open forever.
+        Setup summary: Configure one polling attempt without completion and assert TimeoutError.
+        """
+        # Arrange
+        mock_sub_agent_config.take_control = True
+        mock_sub_agent_config.poll_interval = 1.0
+        mock_sub_agent_config.max_wait = 1.0
+        tool = SubAgentTool(
+            configuration=mock_sub_agent_config,
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+        )
+        tool._chat_service.modify_assistant_message_async = AsyncMock()
+        tool._chat_service.cancellation.check_cancellation_async = AsyncMock(
+            return_value=False
+        )
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=Mock()
+        )
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="TestSubAgent",
+            arguments={"user_message": "test message"},
+        )
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.Space.create_message_async",
+                new_callable=AsyncMock,
+                return_value={"chatId": "sub_chat_id", "id": "sub_user_message_id"},
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.Space.get_latest_message_async",
+                new_callable=AsyncMock,
+                return_value={
+                    "text": "Still running",
+                    "assessment": None,
+                    "chatId": "sub_chat_id",
+                    "references": [],
+                    "completedAt": None,
+                },
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+            patch.object(
+                tool, "_get_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+            pytest.raises(TimeoutError),
+        ):
+            # Act
+            await tool.run(tool_call)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_send_message_and_stream_to_parent__raises_cancelled__when_parent_cancelled_AI(
+        self,
+        mock_sub_agent_config: SubAgentToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify take-control polling stops when the parent chat is cancelled.
+        Why this matters: User cancellation should not keep a background mirroring loop alive.
+        Setup summary: Mock cancellation before the first poll and assert CancelledError.
+        """
+        # Arrange
+        mock_sub_agent_config.take_control = True
+        tool = SubAgentTool(
+            configuration=mock_sub_agent_config,
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+        )
+        tool._chat_service.cancellation.check_cancellation_async = AsyncMock(
+            return_value=True
+        )
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.Space.create_message_async",
+                new_callable=AsyncMock,
+                return_value={"chatId": "sub_chat_id", "id": "sub_user_message_id"},
+            ),
+            pytest.raises(asyncio.CancelledError),
+        ):
+            # Act
+            await tool._send_message_and_stream_to_parent(
+                tool_user_message="test message",
+                chat_id=None,
+            )
 
 
 class TestSubAgentToolDebugInfo:

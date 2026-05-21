@@ -126,6 +126,10 @@ class SubAgentToolConfig(BaseToolConfig):
         default=[],
         description="The list of tool names that will be forced to be called for this sub-agent.",
     )
+    take_control: bool = Field(
+        default=False,
+        description="Whether this sub-agent streams its response directly to the parent assistant message and stops the parent loop.",
+    )
 
     @field_validator("forced_tools", mode="before")
     @classmethod

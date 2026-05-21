@@ -1078,6 +1078,71 @@ def test_tool_manager__does_a_tool_take_control__returns_true_for_control_tool(
 
 
 @pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_selected_tools__drops_parallel_calls_for_control_tool(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify take-control tools are not executed in parallel with other tools.
+    Why this matters: A tool that owns the parent answer must not race with sibling tool calls.
+    Setup summary: Execute a mixed batch with a normal and control tool, then assert only control ran.
+    """
+    # Arrange
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+        ToolBuildConfig(
+            name="control_tool",
+            configuration=MockToolConfig(),
+            display_name="Control Tool",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    tool_manager = ToolManager(
+        logger=logger,
+        config=ToolManagerConfig(tools=tool_configs, max_tool_calls=10),
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id="call_1",
+            name="mock_tool",
+            arguments={"query": "normal"},
+        ),
+        LanguageModelFunction(
+            id="call_2",
+            name="control_tool",
+            arguments={"query": "control"},
+        ),
+    ]
+
+    # Act
+    responses = await tool_manager.execute_selected_tools(tool_calls)
+
+    # Assert
+    assert len(responses) == 1
+    assert responses[0].name == "control_tool"
+    assert responses[0].content == "Control response"
+
+
+@pytest.mark.ai
 def test_tool_manager__does_a_tool_take_control__returns_false_for_normal_tool(
     logger,
     tool_manager_config,

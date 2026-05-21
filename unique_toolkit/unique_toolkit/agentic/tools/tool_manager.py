@@ -324,8 +324,33 @@ class _ToolManager(Generic[_ApiMode]):
         self,
         tool_calls: list[LanguageModelFunction],
     ) -> list[ToolCallResponse]:
+        tool_calls = self._filter_take_control_tool_calls(tool_calls)
         tool_call_responses = await self._execute_parallelized(tool_calls)
         return tool_call_responses
+
+    def _filter_take_control_tool_calls(
+        self,
+        tool_calls: list[LanguageModelFunction],
+    ) -> list[LanguageModelFunction]:
+        take_control_tool_calls = [
+            tool_call
+            for tool_call in tool_calls
+            if (
+                tool_instance := self.get_tool_by_name(tool_call.name)
+            ) is not None
+            and tool_instance.takes_control()
+        ]
+
+        if len(take_control_tool_calls) == 0:
+            return tool_calls
+
+        if len(tool_calls) > 1:
+            self._logger.warning(
+                "Tool call batch contains a take-control tool. Dropping %s parallel tool call(s).",
+                len(tool_calls) - 1,
+            )
+
+        return [take_control_tool_calls[0]]
 
     async def _execute_parallelized(
         self,
