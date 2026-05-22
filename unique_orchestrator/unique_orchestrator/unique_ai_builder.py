@@ -193,6 +193,7 @@ def _apply_model_choice_override(
     )
     config.enable_responses_api_for_code_interpreter_tool()
     config.enable_responses_api_for_gpt_55_and_gpt_55_pro()
+    config.validate_open_file_tool_requires_responses_api()
 
 
 def _language_model_name(model: LanguageModelInfo) -> str:

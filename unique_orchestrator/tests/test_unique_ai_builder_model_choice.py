@@ -3,6 +3,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
+    OpenFileToolConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
@@ -188,4 +191,52 @@ def test_model_choice_removes_code_interpreter_when_selected_model_lacks_respons
 
     assert config.space.language_model is selected_model
     assert config.space.tools == []
+    assert config.agent.experimental.responses_api_config.use_responses_api is False
+
+
+@pytest.mark.ai
+def test_model_choice_rejects_open_file_tool_when_selected_model_lacks_responses_api() -> (
+    None
+):
+    """
+    Purpose: Verify model overrides cannot leave OpenFile enabled without Responses API.
+    Why this matters: OpenFile depends on Responses API payload handling and would fail at runtime.
+    Setup summary: Start with a valid OpenFile config; select a non-Responses model and assert validation fails.
+    """
+    default_model = _make_model(
+        "default-model",
+        capabilities=[
+            ModelCapabilities.CHAT_COMPLETIONS_API,
+            ModelCapabilities.FUNCTION_CALLING,
+            ModelCapabilities.RESPONSES_API,
+            ModelCapabilities.STREAMING,
+        ],
+    )
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_user_model_selection=True,
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={
+            "experimental": {
+                "responses_api_config": {"use_responses_api": True},
+                "open_file_tool_config": OpenFileToolConfig(enabled=True),
+            }
+        },
+    )
+    assert config.agent.experimental.open_file_tool_config.enabled is True
+    assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+    with pytest.raises(
+        ValueError,
+        match="open_file_tool_config.enabled requires the Responses API",
+    ):
+        _apply_model_choice_override(
+            event=_make_event(selected_model, has_model_choice_override=True),
+            logger=MagicMock(),
+            config=config,
+        )
+
     assert config.agent.experimental.responses_api_config.use_responses_api is False
