@@ -179,13 +179,12 @@ def _apply_model_choice_override(
 ) -> None:
     if (
         not config.space.allow_user_model_selection
-        or not config.space.allowed_user_model
         or not event.payload.has_model_choice_override
     ):
         return
 
     selected_model = event.payload.model_choice
-    if not _is_allowed_user_model_choice(
+    if config.space.allowed_user_model and not _is_allowed_user_model_choice(
         selected_model=selected_model,
         allowed_models=config.space.allowed_user_model,
     ):
@@ -215,7 +214,7 @@ def _is_allowed_user_model_choice(
     selected_model: LanguageModelInfo,
     allowed_models: list[LanguageModelInfo],
 ) -> bool:
-    return any(selected_model.display_name == model.display_name for model in allowed_models)
+    return selected_model in allowed_models
 
 
 def _remove_tools_with_unsupported_model_capabilities(
