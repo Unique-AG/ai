@@ -1663,6 +1663,76 @@ class TestWebSearchV3ExecutorSerpFilter:
         for c in chunks:
             assert "relevance_score" not in json.loads(c.text)
 
+    @pytest.mark.asyncio
+    async def test_run_search__chunk_payload_sanitizes_nul_bytes_from_google(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """Google snippets / titles / content with NUL bytes are sanitized before
+        they enter the conversation history.
+
+        Without this, a single dirty SERP result poisons the whole chat: the
+        snippet flows into ``ContentChunk.text`` (the agent's tool result), the
+        tool result is sent in every subsequent ``stream-responses`` payload,
+        and Postgres rejects the write with ``22P05`` ("``\\u0000`` cannot be
+        converted to text"). The chat is then stuck — every retry resends the
+        same dirty history.
+
+        This test pins the sanitization at the *boundary* (where Google data
+        becomes a chunk) so the fix can't be silently undone by a refactor.
+        """
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        # Mimic a malformed snippet/title/content combo as occasionally returned
+        # by Google when the underlying page was an extracted PDF / broken HTML.
+        # Source files cannot contain literal NUL bytes (Python compiler rejects
+        # them), so construct the control chars via ``chr()``.
+        nul = chr(0)
+        sub = chr(0x1A)  # Substitute
+        so = chr(0x0E)  # Shift-Out
+        us = chr(0x1F)  # Unit Separator
+        dirty = [
+            WebSearchResult(
+                url="https://example.com/page",
+                title=f"Clean{nul} Title{sub}here",
+                snippet=f"snippet with{nul} NUL{so} control",
+                content=f"body{nul} content{us} trail",
+            )
+        ]
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=dirty
+        )
+
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            SerpFilterConfig(enabled=False),  # bypass filter to keep test focused
+        )
+
+        chunks = await executor.run()
+
+        assert len(chunks) == 1
+        # Raw chunk text must not contain NUL or other C0 control chars —
+        # Postgres rejects the whole payload on a single NUL byte.
+        assert "\x00" not in chunks[0].text
+        assert "\x1a" not in chunks[0].text
+        assert "\x0e" not in chunks[0].text
+        assert "\x1f" not in chunks[0].text
+        # And the chunk id/title/key (built from sanitized display_link + title)
+        # must also be clean.
+        assert "\x00" not in chunks[0].id
+        assert "\x00" not in chunks[0].title
+        assert "\x00" not in chunks[0].key
+        # The visible content survives, just with control chars replaced by space.
+        payload = json.loads(chunks[0].text)
+        assert "Title" in payload["title"]
+        assert "snippet" in payload["snippet"]
+        assert "content" in payload["content"]
+
 
 class TestWebSearchV3ExecutorFetchUrls:
     """Tests for WebSearchV3Executor ``read_urls`` (crawl + content pipeline)."""

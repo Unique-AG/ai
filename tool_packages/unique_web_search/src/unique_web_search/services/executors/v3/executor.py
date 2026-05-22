@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from time import time
 
 from unidecode import unidecode
@@ -21,9 +20,6 @@ from unique_web_search.metrics import (
     search_total,
 )
 from unique_web_search.schema import StepDebugInfo
-from unique_web_search.services.content_processing.cleaning.character_sanitize import (
-    _CONTROL_CHAR_RE,
-)
 from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
@@ -42,47 +38,15 @@ from unique_web_search.services.snippet_judge.service import (
     SnippetJudgeConfig,
     select_relevant,
 )
+from unique_web_search.services.text_sanitize import sanitize_single_line
 
 _LOGGER = logging.getLogger(__name__)
 
-# Same character class as ``CharacterSanitize`` (single source of truth for
-# "what is a control character") but with a *different replacement strategy*:
-# for queries we substitute SPACE instead of stripping, so word boundaries
-# survive. Observed case (BNPP test set): the model emitted
-# ``\x1a\x0e1\x0ea\x0e3\x004Treasury Department ...``; stripping merged the
-# digits into the next word as ``1a34Treasury``, which the engine then matched
-# as a nonsense token and the SERP came back empty. Replacing with space
-# yields ``1 a 3 4 Treasury Department ...`` — still not pretty, but Google
-# tokenizes the legitimate words separately and the search has a chance.
-_WHITESPACE_RE = re.compile(r"\s+")
-
-
-def _sanitize_text(text: str) -> str:
-    """Replace control characters with spaces, then normalize whitespace.
-
-    Real models / elicitation forms occasionally produce strings with ASCII
-    control characters (``\\u0000`` NUL, ``\\u000E`` Shift-Out, ``\\u000B``
-    Vertical Tab, …) embedded in otherwise-valid text. Three things go wrong
-    if we don't clean them:
-
-    1. NUL (``\\u0000``) cannot be stored in Postgres TEXT columns
-       (error ``22P05``); any LLM string that lands in our ``debug_info``
-       crashes the downstream ``modify_message`` / ``stream-responses`` calls
-       with a generic 500.
-    2. Stripped control chars merge adjacent words (``a\\x0eb`` → ``ab``);
-       replacing with space preserves word boundaries.
-    3. Stray control chars in search queries produce empty SERPs.
-
-    Uses the same character class as ``CharacterSanitize`` (drop C0/C1
-    controls, DEL, BOM/noncharacters; preserve TAB/LF/CR — those become
-    whitespace after the collapse step — and all Cf format chars relevant to
-    non-Latin scripts) but **replaces with space** rather than stripping.
-
-    Safe to call on any short LLM-supplied string (query, objective, gap, URL).
-    No-op for clean text.
-    """
-    spaced = _CONTROL_CHAR_RE.sub(" ", text)
-    return _WHITESPACE_RE.sub(" ", spaced).strip()
+# Agent-supplied strings (objective / query / gap / urls) don't pass through
+# ``WebSearchResult`` (which sanitizes engine + crawler output at construction),
+# so they need an explicit ``sanitize_single_line`` call. ``WebSearchResult``
+# covers the engine + crawler boundary; the call sites below cover the agent
+# boundary.
 
 
 class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
@@ -114,18 +78,18 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         # ``\\u0000`` (error 22P05) — without this, any control char in
         # ``objective`` / ``gap`` / ``urls`` crashes the modify_message and
         # stream-responses calls with a generic 500.
-        objective = _sanitize_text(p.objective)
+        objective = sanitize_single_line(p.objective)
         if isinstance(p.payload, SearchPayload):
             await self._message_log_callback.log_progress("_Executing Search_")
             return await self._run_search(
-                query=_sanitize_text(p.payload.query),
+                query=sanitize_single_line(p.payload.query),
                 objective=objective,
-                gap=_sanitize_text(p.payload.gap),
+                gap=sanitize_single_line(p.payload.gap),
             )
         if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
             return await self._run_fetch_urls(
-                urls=[_sanitize_text(u) for u in p.payload.urls],
+                urls=[sanitize_single_line(u) for u in p.payload.urls],
                 objective=objective,
             )
 
@@ -151,7 +115,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         # ``query_elicitation`` is an LLM call that can re-introduce control
         # chars (observed: elicitation form forwards the model's raw output).
         # Re-sanitize defensively. No-op for clean queries.
-        sanitized_query = _sanitize_text(query)
+        sanitized_query = sanitize_single_line(query)
         if sanitized_query != query:
             _LOGGER.warning(
                 "Elicited query contained non-printable / control characters; "
@@ -460,6 +424,10 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         self, results: list[WebSearchResult]
     ) -> list[ContentChunk]:
         """One chunk per SERP row; ``text`` is JSON with url, domain, title, snippet."""
+        # ``WebSearchResult`` already strips control chars (including NUL) at
+        # the engine/crawler boundary via its field validators, so the fields
+        # below are safe to embed directly into the chunk payload — no further
+        # sanitization needed here.
         out: list[ContentChunk] = []
         for i, r in enumerate(results):
             payload = {
