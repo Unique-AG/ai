@@ -32,11 +32,13 @@ These paths have different handling for parameters like `reasoning_effort`. A bu
 
 ## Cherry-pick completeness across repos
 
-When cherry-picking model support into a release branch, **all cross-repo dependencies must be bumped together**. In a past incident, GPT-5.4 was cherry-picked into the release branch (node-chat TypeScript changes) but the `unique_toolkit` version bump in `assistants-core` was forgotten. This left the buggy toolkit version in place for gpt-5.1, causing the `reasoning_effort: null` production error.
+When cherry-picking model support into a release branch, **all cross-repo dependencies must be updated together**. In a past incident, GPT-5.4 was cherry-picked into the release branch (node-chat TypeScript changes) but the **monorepo** pin to the new published `unique_toolkit` wheel in `assistants-core` was forgotten. This left the buggy toolkit version in place for gpt-5.1, causing the `reasoning_effort: null` production error.
+
+This is **not** a manual ai-repo `CHANGELOG.md` / `version` edit — after the toolkit ships from the ai repo, bump the **dependency constraint** in the monorepo (e.g. `assistants-core` `pyproject.toml` or the monorepo's AI version sync workflow).
 
 Checklist for cherry-picks:
 - [ ] Node-chat TypeScript changes (language-model enum, factory, service)
-- [ ] `assistants-core` `pyproject.toml` toolkit version bump
+- [ ] Monorepo: `assistants-core` (or equivalent) pins the new published `unique_toolkit` version
 - [ ] LiteLLM overlay changes (if applicable)
 - [ ] Terraform changes (if applicable)
 

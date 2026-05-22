@@ -160,7 +160,7 @@ Add `LanguageModelName` enum entry and `LanguageModelInfo.from_name()` case. See
 
 - **Branch:** `feat/toolkit-<model-slug>`
 - **Commit:** `feat(toolkit): add <model_name> model info`
-- Follow the normal toolkit release process (version bump + CHANGELOG).
+- Merge with a conventional commit (`feat(toolkit): add <model_name> model info`). release-please updates `unique_toolkit` version and `CHANGELOG.md` on the standing Release PR — do not edit those files in the feature PR.
 
 For early exposure before the toolkit release, use the `LANGUAGE_MODEL_INFOS` env override — see [TOOLKIT-REGISTRY.md](references/TOOLKIT-REGISTRY.md).
 

@@ -60,17 +60,17 @@ async def new_method_async(cls, user_id: str, company_id: str, **params: Unpack[
 - Add method documentation with parameters, returns, and examples
 - Add new TypedDict documentation in Input/Return Types section
 
-## 6. Version & Changelog
-- Bump patch version in `pyproject.toml`
-- Add entry to `CHANGELOG.md`:
-```markdown
-## [X.Y.Z] - YYYY-MM-DD
-- Description of the new feature/change
-```
+## 6. Release notes (release-please — no manual version/changelog)
+
+Do **not** edit `unique_sdk/pyproject.toml` `version` or `unique_sdk/CHANGELOG.md` in the feature PR. CI (`check-no-manual-release.sh`) blocks those files.
+
+- Use a conventional commit when opening the PR, e.g. `feat(sdk): add correlation to Message.create`.
+- release-please updates version and changelog on the standing Release PR (`chore: stable release <CalVer>`).
+- After merge of the Release PR, use the **Generate Release Notes** command for Slack/Teams copy (reads the released changelog entry).
 
 ## 7. Checklist
 - [ ] SDK file updated with new types/methods
 - [ ] Documentation updated
-- [ ] Version bumped in pyproject.toml
-- [ ] Changelog entry added
+- [ ] PR title/commit uses conventional format (`feat(sdk): ...` or `fix(sdk): ...`)
+- [ ] No edits to `CHANGELOG.md` or `pyproject.toml` `version` in this PR
 
