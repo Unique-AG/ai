@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .constants import DOMAIN_NAME
 from .default_language_model import DEFAULT_LANGUAGE_MODEL, DEFAULT_GPT_4o
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from .service import LanguageModelService as LanguageModelService
 
 
-def __getattr__(name: str) -> object:
+def __getattr__(name: str) -> Any:
     if name == "LanguageModelService":
         from .service import LanguageModelService
 
