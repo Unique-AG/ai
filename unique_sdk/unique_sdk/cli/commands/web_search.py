@@ -192,7 +192,7 @@ def _annotate_web_results_for_citations(
         annotated = dict(payload)
         annotated_results: list[dict[str, Any]] = []
 
-        for raw_result in payload.get("results", []):
+        for raw_result in payload.get("results") or []:
             if not isinstance(raw_result, dict):
                 continue
             result = dict(raw_result)

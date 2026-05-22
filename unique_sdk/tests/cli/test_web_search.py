@@ -370,6 +370,17 @@ class TestCitationManifest:
 
         assert annotated["results"][0]["sourceNumber"] == 2
 
+    def test_null_results_are_treated_as_empty(self, tmp_path: Path) -> None:
+        payload = _make_search_payload()
+        payload["results"] = None
+
+        annotated = _annotate_web_results_for_citations(
+            payload,
+            refs_log_path=tmp_path / ".unique" / "web-refs.jsonl",
+        )
+
+        assert annotated["results"] == []
+
 
 class TestCmdWebSearch:
     @patch("unique_sdk.WebSearch.search")
