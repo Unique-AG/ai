@@ -42,6 +42,9 @@ class LLMGuardResponse(BaseModel):
             "except any that constitute GDPR Art. 9 sensitive data, which must be replaced inline with the appropriate "
             "typed redaction tag (e.g. [RedactHealth], [RedactReligiousBelief], [RedactPoliticalOpinion], "
             "[RedactSexualOrientation], [RedactRacialOrEthnic], [RedactTradeUnion], [RedactGeneticData], [RedactBiometricData]). "
+            "Always include labeled data fields and structured key-value pairs — preserve the field label and "
+            "non-sensitive values verbatim; if a field value is GDPR Art. 9 sensitive, replace only the value with "
+            "the appropriate redaction tag rather than omitting the entire field. "
             "Applies to all individuals mentioned on the page. "
             "A less complete summary that is fully sanitized is always preferred over a complete summary containing sensitive data."
         ),
@@ -103,6 +106,9 @@ class JudgeAndSanitizeResponse(BaseModel):
             "except any that constitute GDPR Art. 9 sensitive data, which must be replaced inline with the appropriate "
             "typed redaction tag (e.g. [RedactHealth], [RedactReligiousBelief], [RedactPoliticalOpinion], "
             "[RedactSexualOrientation], [RedactRacialOrEthnic], [RedactTradeUnion], [RedactGeneticData], [RedactBiometricData]). "
+            "Always include labeled data fields and structured key-value pairs — preserve the field label and "
+            "non-sensitive values verbatim; if a field value is GDPR Art. 9 sensitive, replace only the value with "
+            "the appropriate redaction tag rather than omitting the entire field. "
             "Set to null if needs_sanitization is false."
         ),
     )

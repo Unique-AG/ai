@@ -16,13 +16,13 @@ class SearchPayload(BaseModel):
         description="A brief description of the gap that the query is meant to fill"
     )
     query: str = Field(
-        description="Search query for the configured search engine. Query must be fixed for the entire rounds."
+        description="Search query for the configured search engine. May be refined across calls — issue a new search with different keywords or narrower scope if the previous call did not fill the gap."
     )
 
 
 class FetchUrlsPayload(BaseModel):
     urls: list[str] = Field(
-        description="HTTP(S) URLs to crawl for full-page text. Use only URLs returned by a prior search or pasted by the user."
+        description="HTTP(S) URLs to crawl. Use URLs returned by a prior search, pasted by the user, or constructed from a domain URL pattern already observed in SERP results. Prefer a small number of high-signal URLs to reduce latency."
     )
 
 
