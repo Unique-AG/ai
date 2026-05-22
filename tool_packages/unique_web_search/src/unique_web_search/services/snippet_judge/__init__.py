@@ -5,6 +5,8 @@ from unique_web_search.services.snippet_judge.schema import (
     SnippetJudgment,
 )
 from unique_web_search.services.snippet_judge.service import (
+    CLEARLY_IRRELEVANT_THRESHOLD,
+    SerpOffTopicError,
     SnippetJudgeConfig,
     rank_and_select,
     score_and_explain,
@@ -12,6 +14,8 @@ from unique_web_search.services.snippet_judge.service import (
 )
 
 __all__ = [
+    "CLEARLY_IRRELEVANT_THRESHOLD",
+    "SerpOffTopicError",
     "SnippetJudgeConfig",
     "SnippetJudgeResponse",
     "SnippetJudgment",

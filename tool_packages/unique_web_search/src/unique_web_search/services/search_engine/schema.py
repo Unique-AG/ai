@@ -21,6 +21,15 @@ class WebSearchResult(BaseModel):
         default="",
         description="The content of the website",
     )
+    relevance_score: float | None = Field(
+        default=None,
+        description=(
+            "LLM-judge relevance score (0.0–1.0) attached when the SERP filter "
+            "ran successfully. Higher = stronger match to the active gap/objective "
+            "per the snippet-judge calibration bands. None when the filter was "
+            "disabled, the LLM call failed, or this is a raw (unfiltered) result."
+        ),
+    )
 
     @property
     def display_link(self):

@@ -87,13 +87,20 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
     def _extract_urls(self, response: Response) -> list[WebSearchResult]:
         """Clean the response from the search engine."""
         results = response.json()
+        # ``results.get("items", [])`` does not protect against ``{"items": null}``
+        # — ``.get`` returns ``None`` when the key exists with a null value, and
+        # iterating ``None`` raises ``TypeError``. The Google CSE API has been
+        # observed to omit ``items`` entirely *or* to send it as ``null`` when
+        # the SERP is empty (e.g. zero-result queries, quota-throttled responses).
+        # ``... or []`` collapses both cases to an empty list.
+        items = results.get("items") or []
         links = [
             WebSearchResult(
                 url=item["link"],
                 snippet=item["snippet"],
                 title=item.get("title", item.get("htmlTitle", "")),
             )
-            for item in results["items"]
+            for item in items
         ]
         return links
 

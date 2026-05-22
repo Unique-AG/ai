@@ -1,3 +1,8 @@
+from unique_web_search.schema import (
+    StepDebugInfo,
+    WebPageChunk,
+    WebSearchDebugInfo,
+)
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 
@@ -283,3 +288,67 @@ class TestWebSearchPlan:
         assert len(plan.steps) == 1
         assert plan.steps[0].step_type == StepType.SEARCH
         assert plan.expected_outcome == "Test outcome"
+
+
+class TestWebSearchDebugInfoDump:
+    """Test what ``WebSearchDebugInfo.model_dump`` strips with debug=False.
+
+    Only the bulky ``web_page_chunks`` (full page bodies) should be dropped.
+    The small per-step ``extra`` dicts must stay — operators need them to
+    understand *why* the agent took a given decision (kept/dropped URLs, judge
+    scores, fell_back_to_unfiltered, etc.). Historically extra was stripped
+    too, which left the UI showing only execution_time + config and made the
+    SERP filter's decision-making opaque.
+    """
+
+    def _make_debug_info(self) -> WebSearchDebugInfo:
+        return WebSearchDebugInfo(
+            parameters={"command": "search"},
+            steps=[
+                StepDebugInfo(
+                    step_name="SEARCH.serp_filter",
+                    execution_time=1.5,
+                    config="gpt-4o",
+                    extra={
+                        "before": 10,
+                        "after": 3,
+                        "min_score": 0.3,
+                        "kept_urls": ["https://a.com", "https://b.com"],
+                        "kept_scores": {"https://a.com": 0.92, "https://b.com": 0.71},
+                    },
+                ),
+            ],
+            web_page_chunks=[
+                WebPageChunk(
+                    url="https://a.com",
+                    display_link="a.com",
+                    title="A",
+                    snippet="s",
+                    content="(bulky page body)",
+                    order="0",
+                ),
+            ],
+        )
+
+    def test_dump_with_debug_details_includes_everything(self):
+        dumped = self._make_debug_info().model_dump(with_debug_details=True)
+        assert dumped["steps"][0]["extra"]["before"] == 10
+        assert dumped["steps"][0]["extra"]["kept_scores"] == {
+            "https://a.com": 0.92,
+            "https://b.com": 0.71,
+        }
+        assert len(dumped["web_page_chunks"]) == 1
+
+    def test_dump_without_debug_details_drops_only_web_page_chunks(self):
+        """Non-debug mode keeps `extra` (small metadata) but drops bulky page bodies."""
+        dumped = self._make_debug_info().model_dump(with_debug_details=False)
+        # extra is preserved — this is the regression we're guarding against.
+        assert dumped["steps"][0]["extra"]["before"] == 10
+        assert dumped["steps"][0]["extra"]["after"] == 3
+        assert dumped["steps"][0]["extra"]["kept_scores"] == {
+            "https://a.com": 0.92,
+            "https://b.com": 0.71,
+        }
+        # web_page_chunks is dropped — it's bulky and not needed for decisions.
+        # Pydantic's `exclude` removes the key entirely.
+        assert "web_page_chunks" not in dumped

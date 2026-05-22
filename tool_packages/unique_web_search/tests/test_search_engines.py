@@ -523,6 +523,31 @@ class TestSearchEngineInstances:
         assert hasattr(search, "requires_scraping")
         assert hasattr(search, "search")
 
+    def test_google_extract_urls_handles_null_items(self):
+        """Google CSE may send ``{"items": null}`` on zero-result/throttled SERPs.
+
+        Previously ``results.get("items", [])`` returned ``None`` (the key
+        exists, default doesn't fire), iterating ``None`` raised ``TypeError``,
+        and the whole search crashed. ``.get("items") or []`` collapses both
+        the missing-key and explicit-null cases to an empty list.
+        """
+        config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE)
+        search = GoogleSearch(config)
+
+        mock_response = Mock()
+        mock_response.json.return_value = {"items": None}
+        # Would have raised ``TypeError: 'NoneType' is not iterable`` before fix.
+        assert search._extract_urls(mock_response) == []
+
+    def test_google_extract_urls_handles_missing_items_key(self):
+        """Same fix also covers the original case of the ``items`` key being absent."""
+        config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE)
+        search = GoogleSearch(config)
+
+        mock_response = Mock()
+        mock_response.json.return_value = {"searchInformation": {"totalResults": "0"}}
+        assert search._extract_urls(mock_response) == []
+
     def test_jina_search_initialization(self):
         """Test JinaSearch initializes correctly."""
         config = JinaConfig(search_engine_name=SearchEngineType.JINA)
