@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from .constants import DOMAIN_NAME
 from .default_language_model import DEFAULT_LANGUAGE_MODEL, DEFAULT_GPT_4o
 from .functions import (
@@ -28,9 +30,6 @@ from .schemas import (
     LanguageModelToolParameters,
     LanguageModelUserMessage,
 )
-from .service import (
-    LanguageModelService,
-)
 from .stream_transform import (
     NormalizationTransform,
     ReferenceInjectionTransform,
@@ -41,6 +40,19 @@ from .utils import (
     convert_string_to_json,
     find_last_json_object,
 )
+
+if TYPE_CHECKING:
+    from .service import LanguageModelService as LanguageModelService
+
+
+def __getattr__(name: str) -> object:
+    if name == "LanguageModelService":
+        from .service import LanguageModelService
+
+        return LanguageModelService
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "LanguageModel",
