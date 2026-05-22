@@ -1281,5 +1281,93 @@ class TestCustomAPISearch:
         assert call_kwargs["max_redirects"] == 10
 
 
+class TestWebSearchResultControlCharSanitization:
+    """``WebSearchResult`` strips ASCII control characters at construction.
+
+    This is the single ingress point for external text into the web-search
+    pipeline (every engine adapter + the ``read_urls`` crawler wraps its
+    output here), so sanitizing in the model's field validators guarantees
+    every downstream consumer — chunker, content processor, debug payload,
+    tool result — sees data that Postgres TEXT columns can store.
+
+    The Postgres failure mode is ``22P05`` ("``\\u0000`` cannot be converted
+    to text") on any single embedded NUL byte; the dirty string poisons every
+    subsequent ``stream-responses`` / ``modify_message`` write once it lands
+    in a tool result, and the chat is then stuck because every retry resends
+    the same dirty history.
+    """
+
+    def test_url_and_title_control_chars_replaced_with_space_and_collapsed(self):
+        """Short single-line fields: controls → space, whitespace collapsed."""
+        nul = chr(0)
+        so = chr(0x0E)
+        result = WebSearchResult(
+            url=f"https://example.com/path{nul}with{so}controls",
+            title=f"A{nul}Title{so}With Controls",
+            snippet="",
+            content="",
+        )
+        # No control chars survive.
+        for forbidden in (nul, so, chr(0x1F), chr(0x7F)):
+            assert forbidden not in result.url
+            assert forbidden not in result.title
+        # Word boundaries preserved (no silent merging).
+        assert "path with controls" in result.url
+        assert result.title == "A Title With Controls"
+
+    def test_snippet_preserves_newlines_but_strips_nul(self):
+        """Engines (Brave, Bing grounding) join multiple sub-snippets with
+        ``\\n``; that structure must survive while NUL bytes are removed."""
+        nul = chr(0)
+        result = WebSearchResult(
+            url="https://example.com",
+            title="t",
+            snippet=f"line one{nul}\nline two\nline{nul} three",
+            content="",
+        )
+        assert nul not in result.snippet
+        # Newlines kept — list structure survives.
+        assert result.snippet == "line one\nline two\nline three"
+
+    def test_content_preserves_newlines_and_tabs(self):
+        """Long-form crawled bodies keep paragraph structure (TAB/LF/CR)."""
+        nul = chr(0)
+        result = WebSearchResult(
+            url="https://example.com",
+            title="t",
+            snippet="",
+            content=f"para 1{nul}\n\npara 2\twith tab\nlast{nul} line",
+        )
+        assert nul not in result.content
+        assert "\n\n" in result.content  # paragraph break preserved
+        assert "\t" in result.content  # tab preserved
+
+    def test_clean_input_is_noop(self):
+        """Sanitization must not mutate already-clean input."""
+        result = WebSearchResult(
+            url="https://example.com/clean/path",
+            title="Clean Title",
+            snippet="line one\nline two",
+            content="para 1\n\npara 2",
+        )
+        assert result.url == "https://example.com/clean/path"
+        assert result.title == "Clean Title"
+        assert result.snippet == "line one\nline two"
+        assert result.content == "para 1\n\npara 2"
+
+    def test_display_link_is_clean_because_url_is_sanitized_first(self):
+        """``display_link`` is derived from ``url``; sanitizing ``url`` at
+        construction means consumers reading ``display_link`` never see a
+        control char either, without a separate validator."""
+        nul = chr(0)
+        result = WebSearchResult(
+            url=f"https://exam{nul}ple.com/page",
+            title="t",
+            snippet="",
+            content="",
+        )
+        assert nul not in result.display_link
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
