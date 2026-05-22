@@ -153,10 +153,11 @@ flowchart TD
 
 1. **Arm the cycle** (usually automated, manual escape hatch available — see [Arming a cycle](#arming-a-cycle)).
 2. Developers merge features to `main`. Each merge triggers a dev publish (see above) and keeps the standing Release PR up to date. Whenever release-please rewrites the PR, `cd-release.yaml` regenerates `uv.lock` in the same workflow run and pushes the result back onto the PR branch — that push runs PR CI like any other commit, so the PR's status is always against the actual lockfile that will land.
-3. When ready to ship, **merge the Release PR** on `main`. Its title is:
+3. When ready to ship, **merge the Release PR** on `main`. Its title is always:
    ```
-   chore: stable release <version>
+   chore: stable release main
    ```
+   (`group-pull-request-title-pattern` uses `${branch}`, not the CalVer version.) The target release version (e.g. `2026.24.0`) appears in the PR diff — manifest, `pyproject.toml` versions, and changelogs — not in the title.
    Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
 4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries, then tags and creates a GitHub Release.
 5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset), arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle) — and closes the currently-open `chore: pin dev-cut <SHA>` PR if one exists (`cd-publish-dev.yaml` keeps at most one open at a time; after a stable cut its floors are strictly older than what just landed on `main`).
@@ -182,7 +183,7 @@ Use the manual escape hatch when the automation can't run on its own (bootstrap,
 ```mermaid
 flowchart TD
     ARM[cd-arm-version.yaml<br/>or auto post-release] -->|direct push to main<br/>Release-As: trailer| MAIN[main]
-    MAIN -->|release-please updates| RPR[Standing Release PR<br/>chore: stable release X]
+    MAIN -->|release-please updates| RPR[Standing Release PR<br/>chore: stable release main]
     MAIN -->|cd-release.yaml| LOCK[regenerate uv.lock<br/>push onto PR branch<br/>PR CI runs]
     LOCK --> RPR
     RPR -->|merge| TAG[release-please tags<br/>+ creates GitHub Release]
