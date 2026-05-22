@@ -151,6 +151,100 @@ def test_model_choice_uses_selected_model_when_selection_is_enabled() -> None:
 
 
 @pytest.mark.ai
+def test_model_choice_uses_selected_model_when_present_in_allowlist() -> None:
+    """
+    Purpose: Verify allowed_user_model permits listed per-message model choices.
+    Why this matters: Space admins need a bounded model picker without blocking valid selections.
+    Setup summary: Configure an allowlist containing the selected model; assert the override applies.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_user_model_selection=True,
+            allowed_user_model=[_make_model("selected-model")],
+            language_model=default_model,
+            tools=[],
+        )
+    )
+
+    _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model is selected_model
+
+
+@pytest.mark.ai
+def test_model_choice_rejects_selected_model_when_allowlist_entry_differs() -> None:
+    """
+    Purpose: Verify allowed_user_model requires the full LanguageModelInfo to match.
+    Why this matters: A name-only match could allow a model variant with different capabilities.
+    Setup summary: Configure an allowlist entry with the same name but different capabilities.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_user_model_selection=True,
+            allowed_user_model=[
+                _make_model(
+                    "selected-model",
+                    capabilities=[ModelCapabilities.STREAMING],
+                )
+            ],
+            language_model=default_model,
+            tools=[],
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="User model choice 'selected-model' is not allowed for this space.",
+    ):
+        _apply_model_choice_override(
+            event=_make_event(selected_model, has_model_choice_override=True),
+            logger=MagicMock(),
+            config=config,
+        )
+
+    assert config.space.language_model is default_model
+
+
+@pytest.mark.ai
+def test_model_choice_rejects_selected_model_when_missing_from_allowlist() -> None:
+    """
+    Purpose: Verify allowed_user_model blocks unlisted per-message model choices.
+    Why this matters: User-controlled model overrides must not bypass the space allowlist.
+    Setup summary: Configure an allowlist without the selected model; assert validation fails.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_user_model_selection=True,
+            allowed_user_model=[_make_model("allowed-model")],
+            language_model=default_model,
+            tools=[],
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="User model choice 'selected-model' is not allowed for this space.",
+    ):
+        _apply_model_choice_override(
+            event=_make_event(selected_model, has_model_choice_override=True),
+            logger=MagicMock(),
+            config=config,
+        )
+
+    assert config.space.language_model is default_model
+
+
+@pytest.mark.ai
 def test_model_choice_removes_code_interpreter_when_selected_model_lacks_responses_api() -> (
     None
 ):

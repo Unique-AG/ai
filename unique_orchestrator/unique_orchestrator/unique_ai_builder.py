@@ -172,19 +172,33 @@ class _CommonComponents(NamedTuple):
 
 
 def _apply_model_choice_override(
+    *,
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
 ) -> None:
     if (
         not config.space.allow_user_model_selection
+        or not config.space.allowed_user_model
         or not event.payload.has_model_choice_override
     ):
         return
 
     selected_model = event.payload.model_choice
+    if not _is_allowed_user_model_choice(
+        selected_model=selected_model,
+        allowed_models=config.space.allowed_user_model,
+    ):
+        raise ValueError(
+            f"User model choice {selected_model.display_name!r} is not "
+            "allowed for this space."
+        )
+
     config.space.language_model = selected_model
-    logger.info("Using user model choice %s.", _language_model_name(selected_model))
+    logger.info(
+        "Using user model choice %s.",
+        selected_model.display_name,
+    )
 
     _remove_tools_with_unsupported_model_capabilities(config=config, logger=logger)
     _disable_responses_api_when_model_does_not_support_it(
@@ -196,11 +210,16 @@ def _apply_model_choice_override(
     config.validate_open_file_tool_requires_responses_api()
 
 
-def _language_model_name(model: LanguageModelInfo) -> str:
-    return model.display_name
+def _is_allowed_user_model_choice(
+    *,
+    selected_model: LanguageModelInfo,
+    allowed_models: list[LanguageModelInfo],
+) -> bool:
+    return any(selected_model == model for model in allowed_models)
 
 
 def _remove_tools_with_unsupported_model_capabilities(
+    *,
     config: UniqueAIConfig,
     logger: Logger,
 ) -> None:
@@ -216,7 +235,7 @@ def _remove_tools_with_unsupported_model_capabilities(
                 "Removing tool %s because selected model %s does not support "
                 "required capabilities: %s.",
                 tool.name,
-                _language_model_name(config.space.language_model),
+                config.space.language_model.displa_name,
                 ModelCapabilities.RESPONSES_API,
             )
             continue
@@ -227,6 +246,7 @@ def _remove_tools_with_unsupported_model_capabilities(
 
 
 def _disable_responses_api_when_model_does_not_support_it(
+    *,
     config: UniqueAIConfig,
     logger: Logger,
 ) -> None:
@@ -240,7 +260,7 @@ def _disable_responses_api_when_model_does_not_support_it(
     if uses_responses_api:
         logger.warning(
             "Disabling Responses API because selected model %s does not support it.",
-            _language_model_name(config.space.language_model),
+            config.space.language_model.display_name,
         )
 
     config.agent.experimental.responses_api_config.use_responses_api = False
