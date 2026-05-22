@@ -235,7 +235,7 @@ def _remove_tools_with_unsupported_model_capabilities(
                 "Removing tool %s because selected model %s does not support "
                 "required capabilities: %s.",
                 tool.name,
-                config.space.language_model.displa_name,
+                config.space.language_model.display_name,
                 ModelCapabilities.RESPONSES_API,
             )
             continue
