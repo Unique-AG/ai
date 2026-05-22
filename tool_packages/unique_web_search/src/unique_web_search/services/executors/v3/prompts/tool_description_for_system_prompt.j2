@@ -19,6 +19,7 @@ Crawls one or more URLs and returns the full-page text or relevant portions. It 
 Use it when:
 
 - The user **pasted a URL** or asked you to read a specific page — go straight here, do not search first.
+- Your most recent `search` returned a URL with **`relevance_score ≥ 0.85`** — fetch that URL now; do not issue another search. See the *Decision rule* below.
 - The task is **complex / in-depth** and needs more than a snippet: exact figures, full quotes, regulatory text, contract language, statute numbers, API specs, version numbers.
 - The previous search returned **paraphrased / hedged snippets** ("around", "approximately", "is expected to", "reportedly") for a question that needs precision.
 - The topic is **canonical-source-driven** — financial filings (10-K, 10-Q, earnings releases), regulator publications, official product docs, peer-reviewed papers, primary press releases — where the page itself is the source of truth.
@@ -28,6 +29,18 @@ Use it when:
 - A SERP result revealed a **domain whose URL pattern is predictable** (e.g. `site.com/en/buildings/{slug}/`) and you can derive the slug for the specific entity from its name — construct the URL and fetch it directly rather than issuing another search. You may construct page-level URLs from patterns you have already seen on a domain; never invent domain names.
 
 **Current date:** {{ date_string }}
+
+### Decision rule: act on `relevance_score` ≥ 0.85 immediately
+
+If the most recent `search` result contains **any** URL with `relevance_score ≥ 0.85` in its JSON payload, your **next** tool call MUST be `command: "read_urls"` with that URL. Do **not** issue another `search`. Do **not** answer from the snippet alone. Do **not** skip the fetch because you want "more sources" or a "better" hit — a score at this band is the LLM judge's signal that the page itself contains the field-level answer, and another search is very unlikely to surface anything stronger.
+
+This rule overrides the explore-first guidance below. It is the single most important branch in this tool because the most common failure mode is: a `search` yields a ≥ 0.85 hit, the agent searches yet again hoping for something even better, and ends up answering from weaker snippets across multiple SERPs while the high-signal URL sits unfetched. If you find yourself about to issue a `search` and your last SERP contained a ≥ 0.85 result, stop and fetch that URL instead.
+
+Exceptions (all narrow):
+- You already fetched that URL in a prior iteration and the page did not contain the answer.
+- The question is satisfied entirely by what the snippet already says (rare for field-level questions; common only for "does X exist" or "what is the title of Y").
+
+If you decide an exception applies, your final answer must explicitly name the ≥ 0.85 URL you chose not to fetch and state why the snippet was sufficient.
 
 ### Efficiency & Latency Optimization
 
@@ -44,6 +57,27 @@ Use it when:
   - **Absent** — either the filter is disabled or every result fell below threshold and was passed through unfiltered (a fall-back signal that the SERP is weak). Do **not** default to answering from snippets. You **MUST** either (a) reformulate the query and search again, or (b) fetch the single most-promising URL from the current SERP before answering. Treat absent scores as equivalent to the `< 0.40` band, not as permission to skip fetching.
 - **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
 - **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
+
+### When to say "I could not find a reliable source"
+
+Web search is not omniscient. Some questions have no answer in the public, crawlable web — the data is not published, sits behind a paywall the crawler cannot reach, or the entity / timeframe does not match anything indexed. **Fabricating a number, or paraphrasing one from a weak snippet, is worse than admitting the gap.** A clean "no" with a concrete reformulation suggestion is the correct answer in that case.
+
+Answer with "I could not find a reliable source" when **all** of these hold:
+
+- You have run **at least two** `search` calls for the same gap, ideally with different keywords, languages, or timeframes.
+- No SERP returned a result with `relevance_score ≥ 0.85` that you successfully fetched and that actually contained the field-level answer. **A ≥ 0.85 hit you skipped does not count — fetch it first** (Decision rule above). A ≥ 0.85 page you fetched but that turned out to be 404 / blocked / off-topic does count toward "tried."
+- The pages you did fetch were dead (404 / login wall / unrelated content), or did not contain the specific field the user asked for.
+- One more refined query is unlikely to surface anything stronger — you have already tried the obvious reformulations (entity name in local language, alternative source classes, broader time window).
+
+When that condition is met, answer plainly. Do **not** present a guess as a fact:
+
+> "I could not find a reliable source for **\<the specific field\>**. The data may not be publicly available, may sit behind a paywall, or the entity / timeframe may not match what is indexed. You could try: **\<one concrete reformulation — different time window, broader geography, specific source name, primary-source database\>**."
+
+Anti-patterns this rule blocks:
+- **Quoting a number from a weak / hedged snippet** as if it were sourced. If the snippet only paraphrases or qualifies the value, the answer must hedge in the same way — or, better, the answer is "I could not find a reliable source."
+- **Synthesising from adjacent data points** the user did not ask for. The fetched page may match on topic but sit in the **wrong scope** — a broader or narrower geographic level than the gap names, a different named entity in the same category, a neighbouring timeframe on a field whose value changes between periods, or a different field entirely. Same topic, wrong scope is not an answer. A `relevance_score ≥ 0.85` only tells you the snippet *looked* like a match; once you have the page you must check that its scope (entity, geography, timeframe, field) actually matches the gap's scope. If it does not, treat the page as not containing the answer, regardless of its score. **Scope mismatch is the dominant over-scoring failure of the SERP judge and the dominant cause of hallucinated answers in this tool — you must catch it yourself after fetching.**
+- **Padding a fabricated number with caveats** ("varies", "depends on context", "subject to negotiation") to make a guess look defensible. Caveats do not turn a guess into a source.
+- **Giving up after one bad fetch.** A 404 / blocked / off-topic page from a ≥ 0.85 URL is not a stop signal — it is a signal to try the next-highest-signal URL from the same SERP, or to reformulate. Only after at least two searches plus the failed fetches is "I could not find it" the right answer.
 
 For the deeper explore-then-exploit playbook (snippet hedging triggers, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns, worked examples), activate the `web-search-v3` skill before/while using this tool.
 
