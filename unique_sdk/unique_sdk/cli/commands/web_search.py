@@ -18,6 +18,8 @@ Override precedence (highest first):
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 from typing import Any, cast
 
 import unique_sdk
@@ -31,9 +33,138 @@ from unique_sdk.cli.state import ShellState
 DEFAULT_PARALLEL = 10
 _SNIPPET_PREVIEW_LIMIT = 200
 _CONTENT_PREVIEW_LIMIT = 500
+_WEB_REFS_LOG_RELATIVE_PATH = Path(".unique") / "web-refs.jsonl"
 
 WEB_SEARCH_ERROR_PREFIX = "web-search:"
 WEB_CRAWL_ERROR_PREFIX = "web-crawl:"
+
+
+class UnsafeWebRefsLogPathError(OSError):
+    """Raised when the internal web refs log path would follow a symlink."""
+
+
+def _assert_safe_web_refs_log_path(refs_log_path: Path) -> None:
+    refs_log_dir = refs_log_path.parent
+    if refs_log_dir.is_symlink() or (
+        refs_log_dir.exists() and not refs_log_dir.is_dir()
+    ):
+        raise UnsafeWebRefsLogPathError(
+            f"refusing unsafe web refs log directory: {refs_log_dir}"
+        )
+    if refs_log_path.is_symlink():
+        raise UnsafeWebRefsLogPathError(
+            f"refusing unsafe web refs log file: {refs_log_path}"
+        )
+    if refs_log_path.exists() and not refs_log_path.is_file():
+        raise UnsafeWebRefsLogPathError(
+            f"refusing unsafe web refs log file: {refs_log_path}"
+        )
+
+
+def _read_web_refs_manifest(
+    refs_log_path: Path,
+) -> list[dict[str, Any]]:
+    _assert_safe_web_refs_log_path(refs_log_path)
+    if not refs_log_path.is_file():
+        return []
+    try:
+        raw_lines = refs_log_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+
+    entries: list[dict[str, Any]] = []
+    for raw in raw_lines:
+        if not raw.strip():
+            continue
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            entries.append(payload)
+    return entries
+
+
+def _source_numbers_by_url(entries: list[dict[str, Any]]) -> dict[str, int]:
+    by_url: dict[str, int] = {}
+    for entry in entries:
+        url = entry.get("url")
+        source_number = entry.get("sourceNumber")
+        if isinstance(url, str) and isinstance(source_number, int):
+            by_url.setdefault(url.strip(), source_number)
+    return by_url
+
+
+def _next_source_number(entries: list[dict[str, Any]]) -> int:
+    source_numbers = [
+        entry["sourceNumber"]
+        for entry in entries
+        if isinstance(entry.get("sourceNumber"), int)
+    ]
+    return max(source_numbers, default=0) + 1
+
+
+def _append_web_refs_manifest_entry(
+    refs_log_path: Path,
+    payload: dict[str, Any],
+) -> None:
+    _assert_safe_web_refs_log_path(refs_log_path)
+    refs_log_path.parent.mkdir(parents=True, exist_ok=True)
+    _assert_safe_web_refs_log_path(refs_log_path)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(refs_log_path, flags, 0o600)
+    except OSError as exc:
+        raise UnsafeWebRefsLogPathError(
+            f"failed to open web refs log safely: {refs_log_path}"
+        ) from exc
+    with os.fdopen(fd, "a", encoding="utf-8") as fp:
+        fp.write(json.dumps(payload, default=str, ensure_ascii=False) + "\n")
+
+
+def _annotate_web_results_for_citations(
+    payload: dict[str, Any],
+    *,
+    refs_log_path: Path | None = None,
+) -> dict[str, Any]:
+    """Add per-turn web citation numbers and append the refs manifest."""
+    refs_log_path = refs_log_path or (Path.cwd() / _WEB_REFS_LOG_RELATIVE_PATH)
+    entries = _read_web_refs_manifest(refs_log_path)
+    source_numbers_by_url = _source_numbers_by_url(entries)
+    annotated = dict(payload)
+    annotated_results: list[dict[str, Any]] = []
+
+    for raw_result in payload.get("results", []):
+        if not isinstance(raw_result, dict):
+            continue
+        result = dict(raw_result)
+        url = str(result.get("url") or "").strip()
+        if not url:
+            annotated_results.append(result)
+            continue
+
+        source_number = source_numbers_by_url.get(url)
+        if source_number is None:
+            source_number = _next_source_number(entries)
+            source_numbers_by_url[url] = source_number
+            entries.append({"sourceNumber": source_number, "url": url})
+
+        result["sourceNumber"] = source_number
+        result["citation"] = f"websource{source_number}"
+        manifest_entry = {
+            "sourceNumber": source_number,
+            "url": url,
+            "title": result.get("title"),
+            "snippet": result.get("snippet"),
+            "content": result.get("content"),
+            "error": result.get("error"),
+        }
+        _append_web_refs_manifest_entry(refs_log_path, manifest_entry)
+        annotated_results.append(result)
+
+    annotated["results"] = annotated_results
+    return annotated
 
 
 def _format_search_results(payload: dict[str, Any]) -> str:
@@ -54,7 +185,9 @@ def _format_search_results(payload: dict[str, Any]) -> str:
         snippet = (result.get("snippet") or "").replace("\n", " ").strip()
         content = result.get("content") or ""
 
-        lines.append(f"  {i}. {title}")
+        citation = result.get("citation")
+        citation_suffix = f" [{citation}]" if citation else ""
+        lines.append(f"  {i}. {title}{citation_suffix}")
         lines.append(f"     {url}")
 
         if snippet:
@@ -99,7 +232,9 @@ def _format_crawl_results(payload: dict[str, Any]) -> str:
         content = entry.get("content") or ""
         error = entry.get("error")
 
-        lines.append(f"  {i}. {url}")
+        citation = entry.get("citation")
+        citation_suffix = f" [{citation}]" if citation else ""
+        lines.append(f"  {i}. {url}{citation_suffix}")
         if error:
             lines.append(f"     ERROR: {error}")
         elif content.strip():
@@ -254,7 +389,10 @@ def cmd_web_search(
     except (ValueError, unique_sdk.APIError) as exc:
         return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
 
-    payload = _payload_from_resource(resource)
+    try:
+        payload = _annotate_web_results_for_citations(_payload_from_resource(resource))
+    except UnsafeWebRefsLogPathError as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
     if output_json:
         return _format_search_results_json(payload)
     return _format_search_results(payload)
@@ -315,7 +453,10 @@ def cmd_web_crawl(
     except (ValueError, unique_sdk.APIError) as exc:
         return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
 
-    payload = _payload_from_resource(resource)
+    try:
+        payload = _annotate_web_results_for_citations(_payload_from_resource(resource))
+    except UnsafeWebRefsLogPathError as exc:
+        return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
     if output_json:
         return _format_crawl_results_json(payload)
     return _format_crawl_results(payload)

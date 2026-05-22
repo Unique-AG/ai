@@ -15,6 +15,7 @@ from unique_sdk.cli.cli import main as cli_main
 from unique_sdk.cli.commands.web_search import (
     WEB_CRAWL_ERROR_PREFIX,
     WEB_SEARCH_ERROR_PREFIX,
+    _annotate_web_results_for_citations,
     _format_crawl_results,
     _format_crawl_results_json,
     _format_search_results,
@@ -51,6 +52,11 @@ def _config() -> Config:
 
 def _state() -> ShellState:
     return ShellState(_config())
+
+
+@pytest.fixture(autouse=True)
+def _isolate_web_refs_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
 
 
 def _make_search_payload(
@@ -186,13 +192,31 @@ class TestSearchFormatting:
 
     def test_search_json_envelope(self) -> None:
         payload = _make_search_payload(
-            results=[{"url": "u", "title": "t", "snippet": "s", "content": ""}]
+            results=[
+                {
+                    "url": "u",
+                    "title": "t",
+                    "snippet": "s",
+                    "content": "",
+                    "sourceNumber": 1,
+                    "citation": "websource1",
+                }
+            ]
         )
         parsed = json.loads(_format_search_results_json(payload))
         assert parsed == {
             "engine": "Google",
             "query": "q",
-            "results": [{"url": "u", "title": "t", "snippet": "s", "content": ""}],
+            "results": [
+                {
+                    "url": "u",
+                    "title": "t",
+                    "snippet": "s",
+                    "content": "",
+                    "sourceNumber": 1,
+                    "citation": "websource1",
+                }
+            ],
         }
 
 
@@ -220,13 +244,131 @@ class TestCrawlFormatting:
 
     def test_crawl_json_envelope(self) -> None:
         payload = _make_crawl_payload(
-            results=[{"url": "u", "content": "c", "error": None}]
+            results=[
+                {
+                    "url": "u",
+                    "content": "c",
+                    "error": None,
+                    "sourceNumber": 1,
+                    "citation": "websource1",
+                }
+            ]
         )
         parsed = json.loads(_format_crawl_results_json(payload))
         assert parsed == {
             "crawler": "BasicCrawler",
-            "results": [{"url": "u", "content": "c", "error": None}],
+            "results": [
+                {
+                    "url": "u",
+                    "content": "c",
+                    "error": None,
+                    "sourceNumber": 1,
+                    "citation": "websource1",
+                }
+            ],
         }
+
+
+class TestCitationManifest:
+    def test_annotates_results_and_writes_manifest(self, tmp_path: Path) -> None:
+        payload = _make_search_payload(
+            results=[
+                {
+                    "url": "https://example.com/a",
+                    "title": "A",
+                    "snippet": "Snippet A",
+                    "content": "",
+                }
+            ]
+        )
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+
+        annotated = _annotate_web_results_for_citations(payload, refs_log_path=manifest)
+
+        assert annotated["results"][0]["sourceNumber"] == 1
+        assert annotated["results"][0]["citation"] == "websource1"
+        entries = [
+            json.loads(line)
+            for line in manifest.read_text(encoding="utf-8").splitlines()
+        ]
+        assert entries == [
+            {
+                "sourceNumber": 1,
+                "url": "https://example.com/a",
+                "title": "A",
+                "snippet": "Snippet A",
+                "content": "",
+                "error": None,
+            }
+        ]
+
+    def test_reuses_source_number_for_crawled_url(self, tmp_path: Path) -> None:
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+        _annotate_web_results_for_citations(
+            _make_search_payload(
+                results=[
+                    {
+                        "url": "https://example.com/a",
+                        "title": "A",
+                        "snippet": "Snippet A",
+                        "content": "",
+                    }
+                ]
+            ),
+            refs_log_path=manifest,
+        )
+
+        annotated = _annotate_web_results_for_citations(
+            _make_crawl_payload(
+                results=[
+                    {
+                        "url": "https://example.com/a",
+                        "content": "# Full page",
+                        "error": None,
+                    }
+                ]
+            ),
+            refs_log_path=manifest,
+        )
+
+        assert annotated["results"][0]["sourceNumber"] == 1
+        entries = [
+            json.loads(line)
+            for line in manifest.read_text(encoding="utf-8").splitlines()
+        ]
+        assert [entry["sourceNumber"] for entry in entries] == [1, 1]
+
+    def test_source_numbering_continues_across_calls(self, tmp_path: Path) -> None:
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+        _annotate_web_results_for_citations(
+            _make_search_payload(
+                results=[
+                    {
+                        "url": "https://example.com/a",
+                        "title": "A",
+                        "snippet": "Snippet A",
+                        "content": "",
+                    }
+                ]
+            ),
+            refs_log_path=manifest,
+        )
+
+        annotated = _annotate_web_results_for_citations(
+            _make_search_payload(
+                results=[
+                    {
+                        "url": "https://example.com/b",
+                        "title": "B",
+                        "snippet": "Snippet B",
+                        "content": "",
+                    }
+                ]
+            ),
+            refs_log_path=manifest,
+        )
+
+        assert annotated["results"][0]["sourceNumber"] == 2
 
 
 class TestCmdWebSearch:
@@ -332,7 +474,15 @@ class TestCmdWebCrawl:
         out = cmd_web_crawl(_state(), ["u"], output_json=True)
         parsed = json.loads(out)
         assert parsed["crawler"] == "BasicCrawler"
-        assert parsed["results"] == [{"url": "u", "content": "c", "error": None}]
+        assert parsed["results"] == [
+            {
+                "url": "u",
+                "content": "c",
+                "error": None,
+                "sourceNumber": 1,
+                "citation": "websource1",
+            }
+        ]
 
     @patch("unique_sdk.WebCrawl.crawl")
     def test_cmd_web_crawl_api_error(self, mock_crawl: MagicMock) -> None:

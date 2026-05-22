@@ -23,12 +23,12 @@ Two-phase web research from the terminal, backed by the Unique AI Platform's pub
 
 ## Two-Phase Workflow (preferred for AI agents)
 
-1. `unique-cli web-search search "<query>" --json` → candidate URLs with snippets.
+1. `unique-cli web-search search "<query>" --json` → candidate URLs with snippets and citation keys.
 2. Review titles + snippets, pick the URLs that look relevant.
-3. `unique-cli web-search crawl <selected-urls>` → full page content for those URLs.
-4. Reason over the crawled content and respond with proper citations.
+3. `unique-cli web-search crawl <selected-urls> --json` → full page content for those URLs, reusing citation keys for URLs returned by search.
+4. Reason over the crawled content and cite web facts with `[websourceN]`.
 
-This sequencing is much cheaper than crawling everything up-front and is the recommended pattern when an LLM is the consumer.
+This sequencing is much cheaper than crawling everything up-front and is the recommended pattern when an LLM is the consumer. In Swappable Intelligence, the CLI also writes `.unique/web-refs.jsonl`; the platform converts cited `[websourceN]` markers into external reference chips in the final answer.
 
 ```bash
 unique-cli web-search search "EU AI Act enforcement timeline" --json \
@@ -194,7 +194,9 @@ Found 3 result(s):
       "url": "https://example.com/article",
       "title": "Example Page Title",
       "snippet": "A short snippet describing the page content...",
-      "content": ""
+      "content": "",
+      "sourceNumber": 1,
+      "citation": "websource1"
     }
   ]
 }
@@ -210,6 +212,9 @@ Found 3 result(s):
 >   | jq -r '.results[].url' \
 >   | unique-cli web-search crawl --stdin
 > ```
+
+Use the `citation` value in final prose, wrapped in square brackets, e.g.
+`The regulation applies in phases [websource1].`
 
 ### `crawl` (text)
 
@@ -234,7 +239,9 @@ Crawled 2 URL(s):
     {
       "url": "https://example.com/article",
       "content": "Full page content as markdown...",
-      "error": null
+      "error": null,
+      "sourceNumber": 1,
+      "citation": "websource1"
     },
     {
       "url": "https://other.com/page",
@@ -274,7 +281,7 @@ jq -r '.results[0:3][].url' /tmp/hits.json \
   | unique-cli web-search crawl --stdin --json \
   > /tmp/pages.json
 
-# 3. Reason over /tmp/pages.json and respond with citations.
+# 3. Reason over /tmp/pages.json and cite supported web facts as [websourceN].
 ```
 
 ### One-shot search-with-content (no manual selection)
@@ -346,6 +353,18 @@ for entry in pages.results:
 
 Both classes have `*_async` variants (`WebSearch.search_async`,
 `WebCrawl.crawl_async`) for async contexts.
+
+## Citation Rules
+
+- Use `[websourceN]` for public web citations, where `N` is the `sourceNumber`
+  returned by `unique-cli web-search`.
+- Do not use `[sourceN]` for web results; `[sourceN]` is reserved for internal
+  knowledge-base citations.
+- Only cite source numbers from the current turn's command output.
+- The same URL keeps the same `sourceNumber` across search and crawl calls in a
+  turn, so cite the crawled content with the same marker that the search result
+  used.
+- Never invent citation markers for remembered or inferred facts.
 
 ## Prerequisites
 
