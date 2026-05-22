@@ -174,11 +174,11 @@ discriminator:
 engine: Google    query: 'quarterly earnings 2026'
 Found 3 result(s):
 
-  1. Example Page Title
+  1. Example Page Title [websource1]
      https://example.com/article
      A short snippet describing the page content...
 
-  2. Another Relevant Result
+  2. Another Relevant Result [websource2]
      https://another.com/page
      [4523 chars of content]    # only when --include-content
 ```
@@ -222,11 +222,11 @@ Use the `citation` value in final prose, wrapped in square brackets, e.g.
 crawler: BasicCrawler
 Crawled 2 URL(s):
 
-  1. https://example.com/article
+  1. https://example.com/article [websource1]
      [4523 chars]
      Full page content preview, truncated to ~500 characters...
 
-  2. https://other.com/page
+  2. https://other.com/page [websource2]
      ERROR: HTTP 503 from upstream
 ```
 
@@ -246,7 +246,9 @@ Crawled 2 URL(s):
     {
       "url": "https://other.com/page",
       "content": "",
-      "error": "HTTP 503 from upstream"
+      "error": "HTTP 503 from upstream",
+      "sourceNumber": 2,
+      "citation": "websource2"
     }
   ]
 }

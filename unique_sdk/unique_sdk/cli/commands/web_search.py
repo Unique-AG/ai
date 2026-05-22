@@ -17,8 +17,10 @@ Override precedence (highest first):
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, cast
 
@@ -34,6 +36,7 @@ DEFAULT_PARALLEL = 10
 _SNIPPET_PREVIEW_LIMIT = 200
 _CONTENT_PREVIEW_LIMIT = 500
 _WEB_REFS_LOG_RELATIVE_PATH = Path(".unique") / "web-refs.jsonl"
+_WEB_REFS_LOCK_FILENAME = "web-refs.lock"
 
 WEB_SEARCH_ERROR_PREFIX = "web-search:"
 WEB_CRAWL_ERROR_PREFIX = "web-crawl:"
@@ -69,8 +72,10 @@ def _read_web_refs_manifest(
         return []
     try:
         raw_lines = refs_log_path.read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return []
+    except OSError as exc:
+        raise UnsafeWebRefsLogPathError(
+            f"failed to read web refs log: {refs_log_path}"
+        ) from exc
 
     entries: list[dict[str, Any]] = []
     for raw in raw_lines:
@@ -109,7 +114,12 @@ def _append_web_refs_manifest_entry(
     payload: dict[str, Any],
 ) -> None:
     _assert_safe_web_refs_log_path(refs_log_path)
-    refs_log_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        refs_log_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise UnsafeWebRefsLogPathError(
+            f"failed to create web refs log directory: {refs_log_path.parent}"
+        ) from exc
     _assert_safe_web_refs_log_path(refs_log_path)
     flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
     flags |= getattr(os, "O_NOFOLLOW", 0)
@@ -119,8 +129,54 @@ def _append_web_refs_manifest_entry(
         raise UnsafeWebRefsLogPathError(
             f"failed to open web refs log safely: {refs_log_path}"
         ) from exc
-    with os.fdopen(fd, "a", encoding="utf-8") as fp:
-        fp.write(json.dumps(payload, default=str, ensure_ascii=False) + "\n")
+    try:
+        with os.fdopen(fd, "a", encoding="utf-8") as fp:
+            fp.write(json.dumps(payload, default=str, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        raise UnsafeWebRefsLogPathError(
+            f"failed to write web refs log: {refs_log_path}"
+        ) from exc
+
+
+@contextmanager
+def _locked_web_refs_manifest(
+    refs_log_path: Path,
+) -> Any:
+    lock_path = refs_log_path.parent / _WEB_REFS_LOCK_FILENAME
+    _assert_safe_web_refs_log_path(lock_path)
+    try:
+        refs_log_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise UnsafeWebRefsLogPathError(
+            f"failed to create web refs log directory: {refs_log_path.parent}"
+        ) from exc
+    _assert_safe_web_refs_log_path(lock_path)
+
+    flags = os.O_RDWR | os.O_CREAT
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(lock_path, flags, 0o600)
+    except OSError as exc:
+        raise UnsafeWebRefsLogPathError(
+            f"failed to open web refs lock safely: {lock_path}"
+        ) from exc
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+    except OSError as exc:
+        os.close(fd)
+        raise UnsafeWebRefsLogPathError(
+            f"failed to lock web refs manifest: {lock_path}"
+        ) from exc
+
+    try:
+        yield
+    finally:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        os.close(fd)
 
 
 def _annotate_web_results_for_citations(
@@ -130,41 +186,42 @@ def _annotate_web_results_for_citations(
 ) -> dict[str, Any]:
     """Add per-turn web citation numbers and append the refs manifest."""
     refs_log_path = refs_log_path or (Path.cwd() / _WEB_REFS_LOG_RELATIVE_PATH)
-    entries = _read_web_refs_manifest(refs_log_path)
-    source_numbers_by_url = _source_numbers_by_url(entries)
-    annotated = dict(payload)
-    annotated_results: list[dict[str, Any]] = []
+    with _locked_web_refs_manifest(refs_log_path):
+        entries = _read_web_refs_manifest(refs_log_path)
+        source_numbers_by_url = _source_numbers_by_url(entries)
+        annotated = dict(payload)
+        annotated_results: list[dict[str, Any]] = []
 
-    for raw_result in payload.get("results", []):
-        if not isinstance(raw_result, dict):
-            continue
-        result = dict(raw_result)
-        url = str(result.get("url") or "").strip()
-        if not url:
+        for raw_result in payload.get("results", []):
+            if not isinstance(raw_result, dict):
+                continue
+            result = dict(raw_result)
+            url = str(result.get("url") or "").strip()
+            if not url:
+                annotated_results.append(result)
+                continue
+
+            source_number = source_numbers_by_url.get(url)
+            if source_number is None:
+                source_number = _next_source_number(entries)
+                source_numbers_by_url[url] = source_number
+                entries.append({"sourceNumber": source_number, "url": url})
+
+            result["sourceNumber"] = source_number
+            result["citation"] = f"websource{source_number}"
+            manifest_entry = {
+                "sourceNumber": source_number,
+                "url": url,
+                "title": result.get("title"),
+                "snippet": result.get("snippet"),
+                "content": result.get("content"),
+                "error": result.get("error"),
+            }
+            _append_web_refs_manifest_entry(refs_log_path, manifest_entry)
             annotated_results.append(result)
-            continue
 
-        source_number = source_numbers_by_url.get(url)
-        if source_number is None:
-            source_number = _next_source_number(entries)
-            source_numbers_by_url[url] = source_number
-            entries.append({"sourceNumber": source_number, "url": url})
-
-        result["sourceNumber"] = source_number
-        result["citation"] = f"websource{source_number}"
-        manifest_entry = {
-            "sourceNumber": source_number,
-            "url": url,
-            "title": result.get("title"),
-            "snippet": result.get("snippet"),
-            "content": result.get("content"),
-            "error": result.get("error"),
-        }
-        _append_web_refs_manifest_entry(refs_log_path, manifest_entry)
-        annotated_results.append(result)
-
-    annotated["results"] = annotated_results
-    return annotated
+        annotated["results"] = annotated_results
+        return annotated
 
 
 def _format_search_results(payload: dict[str, Any]) -> str:
