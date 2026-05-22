@@ -231,7 +231,7 @@ Location: `docs/api_resources/<resource>.md`
 **Do not** edit `pyproject.toml` `version` or `CHANGELOG.md` in feature PRs. CI blocks manual release edits (`check-no-manual-release.sh`).
 
 1. Land SDK + docs with a **conventional commit** (e.g. `feat(sdk): add Message correlation`).
-2. release-please updates version (CalVer `YYYY.WW.PATCH`) and changelog on the standing Release PR.
+2. release-please updates version (CalVer `YYYY.WW.PATCH`) and changelog on the standing Release PR (`chore: stable release main`).
 3. Merge that Release PR when ready to publish to PyPI.
 
 See `docs/contributing/release-process.md` and the `release-process` agent skill.

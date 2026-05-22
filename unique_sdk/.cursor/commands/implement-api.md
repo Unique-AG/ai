@@ -65,7 +65,7 @@ async def new_method_async(cls, user_id: str, company_id: str, **params: Unpack[
 Do **not** edit `unique_sdk/pyproject.toml` `version` or `unique_sdk/CHANGELOG.md` in the feature PR. CI (`check-no-manual-release.sh`) blocks those files.
 
 - Use a conventional commit when opening the PR, e.g. `feat(sdk): add correlation to Message.create`.
-- release-please updates version and changelog on the standing Release PR (`chore: stable release <CalVer>`).
+- release-please updates version and changelog on the standing Release PR (`chore: stable release main`; CalVer target is in the PR body/diff).
 - After merge of the Release PR, use the **Generate Release Notes** command for Slack/Teams copy (reads the released changelog entry).
 
 ## 7. Checklist

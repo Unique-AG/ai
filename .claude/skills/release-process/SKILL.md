@@ -37,7 +37,7 @@ Exception: release-please's own standing Release PR (opened by the Release Workf
 
 1. Land code with **conventional commit** subjects (`git-conventional-commits` skill).
 2. Use scopes that match the package path when helpful (e.g. `feat(sdk): ...`, `feat(toolkit): ...`).
-3. Let release-please accumulate notes on the standing Release PR (`chore: stable release <CalVer>`).
+3. Let release-please accumulate notes on the standing Release PR (title: `chore: stable release main` per `group-pull-request-title-pattern` in `release-please-config.json`; target CalVer is in the PR diff, not the title).
 4. Merge the Release PR when ready to ship — release-please rewrites versions, changelogs, tags, and triggers PyPI publish.
 
 | Intent | Commit type | Notes |
