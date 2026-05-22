@@ -22,7 +22,7 @@ class SearchPayload(BaseModel):
 
 class FetchUrlsPayload(BaseModel):
     urls: list[str] = Field(
-        description="HTTP(S) URLs to crawl for full-page text. Use only URLs returned by a prior search or pasted by the user."
+        description="HTTP(S) URLs to crawl. Use only URLs returned by a prior search or pasted by the user. Prefer 1-2 high-signal URLs to reduce latency."
     )
 
 

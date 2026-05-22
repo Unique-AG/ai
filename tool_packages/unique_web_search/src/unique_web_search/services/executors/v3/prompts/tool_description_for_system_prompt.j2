@@ -12,9 +12,9 @@ Use it when:
 - You want to **scope or sanity-check** a topic cheaply (does this entity / event / product even exist? how recent is the latest coverage?).
 - You need to **cover a new gap / sub-question** in a multi-step task — issue another search rather than blindly fetching.
 
-#### `command: "read_urls"` — fetch full page content
+#### `command: "read_urls"` — fetch specific page content
 
-Crawls one or more URLs and returns the full-page text. It is **slower** than search but gives the **complete content** of the chosen pages, not just a snippet.
+Crawls one or more URLs and returns the full-page text or relevant portions. It is **slower** than search but gives the **complete content** of the chosen pages, not just a snippet.
 
 Use it when:
 
@@ -24,14 +24,19 @@ Use it when:
 - The topic is **canonical-source-driven** — financial filings (10-K, 10-Q, earnings releases), regulator publications, official product docs, peer-reviewed papers, primary press releases — where the page itself is the source of truth.
 - You found a **highly relevant** SERP hit but the title/snippet alone doesn't support the claim you want to make.
 - The snippets from the previous "search" commands are relevant but do not fully answer the question or fill the gap and fetching the full page is necessary.
+- The question asks for a **specific structured data field** (ownership type, transaction records, legal status, unit count, floor count, specifications, registration numbers) and the SERP contains database or registry pages (property portals, company registries, official catalogs) — snippets from these sources show only brief summaries; the field-level data is embedded in the page body. Never treat a snippet from a database/registry page as sufficient for a field-level question.
+- A SERP result revealed a **domain whose URL pattern is predictable** (e.g. `site.com/en/buildings/{slug}/`) and you can derive the slug for the specific entity from its name — construct the URL and fetch it directly rather than issuing another search. You may construct page-level URLs from patterns you have already seen on a domain; never invent domain names.
 
 **Current date:** {{ date_string }}
 
-### Balance exploration and exploitation
+### Efficiency & Latency Optimization
 
 - **Explore first.** Start with `command: "search"` to get a cheap, high-level read of candidate pages. Cover one `gap` per call.
 - **Refine, don't escalate prematurely.** If the first search did not fill the `gap`, issue another `command: "search"` with a refined query (different keywords, narrower entity, different timeframe) before reaching for `read_urls`.
-- **Exploit when snippets aren't enough.** Switch to `command: "read_urls"` when snippets paraphrase / hedge, or the task needs exact figures, quotes, regulatory text, specs, or canonical-source content. Pick **1-3 high-signal URLs** from the most recent SERP — complementary domains preferred.
+- **Exploit surgically.** Switch to `command: "read_urls"` when snippets are insufficient. Pick **only 1-2 high-signal URLs** from the most recent SERP. Prefer complementary domains.
+- **Escalate on search failure.** If two searches with different queries return no usable result for a gap, stop issuing more searches. Instead, fetch the most relevant URL already in your SERP results, or construct the URL for the authoritative source you know covers this topic.
+- **Construct URLs from domain patterns.** If SERP reveals a domain whose URL structure is predictable (e.g. `site.com/en/buildings/{slug}/`), derive the slug from the entity name and fetch that URL directly — do not issue another search to rediscover it. You may construct page-level URLs from patterns you have already seen on a domain; never invent domain names.
+- **Stop early — but not prematurely.** If you have enough information to answer with high confidence, stop and answer. A SERP snippet that confirms an entity exists (address, name, date) is **not** sufficient when the question asks for a specific data field (ownership type, status, count, spec). In that case, fetch before stopping.
 - **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
 - **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
 
