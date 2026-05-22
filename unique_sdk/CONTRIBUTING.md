@@ -100,13 +100,12 @@ When implementing a public API change, follow this checklist:
 - [ ] **1. Update SDK file** - Add types/methods to `unique_sdk/api_resources/_<resource>.py`
 - [ ] **2. Export new types** - Add exports to `unique_sdk/__init__.py` if needed
 - [ ] **3. Update documentation** - Add docs to `docs/api_resources/<resource>.md`
-- [ ] **4. Bump version** - Increment patch version in `pyproject.toml`
-- [ ] **5. Add changelog entry** - Document in `CHANGELOG.md`
-- [ ] **6. Generate release notes** - Use the Cursor command to create announcement text
-- [ ] **7. Update utilities** - If the change affects utility functions (e.g., `chat_in_space.py`)
-- [ ] **8. Get approval** - Request review from **Data Flow** or **Data Science** team
+- [ ] **4. Conventional commit** - PR title/subject e.g. `feat(sdk): ...` (release-please owns version + `CHANGELOG.md`)
+- [ ] **5. Generate release notes** - After the Release PR ships, use the Cursor command for Slack/Teams copy
+- [ ] **6. Update utilities** - If the change affects utility functions (e.g., `chat_in_space.py`)
+- [ ] **7. Get approval** - Request review from **Data Flow** or **Data Science** team
 
-> **Tip:** Use the **Implement API** Cursor command to automate steps 1-5 when implementing changes from a monorepo PR.
+> **Tip:** Use the **Implement API** Cursor command to automate steps 1-3 when implementing changes from a monorepo PR.
 
 ## Guide
 
@@ -227,38 +226,23 @@ Location: `docs/api_resources/<resource>.md`
     **Used in:** `Resource.method()`
 ```
 
-### Bump Version
+### Version and changelog (release-please)
 
-Location: `pyproject.toml`
+**Do not** edit `pyproject.toml` `version` or `CHANGELOG.md` in feature PRs. CI blocks manual release edits (`check-no-manual-release.sh`).
 
-Increment the patch version:
+1. Land SDK + docs with a **conventional commit** (e.g. `feat(sdk): add Message correlation`).
+2. release-please updates version (CalVer `YYYY.WW.PATCH`) and changelog on the standing Release PR (`chore: stable release main`).
+3. Merge that Release PR when ready to publish to PyPI.
 
-```toml
-[project]
-version = "0.10.75"  # Was 0.10.74
-```
+See `docs/contributing/release-process.md` and the `release-process` agent skill.
 
-**Versioning rules:**
-- **Patch** (0.10.X): New features, bug fixes, non-breaking changes
-- **Minor** (0.X.0): Larger features, minor breaking changes
-- **Major** (X.0.0): Major breaking changes
+**Commit → release notes mapping (typical):**
 
-### Add Changelog Entry
-
-Location: `CHANGELOG.md`
-
-Add entry at the top (after the header):
-
-```markdown
-## [0.10.75] - 2026-02-02
-- Add correlation parameter to Message.create for linking messages to parent messages.
-- Add new_method function to Resource API.
-```
-
-**Format:**
-- Use present tense ("Add", not "Added")
-- Be concise but descriptive
-- Group related changes in one version
+| Change | Commit type |
+|--------|-------------|
+| New API surface | `feat(sdk): ...` |
+| Bug fix | `fix(sdk): ...` |
+| Breaking API | `feat(sdk)!: ...` + `BREAKING CHANGE:` footer |
 
 ### Generate Release Notes
 
@@ -384,10 +368,10 @@ uv run poe ci-coverage
 
 | Change Type | Files to Update |
 |-------------|-----------------|
-| New parameter | `_<resource>.py`, `<resource>.md`, `CHANGELOG.md`, `pyproject.toml` |
-| New endpoint | `_<resource>.py`, `<resource>.md`, `CHANGELOG.md`, `pyproject.toml`, possibly `__init__.py` |
-| New TypedDict | `_<resource>.py`, `<resource>.md`, `CHANGELOG.md`, `pyproject.toml` |
-| Utility change | `utils/<file>.py`, `utilities/<file>.md`, `CHANGELOG.md`, `pyproject.toml` |
+| New parameter | `_<resource>.py`, `<resource>.md` (+ conventional `feat(sdk):` commit) |
+| New endpoint | `_<resource>.py`, `<resource>.md`, possibly `__init__.py` (+ conventional commit) |
+| New TypedDict | `_<resource>.py`, `<resource>.md` (+ conventional commit) |
+| Utility change | `utils/<file>.py`, `utilities/<file>.md` (+ conventional commit) |
 
 ### Common Imports
 
@@ -419,7 +403,7 @@ This command automates the implementation of public API changes from monorepo PR
 
 1. Provide the PR diff or files from the monorepo or PR link if working with GH MCP
 2. The command identifies changes in controllers and DTOs
-3. It generates the corresponding SDK code, documentation, version bump, and changelog entry
+3. It generates the corresponding SDK code and documentation (version/changelog via release-please on merge)
 
 **Usage:**
 - Open Cursor command palette
