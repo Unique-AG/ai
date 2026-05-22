@@ -19,4 +19,7 @@ class UniqueResponse(UniqueResponseBase):
     def __init__(self, body: str, code: int, headers: Mapping[str, str]):
         UniqueResponseBase.__init__(self, code, headers)
         self.body = body
-        self.data = json.loads(body, object_pairs_hook=OrderedDict)
+        if not body or body.isspace():
+            self.data = OrderedDict()
+        else:
+            self.data = json.loads(body, object_pairs_hook=OrderedDict)

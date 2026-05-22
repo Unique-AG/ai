@@ -16,7 +16,7 @@ async def find_latest_memory_async(
     key: str,
     chat_id: str | None = None,
     message_id: str | None = None,
-) -> ShortTermMemory:
+) -> ShortTermMemory | None:
     """
     Find the latest short term memory asynchronously.
 
@@ -28,7 +28,7 @@ async def find_latest_memory_async(
         message_id (str | None): The message ID.
 
     Returns:
-        ShortTermMemory: The latest short term memory.
+        ShortTermMemory | None: The latest short term memory, or None if not found.
 
     Raises:
         Exception: If an error occurs.
@@ -42,6 +42,8 @@ async def find_latest_memory_async(
             chatId=chat_id,
             messageId=message_id,
         )
+        if not stm:
+            return None
         return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
     except Exception as e:
         logger.error(f"Error finding latest short term memory: {e}")
@@ -54,7 +56,7 @@ def find_latest_memory(
     key: str,
     chat_id: str | None = None,
     message_id: str | None = None,
-) -> ShortTermMemory:
+) -> ShortTermMemory | None:
     """
     Find the latest short term memory.
 
@@ -66,7 +68,7 @@ def find_latest_memory(
         message_id (str | None): The message ID.
 
     Returns:
-        ShortTermMemory: The latest short term memory.
+        ShortTermMemory | None: The latest short term memory, or None if not found.
 
     Raises:
         Exception: If an error occurs.
@@ -80,6 +82,8 @@ def find_latest_memory(
             chatId=chat_id,
             messageId=message_id,
         )
+        if not stm:
+            return None
         return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
     except Exception as e:
         logger.error(f"Error finding latest short term memory: {e}")
@@ -183,7 +187,7 @@ def find_last_chat_memory(
     company_id: str,
     key: str,
     chat_id: str,
-) -> ShortTermMemory:
+) -> ShortTermMemory | None:
     """
     Find the last chat short term memory.
     """
@@ -193,6 +197,8 @@ def find_last_chat_memory(
         memoryName=key,
         chatId=chat_id,
     )
+    if not stm:
+        return None
     return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
 
 
@@ -202,7 +208,7 @@ async def find_last_chat_memory_async(
     company_id: str,
     key: str,
     chat_id: str,
-) -> ShortTermMemory:
+) -> ShortTermMemory | None:
     """
     Find the last chat short term memory.
     """
@@ -212,6 +218,8 @@ async def find_last_chat_memory_async(
         memoryName=key,
         chatId=chat_id,
     )
+    if not stm:
+        return None
     return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
 
 
@@ -221,7 +229,7 @@ def find_last_message_memory(
     company_id: str,
     key: str,
     message_id: str,
-) -> ShortTermMemory:
+) -> ShortTermMemory | None:
     """
     Find the last message short term memory.
     """
@@ -232,6 +240,8 @@ def find_last_message_memory(
         memoryName=key,
         messageId=message_id,
     )
+    if not stm:
+        return None
     return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
 
 
@@ -241,7 +251,7 @@ async def find_last_message_memory_async(
     company_id: str,
     key: str,
     message_id: str,
-) -> ShortTermMemory:
+) -> ShortTermMemory | None:
     """
     Find the last message short term memory.
     """
@@ -252,6 +262,8 @@ async def find_last_message_memory_async(
         memoryName=key,
         messageId=message_id,
     )
+    if not stm:
+        return None
     return ShortTermMemory.model_validate(stm, by_alias=True, by_name=True)
 
 
