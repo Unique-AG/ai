@@ -88,6 +88,19 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
 
     language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
 
+    allow_user_model_selection: bool = Field(
+        default=False,
+        description="Whether users may override the configured language model per message.",
+    )
+
+    allowed_user_model: list[LMI] = Field(
+        default_factory=list,
+        description=(
+            "Language models that users may select at runtime. "
+            "When populated, per-message model choices must be present in this list."
+        ),
+    )
+
     custom_instructions: str = Field(
         default="",
         description="A custom instruction provided by the system admin.",

@@ -68,7 +68,7 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model.infos import ModelCapabilities
+from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import (
@@ -126,6 +126,7 @@ async def build_unique_ai(
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
+    _apply_model_choice_override(event=event, logger=logger, config=config)
     common_components = await _build_common(event, logger, config)
 
     if (
@@ -168,6 +169,81 @@ class _CommonComponents(NamedTuple):
     mcp_manager: MCPManager
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
+
+
+def _apply_model_choice_override(
+    event: ChatEvent,
+    logger: Logger,
+    config: UniqueAIConfig,
+) -> None:
+    if (
+        not config.space.allow_user_model_selection
+        or not event.payload.has_model_choice_override
+    ):
+        return
+
+    selected_model = event.payload.model_choice
+    config.space.language_model = selected_model
+    logger.info("Using user model choice %s.", _language_model_name(selected_model))
+
+    _remove_tools_with_unsupported_model_capabilities(config=config, logger=logger)
+    _disable_responses_api_when_model_does_not_support_it(
+        config=config,
+        logger=logger,
+    )
+    config.enable_responses_api_for_code_interpreter_tool()
+    config.enable_responses_api_for_gpt_55_and_gpt_55_pro()
+
+
+def _language_model_name(model: LanguageModelInfo) -> str:
+    return model.display_name
+
+
+def _remove_tools_with_unsupported_model_capabilities(
+    config: UniqueAIConfig,
+    logger: Logger,
+) -> None:
+    supported_capabilities = set(config.space.language_model.capabilities)
+    supported_tools: list[ToolBuildConfig] = []
+
+    for tool in config.space.tools:
+        if (
+            tool.name == OpenAIBuiltInToolName.CODE_INTERPRETER
+            and ModelCapabilities.RESPONSES_API not in supported_capabilities
+        ):
+            logger.warning(
+                "Removing tool %s because selected model %s does not support "
+                "required capabilities: %s.",
+                tool.name,
+                _language_model_name(config.space.language_model),
+                ModelCapabilities.RESPONSES_API,
+            )
+            continue
+
+        supported_tools.append(tool)
+
+    config.space.tools = supported_tools
+
+
+def _disable_responses_api_when_model_does_not_support_it(
+    config: UniqueAIConfig,
+    logger: Logger,
+) -> None:
+    if ModelCapabilities.RESPONSES_API in config.space.language_model.capabilities:
+        return
+
+    uses_responses_api = (
+        config.agent.experimental.responses_api_config.use_responses_api
+        or config.agent.experimental.use_responses_api
+    )
+    if uses_responses_api:
+        logger.warning(
+            "Disabling Responses API because selected model %s does not support it.",
+            _language_model_name(config.space.language_model),
+        )
+
+    config.agent.experimental.responses_api_config.use_responses_api = False
+    config.agent.experimental.use_responses_api = False
 
 
 async def _build_common(
