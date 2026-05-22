@@ -887,6 +887,783 @@ class TestWebSearchV3ExecutorSearch:
         assert first["snippet"] == "Snippet 1"
 
 
+class TestWebSearchV3ExecutorSerpFilter:
+    """Tests for the SERP relevance filter wiring inside ``_run_search``."""
+
+    @staticmethod
+    def _make_executor(executor_context, deps, tool_parameters, serp_filter_config):
+        return WebSearchV3Executor(
+            services=executor_context["services"],
+            config=executor_context["config"],
+            callbacks=executor_context["callbacks"],
+            tool_call=deps["tool_call"],
+            tool_parameters=tool_parameters,
+            serp_filter_config=serp_filter_config,
+        )
+
+    @staticmethod
+    def _make_serp(n: int) -> list:
+        return [
+            WebSearchResult(
+                url=f"https://example.com/page{i}",
+                title=f"Page {i}",
+                snippet=f"Snippet {i}",
+                content="",
+            )
+            for i in range(n)
+        ]
+
+    @staticmethod
+    def _make_search_params() -> WebSearchV3ToolParameters:
+        return WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "search",
+                "objective": "Find authoritative sources about NVIDIA Q4 revenue",
+                "payload": {
+                    "gap": "NVIDIA Q4 2025 revenue figure",
+                    "query": "nvidia q4 2025 revenue",
+                },
+            }
+        )
+
+    @pytest.mark.asyncio
+    async def test_run_search__filter_disabled_returns_results_unchanged(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """When ``SerpFilterConfig.enabled=False``, no LLM call is made and all results are returned."""
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(4)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        lm_service.complete_async = AsyncMock()  # would fail loudly if called
+
+        disabled_cfg = SerpFilterConfig(enabled=False)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            disabled_cfg,
+        )
+
+        result = await executor.run()
+
+        lm_service.complete_async.assert_not_called()
+        assert len(result) == len(serp)
+        assert [json.loads(c.text)["url"] for c in result] == [r.url for r in serp]
+
+    @pytest.mark.asyncio
+    async def test_run_search__filter_short_circuits_on_single_result_when_min_score_zero(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """One result + ``min_score=0`` skips the LLM call (nothing to rank or threshold)."""
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(1)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        lm_service.complete_async = AsyncMock()
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.0)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        result = await executor.run()
+
+        lm_service.complete_async.assert_not_called()
+        assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_run_search__filter_called_with_objective_query_gap(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """The judge prompt is rendered with the objective, query, and gap from the call."""
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(3)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.parsed = {
+            "judgments": [
+                {"index": i, "explanation": "ok", "relevance_score": 0.9}
+                for i in range(3)
+            ]
+        }
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.0)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        await executor.run()
+
+        lm_service.complete_async.assert_awaited_once()
+        messages = lm_service.complete_async.call_args[0][0]
+        user_content = (
+            messages[1].content if hasattr(messages[1], "content") else str(messages[1])
+        )
+        assert "Find authoritative sources about NVIDIA Q4 revenue" in user_content
+        assert "nvidia q4 2025 revenue" in user_content
+        assert "NVIDIA Q4 2025 revenue figure" in user_content
+
+    @pytest.mark.asyncio
+    async def test_run_search__filter_drops_results_below_min_score(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """Results scored below ``min_score`` are excluded from the chunks returned to the model."""
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(3)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        # Only index 0 clears the 0.5 threshold; 1 and 2 are dropped.
+        mock_response.choices[0].message.parsed = {
+            "judgments": [
+                {"index": 0, "explanation": "high", "relevance_score": 0.9},
+                {"index": 1, "explanation": "low", "relevance_score": 0.2},
+                {"index": 2, "explanation": "low", "relevance_score": 0.1},
+            ]
+        }
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.5)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        result = await executor.run()
+
+        urls = [json.loads(c.text)["url"] for c in result]
+        assert urls == ["https://example.com/page0"]
+
+        # The debug step records per-URL judge scores for the kept set so
+        # operators can see *why* the agent decided to fetch (or not).
+        debug_steps = executor_context_objects["config"].debug_info.steps
+        filter_steps = [s for s in debug_steps if s.step_name == "SEARCH.serp_filter"]
+        assert len(filter_steps) == 1
+        assert filter_steps[0].extra["kept_scores"] == {
+            "https://example.com/page0": 0.9,
+        }
+
+    @pytest.mark.asyncio
+    async def test_run_search__filter_fails_open_on_llm_exception(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """LLM exceptions never silently truncate — all original results are returned."""
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(4)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        lm_service.complete_async = AsyncMock(
+            side_effect=RuntimeError("downstream LLM error")
+        )
+
+        # ``max_results=2`` would have truncated under the old buggy fallback;
+        # the new behavior returns all 4 unmodified.
+        cfg = SerpFilterConfig(enabled=True, min_score=0.5, max_results=2)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        result = await executor.run()
+
+        urls = [json.loads(c.text)["url"] for c in result]
+        assert urls == [r.url for r in serp]
+        assert len(urls) == 4
+
+    @pytest.mark.asyncio
+    async def test_run_search__filter_falls_back_to_unfiltered_when_all_below_min_score(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """All scored below ``min_score`` → return the unfiltered SERP, never an empty list.
+
+        The V3 system prompt tells the agent it can fetch URLs from the SERP it
+        just saw; if the filter hid every URL when nothing scored well, the
+        agent would have nothing to escalate to. Verify the fail-safe restores
+        the original list and records ``fell_back_to_unfiltered=True`` in the
+        debug step.
+        """
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(3)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        # Every result scores below the 0.5 threshold.
+        mock_response.choices[0].message.parsed = {
+            "judgments": [
+                {"index": 0, "explanation": "low", "relevance_score": 0.1},
+                {"index": 1, "explanation": "low", "relevance_score": 0.2},
+                {"index": 2, "explanation": "low", "relevance_score": 0.15},
+            ]
+        }
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.5)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        result = await executor.run()
+
+        # All 3 original URLs are returned despite all scoring below the threshold.
+        urls = [json.loads(c.text)["url"] for c in result]
+        assert urls == [r.url for r in serp]
+
+        # The debug step records the fall-back so operators can see it fired.
+        debug_steps = executor_context_objects["config"].debug_info.steps
+        filter_steps = [s for s in debug_steps if s.step_name == "SEARCH.serp_filter"]
+        assert len(filter_steps) == 1
+        assert filter_steps[0].extra["fell_back_to_unfiltered"] is True
+        assert filter_steps[0].extra["before"] == 3
+        assert filter_steps[0].extra["after"] == 3
+
+    @pytest.mark.asyncio
+    async def test_run_search__off_topic_serp_returns_reformulate_chunk(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """When the judge produces zero raw judgments (entire SERP off-topic),
+        the executor surfaces a single synthetic ``ContentChunk`` with a
+        ``serp_quality=off_topic`` payload and *no* URLs from the SERP.
+
+        Previously this case fell open with the full unfiltered SERP — but
+        production traces showed the URLs that triggered it were already-
+        rejected LinkedIn profiles and Facebook posts that just confused
+        the agent (or, worse, got fetched). The reformulate cue tells the
+        agent ``serp_quality=off_topic`` + ``instructions=...`` and an empty
+        ``url`` so it can't accidentally chase a rejected URL.
+        """
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(4)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        # The off-topic signal: LLM judge structurally returned zero judgments.
+        mock_response.choices[0].message.parsed = {"judgments": []}
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.3)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        result = await executor.run()
+
+        # Exactly one synthetic chunk, no SERP URLs leak through.
+        assert len(result) == 1
+        chunk = result[0]
+        assert chunk.url == ""
+        assert chunk.title == "No relevant results — reformulate query"
+        payload = json.loads(chunk.text)
+        assert payload["serp_quality"] == "off_topic"
+        # The agent-facing instructions should explicitly tell it *not* to
+        # retry the same query — the whole point of this signal.
+        assert "reformulate" in payload["instructions"].lower()
+        # Make sure no rejected URL leaked into the payload anywhere.
+        for r in serp:
+            assert r.url not in chunk.text
+
+    @pytest.mark.asyncio
+    async def test_run_search__off_topic_serp_records_debug_step(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """The off-topic debug step replaces the misleading
+        ``fell_back_to_unfiltered=True`` shape with a structured
+        ``serp_quality="off_topic"`` flag and an ``after=0`` count.
+
+        Operators looking at this step in the UI should be able to tell at
+        a glance whether (a) the filter found nothing above threshold but
+        the judge worked (the old fall-back path, still valid), or (b) the
+        judge structurally signalled the SERP was off-topic (this path).
+        Same step name, different ``extra`` fields.
+        """
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(3)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.parsed = {"judgments": []}
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.3)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        await executor.run()
+
+        debug_steps = executor_context_objects["config"].debug_info.steps
+        filter_steps = [s for s in debug_steps if s.step_name == "SEARCH.serp_filter"]
+        assert len(filter_steps) == 1
+        extra = filter_steps[0].extra
+        assert extra["serp_quality"] == "off_topic"
+        assert extra["before"] == 3
+        assert extra["after"] == 0
+        assert extra["kept_urls"] == []
+        assert extra["kept_scores"] == {}
+        # All input URLs land in ``dropped_urls`` so the audit trail is
+        # complete — operators can still see *which* URLs got rejected.
+        assert set(extra["dropped_urls"]) == {r.url for r in serp}
+        # The legacy ``fell_back_to_unfiltered`` flag should NOT appear in
+        # this case — it'd be ambiguous (we didn't fall back, we routed to
+        # a different signal).
+        assert "fell_back_to_unfiltered" not in extra
+
+    @pytest.mark.asyncio
+    async def test_run_search__sanitizes_control_characters_in_query(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """C0/C1 control characters in the model's query are stripped before search."""
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(2)
+        search_mock = AsyncMock(return_value=serp)
+        mock_executor_dependencies["search_service"].search = search_mock
+        mock_executor_dependencies[
+            "language_model_service"
+        ].complete_async = AsyncMock()
+
+        # Dirty query: Shift-Out + Vertical Tab interleaved with valid keywords
+        # and a trailing run of control chars + whitespace.
+        dirty_query = "Khlong Toei industrial land   "
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "search",
+                "objective": "Find industrial land price",
+                "payload": {
+                    "gap": "Khlong Toei industrial price per sqm",
+                    "query": dirty_query,
+                },
+            }
+        )
+
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            tool_parameters,
+            SerpFilterConfig(enabled=False),
+        )
+
+        await executor.run()
+
+        # The query passed to the search engine has no control characters,
+        # no leading/trailing whitespace, and collapsed internal whitespace.
+        search_mock.assert_awaited_once()
+        passed_query = search_mock.call_args[0][0]
+        assert passed_query == "Khlong Toei industrial land"
+
+    @pytest.mark.asyncio
+    async def test_run_search__control_chars_between_letters_do_not_merge_words(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """Control chars between word characters must NOT collapse adjacent words.
+
+        Observed regression: the model emitted ``\\x1a\\x0e1\\x0ea\\x0e3\\x004Treasury``;
+        stripping the control chars merged the digits into the next word as
+        ``1a34Treasury``, which the engine matched as a nonsense token and the
+        SERP came back empty. The fix replaces control chars with space so
+        word boundaries survive, even if the resulting "1 a 3 4 Treasury" is
+        ugly — Google then tokenizes the real words and the search has a chance.
+        """
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        search_mock = AsyncMock(return_value=[])
+        mock_executor_dependencies["search_service"].search = search_mock
+
+        # Exact pattern from the production BNPP trace.
+        dirty_query = "\x1a\x0e1\x0ea\x0e3\x004Treasury Department Bangkok"
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "search",
+                "objective": "Find appraisal",
+                "payload": {"gap": "Bangkok land appraisal", "query": dirty_query},
+            }
+        )
+
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            tool_parameters,
+            SerpFilterConfig(enabled=False),
+        )
+
+        await executor.run()
+
+        passed_query = search_mock.call_args[0][0]
+        # The legitimate phrase "Treasury Department Bangkok" must be intact —
+        # this is the win vs. the previous behavior of merging into ``1a34Treasury``.
+        # (We can't recover separators the model didn't emit: ``\x004Treasury``
+        # has no control char between ``4`` and ``T``, so ``4Treasury`` will
+        # remain a single token. That's a model-output problem, not a
+        # sanitizer problem.)
+        assert "Treasury Department Bangkok" in passed_query
+        # The pre-fix merged-token regression must not return.
+        assert "1a34Treasury" not in passed_query
+
+    @pytest.mark.asyncio
+    async def test_run__no_control_chars_leak_into_debug_info_dump(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """LLM-supplied text in objective/gap/urls is sanitized before debug_info.
+
+        Real failure: Postgres TEXT columns reject ``\\u0000`` (error 22P05).
+        Before this fix we sanitized only ``query``; ``objective`` and ``gap``
+        flowed straight into ``debug_info`` and crashed downstream
+        ``modify_message`` / ``stream-responses`` with an opaque 500.
+
+        Lock in: after a tool call with NUL bytes in every LLM-supplied field,
+        the dumped debug_info must contain no NUL or other C0 control chars.
+        """
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        mock_executor_dependencies["search_service"].search = AsyncMock(return_value=[])
+
+        # NUL bytes (the Postgres killer) plus assorted C0 chars in every
+        # LLM-supplied field.
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "search",
+                "objective": "Find\x00appraisal\x0evalues",
+                "payload": {
+                    "gap": "Khlong\x00Toei\x01prices",
+                    "query": "Treasury\x00Department\x0e2024",
+                },
+            }
+        )
+
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            tool_parameters,
+            SerpFilterConfig(enabled=False),
+        )
+
+        await executor.run()
+
+        # Serialize the same way the orchestrator does before sending to the
+        # backend; any control char here would crash the Postgres write.
+        debug_dump = executor_context_objects["config"].debug_info.model_dump(
+            with_debug_details=True
+        )
+        serialized = json.dumps(debug_dump, default=str)
+        for forbidden in ("\x00", "\x01", "\x0e", "\x1f", "\x7f"):
+            assert forbidden not in serialized, (
+                f"Control char {forbidden!r} leaked into debug_info dump"
+            )
+
+    @pytest.mark.asyncio
+    async def test_run_search__skips_engine_call_when_query_is_all_control_chars(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """A query that's *entirely* control/whitespace chars sanitizes to empty.
+
+        Sending that to the engine wastes an API call and returns an empty SERP.
+        The executor should detect the empty post-sanitize query, log an error,
+        record a SEARCH.skipped debug step, and return no chunks — the agent
+        sees "no results" and reformulates on the next turn.
+        """
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        search_mock = AsyncMock()
+        mock_executor_dependencies["search_service"].search = search_mock
+
+        # All C0/C1 controls + whitespace; sanitizer collapses to "".
+        all_control = "\x0e\x0b\x01\x7f   \t\n"
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "search",
+                "objective": "Find something",
+                "payload": {
+                    "gap": "Anything",
+                    "query": all_control,
+                },
+            }
+        )
+
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            tool_parameters,
+            SerpFilterConfig(enabled=False),
+        )
+
+        result = await executor.run()
+
+        # Engine never called, no chunks returned.
+        search_mock.assert_not_called()
+        assert result == []
+
+        # A SEARCH.skipped debug step is recorded so operators can see the
+        # skip happened and why.
+        debug_steps = executor_context_objects["config"].debug_info.steps
+        skipped = [s for s in debug_steps if s.step_name == "SEARCH.skipped"]
+        assert len(skipped) == 1
+        assert skipped[0].config == "empty_query_after_sanitization"
+
+    @pytest.mark.asyncio
+    async def test_run_search__logs_filtered_results_not_raw_serp(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """``log_web_search_results`` is called with the filtered SERP (what the
+        agent received), not the raw pre-filter list. This way the operator UI
+        reflects the agent's actual context.
+        """
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(3)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        # Only index 1 clears the 0.5 threshold; 0 and 2 are dropped.
+        mock_response.choices[0].message.parsed = {
+            "judgments": [
+                {"index": 0, "explanation": "low", "relevance_score": 0.1},
+                {"index": 1, "explanation": "high", "relevance_score": 0.9},
+                {"index": 2, "explanation": "low", "relevance_score": 0.2},
+            ]
+        }
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        log_results_mock = mock_executor_dependencies[
+            "message_log_callback"
+        ].log_web_search_results
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.5)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        await executor.run()
+
+        # Called exactly once, with the filtered list (1 URL), not the raw 3.
+        log_results_mock.assert_awaited_once()
+        logged_results = log_results_mock.call_args[0][0]
+        assert len(logged_results) == 1
+        assert logged_results[0].url == "https://example.com/page1"
+
+    @pytest.mark.asyncio
+    async def test_run_search__filter_logs_progress_message(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """The filter surfaces progress to the user via the message log callback."""
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(3)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.parsed = {
+            "judgments": [
+                {"index": i, "explanation": "ok", "relevance_score": 0.9}
+                for i in range(3)
+            ]
+        }
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.0)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        await executor.run()
+
+        log_progress_calls = [
+            c.args[0]
+            for c in mock_executor_dependencies[
+                "message_log_callback"
+            ].log_progress.call_args_list
+        ]
+        assert any("Filtering" in msg for msg in log_progress_calls)
+
+    @pytest.mark.asyncio
+    async def test_run_search__chunk_payload_includes_relevance_score(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """When the SERP filter runs, each chunk's JSON carries ``relevance_score``.
+
+        This is the signal the V3 prompt teaches the agent to use (≥0.85 → prefer
+        fetch over another search). Without it the agent has nothing to trust.
+        """
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        # Distinct domains so the per-domain cap doesn't drop the 3rd result.
+        serp = [
+            WebSearchResult(
+                url=f"https://site{i}.com/page",
+                title=f"Page {i}",
+                snippet=f"Snippet {i}",
+                content="",
+            )
+            for i in range(3)
+        ]
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+        lm_service = mock_executor_dependencies["language_model_service"]
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.parsed = {
+            "judgments": [
+                {"index": 0, "explanation": "top", "relevance_score": 0.92},
+                {"index": 1, "explanation": "mid", "relevance_score": 0.55},
+                {"index": 2, "explanation": "weak", "relevance_score": 0.31},
+            ]
+        }
+        lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        cfg = SerpFilterConfig(enabled=True, min_score=0.0)
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            cfg,
+        )
+
+        chunks = await executor.run()
+
+        scores_by_url = {
+            json.loads(c.text)["url"]: json.loads(c.text).get("relevance_score")
+            for c in chunks
+        }
+        # Two decimals — matches the rounding in _serp_results_to_content_chunks.
+        assert scores_by_url["https://site0.com/page"] == 0.92
+        assert scores_by_url["https://site1.com/page"] == 0.55
+        assert scores_by_url["https://site2.com/page"] == 0.31
+
+    @pytest.mark.asyncio
+    async def test_run_search__chunk_payload_omits_score_when_filter_disabled(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """Filter disabled → no ``relevance_score`` key in the chunk JSON (agent reads as 'absent')."""
+        import json
+
+        from unique_web_search.services.executors.v3.config import SerpFilterConfig
+
+        serp = self._make_serp(2)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
+
+        executor = self._make_executor(
+            executor_context_objects,
+            mock_executor_dependencies,
+            self._make_search_params(),
+            SerpFilterConfig(enabled=False),
+        )
+
+        chunks = await executor.run()
+
+        for c in chunks:
+            assert "relevance_score" not in json.loads(c.text)
+
+
 class TestWebSearchV3ExecutorFetchUrls:
     """Tests for WebSearchV3Executor ``read_urls`` (crawl + content pipeline)."""
 
