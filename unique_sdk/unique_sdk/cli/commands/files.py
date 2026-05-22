@@ -12,6 +12,19 @@ from unique_sdk.cli.formatting import format_content_info
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
+# Python's stdlib mimetypes does not register the modern Office Open-XML
+# formats by default, so .xlsx/.docx/.pptx fall back to
+# application/octet-stream which the platform's ingestion API rejects with
+# "Invalid file type". Register them once at import time so guess_type()
+# returns the correct value for every CLI upload.
+_OFFICE_OPEN_XML_MIME_TYPES: dict[str, str] = {
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+for _ext, _type in _OFFICE_OPEN_XML_MIME_TYPES.items():
+    mimetypes.add_type(_type, _ext)
+
 
 def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
     """Resolve a file name or content ID to (content_id, display_name).
