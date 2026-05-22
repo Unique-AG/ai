@@ -215,7 +215,7 @@ def _is_allowed_user_model_choice(
     selected_model: LanguageModelInfo,
     allowed_models: list[LanguageModelInfo],
 ) -> bool:
-    return any(selected_model == model for model in allowed_models)
+    return any(selected_model.display_name == model.display_name for model in allowed_models)
 
 
 def _remove_tools_with_unsupported_model_capabilities(
