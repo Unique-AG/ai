@@ -8,19 +8,23 @@ Usage::
     from unique_toolkit.experimental.components.feature_flags import (
         FeatureFlagClient,
         FlagEvaluation,
-        FeatureFlagSettings,
     )
 
     client = FeatureFlagClient.from_settings()
-    result = await client.evaluate(
-        "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION",
-        company_id="acme",
-        user_id="user-123",
-    )
+
+    # preferred — bind once per request, no explicit IDs needed
+    bound = client.bind_settings(settings)
+    if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
+        ...
 """
 
-from .client import FeatureFlagClient
+from .client import BoundFeatureFlagClient, FeatureFlagClient
 from .schemas import FlagEvaluation
 from .settings import FeatureFlagSettings
 
-__all__ = ["FeatureFlagClient", "FlagEvaluation", "FeatureFlagSettings"]
+__all__ = [
+    "BoundFeatureFlagClient",
+    "FeatureFlagClient",
+    "FlagEvaluation",
+    "FeatureFlagSettings",
+]

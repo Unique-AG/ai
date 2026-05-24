@@ -4,6 +4,10 @@ from typing import Any
 
 from cachetools import LRUCache, TTLCache
 
+# Sentinel for distinguishing a stored False/None from a missing key.
+# Never stored as a value; only used as the default in .get() calls.
+_MISSING = object()
+
 
 class AsyncTTLCache:
     """Per-key async TTL cache with stampede protection.
@@ -11,15 +15,17 @@ class AsyncTTLCache:
     Uses a per-key asyncio.Lock to ensure only one coroutine fetches a
     value on a cache miss; subsequent waiters reuse the fetched result.
     Both the value cache and the lock dict are bounded by ``maxsize``.
+
+    Keys may be any hashable — strings, tuples, etc.
     """
 
     def __init__(self, *, maxsize: int = 1024, ttl: float = 30.0) -> None:
-        self._cache: TTLCache[str, Any] = TTLCache(maxsize=maxsize, ttl=ttl)
-        self._stale: LRUCache[str, Any] = LRUCache(maxsize=maxsize)
-        self._locks: LRUCache[str, asyncio.Lock] = LRUCache(maxsize=maxsize)
+        self._cache: TTLCache[Any, Any] = TTLCache(maxsize=maxsize, ttl=ttl)
+        self._stale: LRUCache[Any, Any] = LRUCache(maxsize=maxsize)
+        self._locks: LRUCache[Any, asyncio.Lock] = LRUCache(maxsize=maxsize)
         self._dict_lock = asyncio.Lock()
 
-    async def _get_key_lock(self, key: str) -> asyncio.Lock:
+    async def _get_key_lock(self, key: Any) -> asyncio.Lock:
         async with self._dict_lock:
             lock = self._locks.get(key)
             if lock is None:
@@ -29,7 +35,7 @@ class AsyncTTLCache:
 
     async def get_or_fetch(
         self,
-        key: str,
+        key: Any,
         fetcher: Callable[[], Awaitable[Any]],
     ) -> tuple[Any, bool]:
         """Return ``(value, from_cache)`` for *key*.
@@ -39,14 +45,14 @@ class AsyncTTLCache:
         then calls ``await fetcher()`` and stores the result. If the fetcher
         raises, the exception propagates and nothing is cached.
         """
-        cached = self._cache.get(key)
-        if cached is not None:
+        cached = self._cache.get(key, _MISSING)
+        if cached is not _MISSING:
             return cached, True
 
         key_lock = await self._get_key_lock(key)
         async with key_lock:
-            cached = self._cache.get(key)
-            if cached is not None:
+            cached = self._cache.get(key, _MISSING)
+            if cached is not _MISSING:
                 return cached, True
 
             value = await fetcher()
@@ -54,6 +60,13 @@ class AsyncTTLCache:
             self._stale[key] = value
             return value, False
 
-    def get_stale(self, key: str) -> Any | None:
-        """Return the last successfully fetched value for *key*, or ``None`` if never fetched."""
-        return self._stale.get(key)
+    def get_stale(self, key: Any) -> tuple[Any, bool]:
+        """Return ``(value, True)`` if a prior value exists for *key*, else ``(None, False)``.
+
+        Returns a hit-flag rather than a sentinel so callers never need to
+        import or compare against ``_MISSING``.
+        """
+        value = self._stale.get(key, _MISSING)
+        if value is _MISSING:
+            return None, False
+        return value, True
