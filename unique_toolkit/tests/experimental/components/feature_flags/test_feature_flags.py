@@ -2,14 +2,34 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 import pytest
 import respx
 
 from unique_toolkit.experimental.components.feature_flags import (
+    BoundFeatureFlagClient,
     FeatureFlagClient,
     FlagEvaluation,
 )
+
+# ---------------------------------------------------------------------------
+# Minimal fakes for BoundFeatureFlagClient tests
+# ---------------------------------------------------------------------------
+
+
+class _FakeAuth:
+    def get_confidential_company_id(self) -> str:
+        return _COMPANY_ID
+
+    def get_confidential_user_id(self) -> str:
+        return _USER_ID
+
+
+class _FakeSettings:
+    authcontext = _FakeAuth()
+
 
 _URL = "https://config-backend.test"
 _FLAG = "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"
@@ -24,9 +44,9 @@ def _make_client(url: str = _URL, ttl_ms: int = 30_000) -> FeatureFlagClient:
 
 
 @pytest.fixture(autouse=True)
-def clear_from_settings_cache() -> None:
+def reset_singleton() -> None:
     """Reset the from_settings() singleton between tests so monkeypatch env changes take effect."""
-    FeatureFlagClient.from_settings.cache_clear()  # type: ignore[attr-defined]
+    FeatureFlagClient._instance = None
 
 
 def _gql_response(value: bool) -> dict:
@@ -123,6 +143,328 @@ async def test_evaluate__transport_failure__env_var_true__returns_true(
     result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
 
     assert result == FlagEvaluation(value=True, reason="fallback")
+
+
+# ---------------------------------------------------------------------------
+# 14. env-var fallback respects company-ID allowlist
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__fallback_allowlist__company_in_list__returns_true(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify that a comma-separated company-ID allowlist in the env var is respected on fallback.
+    Why this matters: Matches FeatureFlags semantics — same env-var format must behave identically.
+    Setup summary: Env var set to "acme,other"; mock raises ConnectError; assert True for acme, False for unknown.
+    """
+    respx.post(_GQL_ENDPOINT).mock(side_effect=httpx.ConnectError("unreachable"))
+    monkeypatch.setenv(_FLAG, f"{_COMPANY_ID},other-company")
+
+    client = _make_client()
+    result_in = await client.evaluate(_FLAG, company_id=_COMPANY_ID)
+    result_out = await client.evaluate(_FLAG, company_id="unknown-company")
+
+    assert result_in == FlagEvaluation(value=True, reason="fallback")
+    assert result_out == FlagEvaluation(value=False, reason="fallback")
+
+
+# ---------------------------------------------------------------------------
+# 15. Retry: single 503 → retries once → second attempt succeeds → reason="remote"
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__single_503__retries_and_succeeds() -> None:
+    """
+    Purpose: Verify a single 503 response triggers one retry and the successful second attempt is returned.
+    Why this matters: Transient backend blips must not surface as errors to callers.
+    Setup summary: First call returns 503, second returns 200 True; assert FlagEvaluation(True, "remote").
+    """
+    _responses = iter(
+        [
+            httpx.Response(503),
+            httpx.Response(200, json=_gql_response(True)),
+        ]
+    )
+    route = respx.post(_GQL_ENDPOINT).mock(side_effect=lambda _req: next(_responses))
+
+    client = _make_client()
+    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    assert result == FlagEvaluation(value=True, reason="remote")
+    assert route.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# 16. Retry: two consecutive 503s → both attempts fail → env-var fallback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__two_503s__exhausts_retries__returns_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify two consecutive 503 responses exhaust the retry budget and fall back to env-var.
+    Why this matters: A sustained backend outage must degrade gracefully, not raise.
+    Setup summary: Both attempts return 503; env var set to "true"; assert FlagEvaluation(True, "fallback").
+    """
+    route = respx.post(_GQL_ENDPOINT).mock(return_value=httpx.Response(503))
+    monkeypatch.setenv(_FLAG, "true")
+
+    client = _make_client()
+    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    assert result == FlagEvaluation(value=True, reason="fallback")
+    assert route.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# 17. Timeout → no retry → env-var fallback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__read_timeout__no_retry__returns_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify that a ReadTimeout is not retried (only 5xx errors are) and falls back to env-var.
+    Why this matters: Retrying on timeouts could amplify load on an already-slow backend.
+    Setup summary: Mock raises ReadTimeout; env var set to "false"; assert FlagEvaluation(False, "fallback") and route called once.
+    """
+    route = respx.post(_GQL_ENDPOINT).mock(
+        side_effect=httpx.ReadTimeout("timed out", request=None)
+    )
+    monkeypatch.setenv(_FLAG, "false")
+
+    client = _make_client()
+    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    assert result == FlagEvaluation(value=False, reason="fallback")
+    assert route.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# 18. BoundFeatureFlagClient: bind_settings returns correct type
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_bind_settings__returns_bound_client() -> None:
+    """
+    Purpose: Verify bind_settings() returns a BoundFeatureFlagClient wrapping the parent client.
+    Why this matters: Confirms the binding API works without making any network call.
+    Setup summary: Call bind_settings with _FakeSettings; assert result is BoundFeatureFlagClient.
+    """
+    client = _make_client()
+    bound = client.bind_settings(_FakeSettings())  # type: ignore[arg-type]
+
+    assert isinstance(bound, BoundFeatureFlagClient)
+
+
+# ---------------------------------------------------------------------------
+# 19. BoundFeatureFlagClient: evaluate extracts correct company_id / user_id
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_bound_client__evaluate__uses_auth_context_ids() -> None:
+    """
+    Purpose: Verify bound.evaluate() forwards company_id and user_id from the auth context.
+    Why this matters: The whole point of BoundFeatureFlagClient is transparent ID injection.
+    Setup summary: Bind to _FakeSettings; call evaluate; assert request headers carry correct IDs.
+    """
+    route = respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(True))
+    )
+
+    client = _make_client()
+    bound = client.bind_settings(_FakeSettings())  # type: ignore[arg-type]
+    result = await bound.evaluate(_FLAG)
+
+    assert result == FlagEvaluation(value=True, reason="remote")
+    headers = route.calls[0].request.headers
+    assert headers["x-company-id"] == _COMPANY_ID
+    assert headers["x-user-id"] == _USER_ID
+
+
+# ---------------------------------------------------------------------------
+# 20. BoundFeatureFlagClient: shares cache with parent client
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_bound_client__shares_cache_with_parent() -> None:
+    """
+    Purpose: Verify a fetch via the parent client is visible to the bound client as a cache hit.
+    Why this matters: Singleton parent + per-request bound client must share the same TTL cache.
+    Setup summary: Fetch via parent; call bound.evaluate for same key; assert route called once and bound reason is "cached".
+    """
+    route = respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(True))
+    )
+
+    client = _make_client()
+    await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    bound = client.bind_settings(_FakeSettings())  # type: ignore[arg-type]
+    result = await bound.evaluate(_FLAG)
+
+    assert route.call_count == 1
+    assert result == FlagEvaluation(value=True, reason="cached")
+
+
+# ---------------------------------------------------------------------------
+# 21. BoundFeatureFlagClient: stale path on transport error
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_bound_client__stale_on_transport_error() -> None:
+    """
+    Purpose: Verify the bound client returns a stale value on transport error after a prior fetch.
+    Why this matters: Ensures stale-cache resilience works end-to-end through the bound interface.
+    Setup summary: Fetch via bound; expire TTL cache; transport error on retry; assert FlagEvaluation(True, "stale").
+    """
+    respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(True))
+    )
+
+    client = _make_client()
+    bound = client.bind_settings(_FakeSettings())  # type: ignore[arg-type]
+    first = await bound.evaluate(_FLAG)
+    assert first.reason == "remote"
+
+    client._cache._cache.clear()
+    respx.post(_GQL_ENDPOINT).mock(side_effect=httpx.ConnectError("unreachable"))
+
+    result = await bound.evaluate(_FLAG)
+    assert result == FlagEvaluation(value=True, reason="stale")
+
+
+# ---------------------------------------------------------------------------
+# 22. Cache key collision: tuple key prevents cross-tenant leakage
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__tuple_cache_key__no_collision() -> None:
+    """
+    Purpose: Verify (flag, "a:b", None) and (flag, "a", "b:None") are distinct cache entries.
+    Why this matters: A string key with ":" separator would collide; tuple key must not.
+    Setup summary: Fetch for company_id="a:b" user_id=None (True), then company_id="a" user_id="b:None" (False); assert both are cached independently.
+    """
+    _responses = iter(
+        [
+            httpx.Response(200, json=_gql_response(True)),
+            httpx.Response(200, json=_gql_response(False)),
+        ]
+    )
+    route = respx.post(_GQL_ENDPOINT).mock(side_effect=lambda _req: next(_responses))
+
+    client = _make_client()
+    r1 = await client.evaluate(_FLAG, company_id="a:b", user_id=None)
+    r2 = await client.evaluate(_FLAG, company_id="a", user_id="b:None")
+
+    assert route.call_count == 2
+    assert r1.value is True
+    assert r2.value is False
+
+
+# ---------------------------------------------------------------------------
+# 23. False-value sentinel: disabled flag is cached correctly (regression)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__false_value__cached_on_second_call() -> None:
+    """
+    Purpose: Verify a flag evaluating to False is served from cache on the second call.
+    Why this matters: Regression for the _MISSING sentinel bug — cache.get(key) returns None for
+                      both a missing key and a stored False, so False values were never cached.
+    Setup summary: Remote returns False; second call must return reason="cached" and route called once.
+    """
+    route = respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(False))
+    )
+
+    client = _make_client()
+    first = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+    second = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    assert route.call_count == 1
+    assert first == FlagEvaluation(value=False, reason="remote")
+    assert second == FlagEvaluation(value=False, reason="cached")
+
+
+# ---------------------------------------------------------------------------
+# 24. False-value stale: stale False is returned on transport error (regression)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__false_stale__returned_on_transport_error() -> None:
+    """
+    Purpose: Verify a stale False (not None) is returned correctly on transport error.
+    Why this matters: Regression for the stale-value check — `if stale_value is not None` silently
+                      discards a known-good stale False, falling through to env-var fallback.
+    Setup summary: Fetch returns False; expire TTL; transport error; assert FlagEvaluation(False, "stale").
+    """
+    respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(False))
+    )
+
+    client = _make_client()
+    first = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+    assert first == FlagEvaluation(value=False, reason="remote")
+
+    client._cache._cache.clear()
+    respx.post(_GQL_ENDPOINT).mock(side_effect=httpx.ConnectError("unreachable"))
+
+    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+    assert result == FlagEvaluation(value=False, reason="stale")
+
+
+# ---------------------------------------------------------------------------
+# 25. Stampede protection: concurrent calls fire exactly one HTTP request
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__concurrent_calls__single_http_request() -> None:
+    """
+    Purpose: Verify two concurrent evaluate() calls for the same key fire exactly one HTTP request.
+    Why this matters: Without per-key locking, a cache miss under concurrency would send N parallel
+                      requests to configuration-backend — a stampede.
+    Setup summary: asyncio.gather two evaluate() calls; assert route called once and both return same value.
+    """
+    route = respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(True))
+    )
+
+    client = _make_client()
+    r1, r2 = await asyncio.gather(
+        client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID),
+        client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID),
+    )
+
+    assert route.call_count == 1
+    assert r1.value is True
+    assert r2.value is True
 
 
 # ---------------------------------------------------------------------------
