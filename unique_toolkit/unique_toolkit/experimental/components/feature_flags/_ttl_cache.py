@@ -15,6 +15,7 @@ class AsyncTTLCache:
 
     def __init__(self, *, maxsize: int = 1024, ttl: float = 30.0) -> None:
         self._cache: TTLCache[str, Any] = TTLCache(maxsize=maxsize, ttl=ttl)
+        self._stale: LRUCache[str, Any] = LRUCache(maxsize=maxsize)
         self._locks: LRUCache[str, asyncio.Lock] = LRUCache(maxsize=maxsize)
         self._dict_lock = asyncio.Lock()
 
@@ -50,4 +51,9 @@ class AsyncTTLCache:
 
             value = await fetcher()
             self._cache[key] = value
+            self._stale[key] = value
             return value, False
+
+    def get_stale(self, key: str) -> Any | None:
+        """Return the last successfully fetched value for *key*, or ``None`` if never fetched."""
+        return self._stale.get(key)

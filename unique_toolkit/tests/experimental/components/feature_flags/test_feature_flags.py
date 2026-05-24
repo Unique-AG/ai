@@ -316,3 +316,61 @@ def test_from_settings__constructs_client_from_env_vars(
 
     assert client._url == "https://config.test"
     assert client._service_id == "agentic-ingestion"
+
+
+# ---------------------------------------------------------------------------
+# 12. Stale cache: transport error with prior value → reason="stale"
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__transport_error_after_prior_fetch__returns_stale() -> None:
+    """
+    Purpose: Verify a transport error returns the last-known-good value (reason="stale") when
+             the flag was previously fetched for this company.
+    Why this matters: Config-backend outage must not fall back to a process-wide env-var default
+                      when we already know the per-company value.
+    Setup summary: First call succeeds (value=True). TTL cache is cleared to force a miss.
+                   Second call raises ConnectError. Assert FlagEvaluation(True, "stale").
+    """
+    respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(True))
+    )
+
+    client = _make_client()
+    first = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+    assert first == FlagEvaluation(value=True, reason="remote")
+
+    # Expire the TTL cache so the next call attempts a fetch, then make that fetch fail.
+    client._cache._cache.clear()
+    respx.post(_GQL_ENDPOINT).mock(side_effect=httpx.ConnectError("unreachable"))
+
+    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    assert result == FlagEvaluation(value=True, reason="stale")
+
+
+# ---------------------------------------------------------------------------
+# 13. Stale cache: transport error with no prior value → reason="fallback"
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__transport_error_no_prior_fetch__returns_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: Verify that when no prior value exists, a transport error still falls back to env-var.
+    Why this matters: On first-ever evaluation for a company, stale cache is empty; must not crash.
+    Setup summary: First call raises ConnectError (no prior fetch). Env var set to "false".
+                   Assert FlagEvaluation(False, "fallback").
+    """
+    respx.post(_GQL_ENDPOINT).mock(side_effect=httpx.ConnectError("unreachable"))
+    monkeypatch.setenv(_FLAG, "false")
+
+    client = _make_client()
+    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    assert result == FlagEvaluation(value=False, reason="fallback")

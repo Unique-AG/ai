@@ -11,9 +11,11 @@ class FlagEvaluation:
         reason: How the value was determined.
             - ``"remote"``   — freshly fetched from configuration-backend.
             - ``"cached"``   — returned from the in-process TTL cache.
-            - ``"fallback"`` — transport error or client unavailable; env-var used.
+            - ``"stale"``    — transport error but a prior value exists for this
+              flag+company; last-known-good used instead of env-var.
+            - ``"fallback"`` — transport error and no prior value; env-var used.
             - ``"default"``  — reserved for future use (e.g. unknown flag key).
     """
 
     value: bool
-    reason: Literal["remote", "cached", "fallback", "default"]
+    reason: Literal["remote", "cached", "stale", "fallback", "default"]
