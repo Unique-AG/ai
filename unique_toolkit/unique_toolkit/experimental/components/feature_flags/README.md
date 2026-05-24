@@ -35,6 +35,16 @@ This matches both the configuration-backend registry key convention and the
 existing env-var names in Python services, so the env-var fallback path
 requires no transformation.
 
+Define flag name constants in your service (not in the toolkit) to avoid
+magic strings:
+
+```python
+# in your service, e.g. agentic-ingestion
+class IngestionFlags:
+    PDF_EXTRACTION = "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"
+    IMAGE_EXTRACTION = "FEATURE_FLAG_ENABLE_IMAGE_CONTENT_EXTRACTION_UN_17223"
+```
+
 ---
 
 ## Usage
@@ -56,7 +66,7 @@ result = await client.evaluate(
     user_id=user_id,
 )
 # result.value  → bool
-# result.reason → "remote" | "cached" | "fallback" | "default"
+# result.reason → "remote" | "cached" | "stale" | "fallback"
 
 enabled = await client.is_enabled(
     "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION",
@@ -81,6 +91,41 @@ client = FeatureFlagClient.from_settings()
 > runtimes, env vars are not yet available when Python modules are imported.
 > Call it inside your app's startup hook or on first request.
 
+### `bind_settings()` — per-request bound client
+
+For services that use `UniqueSettings` / `AuthContext`, bind the singleton
+once per request to avoid passing `company_id` / `user_id` at every call site:
+
+```python
+from unique_toolkit.experimental.components.feature_flags import (
+    BoundFeatureFlagClient,
+    FeatureFlagClient,
+)
+
+# once at startup
+client = FeatureFlagClient.from_settings()
+
+# once per request (settings carries company_id / user_id)
+bound: BoundFeatureFlagClient = client.bind_settings(settings)
+
+if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
+    ...
+```
+
+---
+
+## Evaluation order
+
+1. **TTL cache** — returns the cached value if present (within the TTL window).
+2. **Remote** — calls configuration-backend's `evaluateFlag` GraphQL query.
+   One retry on transient 5xx errors.
+3. **Stale cache** — on failure, returns the last successfully fetched value
+   for this `(flag, company_id, user_id)` key if one exists.
+4. **Env-var fallback** — if no stale value is available, reads the flag's
+   env var. Supports plain booleans (`"true"` / `"false"`) and
+   comma-separated company-ID allowlists (`"company1,company2"`), consistent
+   with `unique_toolkit.agentic.feature_flags.FeatureFlags`.
+
 ---
 
 ## `FlagEvaluation.reason` values
@@ -89,8 +134,8 @@ client = FeatureFlagClient.from_settings()
 |---|---|
 | `"remote"` | Value was freshly fetched from configuration-backend. |
 | `"cached"` | Value was returned from the in-process TTL cache. |
-| `"fallback"` | Transport error or client unavailable; env-var default used. |
-| `"default"` | Reserved for future use (e.g. flag key not registered). |
+| `"stale"` | Transport error; last-known-good value for this company returned. |
+| `"fallback"` | No prior value available; env-var default used. |
 
 ---
 
@@ -101,5 +146,6 @@ client = FeatureFlagClient.from_settings()
 3. Add the service ID to configuration-backend's `Service` enum (`tyk-auth`)
    and to the `@AllowAccess` whitelist on the `evaluateFlag` resolver.
 4. Register any new flag keys in `feature-flag.registry.ts`.
-5. Replace `os.getenv("FEATURE_FLAG_*", "false")` call sites with
+5. Define flag name constants in your service (see convention above).
+6. Replace `os.getenv("FEATURE_FLAG_*", "false")` call sites with
    `await client.is_enabled("FEATURE_FLAG_*", company_id=..., user_id=...)`.
