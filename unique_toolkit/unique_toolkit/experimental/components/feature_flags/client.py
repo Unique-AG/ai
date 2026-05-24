@@ -15,50 +15,6 @@ from .settings import FeatureFlagSettings
 logger = logging.getLogger(__name__)
 
 
-class BoundFeatureFlagClient(  # forward-ref resolved after FeatureFlagClient is defined
-    "FeatureFlagClient"
-):
-    """A :class:`FeatureFlagClient` bound to a request-level auth context.
-
-    Obtain via :meth:`FeatureFlagClient.bind_settings` — do not instantiate directly.
-
-    Example::
-
-        client = FeatureFlagClient.from_settings()
-
-        # per-request (settings carries company_id / user_id)
-        bound = client.bind_settings(settings)
-        if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
-            ...
-    """
-
-    def __init__(
-        self,
-        *,
-        url: str,
-        service_id: str,
-        ttl_ms: int = 30_000,
-        auth: AuthContextProtocol,
-        _shared_cache: "AsyncTTLCache | None" = None,
-    ) -> None:
-        super().__init__(url=url, service_id=service_id, ttl_ms=ttl_ms)
-        if _shared_cache is not None:
-            self._cache = _shared_cache
-        self._auth = auth
-
-    async def evaluate(self, flag: str) -> FlagEvaluation:  # type: ignore[override]
-        """Evaluate *flag* using the bound auth context."""
-        return await super().evaluate(
-            flag,
-            company_id=self._auth.get_confidential_company_id(),
-            user_id=self._auth.get_confidential_user_id(),
-        )
-
-    async def is_enabled(self, flag: str) -> bool:  # type: ignore[override]
-        """Return ``True`` if *flag* is enabled for the bound auth context."""
-        return (await self.evaluate(flag)).value
-
-
 class FeatureFlagClient:
     """Feature flag client backed by configuration-backend's GraphQL API.
 
@@ -126,7 +82,7 @@ class FeatureFlagClient:
             ttl_ms=s.FEATURE_FLAG_CACHE_TTL_MS,
         )
 
-    def bind_settings(self, settings: UniqueSettings) -> BoundFeatureFlagClient:
+    def bind_settings(self, settings: UniqueSettings) -> "BoundFeatureFlagClient":
         """Bind this client to the request-level auth context in *settings*.
 
         Returns a :class:`BoundFeatureFlagClient` whose :meth:`~BoundFeatureFlagClient.evaluate`
@@ -223,3 +179,35 @@ class FeatureFlagClient:
     @staticmethod
     def _env_fallback(flag: str) -> bool:
         return os.getenv(flag, "false").lower() in ("true", "1", "yes")
+
+
+class BoundFeatureFlagClient:
+    """A :class:`FeatureFlagClient` bound to a request-level auth context.
+
+    Obtain via :meth:`FeatureFlagClient.bind_settings` — do not instantiate directly.
+
+    Example::
+
+        client = FeatureFlagClient.from_settings()
+
+        # per-request (settings carries company_id / user_id)
+        bound = client.bind_settings(settings)
+        if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
+            ...
+    """
+
+    def __init__(self, client: FeatureFlagClient, auth: AuthContextProtocol) -> None:
+        self._client = client
+        self._auth = auth
+
+    async def evaluate(self, flag: str) -> FlagEvaluation:
+        """Evaluate *flag* using the bound auth context."""
+        return await self._client.evaluate(
+            flag,
+            company_id=self._auth.get_confidential_company_id(),
+            user_id=self._auth.get_confidential_user_id(),
+        )
+
+    async def is_enabled(self, flag: str) -> bool:
+        """Return ``True`` if *flag* is enabled for the bound auth context."""
+        return (await self.evaluate(flag)).value
