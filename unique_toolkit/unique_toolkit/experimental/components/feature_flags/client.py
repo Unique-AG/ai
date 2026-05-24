@@ -2,6 +2,9 @@ import logging
 import os
 from functools import lru_cache
 
+import httpx
+from tenacity import retry, retry_if_exception, stop_after_attempt
+
 from ._graphql_client import evaluate_flag
 from ._ttl_cache import AsyncTTLCache
 from .schemas import FlagEvaluation
@@ -19,9 +22,10 @@ class FeatureFlagClient:
 
     Evaluation order:
     1. Check the in-process TTL cache; return a cached value if present.
-    2. Call configuration-backend's ``evaluateFlag`` GraphQL query.
-    3. On any transport or GraphQL error, log a warning and return the
-       env-var fallback.
+    2. Call configuration-backend's ``evaluateFlag`` GraphQL query (one
+       retry on transient 5xx errors).
+    3. On failure, return the last successfully fetched value (stale cache)
+       if one exists, otherwise fall back to the env-var default.
 
     The ``flag`` argument must be the upper-snake env-var-style key, e.g.
     ``FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION``. This matches both the
@@ -93,17 +97,11 @@ class FeatureFlagClient:
         if not company_id:
             raise ValueError("company_id must be a non-empty string")
 
+        cache_key = f"{flag}:{company_id}:{user_id!r}"
         try:
-            cache_key = f"{flag}:{company_id}:{user_id!r}"
             value, from_cache = await self._cache.get_or_fetch(
                 cache_key,
-                lambda: evaluate_flag(
-                    url=self._url,
-                    flag=flag,
-                    service_id=self._service_id,
-                    company_id=company_id,
-                    user_id=user_id,
-                ),
+                lambda: self._fetch(flag=flag, company_id=company_id, user_id=user_id),
             )
             return FlagEvaluation(
                 value=value, reason="cached" if from_cache else "remote"
@@ -114,6 +112,9 @@ class FeatureFlagClient:
                 flag,
                 exc_info=True,
             )
+            stale_value = self._cache.get_stale(cache_key)
+            if stale_value is not None:
+                return FlagEvaluation(value=stale_value, reason="stale")
             return FlagEvaluation(value=self._env_fallback(flag), reason="fallback")
 
     async def is_enabled(
@@ -129,6 +130,29 @@ class FeatureFlagClient:
         boolean value.
         """
         return (await self.evaluate(flag, company_id=company_id, user_id=user_id)).value
+
+    @retry(
+        retry=retry_if_exception(
+            lambda exc: isinstance(exc, httpx.HTTPStatusError)
+            and exc.response.status_code >= 500
+        ),
+        stop=stop_after_attempt(2),
+        reraise=True,
+    )
+    async def _fetch(
+        self,
+        *,
+        flag: str,
+        company_id: str,
+        user_id: str | None,
+    ) -> bool:
+        return await evaluate_flag(
+            url=self._url,
+            flag=flag,
+            service_id=self._service_id,
+            company_id=company_id,
+            user_id=user_id,
+        )
 
     @staticmethod
     def _env_fallback(flag: str) -> bool:
