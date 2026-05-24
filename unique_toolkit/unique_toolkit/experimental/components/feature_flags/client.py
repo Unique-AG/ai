@@ -89,12 +89,7 @@ class FeatureFlagClient:
         return cls._instance
 
     def bind_settings(self, settings: UniqueSettings) -> "BoundFeatureFlagClient":
-        """Bind this client to the request-level auth context in *settings*.
-
-        Returns a :class:`BoundFeatureFlagClient` whose :meth:`~BoundFeatureFlagClient.evaluate`
-        and :meth:`~BoundFeatureFlagClient.is_enabled` require no explicit ``company_id``
-        or ``user_id`` arguments.
-        """
+        """Return a :class:`BoundFeatureFlagClient` for the request-level auth context."""
         return BoundFeatureFlagClient(self, settings.authcontext)
 
     async def evaluate(
@@ -104,16 +99,7 @@ class FeatureFlagClient:
         company_id: str,
         user_id: str | None = None,
     ) -> FlagEvaluation:
-        """Evaluate *flag* for the given context.
-
-        Args:
-            flag: Upper-snake flag key (e.g. ``FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION``).
-            company_id: Company context for the evaluation.
-            user_id: Optional user context. Omitted from the request when ``None``.
-
-        Returns:
-            A :class:`.FlagEvaluation` with ``value`` and ``reason``.
-        """
+        """Evaluate *flag* for the given context."""
         if not company_id:
             raise ValueError("company_id must be a non-empty string")
 
@@ -151,11 +137,7 @@ class FeatureFlagClient:
         company_id: str,
         user_id: str | None = None,
     ) -> bool:
-        """Return ``True`` if *flag* is enabled for the given context.
-
-        Convenience wrapper around :meth:`evaluate` that returns only the
-        boolean value.
-        """
+        """Return ``True`` if *flag* is enabled for the given context."""
         return (await self.evaluate(flag, company_id=company_id, user_id=user_id)).value
 
     @retry(
@@ -206,15 +188,6 @@ class BoundFeatureFlagClient:
     """A :class:`FeatureFlagClient` bound to a request-level auth context.
 
     Obtain via :meth:`FeatureFlagClient.bind_settings` — do not instantiate directly.
-
-    Example::
-
-        client = FeatureFlagClient.from_settings()
-
-        # per-request (settings carries company_id / user_id)
-        bound = client.bind_settings(settings)
-        if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
-            ...
     """
 
     def __init__(self, client: FeatureFlagClient, auth: AuthContextProtocol) -> None:
@@ -222,7 +195,6 @@ class BoundFeatureFlagClient:
         self._auth = auth
 
     async def evaluate(self, flag: str) -> FlagEvaluation:
-        """Evaluate *flag* using the bound auth context."""
         return await self._client.evaluate(
             flag,
             company_id=self._auth.get_confidential_company_id(),
@@ -230,5 +202,4 @@ class BoundFeatureFlagClient:
         )
 
     async def is_enabled(self, flag: str) -> bool:
-        """Return ``True`` if *flag* is enabled for the bound auth context."""
         return (await self.evaluate(flag)).value

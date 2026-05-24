@@ -38,13 +38,7 @@ class AsyncTTLCache:
         key: Any,
         fetcher: Callable[[], Awaitable[Any]],
     ) -> tuple[Any, bool]:
-        """Return ``(value, from_cache)`` for *key*.
-
-        If the value is present in the cache, returns it immediately with
-        ``from_cache=True``. On a miss, acquires a per-key lock, rechecks,
-        then calls ``await fetcher()`` and stores the result. If the fetcher
-        raises, the exception propagates and nothing is cached.
-        """
+        """Return ``(value, from_cache)``, fetching on a miss with per-key stampede protection."""
         cached = self._cache.get(key, _MISSING)
         if cached is not _MISSING:
             return cached, True
@@ -61,11 +55,7 @@ class AsyncTTLCache:
             return value, False
 
     def get_stale(self, key: Any) -> tuple[Any, bool]:
-        """Return ``(value, True)`` if a prior value exists for *key*, else ``(None, False)``.
-
-        Returns a hit-flag rather than a sentinel so callers never need to
-        import or compare against ``_MISSING``.
-        """
+        """Return ``(value, True)`` if a prior successful fetch exists for *key*, else ``(None, False)``."""
         value = self._stale.get(key, _MISSING)
         if value is _MISSING:
             return None, False
