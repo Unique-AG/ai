@@ -5,12 +5,46 @@ from functools import lru_cache
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
+from unique_toolkit.app.unique_settings import AuthContextProtocol, UniqueSettings
+
 from ._graphql_client import evaluate_flag
 from ._ttl_cache import AsyncTTLCache
 from .schemas import FlagEvaluation
 from .settings import FeatureFlagSettings
 
 logger = logging.getLogger(__name__)
+
+
+class BoundFeatureFlagClient:
+    """A :class:`FeatureFlagClient` bound to a request-level auth context.
+
+    Obtain via :meth:`FeatureFlagClient.bind_settings` — do not instantiate directly.
+
+    Example::
+
+        client = FeatureFlagClient.from_settings()
+
+        # per-request (settings carries company_id / user_id)
+        bound = client.bind_settings(settings)
+        if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
+            ...
+    """
+
+    def __init__(self, client: "FeatureFlagClient", auth: AuthContextProtocol) -> None:
+        self._client = client
+        self._auth = auth
+
+    async def evaluate(self, flag: str) -> FlagEvaluation:
+        """Evaluate *flag* using the bound auth context."""
+        return await self._client.evaluate(
+            flag,
+            company_id=self._auth.get_confidential_company_id(),
+            user_id=self._auth.get_confidential_user_id(),
+        )
+
+    async def is_enabled(self, flag: str) -> bool:
+        """Return ``True`` if *flag* is enabled for the bound auth context."""
+        return (await self.evaluate(flag)).value
 
 
 class FeatureFlagClient:
@@ -32,16 +66,20 @@ class FeatureFlagClient:
     configuration-backend registry key convention and the agentic-ingestion
     env-var names, so env-var fallback requires no transformation.
 
-    Example::
+    Example (with UniqueSettings)::
 
         client = FeatureFlagClient.from_settings()
+        bound  = client.bind_settings(settings)
+        if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
+            ...
+
+    Example (explicit IDs)::
+
         result = await client.evaluate(
             "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION",
             company_id="acme",
             user_id="user-123",
         )
-        if result.value:
-            ...
     """
 
     def __init__(self, *, url: str, service_id: str, ttl_ms: int = 30_000) -> None:
@@ -75,6 +113,15 @@ class FeatureFlagClient:
             service_id=s.FEATURE_FLAG_SERVICE_ID,
             ttl_ms=s.FEATURE_FLAG_CACHE_TTL_MS,
         )
+
+    def bind_settings(self, settings: UniqueSettings) -> BoundFeatureFlagClient:
+        """Bind this client to the request-level auth context in *settings*.
+
+        Returns a :class:`BoundFeatureFlagClient` whose :meth:`~BoundFeatureFlagClient.evaluate`
+        and :meth:`~BoundFeatureFlagClient.is_enabled` require no explicit ``company_id``
+        or ``user_id`` arguments.
+        """
+        return BoundFeatureFlagClient(self, settings.authcontext)
 
     async def evaluate(
         self,
@@ -133,8 +180,10 @@ class FeatureFlagClient:
 
     @retry(
         retry=retry_if_exception(
-            lambda exc: isinstance(exc, httpx.HTTPStatusError)
-            and exc.response.status_code >= 500
+            lambda exc: (
+                isinstance(exc, httpx.HTTPStatusError)
+                and exc.response.status_code >= 500
+            )
         ),
         stop=stop_after_attempt(2),
         reraise=True,
