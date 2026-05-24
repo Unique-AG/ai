@@ -7,8 +7,8 @@ allowlists, consistent with ``unique_toolkit.agentic.feature_flags``.
 
 Required env vars::
 
-    CONFIGURATION_BACKEND_URL=http://configuration-backend.<namespace>:8095
-    FEATURE_FLAG_SERVICE_ID=your-service-name   # must match Service enum in config-backend
+    CONFIGURATION_BACKEND_URL=https://<your-configuration-backend>
+    FEATURE_FLAG_SERVICE_ID=your-service-name
 
 Quick start — explicit IDs::
 

@@ -14,7 +14,7 @@ directly to avoid SDK overhead.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CONFIGURATION_BACKEND_URL` | **Yes** | — | Base URL of configuration-backend (e.g. `https://<your-configuration-backend>|
+| `CONFIGURATION_BACKEND_URL` | **Yes** | — | Base URL of your configuration-backend instance. |
 | `FEATURE_FLAG_SERVICE_ID` | **Yes** | — | Service identifier sent as `x-service-id`. Must match a value in configuration-backend's `Service` enum (e.g. `agentic-ingestion`). |
 | `FEATURE_FLAG_CACHE_TTL_MS` | No | `30000` | In-process cache TTL in milliseconds. |
 
@@ -55,7 +55,7 @@ class IngestionFlags:
 from unique_toolkit.experimental.components.feature_flags import FeatureFlagClient
 
 client = FeatureFlagClient(
-    url="https://<your-configuration-backend>",
+    url="https://your-configuration-backend",
     service_id="agentic-ingestion",
     ttl_ms=30_000,
 )
