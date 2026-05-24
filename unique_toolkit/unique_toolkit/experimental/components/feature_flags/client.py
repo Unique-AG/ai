@@ -15,7 +15,9 @@ from .settings import FeatureFlagSettings
 logger = logging.getLogger(__name__)
 
 
-class BoundFeatureFlagClient:
+class BoundFeatureFlagClient(  # forward-ref resolved after FeatureFlagClient is defined
+    "FeatureFlagClient"
+):
     """A :class:`FeatureFlagClient` bound to a request-level auth context.
 
     Obtain via :meth:`FeatureFlagClient.bind_settings` — do not instantiate directly.
@@ -30,19 +32,29 @@ class BoundFeatureFlagClient:
             ...
     """
 
-    def __init__(self, client: "FeatureFlagClient", auth: AuthContextProtocol) -> None:
-        self._client = client
+    def __init__(
+        self,
+        *,
+        url: str,
+        service_id: str,
+        ttl_ms: int = 30_000,
+        auth: AuthContextProtocol,
+        _shared_cache: "AsyncTTLCache | None" = None,
+    ) -> None:
+        super().__init__(url=url, service_id=service_id, ttl_ms=ttl_ms)
+        if _shared_cache is not None:
+            self._cache = _shared_cache
         self._auth = auth
 
-    async def evaluate(self, flag: str) -> FlagEvaluation:
+    async def evaluate(self, flag: str) -> FlagEvaluation:  # type: ignore[override]
         """Evaluate *flag* using the bound auth context."""
-        return await self._client.evaluate(
+        return await super().evaluate(
             flag,
             company_id=self._auth.get_confidential_company_id(),
             user_id=self._auth.get_confidential_user_id(),
         )
 
-    async def is_enabled(self, flag: str) -> bool:
+    async def is_enabled(self, flag: str) -> bool:  # type: ignore[override]
         """Return ``True`` if *flag* is enabled for the bound auth context."""
         return (await self.evaluate(flag)).value
 
@@ -154,14 +166,19 @@ class FeatureFlagClient:
                 value=value, reason="cached" if from_cache else "remote"
             )
         except Exception:
+            stale_value = self._cache.get_stale(cache_key)
+            if stale_value is not None:
+                logger.warning(
+                    "FeatureFlagClient: evaluation failed for '%s' — using stale cached value",
+                    flag,
+                    exc_info=True,
+                )
+                return FlagEvaluation(value=stale_value, reason="stale")
             logger.warning(
                 "FeatureFlagClient: evaluation failed for '%s' — using env-var fallback",
                 flag,
                 exc_info=True,
             )
-            stale_value = self._cache.get_stale(cache_key)
-            if stale_value is not None:
-                return FlagEvaluation(value=stale_value, reason="stale")
             return FlagEvaluation(value=self._env_fallback(flag), reason="fallback")
 
     async def is_enabled(
