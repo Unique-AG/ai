@@ -128,7 +128,7 @@ if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
 
 ```mermaid
 flowchart TD
-    A([evaluate&#40;flag, company_id&#41;]) --> B{TTL cache hit?}
+    A(["evaluate(flag, company_id)"]) --> B{TTL cache hit?}
 
     B -- yes --> C([return value, reason=cached])
 
