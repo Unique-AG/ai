@@ -6,16 +6,12 @@ from typing import Literal
 class FlagEvaluation:
     """Result of a feature flag evaluation.
 
-    Attributes:
-        value: The boolean value of the flag.
-        reason: How the value was determined.
-            - ``"remote"``   — freshly fetched from configuration-backend.
-            - ``"cached"``   — returned from the in-process TTL cache.
-            - ``"stale"``    — transport error but a prior value exists for this
-              flag+company; last-known-good used instead of env-var.
-            - ``"fallback"`` — transport error and no prior value; env-var used.
-            - ``"default"``  — reserved for future use (e.g. unknown flag key).
+    ``reason`` indicates how the value was determined:
+    - ``"remote"``   — freshly fetched from configuration-backend.
+    - ``"cached"``   — served from the in-process TTL cache.
+    - ``"stale"``    — transport error; last-known-good value for this flag+company used.
+    - ``"fallback"`` — transport error and no prior value; env-var default used.
     """
 
     value: bool
-    reason: Literal["remote", "cached", "stale", "fallback", "default"]
+    reason: Literal["remote", "cached", "stale", "fallback"]
