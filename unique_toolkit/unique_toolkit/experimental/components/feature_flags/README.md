@@ -126,6 +126,32 @@ if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
    comma-separated company-ID allowlists (`"company1,company2"`), consistent
    with `unique_toolkit.agentic.feature_flags.FeatureFlags`.
 
+```mermaid
+flowchart TD
+    A([evaluate&#40;flag, company_id&#41;]) --> B{TTL cache hit?}
+
+    B -- yes --> C([return value, reason=cached])
+
+    B -- no --> D[fetch from\nconfiguration-backend GraphQL]
+    D -- 200 OK --> E[store in TTL cache\n+ stale cache]
+    E --> F([return value, reason=remote])
+
+    D -- 5xx --> G[retry once]
+    G -- 200 OK --> E
+    G -- 5xx again --> H{stale cache hit?}
+
+    D -- timeout / network error --> H
+
+    H -- yes --> I([return stale value, reason=stale])
+    H -- no --> J[read env var\nbool or company-ID allowlist]
+    J --> K([return env value, reason=fallback])
+
+    style C fill:#22c55e,color:#fff
+    style F fill:#22c55e,color:#fff
+    style I fill:#f59e0b,color:#fff
+    style K fill:#ef4444,color:#fff
+```
+
 ---
 
 ## `FlagEvaluation.reason` values
