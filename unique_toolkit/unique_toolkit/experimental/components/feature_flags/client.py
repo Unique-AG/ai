@@ -100,7 +100,8 @@ class FeatureFlagClient:
         user_id: str | None = None,
     ) -> FlagEvaluation:
         """Evaluate *flag* for the given context."""
-        if not company_id or not company_id.strip():
+        company_id = company_id.strip()
+        if not company_id:
             raise ValueError("company_id must be a non-empty string")
 
         cache_key = (flag, company_id, user_id)
