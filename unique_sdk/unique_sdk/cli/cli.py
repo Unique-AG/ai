@@ -28,6 +28,9 @@ from unique_sdk.cli.commands.scheduled_tasks import (
 )
 from unique_sdk.cli.commands.search import cmd_search
 from unique_sdk.cli.commands.subagent import cmd_subagent
+from unique_sdk.cli.commands.subagent import (
+    is_error_output as _is_subagent_error_output,
+)
 from unique_sdk.cli.commands.web_search import (
     cmd_web_crawl,
     cmd_web_search,
@@ -532,19 +535,20 @@ def subagent(
       unique-cli subagent LegalReview "Review this contract clause"
       unique-cli subagent Finance "Summarize Q4 revenue" --reset-chat
     """
-    click.echo(
-        cmd_subagent(
-            LazyState.get(ctx),
-            tool_name=tool_name,
-            message=message,
-            config_path=config_path,
-            parent_chat_id=parent_chat_id,
-            parent_message_id=parent_message_id,
-            parent_assistant_id=parent_assistant_id,
-            reset_chat=reset_chat,
-            output_json=output_json,
-        )
+    output = cmd_subagent(
+        LazyState.get(ctx),
+        tool_name=tool_name,
+        message=message,
+        config_path=config_path,
+        parent_chat_id=parent_chat_id,
+        parent_message_id=parent_message_id,
+        parent_assistant_id=parent_assistant_id,
+        reset_chat=reset_chat,
+        output_json=output_json,
     )
+    click.echo(output)
+    if _is_subagent_error_output(output):
+        ctx.exit(1)
 
 
 # -- Scheduled Tasks -------------------------------------------------------

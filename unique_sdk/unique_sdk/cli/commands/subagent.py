@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Any, Literal, TypedDict, cast
 
-import unique_sdk
+from unique_sdk._error import APIError
 from unique_sdk.api_resources._space import Space
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
@@ -30,6 +30,11 @@ class SubagentDefinition(TypedDict, total=False):
     pollInterval: float
     maxWait: float
     stopCondition: Literal["stoppedStreamingAt", "completedAt"]
+
+
+def is_error_output(output: str) -> bool:
+    """Return ``True`` when ``output`` is a CLI error message."""
+    return output.startswith(SUBAGENT_ERROR_PREFIX)
 
 
 def resolve_config_path(config_path: str | None = None) -> Path:
@@ -282,7 +287,10 @@ def cmd_subagent(
         ):
             chat_state = chat_state or _load_chat_state(state_path)
             chat_state[tool_name] = response_chat_id
-            _save_chat_state(state_path, chat_state)
+            try:
+                _save_chat_state(state_path, chat_state)
+            except OSError:
+                pass
 
         return _format_response(
             tool_name=tool_name,
@@ -290,5 +298,5 @@ def cmd_subagent(
             response=response,
             output_json=output_json,
         )
-    except (ValueError, OSError, TimeoutError, unique_sdk.APIError) as exc:
+    except (ValueError, OSError, TimeoutError, APIError) as exc:
         return f"{SUBAGENT_ERROR_PREFIX} {exc}"

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from click.testing import CliRunner
 
 from unique_sdk.cli.cli import main as cli_main
-from unique_sdk.cli.commands.subagent import cmd_subagent
+from unique_sdk.cli.commands.subagent import cmd_subagent, is_error_output
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
 
@@ -106,6 +106,48 @@ def test_cmd_subagent_sends_message_with_correlation(
     assert saved_state == {"LegalReview": "chat-child"}
 
 
+@patch("unique_sdk.cli.commands.subagent._save_chat_state")
+@patch(
+    "unique_sdk.cli.commands.subagent.send_message_and_wait_for_completion",
+    new_callable=AsyncMock,
+)
+def test_cmd_subagent_returns_response_when_chat_state_save_fails(
+    mock_send: AsyncMock,
+    mock_save_chat_state: Mock,
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / ".unique-subagents.json"
+    _write_subagents_config(config_path)
+    mock_send.return_value = {
+        "id": "msg-child",
+        "chatId": "chat-child",
+        "text": "Reviewed clause.",
+        "originalText": None,
+        "role": "ASSISTANT",
+        "debugInfo": None,
+        "gptRequest": None,
+        "completedAt": "now",
+        "createdAt": "now",
+        "updatedAt": "now",
+        "startedStreamingAt": "now",
+        "stoppedStreamingAt": "now",
+        "references": None,
+        "assessment": None,
+    }
+    mock_save_chat_state.side_effect = OSError("disk full")
+
+    out = cmd_subagent(
+        _state(),
+        "LegalReview",
+        "Please review this clause",
+        config_path=str(config_path),
+    )
+
+    assert "Subagent: Legal Review (LegalReview)" in out
+    assert "Reviewed clause." in out
+    assert not is_error_output(out)
+
+
 def test_cmd_subagent_reports_unknown_tool(tmp_path: Path) -> None:
     config_path = tmp_path / ".unique-subagents.json"
     _write_subagents_config(config_path)
@@ -119,6 +161,11 @@ def test_cmd_subagent_reports_unknown_tool(tmp_path: Path) -> None:
 
     assert out.startswith("subagent: unknown subagent tool 'Finance'")
     assert "LegalReview" in out
+
+
+def test_subagent_error_output_detector() -> None:
+    assert is_error_output("subagent: unknown subagent tool 'Finance'")
+    assert not is_error_output("Subagent: Legal Review (LegalReview)")
 
 
 @patch("unique_sdk.cli.cli.cmd_subagent")
@@ -155,3 +202,25 @@ def test_cli_subagent_command_wiring(mock_cmd_subagent: object) -> None:
     assert kwargs["parent_message_id"] == "msg-parent"
     assert kwargs["parent_assistant_id"] == "assistant-parent"
     assert kwargs["reset_chat"] is True
+
+
+@patch("unique_sdk.cli.cli.cmd_subagent")
+def test_cli_subagent_error_exits_non_zero(mock_cmd_subagent: object) -> None:
+    mock_cmd_subagent.return_value = "subagent: unknown subagent tool 'Finance'"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        [
+            "subagent",
+            "Finance",
+            "hello",
+        ],
+        env={
+            "UNIQUE_USER_ID": "u1",
+            "UNIQUE_COMPANY_ID": "c1",
+        },
+    )
+
+    assert result.exit_code == 1
+    assert result.output.strip() == "subagent: unknown subagent tool 'Finance'"
