@@ -15,7 +15,7 @@ directly to avoid SDK overhead.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `CONFIGURATION_BACKEND_URL` | **Yes** | — | Base URL of your configuration-backend instance. |
-| `FEATURE_FLAG_SERVICE_ID` | **Yes** | — | Service identifier sent as `x-service-id`. Must match a value in configuration-backend's `Service` enum (e.g. `agentic-ingestion`). |
+| `FEATURE_FLAG_SERVICE_ID` | **Yes** | — | Service identifier sent as `x-service-id`. Must match a registered value in configuration-backend's `Service` enum. |
 | `FEATURE_FLAG_CACHE_TTL_MS` | No | `30000` | In-process cache TTL in milliseconds. |
 
 ---
@@ -26,9 +26,8 @@ The `flag` argument to `evaluate()` / `is_enabled()` must be the
 **upper-snake env-var-style key**, e.g.:
 
 ```
-FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION
-FEATURE_FLAG_ENABLE_AGENTIC_METADATA_EXTRACTION_UN_15619
-FEATURE_FLAG_ENABLE_IMAGE_CONTENT_EXTRACTION_UN_17223
+FEATURE_FLAG_ENABLE_MY_FEATURE
+FEATURE_FLAG_ENABLE_OTHER_FEATURE_UN_12345
 ```
 
 This matches both the configuration-backend registry key convention and the
@@ -39,10 +38,10 @@ Define flag name constants in your service (not in the toolkit) to avoid
 magic strings:
 
 ```python
-# in your service, e.g. agentic-ingestion
-class IngestionFlags:
-    PDF_EXTRACTION = "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"
-    IMAGE_EXTRACTION = "FEATURE_FLAG_ENABLE_IMAGE_CONTENT_EXTRACTION_UN_17223"
+# in your service
+class MyServiceFlags:
+    ENABLE_MY_FEATURE = "FEATURE_FLAG_ENABLE_MY_FEATURE"
+    ENABLE_OTHER_FEATURE = "FEATURE_FLAG_ENABLE_OTHER_FEATURE_UN_12345"
 ```
 
 ---
@@ -56,12 +55,12 @@ from unique_toolkit.experimental.components.feature_flags import FeatureFlagClie
 
 client = FeatureFlagClient(
     url="https://your-configuration-backend",
-    service_id="agentic-ingestion",
+    service_id="my-service",
     ttl_ms=30_000,
 )
 
 result = await client.evaluate(
-    "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION",
+    "FEATURE_FLAG_ENABLE_MY_FEATURE",
     company_id=company_id,
     user_id=user_id,
 )
@@ -69,7 +68,7 @@ result = await client.evaluate(
 # result.reason → "remote" | "cached" | "stale" | "fallback"
 
 enabled = await client.is_enabled(
-    "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION",
+    "FEATURE_FLAG_ENABLE_MY_FEATURE",
     company_id=company_id,
     user_id=user_id,
 )
@@ -108,7 +107,7 @@ client = FeatureFlagClient.from_settings()
 # once per request (settings carries company_id / user_id)
 bound: BoundFeatureFlagClient = client.bind_settings(settings)
 
-if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
+if await bound.is_enabled("FEATURE_FLAG_ENABLE_MY_FEATURE"):
     ...
 ```
 

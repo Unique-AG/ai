@@ -32,21 +32,21 @@ class FeatureFlagClient:
        if one exists, otherwise fall back to the env-var default.
 
     The ``flag`` argument must be the upper-snake env-var-style key, e.g.
-    ``FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION``. This matches both the
-    configuration-backend registry key convention and the agentic-ingestion
-    env-var names, so env-var fallback requires no transformation.
+    ``FEATURE_FLAG_ENABLE_MY_FEATURE``. This matches both the
+    configuration-backend registry key convention and the existing env-var
+    names, so env-var fallback requires no transformation.
 
     Example (with UniqueSettings)::
 
         client = FeatureFlagClient.from_settings()
         bound  = client.bind_settings(settings)
-        if await bound.is_enabled("FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"):
+        if await bound.is_enabled("FEATURE_FLAG_ENABLE_MY_FEATURE"):
             ...
 
     Example (explicit IDs)::
 
         result = await client.evaluate(
-            "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION",
+            "FEATURE_FLAG_ENABLE_MY_FEATURE",
             company_id="acme",
             user_id="user-123",
         )
@@ -73,18 +73,18 @@ class FeatureFlagClient:
         if cls._instance is not None:
             return cls._instance
         s = FeatureFlagSettings()
-        if not s.CONFIGURATION_BACKEND_URL:
+        if not s.configuration_backend_url:
             raise ValueError(
                 "CONFIGURATION_BACKEND_URL is required to use FeatureFlagClient"
             )
-        if not s.FEATURE_FLAG_SERVICE_ID:
+        if not s.service_id:
             raise ValueError(
                 "FEATURE_FLAG_SERVICE_ID is required to use FeatureFlagClient"
             )
         cls._instance = cls(
-            url=s.CONFIGURATION_BACKEND_URL,
-            service_id=s.FEATURE_FLAG_SERVICE_ID,
-            ttl_ms=s.FEATURE_FLAG_CACHE_TTL_MS,
+            url=s.configuration_backend_url,
+            service_id=s.service_id,
+            ttl_ms=s.cache_ttl_ms,
         )
         return cls._instance
 

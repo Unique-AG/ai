@@ -17,7 +17,7 @@ async def evaluate_flag(
 
     Args:
         url: Base URL of configuration-backend (no trailing slash).
-        flag: Upper-snake flag key, e.g. ``FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION``.
+        flag: Upper-snake flag key, e.g. ``FEATURE_FLAG_ENABLE_MY_FEATURE``.
         service_id: Value sent as ``x-service-id`` header.
         company_id: Value sent as ``x-company-id`` header.
         user_id: Value sent as ``x-user-id`` header. Omitted when ``None``.
