@@ -443,6 +443,39 @@ async def test_evaluate__empty_company_id__raises_value_error() -> None:
 
 
 @pytest.mark.ai
+async def test_evaluate__whitespace_company_id__raises_value_error() -> None:
+    """Whitespace-only company_id is truthy but must be rejected like an empty string."""
+    client = _make_client()
+
+    with pytest.raises(ValueError, match="company_id"):
+        await client.evaluate(_FLAG, company_id="   ")
+
+
+@pytest.mark.ai
+def test_from_settings__whitespace_url__raises_value_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Whitespace-only CONFIGURATION_BACKEND_URL must raise ValueError, not produce an invalid URL."""
+    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "   ")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "my-service")
+
+    with pytest.raises(ValueError, match="CONFIGURATION_BACKEND_URL"):
+        FeatureFlagClient.from_settings()
+
+
+@pytest.mark.ai
+def test_from_settings__whitespace_service_id__raises_value_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Whitespace-only FEATURE_FLAG_SERVICE_ID must raise ValueError."""
+    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "https://config.test")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "   ")
+
+    with pytest.raises(ValueError, match="FEATURE_FLAG_SERVICE_ID"):
+        FeatureFlagClient.from_settings()
+
+
+@pytest.mark.ai
 def test_from_settings__constructs_client_from_env_vars(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
