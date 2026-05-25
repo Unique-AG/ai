@@ -71,9 +71,7 @@ def _find_subagent(
     for subagent in subagents:
         if subagent.get("name") == tool_name:
             return subagent
-    available = sorted(
-        name for subagent in subagents if (name := subagent.get("name"))
-    )
+    available = sorted(name for subagent in subagents if (name := subagent.get("name")))
     suffix = f" Available: {', '.join(available)}." if available else ""
     raise ValueError(f"unknown subagent tool {tool_name!r}.{suffix}")
 
