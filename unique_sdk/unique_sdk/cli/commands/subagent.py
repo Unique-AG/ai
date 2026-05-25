@@ -280,11 +280,7 @@ def cmd_subagent(
         )
 
         response_chat_id = response.get("chatId")
-        if (
-            configured_chat_id is None
-            and reuse_chat
-            and response_chat_id
-        ):
+        if configured_chat_id is None and reuse_chat and response_chat_id:
             chat_state = chat_state or _load_chat_state(state_path)
             chat_state[tool_name] = response_chat_id
             try:
