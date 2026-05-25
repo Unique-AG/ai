@@ -73,11 +73,11 @@ class FeatureFlagClient:
         if cls._instance is not None:
             return cls._instance
         s = FeatureFlagSettings()
-        if not s.configuration_backend_url:
+        if not s.configuration_backend_url or not s.configuration_backend_url.strip():
             raise ValueError(
                 "CONFIGURATION_BACKEND_URL is required to use FeatureFlagClient"
             )
-        if not s.service_id:
+        if not s.service_id or not s.service_id.strip():
             raise ValueError(
                 "FEATURE_FLAG_SERVICE_ID is required to use FeatureFlagClient"
             )
@@ -100,7 +100,7 @@ class FeatureFlagClient:
         user_id: str | None = None,
     ) -> FlagEvaluation:
         """Evaluate *flag* for the given context."""
-        if not company_id:
+        if not company_id or not company_id.strip():
             raise ValueError("company_id must be a non-empty string")
 
         cache_key = (flag, company_id, user_id)
