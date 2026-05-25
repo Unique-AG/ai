@@ -43,6 +43,7 @@ class AsyncTTLCache:
         if cached is not _MISSING:
             return cached, True
 
+        # Acquire per-key lock; re-check inside in case another waiter already fetched.
         key_lock = await self._get_key_lock(key)
         async with key_lock:
             cached = self._cache.get(key, _MISSING)
