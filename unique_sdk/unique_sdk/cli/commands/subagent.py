@@ -60,7 +60,7 @@ def _load_config(config_path: Path) -> list[SubagentDefinition]:
     validated: list[SubagentDefinition] = []
     for item in subagents:
         if isinstance(item, dict):
-            validated.append(cast(SubagentDefinition, item))
+            validated.append(cast(SubagentDefinition, cast(object, item)))
     return validated
 
 
@@ -91,7 +91,7 @@ def _get_str(
 
 
 def _get_value(subagent: SubagentDefinition, *keys: str) -> Any:
-    subagent_data = cast(dict[str, Any], subagent)
+    subagent_data = cast(dict[str, Any], cast(object, subagent))
     for key in keys:
         if key in subagent_data:
             return subagent_data[key]
@@ -278,7 +278,6 @@ def cmd_subagent(
         if (
             configured_chat_id is None
             and reuse_chat
-            and isinstance(response_chat_id, str)
             and response_chat_id
         ):
             chat_state = chat_state or _load_chat_state(state_path)
