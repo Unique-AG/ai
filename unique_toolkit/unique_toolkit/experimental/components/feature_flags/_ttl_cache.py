@@ -19,8 +19,8 @@ class AsyncTTLCache:
     Keys may be any hashable — strings, tuples, etc.
     """
 
-    def __init__(self, *, maxsize: int = 1024, ttl: float = 30.0) -> None:
-        self._cache: TTLCache[Any, Any] = TTLCache(maxsize=maxsize, ttl=ttl)
+    def __init__(self, *, maxsize: int = 1024, ttl_ms: float = 30_000) -> None:
+        self._cache: TTLCache[Any, Any] = TTLCache(maxsize=maxsize, ttl=ttl_ms / 1000)
         self._stale: LRUCache[Any, Any] = LRUCache(maxsize=maxsize)
         self._locks: LRUCache[Any, asyncio.Lock] = LRUCache(maxsize=maxsize)
         self._dict_lock = asyncio.Lock()
