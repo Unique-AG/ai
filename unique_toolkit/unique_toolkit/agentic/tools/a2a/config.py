@@ -29,11 +29,11 @@ class ExtendedSubAgentToolConfig(SubAgentToolConfig):
         self,
     ) -> Self:
         if (
-            self.response_passthrough
+            self.passthrough_config.enabled
             and self.response_display_config.mode != SubAgentResponseDisplayMode.HIDDEN
         ):
             _LOGGER.warning(
-                "SubAgent (assistant_id=%r): `response_passthrough=True` but `response_display_config.mode` is not HIDDEN. "
+                "SubAgent (assistant_id=%r): `passthrough_config.enabled=True` but `response_display_config.mode` is not HIDDEN. "
                 "Overriding `response_display_config.mode` to HIDDEN.",
                 self.assistant_id,
             )

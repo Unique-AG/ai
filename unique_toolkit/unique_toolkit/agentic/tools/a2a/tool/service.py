@@ -11,6 +11,7 @@ from pydantic import Field, TypeAdapter, create_model
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
+from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit._common.referencing import (
     get_all_ref_numbers,
     get_detection_pattern_for_ref,
@@ -41,7 +42,13 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 from unique_toolkit.app import ChatEvent
-from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
+from unique_toolkit.chat.schemas import (
+    ChatMessageAssessmentLabel,
+    ChatMessageAssessmentStatus,
+    ChatMessageAssessmentType,
+    MessageLog,
+    MessageLogStatus,
+)
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
@@ -148,7 +155,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     def takes_control(self) -> bool:
-        return self.config.response_passthrough
+        return self.config.passthrough_config.enabled
 
     @override
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
@@ -277,7 +284,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     active_message_log=active_message_log,
                 )
 
-                if self.config.response_passthrough:
+                if self.config.passthrough_config.enabled:
                     await self._display_sub_agent_response(response)
 
                 return ToolCallResponse(
@@ -319,6 +326,37 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 for ref in response["references"] or []
             ],
             set_completed_at=True,
+        )
+
+        if self.config.passthrough_config.include_assessments:
+            await self._forward_sub_agent_assessments(response["assessment"] or [])
+
+    async def _forward_sub_agent_assessments(
+        self,
+        assessments: list[unique_sdk.Space.Assessment],
+    ) -> None:
+        async def _create_one_assessment(
+            assessment: unique_sdk.Space.Assessment,
+        ) -> None:
+            await self._chat_service.create_message_assessment_async(
+                assistant_message_id=self._chat_service._assistant_message_id,
+                status=ChatMessageAssessmentStatus(assessment["status"]),
+                type=ChatMessageAssessmentType(assessment["type"]),
+                title=assessment["title"],
+                explanation=assessment["explanation"],
+                label=ChatMessageAssessmentLabel(assessment["label"]),
+                is_visible=assessment["isVisible"],
+            )
+
+        if not assessments:
+            return
+
+        task_executor = SafeTaskExecutor(logger=logger)
+        await asyncio.gather(
+            *(
+                task_executor.execute_async(_create_one_assessment, a)
+                for a in assessments
+            ),
         )
 
     async def _get_chat_id(self) -> str | None:
