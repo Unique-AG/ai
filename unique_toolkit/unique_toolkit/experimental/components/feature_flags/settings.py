@@ -20,6 +20,7 @@ class FeatureFlagSettings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="ignore",
         case_sensitive=False,
+        validate_by_name=True,
         env_file=find_env_file(".env", required=False),
         env_file_encoding="utf-8",
     )
