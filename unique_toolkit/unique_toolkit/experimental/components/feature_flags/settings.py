@@ -1,5 +1,18 @@
+import os
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def get_model_config(test: bool = False) -> SettingsConfigDict:
+    env_file = Path(os.getcwd()) / ("tests/test.env" if test else ".env")
+    return SettingsConfigDict(
+        extra="ignore",
+        case_sensitive=False,
+        env_file=env_file,
+        env_file_encoding="utf-8",
+    )
 
 
 class FeatureFlagSettings(BaseSettings):
@@ -15,9 +28,4 @@ class FeatureFlagSettings(BaseSettings):
     service_id: str | None = Field(None, validation_alias="FEATURE_FLAG_SERVICE_ID")
     cache_ttl_ms: int = Field(30_000, validation_alias="FEATURE_FLAG_CACHE_TTL_MS")
 
-    model_config = SettingsConfigDict(
-        extra="ignore",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-    )
+    model_config = get_model_config()
