@@ -73,18 +73,18 @@ class FeatureFlagClient:
         if cls._instance is not None:
             return cls._instance
         s = FeatureFlagSettings()
-        if not s.configuration_backend_url or not s.configuration_backend_url.strip():
+        if not s.CONFIGURATION_BACKEND_URL:
             raise ValueError(
                 "CONFIGURATION_BACKEND_URL is required to use FeatureFlagClient"
             )
-        if not s.service_id or not s.service_id.strip():
+        if not s.FEATURE_FLAG_SERVICE_ID:
             raise ValueError(
                 "FEATURE_FLAG_SERVICE_ID is required to use FeatureFlagClient"
             )
         cls._instance = cls(
-            url=s.configuration_backend_url,
-            service_id=s.service_id,
-            ttl_ms=s.cache_ttl_ms,
+            url=s.CONFIGURATION_BACKEND_URL,
+            service_id=s.FEATURE_FLAG_SERVICE_ID,
+            ttl_ms=s.FEATURE_FLAG_CACHE_TTL_MS,
         )
         return cls._instance
 
