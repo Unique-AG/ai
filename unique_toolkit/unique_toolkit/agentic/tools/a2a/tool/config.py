@@ -1,8 +1,9 @@
+import logging
 import re
 from enum import StrEnum
-from typing import Annotated, Generic, Literal, TypeVar
+from typing import Annotated, Generic, Literal, Self, TypeVar
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic.main import BaseModel
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
@@ -24,6 +25,9 @@ class SystemReminderConfig(BaseModel, Generic[T]):
     model_config = get_configuration_dict()
 
     type: T
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 _SYSTEM_REMINDER_FIELD_DESCRIPTION = """
@@ -127,11 +131,6 @@ class SubAgentToolConfig(BaseToolConfig):
         description="The list of tool names that will be forced to be called for this sub-agent.",
     )
 
-    @field_validator("forced_tools", mode="before")
-    @classmethod
-    def _coerce_forced_tools_none(cls, v: list[str] | None) -> list[str]:
-        return v if v is not None else []
-
     tool_description_for_system_prompt: Annotated[
         str, RJSFMetaTag.StringWidget.textarea(rows=3)
     ] = Field(
@@ -171,10 +170,12 @@ class SubAgentToolConfig(BaseToolConfig):
     poll_interval: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=1.0,
         description="Time interval in seconds between polling attempts when waiting for sub-agent response.",
+        gt=0,
     )
     max_wait: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=120.0,
         description="Maximum time in seconds to wait for the sub-agent response before timing out.",
+        gt=0,
     )
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = Field(
         default="completedAt",
@@ -188,14 +189,13 @@ class SubAgentToolConfig(BaseToolConfig):
         description="Optional: A custom JSON schema to send to the llm as the tool input schema.",
     )
 
-    @field_validator("tool_input_json_schema", mode="before")
-    @classmethod
-    def _coerce_tool_input_json_schema_none(cls, v: str | None) -> str:
-        return v if v is not None else ""
-
     returns_content_chunks: bool = Field(
         default=False,
         description="If set, the sub-agent response will be interpreted as a list of content chunks.",
+    )
+    response_passthrough: bool = Field(
+        default=False,
+        description="If set, this sub agent's response will be directly displayed to the user once called, ending the orchestrator loop.",
     )
 
     system_reminders_config: list[
@@ -207,3 +207,38 @@ class SubAgentToolConfig(BaseToolConfig):
         default=[],
         description="Configuration for the system reminders to add to the tool response.",
     )
+
+    @field_validator("forced_tools", mode="before")
+    @classmethod
+    def _coerce_forced_tools_none(cls, v: list[str] | None) -> list[str]:
+        return v if v is not None else []
+
+    @field_validator("tool_input_json_schema", mode="before")
+    @classmethod
+    def _coerce_tool_input_json_schema_none(cls, v: str | None) -> str:
+        return v if v is not None else ""
+
+    @model_validator(mode="after")
+    def _ensure_response_passthrough_and_returns_content_chunks_mutually_exclusive(
+        self,
+    ) -> Self:
+        if self.response_passthrough and self.returns_content_chunks:
+            raise ValueError(
+                f"SubAgent (assistant_id={self.assistant_id!r}): "
+                "`response_passthrough` and `returns_content_chunks` are mutually exclusive."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _ensure_use_sub_agent_references_off_when_tool_response_passthrough(
+        self,
+    ) -> Self:
+        if self.response_passthrough and self.use_sub_agent_references:
+            _LOGGER.warning(
+                "SubAgent (assistant_id=%r): `response_passthrough=True` and `use_sub_agent_references=True`. "
+                "`use_sub_agent_references` will be overridden to False.",
+                self.assistant_id,
+            )
+            self.use_sub_agent_references = False
+
+        return self

@@ -310,20 +310,65 @@ class _ToolManager(Generic[_ApiMode]):
         if tool.name not in self._tool_choices:
             self._tool_choices.append(tool.name)
 
-    def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
+    def _get_tool_calls_that_take_control(
+        self, tool_calls: list[LanguageModelFunction]
+    ) -> list[LanguageModelFunction]:
+        tools = []
         for tool_call in tool_calls:
             tool_instance = self.get_tool_by_name(tool_call.name)
             if tool_instance and tool_instance.takes_control():
-                return True
-        return False
+                tools.append(tool_call)
+
+        return tools
+
+    def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
+        return len(self._get_tool_calls_that_take_control(tool_calls)) > 0
 
     def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
         return list(self._tool_evaluation_check_list)
+
+    def _take_control_conflict_response(
+        self,
+        tool_call: LanguageModelFunction,
+        take_control_names: list[str],
+    ) -> ToolCallResponse:
+        if tool_call.name in take_control_names:
+            content = (
+                f"ERROR: Tool `{tool_call.name}` directly return its response to the user and therefore must be called on its own. "
+                "None of the tools in this batch were executed. "
+                f"You may recover by first calling the other tools, then calling `{tool_call.name}` alone."
+            )
+        else:
+            names = ", ".join(f"`{n}`" for n in take_control_names)
+            content = f"ERROR: Not executed because the following tool(s) must be called on their own: {names}"
+
+        return ToolCallResponse(
+            id=tool_call.id,
+            name=tool_call.name,
+            content=content,
+        )
 
     async def execute_selected_tools(
         self,
         tool_calls: list[LanguageModelFunction],
     ) -> list[ToolCallResponse]:
+        if len(tool_calls) > 1:
+            take_control_tools = [
+                t.name for t in self._get_tool_calls_that_take_control(tool_calls)
+            ]
+
+            if len(take_control_tools) > 0:
+                self._logger.warning(
+                    "Tool(s) %s take control and cannot be called alongside other tools. "
+                    "Returning error for all %d tool calls.",
+                    take_control_tools,
+                    len(tool_calls),
+                )
+                return [
+                    self._take_control_conflict_response(tool_call, take_control_tools)
+                    for tool_call in tool_calls
+                ]
+
         tool_call_responses = await self._execute_parallelized(tool_calls)
         return tool_call_responses
 

@@ -43,7 +43,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 from unique_toolkit.app import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content import ContentChunk
+from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -145,6 +145,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     @override
     def tool_format_information_for_user_prompt(self) -> str:
         return self.config.tool_format_information_for_user_prompt
+
+    @override
+    def takes_control(self) -> bool:
+        return self.config.response_passthrough
 
     @override
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
@@ -273,6 +277,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     active_message_log=active_message_log,
                 )
 
+                if self.config.response_passthrough:
+                    await self._display_sub_agent_response(response)
+
                 return ToolCallResponse(
                     id=tool_call.id,
                     name=tool_call.name,
@@ -302,6 +309,17 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 active_message_log=active_message_log,
             )
             raise e
+
+    async def _display_sub_agent_response(self, response: Space.Message) -> None:
+        await self._chat_service.modify_assistant_message_async(
+            content=response["text"],
+            original_content=response["originalText"],
+            references=[
+                ContentReference.from_sdk_reference(ref)
+                for ref in response["references"] or []
+            ],
+            set_completed_at=True,
+        )
 
     async def _get_chat_id(self) -> str | None:
         if not self.config.reuse_chat:
