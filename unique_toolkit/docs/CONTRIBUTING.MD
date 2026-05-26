@@ -46,7 +46,7 @@ uv run --no-project \
   unique_toolkit/docs/examples_from_docs/standalone_setup.py
 ```
 
-Helper scripts (from repo root, after `source unique.env` for API examples):
+Helper scripts (from repo root; `unique.env` in repo root or `ENVIRONMENT_FILE_PATH` set):
 
 - **Smoke** (syntax + imports, no API): `uv sync --locked --package unique_sdk --package unique_toolkit && uv sync --package unique_toolkit --extra langchain && uv run python unique_toolkit/scripts/validate_doc_examples.py`
 - **Run all** (live tenant required): `unique_toolkit/scripts/run_all_doc_examples.sh`
