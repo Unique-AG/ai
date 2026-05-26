@@ -435,6 +435,27 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
+    def remove_tools_with_unsupported_model_capabilities(self) -> "UniqueAIConfig":
+        if ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities:
+            return self
+
+        self.space.tools = [
+            tool
+            for tool in self.space.tools
+            if tool.name != OpenAIBuiltInToolName.CODE_INTERPRETER
+        ]
+        return self
+
+    @model_validator(mode="after")
+    def disable_responses_api_when_model_does_not_support_it(self) -> "UniqueAIConfig":
+        if ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities:
+            return self
+
+        self.agent.experimental.responses_api_config.use_responses_api = False
+        self.agent.experimental.use_responses_api = False
+        return self
+
+    @model_validator(mode="after")
     def enable_responses_api_for_code_interpreter_tool(self) -> "UniqueAIConfig":
         """Auto-enable the Responses API when Code Interpreter is added directly as a tool.
 

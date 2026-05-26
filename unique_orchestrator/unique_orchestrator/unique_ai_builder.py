@@ -126,7 +126,7 @@ async def build_unique_ai(
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    _apply_model_choice_override(event=event, logger=logger, config=config)
+    config = _apply_model_choice_override(event=event, logger=logger, config=config)
     common_components = await _build_common(event, logger, config)
 
     if (
@@ -176,12 +176,12 @@ def _apply_model_choice_override(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
-) -> None:
+) -> UniqueAIConfig:
     if (
         not config.space.allow_user_model_selection
         or not event.payload.has_model_choice_override
     ):
-        return
+        return config
 
     selected_model = event.payload.model_choice
     if config.space.allowed_user_model and not _is_allowed_user_model_choice(
@@ -193,20 +193,16 @@ def _apply_model_choice_override(
             "allowed for this space."
         )
 
-    config.space.language_model = selected_model
+    config_data = config.model_dump()
+    config_data["space"]["language_model"] = selected_model
+    validated_config = UniqueAIConfig.model_validate(config_data)
+
     logger.info(
         "Using user model choice %s.",
         selected_model.display_name,
     )
 
-    _remove_tools_with_unsupported_model_capabilities(config=config, logger=logger)
-    _disable_responses_api_when_model_does_not_support_it(
-        config=config,
-        logger=logger,
-    )
-    config.enable_responses_api_for_code_interpreter_tool()
-    config.enable_responses_api_for_gpt_55_and_gpt_55_pro()
-    config.validate_open_file_tool_requires_responses_api()
+    return validated_config
 
 
 def _is_allowed_user_model_choice(
@@ -215,55 +211,6 @@ def _is_allowed_user_model_choice(
     allowed_models: list[LanguageModelInfo],
 ) -> bool:
     return selected_model in allowed_models
-
-
-def _remove_tools_with_unsupported_model_capabilities(
-    *,
-    config: UniqueAIConfig,
-    logger: Logger,
-) -> None:
-    supported_capabilities = set(config.space.language_model.capabilities)
-    supported_tools: list[ToolBuildConfig] = []
-
-    for tool in config.space.tools:
-        if (
-            tool.name == OpenAIBuiltInToolName.CODE_INTERPRETER
-            and ModelCapabilities.RESPONSES_API not in supported_capabilities
-        ):
-            logger.warning(
-                "Removing tool %s because selected model %s does not support "
-                "required capabilities: %s.",
-                tool.name,
-                config.space.language_model.display_name,
-                ModelCapabilities.RESPONSES_API,
-            )
-            continue
-
-        supported_tools.append(tool)
-
-    config.space.tools = supported_tools
-
-
-def _disable_responses_api_when_model_does_not_support_it(
-    *,
-    config: UniqueAIConfig,
-    logger: Logger,
-) -> None:
-    if ModelCapabilities.RESPONSES_API in config.space.language_model.capabilities:
-        return
-
-    uses_responses_api = (
-        config.agent.experimental.responses_api_config.use_responses_api
-        or config.agent.experimental.use_responses_api
-    )
-    if uses_responses_api:
-        logger.warning(
-            "Disabling Responses API because selected model %s does not support it.",
-            config.space.language_model.display_name,
-        )
-
-    config.agent.experimental.responses_api_config.use_responses_api = False
-    config.agent.experimental.use_responses_api = False
 
 
 async def _build_common(
