@@ -373,9 +373,7 @@ def test_model_choice_refreshes_search_tool_token_limits() -> None:
         ),
         agent={
             "experimental": {
-                "retrieve_search_scope_config": RetrieveSearchScopeConfig(
-                    enabled=True
-                ),
+                "retrieve_search_scope_config": RetrieveSearchScopeConfig(enabled=True),
             }
         },
     )
