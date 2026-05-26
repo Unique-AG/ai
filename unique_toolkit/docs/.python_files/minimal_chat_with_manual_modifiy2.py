@@ -1,14 +1,4 @@
 # ~/~ begin <<docs/chat/index.md#docs/.python_files/minimal_chat_with_manual_modifiy2.py>>[init]
-# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#   "unique-toolkit>=2026.22.0",
-#   "unique-sdk>=2026.22.0",
-# ]
-# ///
-# ~/~ end
-
 import time
 # ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]

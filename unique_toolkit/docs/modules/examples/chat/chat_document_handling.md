@@ -86,8 +86,6 @@ Finally, `free_user_input()` re-enables the chat input field, allowing the user 
 <!--
 
 ```{.python file=docs/.python_files/chat_with_document_app.py}
-<<example-script-deps>>
-
 <<full_sse_setup_with_services>>
     <<chat_service_document_and_image_download>>
     <<chat_service_images_message_building>>

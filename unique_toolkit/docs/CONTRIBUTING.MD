@@ -27,3 +27,5 @@ uv run path/to/example.py
 `uv` needs network access on first run to download `unique-toolkit`, `unique-sdk`, and their dependencies. Set the required `UNIQUE_*` environment variables (see [Getting started](setup/getting_started.md)) before running examples that call the platform API.
 
 When adding or updating tangled examples, include `<<example-script-deps>>` as the first line of every Entangled composition that targets `docs/.python_files/`. The block is defined in `docs/setup/_script_dependencies.md`.
+
+Do not add `<<example-script-deps>>` when the composition already includes a block that carries it (for example `<<full_sse_setup_with_services>>`, which starts with script metadata). Duplicate `# /// script` headers break `uv run`.

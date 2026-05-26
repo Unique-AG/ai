@@ -1,14 +1,4 @@
 # ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/chat_with_manual_message_create_free_user_input.py>>[init]
-# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#   "unique-toolkit>=2026.22.0",
-#   "unique-sdk>=2026.22.0",
-# ]
-# ///
-# ~/~ end
-
 # ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
 # /// script

@@ -17,8 +17,6 @@ chat_service.create_assistant_message(
 
 <!--
 ```{.python file=docs/.python_files/chat_prompt_button.py}
-<<example-script-deps>>
-
 <<full_sse_setup_with_services>>
     <<rendering_prompt_buttons>>
     <<free_user_input>>
@@ -42,8 +40,6 @@ chat_service.create_assistant_message(
 
 <!--
 ```{.python file=docs/.python_files/chat_latex_formula.py}
-<<example-script-deps>>
-
 <<full_sse_setup_with_services>>
     <<rendering_latex_formula>>
     <<free_user_input>>
