@@ -40,6 +40,26 @@ Use it when:
 - **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
 - **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
 
+### When to say "I could not find a reliable source"
+
+Web search is not omniscient. Some questions have no answer in the public, crawlable web — the data is not published, sits behind a paywall the crawler cannot reach, or the entity / timeframe does not match anything indexed. **Fabricating a number, or paraphrasing one from a weak snippet, is worse than admitting the gap.** A clean "no" with a concrete reformulation suggestion is the correct answer in that case.
+
+Answer with "I could not find a reliable source" when **all** of these hold:
+
+- You have run **at least two** `search` calls for the same gap, ideally with different keywords, languages, or timeframes.
+- The most promising URLs from those SERPs have been fetched and either returned a dead / off-topic / blocked page, or returned a page whose scope (entity, geography, timeframe, field) did not actually match the gap.
+- One more refined query is unlikely to surface anything stronger — you have already tried the obvious reformulations (entity name in local language, alternative source classes, broader time window).
+
+When that condition is met, answer plainly. Do **not** present a guess as a fact:
+
+> "I could not find a reliable source for **\<the specific field\>**. The data may not be publicly available, may sit behind a paywall, or the entity / timeframe may not match what is indexed. You could try: **\<one concrete reformulation — different time window, broader geography, specific source name, primary-source database\>**."
+
+Anti-patterns this rule blocks:
+- **Quoting a number from a weak / hedged snippet** as if it were sourced. If the snippet only paraphrases or qualifies the value, the answer must hedge in the same way — or, better, the answer is "I could not find a reliable source."
+- **Synthesising from adjacent data points** the user did not ask for. The fetched page may match on topic but sit in the **wrong scope** — a broader or narrower geographic level than the gap names, a different named entity in the same category, a neighbouring timeframe on a field whose value changes between periods, or a different field entirely. Same topic, wrong scope is not an answer. Once you have the page you must check that its scope (entity, geography, timeframe, field) actually matches the gap's scope; if it does not, treat the page as not containing the answer, regardless of how relevant the snippet looked. **Scope mismatch is the dominant cause of hallucinated answers in this tool — you must catch it yourself after fetching.**
+- **Padding a fabricated number with caveats** ("varies", "depends on context", "subject to negotiation") to make a guess look defensible. Caveats do not turn a guess into a source.
+- **Giving up after one bad fetch.** A single 404 / blocked / off-topic page is not a stop signal — it is a signal to try the next-most-relevant URL from the same SERP, or to reformulate. Only after at least two searches plus the failed fetches is "I could not find it" the right answer.
+
 For the deeper explore-then-exploit playbook (snippet hedging triggers, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns, worked examples), activate the `web-search-v3` skill before/while using this tool.
 
 Tool arguments are defined by the tool schema; the live JSON schema comes from the tool definition.
