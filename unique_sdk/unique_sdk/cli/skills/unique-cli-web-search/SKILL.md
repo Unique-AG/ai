@@ -1,23 +1,27 @@
 ---
 name: unique-cli-web-search
 description: >-
-  ALWAYS use this skill when the user asks to search the public web,
-  research a topic online, look up news/articles/regulations, fetch the
-  contents of one or more URLs, or perform any "two-phase" web research
-  (search → review snippets → crawl selected URLs for full content).
-  Routes through the Unique AI Platform's `/web-search-api` endpoints
-  via `unique-cli web-search`, so the engine (Google, Brave, Tavily,
-  Jina, Firecrawl, …) and crawler are resolved server-side from the
-  current environment — you never need to manage engine API keys
-  yourself. Use this instead of fabricating answers from training data
-  whenever fresh / source-cited information is needed. Do NOT use this
-  skill for the internal knowledge base (`unique-cli search`) or for
-  arbitrary tool execution (`unique-cli mcp`).
+  Search the public web and crawl URLs via the Unique AI Platform's
+  `unique-cli web-search` command, with automatic per-turn citation
+  tracking so cited web facts render as clickable external reference
+  chips and `<sup>N</sup>` footnotes on the Unique platform. ALWAYS use
+  this skill when the user asks to search the public web, research a
+  topic online, look up news/articles/regulations, fetch the contents
+  of one or more URLs, or perform any "two-phase" web research (search
+  → review snippets → crawl selected URLs for full content). Routes
+  through the Unique AI Platform's `/web-search-api` endpoints, so the
+  engine (Google, Brave, Tavily, Jina, Firecrawl, …) and crawler are
+  resolved server-side from the current environment — you never need
+  to manage engine API keys yourself. Use this instead of fabricating
+  answers from training data whenever fresh / source-cited information
+  is needed. Do NOT use this skill for the internal knowledge base
+  (`unique-cli search`) or for arbitrary tool execution (`unique-cli
+  mcp`).
 ---
 
 # Unique CLI -- Web Search & Crawl
 
-Two-phase web research from the terminal, backed by the Unique AI Platform's public `/web-search-api`. Phase 1 (`search`) queries a search engine and returns URLs + snippets. Phase 2 (`crawl`) fetches the full page content for the URLs you actually want to read. The two-phase split lets you (or an LLM) review titles and snippets cheaply before paying the latency cost of full-page crawling.
+Two-phase web research from the terminal, backed by the Unique AI Platform's public `/web-search-api`. Phase 1 (`search`) queries a search engine and returns URLs + snippets. Phase 2 (`crawl`) fetches the full page content for the URLs you actually want to read. The two-phase split lets you (or an LLM) review titles and snippets cheaply before paying the latency cost of full-page crawling. Every invocation annotates each result with a `sourceNumber` / `citation: "websourceN"` and records a per-turn citation manifest at `.unique/web-refs.jsonl`, so any fact you cite as `[websourceN]` is rendered with a footnote and a clickable external reference chip in the chat UI.
 
 > **Server-side engine/crawler.** Unlike `unique-websearch`, this CLI does not instantiate engines locally — it just posts to the Unique platform, which resolves the engine and crawler from `ACTIVE_SEARCH_ENGINES` / `ACTIVE_INHOUSE_CRAWLERS` server-side. **You do not need any engine API keys** (Google, Brave, Tavily, etc.) on the client.
 
@@ -213,9 +217,6 @@ Found 3 result(s):
 >   | unique-cli web-search crawl --stdin
 > ```
 
-Use the `citation` value in final prose, wrapped in square brackets, e.g.
-`The regulation applies in phases [websource1].`
-
 ### `crawl` (text)
 
 ```
@@ -358,15 +359,20 @@ Both classes have `*_async` variants (`WebSearch.search_async`,
 
 ## Citation Rules
 
-- Use `[websourceN]` for public web citations, where `N` is the `sourceNumber`
-  returned by `unique-cli web-search`.
-- Do not use `[sourceN]` for web results; `[sourceN]` is reserved for internal
-  knowledge-base citations.
-- Only cite source numbers from the current turn's command output.
-- The same URL keeps the same `sourceNumber` across search and crawl calls in a
-  turn, so cite the crawled content with the same marker that the search result
-  used.
-- Never invent citation markers for remembered or inferred facts.
+Cite a fact from `unique-cli web-search` results with `[websourceN]`, where `N` matches the `sourceNumber` (also surfaced as the `citation: "websourceN"` field) the command emitted alongside the result. The Unique platform's Swappable Intelligence runner converts each `[websourceN]` marker in your final answer into a `<sup>N</sup>` footnote and a clickable external reference chip; without `unique-cli web-search`, web facts in your answer appear as plain text only, with no footnote and no chip — so this is the only way to make web citations render correctly on the platform.
+
+```
+The regulation enters into force in August 2026 [websource1],
+with phased obligations through 2028 [websource2].
+```
+
+**Rules** (enforced by the platform's reference post-processor, which reads `.unique/web-refs.jsonl` rather than your prose):
+
+1. **`[websourceN]` is for public web citations only.** Knowledge-base results from `unique-cli search` use `[sourceN]` instead — never mix the two namespaces, and never use `[sourceN]` for web results.
+2. Only cite numbers you saw in the **current** turn's `unique-cli web-search` output. Numbers from previous turns are stale and will be silently dropped.
+3. Write `websource` in singular form with the number in digits: `[websource1]`, `[websource2]` — not `[Websource 1]` or `[websource one]`.
+4. The same URL keeps the same `[websourceN]` across `search` and `crawl` calls in a turn, so cite a fact from the crawled page with the marker the search snippet already advertised.
+5. Do not invent source numbers for remembered or inferred facts.
 
 ## Prerequisites
 
