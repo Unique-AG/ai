@@ -3,8 +3,16 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.service import InternalSearchTool
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
+)
+from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool import (
+    RetrieveSearchScopeTool,
+)
+from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
+    RetrieveSearchScopeConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
@@ -17,6 +25,8 @@ from unique_toolkit.language_model.infos import (
     ModelCapabilities,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+from unique_web_search.config import WebSearchConfig
+from unique_web_search.service import WebSearchTool
 
 from unique_orchestrator.config import UniqueAIConfig, UniqueAISpaceConfig
 from unique_orchestrator.unique_ai_builder import _apply_model_choice_override
@@ -334,3 +344,60 @@ def test_model_choice_rejects_open_file_tool_when_selected_model_lacks_responses
         )
 
     assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+
+@pytest.mark.ai
+def test_model_choice_refreshes_search_tool_token_limits() -> None:
+    """
+    Purpose: Verify model overrides refresh token limits on search tool configs.
+    Why this matters: Search tools budget source tokens from the active model's context window.
+    Setup summary: Start with a larger model; select a smaller one and assert tool configs follow it.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    selected_model.token_limits.token_limit_input = 4_000
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_user_model_selection=True,
+            language_model=default_model,
+            tools=[
+                ToolBuildConfig(
+                    name=InternalSearchTool.name,
+                    configuration=InternalSearchConfig(),
+                ),
+                ToolBuildConfig(
+                    name=WebSearchTool.name,
+                    configuration=WebSearchConfig(),
+                ),
+            ],
+        ),
+        agent={
+            "experimental": {
+                "retrieve_search_scope_config": RetrieveSearchScopeConfig(
+                    enabled=True
+                ),
+            }
+        },
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    token_limits_by_tool_name = {
+        tool.name: tool.configuration.language_model_max_input_tokens
+        for tool in config.space.tools
+        if tool.name
+        in {
+            InternalSearchTool.name,
+            WebSearchTool.name,
+            RetrieveSearchScopeTool.name,
+        }
+    }
+    assert token_limits_by_tool_name == {
+        InternalSearchTool.name: 4_000,
+        WebSearchTool.name: 4_000,
+        RetrieveSearchScopeTool.name: 4_000,
+    }
