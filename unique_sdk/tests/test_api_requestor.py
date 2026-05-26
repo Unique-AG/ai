@@ -180,6 +180,29 @@ def test_request_headers(mock_requests):
 
 @patch("unique_sdk._http_client.requests")
 @pytest.mark.ai
+def test_AI_request_headers_omit_empty_optional_auth_headers(mock_requests):
+    """Purpose: Empty optional auth values are not serialized as HTTP headers.
+
+    Why this matters: Async clients reject ``Authorization: Bearer `` before the
+    request is sent, while secured/local environments may intentionally omit API
+    key and app id.
+    Setup summary: Build headers with empty API key/app id. Assert auth headers
+    are omitted while required context headers remain.
+    """
+    mock_requests.return_value = "response"
+    requestor = APIRequestor(user_id="u", company_id="c", key="", app_id="")
+
+    headers = requestor.request_headers("", "", "post")
+
+    assert "Authorization" not in headers
+    assert "x-app-id" not in headers
+    assert headers["x-user-id"] == "u"
+    assert headers["x-company-id"] == "c"
+    assert headers["Content-Type"] == "application/json"
+
+
+@patch("unique_sdk._http_client.requests")
+@pytest.mark.ai
 def test_AI_request_headers_put_includes_json_body(mock_requests):
     """PUT requests send JSON like POST/PATCH so upstream receives a body.
 
