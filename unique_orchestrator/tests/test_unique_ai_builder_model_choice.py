@@ -89,7 +89,7 @@ def test_model_choice_keeps_default_model_when_choice_was_not_sent() -> None:
         )
     )
 
-    _apply_model_choice_override(
+    config = _apply_model_choice_override(
         event=_make_event(selected_model, has_model_choice_override=False),
         logger=MagicMock(),
         config=config,
@@ -115,7 +115,7 @@ def test_model_choice_keeps_default_model_when_selection_is_disabled() -> None:
         )
     )
 
-    _apply_model_choice_override(
+    config = _apply_model_choice_override(
         event=_make_event(selected_model, has_model_choice_override=True),
         logger=MagicMock(),
         config=config,
@@ -141,13 +141,13 @@ def test_model_choice_uses_selected_model_when_selection_is_enabled() -> None:
         )
     )
 
-    _apply_model_choice_override(
+    config = _apply_model_choice_override(
         event=_make_event(selected_model, has_model_choice_override=True),
         logger=MagicMock(),
         config=config,
     )
 
-    assert config.space.language_model is selected_model
+    assert config.space.language_model == selected_model
 
 
 @pytest.mark.ai
@@ -168,13 +168,13 @@ def test_model_choice_uses_selected_model_when_present_in_allowlist() -> None:
         )
     )
 
-    _apply_model_choice_override(
+    config = _apply_model_choice_override(
         event=_make_event(selected_model, has_model_choice_override=True),
         logger=MagicMock(),
         config=config,
     )
 
-    assert config.space.language_model is selected_model
+    assert config.space.language_model == selected_model
 
 
 @pytest.mark.ai
@@ -277,13 +277,13 @@ def test_model_choice_removes_code_interpreter_when_selected_model_lacks_respons
     )
     assert config.agent.experimental.responses_api_config.use_responses_api is True
 
-    _apply_model_choice_override(
+    config = _apply_model_choice_override(
         event=_make_event(selected_model, has_model_choice_override=True),
         logger=MagicMock(),
         config=config,
     )
 
-    assert config.space.language_model is selected_model
+    assert config.space.language_model == selected_model
     assert config.space.tools == []
     assert config.agent.experimental.responses_api_config.use_responses_api is False
 
@@ -333,4 +333,4 @@ def test_model_choice_rejects_open_file_tool_when_selected_model_lacks_responses
             config=config,
         )
 
-    assert config.agent.experimental.responses_api_config.use_responses_api is False
+    assert config.agent.experimental.responses_api_config.use_responses_api is True
