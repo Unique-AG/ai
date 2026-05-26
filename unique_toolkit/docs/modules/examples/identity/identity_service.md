@@ -49,6 +49,8 @@ for group in groups:
 
 <!--
 ```{.python file=./docs/.python_files/identity_list_users_and_groups.py}
+<<example-script-deps>>
+
 <<identity_service_setup>>
 <<identity_list_users_and_groups>>
 ```
@@ -68,6 +70,8 @@ by_name = identity.users.get(user_name="ada")
 
 <!--
 ```{.python file=./docs/.python_files/identity_get_user.py}
+<<example-script-deps>>
+
 <<identity_service_setup>>
 target_email = "ada@example.com"
 user = identity.users.get(email=target_email)
@@ -88,6 +92,8 @@ is_eng = identity.users.is_member(user_id=user.id, group_id="g-eng")
 
 <!--
 ```{.python file=./docs/.python_files/identity_groups_of_user.py}
+<<example-script-deps>>
+
 <<identity_service_setup>>
 <<identity_groups_of_user>>
 ```
@@ -105,6 +111,8 @@ identity.groups.delete(renamed.id)
 
 <!--
 ```{.python file=./docs/.python_files/identity_group_lifecycle.py}
+<<example-script-deps>>
+
 <<identity_service_setup>>
 <<identity_group_lifecycle>>
 ```
@@ -128,6 +136,8 @@ assert success is True
 
 <!--
 ```{.python file=./docs/.python_files/identity_membership.py}
+<<example-script-deps>>
+
 <<identity_service_setup>>
 <<identity_membership>>
 ```
@@ -154,6 +164,8 @@ print(updated_group.configuration)
 
 <!--
 ```{.python file=./docs/.python_files/identity_configuration_blobs.py}
+<<example-script-deps>>
+
 <<identity_service_setup>>
 <<identity_configuration_blobs>>
 ```

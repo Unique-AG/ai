@@ -31,6 +31,8 @@ chat_service.complete_with_references(
 <!--
 
 ```{.python file=docs/.python_files/chat_service_chat_memory.py}
+<<example-script-deps>>
+
 <<full_sse_setup_with_services>>
     <<trivial_message_from_user>>
     <<chat_service_chat_memory>>

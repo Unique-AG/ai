@@ -1,4 +1,12 @@
-# %%
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+
+
 from unique_toolkit import (
     ChatService,
     KnowledgeBaseService,
@@ -11,6 +19,14 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
+
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
 
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):

@@ -39,6 +39,8 @@ for folder in created:
 ```
 
 ```{.python #folder-mgmt-main-multi file=docs/.python_files/folder_create_multiple_abs_paths.py}
+<<example-script-deps>>
+
 <<folder-mgmt-imports>>
 
 <<folder-mgmt-init>>
@@ -82,6 +84,8 @@ print("leaf id=", leaf.id, "name=", leaf.name)
 ```
 
 ```{.python #folder-mgmt-main-nested file=docs/.python_files/folder_create_under_parent.py}
+<<example-script-deps>>
+
 <<folder-mgmt-imports>>
 
 <<folder-mgmt-init>>
@@ -156,11 +160,27 @@ delete_result = folder_service.delete(scope_id=leaf.id)
 print("Deleted:", delete_result.success_folders, "Failed:", delete_result.failed_folders)
 ```
 
+### Run this example
+
+Download the assembled script and run it with [uv](https://docs.astral.sh/uv/) (requires network access to resolve dependencies):
+
+```bash
+curl -fsSL -o example.py \
+  'https://raw.githubusercontent.com/Unique-AG/ai/feat/UN-20677-runnable-docs/unique_toolkit/docs/examples_from_docs/folder_create_verify_delete.py' \
+  && uv run example.py
+```
+
+!!! note "Environment variables"
+
+    Set `UNIQUE_API_KEY`, `UNIQUE_APP_ID`, `UNIQUE_AUTH_USER_ID`, and `UNIQUE_AUTH_COMPANY_ID` (and other `UNIQUE_*` values your tenant needs) in the environment or a `.env` file before running. See [Getting started](../../../setup/getting_started.md) for details.
+
 ### Assembled runnable script
 
 The block below is tangled to `docs/.python_files/` and copied to [examples_from_docs](../../../examples_from_docs/) when you run `generate_examples.sh` in the `unique_toolkit` package root.
 
 ```{.python #folder-mgmt-main file=docs/.python_files/folder_create_verify_delete.py}
+<<example-script-deps>>
+
 <<folder-mgmt-imports>>
 
 <<folder-mgmt-constants>>

@@ -1,4 +1,14 @@
 # ~/~ begin <<docs/plattforms/langchain/langchain.md#docs/.python_files/langchain_simple_invoke.py>>[init]
+# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+# ~/~ end
+
 # ~/~ begin <<docs/plattforms/langchain/langchain.md#langchain_basic_invoke>>[init]
 from langchain_core.messages import HumanMessage, SystemMessage
 

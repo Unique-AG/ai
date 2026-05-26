@@ -19,6 +19,8 @@ content = kb_service.upload_content_from_bytes(
 
 <!--
 ```{.python #kb_service_upload_from_memory file=./docs/.python_files/kb_service_upload_from_memory.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
@@ -42,6 +44,8 @@ content = kb_service.upload_content(
 
 <!--
 ```{.python file=./docs/.python_files/kb_service_upload_from_file.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
@@ -161,6 +165,8 @@ if __name__ == "__main__":
 ```
 
 ```{.python #kb-mirror-main file=docs/.python_files/kb_mirror_local_folder_skip_ingest.py}
+<<example-script-deps>>
+
 <<kb-mirror-local-imports>>
 
 <<kb-mirror-local-mirror-fn>>
@@ -198,6 +204,8 @@ print(text)
 
 <!--
 ```{.python file=./docs/.python_files/kb_service_download_to_memory.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_content_id>>
@@ -232,6 +240,8 @@ finally:
 
 <!--
 ```{.python file=./docs/.python_files/kb_service_download_to_file.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_content_id>>
@@ -256,6 +266,8 @@ kb_service.delete_content(
 
 <!--
 ```{.python file=./docs/.python_files/kb_service_delete.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
@@ -291,6 +303,8 @@ for i, chunk in enumerate(content_chunks[:3]):
 
 <!--
 ```{.python file=./docs/.python_files/kb_service_vector_search_content_chunks.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
@@ -315,6 +329,8 @@ print(f"Combined search found {len(content_chunks)} chunks")
 
 <!--
 ```{.python file=./docs/.python_files/kb_service_combined_search_content_chunks.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>
@@ -333,6 +349,8 @@ contents = kb_service.search_contents(
 
 <!--
 ```{.python file=./docs/.python_files/kb_service_search_content.py }
+<<example-script-deps>>
+
 <<kb_service_setup>>
 <<load_demo_variables>>
 <<env_scope_id>>

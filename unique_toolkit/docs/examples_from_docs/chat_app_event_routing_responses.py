@@ -15,9 +15,7 @@
 # transform_chunks_to_string, so multi-turn conversations stay consistent.
 import json
 
-from unique_toolkit import (
-    LanguageModelName,
-)
+from unique_toolkit import LanguageModelName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     OpenAICodeInterpreterConfig,
 )

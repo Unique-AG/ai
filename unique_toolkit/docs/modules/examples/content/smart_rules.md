@@ -111,6 +111,8 @@ content_chunks = kb_service.search_content_chunks(
 
 <!--
 ```{.python file=./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py }
+<<example-script-deps>>
+
 <<smart_rules_imports>>
 <<common_imports>>
 <<initialize_kb_service_standalone>>
@@ -131,6 +133,8 @@ infos =kb_service.get_paginated_content_infos(
 
 <!--
 ```{.python file=./docs/.python_files/kb_content_search_with_smart_rule_on_folders.py }
+<<example-script-deps>>
+
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -169,6 +173,8 @@ kb_service.delete_contents(
 
 <!--
 ```{.python file=./docs/.python_files/kb_deletion_with_smart_rule_on_folders.py }
+<<example-script-deps>>
+
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -202,6 +208,8 @@ print(f"Updated metadata for {len(updated_contents)} files")
 
 <!--
 ```{.python file=./docs/.python_files/kb_update_metadata_with_smart_rule.py }
+<<example-script-deps>>
+
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>
@@ -229,6 +237,8 @@ print(f"Removed metadata from {len(updated_contents)} files")
 
 <!--
 ```{.python file=./docs/.python_files/kb_remove_metadata_with_smart_rule.py }
+<<example-script-deps>>
+
 <<smart_rules_imports>>
 <<kb_service_setup>>
 <<load_demo_variables>>

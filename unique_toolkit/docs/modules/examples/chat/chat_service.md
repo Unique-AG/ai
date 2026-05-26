@@ -89,6 +89,8 @@ chat_service.modify_assistant_message(
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_modifiy.py}
+<<example-script-deps>>
+
 import time
 <<full_sse_setup_with_services>>
     <<chat_service_intermediate_assistant_result>>
@@ -114,6 +116,8 @@ and again the functionality automatically returns the the last assistant message
 <!--
 
 ```{.python file=docs/.python_files/chat_app_minimal.py}
+<<example-script-deps>>
+
 <<full_sse_setup_with_services>>
     <<trivial_message_from_user>>
     <<chat_service_complete_with_references>>
@@ -144,6 +148,8 @@ chat_service.free_user_input()
 
 <!--
 ```{.python file=docs/.python_files/chat_with_manual_message_create_free_user_input.py}
+<<example-script-deps>>
+
 <<full_sse_setup_with_services>>
     <<chat_service_final_assistant_result>>
     <<chat_service_free_user_input>>
@@ -186,6 +192,8 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 
 <!--
 ```{.python file=docs/.python_files/chat_with_manual_message_and_reference.py}
+<<example-script-deps>>
+
 <<full_sse_setup>>
     chat_service = ChatService(event)
     <<chat_service_assistant_message_with_reference>>
@@ -263,6 +271,8 @@ chat_service.complete_with_references(
 
 <!--
 ```{.python file=docs/.python_files/chat_with_streamed_references.py}
+<<example-script-deps>>
+
 <<full_sse_setup>>
     chat_service = ChatService(event)
     <<chat_service_retrieved_chunks>>
@@ -301,6 +311,8 @@ chat_service.modify_user_message(
 ```
 <!--
 ```{.python file=docs/.python_files/chat_edit_debug_information.py}
+<<example-script-deps>>
+
 <<full_sse_setup_with_services>>
     <<chat_service_final_assistant_result>>
     <<chat_service_modify_user_message_debug_info>>
@@ -368,6 +380,8 @@ which displays as
 
 <!--
 ```{.python file=docs/.python_files/chat_with_message_assessment.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<full_sse_setup_with_services>>
     <<chat_service_final_assistant_result>>

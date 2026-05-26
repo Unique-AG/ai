@@ -71,6 +71,8 @@ chat_service.modify_assistant_message(
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_modifiy2.py}
+<<example-script-deps>>
+
 import time
 <<full_sse_setup_with_services>>
     <<chat_service_intermediate_assistant_result2>>
