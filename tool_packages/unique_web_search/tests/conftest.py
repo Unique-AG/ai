@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import unique_web_search.services.url_safety as url_safety
+import unique_web_search.services.crawlers.url_safety.dns as url_safety_dns
 from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
@@ -30,7 +30,7 @@ def stable_public_dns_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
             )
         ]
 
-    monkeypatch.setattr(url_safety.socket, "getaddrinfo", fake_getaddrinfo)
+    monkeypatch.setattr(url_safety_dns.socket, "getaddrinfo", fake_getaddrinfo)
 
 
 @pytest.fixture

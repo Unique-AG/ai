@@ -5,6 +5,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from unique_web_search.services.crawlers.url_safety import (
+    CrawlTargetValidationError,
+    UrlSafetyService,
+)
 from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.executors.v1.executor import (
     RefinedQueries,
@@ -27,10 +31,6 @@ from unique_web_search.services.executors.v3.schema import (
     WebSearchV3ToolParameters,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
-from unique_web_search.services.url_safety import (
-    CrawlTargetValidationError,
-    _validate_crawl_urls,
-)
 
 
 class TestQueryGenerationAgent:
@@ -315,7 +315,7 @@ class TestWebSearchV1ExecutorRun:
         )
         mock_executor_dependencies["search_service"].requires_scraping = True
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=_validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV1Executor(
@@ -759,7 +759,7 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             "search_service"
         ].config.search_engine_name.name = "TEST"
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=_validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV2Executor(
@@ -954,7 +954,7 @@ class TestWebSearchV3ExecutorFetchUrls:
             }
         )
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=_validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV3Executor(
@@ -1143,7 +1143,7 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         Setup summary: Execute a READ_URL step pointing at localhost and assert CrawlTargetValidationError is raised.
         """
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=_validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV2Executor(

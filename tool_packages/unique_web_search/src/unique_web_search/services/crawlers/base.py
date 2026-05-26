@@ -7,11 +7,14 @@ from unique_toolkit.agentic.tools.config import (
     get_configuration_dict,
 )
 
+from unique_web_search.services.crawlers.url_safety import (
+    ResolvedCrawlTarget,
+    UrlSafetyService,
+)
 from unique_web_search.services.helpers import (
     clean_model_title_generator,
     experimental_model_title_generator,
 )
-from unique_web_search.services.url_safety import validate_urls
 
 
 class CrawlerType(StrEnum):
@@ -52,8 +55,8 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         self.config = config
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        urls = await validate_urls(urls)
-        return await self._crawl(urls)
+        targets = await UrlSafetyService.validate_batch_urls(urls)
+        return await self._crawl(targets)
 
     @abstractmethod
-    async def _crawl(self, urls: list[str]) -> list[str]: ...
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]: ...

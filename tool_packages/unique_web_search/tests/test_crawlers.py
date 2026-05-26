@@ -6,6 +6,11 @@ import pytest
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawler, BasicCrawlerConfig
+from unique_web_search.services.crawlers.url_safety import (
+    BlockedCrawlTarget,
+    CrawlTargetValidationError,
+    ResolvedCrawlTarget,
+)
 from unique_web_search.services.crawlers.utils import (
     EMAIL_DOMAINS,
     FIRST_NAMES,
@@ -13,11 +18,6 @@ from unique_web_search.services.crawlers.utils import (
     SEPARATORS,
     generate_random_email,
     get_random_user_agent,
-)
-from unique_web_search.services.url_safety import (
-    BlockedCrawlTarget,
-    CrawlTargetValidationError,
-    ResolvedCrawlTarget,
 )
 
 
@@ -124,8 +124,18 @@ class TestBasicCrawler:
             ),
         )
         monkeypatch.setattr(
-            "unique_web_search.services.crawlers.base.validate_urls",
-            AsyncMock(side_effect=lambda urls: urls),
+            "unique_web_search.services.crawlers.base.UrlSafetyService.validate_batch_urls",
+            AsyncMock(
+                side_effect=lambda urls: [
+                    ResolvedCrawlTarget(
+                        normalized_url=url.strip(),
+                        hostname="",
+                        resolved_ip="",
+                        used_dns_resolution=False,
+                    )
+                    for url in urls
+                ]
+            ),
         )
 
         with pytest.raises(CrawlTargetValidationError):
@@ -222,18 +232,13 @@ class TestBasicCrawlerCrawlUrl:
         )
         client = AsyncMock(spec=httpx.AsyncClient)
         client.get.return_value = response
-        with patch(
-            "unique_web_search.services.crawlers.basic.resolve_crawl_target",
-            return_value=ResolvedCrawlTarget(
-                normalized_url="https://example.com",
-                hostname="example.com",
-                resolved_ip="93.184.216.34",
-                used_dns_resolution=True,
-            ),
-        ):
-            result = await basic_crawler._crawl_url_with_client(
-                client, "https://example.com"
-            )
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com",
+            hostname="example.com",
+            resolved_ip="93.184.216.34",
+            used_dns_resolution=True,
+        )
+        result = await basic_crawler._crawl_url_with_client(client, target)
 
         client.get.assert_called_once()
         call_headers = client.get.call_args[1].get(
@@ -260,21 +265,14 @@ class TestBasicCrawlerCrawlUrl:
         client = AsyncMock(spec=httpx.AsyncClient)
         client.get.return_value = response
 
-        monkeypatch.setattr(
-            "unique_web_search.services.crawlers.basic.resolve_crawl_target",
-            AsyncMock(
-                side_effect=lambda url: ResolvedCrawlTarget(
-                    normalized_url=url,
-                    hostname="example.com",
-                    resolved_ip="93.184.216.34",
-                    used_dns_resolution=True,
-                )
-            ),
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com/docs?q=1",
+            hostname="example.com",
+            resolved_ip="93.184.216.34",
+            used_dns_resolution=True,
         )
 
-        await basic_crawler._crawl_url_with_client(
-            client, "https://example.com/docs?q=1"
-        )
+        await basic_crawler._crawl_url_with_client(client, target)
 
         client.get.assert_called_once()
         assert client.get.call_args.args[0] == "https://93.184.216.34/docs?q=1"
@@ -288,11 +286,44 @@ class TestBasicCrawlerCrawlUrl:
     @pytest.mark.asyncio
     async def test_crawl_url_blacklisted(self, basic_crawler):
         client = AsyncMock(spec=httpx.AsyncClient)
-        result = await basic_crawler._crawl_url_with_client(
-            client, "https://example.com/file.pdf"
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com/file.pdf",
+            hostname="example.com",
+            resolved_ip="",
+            used_dns_resolution=False,
         )
+        result = await basic_crawler._crawl_url_with_client(client, target)
         assert "blacklisted" in result
         client.get.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_validate_urls__returns_bypass_targets__when_safety_disabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify validate_urls returns pass-through targets without DNS-pinning when safety is disabled.
+        Why this matters: BasicCrawler must use targets from validate_urls only; bypass must not require a second resolve.
+        Setup summary: Disable url_safety_enabled on env_settings and assert request_url equals normalized_url.
+        """
+        import unique_web_search.services.crawlers.url_safety.service as service_module
+        from unique_web_search.services.crawlers.url_safety import UrlSafetyService
+
+        monkeypatch.setattr(
+            service_module,
+            "url_safety_settings",
+            service_module.url_safety_settings.model_copy(update={"enabled": False}),
+        )
+
+        url = " https://example.com/page "
+        targets = await UrlSafetyService.validate_batch_urls([url])
+
+        assert len(targets) == 1
+        assert targets[0].normalized_url == url.strip()
+        assert targets[0].request_url == url.strip()
+        assert targets[0].host_header is None
+        assert targets[0].sni_hostname is None
 
 
 class TestBaseCrawlerValidationFlow:
@@ -316,16 +347,27 @@ class TestBaseCrawlerValidationFlow:
         """
         import unique_web_search.services.crawlers.base as base_module
 
-        transformed_urls = ["https://example.com/final"]
-        mock_validate_urls = AsyncMock(return_value=transformed_urls)
-        monkeypatch.setattr(base_module, "validate_urls", mock_validate_urls)
+        transformed_target = ResolvedCrawlTarget(
+            normalized_url="https://example.com/final",
+            hostname="example.com",
+            resolved_ip="93.184.216.34",
+            used_dns_resolution=True,
+        )
+        mock_validate_batch_urls = AsyncMock(return_value=[transformed_target])
+        monkeypatch.setattr(
+            base_module.UrlSafetyService,
+            "validate_batch_urls",
+            mock_validate_batch_urls,
+        )
         mock_crawl = AsyncMock(return_value=["content"])
         monkeypatch.setattr(basic_crawler, "_crawl", mock_crawl)
 
         await basic_crawler.crawl([" https://example.com/start "])
 
-        mock_validate_urls.assert_called_once_with([" https://example.com/start "])
-        mock_crawl.assert_called_once_with(transformed_urls)
+        mock_validate_batch_urls.assert_called_once_with(
+            [" https://example.com/start "]
+        )
+        mock_crawl.assert_called_once_with([transformed_target])
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -341,7 +383,7 @@ class TestBaseCrawlerValidationFlow:
         """
         import unique_web_search.services.crawlers.base as base_module
 
-        mock_validate_urls = AsyncMock(
+        mock_validate_batch_urls = AsyncMock(
             side_effect=CrawlTargetValidationError(
                 [
                     BlockedCrawlTarget(
@@ -352,7 +394,11 @@ class TestBaseCrawlerValidationFlow:
                 ]
             )
         )
-        monkeypatch.setattr(base_module, "validate_urls", mock_validate_urls)
+        monkeypatch.setattr(
+            base_module.UrlSafetyService,
+            "validate_batch_urls",
+            mock_validate_batch_urls,
+        )
         mock_crawl = AsyncMock(return_value=["content"])
         monkeypatch.setattr(
             basic_crawler,
@@ -554,7 +600,16 @@ class TestSsrfGuardHook:
             crawler = Crawl4AiCrawler(
                 Crawl4AiCrawlerConfig(crawler_type=CrawlerType.CRAWL4AI)
             )
-            await crawler._crawl(["https://example.com"])
+            await crawler._crawl(
+                [
+                    ResolvedCrawlTarget(
+                        normalized_url="https://example.com",
+                        hostname="example.com",
+                        resolved_ip="93.184.216.34",
+                        used_dns_resolution=True,
+                    )
+                ]
+            )
 
         mock_strategy_cls.assert_called_once()
         _, kwargs = mock_strategy_cls.call_args
@@ -564,6 +619,65 @@ class TestSsrfGuardHook:
         # Each call to _get_ssrf_guard_hook() returns a new closure, so compare by name.
         assert callable(hooks["before_goto"])
         assert hooks["before_goto"].__name__ == "_ssrf_guard_hook"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl4ai_crawler_omits_ssrf_guard_hook__when_safety_disabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify no before_goto hook is installed when url_safety_enabled=False.
+        Why this matters: When safety is disabled the hook must be absent so Playwright is not restricted.
+        Setup summary: Monkeypatch url_safety_enabled to False on BaseCrawler, run _crawl, and assert
+        AsyncPlaywrightCrawlerStrategy receives an empty hooks dict.
+        """
+        import unique_web_search.services.crawlers.crawl4ai as crawl4ai_module
+        from unique_web_search.services.crawlers.crawl4ai import (
+            Crawl4AiCrawler,
+            Crawl4AiCrawlerConfig,
+        )
+
+        monkeypatch.setattr(
+            crawl4ai_module,
+            "url_safety_settings",
+            crawl4ai_module.url_safety_settings.model_copy(update={"enabled": False}),
+        )
+
+        mock_strategy_instance = MagicMock()
+        mock_strategy_cls = MagicMock(return_value=mock_strategy_instance)
+
+        mock_crawler_instance = AsyncMock()
+        mock_crawler_instance.crawler_strategy = mock_strategy_instance
+        mock_crawler_instance.arun_many = AsyncMock(return_value=[])
+        mock_crawler_instance.__aenter__ = AsyncMock(return_value=mock_crawler_instance)
+        mock_crawler_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_async_web_crawler = MagicMock(return_value=mock_crawler_instance)
+
+        with (
+            patch(
+                "crawl4ai.async_webcrawler.AsyncPlaywrightCrawlerStrategy",
+                mock_strategy_cls,
+            ),
+            patch("crawl4ai.AsyncWebCrawler", mock_async_web_crawler),
+        ):
+            crawler = Crawl4AiCrawler(
+                Crawl4AiCrawlerConfig(crawler_type=CrawlerType.CRAWL4AI)
+            )
+            await crawler._crawl(
+                [
+                    ResolvedCrawlTarget(
+                        normalized_url="https://example.com",
+                        hostname="example.com",
+                        resolved_ip="",
+                        used_dns_resolution=False,
+                    )
+                ]
+            )
+
+        _, kwargs = mock_strategy_cls.call_args
+        hooks = kwargs.get("hooks")
+        assert hooks == {}
 
 
 if __name__ == "__main__":
