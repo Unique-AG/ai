@@ -46,9 +46,14 @@ jobs:
 
 
       - name: Install toolkit packages for example validation
+        # --inexact preserves the docs group (entangled-cli) installed above.
+        # Without it, this sync prunes 112 packages from the env — including
+        # entangled-cli — and generate_examples.sh then silently falls back
+        # to the annotated `.python_files/*.py` left behind by `mkdocs build`,
+        # producing apparent drift in `examples_from_docs/`.
         run: |
-          uv sync --locked --package unique_sdk --package unique_toolkit
-          uv sync --package unique_toolkit --extra langchain
+          uv sync --locked --inexact --package unique_sdk --package unique_toolkit
+          uv sync --inexact --package unique_toolkit --extra langchain
 
       - name: Regenerate doc examples and check drift
         run: |

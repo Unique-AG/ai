@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 path_to_tangle_generated_files="./docs/.python_files"
 path_to_examples="./docs/examples_from_docs/"
