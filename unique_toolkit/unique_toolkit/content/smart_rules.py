@@ -1,10 +1,13 @@
+import json
 import re
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Mapping, Self, Union
+from typing import Annotated, Any, Dict, List, Self, Union
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, BeforeValidator, Field, PlainSerializer
 from pydantic.config import ConfigDict
+from pydantic.json_schema import WithJsonSchema
 
 
 class Operator(str, Enum):
@@ -53,6 +56,10 @@ class BaseStatement(BaseModel):
         tool_parameters: Mapping[str, Union[str, int, bool]],
     ) -> Self:
         return self.model_copy()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to wire-format JSON dict (uses serialization aliases)."""
+        return self.model_dump(mode="json")
 
 
 class Statement(BaseStatement):
@@ -285,7 +292,6 @@ def get_fallback_values(
     return values
 
 
-# Example usage:
 def parse_uniqueql(json_data: Dict[str, Any]) -> UniqueQL:
     if "operator" in json_data:
         return Statement.model_validate(json_data)
@@ -299,3 +305,55 @@ def parse_uniqueql(json_data: Dict[str, Any]) -> UniqueQL:
         )
     else:
         raise ValueError("Invalid UniqueQL format")
+
+
+def parse_uniqueql_input(v: Any) -> UniqueQL | None:
+    """Parse config/API input (JSON string, dict, or model) into a UniqueQL model."""
+    if v is None:
+        return None
+    if isinstance(v, (Statement, AndStatement, OrStatement)):
+        return v
+    if isinstance(v, str):
+        if v.strip() == "":
+            return None
+        try:
+            v = json.loads(v)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON: {e}") from e
+    if isinstance(v, dict):
+        return parse_uniqueql(v)
+    raise ValueError(f"Expected JSON string or dict, got {type(v).__name__}")
+
+
+def uniqueql_to_dict(
+    value: UniqueQL | Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Convert a UniqueQL model (or wire dict) to a JSON-serializable dict for APIs."""
+    if value is None:
+        return None
+    if isinstance(value, BaseStatement):
+        return value.to_dict()
+    return dict(value)
+
+
+def _serialize_uniqueql_field(value: UniqueQL | None) -> dict[str, Any] | None:
+    return None if value is None else value.to_dict()
+
+
+_UNIQUEQL_JSON_SCHEMA = {
+    "anyOf": [
+        {"type": "string", "title": "UniqueQL (JSON)"},
+        {"type": "null", "title": "Deactivated", "description": "None"},
+    ]
+}
+
+UniqueQLField = Annotated[
+    UniqueQL | None,
+    BeforeValidator(parse_uniqueql_input),
+    WithJsonSchema(_UNIQUEQL_JSON_SCHEMA),
+    PlainSerializer(
+        _serialize_uniqueql_field,
+        when_used="json",
+        return_type=dict[str, Any] | None,
+    ),
+]

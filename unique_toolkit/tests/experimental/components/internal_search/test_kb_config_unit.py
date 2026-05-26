@@ -1,9 +1,9 @@
 """Unit tests for KnowledgeBaseInternalSearchConfig.metadata_filter typing.
 
 Covers:
-- _parse_and_validate_uniqueql: None, empty string, valid dict, valid JSON string,
+- parse_uniqueql_input via construction: None, empty string, valid dict, valid JSON string,
   invalid JSON string, invalid dict (non-UniqueQL), wrong type
-- field_serializer: stored dict → JSON string, None → None
+- PlainSerializer: stored UniqueQL model → dict, None → None
 - JSON schema shape: anyOf [string, null], no $defs for UniqueQL types
 - UI schema shape: anyOf with textarea on branch 0, no additionalProperties
 """
@@ -16,6 +16,7 @@ import pytest
 from pydantic import ValidationError
 
 from unique_toolkit._common.pydantic.rjsf_tags import ui_schema_for_model
+from unique_toolkit.content.smart_rules import Statement
 from unique_toolkit.experimental.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
 )
@@ -47,19 +48,20 @@ class TestMetadataFilterParsing:
         cfg = KnowledgeBaseInternalSearchConfig(metadata_filter="   ")
         assert cfg.metadata_filter is None
 
-    def test_valid_dict_is_stored_as_dict(self):
+    def test_valid_dict_is_stored_as_uniqueql_model(self):
         cfg = KnowledgeBaseInternalSearchConfig(metadata_filter=_VALID_FILTER)
-        assert cfg.metadata_filter == _VALID_FILTER
-        assert isinstance(cfg.metadata_filter, dict)
+        assert isinstance(cfg.metadata_filter, Statement)
+        assert cfg.metadata_filter.to_dict() == _VALID_FILTER
 
-    def test_valid_json_string_is_parsed_to_dict(self):
+    def test_valid_json_string_is_parsed_to_uniqueql_model(self):
         cfg = KnowledgeBaseInternalSearchConfig(metadata_filter=_VALID_FILTER_JSON)
-        assert cfg.metadata_filter == _VALID_FILTER
-        assert isinstance(cfg.metadata_filter, dict)
+        assert isinstance(cfg.metadata_filter, Statement)
+        assert cfg.metadata_filter.to_dict() == _VALID_FILTER
 
     def test_isnull_operator_is_accepted(self):
         cfg = KnowledgeBaseInternalSearchConfig(metadata_filter=_ISNULL_FILTER)
-        assert cfg.metadata_filter == _ISNULL_FILTER
+        assert isinstance(cfg.metadata_filter, Statement)
+        assert cfg.metadata_filter.to_dict() == _ISNULL_FILTER
 
     def test_invalid_json_string_raises(self):
         with pytest.raises(ValidationError, match="Invalid JSON"):
@@ -75,16 +77,15 @@ class TestMetadataFilterParsing:
 
 
 # ---------------------------------------------------------------------------
-# field_serializer — model_dump produces JSON string
+# PlainSerializer — model_dump(mode="json") produces dict
 # ---------------------------------------------------------------------------
 
 
 class TestMetadataFilterSerializer:
-    def test_dict_serialises_to_json_string(self):
+    def test_model_serialises_to_dict(self):
         cfg = KnowledgeBaseInternalSearchConfig(metadata_filter=_VALID_FILTER)
         dumped = cfg.model_dump(mode="json")
-        assert isinstance(dumped["metadata_filter"], str)
-        assert json.loads(dumped["metadata_filter"]) == _VALID_FILTER
+        assert dumped["metadata_filter"] == _VALID_FILTER
 
     def test_none_serialises_to_none(self):
         cfg = KnowledgeBaseInternalSearchConfig(metadata_filter=None)
@@ -96,11 +97,10 @@ class TestMetadataFilterSerializer:
         dumped = cfg.model_dump(mode="json")
         assert dumped["metadata_filter"] is None
 
-    def test_json_string_input_round_trips_as_string(self):
+    def test_json_string_input_round_trips_as_dict(self):
         cfg = KnowledgeBaseInternalSearchConfig(metadata_filter=_VALID_FILTER_JSON)
         dumped = cfg.model_dump(mode="json")
-        assert isinstance(dumped["metadata_filter"], str)
-        assert json.loads(dumped["metadata_filter"]) == _VALID_FILTER
+        assert dumped["metadata_filter"] == _VALID_FILTER
 
 
 # ---------------------------------------------------------------------------

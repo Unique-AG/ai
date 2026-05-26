@@ -105,7 +105,11 @@ class KnowledgeBaseInternalSearchService(
             return cast("dict[str, Any] | None", self._state.metadata_filter_override)
         if self._context.chat is not None:
             return self._context.chat.metadata_filter
-        return self._config.metadata_filter
+        return (
+            self._config.metadata_filter.to_dict()
+            if self._config.metadata_filter
+            else None
+        )
 
     @property
     def _effective_scope_ids(self) -> list[str] | None:

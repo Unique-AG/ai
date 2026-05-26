@@ -180,7 +180,7 @@ def test_config__keeps_existing_metadata_filter_when_scope_ids_are_present() -> 
         )
 
     assert cfg.scope_ids == ["kb-1"]
-    assert cfg.metadata_filter == {
+    assert cfg.metadata_filter.to_dict() == {
         "operator": "equals",
         "value": "policy",
         "path": ["type"],
