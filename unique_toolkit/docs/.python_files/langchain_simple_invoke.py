@@ -1,9 +1,9 @@
 # ~/~ begin <<docs/plattforms/langchain/langchain.md#docs/.python_files/langchain_simple_invoke.py>>[init]
-# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
+# ~/~ begin <<docs/setup/_script_dependencies_langchain.md#example-script-deps-langchain>>[init]
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
-#   "unique-toolkit>=2026.22.0",
+#   "unique-toolkit[langchain]>=2026.22.0",
 #   "unique-sdk>=2026.22.0",
 # ]
 # ///

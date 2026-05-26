@@ -115,7 +115,7 @@ print(response.content)
 
 <!--
 ```{.python file=docs/.python_files/langchain_simple_invoke.py}
-<<example-script-deps>>
+<<example-script-deps-langchain>>
 
 <<langchain_basic_invoke>>
 ```

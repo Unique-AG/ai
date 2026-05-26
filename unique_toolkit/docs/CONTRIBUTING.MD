@@ -31,3 +31,22 @@ When adding or updating tangled examples, include `<<example-script-deps>>` as t
 Do not add `<<example-script-deps>>` when the composition already includes a block that carries it (for example `<<full_sse_setup_with_services>>`, which starts with script metadata). Duplicate `# /// script` headers break `uv run`.
 
 Keep `# /// script` at the top of the generated file: list `<<full_sse_setup_with_services>>` (or `<<example-script-deps>>`) before any other imports, and place extra imports (for example `import time`) inside the event loop body, not above the setup block.
+
+Use `<<example-script-deps-langchain>>` from `docs/setup/_script_dependencies_langchain.md` for LangChain examples (requires the `langchain` extra).
+
+## Running examples (local development)
+
+Against **branch source** (before PyPI publish), override inline PyPI pins with path deps:
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+uv run --no-project \
+  --with "unique-sdk @ file://${REPO_ROOT}/unique_sdk" \
+  --with "unique-toolkit @ file://${REPO_ROOT}/unique_toolkit" \
+  unique_toolkit/docs/examples_from_docs/standalone_setup.py
+```
+
+Helper scripts (from repo root, after `source unique.env` for API examples):
+
+- **Smoke** (syntax + imports, no API): `uv sync --locked --package unique_sdk --package unique_toolkit && uv sync --package unique_toolkit --extra langchain && uv run python unique_toolkit/scripts/validate_doc_examples.py`
+- **Run all** (live tenant required): `unique_toolkit/scripts/run_all_doc_examples.sh`
