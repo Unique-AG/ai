@@ -160,8 +160,9 @@ class APIRequestor(object):
         headers = {
             "X-Unique-Client-User-Agent": json.dumps(ua),
             "User-Agent": user_agent,
-            "Authorization": "Bearer %s" % (api_key,),
         }
+        if api_key:
+            headers["Authorization"] = "Bearer %s" % (api_key,)
 
         if method == "post" or method == "patch" or method == "put":
             headers["Content-Type"] = "application/json"
@@ -172,7 +173,8 @@ class APIRequestor(object):
             headers["x-company-id"] = self.company_id
 
         headers["x-api-version"] = self.api_version
-        headers["x-app-id"] = app_id
+        if app_id:
+            headers["x-app-id"] = app_id
 
         return headers
 
