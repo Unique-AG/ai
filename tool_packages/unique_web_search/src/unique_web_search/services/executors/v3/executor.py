@@ -31,8 +31,19 @@ from unique_web_search.services.executors.v3.schema import (
     WebSearchV3ToolParameters,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.text_sanitize import sanitize_single_line
 
 _LOGGER = logging.getLogger(__name__)
+
+# Agent-supplied strings (objective / query / urls) do not pass through the
+# ``WebSearchResult`` boundary — that model sanitizes engine + crawler output,
+# not what the LLM emits. Real models occasionally emit strings containing
+# ASCII control characters (most commonly NUL ``\x00``), which Postgres TEXT
+# columns reject with error ``22P05`` and which crash every downstream
+# ``modify_message`` / ``stream-responses`` call once they land in a tool
+# result. ``sanitize_single_line`` is a no-op on clean text, so wrapping every
+# agent-supplied string at the run() boundary is cheap and removes a class of
+# 500 errors that otherwise poisons the whole chat once it appears.
 
 
 class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
@@ -56,13 +67,18 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
 
     async def run(self) -> list[ContentChunk]:
         p = self.tool_parameters
+        objective = sanitize_single_line(p.objective)
         if isinstance(p.payload, SearchPayload):
             await self._message_log_callback.log_progress("_Executing Search_")
-            return await self._run_search(query=p.payload.query, objective=p.objective)
+            return await self._run_search(
+                query=sanitize_single_line(p.payload.query),
+                objective=objective,
+            )
         if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
             return await self._run_fetch_urls(
-                urls=p.payload.urls, objective=p.objective
+                urls=[sanitize_single_line(u) for u in p.payload.urls],
+                objective=objective,
             )
 
         msg = "WebSearchV3ToolParameters requires exactly one of 'query' or 'urls'."
@@ -80,7 +96,10 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         await self.notify_callback()
 
         elicited = await self.query_elicitation([query])
-        query = elicited[0]
+        # ``query_elicitation`` is an LLM call that can re-introduce control
+        # chars (observed: elicitation form forwards the model's raw output).
+        # Re-sanitize defensively. No-op for clean queries.
+        query = sanitize_single_line(elicited[0])
 
         self.debug_info.steps.append(
             StepDebugInfo(
