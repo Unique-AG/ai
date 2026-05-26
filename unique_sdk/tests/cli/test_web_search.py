@@ -381,6 +381,78 @@ class TestCitationManifest:
 
         assert annotated["results"] == []
 
+    def test_non_dict_results_are_logged_and_dropped(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Bugbot A7: non-dict result entries must be visible in logs, not
+        silently swallowed, so missing citations are diagnosable.
+        """
+        payload = _make_search_payload(
+            results=[
+                "not-a-dict",
+                {"url": "https://a", "title": "A", "snippet": "s", "content": ""},
+            ]
+        )
+
+        with caplog.at_level("WARNING", logger="unique_sdk.cli.commands.web_search"):
+            annotated = _annotate_web_results_for_citations(
+                payload,
+                refs_log_path=tmp_path / ".unique" / "web-refs.jsonl",
+            )
+
+        annotated_urls = [r.get("url") for r in annotated["results"]]
+        assert annotated_urls == ["https://a"]
+        assert any(
+            "skipping non-dict web result" in record.getMessage()
+            for record in caplog.records
+        )
+
+
+class TestFormatterRowLabel:
+    """Bugbot A6: the human formatter's row label must come from the
+    citation key (``sourceNumber``) when present, so what the LLM reads in
+    the table matches the ``[websourceN]`` marker it is told to emit.
+    """
+
+    def test_search_formatter_uses_source_number(self, tmp_path: Path) -> None:
+        payload = _make_search_payload(
+            results=[
+                {"url": "https://a", "title": "A", "snippet": "", "content": ""},
+                {"url": "https://b", "title": "B", "snippet": "", "content": ""},
+            ]
+        )
+        annotated = _annotate_web_results_for_citations(
+            payload,
+            refs_log_path=tmp_path / ".unique" / "web-refs.jsonl",
+        )
+        annotated["results"][0]["sourceNumber"] = 7
+        annotated["results"][0]["citation"] = "websource7"
+
+        out = _format_search_results(annotated)
+
+        assert "  7. A [websource7]" in out
+        assert "  1. A" not in out
+
+    def test_crawl_formatter_uses_source_number(self, tmp_path: Path) -> None:
+        payload = _make_crawl_payload(
+            results=[
+                {"url": "https://a", "content": "hello", "error": None},
+            ]
+        )
+        annotated = _annotate_web_results_for_citations(
+            payload,
+            refs_log_path=tmp_path / ".unique" / "web-refs.jsonl",
+        )
+        annotated["results"][0]["sourceNumber"] = 4
+        annotated["results"][0]["citation"] = "websource4"
+
+        out = _format_crawl_results(annotated)
+
+        assert "  4. https://a [websource4]" in out
+        assert "  1. https://a" not in out
+
 
 class TestCmdWebSearch:
     @patch("unique_sdk.WebSearch.search")

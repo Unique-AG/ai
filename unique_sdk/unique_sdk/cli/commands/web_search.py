@@ -18,6 +18,7 @@ Override precedence (highest first):
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, cast
 
@@ -34,6 +35,8 @@ from unique_sdk.cli.commands.web_search_config import (
     load_overrides,
 )
 from unique_sdk.cli.state import ShellState
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_PARALLEL = 10
 _SNIPPET_PREVIEW_LIMIT = 200
@@ -87,6 +90,10 @@ def _annotate_web_results_for_citations(
 
         for raw_result in payload.get("results") or []:
             if not isinstance(raw_result, dict):
+                _LOGGER.warning(
+                    "skipping non-dict web result while annotating citations: %r",
+                    raw_result,
+                )
                 continue
             result = dict(raw_result)
             url = str(result.get("url") or "").strip()
@@ -137,7 +144,9 @@ def _format_search_results(payload: dict[str, Any]) -> str:
 
         citation = result.get("citation")
         citation_suffix = f" [{citation}]" if citation else ""
-        lines.append(f"  {i}. {title}{citation_suffix}")
+        source_number = result.get("sourceNumber")
+        row_label = source_number if isinstance(source_number, int) else i
+        lines.append(f"  {row_label}. {title}{citation_suffix}")
         lines.append(f"     {url}")
 
         if snippet:
@@ -184,7 +193,9 @@ def _format_crawl_results(payload: dict[str, Any]) -> str:
 
         citation = entry.get("citation")
         citation_suffix = f" [{citation}]" if citation else ""
-        lines.append(f"  {i}. {url}{citation_suffix}")
+        source_number = entry.get("sourceNumber")
+        row_label = source_number if isinstance(source_number, int) else i
+        lines.append(f"  {row_label}. {url}{citation_suffix}")
         if error:
             lines.append(f"     ERROR: {error}")
         elif content.strip():

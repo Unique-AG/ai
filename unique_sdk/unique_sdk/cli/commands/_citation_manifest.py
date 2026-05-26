@@ -20,10 +20,18 @@ from __future__ import annotations
 import fcntl
 import json
 import os
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
+
+__all__ = [
+    "UnsafeRefsLogPathError",
+    "_append_turn_refs_manifest_entry",
+    "_assert_safe_refs_log_path",
+    "_locked_turn_refs_manifest",
+    "_read_turn_refs_manifest",
+]
 
 
 class UnsafeRefsLogPathError(OSError):
@@ -126,7 +134,7 @@ def _locked_turn_refs_manifest(
     refs_log_path: Path,
     *,
     lock_filename: str,
-) -> Iterator[None]:
+) -> Generator[None, None, None]:
     """Hold an ``fcntl.flock`` on a sibling lock file for the duration of
     a read-existing → compute-next-number → append-new sequence.
 

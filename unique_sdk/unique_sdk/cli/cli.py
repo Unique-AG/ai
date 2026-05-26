@@ -26,7 +26,12 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_list,
     cmd_schedule_update,
 )
-from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.search import (
+    cmd_search,
+)
+from unique_sdk.cli.commands.search import (
+    is_error_output as _is_search_error_output,
+)
 from unique_sdk.cli.commands.web_search import (
     cmd_web_crawl,
     cmd_web_search,
@@ -385,9 +390,12 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    click.echo(
-        cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit)
+    output = cmd_search(
+        state, query, folder=folder, metadata=parsed_metadata, limit=limit
     )
+    click.echo(output)
+    if _is_search_error_output(output):
+        ctx.exit(1)
 
 
 @main.command()

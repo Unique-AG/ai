@@ -259,7 +259,9 @@ Crawled 2 URL(s):
 
 In one-shot mode, the CLI exits **`0`** on success and **`1`** on
 failures (config-file errors, invalid JSON overrides, API errors,
-missing URLs for `crawl`). Error messages are prefixed with
+missing URLs for `crawl`, and citation-manifest I/O failures — e.g.
+when `.unique/web-refs.jsonl` cannot be written or its parent
+directory is unsafe). Error messages are prefixed with
 `web-search:` or `web-crawl:` so they're easy to grep.
 
 ```bash
