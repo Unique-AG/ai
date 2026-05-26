@@ -26,6 +26,16 @@ uv run path/to/example.py
 
 `uv` needs network access on first run to download `unique-toolkit`, `unique-sdk`, and their dependencies. Set the required `UNIQUE_*` environment variables (see [Getting started](setup/getting_started.md)) before running examples that call the platform API.
 
+### "Run this example" download policy
+
+`Run this example` blocks in the docs must fetch the script at an **immutable release tag**, never from a branch tip. The pattern is:
+
+1. Resolve `RELEASE` to the latest non-prerelease `unique-toolkit-v*` tag via the GitHub Releases API (with optional `RELEASE=unique-toolkit-v<version>` override and optional `GH_TOKEN` for higher rate limits).
+2. `curl` the example from `https://raw.githubusercontent.com/Unique-AG/ai/${RELEASE}/...`.
+3. `uv run` it.
+
+Do not hand-write snippets that `curl … /<branch-name>/… | uv run` from a branch tip — branch tips are mutable and a forced push can swap the script bytes a reader is about to execute. See `docs/modules/examples/content/content-folder.md` for the canonical block to copy.
+
 When adding or updating tangled examples, include `<<example-script-deps>>` as the first line of every Entangled composition that targets `docs/.python_files/`. The block is defined in `docs/setup/_script_dependencies.md`.
 
 Do not add `<<example-script-deps>>` when the composition already includes a block that carries it (for example `<<full_sse_setup_with_services>>`, which starts with script metadata). Duplicate `# /// script` headers break `uv run`.
