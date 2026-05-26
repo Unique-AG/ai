@@ -29,3 +29,5 @@ uv run path/to/example.py
 When adding or updating tangled examples, include `<<example-script-deps>>` as the first line of every Entangled composition that targets `docs/.python_files/`. The block is defined in `docs/setup/_script_dependencies.md`.
 
 Do not add `<<example-script-deps>>` when the composition already includes a block that carries it (for example `<<full_sse_setup_with_services>>`, which starts with script metadata). Duplicate `# /// script` headers break `uv run`.
+
+Keep `# /// script` at the top of the generated file: list `<<full_sse_setup_with_services>>` (or `<<example-script-deps>>`) before any other imports, and place extra imports (for example `import time`) inside the event loop body, not above the setup block.
