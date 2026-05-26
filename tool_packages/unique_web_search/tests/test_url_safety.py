@@ -9,9 +9,9 @@ import pytest
 import unique_web_search.services.url_safety as url_safety
 from unique_web_search.services.url_safety import (
     CrawlTargetValidationError,
+    _resolve_redirect_chain,
+    _validate_crawl_urls,
     resolve_crawl_target,
-    resolve_redirect_chain,
-    validate_crawl_urls,
 )
 
 
@@ -62,7 +62,7 @@ class TestValidateCrawlUrls:
         Why this matters: Legitimate crawl requests must continue to work after the SSRF guard lands.
         Setup summary: Pass known-good public URLs and assert whitespace is stripped without changing the target.
         """
-        assert await validate_crawl_urls(urls) == expected
+        assert await _validate_crawl_urls(urls) == expected
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -117,7 +117,7 @@ class TestValidateCrawlUrls:
         Setup summary: Pass one unsafe target at a time and assert the validator raises with a policy-specific reason.
         """
         with pytest.raises(CrawlTargetValidationError) as exc_info:
-            await validate_crawl_urls([url])
+            await _validate_crawl_urls([url])
 
         error = exc_info.value
         blocked_target = error.blocked_targets[0]
@@ -138,7 +138,7 @@ class TestValidateCrawlUrls:
         url = "https://alice:secret@localhost/admin?token=top-secret#frag"
 
         with pytest.raises(CrawlTargetValidationError) as exc_info:
-            await validate_crawl_urls([url])
+            await _validate_crawl_urls([url])
 
         blocked_target = exc_info.value.blocked_targets[0]
         assert blocked_target.hostname == "localhost"
@@ -163,7 +163,7 @@ class TestValidateCrawlUrls:
         ]
 
         with pytest.raises(CrawlTargetValidationError) as exc_info:
-            await validate_crawl_urls(urls)
+            await _validate_crawl_urls(urls)
 
         blocked_hostnames = [
             target.hostname for target in exc_info.value.blocked_targets
@@ -196,7 +196,7 @@ class TestValidateCrawlUrls:
         monkeypatch.setattr(url_safety.socket, "getaddrinfo", fake_getaddrinfo)
 
         with pytest.raises(CrawlTargetValidationError) as exc_info:
-            await validate_crawl_urls(["https://kubernetes.default/health"])
+            await _validate_crawl_urls(["https://kubernetes.default/health"])
 
         blocked_target = exc_info.value.blocked_targets[0]
         assert blocked_target.hostname == "kubernetes.default"
@@ -220,7 +220,7 @@ class TestValidateCrawlUrls:
         monkeypatch.setattr(url_safety.socket, "getaddrinfo", fake_getaddrinfo)
 
         with pytest.raises(CrawlTargetValidationError) as exc_info:
-            await validate_crawl_urls(["https://docs.example.com/path?token=abc"])
+            await _validate_crawl_urls(["https://docs.example.com/path?token=abc"])
 
         blocked_target = exc_info.value.blocked_targets[0]
         assert blocked_target.hostname == "docs.example.com"
@@ -243,7 +243,6 @@ class TestValidateCrawlUrls:
         assert resolved_target.request_url == "https://93.184.216.34/docs?q=1"
         assert resolved_target.host_header == "example.com"
         assert resolved_target.sni_hostname == "example.com"
-
 
 class TestResolveRedirectChain:
     """Test cases for resolve_redirect_chain()."""
@@ -299,7 +298,7 @@ class TestResolveRedirectChain:
             "unique_web_search.services.url_safety.httpx.AsyncClient",
             return_value=mock_client,
         ):
-            result = await resolve_redirect_chain("https://example.com/page")
+            result = await _resolve_redirect_chain("https://example.com/page")
 
         assert result == "https://example.com/page"
         mock_client.head.assert_called_once_with("https://example.com/page")
@@ -325,7 +324,7 @@ class TestResolveRedirectChain:
             "unique_web_search.services.url_safety.httpx.AsyncClient",
             return_value=mock_client,
         ):
-            result = await resolve_redirect_chain("http://example.com/page")
+            result = await _resolve_redirect_chain("http://example.com/page")
 
         assert result == "https://example.com/page"
         assert mock_client.head.call_count == 2
@@ -350,7 +349,7 @@ class TestResolveRedirectChain:
             return_value=mock_client,
         ):
             with pytest.raises(CrawlTargetValidationError) as exc_info:
-                await resolve_redirect_chain("https://evil.example.com/article")
+                await _resolve_redirect_chain("https://evil.example.com/article")
 
         blocked = exc_info.value.blocked_targets[0]
         assert blocked.hostname == "api.default.svc"
@@ -379,7 +378,7 @@ class TestResolveRedirectChain:
             "unique_web_search.services.url_safety.httpx.AsyncClient",
             return_value=mock_client,
         ):
-            result = await resolve_redirect_chain("https://example.com/page")
+            result = await _resolve_redirect_chain("https://example.com/page")
 
         assert result == "https://example.com/page"
 
@@ -394,7 +393,9 @@ class TestResolveRedirectChain:
         Setup summary: Produce more 302s than max_hops; assert resolution stops at hop 9 (index 0-based).
         """
         # 15 redirects — more than _MAX_REDIRECT_HOPS (10)
-        responses = [(302, f"https://hop{i}.example.com/") for i in range(15)]
+        responses: list[tuple[int, str | None]] = [
+            (302, f"https://hop{i}.example.com/") for i in range(15)
+        ]
         responses.append((200, None))
         mock_client = self._make_mock_client(responses)
 
@@ -402,7 +403,7 @@ class TestResolveRedirectChain:
             "unique_web_search.services.url_safety.httpx.AsyncClient",
             return_value=mock_client,
         ):
-            result = await resolve_redirect_chain("https://start.example.com/")
+            result = await _resolve_redirect_chain("https://start.example.com/")
 
         # After 10 hops the loop exits; current URL is the 10th redirect destination
         assert result == "https://hop9.example.com/"
@@ -433,7 +434,7 @@ class TestResolveRedirectChain:
             "unique_web_search.services.url_safety.httpx.AsyncClient",
             return_value=mock_client,
         ):
-            result = await resolve_redirect_chain("https://example.com/old-path")
+            result = await _resolve_redirect_chain("https://example.com/old-path")
 
         assert result == "https://example.com/new-path"
         assert mock_client.head.call_count == 2
@@ -462,7 +463,7 @@ class TestResolveRedirectChain:
             "unique_web_search.services.url_safety.httpx.AsyncClient",
             return_value=mock_client,
         ):
-            result = await resolve_redirect_chain("https://example.com/a/b/page")
+            result = await _resolve_redirect_chain("https://example.com/a/b/page")
 
         assert result == "https://example.com/a/other"
         assert mock_client.head.call_count == 2

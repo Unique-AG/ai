@@ -1,4 +1,3 @@
-import asyncio
 from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Generic, TypeVar
@@ -12,11 +11,7 @@ from unique_web_search.services.helpers import (
     clean_model_title_generator,
     experimental_model_title_generator,
 )
-from unique_web_search.services.url_safety import (
-    resolve_redirect_chain,
-    validate_crawl_urls,
-)
-from unique_web_search.settings import env_settings
+from unique_web_search.services.url_safety import validate_urls
 
 
 class CrawlerType(StrEnum):
@@ -57,11 +52,7 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         self.config = config
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        urls = await validate_crawl_urls(urls)
-        if env_settings.url_safety_resolve_redirects:
-            urls = list(
-                await asyncio.gather(*[resolve_redirect_chain(u) for u in urls])
-            )
+        urls = await validate_urls(urls)
         return await self._crawl(urls)
 
     @abstractmethod

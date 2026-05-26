@@ -96,7 +96,7 @@ class CrawlTargetValidationError(ValueError):
         super().__init__(f"Blocked crawl target(s) due to URL safety policy: {details}")
 
 
-async def validate_crawl_urls(urls: list[str]) -> list[str]:
+async def _validate_crawl_urls(urls: list[str]) -> list[str]:
     normalized_urls: list[str] = []
     blocked_targets: list[BlockedCrawlTarget] = []
 
@@ -395,7 +395,7 @@ def _build_netloc(
     return f"{credential_prefix}{normalized_host}:{port}"
 
 
-async def resolve_redirect_chain(
+async def _resolve_redirect_chain(
     url: str,
     *,
     max_hops: int = _MAX_REDIRECT_HOPS,
@@ -456,3 +456,15 @@ async def resolve_redirect_chain(
         )
 
     return current
+
+
+async def validate_urls(urls: list[str]) -> list[str]:
+    if not env_settings.url_safety_enabled:
+        return urls
+
+    urls = await _validate_crawl_urls(urls)
+
+    if env_settings.url_safety_resolve_redirects:
+        urls = list(await asyncio.gather(*[_resolve_redirect_chain(u) for u in urls]))
+
+    return urls
