@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from unique_toolkit import get_langchain_client

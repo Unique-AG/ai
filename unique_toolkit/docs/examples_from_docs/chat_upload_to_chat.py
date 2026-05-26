@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 from pathlib import Path
 
 from unique_toolkit import (

@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 import io
 from pathlib import Path
 

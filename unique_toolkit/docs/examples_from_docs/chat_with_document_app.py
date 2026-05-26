@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 import mimetypes
 
 from unique_toolkit import (

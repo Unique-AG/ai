@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 
 from pydantic import BaseModel
 

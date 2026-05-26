@@ -14,7 +14,7 @@ Entangled is used to directly generate code from the snippets used in the docume
 1. `uv run mkdocs serve -v` - Exposes the static site locally with hot reloading.
 2. (a)(optional)  `uv run entangled tangle` - Creates the initial `entangled` files under `./docs/.python_files` 
 2. (b)`uv run entangled watch` - Observes `entangled` files under `./docs/.python_files`. Any change in the markdown is synced to the python files and vice versa.
-3. `generate_examples.sh` - Creates clean python files under `./docs/examples_from_docs` that can be included in the markdown files.
+3. `generate_examples.sh` - Creates clean python files under `./docs/examples_from_docs` that can be included in the markdown files. It also adds a VS Code cell marker (`# %%`) after the `# /// script` block (or at the top when there is no script metadata) so examples stay interactive in the IDE without breaking `uv run`.
 
 ## Running examples (readers)
 

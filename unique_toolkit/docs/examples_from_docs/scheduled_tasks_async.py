@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 import asyncio
 
 from unique_toolkit.app.unique_settings import UniqueSettings

@@ -1,3 +1,4 @@
+# %%
 # Example: Streaming chat with references via EventRoutingChatCompletionsStreamingEventHandler
 #
 # This demonstrates the Python-side streaming event routing for the Chat Completions API.

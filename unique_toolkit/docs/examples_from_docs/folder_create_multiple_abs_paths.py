@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 from __future__ import annotations
 
 from unique_toolkit.experimental.resources.content_folder import ContentFolder

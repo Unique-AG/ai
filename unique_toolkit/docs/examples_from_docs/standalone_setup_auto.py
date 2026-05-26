@@ -6,6 +6,8 @@
 # ]
 # ///
 
+# %%
+
 
 from unique_toolkit import (
     KnowledgeBaseService,
