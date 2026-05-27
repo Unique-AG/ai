@@ -58,6 +58,7 @@ class FeatureFlagClient:
         self._url = url
         self._service_id = service_id
         self._cache = AsyncTTLCache(ttl_ms=ttl_ms)
+        self._http = httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0))
 
     @classmethod
     def from_settings(cls) -> "FeatureFlagClient":
@@ -159,6 +160,7 @@ class FeatureFlagClient:
         user_id: str | None,
     ) -> bool:
         return await evaluate_flag(
+            http=self._http,
             url=self._url,
             flag=flag,
             service_id=self._service_id,

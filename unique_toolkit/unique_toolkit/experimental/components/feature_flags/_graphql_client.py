@@ -2,20 +2,20 @@ import httpx
 
 _EVALUATE_FLAG_QUERY = "query EvaluateFlag($key: String!) { evaluateFlag(key: $key) }"
 
-_TIMEOUT = httpx.Timeout(2.0, connect=1.0)
-
 
 async def evaluate_flag(
     *,
+    http: httpx.AsyncClient,
     url: str,
     flag: str,
     service_id: str,
     company_id: str,
-    user_id: str | None,
+    user_id: str | None = None,
 ) -> bool:
     """Call configuration-backend's ``evaluateFlag`` GraphQL query.
 
     Args:
+        http: Shared HTTP client (caller owns lifecycle).
         url: Base URL of configuration-backend (no trailing slash).
         flag: Upper-snake flag key, e.g. ``FEATURE_FLAG_ENABLE_MY_FEATURE``.
         service_id: Value sent as ``x-service-id`` header.
@@ -37,14 +37,13 @@ async def evaluate_flag(
     if user_id is not None:
         headers["x-user-id"] = user_id
 
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
-        response = await client.post(
-            f"{url}/graphql",
-            json={"query": _EVALUATE_FLAG_QUERY, "variables": {"key": flag}},
-            headers=headers,
-        )
-        response.raise_for_status()
-        data = response.json()
+    response = await http.post(
+        f"{url}/graphql",
+        json={"query": _EVALUATE_FLAG_QUERY, "variables": {"key": flag}},
+        headers=headers,
+    )
+    response.raise_for_status()
+    data = response.json()
 
     if "errors" in data:
         raise RuntimeError(f"GraphQL error evaluating '{flag}': {data['errors']}")
