@@ -29,7 +29,7 @@ module-root = ""
 
 [tool.uv]
 exclude-newer = "2 weeks"
-constraint-dependencies = ["lxml>=5.0.0"]
+constraint-dependencies = ["lxml>=6.1.0"]
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false
