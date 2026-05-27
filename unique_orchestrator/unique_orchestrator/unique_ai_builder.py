@@ -83,7 +83,11 @@ from unique_orchestrator._builders.skill_setup import (
     configure_skill_tool,
     normalize_available_skills_for_tool,
 )
-from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
+from unique_orchestrator.config import (
+    SwitchableLanguageModelConfig,
+    UniqueAIConfig,
+    UploadedSearchToolConfig,
+)
 from unique_orchestrator.unique_ai import UniqueAI
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
@@ -178,15 +182,18 @@ def _apply_model_choice_override(
     config: UniqueAIConfig,
 ) -> UniqueAIConfig:
     if (
-        not config.space.allow_user_model_selection
+        not config.space.allow_model_switching
         or not event.payload.has_model_choice_override
     ):
         return config
 
     selected_model = event.payload.model_choice
-    if config.space.allowed_user_model and not _is_allowed_user_model_choice(
-        selected_model=selected_model,
-        allowed_models=config.space.allowed_user_model,
+    if (
+        config.space.switchable_language_models
+        and not _is_switchable_language_model_choice(
+            selected_model=selected_model,
+            switchable_language_models=config.space.switchable_language_models,
+        )
     ):
         raise ValueError(
             f"User model choice {selected_model.display_name!r} is not "
@@ -205,12 +212,15 @@ def _apply_model_choice_override(
     return validated_config
 
 
-def _is_allowed_user_model_choice(
+def _is_switchable_language_model_choice(
     *,
     selected_model: LanguageModelInfo,
-    allowed_models: list[LanguageModelInfo],
+    switchable_language_models: list[SwitchableLanguageModelConfig],
 ) -> bool:
-    return selected_model in allowed_models
+    return any(
+        selected_model == switchable_model.language_model
+        for switchable_model in switchable_language_models
+    )
 
 
 async def _build_common(

@@ -66,20 +66,20 @@ def _make_model(
 
 
 @pytest.mark.ai
-def test_space_config_accepts_allow_user_model_selection_alias() -> None:
+def test_space_config_accepts_allow_model_switching_alias() -> None:
     """
     Purpose: Verify backend camelCase config populates the Python space config flag.
-    Why this matters: The node backend forwards allowUserModelSelection into the event payload.
+    Why this matters: The node backend forwards allowModelSwitching into the event payload.
     Setup summary: Validate camelCase input; assert the snake_case field is enabled.
     """
     config = UniqueAISpaceConfig.model_validate(
         {
-            "allowUserModelSelection": True,
+            "allowModelSwitching": True,
             "tools": [],
         }
     )
 
-    assert config.allow_user_model_selection is True
+    assert config.allow_model_switching is True
 
 
 @pytest.mark.ai
@@ -93,7 +93,7 @@ def test_model_choice_keeps_default_model_when_choice_was_not_sent() -> None:
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
+            allow_model_switching=True,
             language_model=default_model,
             tools=[],
         )
@@ -119,7 +119,7 @@ def test_model_choice_keeps_default_model_when_selection_is_disabled() -> None:
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=False,
+            allow_model_switching=False,
             language_model=default_model,
             tools=[],
         )
@@ -145,7 +145,7 @@ def test_model_choice_uses_selected_model_when_selection_is_enabled() -> None:
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
+            allow_model_switching=True,
             language_model=default_model,
             tools=[],
         )
@@ -163,7 +163,7 @@ def test_model_choice_uses_selected_model_when_selection_is_enabled() -> None:
 @pytest.mark.ai
 def test_model_choice_uses_selected_model_when_present_in_allowlist() -> None:
     """
-    Purpose: Verify allowed_user_model permits listed per-message model choices.
+    Purpose: Verify switchable_language_models permits listed per-message model choices.
     Why this matters: Space admins need a bounded model picker without blocking valid selections.
     Setup summary: Configure an allowlist containing the selected model; assert the override applies.
     """
@@ -171,8 +171,13 @@ def test_model_choice_uses_selected_model_when_present_in_allowlist() -> None:
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
-            allowed_user_model=[_make_model("selected-model")],
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": _make_model("selected-model"),
+                }
+            ],
             language_model=default_model,
             tools=[],
         )
@@ -190,7 +195,7 @@ def test_model_choice_uses_selected_model_when_present_in_allowlist() -> None:
 @pytest.mark.ai
 def test_model_choice_rejects_selected_model_when_allowlist_entry_differs() -> None:
     """
-    Purpose: Verify allowed_user_model requires the full LanguageModelInfo to match.
+    Purpose: Verify switchable_language_models requires the full LanguageModelInfo to match.
     Why this matters: A name-only match could allow a model variant with different capabilities.
     Setup summary: Configure an allowlist entry with the same name but different capabilities.
     """
@@ -198,12 +203,15 @@ def test_model_choice_rejects_selected_model_when_allowlist_entry_differs() -> N
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
-            allowed_user_model=[
-                _make_model(
-                    "selected-model",
-                    capabilities=[ModelCapabilities.STREAMING],
-                )
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": _make_model(
+                        "selected-model",
+                        capabilities=[ModelCapabilities.STREAMING],
+                    ),
+                }
             ],
             language_model=default_model,
             tools=[],
@@ -226,7 +234,7 @@ def test_model_choice_rejects_selected_model_when_allowlist_entry_differs() -> N
 @pytest.mark.ai
 def test_model_choice_rejects_selected_model_when_missing_from_allowlist() -> None:
     """
-    Purpose: Verify allowed_user_model blocks unlisted per-message model choices.
+    Purpose: Verify switchable_language_models blocks unlisted per-message model choices.
     Why this matters: User-controlled model overrides must not bypass the space allowlist.
     Setup summary: Configure an allowlist without the selected model; assert validation fails.
     """
@@ -234,8 +242,13 @@ def test_model_choice_rejects_selected_model_when_missing_from_allowlist() -> No
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
-            allowed_user_model=[_make_model("allowed-model")],
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Allowed Model",
+                    "languageModel": _make_model("allowed-model"),
+                }
+            ],
             language_model=default_model,
             tools=[],
         )
@@ -275,7 +288,7 @@ def test_model_choice_removes_code_interpreter_when_selected_model_lacks_respons
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
+            allow_model_switching=True,
             language_model=default_model,
             tools=[
                 ToolBuildConfig(
@@ -319,7 +332,7 @@ def test_model_choice_rejects_open_file_tool_when_selected_model_lacks_responses
     selected_model = _make_model("selected-model")
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
+            allow_model_switching=True,
             language_model=default_model,
             tools=[],
         ),
@@ -358,7 +371,7 @@ def test_model_choice_refreshes_search_tool_token_limits() -> None:
     selected_model.token_limits.token_limit_input = 4_000
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(
-            allow_user_model_selection=True,
+            allow_model_switching=True,
             language_model=default_model,
             tools=[
                 ToolBuildConfig(

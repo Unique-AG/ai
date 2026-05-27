@@ -76,6 +76,20 @@ class SpaceType(StrEnum):
 T = TypeVar("T", bound=SpaceType)
 
 
+class SwitchableLanguageModelConfig(BaseToolConfig):
+    """A language model that chat users may select for a single message."""
+
+    display_name: str = Field(
+        description="Human-readable label shown to chat users in the model picker.",
+    )
+    language_model: LMI = Field(
+        description=(
+            "Language-model configuration accepted from the platform payload as "
+            "`languageModel`."
+        ),
+    )
+
+
 class SpaceConfigBase(BaseToolConfig, Generic[T]):
     """Base class for space configuration."""
 
@@ -88,16 +102,17 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
 
     language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
 
-    allow_user_model_selection: bool = Field(
+    allow_model_switching: bool = Field(
         default=False,
-        description="Whether users may override the configured language model per message.",
+        description=(
+            "Whether chat users may override the language model for a single message"
+        ),
     )
 
-    allowed_user_model: list[LMI] = Field(
+    switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
         default_factory=list,
         description=(
-            "Language models that users may select at runtime. "
-            "When populated, per-message model choices must be present in this list."
+            "Language models selectable by chat users for a single message."
         ),
     )
 
