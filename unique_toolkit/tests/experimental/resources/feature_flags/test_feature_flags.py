@@ -527,3 +527,50 @@ async def test_evaluate__transport_error_no_prior_fetch__returns_fallback(
     result = await client.evaluate(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
 
     assert result == FlagEvaluation(value=False, reason="fallback")
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_evaluate__stale_not_evicted_by_cache_hits() -> None:
+    """
+    Regression: _stale LRU must be refreshed on TTL cache hits, not only on remote
+    fetches. Without the fix, a key served exclusively from _cache can be evicted
+    from _stale (by other keys filling the LRU) while it is still in _cache. When
+    the TTL then expires and a refetch fails, get_stale misses and falls back to
+    env-var instead of returning the last-known-good remote value.
+
+    We reproduce this with maxsize=1: after fetching key A, fetching key B evicts A
+    from _stale. Then we hit key A from _cache (no re-fetch, so _stale stays empty
+    for A without the fix). Then we expire _cache and make the network fail — the
+    stale value must still be available.
+    """
+    from unique_toolkit.experimental.resources.feature_flags._ttl_cache import (
+        AsyncTTLCache,
+    )
+
+    FLAG_B = "FEATURE_FLAG_ENABLE_OTHER"
+
+    respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(True))
+    )
+
+    # Build a client with a tiny cache so eviction is easy to trigger.
+    client = _make_client()
+    client._cache = AsyncTTLCache(maxsize=1, ttl_ms=30_000)
+
+    # 1. Fetch FLAG A — lands in both _cache and _stale.
+    await client.evaluate(_FLAG, company_id=_COMPANY_ID)
+
+    # 2. Fetch FLAG B — evicts FLAG A from _stale (maxsize=1 LRU).
+    await client.evaluate(FLAG_B, company_id=_COMPANY_ID)
+
+    # 3. Hit FLAG A from _cache (TTL still valid) — must refresh _stale for A.
+    await client.evaluate(_FLAG, company_id=_COMPANY_ID)
+
+    # 4. Expire _cache and make the network fail.
+    client._cache._cache.clear()
+    respx.post(_GQL_ENDPOINT).mock(side_effect=httpx.ConnectError("unreachable"))
+
+    result = await client.evaluate(_FLAG, company_id=_COMPANY_ID)
+
+    assert result == FlagEvaluation(value=True, reason="stale")

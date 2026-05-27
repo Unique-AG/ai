@@ -41,6 +41,7 @@ class AsyncTTLCache:
         """Return ``(value, from_cache)``, fetching on a miss with per-key stampede protection."""
         cached = self._cache.get(key, _MISSING)
         if cached is not _MISSING:
+            self._stale[key] = cached  # keep stale warm while TTL cache is hot
             return cached, True
 
         # Acquire per-key lock; re-check inside in case another waiter already fetched.
@@ -48,6 +49,7 @@ class AsyncTTLCache:
         async with key_lock:
             cached = self._cache.get(key, _MISSING)
             if cached is not _MISSING:
+                self._stale[key] = cached  # keep stale warm while TTL cache is hot
                 return cached, True
 
             value = await fetcher()
