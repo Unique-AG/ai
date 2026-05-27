@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Literal
 
 from unique_sdk.api_resources._message import Message
@@ -24,6 +24,7 @@ async def send_message_and_wait_for_completion(
     max_wait: float = 60.0,
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
     correlation: "Space.Correlation | None" = None,
+    on_message_update: Callable[["Space.Message"], Awaitable[None]] | None = None,
 ) -> "Space.Message":
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -42,6 +43,8 @@ async def send_message_and_wait_for_completion(
         stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
         correlation: Optional correlation data to link this message to a parent message in another chat.
             Should contain: parentMessageId, parentChatId, parentAssistantId.
+        on_message_update: Optional async callback called whenever the latest assistant
+            message changes while waiting for completion.
 
     Returns:
         The completed Space.Message.
@@ -61,8 +64,21 @@ async def send_message_and_wait_for_completion(
     message_id = response.get("id")
 
     max_attempts = int(max_wait // poll_interval)
+    last_update_signature: tuple[str | None, str | None] | None = None
     for _ in range(max_attempts):
         answer = await Space.get_latest_message_async(user_id, company_id, chat_id)
+        if (
+            on_message_update is not None
+            and answer.get("role") == "ASSISTANT"
+            and answer.get("text") is not None
+        ):
+            update_signature = (
+                answer.get("id"),
+                answer.get("text"),
+            )
+            if update_signature != last_update_signature:
+                await on_message_update(answer)
+                last_update_signature = update_signature
         if answer.get(stop_condition) is not None:
             try:
                 user_message = await Message.retrieve_async(

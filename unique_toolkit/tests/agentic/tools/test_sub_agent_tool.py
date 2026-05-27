@@ -2,7 +2,10 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from unique_toolkit.agentic.tools.a2a.tool.config import SubAgentToolConfig
+from unique_toolkit.agentic.tools.a2a.tool.config import (
+    SubAgentPassthroughConfig,
+    SubAgentToolConfig,
+)
 from unique_toolkit.agentic.tools.a2a.tool.service import SubAgentTool
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -833,6 +836,74 @@ class TestSubAgentToolRun:
         # Last call should be FAILED status
         last_call = calls[-1]
         assert last_call.kwargs["status"] == MessageLogStatus.FAILED
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__passes_streaming_update_hook__when_passthrough_enabled_AI(
+        self,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        config = SubAgentToolConfig(
+            assistant_id="sub_agent_assistant_123",
+            tool_description="A test sub agent tool",
+            passthrough_config=SubAgentPassthroughConfig(
+                enabled=True,
+                include_assessments=False,
+            ),
+        )
+        tool = SubAgentTool(
+            configuration=config,
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+        )
+        tool._chat_service = Mock()
+        tool._chat_service._assistant_message_id = "assistant_message_202"
+        tool._chat_service.modify_assistant_message_async = AsyncMock()
+        tool._chat_service.create_message_assessment_async = AsyncMock()
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=Mock()
+        )
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="TestSubAgent",
+            arguments={"user_message": "test message"},
+        )
+        mock_response = {
+            "text": "Sub agent response",
+            "originalText": "Sub agent response",
+            "assessment": [],
+            "chatId": "sub_agent_chat_999",
+            "references": None,
+        }
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
+                return_value=True,
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
+                new_callable=AsyncMock,
+                return_value=mock_response,
+            ) as mock_send,
+            patch.object(
+                tool, "_get_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                tool, "_save_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+        ):
+            await tool.run(tool_call)
+
+        assert (
+            mock_send.await_args.kwargs["on_message_update"]
+            == tool._publish_sub_agent_response_update
+        )
+        final_update = tool._chat_service.modify_assistant_message_async.await_args
+        assert final_update.kwargs["content"] == "Sub agent response"
+        assert final_update.kwargs["set_completed_at"] is True
 
 
 class TestSubAgentToolDebugInfo:

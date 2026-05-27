@@ -318,6 +318,17 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise e
 
     async def _display_sub_agent_response(self, response: Space.Message) -> None:
+        await self._publish_sub_agent_response(response, set_completed_at=True)
+
+        if self.config.passthrough_config.include_assessments:
+            await self._forward_sub_agent_assessments(response["assessment"] or [])
+
+    async def _publish_sub_agent_response(
+        self,
+        response: Space.Message,
+        *,
+        set_completed_at: bool,
+    ) -> None:
         await self._chat_service.modify_assistant_message_async(
             content=response["text"],
             original_content=response["originalText"],
@@ -325,11 +336,20 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 ContentReference.from_sdk_reference(ref)
                 for ref in response["references"] or []
             ],
-            set_completed_at=True,
+            set_completed_at=set_completed_at,
         )
 
-        if self.config.passthrough_config.include_assessments:
-            await self._forward_sub_agent_assessments(response["assessment"] or [])
+    async def _publish_sub_agent_response_update(
+        self,
+        response: Space.Message,
+    ) -> None:
+        try:
+            await self._publish_sub_agent_response(response, set_completed_at=False)
+        except Exception:
+            logger.warning(
+                "Failed to publish streaming sub agent passthrough update",
+                exc_info=True,
+            )
 
     async def _forward_sub_agent_assessments(
         self,
@@ -444,6 +464,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         active_message_log: MessageLog | None = None,
     ) -> unique_sdk.Space.Message:
         try:
+            on_message_update = (
+                self._publish_sub_agent_response_update
+                if self.config.passthrough_config.enabled
+                else None
+            )
+
             return await send_message_and_wait_for_completion(
                 user_id=self._user_id,
                 assistant_id=self.config.assistant_id,
@@ -459,6 +485,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     parentChatId=self._event.payload.chat_id,
                     parentAssistantId=self.config.assistant_id,
                 ),
+                on_message_update=on_message_update,
             )
         except TimeoutError as e:
             await self._notify_progress(
