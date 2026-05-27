@@ -1611,6 +1611,56 @@ def test_replace_dangling_sandbox_links__no_change__when_no_sandbox_link(
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
 
+@pytest.mark.ai
+def test_replace_dangling_sandbox_links__hallucination_message__when_ci_never_ran(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify that when ci_ran=False the replacement message tells the user the
+    file was not generated (hallucination), rather than suggesting a retrieval failure.
+    Why this matters: When the LLM emits a sandbox link without calling the code
+    interpreter the file was never created.  "Could not be retrieved" is misleading;
+    "was not generated" accurately describes what happened and prompts the right action.
+    Setup summary: ci_ran=False; assert hallucination-specific message and warning.
+    """
+    text = "Here is your file: [report](sandbox:/mnt/data/report.docx)"
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        result, replaced = _replace_dangling_sandbox_links(text, ci_ran=False)
+
+    assert replaced is True
+    assert "report.docx" in result
+    assert "was not generated" in result
+    assert "could not be retrieved" not in result
+    assert "sandbox:/mnt/data/report.docx" not in result
+    assert any(
+        "sandbox:/mnt/data/report.docx" in r.message and r.levelno == logging.WARNING
+        for r in caplog.records
+    )
+
+
+@pytest.mark.ai
+def test_replace_dangling_sandbox_links__retrieval_message__when_ci_ran(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify that when ci_ran=True (code interpreter did run) the existing
+    retrieval-failure message is used, not the hallucination message.
+    Why this matters: If CI ran and the file is still missing it implies a download or
+    matching failure, not a hallucination — the messaging should reflect that distinction.
+    Setup summary: ci_ran=True (explicit); assert retrieval-failure message.
+    """
+    text = "Download: [chart](sandbox:/mnt/data/chart.png)"
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        result, replaced = _replace_dangling_sandbox_links(text, ci_ran=True)
+
+    assert replaced is True
+    assert "chart.png" in result
+    assert "could not be retrieved" in result
+    assert "was not generated" not in result
+
+
 # ============================================================================
 # Tests for _warn_unmatched_code_blocks
 # ============================================================================
