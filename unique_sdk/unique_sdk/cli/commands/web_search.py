@@ -124,6 +124,36 @@ def _annotate_web_results_for_citations(
         return annotated
 
 
+def _row_label_for_result(result: dict[str, Any], fallback_index: int) -> int:
+    """Return the human row label for a single result.
+
+    In the happy path ``_annotate_web_results_for_citations`` runs before
+    the formatter and stamps every dict result with an ``int``
+    ``sourceNumber`` that matches the ``[websourceN]`` marker the LLM is
+    told to emit; the formatter then surfaces that same number as the row
+    label so the on-screen list and the citation namespace agree.
+
+    The ``fallback_index`` branch only fires when ``sourceNumber`` is
+    missing or non-int — i.e. a contract violation from the annotator
+    (or annotation was skipped). We never want the formatter to crash,
+    but the fallback row label deliberately *will not* match a
+    ``[websourceN]`` marker, so the agent would cite a number that is
+    not in the manifest. Warn loudly so the bug is observable instead of
+    silently degrading citations.
+    """
+    source_number = result.get("sourceNumber")
+    if isinstance(source_number, int):
+        return source_number
+    _LOGGER.warning(
+        "web result is missing a numeric `sourceNumber` after citation "
+        "annotation; falling back to row index %d. URL=%r — this row will "
+        "not be citable as [websourceN].",
+        fallback_index,
+        result.get("url"),
+    )
+    return fallback_index
+
+
 def _format_search_results(payload: dict[str, Any]) -> str:
     """Render a /web-search-api/search response for terminal display."""
     results: list[dict[str, Any]] = payload.get("results", [])
@@ -144,8 +174,7 @@ def _format_search_results(payload: dict[str, Any]) -> str:
 
         citation = result.get("citation")
         citation_suffix = f" [{citation}]" if citation else ""
-        source_number = result.get("sourceNumber")
-        row_label = source_number if isinstance(source_number, int) else i
+        row_label = _row_label_for_result(result, i)
         lines.append(f"  {row_label}. {title}{citation_suffix}")
         lines.append(f"     {url}")
 
@@ -193,8 +222,7 @@ def _format_crawl_results(payload: dict[str, Any]) -> str:
 
         citation = entry.get("citation")
         citation_suffix = f" [{citation}]" if citation else ""
-        source_number = entry.get("sourceNumber")
-        row_label = source_number if isinstance(source_number, int) else i
+        row_label = _row_label_for_result(entry, i)
         lines.append(f"  {row_label}. {url}{citation_suffix}")
         if error:
             lines.append(f"     ERROR: {error}")

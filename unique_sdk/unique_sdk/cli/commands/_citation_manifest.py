@@ -28,7 +28,6 @@ from typing import Any
 __all__ = [
     "UnsafeRefsLogPathError",
     "_append_turn_refs_manifest_entry",
-    "_assert_safe_refs_log_path",
     "_locked_turn_refs_manifest",
     "_read_turn_refs_manifest",
 ]
@@ -51,6 +50,13 @@ def _assert_safe_refs_log_path(refs_log_path: Path) -> None:
     well-known handoff path used by another process (the runner) running
     in the same workspace. Following symlinks here would let a malicious
     workspace redirect writes elsewhere.
+
+    Writer-side counterpart to the reader-side check at
+    ``swappable_intelligence.runner.CodingAgentRunner._is_safe_turn_refs_log_path``
+    in ``monorepo``. The two run in different processes (this one in the
+    agent's bash sandbox, the reader in assistants-core) so they cannot
+    share code; keep the rejection policy aligned across the two when
+    either is edited.
     """
     refs_log_dir = refs_log_path.parent
     if refs_log_dir.is_symlink() or (
