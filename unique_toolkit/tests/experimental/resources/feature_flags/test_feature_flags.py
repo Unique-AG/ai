@@ -1,4 +1,4 @@
-"""Tests for unique_toolkit.experimental.components.feature_flags."""
+"""Tests for unique_toolkit.experimental.resources.feature_flags."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import httpx
 import pytest
 import respx
 
-from unique_toolkit.experimental.components.feature_flags import (
+from unique_toolkit.experimental.resources.feature_flags import (
     BoundFeatureFlagClient,
     FeatureFlagClient,
     FlagEvaluation,

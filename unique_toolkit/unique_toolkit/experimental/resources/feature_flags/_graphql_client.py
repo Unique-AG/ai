@@ -1,7 +1,5 @@
 import httpx
 
-_EVALUATE_FLAG_QUERY = "query EvaluateFlag($key: String!) { evaluateFlag(key: $key) }"
-
 
 async def evaluate_flag(
     *,
@@ -39,7 +37,10 @@ async def evaluate_flag(
 
     response = await http.post(
         f"{url}/graphql",
-        json={"query": _EVALUATE_FLAG_QUERY, "variables": {"key": flag}},
+        json={
+            "query": "query EvaluateFlag($key: String!) { evaluateFlag(key: $key) }",
+            "variables": {"key": flag},
+        },
         headers=headers,
     )
     response.raise_for_status()
