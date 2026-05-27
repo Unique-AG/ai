@@ -19,7 +19,7 @@ class UrlSafetyService:
         if not url_safety_settings.enabled:
             return [bypass_crawl_target(url) for url in urls]
 
-        working_urls = urls
+        working_urls = [url.strip() for url in urls]
         if url_safety_settings.resolve_redirects:
             working_urls = list(
                 await asyncio.gather(
@@ -28,7 +28,7 @@ class UrlSafetyService:
                             u,
                             validate_url=UrlSafetyService.validate_url,
                         )
-                        for u in urls
+                        for u in working_urls
                     ]
                 )
             )
