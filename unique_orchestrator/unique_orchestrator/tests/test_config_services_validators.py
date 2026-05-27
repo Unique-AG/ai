@@ -52,16 +52,15 @@ class TestUniqueAISpaceConfigModelSwitching:
         )
 
     @pytest.mark.ai
-    def test_accepts_null_switchable_language_models_from_node_backend(self):
-        """Purpose: Verify nullable node-backend model-switching payloads parse.
-        Why this matters: Existing spaces can send null for the new JSON field before it is configured.
-        Setup summary: Validate a camel-case payload with switchableLanguageModels=None and assert it defaults to [].
+    def test_defaults_absent_switchable_language_models_from_node_backend(self):
+        """Purpose: Verify omitted node-backend model-switching payloads parse.
+        Why this matters: Existing spaces can omit the new JSON field before it is configured.
+        Setup summary: Validate a payload without switchableLanguageModels and assert it defaults to [].
         """
         config = UniqueAIConfig.model_validate(
             {
                 "space": {
                     "allowModelSwitching": False,
-                    "switchableLanguageModels": None,
                 },
             }
         )
