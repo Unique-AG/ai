@@ -22,11 +22,10 @@ from unique_sdk.api_resources._agentic_table import (
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.app.schemas import (
-    ChatEvent,
-    ChatEventAssistantMessage,
-    ChatEventUserMessage,
-    Correlation,
+    AssistantWebhookEvent,
+    BaseEventPayload,
 )
+from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -112,27 +111,25 @@ A = TypeVar("A", bound=MagicTableAction)
 T = TypeVar("T", bound=BaseMetadata)
 
 
-class MagicTableBasePayload(BaseModel, Generic[A, T]):
-    model_config = get_configuration_dict()
-    name: str = Field(description="The name of the module")
-    sheet_name: str
+class MagicTableBasePayload(BaseEventPayload, Generic[A, T]):
+    """Magic-table-specific payload.
 
+    Inherits the common envelope fields (``name``, ``chat_id``, ``assistant_id``,
+    ``configuration``, ``metadata_filter``, ``correlation``) from
+    :class:`BaseEventPayload` and adds magic-table-only fields.
+
+    Note: previously this carried stub-empty ``user_message`` /
+    ``assistant_message`` defaults so that ``MagicTableEvent`` could pose as
+    a ``ChatEvent``. That coupling is gone; magic-table flows that need a
+    chat context should construct a :class:`UniqueContext` explicitly.
+    """
+
+    model_config = get_configuration_dict()
+
+    sheet_name: str
     action: A
-    chat_id: str
-    assistant_id: str
     table_id: str
-    user_message: ChatEventUserMessage = Field(
-        default=ChatEventUserMessage(
-            id="", text="", original_text="", created_at="", language=""
-        )
-    )
-    assistant_message: ChatEventAssistantMessage = Field(
-        default=ChatEventAssistantMessage(id="", created_at="")
-    )
-    configuration: dict[str, Any] = {}
     metadata: T
-    metadata_filter: dict[str, Any] | None = None
-    correlation: Correlation | None = None
 
 
 ########### Specialized Payload definitions ###########
@@ -263,10 +260,18 @@ PayloadTypes = (
 MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]
 
 
-class MagicTableEvent(ChatEvent):
-    # TODO(UN-19532): investigate making ChatEvent generic to avoid these overrides
+class MagicTableEvent(
+    AssistantWebhookEvent[UniqueChatEventFilterOptions, MagicTablePayloadTypes]
+):
+    """Magic-table webhook event, sibling of :class:`ChatEvent`.
+
+    No longer extends ``ChatEvent``; both events are siblings under
+    :class:`AssistantWebhookEvent`. This makes ``isinstance(magic_table_event,
+    ChatEvent)`` correctly return ``False`` and prevents silently passing a
+    magic-table event to services that require chat-only fields.
+    """
+
     event: MagicTableEventTypes  # pyright: ignore[reportIncompatibleVariableOverride]
-    payload: MagicTablePayloadTypes  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 class LogDetail(BaseModel):
