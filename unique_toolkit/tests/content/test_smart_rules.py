@@ -753,3 +753,47 @@ def test_round_trip_json_conversion():
     assert second_or["operator"] == "lessThan"
     assert second_or["value"] == "<toolParameters.threshold>"
     assert second_or["path"] == ["score"]
+
+
+@pytest.mark.ai
+def test_parse_uniqueql_input__accepts_json_string() -> None:
+    """Purpose: Verify JSON strings are parsed into UniqueQL models."""
+    from unique_toolkit.content.smart_rules import parse_uniqueql_input
+
+    result = parse_uniqueql_input(
+        '{"operator": "equals", "value": "x", "path": ["fieldName"]}'
+    )
+    assert isinstance(result, Statement)
+    assert result.operator == Operator.EQUALS
+
+
+@pytest.mark.ai
+def test_parse_uniqueql_input__empty_string_returns_none() -> None:
+    """Purpose: Verify blank JSON input normalises to None."""
+    from unique_toolkit.content.smart_rules import parse_uniqueql_input
+
+    assert parse_uniqueql_input("") is None
+    assert parse_uniqueql_input("   ") is None
+
+
+@pytest.mark.ai
+def test_to_dict__round_trips_model() -> None:
+    """Purpose: Verify UniqueQL models convert to wire-format dicts via to_dict."""
+    stmt = Statement(operator=Operator.EQUALS, value="x", path=["fieldName"])
+    assert stmt.to_dict() == {
+        "operator": "equals",
+        "value": "x",
+        "path": ["fieldName"],
+    }
+
+
+@pytest.mark.ai
+def test_uniqueql_to_dict__passes_through_wire_dict() -> None:
+    """Purpose: Verify uniqueql_to_dict still normalizes plain dicts at API boundaries."""
+    from unique_toolkit.content.smart_rules import uniqueql_to_dict
+
+    assert uniqueql_to_dict({"operator": "equals", "value": "y", "path": ["a"]}) == {
+        "operator": "equals",
+        "value": "y",
+        "path": ["a"],
+    }

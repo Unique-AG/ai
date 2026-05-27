@@ -8,6 +8,8 @@ from typing import Any
 from unique_toolkit.content.smart_rules import (
     Operator,
     Statement,
+    UniqueQL,
+    uniqueql_to_dict,
 )
 
 _UQL_AND = "and"
@@ -29,16 +31,17 @@ def build_folder_id_in_clause(scope_ids: list[str]) -> dict[str, Any]:
 
 def merge_scope_clause_into_metadata_filter(
     scope_clause: Mapping[str, Any],
-    metadata_filter: dict[str, Any] | None,
+    metadata_filter: UniqueQL | Mapping[str, Any] | None,
 ) -> dict[str, Any]:
     """AND-merge *scope_clause* with *metadata_filter*, flattening a top-level ``and``."""
     scope_dict = dict(scope_clause)
-    if not metadata_filter:
+    metadata_dict = uniqueql_to_dict(metadata_filter)
+    if not metadata_dict:
         return scope_dict
-    inner_and = metadata_filter.get(_UQL_AND)
+    inner_and = metadata_dict.get(_UQL_AND)
     if isinstance(inner_and, list):
         return {_UQL_AND: [scope_dict, *inner_and]}
-    return {_UQL_AND: [scope_dict, dict(metadata_filter)]}
+    return {_UQL_AND: [scope_dict, metadata_dict]}
 
 
 __all__ = [
