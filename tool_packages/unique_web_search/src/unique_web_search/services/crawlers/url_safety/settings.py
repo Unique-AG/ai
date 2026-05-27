@@ -4,14 +4,6 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-model_config = SettingsConfigDict(
-    extra="ignore",
-    env_prefix="FEATURE_FLAG_",
-    case_sensitive=False,
-    env_file=".env",
-    env_file_encoding="utf-8",
-)
-
 
 class UrlSafetySettings(BaseSettings):
     # URL safety settings
