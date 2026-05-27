@@ -1,23 +1,78 @@
-# Re-export commonly used classes for easier imports
-from unique_toolkit.chat import ChatService
-from unique_toolkit.content import ContentService
-from unique_toolkit.data_extraction import (
-    StructuredOutputDataExtractor,
-    StructuredOutputDataExtractorConfig,
-)
-from unique_toolkit.embedding import EmbeddingService
-from unique_toolkit.framework_utilities.openai.client import (
-    get_async_openai_client,
-    get_openai_client,
-)
-from unique_toolkit.language_model import (
-    LanguageModelMessages,
-    LanguageModelName,
-    LanguageModelService,
-    LanguageModelToolDescription,
-)
-from unique_toolkit.services.knowledge_base import KnowledgeBaseService
-from unique_toolkit.short_term_memory import ShortTermMemoryService
+from importlib import import_module
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from unique_toolkit.chat import ChatService as ChatService
+    from unique_toolkit.content import ContentService as ContentService
+    from unique_toolkit.data_extraction import (
+        StructuredOutputDataExtractor as StructuredOutputDataExtractor,
+    )
+    from unique_toolkit.data_extraction import (
+        StructuredOutputDataExtractorConfig as StructuredOutputDataExtractorConfig,
+    )
+    from unique_toolkit.embedding import EmbeddingService as EmbeddingService
+    from unique_toolkit.framework_utilities.openai.client import (
+        get_async_openai_client as get_async_openai_client,
+    )
+    from unique_toolkit.framework_utilities.openai.client import (
+        get_openai_client as get_openai_client,
+    )
+    from unique_toolkit.language_model import (
+        LanguageModelMessages as LanguageModelMessages,
+    )
+    from unique_toolkit.language_model import LanguageModelName as LanguageModelName
+    from unique_toolkit.language_model import (
+        LanguageModelService as LanguageModelService,
+    )
+    from unique_toolkit.language_model import (
+        LanguageModelToolDescription as LanguageModelToolDescription,
+    )
+    from unique_toolkit.services.knowledge_base import (
+        KnowledgeBaseService as KnowledgeBaseService,
+    )
+    from unique_toolkit.short_term_memory import (
+        ShortTermMemoryService as ShortTermMemoryService,
+    )
+
+_EXPORTS: dict[str, tuple[str, str]] = {
+    "ChatService": ("unique_toolkit.chat", "ChatService"),
+    "ContentService": ("unique_toolkit.content", "ContentService"),
+    "EmbeddingService": ("unique_toolkit.embedding", "EmbeddingService"),
+    "get_openai_client": (
+        "unique_toolkit.framework_utilities.openai.client",
+        "get_openai_client",
+    ),
+    "get_async_openai_client": (
+        "unique_toolkit.framework_utilities.openai.client",
+        "get_async_openai_client",
+    ),
+    "KnowledgeBaseService": (
+        "unique_toolkit.services.knowledge_base",
+        "KnowledgeBaseService",
+    ),
+    "LanguageModelMessages": (
+        "unique_toolkit.language_model",
+        "LanguageModelMessages",
+    ),
+    "LanguageModelName": ("unique_toolkit.language_model", "LanguageModelName"),
+    "LanguageModelService": ("unique_toolkit.language_model", "LanguageModelService"),
+    "LanguageModelToolDescription": (
+        "unique_toolkit.language_model",
+        "LanguageModelToolDescription",
+    ),
+    "ShortTermMemoryService": (
+        "unique_toolkit.short_term_memory",
+        "ShortTermMemoryService",
+    ),
+    "StructuredOutputDataExtractor": (
+        "unique_toolkit.data_extraction",
+        "StructuredOutputDataExtractor",
+    ),
+    "StructuredOutputDataExtractorConfig": (
+        "unique_toolkit.data_extraction",
+        "StructuredOutputDataExtractorConfig",
+    ),
+}
 
 # Conditionally import config_checker (requires pydantic-settings)
 _CONFIG_CHECKER_AVAILABLE: bool = False
@@ -83,3 +138,12 @@ if _CONFIG_CHECKER_AVAILABLE:
 # Add langchain-specific exports if available
 if _LANGCHAIN_AVAILABLE:
     __all__.append("get_langchain_client")
+
+
+def __getattr__(name: str) -> Any:
+    export = _EXPORTS.get(name)
+    if export is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module_name, attribute_name = export
+    return getattr(import_module(module_name), attribute_name)

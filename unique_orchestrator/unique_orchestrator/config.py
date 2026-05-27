@@ -76,6 +76,20 @@ class SpaceType(StrEnum):
 T = TypeVar("T", bound=SpaceType)
 
 
+class SwitchableLanguageModelConfig(BaseToolConfig):
+    """A language model that chat users may select for a single message."""
+
+    display_name: str = Field(
+        description="Human-readable label shown to chat users in the model picker.",
+    )
+    language_model: LMI = Field(
+        description=(
+            "Language-model configuration accepted from the platform payload as "
+            "`languageModel`."
+        ),
+    )
+
+
 class SpaceConfigBase(BaseToolConfig, Generic[T]):
     """Base class for space configuration."""
 
@@ -87,6 +101,18 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
     )
 
     language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+
+    allow_model_switching: bool = Field(
+        default=False,
+        description=(
+            "Whether chat users may override the language model for a single message"
+        ),
+    )
+
+    switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
+        default_factory=list,
+        description=("Language models selectable by chat users for a single message."),
+    )
 
     custom_instructions: str = Field(
         default="",
@@ -419,6 +445,27 @@ class UniqueAIConfig(BaseToolConfig):
     def disable_sub_agent_referencing_if_not_used(self) -> "UniqueAIConfig":
         if not any(tool.is_sub_agent for tool in self.space.tools):
             self.agent.experimental.sub_agents_config.referencing_config = None
+        return self
+
+    @model_validator(mode="after")
+    def remove_tools_with_unsupported_model_capabilities(self) -> "UniqueAIConfig":
+        if ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities:
+            return self
+
+        self.space.tools = [
+            tool
+            for tool in self.space.tools
+            if tool.name != OpenAIBuiltInToolName.CODE_INTERPRETER
+        ]
+        return self
+
+    @model_validator(mode="after")
+    def disable_responses_api_when_model_does_not_support_it(self) -> "UniqueAIConfig":
+        if ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities:
+            return self
+
+        self.agent.experimental.responses_api_config.use_responses_api = False
+        self.agent.experimental.use_responses_api = False
         return self
 
     @model_validator(mode="after")
