@@ -111,9 +111,7 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
 
     switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
         default_factory=list,
-        description=(
-            "Language models selectable by chat users for a single message."
-        ),
+        description=("Language models selectable by chat users for a single message."),
     )
 
     custom_instructions: str = Field(

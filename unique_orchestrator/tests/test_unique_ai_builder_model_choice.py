@@ -29,7 +29,10 @@ from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
 from unique_orchestrator.config import UniqueAIConfig, UniqueAISpaceConfig
-from unique_orchestrator.unique_ai_builder import _apply_model_choice_override
+from unique_orchestrator.unique_ai_builder import (
+    _apply_model_choice_override,
+    _record_language_model_debug_info,
+)
 
 
 def _make_event(
@@ -158,6 +161,38 @@ def test_model_choice_uses_selected_model_when_selection_is_enabled() -> None:
     )
 
     assert config.space.language_model == selected_model
+
+
+@pytest.mark.ai
+def test_record_language_model_debug_info_uses_effective_model() -> None:
+    """
+    Purpose: Verify debug info records the active language model.
+    Why this matters: Support needs to see the exact model used after any override.
+    Setup summary: Build a config with a selected model; assert the serialized model is added.
+    """
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            language_model=selected_model,
+            tools=[],
+        )
+    )
+    debug_info_manager = MagicMock()
+
+    _record_language_model_debug_info(
+        debug_info_manager=debug_info_manager,
+        config=config,
+    )
+
+    debug_info_manager.add.assert_called_once_with(
+        "language_model",
+        {
+            "name": "selected-model",
+            "provider": "AZURE",
+            "family": "unknown",
+        },
+    )
 
 
 @pytest.mark.ai

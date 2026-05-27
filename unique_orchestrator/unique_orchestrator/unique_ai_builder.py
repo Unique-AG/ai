@@ -131,6 +131,10 @@ async def build_unique_ai(
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
     config = _apply_model_choice_override(event=event, logger=logger, config=config)
+    _record_language_model_debug_info(
+        debug_info_manager=debug_info_manager,
+        config=config,
+    )
     common_components = await _build_common(event, logger, config)
 
     if (
@@ -210,6 +214,20 @@ def _apply_model_choice_override(
     )
 
     return validated_config
+
+
+def _record_language_model_debug_info(
+    *,
+    debug_info_manager: DebugInfoManager,
+    config: UniqueAIConfig,
+) -> None:
+    debug_info_manager.add(
+        "language_model",
+        config.space.language_model.model_dump(
+            mode="json",
+            include={"name", "provider", "family"},
+        ),
+    )
 
 
 def _is_switchable_language_model_choice(
