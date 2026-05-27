@@ -39,6 +39,8 @@ for folder in created:
 ```
 
 ```{.python #folder-mgmt-main-multi file=docs/.python_files/folder_create_multiple_abs_paths.py}
+<<example-script-deps>>
+
 <<folder-mgmt-imports>>
 
 <<folder-mgmt-init>>
@@ -82,6 +84,8 @@ print("leaf id=", leaf.id, "name=", leaf.name)
 ```
 
 ```{.python #folder-mgmt-main-nested file=docs/.python_files/folder_create_under_parent.py}
+<<example-script-deps>>
+
 <<folder-mgmt-imports>>
 
 <<folder-mgmt-init>>
@@ -156,11 +160,64 @@ delete_result = folder_service.delete(scope_id=leaf.id)
 print("Deleted:", delete_result.success_folders, "Failed:", delete_result.failed_folders)
 ```
 
+### Run this example
+
+Fetch the script at the latest released `unique-toolkit` tag and execute it with [uv](https://docs.astral.sh/uv/) (requires network access to resolve dependencies).
+
+!!! warning "Trust and dependencies"
+    `uv run` may install packages declared in the script's inline metadata ([PEP 723](https://peps.python.org/pep-0723/)).
+    Set `RELEASE=unique-toolkit-v<version>` to lock to a specific release for a fully
+    reproducible run; otherwise the snippet always picks the newest non-prerelease
+    `unique-toolkit-v*` tag from `Unique-AG/ai`. We deliberately fetch from an immutable
+    release tag instead of a mutable branch tip.
+
+```bash
+# Optional: pin to a specific release, e.g.
+#   RELEASE=unique-toolkit-v2026.22.0
+RELEASE="${RELEASE:-}"
+
+if [ -z "$RELEASE" ]; then
+  # Unauthenticated GitHub API allows 60 req/hr/IP — export GH_TOKEN for higher limits.
+  RELEASE=$(
+    curl -fsSL ${GH_TOKEN:+-H "Authorization: Bearer $GH_TOKEN"} \
+      "https://api.github.com/repos/Unique-AG/ai/releases?per_page=100" \
+    | python3 -c '
+import json, sys
+for r in json.load(sys.stdin):
+    if r.get("prerelease") or r.get("draft"):
+        continue
+    tag = r.get("tag_name", "")
+    if tag.startswith("unique-toolkit-v"):
+        print(tag); break
+'
+  )
+fi
+
+if [ -z "$RELEASE" ]; then
+  echo "Could not resolve latest unique-toolkit release; set RELEASE=unique-toolkit-v<version>." >&2
+  exit 1
+fi
+
+echo "Using release: $RELEASE"
+
+curl -fsSL -o example.py \
+  "https://raw.githubusercontent.com/Unique-AG/ai/${RELEASE}/unique_toolkit/docs/examples_from_docs/folder_create_verify_delete.py"
+
+uv run example.py
+rm -f example.py
+```
+
+!!! note "Environment variables"
+
+    Set `UNIQUE_APP_KEY`, `UNIQUE_APP_ID`, `UNIQUE_AUTH_USER_ID`, and `UNIQUE_AUTH_COMPANY_ID` (and other `UNIQUE_*` values your tenant needs) in the environment or a `.env` file before running. See [Getting started](../../../setup/getting_started.md) for details.
+
 ### Assembled runnable script
 
 The block below is tangled to `docs/.python_files/` and copied to [examples_from_docs](../../../examples_from_docs/) when you run `generate_examples.sh` in the `unique_toolkit` package root.
 
 ```{.python #folder-mgmt-main file=docs/.python_files/folder_create_verify_delete.py}
+<<example-script-deps>>
+
 <<folder-mgmt-imports>>
 
 <<folder-mgmt-constants>>

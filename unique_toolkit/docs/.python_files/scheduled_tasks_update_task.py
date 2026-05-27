@@ -1,10 +1,21 @@
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#./docs/.python_files/scheduled_tasks_update_task.py>>[init]
+# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+# ~/~ end
+
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent 
 from unique_toolkit import ChatService, ContentService, EmbeddingService, LanguageModelService, LanguageModelName, KnowledgeBaseService
+from unique_toolkit.experimental.identity import Identity
 from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
 import os
 import io
