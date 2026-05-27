@@ -61,32 +61,31 @@ conflicts = [
 ]
 constraint-dependencies = [
     "aiohttp>=3.13.4",
-    "authlib>=1.6.11",
+    "authlib>=1.6.12",
     "copier>=9.14.1",
     "cryptography>=46.0.7",
     "deepdiff>=8.6.2",
     "fastmcp>=3.2.0",
+    "idna>=3.15",
     "langchain-core>=1.3.3",
-    # NOTE: langchain-openai 1.1.14 (SSRF DNS-rebinding fix, GHSA-???) requires
-    # openai>=2.26.0, but litellm 1.83.x hard-pins openai==2.24.0. Cannot
-    # bump to 1.1.14 until litellm relaxes its openai pin. The advisory is
-    # severity LOW and tracked in Dependabot alert #741.
-    "langsmith>=0.7.31",
+    "langchain-openai>=1.1.14",
+    "langsmith>=0.8.0",
     # litellm 1.83.5–1.83.13 hard-pin python-dotenv==1.0.1 (upstream regression);
-    # 1.83.14 relaxes it. Both satisfy the GHSA security advisory (>=1.83.7).
-    "litellm>=1.83.14",
-    # NOTE: lxml is pinned to 5.x by crawl4ai (used by unique-web-search).
-    # Cannot upgrade to 6.1.0 (XXE fix, GHSA-pp9p-pjj9-77w7) until
-    # crawl4ai relaxes lxml~=5.3. Re-evaluate when a newer crawl4ai
-    # release supports lxml>=6. Tracked in Dependabot alert #742.
-    "lxml>=5.0.0",
+    # 1.83.14 relaxes it; 1.84+ relaxes openai==2.24.0. Stay on 1.84.x until exclude-newer ages out 1.85+.
+    "litellm>=1.84.0,<1.85.0",
+    "lxml>=6.1.0",
     "pillow>=12.2.0",
     "pygments>=2.20.0",
+    "pymdown-extensions>=10.21.3",
     "pytest>=9.0.3",
     "python-multipart>=0.0.27",
     "requests>=2.33.0",
     "tornado>=6.5.5",
     "urllib3>=2.7.0",
+]
+# crawl4ai pins lxml>=5.3,<6.dev0; override to 6.x for XXE fix (Dependabot #742).
+override-dependencies = [
+    "lxml>=6.1.0",
 ]
 
 [tool.uv.exclude-newer-package]
@@ -104,10 +103,12 @@ constraint-dependencies = [
 "unique-six" = false
 "unique-search-proxy" = false
 "unique-quartr" = false
-# urllib3 2.7.0 (GHSA-48p4-8xcf-vxj5) uploaded 2026-05-07; remove after 2026-05-22.
-"urllib3" = "2026-05-08"
-# langchain-core 1.3.3 uploaded 2026-05-05; remove after 2026-05-20.
-"langchain-core" = "2026-05-06"
+# pymdown-extensions 10.21.3 uploaded 2026-05-13; remove after 2026-05-27.
+"pymdown-extensions" = "2026-05-14"
+# idna 3.15 uploaded 2026-05-12; remove after 2026-05-26.
+"idna" = "2026-05-13"
+# litellm 1.84.1 uploaded 2026-05-21; remove after 2026-06-04.
+"litellm" = "2026-05-22"
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }
