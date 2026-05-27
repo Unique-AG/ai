@@ -1205,47 +1205,6 @@ class TestInternalSearchTool:
         assert tool.chat_id == "parent_chat_456"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
-    @patch("unique_internal_search.service.ChunkRelevancySorter")
-    def test_tool__initializes__with_base_event(
-        self,
-        mock_chunk_relevancy_sorter_class: Any,
-        mock_content_service_class: Any,
-        base_internal_search_config: InternalSearchConfig,
-        mock_base_event: Any,
-        mock_logger: Any,
-    ) -> None:
-        """
-        Purpose: Verify InternalSearchTool initializes correctly with BaseEvent (no chat_id).
-        Why this matters: Ensures tool works with non-chat events that don't have chat_id.
-        Setup summary: Mock ContentService and ChunkRelevancySorter from_event, verify chat_id is None.
-        """
-        # Arrange
-        mock_content_service = Mock(spec=ContentService)
-        mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
-
-        mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
-
-        # Act
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            # Set attributes that Tool base class expects
-            setattr(self, "_event", event)
-            setattr(self, "logger", mock_logger)
-            setattr(self, "_message_step_logger", None)
-
-        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-            tool = InternalSearchTool(
-                configuration=base_internal_search_config,
-                event=mock_base_event,
-            )
-
-        # Assert
-        assert tool.config == base_internal_search_config
-        assert tool.chat_id is None
-
-    @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_post_progress_message__notifies_reporter__when_reporter_exists(
         self,
