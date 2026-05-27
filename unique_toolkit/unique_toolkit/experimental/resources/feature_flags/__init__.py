@@ -12,7 +12,7 @@ Required env vars::
 
 Quick start — explicit IDs::
 
-    from unique_toolkit.experimental.components.feature_flags import FeatureFlagClient
+    from unique_toolkit.experimental.resources.feature_flags import FeatureFlagClient
 
     client = FeatureFlagClient.from_settings()  # singleton; call at startup or first request
     enabled = await client.is_enabled("FEATURE_FLAG_ENABLE_X", company_id=company_id)

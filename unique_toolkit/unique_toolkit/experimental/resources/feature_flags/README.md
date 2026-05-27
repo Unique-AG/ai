@@ -51,7 +51,7 @@ class MyServiceFlags:
 ### Constructor injection (recommended for testing)
 
 ```python
-from unique_toolkit.experimental.components.feature_flags import FeatureFlagClient
+from unique_toolkit.experimental.resources.feature_flags import FeatureFlagClient
 
 client = FeatureFlagClient(
     url="https://your-configuration-backend",
@@ -96,7 +96,7 @@ For services that use `UniqueSettings` / `AuthContext`, bind the singleton
 once per request to avoid passing `company_id` / `user_id` at every call site:
 
 ```python
-from unique_toolkit.experimental.components.feature_flags import (
+from unique_toolkit.experimental.resources.feature_flags import (
     BoundFeatureFlagClient,
     FeatureFlagClient,
 )
