@@ -21,7 +21,7 @@ from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import Content, ContentChunk
 from unique_toolkit.content.service import ContentService
@@ -361,7 +361,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     def __init__(
         self,
         configuration: InternalSearchConfig,
-        event: BaseEvent,
+        event: ChatEvent,
         *args,
         **kwargs,
     ):
@@ -370,13 +370,10 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
         selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self.event)
-        if isinstance(self.event, (ChatEvent, Event)):
-            if self.event.payload.correlation:
-                chat_id = self.event.payload.correlation.parent_chat_id
-            else:
-                chat_id = self.event.payload.chat_id
+        if self.event.payload.correlation:
+            chat_id = self.event.payload.correlation.parent_chat_id
         else:
-            chat_id = None
+            chat_id = self.event.payload.chat_id
         self._display_name = kwargs.get("display_name", "Internal Search")
         InternalSearchService.__init__(
             self,
