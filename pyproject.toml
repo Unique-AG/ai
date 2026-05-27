@@ -105,8 +105,6 @@ override-dependencies = [
 "unique-quartr" = false
 # pymdown-extensions 10.21.3 uploaded 2026-05-13; remove after 2026-05-27.
 "pymdown-extensions" = "2026-05-14"
-# idna 3.15 uploaded 2026-05-12; remove after 2026-05-26.
-"idna" = "2026-05-13"
 # litellm 1.84.0 uploaded 2026-05-14; remove after 2026-05-28.
 "litellm" = "2026-05-16"
 
