@@ -71,8 +71,8 @@ constraint-dependencies = [
     "langchain-openai>=1.1.14",
     "langsmith>=0.8.0",
     # litellm 1.83.5–1.83.13 hard-pin python-dotenv==1.0.1 (upstream regression);
-    # 1.83.14 relaxes it; 1.84+ relaxes openai==2.24.0. Stay on 1.84.x until exclude-newer ages out 1.85+.
-    "litellm>=1.84.0,<1.85.0",
+    # 1.83.14 relaxes it; 1.84+ relaxes openai==2.24.0.
+    "litellm>=1.84.0",
     "lxml>=6.1.0",
     "pillow>=12.2.0",
     "pygments>=2.20.0",
@@ -107,8 +107,8 @@ override-dependencies = [
 "pymdown-extensions" = "2026-05-14"
 # idna 3.15 uploaded 2026-05-12; remove after 2026-05-26.
 "idna" = "2026-05-13"
-# litellm 1.84.1 uploaded 2026-05-21; remove after 2026-06-04.
-"litellm" = "2026-05-22"
+# litellm 1.84.0 uploaded 2026-05-14; remove after 2026-05-28.
+"litellm" = "2026-05-16"
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }
