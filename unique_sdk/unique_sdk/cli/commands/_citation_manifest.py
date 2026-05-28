@@ -52,7 +52,7 @@ def _assert_safe_refs_log_path(refs_log_path: Path) -> None:
     workspace redirect writes elsewhere.
 
     Writer-side counterpart to the reader-side check at
-    ``swappable_intelligence.runner.CodingAgentRunner._is_safe_kb_search_refs_log_path``
+    ``swappable_intelligence.runner.CodingAgentRunner._is_safe_refs_log_path``
     in ``monorepo``. The two run in different processes (this one in the
     agent's bash sandbox, the reader in assistants-core) so they cannot
     share code; keep the rejection policy aligned across the two when
