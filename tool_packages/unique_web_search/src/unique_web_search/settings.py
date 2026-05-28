@@ -109,23 +109,6 @@ class Base(BaseSettings):
     # LLM processor config override (JSON string matching LLMProcessorConfig schema)
     llm_process_config: str | None = None
 
-    # URL safety settings
-    url_safety_allowed_schemes: list[str] = ["http", "https"]
-    url_safety_localhost_hosts: list[str] = [
-        "localhost",
-        "localhost.localdomain",
-    ]
-    url_safety_metadata_hosts: list[str] = [
-        "100.100.100.200",  # Alibaba Cloud
-        "169.254.169.254",  # AWS / GCP / Azure IMDS
-        "169.254.170.2",  # AWS ECS task credentials
-        "metadata.azure.internal",
-        "metadata.google.internal",
-    ]
-    url_safety_cluster_local_suffix: str = ".cluster.local"
-    url_safety_service_suffix: str = ".svc"
-    url_safety_resolve_redirects: bool = True
-
     @property
     def active_crawlers(self) -> list[str]:
         "Dynamically determine the active crawlers based on the API keys provided"
