@@ -2,10 +2,10 @@
 
 Always emits results wrapped in ``<sourceN>...</sourceN>`` blocks and
 appends a per-turn ContentChunk-shaped manifest at
-``<cwd>/.unique/turn-refs.jsonl``. The Swappable Intelligence runner
-reads that manifest after the turn to convert ``[sourceN]`` markers in
-the LLM answer into ``<sup>N</sup>`` footnotes plus clickable reference
-chips on the Unique platform.
+``<cwd>/.unique/kb-search-refs.jsonl``. The Swappable Intelligence
+runner reads that manifest after the turn to convert ``[sourceN]``
+markers in the LLM answer into ``<sup>N</sup>`` footnotes plus
+clickable reference chips on the Unique platform.
 
 The manifest format is identical to the legacy ``bundled_skills/kb-search``
 ``search.py`` from the monorepo — that bundle is being retired in favor of
@@ -31,8 +31,8 @@ DEFAULT_LIMIT = 200
 
 SEARCH_ERROR_PREFIX = "search:"
 
-_REFS_LOG_RELATIVE_PATH = Path(".unique") / "turn-refs.jsonl"
-_LOCK_FILENAME = "turn-refs.lock"
+_REFS_LOG_RELATIVE_PATH = Path(".unique") / "kb-search-refs.jsonl"
+_LOCK_FILENAME = "kb-search-refs.lock"
 
 
 def _build_metadata_filter(
@@ -205,8 +205,8 @@ def cmd_search(
         limit: Maximum number of results.
         refs_log_path: Override the per-turn citation manifest path —
             for tests; production callers leave this ``None`` so the
-            manifest lives at ``<cwd>/.unique/turn-refs.jsonl`` and the
-            Swappable Intelligence runner can find it.
+            manifest lives at ``<cwd>/.unique/kb-search-refs.jsonl`` and
+            the Swappable Intelligence runner can find it.
     """
     try:
         folder_scope_id: str | None = None

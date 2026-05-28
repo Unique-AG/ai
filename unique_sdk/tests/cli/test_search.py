@@ -62,15 +62,15 @@ def _state(path: str = "/", scope_id: str | None = None) -> ShellState:
 
 
 @pytest.fixture(autouse=True)
-def _isolate_turn_refs_manifest(
+def _isolate_kb_search_refs_manifest(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Pin every test's cwd into ``tmp_path``.
 
-    ``cmd_search`` defaults the manifest path to ``<cwd>/.unique/turn-refs.jsonl``;
-    isolating cwd keeps concurrent tests from clobbering each other's
-    manifest and matches the autouse fixture pattern in
-    ``test_web_search.py``.
+    ``cmd_search`` defaults the manifest path to
+    ``<cwd>/.unique/kb-search-refs.jsonl``; isolating cwd keeps concurrent
+    tests from clobbering each other's manifest and matches the autouse
+    fixture pattern in ``test_web_search.py``.
     """
     monkeypatch.chdir(tmp_path)
 
@@ -202,7 +202,7 @@ class TestCmdSearchCitations:
         assert "<|page|>12-13</|page|>" in out
         assert "<|info|>cont_abc</|info|>" in out
 
-        manifest = Path.cwd() / ".unique" / "turn-refs.jsonl"
+        manifest = Path.cwd() / ".unique" / "kb-search-refs.jsonl"
         lines = manifest.read_text(encoding="utf-8").splitlines()
         assert len(lines) == 1
         entry = json.loads(lines[0])
@@ -240,7 +240,7 @@ class TestCmdSearchCitations:
         assert "<source2>" in first
         assert "<source3>" in second
 
-        manifest = Path.cwd() / ".unique" / "turn-refs.jsonl"
+        manifest = Path.cwd() / ".unique" / "kb-search-refs.jsonl"
         ids = [
             json.loads(line)["id"]
             for line in manifest.read_text(encoding="utf-8").splitlines()
@@ -262,7 +262,7 @@ class TestCmdSearchCitations:
 
         assert "<source1>" in out
         assert "<source2>" in out
-        manifest = Path.cwd() / ".unique" / "turn-refs.jsonl"
+        manifest = Path.cwd() / ".unique" / "kb-search-refs.jsonl"
         assert len(manifest.read_text(encoding="utf-8").splitlines()) == 2
 
     @patch("unique_sdk.Search.create")
@@ -271,7 +271,7 @@ class TestCmdSearchCitations:
     ) -> None:
         manifest_dir = Path.cwd() / ".unique"
         manifest_dir.mkdir()
-        manifest = manifest_dir / "turn-refs.jsonl"
+        manifest = manifest_dir / "kb-search-refs.jsonl"
         manifest.write_text(
             "\n".join(
                 [
@@ -331,7 +331,7 @@ class TestCmdSearchCitations:
         assert out.startswith(SEARCH_ERROR_PREFIX)
         # No manifest in the real target dir either — the safety check
         # fires before the write happens.
-        assert not (elsewhere / "turn-refs.jsonl").exists()
+        assert not (elsewhere / "kb-search-refs.jsonl").exists()
 
 
 class TestIsErrorOutput:
@@ -346,7 +346,7 @@ class TestCitationManifestHelpers:
     """Direct tests of the shared `_citation_manifest` module."""
 
     def test_read_skips_blank_and_invalid_lines(self, tmp_path: Path) -> None:
-        manifest = tmp_path / ".unique" / "turn-refs.jsonl"
+        manifest = tmp_path / ".unique" / "kb-search-refs.jsonl"
         manifest.parent.mkdir()
         manifest.write_text(
             "\n".join(
@@ -365,7 +365,7 @@ class TestCitationManifestHelpers:
         assert [e["id"] for e in entries] == ["a", "b"]
 
     def test_append_creates_parent_dir(self, tmp_path: Path) -> None:
-        manifest = tmp_path / ".unique" / "turn-refs.jsonl"
+        manifest = tmp_path / ".unique" / "kb-search-refs.jsonl"
         _append_turn_refs_manifest_entry(manifest, {"id": "first"})
         _append_turn_refs_manifest_entry(manifest, {"id": "second"})
         lines = manifest.read_text(encoding="utf-8").splitlines()
@@ -376,16 +376,16 @@ class TestCitationManifestHelpers:
         real_dir.mkdir()
         link_dir = tmp_path / "link_to_real"
         os.symlink(real_dir, link_dir, target_is_directory=True)
-        manifest = link_dir / "turn-refs.jsonl"
+        manifest = link_dir / "kb-search-refs.jsonl"
 
         with pytest.raises(UnsafeRefsLogPathError):
             _assert_safe_refs_log_path(manifest)
 
     def test_locked_manifest_runs_critical_section(self, tmp_path: Path) -> None:
-        manifest = tmp_path / ".unique" / "turn-refs.jsonl"
-        with _locked_turn_refs_manifest(manifest, lock_filename="turn-refs.lock"):
+        manifest = tmp_path / ".unique" / "kb-search-refs.jsonl"
+        with _locked_turn_refs_manifest(manifest, lock_filename="kb-search-refs.lock"):
             _append_turn_refs_manifest_entry(manifest, {"id": "under-lock"})
-        lock_file = manifest.parent / "turn-refs.lock"
+        lock_file = manifest.parent / "kb-search-refs.lock"
         assert lock_file.exists()
         assert json.loads(manifest.read_text(encoding="utf-8").splitlines()[0]) == {
             "id": "under-lock"
