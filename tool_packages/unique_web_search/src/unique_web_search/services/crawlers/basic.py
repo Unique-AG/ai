@@ -15,11 +15,11 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfig,
     CrawlerType,
 )
-from unique_web_search.services.crawlers.utils import get_random_user_agent
-from unique_web_search.services.url_safety import (
+from unique_web_search.services.crawlers.url_safety import (
     CrawlTargetValidationError,
-    resolve_crawl_target,
+    ResolvedCrawlTarget,
 )
+from unique_web_search.services.crawlers.utils import get_random_user_agent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,9 +63,9 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
     #     tags=["basic", "scrape"],
     # )
     @override
-    async def _crawl(self, urls: list[str]) -> list[str]:
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         async with async_client(timeout=Timeout(self.config.timeout)) as client:
-            tasks = [self._crawl_url_with_client(client, url) for url in urls]
+            tasks = [self._crawl_url_with_client(client, target) for target in targets]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             validation_errors = [
@@ -88,19 +88,23 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
 
             return markdowns
 
-    async def _crawl_url_with_client(self, client: AsyncClient, url: str) -> str:
+    async def _crawl_url_with_client(
+        self, client: AsyncClient, target: ResolvedCrawlTarget
+    ) -> str:
         headers = {"User-Agent": get_random_user_agent()}
 
-        if self._is_url_blacklisted(url):
+        if self._is_url_blacklisted(target.normalized_url):
             return "Unable to crawl URL due to blacklisted pattern"
 
-        (
-            request_url,
-            request_headers,
-            request_extensions,
-        ) = await self._build_request_target(url, headers)
+        request_headers = dict(headers)
+        request_extensions: dict[str, str] = {}
+        if target.host_header is not None:
+            request_headers["Host"] = target.host_header
+        if target.sni_hostname is not None:
+            request_extensions["sni_hostname"] = target.sni_hostname
+
         response = await client.get(
-            request_url,
+            target.request_url,
             headers=request_headers,
             extensions=request_extensions or None,
         )
@@ -127,22 +131,6 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
 
     def _content_type_not_allowed(self, content_type: str) -> bool:
         return content_type in self.config.unwanted_content_types
-
-    async def _build_request_target(
-        self,
-        url: str,
-        headers: dict[str, str],
-    ) -> tuple[str, dict[str, str], dict[str, str]]:
-        resolved_target = await resolve_crawl_target(url)
-
-        request_headers = dict(headers)
-        request_extensions: dict[str, str] = {}
-        if resolved_target.host_header is not None:
-            request_headers["Host"] = resolved_target.host_header
-        if resolved_target.sni_hostname is not None:
-            request_extensions["sni_hostname"] = resolved_target.sni_hostname
-
-        return resolved_target.request_url, request_headers, request_extensions
 
 
 def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
