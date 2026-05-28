@@ -1,6 +1,6 @@
 """Feature flag client backed by configuration-backend's GraphQL API.
 
-Evaluates flags remotely with a 30 s TTL cache, stale-value fallback on
+Evaluates flags remotely with a 5 s TTL cache, stale-value fallback on
 transport errors, and env-var fallback when no prior value exists.
 Env-var values support both plain booleans and comma-separated company-ID
 allowlists, consistent with ``unique_toolkit.agentic.feature_flags``.

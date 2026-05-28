@@ -13,7 +13,7 @@ class FeatureFlagSettings(BaseSettings):
 
     CONFIGURATION_BACKEND_URL: str | None = None
     FEATURE_FLAG_SERVICE_ID: str | None = None
-    FEATURE_FLAG_CACHE_TTL_MS: int = 30_000
+    FEATURE_FLAG_CACHE_TTL_MS: int = 5_000
 
     @field_validator(
         "CONFIGURATION_BACKEND_URL", "FEATURE_FLAG_SERVICE_ID", mode="before"

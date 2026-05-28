@@ -39,7 +39,7 @@ _USER_ID = "user-123"
 _GQL_ENDPOINT = f"{_URL}/graphql"
 
 
-def _make_client(url: str = _URL, ttl_ms: int = 30_000) -> FeatureFlagClient:
+def _make_client(url: str = _URL, ttl_ms: int = 5_000) -> FeatureFlagClient:
     return FeatureFlagClient(url=url, service_id=_SERVICE_ID, ttl_ms=ttl_ms)
 
 
@@ -556,7 +556,7 @@ async def test_evaluate__stale_not_evicted_by_cache_hits() -> None:
 
     # Build a client with a tiny cache so eviction is easy to trigger.
     client = _make_client()
-    client._cache = AsyncTTLCache(maxsize=1, ttl_ms=30_000)
+    client._cache = AsyncTTLCache(maxsize=1, ttl_ms=5_000)
 
     # 1. Fetch FLAG A — lands in both _cache and _stale.
     await client.evaluate(_FLAG, company_id=_COMPANY_ID)

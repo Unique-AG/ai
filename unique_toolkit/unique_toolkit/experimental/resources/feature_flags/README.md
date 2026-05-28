@@ -16,7 +16,7 @@ directly to avoid SDK overhead.
 |---|---|---|---|
 | `CONFIGURATION_BACKEND_URL` | **Yes** | — | Base URL of your configuration-backend instance. |
 | `FEATURE_FLAG_SERVICE_ID` | **Yes** | — | Service identifier sent as `x-service-id`. Must match a registered value in configuration-backend's `Service` enum. |
-| `FEATURE_FLAG_CACHE_TTL_MS` | No | `30000` | In-process cache TTL in milliseconds. |
+| `FEATURE_FLAG_CACHE_TTL_MS` | No | `5000` | In-process cache TTL in milliseconds. |
 
 ---
 
@@ -56,7 +56,7 @@ from unique_toolkit.experimental.resources.feature_flags import FeatureFlagClien
 client = FeatureFlagClient(
     url="https://your-configuration-backend",
     service_id="my-service",
-    ttl_ms=30_000,
+    ttl_ms=5_000,
 )
 
 result = await client.evaluate(

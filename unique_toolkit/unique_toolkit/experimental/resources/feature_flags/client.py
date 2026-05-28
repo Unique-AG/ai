@@ -54,7 +54,7 @@ class FeatureFlagClient:
 
     _instance: ClassVar[FeatureFlagClient | None] = None
 
-    def __init__(self, *, url: str, service_id: str, ttl_ms: int = 30_000) -> None:
+    def __init__(self, *, url: str, service_id: str, ttl_ms: int = 5_000) -> None:
         self._url = url
         self._service_id = service_id
         self._cache = AsyncTTLCache(ttl_ms=ttl_ms)
