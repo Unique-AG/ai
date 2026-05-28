@@ -2209,7 +2209,9 @@ class ChatService(ChatServiceDeprecated):
             message_id=message_id,
         )
 
-    def find_chat_memory_by_id(self, *, chat_id: str, key: str) -> ShortTermMemory:
+    def find_chat_memory_by_id(
+        self, *, chat_id: str, key: str
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific chat synchronously.
 
         Args:
@@ -2217,7 +2219,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2231,7 +2233,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def find_chat_memory_by_id_async(
         self, *, chat_id: str, key: str
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific chat asynchronously.
 
         Args:
@@ -2239,7 +2241,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2253,7 +2255,7 @@ class ChatService(ChatServiceDeprecated):
 
     def find_message_memory_by_id(
         self, *, message_id: str, key: str
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific message synchronously.
 
         Args:
@@ -2261,7 +2263,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2275,7 +2277,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def find_message_memory_by_id_async(
         self, *, message_id: str, key: str
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific message asynchronously.
 
         Args:
@@ -2283,7 +2285,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2416,14 +2418,14 @@ class ChatService(ChatServiceDeprecated):
             value=value,
         )
 
-    def find_chat_memory(self, *, key: str) -> ShortTermMemory:
+    def find_chat_memory(self, *, key: str) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current chat synchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2433,14 +2435,14 @@ class ChatService(ChatServiceDeprecated):
             key=key,
         )
 
-    async def find_chat_memory_async(self, *, key: str) -> ShortTermMemory:
+    async def find_chat_memory_async(self, *, key: str) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current chat asynchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2451,21 +2453,23 @@ class ChatService(ChatServiceDeprecated):
         )
 
     @overload
-    def find_message_memory(self, *, key: str) -> ShortTermMemory: ...
+    def find_message_memory(self, *, key: str) -> ShortTermMemory | None: ...
 
     @overload
-    def find_message_memory(self, *, key: str, message_id: str) -> ShortTermMemory: ...
+    def find_message_memory(
+        self, *, key: str, message_id: str
+    ) -> ShortTermMemory | None: ...
 
     def find_message_memory(
         self, *, key: str, message_id: str | None = None
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current assistant message synchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2476,23 +2480,25 @@ class ChatService(ChatServiceDeprecated):
         )
 
     @overload
-    async def find_message_memory_async(self, *, key: str) -> ShortTermMemory: ...
+    async def find_message_memory_async(
+        self, *, key: str
+    ) -> ShortTermMemory | None: ...
 
     @overload
     async def find_message_memory_async(
         self, *, key: str, message_id: str
-    ) -> ShortTermMemory: ...
+    ) -> ShortTermMemory | None: ...
 
     async def find_message_memory_async(
         self, *, key: str, message_id: str | None = None
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current assistant message asynchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails

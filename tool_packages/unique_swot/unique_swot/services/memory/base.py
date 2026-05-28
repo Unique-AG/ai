@@ -93,15 +93,12 @@ class SwotMemoryService(Generic[T]):
 
     def _find_latest_memory(self, key):
         try:
-            # Get the latest memory for the given key
             short_term_memory_response = (
                 self._short_term_memory_service.find_latest_memory(key)
             )
-
-            # Parse Memory
-            memory = Memory.model_validate(short_term_memory_response.data)
-
-            return memory
+            if short_term_memory_response is None:
+                return None
+            return Memory.model_validate(short_term_memory_response.data)
         except Exception as e:
             self._log_memory_error(key, e, "Failed to find latest memory")
             return None
