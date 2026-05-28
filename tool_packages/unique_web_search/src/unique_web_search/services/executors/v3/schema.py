@@ -16,7 +16,10 @@ class SearchPayload(BaseModel):
         description="A brief description of the gap that the query is meant to fill"
     )
     query: str = Field(
-        description="Search query for the configured search engine. Query must be fixed for the entire rounds."
+        description=(
+            "Short search-engine keyword line (~3–8 words, not a sentence). "
+            "Do not paste the user question or gap text here — put planning context in gap/objective."
+        )
     )
 
 

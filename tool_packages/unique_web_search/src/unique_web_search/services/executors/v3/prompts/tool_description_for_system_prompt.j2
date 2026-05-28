@@ -1,40 +1,99 @@
-Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations.
+<!-- WebSearch tool instructions: begin -->
+The following applies **only when you use the `WebSearch` tool** (not to other tools or general reasoning).
 
-#### `command: "search"` — search the web
+Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations — and, when the user's question covers multiple independent sub-questions, by **issuing several WebSearch calls in parallel in the same turn**.
+
+## WebSearch — Definitions
+
+### WebSearch `command: "search"`
 
 Runs the configured search engine and returns SERP rows (URL, domain, title, snippet). It is **fast** and gives a **high-level read** of what relevant pages contain without paying the cost of crawling them.
 
-Use it when:
+### WebSearch `command: "read_urls"`
 
-- You need to **discover sources**: you don't yet have URLs and need the engine to surface candidates for a topic.
+Crawls one or more URLs and returns the full-page text. It is **slower** than search but gives the **complete content** of the chosen pages, not just a snippet. This is the **capitalize / exploit** step: use it when a WebSearch has surfaced promising candidates but snippets alone don't close the gap.
+
+## WebSearch — Guidelines
+
+### WebSearch — Choosing the command
+
+**Per-gap decision tree.** Apply this **per gap** on every WebSearch call. Multiple gaps can be in flight simultaneously via parallel WebSearch tool calls.
+
+1. **User pasted URL(s)** → `command: "read_urls"`. Do not search first.
+2. **No SERP yet for this gap** → `command: "search"`.
+3. **SERP exists for this gap and ≥1 URL looks promising** (on-topic title, credible domain, or a snippet that *starts* answering) → `command: "read_urls"` on 2–3 complementary URLs in one call. Do **not** re-search this same gap with rephrased keywords first — fetch the URL you already have.
+4. **SERP exists for this gap and 0 URLs look promising** → one `command: "search"` with a materially different query (different keywords, narrower entity, different timeframe, or **different language**). If still empty, fetch the best-of-bad URL(s) or report what you have.
+5. **A snippet plainly answers this gap** → answer, no further WebSearch call needed for this gap.
+
+**When to use WebSearch `search`:**
+
+- You **don't yet have URLs** for the current `gap`.
+- The user's request **decomposes into multiple independent gaps** — issue one `search` per gap **in parallel in the same turn**, rather than serializing them.
 - The user's question can be answered from **snippets alone** — a definition, a status, a current value, a short factual lookup.
-- You're at the **start of a complex task** and need to map out what's out there before deciding which pages are worth a deeper read.
-- You want to **scope or sanity-check** a topic cheaply (does this entity / event / product even exist? how recent is the latest coverage?).
-- You need to **cover a new gap / sub-question** in a multi-step task — issue another search rather than blindly fetching.
+- A previous SERP for this gap returned **no on-topic results** and a materially different query (see WebSearch decision-tree step 4 above) is worth one more try.
 
-#### `command: "read_urls"` — fetch full page content
+**When to use WebSearch `read_urls`:**
 
-Crawls one or more URLs and returns the full-page text. It is **slower** than search but gives the **complete content** of the chosen pages, not just a snippet.
-
-Use it when:
-
+- **A prior SERP for this gap returned ≥1 promising URL** (relevant domain, on-topic title, or a snippet that begins answering but truncates) — fetch instead of re-searching the same gap.
 - The user **pasted a URL** or asked you to read a specific page — go straight here, do not search first.
-- The task is **complex / in-depth** and needs more than a snippet: exact figures, full quotes, regulatory text, contract language, statute numbers, API specs, version numbers.
 - The previous search returned **paraphrased / hedged snippets** ("around", "approximately", "is expected to", "reportedly") for a question that needs precision.
+- The task needs more than a snippet: **exact figures, full quotes, regulatory text, contract language, statute numbers, API specs, version numbers**.
 - The topic is **canonical-source-driven** — financial filings (10-K, 10-Q, earnings releases), regulator publications, official product docs, peer-reviewed papers, primary press releases — where the page itself is the source of truth.
-- You found a **highly relevant** SERP hit but the title/snippet alone doesn't support the claim you want to make.
-- The snippets from the previous "search" commands are relevant but do not fully answer the question or fill the gap and fetching the full page is necessary.
 
-**Current date:** {{ date_string }}
+**Snippets routinely truncate mid-claim** — ~150–300 characters with dates, numbers, and qualifiers cut off by ellipses. A snippet that *begins* answering but does not *complete* the answer is a **fetch** signal, not a re-search signal.
 
-### Balance exploration and exploitation
+**How much WebSearch exploration breadth — match the user's request.** Scale the breadth of your WebSearch plan to what the user is actually asking for. Neither one-search-then-stop nor exhaustive-search-everything is correct by default.
 
-- **Explore first.** Start with `command: "search"` to get a cheap, high-level read of candidate pages. Cover one `gap` per call.
-- **Refine, don't escalate prematurely.** If the first search did not fill the `gap`, issue another `command: "search"` with a refined query (different keywords, narrower entity, different timeframe) before reaching for `read_urls`.
-- **Exploit when snippets aren't enough.** Switch to `command: "read_urls"` when snippets paraphrase / hedge, or the task needs exact figures, quotes, regulatory text, specs, or canonical-source content. Pick **1-3 high-signal URLs** from the most recent SERP — complementary domains preferred.
-- **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
-- **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
+- **Single lookup** (one fact, one entity, one definition, "what is X / when was Y / is Z still true") → usually one `search`; `read_urls` if the snippet doesn't close the gap.
+- **Multi-faceted or comparative request** ("compare A and B on price, latency, and licensing"; "summarise the regulatory, vendor, and academic view on X") → plan **several `search` calls in parallel in the same turn**, one per independent facet / entity / sub-question. Then fetch the high-signal URLs from each SERP.
+- **Open-ended exploration of a topic the user only sketched** ("what's going on with X lately", "I'm researching Y") → broader breadth first — several parallel searches at different angles, timeframes, or framings — then narrower fetch where the SERPs converge.
 
-For the deeper explore-then-exploit playbook (snippet hedging triggers, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns, worked examples), activate the `web-search-v3` skill before/while using this tool.
+The `gap` field on each WebSearch `search` payload is what makes broad parallel exploration legitimate: each call should target a **distinct** gap. What's wasteful is re-searching the *same* gap with synonyms / rephrased keywords when the prior SERP already returned a credible URL — see **WebSearch — Anti-patterns** below.
 
-Tool arguments are defined by the tool schema; the live JSON schema comes from the tool definition.
+**Fetch is how you capitalize.** Once a SERP for a gap has good candidates, `read_urls` is what extracts the answer. Re-searching the same gap rarely does. Don't fetch when a snippet already answers; don't refuse to fetch when the snippet doesn't.
+
+### WebSearch — Writing a good `search` call
+
+**Keep the `query` short — this is the most common mistake.** The `query` field is what you type into a search box. The `gap` and `objective` fields carry your reasoning; **never paste the user's question, your plan, or the `gap` text into `query`.** Aim for **roughly 3–8 keywords** (typically **≤10 words** or **≤80 characters**). If it reads like a sentence you would say to a person, it is too long.
+
+**Query craft — write engine-optimized queries.** SERP ranking responds to keyword density, not natural-language fluency.
+
+- **Strip to keywords only.** Drop articles (`the`, `a`), fillers (`please`, `find`, `information about`, `latest news on`), and full clauses. Lead with proper nouns, identifiers, and the one qualifier that matters (year, model, jurisdiction).
+  - Bad: `What is the current market share of Apple Inc in the third quarter of 2024 according to recent reports`
+  - Good: `Apple Q3 2024 market share`
+  - Bad: `I need to understand the regulatory requirements for data residency in Switzerland for financial services companies`
+  - Good: `Switzerland data residency financial services regulation`
+- **Quotes for verbatim precision.** Wrap distinctive multi-word expressions in `"…"` when the gap needs an exact match (`"Section 174 R&D"`, `"GPT-5.5 token limit"`). Spell names exactly; use literal version numbers and identifiers.
+- **Add explicit qualifiers.** Append a year/quarter for current-events, market, or regulatory topics (`… 2024`, `… Q3 2025`) rather than relying on the engine's recency bias. Add a disambiguator for ambiguous entities (`Apple Inc`, not `Apple`; `Lyon France`, not `Lyon`; `python language`, not `python`).
+- **Reach for operators when they match the gap:**
+  - `site:domain.com` — restrict to a known authoritative source (`site:sec.gov 10-K Apple`, `site:gov.cn` for Chinese government).
+  - `-term` — exclude noise (`Tesla earnings -rumor -leaked`).
+  - `filetype:pdf` — go straight to filings / reports / papers.
+  - `intitle:` / `inurl:` — target distinctive title/URL tokens.
+  - `2020..2024` — date range (where the engine supports it).
+- **One `gap` per query.** Don't pack multiple questions in — "Apple earnings and stock price and CEO" is three distinct gaps; issue three parallel WebSearch `search` calls instead.
+- **Don't paraphrase or stuff synonyms.** "Best / top / leading / premier" all dilute the signal. Pick one; the engine handles synonymy internally.
+
+**Query language — refine progressively, don't presume.** Default the first WebSearch query for any gap to the **user's question language** (or English if the question is in a neutral / international language). The user's framing is the most reliable initial signal and is usually high-recall enough.
+
+Switch to a different language **only as a refinement** — one of the "materially different query" options in the WebSearch per-gap decision tree (step 4) — when the first SERP for a locale-specific gap returned no on-topic results. When you do switch, use native names verbatim (`中国人民银行`, `Bundesverfassungsgericht`, `Conseil constitutionnel`, `日本銀行`), not translated forms. Do not pre-emptively translate the initial query into a local language; only the `query` adapts, never the `gap`.
+
+### WebSearch — Parallelism and batching
+
+- **Diversify across gaps freely; do not re-search the same gap.** Multiple WebSearch searches that cover *different* sub-questions, entities, framings, or timeframes are encouraged — and should be issued in parallel where independent.
+- **Parallelize independent work.** Multiple `search` calls covering different gaps belong in the same turn. So do multiple `read_urls` calls (or one batched call with several URLs).
+- **Batch URLs.** `urls` is a list — put **2–3 complementary URLs** (different domains, different angles) into one `read_urls` call rather than fetching one at a time.
+- **User-provided URLs go straight to fetch.** Never "search" for a URL the user already supplied.
+
+## WebSearch — Anti-patterns
+
+- **Long or conversational `query` strings.** Full sentences, the user's question copied verbatim, or multi-clause queries hurt recall. Put context in `gap` / `objective`; keep `query` to a tight keyword line.
+- **Re-searching the same gap with rephrased keywords.** If the SERP for a gap already returned a credible URL, refining the query for that same gap with synonyms / narrower scope rarely yields more — fetch the URL.
+- **Serializing independent sub-questions.** Two gaps about different entities don't need to be searched one after the other — issue both WebSearch `search` calls in the same turn.
+- **One-at-a-time fetching.** If 2–3 SERP results are complementary, fetch them together in one `read_urls` call.
+- **Searching for a URL the user pasted.** Fetch it directly.
+
+**WebSearch current date:** {{ date_string }}
+
+WebSearch tool arguments are defined by the tool schema; the live JSON schema comes from the tool definition.
+<!-- WebSearch tool instructions: end -->

@@ -1,14 +1,23 @@
-The WebSearch tool returns up-to-date information from the web. It exposes two capabilities, picked per call via `command`:
+The WebSearch tool returns up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each call performs **one** operation.
 
-- **Search** (`command: "search"`) — runs the configured search engine and returns SERP rows (URL, domain, title, snippet). Gives a high-level read of what relevant pages contain without crawling them. Useful for **exploration** and quick lookups when a snippet is enough to answer.
-- **Fetch** (`command: "read_urls"`) — crawls one or more URLs and returns full-page text. Useful for **deep dives** when the task is complex and needs exact figures, quotes, regulatory text, or specs, and when the user provides a URL directly.
+## Definitions
 
-Each call performs **one** operation. Drive multi-part tasks by chaining calls.
+- **`search`** — runs the configured search engine and returns SERP rows (URL, domain, title, snippet). Use to discover candidate URLs for a `gap`.
+- **`read_urls`** — crawls 1–3 URLs and returns full-page text. Use to capitalize when a SERP returned promising URLs but snippets don't close the gap; also when the user pasted a URL or exact figures / quotes / specs are required.
 
-### Fields
+## Key guidelines
+
+- **Chaining vs parallel.** Chain calls for sequential gaps; issue parallel calls in the same turn for independent gaps (one `search` per distinct `gap`).
+- **Query craft.** `query` is a **short keyword line** (~3–8 words, ≤80 chars) — not the user's question and not the `gap` text. Put reasoning in `gap` / `objective`. Drop fillers; use `"quotes"` and operators (`site:`, `-term`, `filetype:pdf`) when useful.
+- **Query language.** Start in the user's question language; switch language only as a refinement when the first SERP for a locale-specific gap returned no on-topic results (use native names verbatim when you do).
+- **Batching.** Put 2–3 complementary URLs in one `read_urls` call. Re-searching the *same* gap with rephrased keywords when the previous SERP already had a credible URL is wasteful — fetch instead.
+
+## Anti-pattern
+
+Re-searching the same gap with synonyms when a credible URL is already on the SERP — fetch it.
+
+## Fields
 
 {{ tool_parameters_schema }}
 
-Never invent URLs.
-
-For a deeper playbook on when to search vs fetch (snippet hedging, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns), activate the `web-search-v3` skill before/while using this tool.
+Never invent URLs — `read_urls` accepts only URLs returned by a prior search or pasted by the user.
