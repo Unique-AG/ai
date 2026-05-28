@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026.20.4](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.20.3...unique-skill-tool-v2026.20.4) (2026-05-19)
+
+
+### Bug Fixes
+
+* Hotfix Skills to Release/2026.20 ([#1713](https://github.com/Unique-AG/ai/issues/1713)) ([36058f4](https://github.com/Unique-AG/ai/commit/36058f4958d35da1a7d2b8f230cb0a4e044689f5))
+
+## [2026.20.3](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.20.2...unique-skill-tool-v2026.20.3) (2026-05-11)
+
+
+### Miscellaneous
+
+* **unique-skill-tool:** Synchronize ai versions
+
 ## [2026.20.2](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.20.1...unique-skill-tool-v2026.20.2) (2026-05-11)
 
 

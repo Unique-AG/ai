@@ -117,6 +117,16 @@ class Tool(ABC, Generic[ConfigType]):
         """
         return ""
 
+    def is_capability(self) -> bool:
+        """Return True if this tool is a capability that must remain in the
+        active tool set regardless of ``tool_choices`` filtering.
+
+        Capability tools are always kept in ``_tools`` when enabled, even when
+        another tool is force-selected via ``tool_choices`` or an exclusive tool
+        wins the selection. Default: False.
+        """
+        return False
+
     @deprecated(
         "Do not use. The tool should not determine how"
         "it is checked. This should be defined by the user"

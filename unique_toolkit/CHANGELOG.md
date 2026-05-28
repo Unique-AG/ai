@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.4](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.3...unique-toolkit-v2026.20.4) (2026-05-19)
+
+
+### Bug Fixes
+
+* Hotfix Skills to Release/2026.20 ([#1713](https://github.com/Unique-AG/ai/issues/1713)) ([36058f4](https://github.com/Unique-AG/ai/commit/36058f4958d35da1a7d2b8f230cb0a4e044689f5))
+
+## [2026.20.3](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.2...unique-toolkit-v2026.20.3) (2026-05-11)
+
+
+### Miscellaneous
+
+* **unique-toolkit:** Synchronize ai versions
+
 ## [2026.20.2](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.1...unique-toolkit-v2026.20.2) (2026-05-11)
 
 

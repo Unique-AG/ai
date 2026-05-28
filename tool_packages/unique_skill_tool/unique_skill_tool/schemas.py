@@ -7,30 +7,6 @@ SKILL_NAME_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 SKILL_NAME_MAX_LENGTH = 64
 
 
-class SelectableSkill(BaseModel):
-    """A specific skill file selected by reference from the knowledge base.
-
-    Each entry resolves to exactly one knowledge base document via its
-    ``content_id``; ``scope_id`` scopes the lookup so access is explicit,
-    and ``name`` is the skill file's own frontmatter name.
-    """
-
-    model_config = get_configuration_dict()
-
-    name: str = Field(
-        default="",
-        description=("Skill name"),
-    )
-    scope_id: str = Field(
-        default="",
-        description="Knowledge base scope ID that contains the skill file.",
-    )
-    content_id: str = Field(
-        default="",
-        description="Knowledge base content ID of the ``SKILL.md`` file.",
-    )
-
-
 class SkillDefinition(BaseModel):
     """A skill that the agent can activate via the SkillTool.
 
@@ -56,4 +32,7 @@ class SkillDefinition(BaseModel):
     )
     content: str = Field(
         description="Full prompt / instructions injected when the skill is invoked.",
+    )
+    content_id: str = Field(
+        description="Knowledge-base content ID this skill was loaded from.",
     )

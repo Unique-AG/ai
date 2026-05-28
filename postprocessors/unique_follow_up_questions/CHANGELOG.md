@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.4](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.20.3...unique-follow-up-questions-v2026.20.4) (2026-05-19)
+
+
+### Miscellaneous
+
+* **unique-follow-up-questions:** Synchronize ai versions
+
+## [2026.20.3](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.20.2...unique-follow-up-questions-v2026.20.3) (2026-05-11)
+
+
+### Miscellaneous
+
+* **unique-follow-up-questions:** Synchronize ai versions
+
 ## [2026.20.2](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.20.1...unique-follow-up-questions-v2026.20.2) (2026-05-11)
 
 

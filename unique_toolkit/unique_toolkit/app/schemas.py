@@ -215,7 +215,7 @@ class Correlation(BaseModel):
     parent_assistant_id: str
 
 
-class ChatEventSkillChoice(BaseModel):
+class ChatEventSkill(BaseModel):
     model_config = model_config
 
     name: str = Field(default="", description="Skill name.")
@@ -227,6 +227,9 @@ class ChatEventSkillChoice(BaseModel):
         default="",
         description="Knowledge base content ID of the ``SKILL.md`` file.",
     )
+
+
+SkillReference = ChatEventSkill
 
 
 class ChatEventPayload(BaseModel):
@@ -248,11 +251,19 @@ class ChatEventPayload(BaseModel):
         default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
     )
-    skill_choices: list[ChatEventSkillChoice] = Field(
+    skill_choices: list[ChatEventSkill] = Field(
         default_factory=list,
         description=(
             "A list containing selected skills with ``scope_id``, "
             "``content_id``, and ``name``."
+        ),
+    )
+    available_skills: list[ChatEventSkill] = Field(
+        default_factory=list,
+        description=(
+            "Per-turn skills exposed for this message (``content_id`` + "
+            "``scope_id`` from the client). This list alone drives the "
+            "Skill tool registry for the run."
         ),
     )
     disabled_tools: list[str] = Field(
