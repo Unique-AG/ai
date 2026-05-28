@@ -137,18 +137,25 @@ flowchart TD
 
     D -- 5xx --> G[retry once]
     G -- 200 OK --> E
-    G -- 5xx again --> H{stale cache hit?}
+    G -- 5xx again --> L[⚠ log.warning\nfetch failed — trying stale cache]
 
-    D -- timeout / network error --> H
+    D -- timeout / network error --> L
+    L --> H{stale cache hit?}
 
-    H -- yes --> I([return stale value, reason=stale])
-    H -- no --> J[read env var\nbool or company-ID allowlist]
+    H -- yes --> M[⚠ log.warning\nstale cache hit]
+    M --> I([return stale value, reason=stale])
+
+    H -- no --> N[⚠ log.warning\nno stale value — env var fallback]
+    N --> J[read env var\nbool or company-ID allowlist]
     J --> K([return env value, reason=fallback])
 
     style C fill:#22c55e,color:#fff
     style F fill:#22c55e,color:#fff
     style I fill:#f59e0b,color:#fff
     style K fill:#ef4444,color:#fff
+    style L fill:#fef9c3,color:#713f12
+    style M fill:#fef9c3,color:#713f12
+    style N fill:#fef9c3,color:#713f12
 ```
 
 ---

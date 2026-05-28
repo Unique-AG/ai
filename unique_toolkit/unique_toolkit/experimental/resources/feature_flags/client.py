@@ -115,18 +115,25 @@ class FeatureFlagClient:
                 value=value, reason="cached" if from_cache else "remote"
             )
         except Exception:
+            logger.warning(
+                "FeatureFlagClient: fetch failed for '%s' (company=%s) — trying stale cache",
+                flag,
+                company_id,
+                exc_info=True,
+            )
             stale_value, stale_hit = self._cache.get_stale(cache_key)
             if stale_hit:
                 logger.warning(
-                    "FeatureFlagClient: evaluation failed for '%s' — using stale cached value",
+                    "FeatureFlagClient: stale cache hit for '%s' (company=%s, value=%s)",
                     flag,
-                    exc_info=True,
+                    company_id,
+                    stale_value,
                 )
                 return FlagEvaluation(value=stale_value, reason="stale")
             logger.warning(
-                "FeatureFlagClient: evaluation failed for '%s' — using env-var fallback",
+                "FeatureFlagClient: no stale value for '%s' (company=%s) — falling back to env var",
                 flag,
-                exc_info=True,
+                company_id,
             )
             return FlagEvaluation(
                 value=self._env_fallback(flag, company_id), reason="fallback"
