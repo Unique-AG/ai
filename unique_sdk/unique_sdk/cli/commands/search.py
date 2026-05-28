@@ -1,15 +1,38 @@
-"""Search command: combined search with folder/metadata filters."""
+"""Search command: combined KB search with folder/metadata filters.
+
+Always emits results wrapped in ``<sourceN>...</sourceN>`` blocks and
+appends a per-turn ContentChunk-shaped manifest at
+``<cwd>/.unique/kb-search-refs.jsonl``. The Swappable Intelligence
+runner reads that manifest after the turn to convert ``[sourceN]``
+markers in the LLM answer into ``<sup>N</sup>`` footnotes plus
+clickable reference chips on the Unique platform.
+
+The manifest format is identical to the legacy ``bundled_skills/kb-search``
+``search.py`` from the monorepo — that bundle is being retired in favor of
+this CLI command.
+"""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import unique_sdk
 from unique_sdk import UQLCombinator, UQLOperator
-from unique_sdk.cli.formatting import format_search_results
+from unique_sdk.cli.commands._citation_manifest import (
+    UnsafeRefsLogPathError,
+    _append_turn_refs_manifest_entry,
+    _locked_turn_refs_manifest,
+    _read_turn_refs_manifest,
+)
 from unique_sdk.cli.state import ShellState
 
 DEFAULT_LIMIT = 200
+
+SEARCH_ERROR_PREFIX = "search:"
+
+_REFS_LOG_RELATIVE_PATH = Path(".unique") / "kb-search-refs.jsonl"
+_LOCK_FILENAME = "kb-search-refs.lock"
 
 
 def _build_metadata_filter(
@@ -66,14 +89,125 @@ def _resolve_folder_to_scope_id(state: ShellState, folder: str) -> str:
     return scope_id
 
 
+def _format_source_block(source_number: int, result: Any) -> str:
+    """Render one search result as a ``<sourceN>...</sourceN>`` block.
+
+    Mirrors the legacy ``unique_ai`` source format that the Swappable
+    Intelligence runner's reference post-processor recognises — ``<sourceN>``
+    open/close tags with ``<|document|>``, ``<|page|>``, ``<|info|>``
+    sub-sections. The chunk-level metadata (startPage, endPage, url, etc.)
+    is captured in full in the JSONL manifest for the runner to consume;
+    only the human-relevant bits appear in the on-screen block.
+    """
+    title = (
+        getattr(result, "title", None)
+        or getattr(result, "key", None)
+        or f"content {getattr(result, 'id', '?')}"
+    )
+    content_id = getattr(result, "id", "") or ""
+    text = getattr(result, "text", "") or ""
+    start_page = getattr(result, "startPage", 0) or 0
+    end_page = getattr(result, "endPage", 0) or 0
+
+    sections: list[str] = []
+    sections.append(f"<|document|>{title}</|document|>")
+    if start_page and end_page and start_page > 0 and end_page > 0:
+        page_range = (
+            str(start_page) if start_page == end_page else f"{start_page}-{end_page}"
+        )
+        sections.append(f"<|page|>{page_range}</|page|>")
+    if content_id:
+        sections.append(f"<|info|>{content_id}</|info|>")
+    sections.append(text.strip())
+
+    body = "\n".join(sections)
+    return f"<source{source_number}>\n{body}\n</source{source_number}>"
+
+
+def _result_to_chunk_payload(result: Any) -> dict[str, Any]:
+    """Convert a ``unique_sdk.Search`` result into a ContentChunk-shaped dict.
+
+    Keys are camelCase aliases of ``unique_toolkit.content.ContentChunk``
+    fields so the runner can rehydrate them via
+    ``ContentChunk.model_validate(...)``. All keys are emitted (with
+    ``None`` when absent) to keep the per-line shape stable.
+    """
+
+    def _get(name: str, default: Any = None) -> Any:
+        return getattr(result, name, default)
+
+    metadata = _get("metadata")
+    return {
+        "id": _get("id", "") or "",
+        "chunkId": _get("chunkId"),
+        "text": _get("text", "") or "",
+        "order": _get("order", 0) or 0,
+        "key": _get("key"),
+        "url": _get("url"),
+        "title": _get("title"),
+        "startPage": _get("startPage"),
+        "endPage": _get("endPage"),
+        "metadata": metadata if isinstance(metadata, dict) else None,
+        "createdAt": _get("createdAt"),
+        "updatedAt": _get("updatedAt"),
+    }
+
+
+def _format_results_with_citations(
+    results: list[Any],
+    *,
+    refs_log_path: Path,
+) -> str:
+    """Number, format, and persist each result inside one locked critical section.
+
+    Reads the existing manifest under lock so ``sourceN`` numbering keeps
+    growing across multiple ``unique-cli search`` invocations within the
+    same turn — the runner truncates the manifest at turn start, so the
+    first call in a turn starts at 1.
+    """
+    if not results:
+        return "No results found."
+
+    with _locked_turn_refs_manifest(refs_log_path, lock_filename=_LOCK_FILENAME):
+        existing_entries = _read_turn_refs_manifest(refs_log_path)
+        starting_number = len(existing_entries) + 1
+
+        blocks: list[str] = []
+        for offset, result in enumerate(results):
+            source_number = starting_number + offset
+            blocks.append(_format_source_block(source_number, result))
+            _append_turn_refs_manifest_entry(
+                refs_log_path,
+                _result_to_chunk_payload(result),
+            )
+
+    return f"Found {len(results)} result(s):\n\n" + "\n\n".join(blocks)
+
+
 def cmd_search(
     state: ShellState,
     query: str,
     folder: str | None = None,
     metadata: list[tuple[str, str]] | None = None,
     limit: int = DEFAULT_LIMIT,
+    *,
+    refs_log_path: Path | None = None,
 ) -> str:
-    """Execute a combined search with optional folder and metadata filters."""
+    """Execute a combined search with optional folder and metadata filters.
+
+    Args:
+        state: Shell state carrying user/company credentials and cwd.
+        query: Search string.
+        folder: Optional folder path, name, or scope ID. Overrides
+            ``state.scope_id`` and ``state.workspace_scope_ids``.
+        metadata: Optional ``[(key, value), ...]`` metadata filters
+            combined with AND.
+        limit: Maximum number of results.
+        refs_log_path: Override the per-turn citation manifest path —
+            for tests; production callers leave this ``None`` so the
+            manifest lives at ``<cwd>/.unique/kb-search-refs.jsonl`` and
+            the Swappable Intelligence runner can find it.
+    """
     try:
         folder_scope_id: str | None = None
         if folder:
@@ -108,7 +242,21 @@ def cmd_search(
             **search_params,
         )
 
-        return format_search_results(results)
-
     except (ValueError, unique_sdk.APIError) as e:
-        return f"search: {e}"
+        return f"{SEARCH_ERROR_PREFIX} {e}"
+
+    log_path = refs_log_path or (Path.cwd() / _REFS_LOG_RELATIVE_PATH)
+    try:
+        return _format_results_with_citations(results, refs_log_path=log_path)
+    except UnsafeRefsLogPathError as exc:
+        return f"{SEARCH_ERROR_PREFIX} {exc}"
+
+
+def is_error_output(output: str) -> bool:
+    """Return ``True`` when ``output`` is a CLI error message.
+
+    Mirrors :func:`unique_sdk.cli.commands.web_search.is_error_output` so
+    the Click layer can translate a returned error string into a non-zero
+    exit code without changing the existing string-returning contract.
+    """
+    return output.startswith(SEARCH_ERROR_PREFIX)
