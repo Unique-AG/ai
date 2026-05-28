@@ -1,3 +1,4 @@
+# %%
 # Example: Streaming chat with references via EventRoutingChatCompletionsStreamingEventHandler
 #
 # This demonstrates the Python-side streaming event routing for the Chat Completions API.
@@ -11,9 +12,7 @@
 # transform_chunks_to_string, so multi-turn conversations stay consistent.
 import json
 
-from unique_toolkit import (
-    LanguageModelName,
-)
+from unique_toolkit import LanguageModelName
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings

@@ -68,7 +68,7 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model.infos import ModelCapabilities
+from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import (
@@ -83,7 +83,11 @@ from unique_orchestrator._builders.skill_setup import (
     configure_skill_tool,
     normalize_available_skills_for_tool,
 )
-from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
+from unique_orchestrator.config import (
+    SwitchableLanguageModelConfig,
+    UniqueAIConfig,
+    UploadedSearchToolConfig,
+)
 from unique_orchestrator.unique_ai import UniqueAI
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
@@ -126,6 +130,11 @@ async def build_unique_ai(
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
+    config = _apply_model_choice_override(event=event, logger=logger, config=config)
+    _record_language_model_debug_info(
+        debug_info_manager=debug_info_manager,
+        config=config,
+    )
     common_components = await _build_common(event, logger, config)
 
     if (
@@ -168,6 +177,68 @@ class _CommonComponents(NamedTuple):
     mcp_manager: MCPManager
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
+
+
+def _apply_model_choice_override(
+    *,
+    event: ChatEvent,
+    logger: Logger,
+    config: UniqueAIConfig,
+) -> UniqueAIConfig:
+    if (
+        not config.space.allow_model_switching
+        or not event.payload.has_model_choice_override
+    ):
+        return config
+
+    selected_model = event.payload.model_choice
+    if (
+        config.space.switchable_language_models
+        and not _is_switchable_language_model_choice(
+            selected_model=selected_model,
+            switchable_language_models=config.space.switchable_language_models,
+        )
+    ):
+        raise ValueError(
+            f"User model choice {selected_model.display_name!r} is not "
+            "allowed for this space."
+        )
+
+    config_data = config.model_dump()
+    config_data["space"]["language_model"] = selected_model
+    validated_config = UniqueAIConfig.model_validate(config_data)
+
+    logger.info(
+        "Using user model choice %s.",
+        selected_model.display_name,
+    )
+
+    return validated_config
+
+
+def _record_language_model_debug_info(
+    *,
+    debug_info_manager: DebugInfoManager,
+    config: UniqueAIConfig,
+) -> None:
+    debug_info_manager.add(
+        "language_model",
+        config.space.language_model.model_dump(
+            mode="json",
+            include={"name", "provider", "family"},
+        ),
+    )
+
+
+def _is_switchable_language_model_choice(
+    *,
+    selected_model: LanguageModelInfo,
+    switchable_language_models: list[SwitchableLanguageModelConfig],
+) -> bool:
+    return any(
+        selected_model == switchable_model.language_model
+        for switchable_model in switchable_language_models
+    )
 
 
 async def _build_common(

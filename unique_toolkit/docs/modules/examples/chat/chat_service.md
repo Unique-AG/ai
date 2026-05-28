@@ -89,8 +89,8 @@ chat_service.modify_assistant_message(
 
 <!--
 ```{.python file=docs/.python_files/minimal_chat_with_manual_modifiy.py}
-import time
 <<full_sse_setup_with_services>>
+    import time
     <<chat_service_intermediate_assistant_result>>
     time.sleep(2)
     <<chat_service_final_assistant_result>>
@@ -186,6 +186,8 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 
 <!--
 ```{.python file=docs/.python_files/chat_with_manual_message_and_reference.py}
+<<example-script-deps>>
+
 <<full_sse_setup>>
     chat_service = ChatService(event)
     <<chat_service_assistant_message_with_reference>>
@@ -263,6 +265,8 @@ chat_service.complete_with_references(
 
 <!--
 ```{.python file=docs/.python_files/chat_with_streamed_references.py}
+<<example-script-deps>>
+
 <<full_sse_setup>>
     chat_service = ChatService(event)
     <<chat_service_retrieved_chunks>>
@@ -368,7 +372,6 @@ which displays as
 
 <!--
 ```{.python file=docs/.python_files/chat_with_message_assessment.py}
-<<common_imports>>
 <<full_sse_setup_with_services>>
     <<chat_service_final_assistant_result>>
     <<chat_service_create_message_assessment>>

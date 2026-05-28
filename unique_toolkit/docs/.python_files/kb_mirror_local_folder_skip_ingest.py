@@ -1,3 +1,15 @@
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb-mirror-main>>[init]
+# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+# ~/~ end
+
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb-mirror-local-imports>>[init]
 from __future__ import annotations
 
 import mimetypes
@@ -5,8 +17,9 @@ from pathlib import Path
 
 from unique_toolkit.experimental.resources.content_folder import ContentFolder
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
+# ~/~ end
 
-
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb-mirror-local-mirror-fn>>[init]
 def mirror_local_folder_to_kb(
     *,
     local_root: Path,
@@ -48,8 +61,9 @@ def mirror_local_folder_to_kb(
             scope_id=scope_id,
             skip_ingestion=True,
         )
+# ~/~ end
 
-
+# ~/~ begin <<docs/modules/examples/content/kb_service.md#kb-mirror-local-run>>[init]
 if __name__ == "__main__":
     LOCAL_ROOT = Path("./sample_tree").resolve()
     KB_ROOT = "/LocalMirror/MyProject"
@@ -60,3 +74,5 @@ if __name__ == "__main__":
         kb_service=KnowledgeBaseService.from_settings(),
         folder_service=ContentFolder.from_settings(),
     )
+# ~/~ end
+# ~/~ end

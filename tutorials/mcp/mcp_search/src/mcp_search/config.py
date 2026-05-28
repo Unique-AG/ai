@@ -27,7 +27,7 @@ class SearchToolConfig(BaseModel):
             metadata_filter={
                 "path": ["folderId"],
                 "operator": "isNotNull",
-                "value": None,
+                "value": "",
             }
         )
     )

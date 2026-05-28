@@ -1,4 +1,14 @@
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-main>>[init]
+# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+# ~/~ end
+
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-imports>>[init]
 from __future__ import annotations
 
@@ -31,11 +41,6 @@ print(
 
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-delete>>[init]
 delete_result = folder_service.delete(scope_id=leaf.id)
-print(
-    "Deleted:",
-    delete_result.success_folders,
-    "Failed:",
-    delete_result.failed_folders,
-)
+print("Deleted:", delete_result.success_folders, "Failed:", delete_result.failed_folders)
 # ~/~ end
 # ~/~ end

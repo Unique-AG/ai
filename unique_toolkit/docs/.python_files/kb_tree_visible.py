@@ -1,4 +1,14 @@
 # ~/~ begin <<docs/modules/examples/experimental/content_tree.md#kb-tree-main>>[init]
+# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+# ~/~ end
+
 # ~/~ begin <<docs/modules/examples/experimental/content_tree.md#kb-tree-imports>>[init]
 from __future__ import annotations
 
@@ -6,7 +16,6 @@ import asyncio
 
 from unique_toolkit.experimental.components.content_tree import ContentTree
 # ~/~ end
-
 
 # ~/~ begin <<docs/modules/examples/experimental/content_tree.md#kb-tree-async-main>>[init]
 async def main() -> None:

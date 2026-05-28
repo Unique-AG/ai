@@ -4,10 +4,17 @@ import json
 from enum import StrEnum
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Generic, Optional, TypeVar, override
+from typing import Annotated, Any, Generic, Optional, TypeVar, override
 
 from humps import camelize
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    JsonValue,
+    field_validator,
+)
 from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
@@ -16,6 +23,8 @@ from unique_toolkit.app.chat_event_filter_options_settings import (
     CHAT_EVENT_FILTER_OPTIONS_SETTINGS,
 )
 from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
 FilterOptionsT = TypeVar("FilterOptionsT", bound=BaseSettings)
@@ -27,6 +36,15 @@ model_config = ConfigDict(
     arbitrary_types_allowed=True,
 )
 _logger = getLogger(__name__)
+
+
+def _validate_language_model_info(v: Any) -> Any:
+    from unique_toolkit._common.validators import validate_and_init_language_model_info
+
+    return validate_and_init_language_model_info(v)
+
+
+LMI = Annotated[LanguageModelInfo, BeforeValidator(_validate_language_model_info)]
 
 
 class EventName(StrEnum):
@@ -247,6 +265,10 @@ class ChatEventPayload(BaseModel):
     user_metadata: dict[str, Any] | None = Field(
         default_factory=dict,
     )
+    model_choice: LMI = Field(
+        default_factory=lambda: LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
+        description="The model choice the user has chosen to be used.",
+    )
     tool_choices: list[str] = Field(
         default_factory=list,
         description="A list containing the tool names the user has chosen to be activated.",
@@ -304,6 +326,10 @@ class ChatEventPayload(BaseModel):
     def validate_scope_rules(cls, value: dict[str, Any] | None) -> UniqueQL | None:
         if value:
             return parse_uniqueql(value)
+
+    @property
+    def has_model_choice_override(self) -> bool:
+        return "model_choice" in self.model_fields_set
 
 
 @deprecated("""Use `ChatEventPayload` instead.
