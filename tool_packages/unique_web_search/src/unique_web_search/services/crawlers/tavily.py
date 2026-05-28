@@ -9,6 +9,7 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfigExperimental,
     CrawlerType,
 )
+from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
 
 
 class TavilyCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.TAVILY]):
@@ -24,7 +25,8 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
     # @track(
     #     tags=["tavily", "scrape"],
     # )
-    async def _crawl(self, urls: list[str]) -> list[str]:
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+        urls = [target.normalized_url for target in targets]
         api_key = get_tavily_search_settings().api_key
         assert api_key is not None, "Tavily API key is not configured"
 

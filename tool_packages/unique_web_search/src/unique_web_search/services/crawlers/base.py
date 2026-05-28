@@ -1,4 +1,3 @@
-import asyncio
 from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Generic, TypeVar
@@ -8,15 +7,14 @@ from unique_toolkit.agentic.tools.config import (
     get_configuration_dict,
 )
 
+from unique_web_search.services.crawlers.url_safety import (
+    ResolvedCrawlTarget,
+    UrlSafetyService,
+)
 from unique_web_search.services.helpers import (
     clean_model_title_generator,
     experimental_model_title_generator,
 )
-from unique_web_search.services.url_safety import (
-    resolve_redirect_chain,
-    validate_crawl_urls,
-)
-from unique_web_search.settings import env_settings
 
 
 class CrawlerType(StrEnum):
@@ -57,12 +55,8 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         self.config = config
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        urls = await validate_crawl_urls(urls)
-        if env_settings.url_safety_resolve_redirects:
-            urls = list(
-                await asyncio.gather(*[resolve_redirect_chain(u) for u in urls])
-            )
-        return await self._crawl(urls)
+        targets = await UrlSafetyService.validate_batch_urls(urls)
+        return await self._crawl(targets)
 
     @abstractmethod
-    async def _crawl(self, urls: list[str]) -> list[str]: ...
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]: ...

@@ -4,6 +4,17 @@ This directory contains implementations of the different web crawlers used by `u
 
 All crawlers inherit from the shared base classes in `base.py`.
 
+### URL safety
+
+Crawlers route every URL through `services/crawlers/url_safety/` before fetching:
+
+- **`BaseCrawler.crawl`** calls `UrlSafetyService.validate_batch_urls` first, then passes `list[ResolvedCrawlTarget]` to each crawler’s `_crawl`. When `url_safety_settings.enabled` is `False`, validation is bypassed and each URL is wrapped via `bypass_crawl_target` without DNS resolution or policy checks.
+- **`BasicCrawler`** uses `ResolvedCrawlTarget.request_url`, `host_header`, and `sni_hostname` for DNS pinning (single resolve inside `validate_batch_urls`).
+- **`Crawl4AICrawler`** registers a Playwright `before_goto` hook that calls `UrlSafetyService.validate_url` on every navigation when `url_safety_settings.enabled` is `True`.
+- **API crawlers** (Tavily, Firecrawl, Jina) use `target.normalized_url` from the validated targets.
+
+Settings live in `url_safety/settings.py` (`url_safety_settings`, env prefix `URL_SAFETY_`). Key fields include `enabled` (`URL_SAFETY_ENABLED`), `resolve_redirects` (`URL_SAFETY_RESOLVE_REDIRECTS`), and the host/scheme allowlists (`allowed_schemes`, `localhost_hosts`, `metadata_hosts`, `cluster_local_suffix`, `service_suffix`).
+
 ```python
 class BaseCrawlerConfig(BaseModel):
     crawler_type: CrawlerType
