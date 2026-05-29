@@ -491,6 +491,26 @@ def test_from_settings__constructs_client_from_env_vars(
 
 
 @pytest.mark.ai
+def test_feature_flag_settings__uppercase_env_vars_are_mapped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify uppercase env vars map to lowercase fields via case_sensitive=False."""
+    from unique_toolkit.experimental.resources.feature_flags.settings import (
+        FeatureFlagSettings,
+    )
+
+    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "https://config.test")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "my-service")
+    monkeypatch.setenv("FEATURE_FLAG_CACHE_TTL_MS", "10000")
+
+    s = FeatureFlagSettings()
+
+    assert s.configuration_backend_url == "https://config.test"
+    assert s.feature_flag_service_id == "my-service"
+    assert s.feature_flag_cache_ttl_ms == 10000
+
+
+@pytest.mark.ai
 @respx.mock
 async def test_evaluate__transport_error_after_prior_fetch__returns_stale() -> None:
     """
