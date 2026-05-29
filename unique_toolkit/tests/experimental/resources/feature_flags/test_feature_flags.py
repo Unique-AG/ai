@@ -34,7 +34,7 @@ class _FakeSettings:
 
 
 _URL = "https://config-backend.test"
-_FLAG = "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"
+_FLAG = "FEATURE_FLAG_ENABLE_MY_FEATURE"
 _SERVICE_ID = "my-service"
 _COMPANY_ID = "acme"
 _USER_ID = "user-123"
