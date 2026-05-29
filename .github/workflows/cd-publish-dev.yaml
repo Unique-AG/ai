@@ -202,7 +202,7 @@ jobs:
 
   publish:
     needs: resolve
-    if: ${{ fromJson(needs.resolve.outputs.matrix).include[0] != null }}
+    if: fromJson(needs.resolve.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
     environment: pypi-publish
     strategy:
