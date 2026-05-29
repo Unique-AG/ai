@@ -49,6 +49,7 @@ jobs:
   publish-package:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: pypi-publish
     timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -70,7 +71,7 @@ jobs:
           package_name: unique-search-proxy
           python_version: '3.12'
           check_version: 'true'
-          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          pypi_token: ${{ secrets.PYPI_PUBLISH_TOKEN }}
 
   containerize:
     needs: publish-package

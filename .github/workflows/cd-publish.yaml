@@ -94,6 +94,7 @@ jobs:
     needs: resolve-package
     if: ${{ fromJson(needs.resolve-package.outputs.matrix).include[0] != null }}
     runs-on: ubuntu-latest
+    environment: pypi-publish
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.resolve-package.outputs.matrix) }}
@@ -110,4 +111,4 @@ jobs:
           package_name: ${{ matrix.pypi_name }}
           python_version: ${{ matrix.python }}
           check_version: "false"
-          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          pypi_token: ${{ secrets.PYPI_PUBLISH_TOKEN }}

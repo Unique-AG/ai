@@ -204,6 +204,7 @@ jobs:
     needs: resolve
     if: fromJson(needs.resolve.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
+    environment: pypi-publish
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
@@ -269,7 +270,7 @@ jobs:
 
       - name: Publish to PyPI
         working-directory: ${{ matrix.dir }}
-        run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
+        run: uv publish --username __token__ --password "${{ secrets.PYPI_PUBLISH_TOKEN }}"
 
   tag-cut:
     # Tag every successful dev publish so it can later be promoted to an
