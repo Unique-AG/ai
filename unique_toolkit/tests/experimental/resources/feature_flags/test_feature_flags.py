@@ -12,6 +12,8 @@ from unique_toolkit.experimental.resources.feature_flags import (
     BoundFeatureFlagClient,
     FeatureFlagClient,
     FlagEvaluation,
+    get_feature_flag_client,
+    is_flag_enabled,
 )
 
 # ---------------------------------------------------------------------------
@@ -594,3 +596,61 @@ async def test_evaluate__stale_not_evicted_by_cache_hits() -> None:
     result = await client.evaluate(_FLAG, company_id=_COMPANY_ID)
 
     assert result == FlagEvaluation(value=True, reason="stale")
+
+
+@pytest.mark.ai
+def test_get_feature_flag_client__returns_singleton(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify get_feature_flag_client() returns the same singleton on repeated calls."""
+    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "https://config.test")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "agentic-ingestion")
+
+    a = get_feature_flag_client()
+    b = get_feature_flag_client()
+
+    assert a is b
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_is_flag_enabled__disabled__logs_info(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify is_flag_enabled() returns False and emits an info log when the flag is disabled."""
+    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", _URL)
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", _SERVICE_ID)
+    respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(False))
+    )
+
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        result = await is_flag_enabled(_FLAG, company_id=_COMPANY_ID, user_id=_USER_ID)
+
+    assert result is False
+    assert any(_FLAG in r.message and _COMPANY_ID in r.message for r in caplog.records)
+
+
+@pytest.mark.ai
+@respx.mock
+async def test_is_flag_enabled__enabled__no_log(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify is_flag_enabled() returns True and emits no log when the flag is enabled."""
+    monkeypatch.setenv("CONFIGURATION_BACKEND_URL", _URL)
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", _SERVICE_ID)
+    respx.post(_GQL_ENDPOINT).mock(
+        return_value=httpx.Response(200, json=_gql_response(True))
+    )
+
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        result = await is_flag_enabled(_FLAG, company_id=_COMPANY_ID)
+
+    assert result is True
+    assert not any(_FLAG in r.message for r in caplog.records)
