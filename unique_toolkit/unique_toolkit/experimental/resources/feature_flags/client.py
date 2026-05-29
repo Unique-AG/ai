@@ -61,7 +61,7 @@ class FeatureFlagClient:
         self._http = httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0))
 
     @classmethod
-    def from_settings(cls) -> "FeatureFlagClient":
+    def from_settings(cls) -> FeatureFlagClient:
         """Construct (or return the cached) singleton from environment variables.
 
         Reads :class:`.FeatureFlagSettings` (``CONFIGURATION_BACKEND_URL``,
@@ -89,7 +89,7 @@ class FeatureFlagClient:
         )
         return cls._instance
 
-    def bind_settings(self, settings: UniqueSettings) -> "BoundFeatureFlagClient":
+    def bind_settings(self, settings: UniqueSettings) -> BoundFeatureFlagClient:
         """Return a :class:`BoundFeatureFlagClient` for the request-level auth context."""
         return BoundFeatureFlagClient(self, settings.authcontext)
 
