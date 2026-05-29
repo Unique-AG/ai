@@ -209,7 +209,7 @@ class ShortTermMemoryService:
             message_id=chat_event.payload.user_message.id,
         )
 
-    async def find_latest_memory_async(self, key: str) -> ShortTermMemory:
+    async def find_latest_memory_async(self, key: str) -> ShortTermMemory | None:
         """
         Find the latest short term memory.
 
@@ -217,7 +217,7 @@ class ShortTermMemoryService:
             key (str): The key.
 
         Returns:
-            ShortTermMemory: The latest short term memory.
+            ShortTermMemory | None: The latest short term memory, or None if not found.
 
         Raises:
             Exception: If an error occurs.
@@ -231,7 +231,7 @@ class ShortTermMemoryService:
             message_id=self._message_id,
         )
 
-    def find_latest_memory(self, key: str) -> ShortTermMemory:
+    def find_latest_memory(self, key: str) -> ShortTermMemory | None:
         """
         Find the latest short term memory.
 
@@ -239,7 +239,7 @@ class ShortTermMemoryService:
             key (str): The key.
 
         Returns:
-            ShortTermMemory: The latest short term memory.
+            ShortTermMemory | None: The latest short term memory, or None if not found.
 
         Raises:
             Exception: If an error occurs.
@@ -312,7 +312,7 @@ class ShortTermMemoryService:
         )
 
     @deprecated("Use find_latest_memory_async instead")
-    async def get(self, key: str) -> ShortTermMemory:
+    async def get(self, key: str) -> ShortTermMemory | None:
         return await find_latest_memory_async(
             user_id=self._user_id,
             company_id=self._company_id,
