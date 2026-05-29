@@ -243,6 +243,7 @@ jobs:
   publish:
     needs: resolve
     runs-on: ubuntu-latest
+    environment: pypi-publish
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
@@ -312,7 +313,7 @@ jobs:
 
       - name: Publish to PyPI
         working-directory: ${{ matrix.dir }}
-        run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
+        run: uv publish --username __token__ --password "${{ secrets.PYPI_PUBLISH_TOKEN }}"
 
   tag-release:
     # After every package in the cut publishes successfully, tag the
