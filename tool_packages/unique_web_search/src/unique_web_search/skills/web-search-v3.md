@@ -34,7 +34,9 @@ flowchart TD
     HasUrl -- no --> Search["command: search<br/>payload.gap + payload.query"]
     Search --> Check{Snippets fill the gap?}
     Check -- "yes, more gaps remain" --> Search
-    Check -- "yes, all covered" --> Answer[Answer]
+    Check -- "yes, all covered" --> FieldCheck{"Field-level question\n+ registry/DB in SERP?"}
+    FieldCheck -- "no" --> Answer[Answer]
+    FieldCheck -- "yes" --> Fetch
     Check -- "no (hedged / exact text / canonical source)" --> Fetch
     Fetch --> Answer
 ```
@@ -52,9 +54,11 @@ flowchart TD
       allowed). For time-sensitive topics you may incorporate the current
       year or month to improve recall.
   - For `"read_urls"`:
-    - **`urls`** — HTTP(S) URLs to crawl for full-page text. Use only URLs
-      returned by a prior `search` call or pasted by the user — **never
-      invent URLs**.
+    - **`urls`** — HTTP(S) URLs to crawl for full-page text. Use URLs
+      returned by a prior `search` call, pasted by the user, or constructed
+      from a domain URL pattern already observed in SERP results (e.g. derive
+      a slug from the entity name when the domain's URL structure is
+      predictable). **Never invent or guess domain names.**
 
 ## Step 1 — Decide complexity (in your head, not in the tool args)
 
@@ -90,8 +94,9 @@ For complex tasks, decompose into 2-5 self-contained sub-questions and run
 - Use **`command: "read_urls"`** when the URL(s) to read are already known:
   the user pasted them, asked you to read a specific page, **or** a
   previous `search` call returned them and snippets are not enough. Pass
-  the URL(s) from the `url` fields of those snippet chunks — do not invent
-  or paraphrase URLs.
+  URLs from the `url` fields of SERP results, or construct a page-level URL
+  by deriving its slug from the entity name when you have already seen that
+  domain's URL pattern in SERP results. Never invent or guess domain names.
 
 If the user pasted URL(s) at the start of the task, your **first** call
 should use `command: "read_urls"`. Do not run a search to "find" a URL the
@@ -115,13 +120,17 @@ Decide:
 - **Snippets sufficient** + still uncovered sub-questions ⇒ next call is
   another `command: "search"` for the next sub-question.
 - **Snippets sufficient** + all sub-questions covered (or task was simple)
-  ⇒ stop calling and answer.
+  ⇒ stop calling and answer — **except** when the question asks for a
+  specific structured data field (ownership type, legal status, counts,
+  specs, registration numbers) and the SERP contains database or registry
+  pages. A snippet that confirms an entity exists is not sufficient for a
+  field-level question; fetch before stopping.
 - **Snippets insufficient** ⇒ go to Step 4.
 
 ### Triggers that mean snippets are not sufficient
 
-Follow up with `command: "read_urls"` (1-3 high-signal URLs from the SERP
-just returned) whenever any of these holds:
+Follow up with `command: "read_urls"` on high-signal URLs from the SERP
+just returned whenever any of these holds:
 
 - Snippets **paraphrase** or **hedge** ("reportedly", "around",
   "approximately", "is expected to") and the task wants exact figures,
@@ -134,6 +143,12 @@ just returned) whenever any of these holds:
   releases. Snippets summarize these; the page is the source of truth.
 - A hit is **highly relevant** but the title/snippet alone cannot support
   the claim you want to make.
+- The question asks for a **specific structured data field** (ownership type,
+  transaction records, legal status, unit count, floor count, specifications,
+  registration numbers) and SERP results include database or registry pages
+  (property portals, company registries, official catalogs). Snippets from
+  these sources show only brief summaries; the field-level data is embedded
+  in the page body.
 
 Fetching takes longer than searching. That latency is a fair trade on
 complex queries where the user expects depth — don't refuse to fetch when
@@ -147,9 +162,9 @@ Issue a follow-up call with:
 - `command: "read_urls"`.
 - An `objective` like "Read full article X to extract <missing detail> for
   <sub-question Y>".
-- `payload.urls` set to a **small, high-signal** subset (typically 1-3
-  URLs; pick complementary domains) of URLs from the `url` fields of the
-  SERP JSON you already received.
+- `payload.urls` set to a **small, high-signal** subset of URLs from the
+  `url` fields of the SERP JSON you already received. Pick complementary
+  domains.
 
 Once the page text comes back, do another sufficiency check. If the task is
 complex and more sub-questions remain, continue with the next
@@ -157,11 +172,13 @@ complex and more sub-questions remain, continue with the next
 
 ### URL-selection rules
 
-- Pick URLs from the **`url` fields of recent SERP chunks** only — never
-  type, paraphrase, or guess a URL.
-- Prefer the **smallest set** that fills the gap (1-3 URLs is usually
-  enough). If you need many pages, issue **additional**
-  `command: "read_urls"` calls rather than one giant list.
+- Pick URLs from the **`url` fields of recent SERP chunks**, or construct a
+  page-level URL by deriving its slug from the entity name when you have
+  already seen that domain's URL pattern in SERP results. **Never invent or
+  guess domain names.**
+- Prefer the **smallest set** that fills the gap. If you need many pages,
+  issue **additional** `command: "read_urls"` calls rather than one giant
+  list.
 - Prefer **complementary domains** (e.g. one official source + one
   independent corroborator) over multiple URLs from the same domain.
 - For canonical-source topics, prioritize the **issuer's own page** (the
@@ -173,8 +190,10 @@ complex and more sub-questions remain, continue with the next
   calls instead, one `gap` per call.
 - Running `command: "search"` "just in case" before reading a URL the user
   already provided.
-- Calling `command: "read_urls"` with paraphrased or invented URLs — only
-  URLs surfaced by a prior search (or pasted by the user) are valid.
+- Calling `command: "read_urls"` with invented or guessed URLs. Valid
+  sources: SERP `url` fields from a prior search, URLs pasted by the user,
+  and page-level URLs constructed from a domain URL pattern already observed
+  in SERP results. Never invent domain names.
 - Refetching pages already crawled in this task.
 - Re-deciding mid-task whether the task is simple or complex — keep the
   plan stable for the whole task.

@@ -333,6 +333,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
+                serp_filter_config=search_config.serp_filter,
             )
         if isinstance(parameters, WebSearchPlan):
             assert search_config.mode == WebSearchMode.V2

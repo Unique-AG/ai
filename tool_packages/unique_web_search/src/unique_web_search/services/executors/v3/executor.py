@@ -14,6 +14,7 @@ from unique_toolkit.monitoring import metric_scope
 from unique_web_search.metrics import (
     crawl_duration,
     crawl_errors,
+    llm_duration,
     search_duration,
     search_errors,
     search_total,
@@ -25,14 +26,27 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.executors.v3.config import SerpFilterConfig
 from unique_web_search.services.executors.v3.schema import (
     FetchUrlsPayload,
     SearchPayload,
     WebSearchV3ToolParameters,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.snippet_judge.service import (
+    SerpOffTopicError,
+    SnippetJudgeConfig,
+    select_relevant,
+)
+from unique_web_search.services.text_sanitize import sanitize_single_line
 
 _LOGGER = logging.getLogger(__name__)
+
+# Agent-supplied strings (objective / query / gap / urls) don't pass through
+# ``WebSearchResult`` (which sanitizes engine + crawler output at construction),
+# so they need an explicit ``sanitize_single_line`` call. ``WebSearchResult``
+# covers the engine + crawler boundary; the call sites below cover the agent
+# boundary.
 
 
 class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
@@ -45,6 +59,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchV3ToolParameters,
+        serp_filter_config: SerpFilterConfig | None = None,
     ):
         super().__init__(
             services=services,
@@ -53,16 +68,29 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             tool_call=tool_call,
             tool_parameters=tool_parameters,
         )
+        self.serp_filter_config = serp_filter_config
 
     async def run(self) -> list[ContentChunk]:
         p = self.tool_parameters
+        # Sanitize every LLM-supplied string at the entry point so downstream
+        # code (debug_info recording, search engine, SERP-filter LLM, UI
+        # notifications) all see clean text. Postgres TEXT columns reject
+        # ``\\u0000`` (error 22P05) — without this, any control char in
+        # ``objective`` / ``gap`` / ``urls`` crashes the modify_message and
+        # stream-responses calls with a generic 500.
+        objective = sanitize_single_line(p.objective)
         if isinstance(p.payload, SearchPayload):
             await self._message_log_callback.log_progress("_Executing Search_")
-            return await self._run_search(query=p.payload.query, objective=p.objective)
+            return await self._run_search(
+                query=sanitize_single_line(p.payload.query),
+                objective=objective,
+                gap=sanitize_single_line(p.payload.gap),
+            )
         if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
             return await self._run_fetch_urls(
-                urls=p.payload.urls, objective=p.objective
+                urls=[sanitize_single_line(u) for u in p.payload.urls],
+                objective=objective,
             )
 
         msg = "WebSearchV3ToolParameters requires exactly one of 'query' or 'urls'."
@@ -74,6 +102,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         *,
         query: str,
         objective: str,
+        gap: str,
     ) -> list[ContentChunk]:
         self.notify_name = "**Searching Web**"
         self.notify_message = objective
@@ -82,6 +111,42 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         elicited = await self.query_elicitation([query])
         query = elicited[0]
 
+        # ``run()`` already sanitized ``query`` before we got here, but
+        # ``query_elicitation`` is an LLM call that can re-introduce control
+        # chars (observed: elicitation form forwards the model's raw output).
+        # Re-sanitize defensively. No-op for clean queries.
+        sanitized_query = sanitize_single_line(query)
+        if sanitized_query != query:
+            _LOGGER.warning(
+                "Elicited query contained non-printable / control characters; "
+                "re-sanitized before issuing to engine. before=%r after=%r",
+                query,
+                sanitized_query,
+            )
+            query = sanitized_query
+
+        # Pathological input: the query was non-empty but consisted entirely of
+        # control / format / whitespace characters that sanitization stripped.
+        # Issuing an empty query to the engine wastes an API call and returns
+        # an empty SERP. Skip the call, record the skip in the debug step, and
+        # return no chunks — the agent will see "no results" and adapt
+        # (typically by reformulating with different keywords on the next turn).
+        if not query:
+            _LOGGER.error(
+                "Search query became empty after sanitization (input was entirely "
+                "control/format/whitespace characters). Skipping engine call."
+            )
+            self.debug_info.steps.append(
+                StepDebugInfo(
+                    step_name="SEARCH.skipped",
+                    execution_time=0,
+                    config="empty_query_after_sanitization",
+                    extra={"objective": objective, "gap": gap},
+                )
+            )
+            await self._message_log_callback.log_web_search_results([])
+            return []
+
         self.debug_info.steps.append(
             StepDebugInfo(
                 step_name="SEARCH",
@@ -89,6 +154,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
                 config={
                     "objective": objective,
                     "query": query,
+                    "gap": gap,
                 },
             )
         )
@@ -103,7 +169,6 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
             results = await self.search_service.search(query)
-        await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
         self.debug_info.steps.append(
@@ -120,13 +185,249 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         )
         _LOGGER.info("Searched with %s in %s seconds", self.search_service, delta_time)
 
+        try:
+            results = await self._filter_serp_results(
+                objective=objective,
+                query=query,
+                gap=gap,
+                results=results,
+            )
+        except SerpOffTopicError:
+            # Every result scored as off-topic for the gap. Don't pollute the
+            # agent's context with the unfiltered SERP (LinkedIn profiles,
+            # random social posts, etc. that the judge already rejected);
+            # surface a single structured "reformulate" chunk instead, which
+            # short-circuits the explore-then-exploit loop with a clear next
+            # action. Skips ``log_web_search_results`` since there are no
+            # URLs the agent will (or should) act on for this search.
+            await self._message_log_callback.log_web_search_results([])
+            return [self._make_reformulate_chunk(query=query, gap=gap)]
+
+        # Surface the *filtered* SERP to the operator's message log so the UI
+        # mirrors what the agent actually received. The complete pre-filter
+        # list (including dropped URLs) remains visible via the
+        # ``SEARCH.search`` and ``SEARCH.serp_filter`` debug steps.
+        await self._message_log_callback.log_web_search_results(results)
+
         chunks = self._serp_results_to_content_chunks(results)
         return chunks
+
+    async def _filter_serp_results(
+        self,
+        *,
+        objective: str,
+        results: list[WebSearchResult],
+        query: str | None = None,
+        gap: str | None = None,
+    ) -> list[WebSearchResult]:
+        """Apply LLM-based relevance filtering to SERP results when enabled.
+
+        The judge scores each result against ``objective``, ``query``, and ``gap``
+        (when provided) so it accounts for the specific sub-question being asked,
+        not just the broad task objective.
+
+        Short-circuits the LLM call only when there is at most one result *and*
+        ``min_score`` is ``0`` — with a single result and a non-zero threshold we
+        still need to score it to know whether to keep it.
+
+        Behaviour on the various failure modes:
+        - Filter disabled / empty SERP / generic LLM exception: returns the
+          original results unmodified (fail-open).
+        - Judge ran but every result fell below ``min_score``: returns the
+          original results unmodified (fail-safe) so the agent still has URLs
+          available to fetch. ``fell_back_to_unfiltered=True`` in debug.
+        - Judge returned literally ``judgments=[]`` (entire SERP off-topic):
+          raises ``SerpOffTopicError`` for ``_run_search`` to catch. We do
+          *not* fall open here — production traces showed that path dumping
+          5 unrelated URLs (LinkedIn profiles, RICS pages, random Facebook
+          posts) into the agent's context, which then either confused the
+          agent or burned iterations trying to fetch garbage. The debug step
+          records ``serp_quality="off_topic"`` so operators can see the
+          signal without ever opening logs.
+        """
+        cfg = self.serp_filter_config
+        if not cfg or not cfg.enabled or not results:
+            return results
+
+        # Nothing to rank or threshold: a single result either passes or fails
+        # ``min_score``, but we can't know without scoring it. Save the LLM call
+        # only when the threshold is disabled.
+        if len(results) <= 1 and cfg.min_score <= 0.0:
+            return results
+
+        # Update progress UI for parity with other multi-stage flows (crawl /
+        # analyze / resort) so the operator sees the extra LLM step.
+        self.notify_name = "**Filtering Search Results**"
+        self.notify_message = gap or objective
+        await self.notify_callback()
+        await self._message_log_callback.log_progress("_Filtering Search Results_")
+
+        time_start = time()
+        # ``select_relevant`` swallows generic LLM exceptions internally
+        # (fail-open contract — returns all results on parse/refusal/etc.),
+        # so wrapping it with ``metric_scope(llm_duration, llm_errors, ...)``
+        # would record duration but never increment errors. Track duration
+        # directly to match the ``purpose=`` label convention used elsewhere;
+        # generic failures surface via the warning log inside
+        # ``select_relevant``. The one exception that *does* propagate is
+        # ``SerpOffTopicError`` — see the except block below.
+        try:
+            filtered = await select_relevant(
+                objective=objective,
+                results=results,
+                language_model_service=self.language_model_service,
+                language_model=cfg.language_model,
+                config=SnippetJudgeConfig(
+                    max_urls_to_select=cfg.max_results,
+                    max_results_per_domain=cfg.max_results_per_domain,
+                    min_score=cfg.min_score,
+                ),
+                query=query,
+                gap=gap,
+            )
+        except SerpOffTopicError:
+            delta_time = time() - time_start
+            llm_duration.labels(purpose="serp_filter").observe(delta_time)
+            # Record the off-topic signal in the debug step *before* re-raising
+            # so the operator UI shows the same shape it always has for
+            # serp_filter steps: ``before``, ``after`` (=0 here), the kept/
+            # dropped URLs (everything dropped), and a structured
+            # ``serp_quality="off_topic"`` flag that the rental-rate trace
+            # would have shown instead of the misleading
+            # ``fell_back_to_unfiltered=true`` it currently emits.
+            self.debug_info.steps.append(
+                StepDebugInfo(
+                    step_name="SEARCH.serp_filter",
+                    execution_time=delta_time,
+                    config=cfg.language_model.name,
+                    extra={
+                        "before": len(results),
+                        "after": 0,
+                        "min_score": cfg.min_score,
+                        "serp_quality": "off_topic",
+                        "objective": objective,
+                        "query": query,
+                        "gap": gap,
+                        "kept_urls": [],
+                        "kept_scores": {},
+                        "dropped_urls": [r.url for r in results],
+                    },
+                )
+            )
+            raise
+        delta_time = time() - time_start
+        llm_duration.labels(purpose="serp_filter").observe(delta_time)
+
+        # Fail-safe: if the judge ran successfully but every result fell below
+        # ``min_score``, returning [] would hide the SERP URLs from the agent —
+        # and the V3 prompts explicitly tell it to "fetch the most relevant URL
+        # already in your SERP results" when a search yields no usable result.
+        # Falling back to the unfiltered list lets the agent make that call.
+        # The empty signal is still surfaced via the debug step so operators
+        # can see when this fallback fired.
+        fell_back = False
+        if not filtered:
+            _LOGGER.info(
+                "SERP filter found no results ≥ min_score=%.2f; falling back to "
+                "unfiltered SERP so the agent can choose to fetch.",
+                cfg.min_score,
+            )
+            filtered = list(results)
+            fell_back = True
+
+        _LOGGER.info(
+            "SERP filter: %d → %d results in %.2fs%s",
+            len(results),
+            len(filtered),
+            delta_time,
+            " (fallback: nothing above threshold)" if fell_back else "",
+        )
+        kept_urls = {r.url for r in filtered}
+        # Per-URL judge scores for the kept set. The score signal is what the
+        # agent reads (≥0.85 → prefer fetch; <0.40 across SERP → reformulate) —
+        # surfacing it here lets operators see *why* the agent decided to fetch
+        # vs. search again. Empty when the filter fell back to unfiltered
+        # (those results were never selected with scores attached).
+        kept_scores = {
+            r.url: round(r.relevance_score, 2)
+            for r in filtered
+            if r.relevance_score is not None
+        }
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name="SEARCH.serp_filter",
+                execution_time=delta_time,
+                config=cfg.language_model.name,
+                extra={
+                    "before": len(results),
+                    "after": len(filtered),
+                    "min_score": cfg.min_score,
+                    "fell_back_to_unfiltered": fell_back,
+                    "objective": objective,
+                    "query": query,
+                    "gap": gap,
+                    "kept_urls": [r.url for r in filtered],
+                    "kept_scores": kept_scores,
+                    "dropped_urls": [r.url for r in results if r.url not in kept_urls],
+                },
+            )
+        )
+        return filtered
+
+    def _make_reformulate_chunk(
+        self, *, query: str | None, gap: str | None
+    ) -> ContentChunk:
+        """Synthetic chunk surfaced when the SERP filter judged every result
+        off-topic for the gap.
+
+        Tells the agent in structured form that this particular query yielded
+        nothing usable, so it should reformulate (different keywords, scope,
+        language, timeframe) rather than fetch one of the rejected URLs or
+        retry with similar keywords. The V3 system prompt already covers the
+        ``<0.40 across SERP → reformulate`` band; this chunk is the
+        tool-output-level cue for the stronger ``raw judgments=0`` case where
+        the judge couldn't even score anything as worth a number.
+
+        Returned as a single ``ContentChunk`` with an empty URL (signalling
+        "no source") and ``serp_quality="off_topic"`` in the JSON payload so
+        downstream consumers can distinguish it from a real result.
+        """
+        payload = {
+            "serp_quality": "off_topic",
+            "query_issued": query,
+            "gap": gap,
+            "instructions": (
+                "The SERP filter judged every result as off-topic for this "
+                "gap (raw LLM judge returned zero usable scores). Do not "
+                "fetch any of the rejected URLs and do not retry this query "
+                "with similar keywords — reformulate instead. Practical "
+                "moves: change entity spelling, switch language "
+                "(e.g. Thai ↔ English), narrow or broaden the geographic "
+                "scope, shift the timeframe, or drop the most specific "
+                "term to widen recall."
+            ),
+        }
+        text = json.dumps(payload, ensure_ascii=False)
+        return ContentChunk(
+            id="serp_filter_no_results",
+            text=text,
+            order=0,
+            start_page=None,
+            end_page=None,
+            key="serp_filter_no_results",
+            chunk_id="0",
+            url="",
+            title="No relevant results — reformulate query",
+        )
 
     def _serp_results_to_content_chunks(
         self, results: list[WebSearchResult]
     ) -> list[ContentChunk]:
         """One chunk per SERP row; ``text`` is JSON with url, domain, title, snippet."""
+        # ``WebSearchResult`` already strips control chars (including NUL) at
+        # the engine/crawler boundary via its field validators, so the fields
+        # below are safe to embed directly into the chunk payload — no further
+        # sanitization needed here.
         out: list[ContentChunk] = []
         for i, r in enumerate(results):
             payload = {
@@ -137,6 +438,13 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             }
             if r.content:
                 payload["content"] = r.content
+            # Surface the SERP filter's relevance score to the agent. Two decimals
+            # is enough resolution for the band-based guidance in the prompt
+            # (≥0.85 = primary source, prefer fetch over another search). Absent
+            # when the filter was disabled, fell back, or the LLM judge failed —
+            # the agent then falls back to snippet-text heuristics.
+            if r.relevance_score is not None:
+                payload["relevance_score"] = round(r.relevance_score, 2)
 
             text = json.dumps(payload, ensure_ascii=False)
 

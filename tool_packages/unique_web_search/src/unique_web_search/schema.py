@@ -56,13 +56,16 @@ class WebSearchDebugInfo(BaseModel):
 
     def model_dump(self, *, with_debug_details: bool = True, **kwargs):
         """
-        Dump the model, dropping `additional_info` in steps when debug=False.
+        Dump the model. When ``with_debug_details=False`` only the bulky
+        ``web_page_chunks`` (full crawled page bodies) is stripped.
+
+        The per-step ``extra`` dicts are intentionally kept — they hold small
+        structured metadata about the search process (result counts, judge
+        scores, kept/dropped URLs, objective/query/gap) that operators need
+        to understand *why* the agent took a given decision. Stripping that
+        was over-aggressive: the volume concern was always ``web_page_chunks``.
         """
         exclude = kwargs.pop("exclude", {})
         if not with_debug_details:
-            # Build an exclude structure that applies to all steps
-            exclude = {
-                "steps": {i: {"extra"} for i in range(len(self.steps))},
-                "web_page_chunks": True,
-            } | exclude
+            exclude = {"web_page_chunks": True} | exclude
         return super().model_dump(exclude=exclude, **kwargs)

@@ -54,15 +54,22 @@ class ContentProcessor:
         self._encoder = encoder
         self._decoder = decoder
 
+        # Order matters: MarkdownTransform runs *before* LineRemoval so that
+        # ``[text](url)`` is collapsed to ``[text]`` and bare URLs are stripped
+        # *first*. LineRemoval then sees normalised content and its
+        # link-only / image-only / multi-bracket patterns can spot whole rows
+        # of nav boilerplate that would otherwise survive untouched (currency
+        # dropdowns, BTS-station lists, district-filter checkboxes from
+        # directory-style sites like Hipflat/livinginsider/propertyhub).
         self._cleaning_strategies: list[CleaningStrategy] = [
             CharacterSanitize(
                 enabled=self.config.cleaning.enable_character_sanitize,
             ),
-            LineRemoval(
-                config=self.config.cleaning.line_removal,
-            ),
             MarkdownTransform(
                 enabled=self.config.cleaning.enable_markdown_cleaning,
+            ),
+            LineRemoval(
+                config=self.config.cleaning.line_removal,
             ),
         ]
 
