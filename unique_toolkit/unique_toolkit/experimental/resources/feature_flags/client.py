@@ -114,12 +114,12 @@ class FeatureFlagClient:
             return FlagEvaluation(
                 value=value, reason="cached" if from_cache else "remote"
             )
-        except Exception:
+        except Exception as exc:
             logger.warning(
                 "FeatureFlagClient: fetch failed for '%s' (company=%s) — trying stale cache",
                 flag,
                 company_id,
-                exc_info=True,
+                exc_info=not isinstance(exc, httpx.HTTPError),
             )
             stale_value, stale_hit = self._cache.get_stale(cache_key)
             if stale_hit:
@@ -213,3 +213,37 @@ class BoundFeatureFlagClient:
 
     async def is_enabled(self, flag: str) -> bool:
         return (await self.evaluate(flag)).value
+
+
+def get_feature_flag_client() -> FeatureFlagClient:
+    """Return the process-level :class:`FeatureFlagClient` singleton.
+
+    Built lazily via :meth:`FeatureFlagClient.from_settings` which reads
+    ``CONFIGURATION_BACKEND_URL`` and ``FEATURE_FLAG_SERVICE_ID`` from env.
+    Falls back to env-var defaults on missing config or transport errors.
+    """
+    return FeatureFlagClient.from_settings()
+
+
+async def is_flag_enabled(
+    flag: str,
+    company_id: str,
+    user_id: str | None = None,
+) -> bool:
+    """Evaluate *flag* and log when disabled.
+
+    Convenience wrapper for route handlers that want a single call-site
+    without manually managing the client singleton.
+    """
+    enabled = await get_feature_flag_client().is_enabled(
+        flag, company_id=company_id, user_id=user_id
+    )
+    if not enabled:
+        user_suffix = f" user {user_id}" if user_id else ""
+        logger.info(
+            "Feature flag '%s' disabled for company %s%s.",
+            flag,
+            company_id,
+            user_suffix,
+        )
+    return enabled

@@ -31,7 +31,12 @@ Define flag name constants in your service to avoid magic strings::
 See README.md for the full evaluation-order diagram and adoption steps.
 """
 
-from .client import BoundFeatureFlagClient, FeatureFlagClient
+from .client import (
+    BoundFeatureFlagClient,
+    FeatureFlagClient,
+    get_feature_flag_client,
+    is_flag_enabled,
+)
 from .schemas import FlagEvaluation
 from .settings import FeatureFlagSettings
 
@@ -40,4 +45,6 @@ __all__ = [
     "FeatureFlagClient",
     "FlagEvaluation",
     "FeatureFlagSettings",
+    "get_feature_flag_client",
+    "is_flag_enabled",
 ]
