@@ -35,7 +35,7 @@ class _FakeSettings:
 
 _URL = "https://config-backend.test"
 _FLAG = "FEATURE_FLAG_ENABLE_PDF_CONTENT_EXTRACTION"
-_SERVICE_ID = "agentic-ingestion"
+_SERVICE_ID = "my-service"
 _COMPANY_ID = "acme"
 _USER_ID = "user-123"
 _GQL_ENDPOINT = f"{_URL}/graphql"
@@ -344,7 +344,7 @@ def test_from_settings__no_url__raises_value_error(
 ) -> None:
     """Verify from_settings() raises ValueError when CONFIGURATION_BACKEND_URL is absent."""
     monkeypatch.delenv("CONFIGURATION_BACKEND_URL", raising=False)
-    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "agentic-ingestion")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "my-service")
 
     with pytest.raises(ValueError, match="CONFIGURATION_BACKEND_URL"):
         FeatureFlagClient.from_settings()
@@ -483,13 +483,13 @@ def test_from_settings__constructs_client_from_env_vars(
 ) -> None:
     """Verify from_settings() reads env vars and produces a correctly configured client."""
     monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "https://config.test")
-    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "agentic-ingestion")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "my-service")
     monkeypatch.setenv("FEATURE_FLAG_CACHE_TTL_MS", "5000")
 
     client = FeatureFlagClient.from_settings()
 
     assert client._url == "https://config.test"
-    assert client._service_id == "agentic-ingestion"
+    assert client._service_id == "my-service"
 
 
 @pytest.mark.ai
@@ -604,7 +604,7 @@ def test_get_feature_flag_client__returns_singleton(
 ) -> None:
     """Verify get_feature_flag_client() returns the same singleton on repeated calls."""
     monkeypatch.setenv("CONFIGURATION_BACKEND_URL", "https://config.test")
-    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "agentic-ingestion")
+    monkeypatch.setenv("FEATURE_FLAG_SERVICE_ID", "my-service")
 
     a = get_feature_flag_client()
     b = get_feature_flag_client()
