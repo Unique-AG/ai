@@ -31,7 +31,7 @@ flowchart TD
     end
 
     internal["<b>_internal/</b><br/><i>package-private primitives</i>"]
-    sdk[("<b>unique_sdk</b><br/><i>external</i>")]
+    sdk[("<b>unique_sdk / config-backend / …</b><br/><i>internal Unique AI backends</i>")]
 
     integrations ==> facades
     integrations -.-> primitives
@@ -75,9 +75,9 @@ API. Think: HTTP plumbing, Pydantic helpers, time/string/exception utilities.
   users, promote it into `resources/`, `components/`, or
   `integrations/` — whichever layer fits — and re-export it there.
 
-### `resources/<name>/` — typed adapters over `unique_sdk`
+### `resources/<name>/` — typed adapters over internal Unique AI backends
 
-One subfolder per SDK resource family. The canonical shape is:
+One subfolder per backend resource family. The canonical shape is:
 
 ```
 resources/<name>/
@@ -87,15 +87,17 @@ resources/<name>/
     __init__.py    # re-exports
 ```
 
-A module belongs here **iff** it could be deleted without losing any
-functionality relative to raw `unique_sdk` usage — it's pure typing + a
-slightly nicer call surface, nothing more.
+"Backend" is deliberately broad: `unique_sdk`, configuration-backend,
+and any other internal Unique AI service are all valid targets. A module
+belongs here **iff** it is a thin, typed adapter — pure schemas + a
+slightly nicer call surface — with no cross-cutting orchestration of its
+own.
 
 - **May import:** `unique_sdk`, `_internal/`, stdlib, third-party libs.
 - **Must not import:** sibling resources (see `facades/` below for the
   exception), `components/`, `integrations/`.
 - **Concrete examples in-tree today:** `user/`, `group/`,
-  `content_folder/`, `scheduled_task/`.
+  `content_folder/`, `scheduled_task/`, `feature_flags/`.
 - **Resources** should be stateless classes
 
 ### `resources/facades/<name>/` — aggregating resources
@@ -208,7 +210,7 @@ way to the bottom is a signal that the module probably does not belong in
 ```mermaid
 flowchart TD
     start(["I'm adding new code"])
-    q1{"Calls <b>unique_sdk</b> directly?"}
+    q1{"Typed adapter over an internal<br/>Unique AI backend<br/>(unique_sdk, config-backend, …)?"}
     q2{"Resource-shaped facade —<br/>composes 2+ primitives with<br/>one-liner delegation methods?"}
     q3{"Adds behaviour beyond the SDK<br/>(orchestration, parallelism,<br/>derived views, evaluation, …)<br/><b>and</b> framework-agnostic?"}
     q4{"Adapter for a specific<br/>third-party framework?"}
@@ -223,7 +225,7 @@ flowchart TD
 
     start --> q1
     q1 -- yes --> primitive
-    q1 -- no --> q2
+    q1 -- no  --> q2
     q2 -- yes --> facade
     q2 -- no --> q3
     q3 -- yes --> component
