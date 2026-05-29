@@ -11,12 +11,12 @@ class FeatureFlagSettings(BaseSettings):
     :meth:`FeatureFlagClient.from_settings` raises ``ValueError`` if either is absent.
     """
 
-    CONFIGURATION_BACKEND_URL: str | None = None
-    FEATURE_FLAG_SERVICE_ID: str | None = None
-    FEATURE_FLAG_CACHE_TTL_MS: int = 5_000
+    configuration_backend_url: str | None = None
+    feature_flag_service_id: str | None = None
+    feature_flag_cache_ttl_ms: int = 5_000
 
     @field_validator(
-        "CONFIGURATION_BACKEND_URL", "FEATURE_FLAG_SERVICE_ID", mode="before"
+        "configuration_backend_url", "feature_flag_service_id", mode="before"
     )
     @classmethod
     def _strip_strings(cls, v: object) -> object:
