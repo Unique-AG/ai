@@ -20,6 +20,7 @@ from unique_toolkit.language_model.infos import (
     ModelCapabilities,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+from unique_user_memory.config import UserMemoryConfig
 
 from unique_orchestrator.config import (
     EvaluationConfig,
@@ -463,3 +464,27 @@ class TestUniqueAIConfigInjectTodoToolValidator:
 
         assert self._todo_entries(config) == []
         assert [t.name for t in config.space.tools] == [t.name for t in default_tools]
+
+
+class TestUniqueAIConfigUserMemory:
+    def test_user_memory_config_defaults_to_disabled(self):
+        config = UniqueAIConfig()
+
+        assert isinstance(config.agent.experimental.user_memory_config, UserMemoryConfig)
+        assert config.agent.experimental.user_memory_config.enabled is False
+
+    def test_user_memory_config_parses_enabled_payload(self):
+        config = UniqueAIConfig(
+            agent={
+                "experimental": {
+                    "user_memory_config": {
+                        "enabled": True,
+                        "max_tokens": 1500,
+                    }
+                }
+            }
+        )
+
+        memory_config = config.agent.experimental.user_memory_config
+        assert memory_config.enabled is True
+        assert memory_config.max_tokens == 1500

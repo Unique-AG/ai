@@ -70,6 +70,8 @@ from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
+from unique_user_memory.user_memory import load_user_memory
+from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders import (
     build_loop_iteration_runner,
@@ -177,6 +179,7 @@ class _CommonComponents(NamedTuple):
     mcp_manager: MCPManager
     a2a_manager: A2AManager
     mcp_servers: list[McpServer]
+    user_memory_text: str
 
 
 def _apply_model_choice_override(
@@ -356,6 +359,25 @@ async def _build_common(
             )
         )
 
+    user_memory_text = ""
+    if config.agent.experimental.user_memory_config.enabled:
+        user_memory_state = await load_user_memory(
+            event=event,
+            content_service=content_service,
+            config=config.agent.experimental.user_memory_config,
+            logger=logger,
+        )
+        if user_memory_state is not None:
+            user_memory_text = user_memory_state.text
+            postprocessor_manager.add_postprocessor(
+                UserMemoryPostprocessor(
+                    config=config.agent.experimental.user_memory_config,
+                    event=event,
+                    state=user_memory_state,
+                    logger=logger,
+                )
+            )
+
     return _CommonComponents(
         chat_service=chat_service,
         content_service=content_service,
@@ -371,6 +393,7 @@ async def _build_common(
         a2a_manager=a2a_manager,
         tool_manager_config=tool_manager_config,
         mcp_servers=event.payload.mcp_servers,
+        user_memory_text=user_memory_text,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
         message_step_logger=MessageStepLogger(chat_service),
@@ -570,6 +593,7 @@ async def _build_responses(
         mcp_servers=event.payload.mcp_servers,
         loop_iteration_runner=loop_iteration_runner,
         agent_file_registry=agent_file_registry,
+        user_memory_text=common_components.user_memory_text,
     )
 
 
@@ -649,6 +673,7 @@ async def _build_completions(
         mcp_servers=event.payload.mcp_servers,
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
+        user_memory_text=common_components.user_memory_text,
     )
 
 
