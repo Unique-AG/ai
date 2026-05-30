@@ -57,6 +57,7 @@ from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
+from unique_user_memory.config import UserMemoryConfig
 
 from unique_orchestrator.settings import env_settings
 
@@ -408,6 +409,11 @@ class ExperimentalConfig(BaseToolConfig):
         title="Todo Tool",
         description="Configuration for the todo tool",
         default_factory=TodoConfig,
+    )
+    user_memory_config: UserMemoryConfig = Field(
+        title="User Memory",
+        description="Configuration for persistent user memory.",
+        default_factory=UserMemoryConfig,
     )
 
     uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()
