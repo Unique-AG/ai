@@ -4,10 +4,10 @@ This document explains how the Tool Manager organizes, exposes, and executes too
 
 Key capabilities:
 - Load and filter tools from configuration and the users choices
-- Respects Tool exclusivity, weather it is enabled by the admin or weather the user choose the tool as a must (forced tools)
+- Respects Tool exclusivity, whether it is enabled by the admin or whether the user chose the tool as a must (forced tools)
 - Expose tool definitions and prompt enhancements for the LLM
 - Detects if a tool requests a handoff so it “takes control”  (e.g., deep research)
-- Execute selected tools in parallel with tool-call deduplication and max-call limits
+- Execute selected non-conflicting tools in parallel with tool-call deduplication and max-call limits
 - it returns the ToolCallResponses of all the tools to the orchestrator for further rounds with the LLM and additional processing like preparation for referencing or collection of debug info.
 
 
@@ -149,62 +149,89 @@ def _convert_to_forced_tool(self, tool_name: str) -> dict[str, Any]:
 
 ## 🧠 Control-Taking Tools (e.g., Deep Research)
 
-Some tools request a handover from the main orchestrator so they can “take control” of the session. The orchestrator can check this before deciding weather to yield control or to continue its flow.
+Some tools request a handover from the main orchestrator so they can “take control” of the session. The orchestrator can check this before deciding whether to yield control or to continue its flow.
 
 Check if any selected call belongs to a control-taking tool:
 ```{.python #tool-manager-does-tool-take-control}
-def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
+def _get_tool_calls_that_take_control(
+    self, tool_calls: list[LanguageModelFunction]
+) -> list[LanguageModelFunction]:
+    tools = []
     for tool_call in tool_calls:
         tool_instance = self.get_tool_by_name(tool_call.name)
         if tool_instance and tool_instance.takes_control():
-            return True
-    return False
+            tools.append(tool_call)
+
+    return tools
+
+def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
+    return len(self._get_tool_calls_that_take_control(tool_calls)) > 0
 ```
 
 
 ## ⚙️ Tool Execution Workflow
 
-The orchestrator receives the information from the LLM on what tools to be executed in oder for the llm to receive the requested information.
+The orchestrator receives the information from the LLM on what tools to be executed in order for the LLM to receive the requested information.
 The Tool Manager handles the execution of selected tools with the following steps:
 
 1. **Deduplication**: It removes duplicate tool calls from the LLM, ensuring identical calls (e.g., same tool with identical parameters) are executed only once. This prevents redundant processing caused by occasional LLM errors.
 
-2. **Call Limit Enforcement**: A maximum of two tool calls is allowed per execution round. This prevents overloading the system with excessive requests.
+2. **Call Limit Enforcement**: The configured maximum number of tool calls is allowed per execution round. This prevents overloading the system with excessive requests.
 
-3. **Parallel Execution**: Tools are executed concurrently to save time, as individual tool calls can be time-intensive.
+3. **Take-Control Conflict Guard**: If a batch contains more than one call and any call belongs to a tool that takes control, no tools in the batch are executed. The manager returns a conflict response for every call: the take-control tool response explains that it must be called alone, and sibling responses explain which tool(s) caused the batch to be rejected.
 
-4. **Result Handling**: Once the tools return their responses, the Tool Manager:
+4. **Parallel Execution**: When no take-control conflict exists, tools are executed concurrently to save time, as individual tool calls can be time-intensive.
+
+5. **Result Handling**: Once the tools return their responses, the Tool Manager:
    - Sends the results back to the orchestrator.
    - Updates the call history.
    - Extracts references and debug information for further use.
 
-This streamlined process ensures efficient, accurate, and manageable tool execution.",
+This streamlined process ensures efficient, accurate, and manageable tool execution.
 ```{.python #tool-manager-execute-selected-tools}
+def _take_control_conflict_response(
+    self,
+    tool_call: LanguageModelFunction,
+    take_control_names: list[str],
+) -> ToolCallResponse:
+    if tool_call.name in take_control_names:
+        content = (
+            f"ERROR: Tool `{tool_call.name}` directly returns its response to the user and therefore must be called on its own. "
+            "None of the tools in this batch were executed. "
+            f"You may recover by first calling the other tools, then calling `{tool_call.name}` alone."
+        )
+    else:
+        names = ", ".join(f"`{n}`" for n in take_control_names)
+        content = f"ERROR: Not executed because the following tool(s) must be called on their own: {names}"
+
+    return ToolCallResponse(
+        id=tool_call.id,
+        name=tool_call.name,
+        content=content,
+    )
+
 async def execute_selected_tools(
     self,
     tool_calls: list[LanguageModelFunction],
 ) -> list[ToolCallResponse]:
-    tool_calls = tool_calls
+    if len(tool_calls) > 1:
+        take_control_tools = [
+            t.name for t in self._get_tool_calls_that_take_control(tool_calls)
+        ]
 
-    tool_calls = self.filter_duplicate_tool_calls(
-        tool_calls=tool_calls,
-    )
-    num_tool_calls = len(tool_calls)
+        if len(take_control_tools) > 0:
+            self._logger.warning(
+                "Tool(s) %s take control and cannot be called alongside other tools. "
+                "Returning error for all %d tool calls.",
+                take_control_tools,
+                len(tool_calls),
+            )
+            return [
+                self._take_control_conflict_response(tool_call, take_control_tools)
+                for tool_call in tool_calls
+            ]
 
-    if num_tool_calls > self._config.max_tool_calls:
-        self._logger.warning(
-            (
-                "Number of tool calls %s exceeds the allowed maximum of %s."
-                "The tool calls will be reduced to the first %s."
-            ),
-            num_tool_calls,
-            self._config.max_tool_calls,
-            self._config.max_tool_calls,
-        )
-        tool_calls = tool_calls[: self._config.max_tool_calls]
-
-    tool_call_responses = await self._execute_parallelized(
-        tool_calls=tool_calls, loop_iteration=loop_iteration)
+    tool_call_responses = await self._execute_parallelized(tool_calls)
     return tool_call_responses
 ```
 

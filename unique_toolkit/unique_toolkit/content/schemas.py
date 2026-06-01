@@ -223,7 +223,8 @@ class ContentReference(BaseModel):
 
     @classmethod
     def from_sdk_reference(
-        cls, reference: unique_sdk.Message.Reference | unique_sdk.Space.Reference
+        cls,
+        reference: unique_sdk.Message.Reference | unique_sdk.Space.Reference,
     ) -> "ContentReference":
         kwargs: dict[str, Any] = {
             "name": reference["name"],
