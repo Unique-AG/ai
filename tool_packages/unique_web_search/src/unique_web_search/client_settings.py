@@ -200,3 +200,38 @@ def get_brave_search_settings() -> BraveSearchSettings:
     if _brave_search_settings is None:
         _brave_search_settings = BraveSearchSettings.from_env_settings()
     return _brave_search_settings
+
+
+class PerplexitySearchSettings(BaseModel):
+    api_key: str | None = None
+
+    @property
+    def is_configured(self) -> bool:
+        return self.api_key is not None
+
+    @classmethod
+    def from_env_settings(cls):
+        missing_settings = []
+
+        if env_settings.perplexity_api_key is None:
+            missing_settings.append("API Key")
+
+        if missing_settings:
+            _LOGGER.warning(
+                "Perplexity Search API missing required settings: "
+                f"{', '.join(missing_settings)}"
+            )
+        else:
+            _LOGGER.info("Perplexity Search API is properly configured")
+
+        return cls(api_key=env_settings.perplexity_api_key)
+
+
+_perplexity_search_settings: PerplexitySearchSettings | None = None
+
+
+def get_perplexity_search_settings() -> PerplexitySearchSettings:
+    global _perplexity_search_settings
+    if _perplexity_search_settings is None:
+        _perplexity_search_settings = PerplexitySearchSettings.from_env_settings()
+    return _perplexity_search_settings

@@ -21,6 +21,7 @@ class SearchEngineType(StrEnum):
     FIRECRAWL = "Firecrawl"
     TAVILY = "Tavily"
     BRAVE = "Brave"
+    PERPLEXITY = "Perplexity"
     BING = "Bing"
     DUCKDUCKGO = "DuckDuckGo"
     VERTEXAI = "VertexAI"
@@ -33,6 +34,7 @@ _SEARCH_ENGINE_MODE_MAP: dict[SearchEngineType, SearchEngineMode] = {
     SearchEngineType.FIRECRAWL: SearchEngineMode.STANDARD,
     SearchEngineType.TAVILY: SearchEngineMode.STANDARD,
     SearchEngineType.BRAVE: SearchEngineMode.STANDARD,
+    SearchEngineType.PERPLEXITY: SearchEngineMode.STANDARD,
     SearchEngineType.DUCKDUCKGO: SearchEngineMode.STANDARD,
     SearchEngineType.BING: SearchEngineMode.AGENT,
     SearchEngineType.VERTEXAI: SearchEngineMode.AGENT,
@@ -62,6 +64,7 @@ _SearchEngineExposedName = {
     SearchEngineType.FIRECRAWL: "Firecrawl Search",
     SearchEngineType.TAVILY: "Tavily Search",
     SearchEngineType.BRAVE: "Brave Search",
+    SearchEngineType.PERPLEXITY: "Perplexity Search",
     SearchEngineType.BING: "Grounding with Bing",
     SearchEngineType.DUCKDUCKGO: "DuckDuckGo Search",
     SearchEngineType.VERTEXAI: "Grounding with VertexAI",
