@@ -209,6 +209,7 @@ class SubAgentToolConfig(BaseToolConfig):
     passthrough_config: SubAgentPassthroughConfig = Field(
         default_factory=SubAgentPassthroughConfig,
         description="Configuration for streaming the sub-agent response directly back to the user.",
+        title="Direct Streaming Configuration",
     )
 
     system_reminders_config: list[
