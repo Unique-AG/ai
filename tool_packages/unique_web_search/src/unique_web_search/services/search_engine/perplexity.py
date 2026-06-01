@@ -75,9 +75,12 @@ class PerplexitySearch(SearchEngine[PerplexitySearchConfig]):
         assert settings.is_configured
 
         max_results = min(self.config.fetch_size, MAX_RESULTS_PER_REQUEST)
-        client = AsyncPerplexity(api_key=settings.api_key, http_client=async_client())
-        try:
-            response = await client.search.create(
+
+        async with async_client() as http_client:
+            perplexity_client = AsyncPerplexity(
+                api_key=settings.api_key, http_client=http_client
+            )
+            response = await perplexity_client.search.create(
                 query=query,
                 max_results=max_results,
                 country=self.config.country or Omit(),
@@ -86,8 +89,6 @@ class PerplexitySearch(SearchEngine[PerplexitySearchConfig]):
                 search_recency_filter=self.config.search_recency_filter or Omit(),
                 search_type=self.config.search_type or Omit(),
             )
-        finally:
-            await client.close()
 
         return self._to_web_search_results(response.results)
 

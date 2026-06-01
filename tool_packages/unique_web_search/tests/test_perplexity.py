@@ -143,7 +143,6 @@ class TestPerplexitySearch:
         mock_search_resource = Mock(create=mock_create)
         mock_client = Mock()
         mock_client.search = mock_search_resource
-        mock_client.close = AsyncMock()
 
         with patch(
             "unique_web_search.services.search_engine.perplexity.AsyncPerplexity",
@@ -161,7 +160,6 @@ class TestPerplexitySearch:
             max_results=MAX_RESULTS_PER_REQUEST,
             config=config,
         )
-        mock_client.close.assert_awaited_once()
         assert results == [
             WebSearchResult(
                 url="https://example.com/page",
@@ -180,8 +178,6 @@ class TestPerplexitySearch:
         mock_create = AsyncMock(return_value=Mock(results=[]))
         mock_client = Mock()
         mock_client.search = Mock(create=mock_create)
-        mock_client.close = AsyncMock()
-
         with patch(
             "unique_web_search.services.search_engine.perplexity.AsyncPerplexity",
             return_value=mock_client,
@@ -212,8 +208,6 @@ class TestPerplexitySearch:
         mock_create = AsyncMock(return_value=Mock(results=[]))
         mock_client = Mock()
         mock_client.search = Mock(create=mock_create)
-        mock_client.close = AsyncMock()
-
         with patch(
             "unique_web_search.services.search_engine.perplexity.AsyncPerplexity",
             return_value=mock_client,
