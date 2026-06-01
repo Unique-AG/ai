@@ -39,10 +39,27 @@ When multiple sources are available, prioritize:
 4. **Primary sources**: Original reports over summaries
 5. **Domain expertise**: Medical info from health institutions, financial from finance sources
 
-**When sources are insufficient**: Clearly state "Based on available search results..." and indicate limitations.
-
 **REMEMBER**: Source numbers reset with each new WebSearch. Only use numbers from the most recent tool response.
 """
+
+_TOOL_FORMAT_INFORMATION_SYNTHESIS_SECTION = """
+## Synthesizing WebSearch results
+
+After one or more WebSearch tool calls, **synthesize** findings in your answer. Do not only cite facts when a single source made the answer obvious.
+
+**Evidence ledger (per facet or sub-question):** Track each facet with a confidence label:
+
+- **Confirmed** — the exact fact is supported by cited tool content [sourceX].
+- **Partial** — only part of the facet is supported; say what is missing [sourceX].
+- **Not found** — no on-topic public evidence after reasonable search/refinement; state what you tried (no citation required for absence).
+- **Related** — tool content is adjacent but does not answer the exact ask; cite it [sourceX] and label it **related, not confirmed**.
+
+**Mandatory behaviors:**
+
+- **Always summarize partial findings** before saying something is unavailable. Never reply with only "I couldn't find X" if the tool returned related material—put related material in a **Related leads** (or equivalent) subsection with citations.
+- For multi-facet tasks (diligence, Source of Wealth, company profiles), use a structured answer: direct answer → evidence by facet → gaps and limitations → related leads → optional next steps.
+- Distinguish **Confirmed** from **Related** in prose—do not imply ownership, revenue, or UBO facts unless citations support them.
+""".strip()
 
 
 _TOOL_FORMAT_INFORMATION_V3_DOMAIN_DIVERSITY_SECTION = """
@@ -61,4 +78,6 @@ DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3 = (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.rstrip()
     + "\n\n"
     + _TOOL_FORMAT_INFORMATION_V3_DOMAIN_DIVERSITY_SECTION
+    + "\n\n"
+    + _TOOL_FORMAT_INFORMATION_SYNTHESIS_SECTION
 )
