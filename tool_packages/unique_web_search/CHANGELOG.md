@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.22.1](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.22.0...unique-web-search-v2026.22.1) (2026-06-01)
+
+
+### Features
+
+* Include Perplexity search engine to release 22 ([#1778](https://github.com/Unique-AG/ai/issues/1778)) ([72c2f44](https://github.com/Unique-AG/ai/commit/72c2f44ac1fe0c35f5234974dc26c961e0f40473))
+
 ## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.20.0...unique-web-search-v2026.22.0) (2026-05-21)
 
 
