@@ -15,6 +15,7 @@ from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_respond,
     cmd_elicit_wait,
 )
+from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
@@ -298,6 +299,41 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
       unique-cli download cont_abc123 ~/Desktop/
     """
     click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
+
+
+@main.command(name="cite")
+@click.argument("name_or_id")
+@click.option(
+    "--pages",
+    "-p",
+    default=None,
+    help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
+)
+@click.option(
+    "--local",
+    is_flag=True,
+    help="Cite a local file path instead of a knowledge base file.",
+)
+@click.pass_context
+def cite(
+    ctx: click.Context,
+    name_or_id: str,
+    pages: str | None,
+    local: bool,
+) -> None:
+    """Declare page citations for a file.
+
+    \b
+    Registers [filesourceN] markers for pages you referenced in your answer.
+    Does NOT read or extract the file — use your own tools for that.
+
+    \b
+    Examples:
+      unique-cli cite report.pdf --pages 3,5,7
+      unique-cli cite cont_abc123 --pages 1-4
+      unique-cli cite ./local/report.pdf --local --pages 2
+    """
+    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages, local=local))
 
 
 @main.command()
