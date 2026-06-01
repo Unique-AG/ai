@@ -8,6 +8,8 @@ from unique_web_search.services.search_engine import (
     BingSearchConfig,
     BraveSearch,
     BraveSearchConfig,
+    PerplexitySearch,
+    PerplexitySearchConfig,
     get_default_search_engine_config,
     get_search_engine_config_types_from_names,
     get_search_engine_service,
@@ -77,6 +79,12 @@ class TestSearchEngineFactory:
         config = BraveSearchConfig(search_engine_name=SearchEngineType.BRAVE)
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, BraveSearch)
+
+    def test_get_perplexity_search_engine_service(self):
+        """Test getting Perplexity search engine service."""
+        config = PerplexitySearchConfig(search_engine_name=SearchEngineType.PERPLEXITY)
+        service = get_search_engine_service(config, Mock())
+        assert isinstance(service, PerplexitySearch)
 
     def test_get_config_types_from_names_single(self):
         """Test getting config types from single engine name."""
@@ -150,6 +158,7 @@ class TestGetSearchEngineModelConfig:
             (SearchEngineType.FIRECRAWL, "Firecrawl Search"),
             (SearchEngineType.TAVILY, "Tavily Search"),
             (SearchEngineType.BRAVE, "Brave Search"),
+            (SearchEngineType.PERPLEXITY, "Perplexity Search"),
             (SearchEngineType.BING, "Grounding with Bing"),
             (SearchEngineType.DUCKDUCKGO, "DuckDuckGo Search"),
             (SearchEngineType.VERTEXAI, "Grounding with VertexAI"),
@@ -161,6 +170,7 @@ class TestGetSearchEngineModelConfig:
             "firecrawl",
             "tavily",
             "brave",
+            "perplexity",
             "bing",
             "duckduckgo",
             "vertexai",
@@ -496,6 +506,7 @@ class TestSearchEngineTypes:
         assert SearchEngineType.FIRECRAWL == "Firecrawl"
         assert SearchEngineType.TAVILY == "Tavily"
         assert SearchEngineType.BRAVE == "Brave"
+        assert SearchEngineType.PERPLEXITY == "Perplexity"
         assert SearchEngineType.BING == "Bing"
         assert SearchEngineType.DUCKDUCKGO == "DuckDuckGo"
         assert SearchEngineType.VERTEXAI == "VertexAI"

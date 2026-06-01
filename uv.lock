@@ -12,14 +12,12 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-05-07T11:12:07.739019727Z"
+exclude-newer = "2026-05-18T13:22:39.365717Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-urllib3 = "2026-05-09T00:00:00Z"
-langchain-core = "2026-05-07T00:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-mcp = false
@@ -3865,6 +3863,23 @@ wheels = [
 ]
 
 [[package]]
+name = "perplexityai"
+version = "0.34.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/62/55/3b0f2551a1ff143f3f3118f6374be147fefac41e9fd647355c6b51222db4/perplexityai-0.34.0.tar.gz", hash = "sha256:c2f70eaaa8b51681e2e9a17b0d0f30f573739641cc2f639fa1c926a48eb9497f", size = 138733, upload-time = "2026-05-13T22:52:50.513Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ac/44/6bc67dcc5c7fa0ffaea51990bdf6158846e968da434c5eb7272f0db57c8a/perplexityai-0.34.0-py3-none-any.whl", hash = "sha256:df08280b320ff755777d5d044f74d03fed44789337ad16ed6d75f07619e64a03", size = 131934, upload-time = "2026-05-13T22:52:48.425Z" },
+]
+
+[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -6329,6 +6344,7 @@ dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
     { name = "markdownify" },
+    { name = "perplexityai" },
     { name = "playwright" },
     { name = "pydantic", version = "2.12.5", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
     { name = "pydantic", version = "2.13.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-docs' or extra != 'group-11-ai-monorepo-dev'" },
@@ -6356,6 +6372,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "markdownify", specifier = ">=0.14.1,<1" },
+    { name = "perplexityai", specifier = ">=0.34.0" },
     { name = "playwright", specifier = ">=1.58.0" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
