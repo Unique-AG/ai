@@ -226,6 +226,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 self._should_run_evaluation |= (
                     response["assessment"] is not None
                     and len(response["assessment"]) > 0
+                    and not self.config.passthrough_config.enabled
                 )  # Run evaluation if any sub agent returned an assessment
 
                 self._notify_watcher(response, sequence_number, timestamp)
