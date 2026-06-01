@@ -334,7 +334,7 @@ class _ToolManager(Generic[_ApiMode]):
     ) -> ToolCallResponse:
         if tool_call.name in take_control_names:
             content = (
-                f"ERROR: Tool `{tool_call.name}` directly return its response to the user and therefore must be called on its own. "
+                f"ERROR: Tool `{tool_call.name}` directly returns its response to the user and therefore must be called on its own. "
                 "None of the tools in this batch were executed. "
                 f"You may recover by first calling the other tools, then calling `{tool_call.name}` alone."
             )
