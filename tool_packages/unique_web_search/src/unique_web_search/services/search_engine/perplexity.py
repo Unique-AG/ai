@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, Literal
+from typing import Annotated, Literal, TypeVar
 
 from perplexity import AsyncPerplexity, Omit
 from perplexity.types.search_create_response import Result
@@ -83,11 +83,13 @@ class PerplexitySearch(SearchEngine[PerplexitySearchConfig]):
             response = await perplexity_client.search.create(
                 query=query,
                 max_results=max_results,
-                country=self.config.country or Omit(),
-                max_tokens=self.config.max_tokens or Omit(),
-                search_mode=self.config.search_mode or Omit(),
-                search_recency_filter=self.config.search_recency_filter or Omit(),
-                search_type=self.config.search_type or Omit(),
+                country=_return_omit_if_none(self.config.country),
+                max_tokens=_return_omit_if_none(self.config.max_tokens),
+                search_mode=_return_omit_if_none(self.config.search_mode),
+                search_recency_filter=_return_omit_if_none(
+                    self.config.search_recency_filter
+                ),
+                search_type=_return_omit_if_none(self.config.search_type),
             )
 
         return self._to_web_search_results(response.results)
@@ -107,3 +109,13 @@ class PerplexitySearch(SearchEngine[PerplexitySearchConfig]):
             )
             for result in results
         ]
+
+
+T = TypeVar("T")
+
+
+def _return_omit_if_none(value: T | None) -> T | Omit:
+    if value is None:
+        return Omit()
+    else:
+        return value
