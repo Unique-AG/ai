@@ -144,6 +144,11 @@ class SubAgentToolConfig(BaseToolConfig):
         description="The list of tool names that will be forced to be called for this sub-agent.",
     )
 
+    @field_validator("forced_tools", mode="before")
+    @classmethod
+    def _coerce_forced_tools_none(cls, v: list[str] | None) -> list[str]:
+        return v if v is not None else []
+
     tool_description_for_system_prompt: Annotated[
         str, RJSFMetaTag.StringWidget.textarea(rows=3)
     ] = Field(
@@ -202,6 +207,11 @@ class SubAgentToolConfig(BaseToolConfig):
         description="Optional: A custom JSON schema to send to the llm as the tool input schema.",
     )
 
+    @field_validator("tool_input_json_schema", mode="before")
+    @classmethod
+    def _coerce_tool_input_json_schema_none(cls, v: str | None) -> str:
+        return v if v is not None else ""
+
     returns_content_chunks: bool = Field(
         default=False,
         description="If set, the sub-agent response will be interpreted as a list of content chunks.",
@@ -221,16 +231,6 @@ class SubAgentToolConfig(BaseToolConfig):
         default=[],
         description="Configuration for the system reminders to add to the tool response.",
     )
-
-    @field_validator("forced_tools", mode="before")
-    @classmethod
-    def _coerce_forced_tools_none(cls, v: list[str] | None) -> list[str]:
-        return v if v is not None else []
-
-    @field_validator("tool_input_json_schema", mode="before")
-    @classmethod
-    def _coerce_tool_input_json_schema_none(cls, v: str | None) -> str:
-        return v if v is not None else ""
 
     @model_validator(mode="after")
     def _ensure_response_passthrough_and_returns_content_chunks_mutually_exclusive(
