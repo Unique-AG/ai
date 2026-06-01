@@ -3870,7 +3870,8 @@ dependencies = [
     { name = "anyio" },
     { name = "distro" },
     { name = "httpx" },
-    { name = "pydantic" },
+    { name = "pydantic", version = "2.12.5", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-dev'" },
+    { name = "pydantic", version = "2.13.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-ai-monorepo-docs' or extra != 'group-11-ai-monorepo-dev'" },
     { name = "sniffio" },
     { name = "typing-extensions" },
 ]
