@@ -362,29 +362,24 @@ class UniqueShell(cmd.Cmd):
     def do_cite(self, arg: str) -> None:
         """Declare page citations for a file.
 
-        Usage: cite <name|content_id> [--pages RANGE] [--local]
+        Usage: cite <name|content_id> [--pages RANGE]
 
         Examples:
           /Reports> cite report.pdf --pages 3,5,7
           /Reports> cite cont_abc123 --pages 1-4
-          /Reports> cite ./local/report.pdf --local --pages 2
         """
         from unique_sdk.cli.commands.cite_file import cmd_cite_file
 
         parts = shlex.split(arg)
         if not parts:
-            self._print("Usage: cite <name|content_id> [--pages RANGE] [--local]")
+            self._print("Usage: cite <name|content_id> [--pages RANGE]")
             return
-        local = False
         pages: str | None = None
         positional: list[str] = []
         index = 0
         while index < len(parts):
             token = parts[index]
-            if token in ("--local", "-l"):
-                local = True
-                index += 1
-            elif token in ("--pages", "-p"):
+            if token in ("--pages", "-p"):
                 if index + 1 >= len(parts):
                     self._print("cite: --pages requires a value")
                     return
@@ -394,11 +389,9 @@ class UniqueShell(cmd.Cmd):
                 positional.append(token)
                 index += 1
         if not positional:
-            self._print("Usage: cite <name|content_id> [--pages RANGE] [--local]")
+            self._print("Usage: cite <name|content_id> [--pages RANGE]")
             return
-        self._print(
-            cmd_cite_file(self.state, positional[0], pages, local=local)
-        )
+        self._print(cmd_cite_file(self.state, positional[0], pages))
 
     def do_rm(self, arg: str) -> None:
         """Delete a file.

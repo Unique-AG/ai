@@ -309,17 +309,11 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     default=None,
     help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
 )
-@click.option(
-    "--local",
-    is_flag=True,
-    help="Cite a local file path instead of a knowledge base file.",
-)
 @click.pass_context
 def cite(
     ctx: click.Context,
     name_or_id: str,
     pages: str | None,
-    local: bool,
 ) -> None:
     """Declare page citations for a file.
 
@@ -331,9 +325,8 @@ def cite(
     Examples:
       unique-cli cite report.pdf --pages 3,5,7
       unique-cli cite cont_abc123 --pages 1-4
-      unique-cli cite ./local/report.pdf --local --pages 2
     """
-    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages, local=local))
+    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
 
 
 @main.command()

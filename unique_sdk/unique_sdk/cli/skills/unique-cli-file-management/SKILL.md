@@ -128,21 +128,15 @@ unique-cli upload ./budget.xlsx /2025/Q1/Financials/
 After reading **any** file and using its content in your answer, declare citations:
 
 ```bash
-# KB files (by name or content ID)
 unique-cli cite report.pdf --pages 3,5
 unique-cli cite cont_abc123 --pages 1-4
-
-# Chat-uploaded / workspace files (full path + --local flag)
-unique-cli cite /path/to/workspace/uploaded.pdf --local --pages 1-3
 ```
 
 This registers `[filesourceN]` markers. Use them inline in your answer.
 The platform converts `[filesourceN]` into footnotes and clickable reference chips.
 
-- **Always** use `--local` with the full path for files uploaded to the chat workspace.
 - Numbers are **per-turn only**; do not reuse from prior turns.
 - Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search`.
-- For **knowledge-base** search results use `[sourceN]`; for **web** use `[websourceN]`.
 
 ## Error Handling
 

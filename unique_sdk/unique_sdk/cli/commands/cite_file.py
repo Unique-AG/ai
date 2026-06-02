@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from unique_sdk.cli.commands._citation_manifest import (
@@ -17,6 +18,7 @@ CITE_ERROR_PREFIX = "cite:"
 
 _FILE_REFS_LOG_RELATIVE_PATH = Path(".unique") / "file-refs.jsonl"
 _FILE_REFS_LOCK_FILENAME = "file-refs.lock"
+_CHAT_FILES_MANIFEST = Path(".unique") / "chat-files.json"
 
 
 _MAX_PAGES_PER_CALL = 500
@@ -55,26 +57,50 @@ def _parse_pages(pages: str | None) -> list[int]:
     return sorted(set(selected))
 
 
+def _resolve_content_id_with_manifest(
+    state: ShellState, name_or_id: str
+) -> tuple[str, str]:
+    """Resolve a filename/content_id checking the chat-files manifest first.
+
+    Resolution order:
+    1. If name_or_id starts with "cont_", return it directly.
+    2. Check .unique/chat-files.json for a matching filename (exact or basename).
+    3. Fall back to KB resolution via _resolve_content_id.
+    """
+    if name_or_id.startswith("cont_"):
+        return name_or_id, name_or_id
+
+    manifest_path = Path.cwd() / _CHAT_FILES_MANIFEST
+    if manifest_path.is_file():
+        try:
+            manifest: dict[str, str] = json.loads(
+                manifest_path.read_text(encoding="utf-8")
+            )
+        except (json.JSONDecodeError, OSError):
+            manifest = {}
+
+        basename = Path(name_or_id).name
+        content_id = manifest.get(name_or_id) or manifest.get(basename)
+        if content_id:
+            return content_id, basename
+
+    return _resolve_content_id(state, name_or_id)
+
+
 def cmd_cite_file(
     state: ShellState,
     name_or_id: str,
     pages: str | None,
-    *,
-    local: bool = False,
 ) -> str:
-    """Declare citations for a KB file's pages.
+    """Declare citations for a file's pages.
 
     Writes entries to .unique/file-refs.jsonl and returns [filesourceN]
     markers for the agent to use inline.
     """
-    if local:
-        content_id = f"local:{name_or_id}"
-        filename = Path(name_or_id).name
-    else:
-        try:
-            content_id, filename = _resolve_content_id(state, name_or_id)
-        except Exception as exc:
-            return f"{CITE_ERROR_PREFIX} {exc}"
+    try:
+        content_id, filename = _resolve_content_id_with_manifest(state, name_or_id)
+    except Exception as exc:
+        return f"{CITE_ERROR_PREFIX} {exc}"
 
     page_list = _parse_pages(pages)
     if not page_list:
@@ -89,7 +115,6 @@ def cmd_cite_file(
             existing = _read_turn_refs_manifest(refs_log_path)
             next_source_number = len(existing) + 1
 
-            # Dedup: reuse existing sourceNumber for same (contentId, page)
             existing_keys: dict[tuple[str, int], int] = {}
             for entry in existing:
                 key = (entry.get("contentId", ""), entry.get("page", 0))
