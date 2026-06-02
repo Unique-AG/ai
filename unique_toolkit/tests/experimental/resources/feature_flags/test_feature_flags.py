@@ -48,7 +48,12 @@ def _make_client(url: str = _URL, ttl_ms: int = 5_000) -> FeatureFlagClient:
 @pytest.fixture(autouse=True)
 def reset_singleton() -> None:
     """Reset the from_settings() singleton between tests so monkeypatch env changes take effect."""
+    from unique_toolkit.experimental.resources.feature_flags.client import (
+        _EnvOnlyFeatureFlagClient,
+    )
+
     FeatureFlagClient._instance = None
+    _EnvOnlyFeatureFlagClient._env_instance = None
 
 
 def _gql_response(value: bool) -> dict:
@@ -654,3 +659,68 @@ async def test_is_flag_enabled__enabled__no_log(
 
     assert result is True
     assert not any(_FLAG in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# Env-only fallback when configuration-backend is not configured
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_get_feature_flag_client__no_backend__returns_env_only_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without CONFIGURATION_BACKEND_URL, the client degrades to env-only instead of raising."""
+    from unique_toolkit.experimental.resources.feature_flags.client import (
+        _EnvOnlyFeatureFlagClient,
+    )
+
+    monkeypatch.delenv("CONFIGURATION_BACKEND_URL", raising=False)
+    monkeypatch.delenv("FEATURE_FLAG_SERVICE_ID", raising=False)
+
+    client = get_feature_flag_client()
+
+    assert isinstance(client, _EnvOnlyFeatureFlagClient)
+    # Repeated calls reuse the same env-only instance.
+    assert get_feature_flag_client() is client
+
+
+@pytest.mark.ai
+async def test_is_flag_enabled__no_backend__reads_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The convenience wrapper never raises on missing config; it honours the env var."""
+    monkeypatch.delenv("CONFIGURATION_BACKEND_URL", raising=False)
+    monkeypatch.delenv("FEATURE_FLAG_SERVICE_ID", raising=False)
+    monkeypatch.setenv(_FLAG, "true")
+
+    assert await is_flag_enabled(_FLAG, company_id=_COMPANY_ID) is True
+
+    monkeypatch.setenv(_FLAG, "false")
+    assert await is_flag_enabled(_FLAG, company_id=_COMPANY_ID) is False
+
+
+@pytest.mark.ai
+async def test_env_only_client__allowlist__company_in_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Comma-separated company allowlist is honoured in env-only mode."""
+    monkeypatch.delenv("CONFIGURATION_BACKEND_URL", raising=False)
+    monkeypatch.delenv("FEATURE_FLAG_SERVICE_ID", raising=False)
+    monkeypatch.setenv(_FLAG, f"other-co,{_COMPANY_ID}")
+
+    result = await get_feature_flag_client().evaluate(_FLAG, company_id=_COMPANY_ID)
+
+    assert result == FlagEvaluation(value=True, reason="fallback")
+
+
+@pytest.mark.ai
+async def test_env_only_client__empty_company_id__raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Empty company_id still raises, matching FeatureFlagClient.evaluate semantics."""
+    monkeypatch.delenv("CONFIGURATION_BACKEND_URL", raising=False)
+    monkeypatch.delenv("FEATURE_FLAG_SERVICE_ID", raising=False)
+
+    with pytest.raises(ValueError, match="company_id"):
+        await get_feature_flag_client().evaluate(_FLAG, company_id="   ")
