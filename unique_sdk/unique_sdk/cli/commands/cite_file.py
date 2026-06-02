@@ -119,9 +119,7 @@ def cmd_cite_file(
                 key = (entry.get("contentId", ""), entry.get("page", 0))
                 existing_keys[key] = entry.get("sourceNumber", 0)
 
-            next_source_number = (
-                max(existing_keys.values()) + 1 if existing_keys else 1
-            )
+            next_source_number = max(existing_keys.values()) + 1 if existing_keys else 1
 
             output_lines: list[str] = []
             for page in page_list:

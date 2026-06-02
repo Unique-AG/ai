@@ -143,9 +143,7 @@ class TestCmdCiteFile:
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert lines[0]["contentId"] == "cont_abc123"
 
-    def test_content_id_passthrough(
-        self, state: ShellState, workspace: Path
-    ):
+    def test_content_id_passthrough(self, state: ShellState, workspace: Path):
         """Content IDs starting with cont_ are used directly."""
         result = cmd_cite_file(state, "cont_direct999", "1")
 
@@ -164,9 +162,7 @@ class TestCmdCiteFile:
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert lines[0]["page"] == 0
 
-    def test_dedup_same_page(
-        self, state: ShellState, workspace_with_manifest: Path
-    ):
+    def test_dedup_same_page(self, state: ShellState, workspace_with_manifest: Path):
         cmd_cite_file(state, "report.pdf", "3")
         result = cmd_cite_file(state, "report.pdf", "3")
 
