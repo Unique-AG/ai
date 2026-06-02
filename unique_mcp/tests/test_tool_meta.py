@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 from pydantic import BaseModel
 
@@ -200,9 +202,12 @@ class _MockServer:
         self.name = name
 
 
-# NOTE: dep.factory(...) accesses fastmcp.dependencies.Depends.factory, an
-# internal attribute. If fastmcp changes its Depends internals these tests
-# will break — intentional: signals we need to update config injection tests.
+def _call_dep(dep, server_name: str = "test-server"):
+    """Call a get_tool_config resolver with a mocked FastMCP server."""
+    with mock.patch(
+        "unique_mcp.meta.tool.CurrentFastMCP", return_value=_MockServer(server_name)
+    ):
+        return dep()
 
 
 @pytest.mark.ai
@@ -211,7 +216,7 @@ def test_get_tool_config_returns_defaults() -> None:
         value: int = 7
 
     dep = get_tool_config(MyConfig)
-    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = _call_dep(dep)
     assert isinstance(config, MyConfig)
     assert config.value == 7
 
@@ -225,7 +230,7 @@ def test_get_tool_config_env_var_fallback(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv(env_key, '{"value": 42}')
 
     dep = get_tool_config(MyConfig)
-    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = _call_dep(dep)
     assert isinstance(config, MyConfig)
     assert config.value == 42
 
@@ -243,7 +248,7 @@ def test_get_tool_config_env_file_fallback(
     env_file.write_text(f'{env_key}={{"value": 88}}')
     monkeypatch.setenv("ENVIRONMENT_FILE_PATH", str(env_file))
     dep = get_tool_config(MyConfig)
-    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = _call_dep(dep)
 
     assert isinstance(config, MyConfig)
     assert config.value == 88
@@ -262,7 +267,7 @@ def test_get_tool_config_env_file_nonexistent_path_falls_back_to_defaults(
     monkeypatch.delenv(env_key, raising=False)
     monkeypatch.setenv("ENVIRONMENT_FILE_PATH", "/nonexistent/path/unique_mcp.env")
     dep = get_tool_config(MyConfig)
-    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = _call_dep(dep)
 
     assert isinstance(config, MyConfig)
     assert config.value == 7  # default, env file was silently skipped
@@ -282,7 +287,7 @@ def test_get_tool_config_meta_injection(monkeypatch: pytest.MonkeyPatch) -> None
     )
 
     dep = get_tool_config(MyConfig)
-    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = _call_dep(dep)
     assert isinstance(config, MyConfig)
     assert config.value == 99
 
@@ -305,5 +310,5 @@ def test_get_tool_config_meta_injection_json_string(
     )
 
     dep = get_tool_config(MyConfig)
-    config = dep.factory(server=_MockServer("test-server"))  # type: ignore[union-attr]
+    config = _call_dep(dep)
     assert config.value == 55
