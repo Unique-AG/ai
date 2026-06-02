@@ -5,7 +5,7 @@ transport errors, and env-var fallback when no prior value exists.
 Env-var values support both plain booleans and comma-separated company-ID
 allowlists, consistent with ``unique_toolkit.agentic.feature_flags``.
 
-Required env vars::
+Optional env vars (when unset, flags are evaluated from env vars only)::
 
     CONFIGURATION_BACKEND_URL=https://<your-configuration-backend>
     FEATURE_FLAG_SERVICE_ID=your-service-name

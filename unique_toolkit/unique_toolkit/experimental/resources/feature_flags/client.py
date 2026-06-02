@@ -260,8 +260,9 @@ def get_feature_flag_client() -> FeatureFlagClient:
     """
     if _EnvOnlyFeatureFlagClient._env_instance is not None:
         return _EnvOnlyFeatureFlagClient._env_instance
-    if not os.getenv("CONFIGURATION_BACKEND_URL") or not os.getenv(
-        "FEATURE_FLAG_SERVICE_ID"
+    if (
+        not (os.getenv("CONFIGURATION_BACKEND_URL") or "").strip()
+        or not (os.getenv("FEATURE_FLAG_SERVICE_ID") or "").strip()
     ):
         logger.warning(
             "configuration-backend not configured "
