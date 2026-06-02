@@ -260,9 +260,9 @@ def get_feature_flag_client() -> FeatureFlagClient:
     """
     if _EnvOnlyFeatureFlagClient._env_instance is not None:
         return _EnvOnlyFeatureFlagClient._env_instance
-    try:
-        return FeatureFlagClient.from_settings()
-    except ValueError:
+    if not os.getenv("CONFIGURATION_BACKEND_URL") or not os.getenv(
+        "FEATURE_FLAG_SERVICE_ID"
+    ):
         logger.warning(
             "configuration-backend not configured "
             "(CONFIGURATION_BACKEND_URL / FEATURE_FLAG_SERVICE_ID unset) — "
@@ -270,6 +270,7 @@ def get_feature_flag_client() -> FeatureFlagClient:
         )
         _EnvOnlyFeatureFlagClient._env_instance = _EnvOnlyFeatureFlagClient()
         return _EnvOnlyFeatureFlagClient._env_instance
+    return FeatureFlagClient.from_settings()
 
 
 async def is_flag_enabled(
