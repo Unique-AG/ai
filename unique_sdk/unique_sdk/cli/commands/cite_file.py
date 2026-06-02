@@ -40,14 +40,14 @@ def _parse_pages(pages: str | None) -> list[int]:
         if "-" in part:
             bounds = part.split("-", 1)
             start_s, end_s = bounds[0].strip(), bounds[1].strip()
-            if not start_s.isdigit() or not end_s.isdigit():
+            if not start_s.isdecimal() or not end_s.isdecimal():
                 return []
             start, end = int(start_s), int(end_s)
             if start < 1 or end < start or (end - start + 1) > _MAX_PAGES_PER_CALL:
                 return []
             selected.extend(range(start, end + 1))
         else:
-            if not part.isdigit() or int(part) < 1:
+            if not part.isdecimal() or int(part) < 1:
                 return []
             selected.append(int(part))
     if not selected:
@@ -113,12 +113,15 @@ def cmd_cite_file(
             refs_log_path, lock_filename=_FILE_REFS_LOCK_FILENAME
         ):
             existing = _read_turn_refs_manifest(refs_log_path)
-            next_source_number = len(existing) + 1
 
             existing_keys: dict[tuple[str, int], int] = {}
             for entry in existing:
                 key = (entry.get("contentId", ""), entry.get("page", 0))
                 existing_keys[key] = entry.get("sourceNumber", 0)
+
+            next_source_number = (
+                max(existing_keys.values()) + 1 if existing_keys else 1
+            )
 
             output_lines: list[str] = []
             for page in page_list:

@@ -52,6 +52,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
       download <name|id> [dest] Download a file to local machine
       rm <name|id>              Delete a file
       mv <old> <new>            Rename a file
+      cite <name|id> [--pages]  Declare page citations for a file
 
     Search:
       search <query> [options]  Combined search (vector + full-text)
