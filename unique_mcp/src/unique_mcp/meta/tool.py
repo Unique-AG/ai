@@ -4,7 +4,7 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, Callable, TypeVar
 
 from dotenv import dotenv_values
 from fastmcp.dependencies import CurrentFastMCP, Depends
@@ -53,7 +53,7 @@ def _load_tool_config_override(env_key: str) -> str | None:
     return dotenv_values(env_file).get(env_key)
 
 
-def get_tool_config(config_model: type[_T]) -> _T:
+def get_tool_config(config_model: type[_T]) -> Callable[..., _T]:
     """Dependency factory — resolves and validates tool config.
 
     Lookup order:
@@ -68,7 +68,8 @@ def get_tool_config(config_model: type[_T]) -> _T:
     """
     from unique_mcp.unique_injectors import get_request_meta  # avoid circular
 
-    def _inner(server: Any = CurrentFastMCP()) -> _T:
+    def _inner() -> _T:
+        server = CurrentFastMCP()
         raw = (get_request_meta() or {}).get(CONFIG_META_KEY)
         if raw is not None:
             if isinstance(raw, str):
@@ -82,7 +83,7 @@ def get_tool_config(config_model: type[_T]) -> _T:
 
         return config_model()
 
-    return Depends(_inner)  # type: ignore[return-value]
+    return _inner
 
 
 __all__ = [
