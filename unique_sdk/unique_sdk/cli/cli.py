@@ -7,6 +7,7 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_ask,
     cmd_elicit_create,
@@ -15,7 +16,6 @@ from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_respond,
     cmd_elicit_wait,
 )
-from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
