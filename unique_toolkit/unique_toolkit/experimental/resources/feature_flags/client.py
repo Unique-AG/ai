@@ -258,16 +258,17 @@ def get_feature_flag_client() -> FeatureFlagClient:
     a usable client and flags are read from ``FEATURE_FLAG_*`` env vars. Once the
     settings are present a real remote-backed client is built and returned.
     """
+    if _EnvOnlyFeatureFlagClient._env_instance is not None:
+        return _EnvOnlyFeatureFlagClient._env_instance
     try:
         return FeatureFlagClient.from_settings()
     except ValueError:
-        if _EnvOnlyFeatureFlagClient._env_instance is None:
-            logger.warning(
-                "configuration-backend not configured "
-                "(CONFIGURATION_BACKEND_URL / FEATURE_FLAG_SERVICE_ID unset) — "
-                "feature flags will be evaluated from env vars only."
-            )
-            _EnvOnlyFeatureFlagClient._env_instance = _EnvOnlyFeatureFlagClient()
+        logger.warning(
+            "configuration-backend not configured "
+            "(CONFIGURATION_BACKEND_URL / FEATURE_FLAG_SERVICE_ID unset) — "
+            "feature flags will be evaluated from env vars only."
+        )
+        _EnvOnlyFeatureFlagClient._env_instance = _EnvOnlyFeatureFlagClient()
         return _EnvOnlyFeatureFlagClient._env_instance
 
 
