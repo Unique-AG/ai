@@ -135,7 +135,8 @@ unique-cli cite cont_abc123 --pages 1-4
 This registers `[filesourceN]` markers. Use them inline in your answer.
 The platform converts `[filesourceN]` into footnotes and clickable reference chips.
 
-- **Always** check the page count first (e.g. `pdfinfo file.pdf | grep Pages`) and only cite pages that actually exist.
+- Page numbers are **physical PDF positions** (1-based), NOT printed page numbers from headers/footers. A cover page is physical page 1 even if the document prints "Page 1" later.
+- **Locate before cite**: verify page count (`pdfinfo file.pdf | grep Pages`) and confirm which physical page your content is on (`pdftotext -f N -l N file.pdf -`) before citing. Never cite a page you have not verified.
 - Numbers are **per-turn only**; do not reuse from prior turns.
 - Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search`.
 
