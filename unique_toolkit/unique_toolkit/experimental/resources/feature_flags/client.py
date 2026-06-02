@@ -58,12 +58,8 @@ class FeatureFlagClient:
     def __init__(self, *, url: str, service_id: str, ttl_ms: int = 5_000) -> None:
         self._url = url
         self._service_id = service_id
-        self._cache: AsyncTTLCache = (
-            AsyncTTLCache(ttl_ms=ttl_ms) if url else None  # type: ignore[assignment]
-        )
-        self._http: httpx.AsyncClient = (
-            httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0)) if url else None  # type: ignore[assignment]
-        )
+        self._cache = AsyncTTLCache(ttl_ms=ttl_ms)
+        self._http = httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0))
 
     @classmethod
     def from_settings(cls) -> FeatureFlagClient:
