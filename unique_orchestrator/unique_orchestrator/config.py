@@ -14,6 +14,7 @@ from unique_internal_search.uploaded_search.config import (
 )
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -236,14 +237,20 @@ class EvaluationConfig(BaseToolConfig):
 
 
 class UniqueAIPromptConfig(BaseToolConfig):
-    system_prompt_template: str = Field(
+    system_prompt_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=25),
+    ] = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "system_prompt.jinja2"
         ).read_text(),
         description="The system prompt template as a Jinja2 template string.",
     )
 
-    user_message_prompt_template: str = Field(
+    user_message_prompt_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=4),
+    ] = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "user_message_prompt.jinja2"
         ).read_text(),

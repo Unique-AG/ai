@@ -1,6 +1,8 @@
 from logging import getLogger
+from typing import Annotated
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.utils.jinja.utils import validate_template_placeholders
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -26,15 +28,24 @@ class FollowUpQuestionsConfig(BaseModel):
         description="The language model to be used for the follow-up question.",
     )
 
-    user_prompt: str = Field(
+    user_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=10),
+    ] = Field(
         default=FOLLOW_UP_QUESTION_USER_PROMPT_TEMPLATE,
         description="The user prompt to be used for the follow-up question.",
     )
-    system_prompt: str = Field(
+    system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=15),
+    ] = Field(
         default=FOLLOW_UP_QUESTION_SYSTEM_PROMPT_TEMPLATE,
         description="The system prompt to be used for the follow-up question.",
     )
-    suggestions_format: str = Field(
+    suggestions_format: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=8),
+    ] = Field(
         default=SUGGESTION_FORMAT_TEMPLATE,
         description="The suggestion format to be used for displaying the suggestions of follow-up questions.",
     )
