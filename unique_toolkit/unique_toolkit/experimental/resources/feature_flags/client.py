@@ -5,6 +5,7 @@ import os
 from typing import ClassVar
 
 import httpx
+from pydantic import ValidationError
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
 from unique_toolkit.app.unique_settings import AuthContextProtocol, UniqueSettings
@@ -57,8 +58,12 @@ class FeatureFlagClient:
     def __init__(self, *, url: str, service_id: str, ttl_ms: int = 5_000) -> None:
         self._url = url
         self._service_id = service_id
-        self._cache = AsyncTTLCache(ttl_ms=ttl_ms)
-        self._http = httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0))
+        self._cache: AsyncTTLCache | None = (
+            AsyncTTLCache(ttl_ms=ttl_ms) if url else None
+        )
+        self._http: httpx.AsyncClient | None = (
+            httpx.AsyncClient(timeout=httpx.Timeout(2.0, connect=1.0)) if url else None
+        )
 
     @classmethod
     def from_settings(cls) -> FeatureFlagClient:
@@ -260,10 +265,11 @@ def get_feature_flag_client() -> FeatureFlagClient:
     """
     if _EnvOnlyFeatureFlagClient._env_instance is not None:
         return _EnvOnlyFeatureFlagClient._env_instance
-    if (
-        not (os.getenv("CONFIGURATION_BACKEND_URL") or "").strip()
-        or not (os.getenv("FEATURE_FLAG_SERVICE_ID") or "").strip()
-    ):
+    try:
+        return FeatureFlagClient.from_settings()
+    except ValidationError:
+        raise
+    except ValueError:
         logger.warning(
             "configuration-backend not configured "
             "(CONFIGURATION_BACKEND_URL / FEATURE_FLAG_SERVICE_ID unset) — "
@@ -271,7 +277,6 @@ def get_feature_flag_client() -> FeatureFlagClient:
         )
         _EnvOnlyFeatureFlagClient._env_instance = _EnvOnlyFeatureFlagClient()
         return _EnvOnlyFeatureFlagClient._env_instance
-    return FeatureFlagClient.from_settings()
 
 
 async def is_flag_enabled(
