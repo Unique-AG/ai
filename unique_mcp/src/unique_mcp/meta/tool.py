@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 from dotenv import dotenv_values
-from fastmcp.dependencies import CurrentFastMCP, Depends
+from fastmcp.server.dependencies import get_server
 from pydantic import BaseModel
 
 from unique_mcp.meta.keys import CONFIG_META_KEY
@@ -62,14 +62,16 @@ def get_tool_config(config_model: type[_T]) -> Callable[..., _T]:
          (and env files resolved by ``find_env_file(["unique_mcp.env", ".env"])``)
       3. ``config_model`` defaults
 
-    Use as a default value in tool signatures::
+    Use as a default value in tool signatures (wrap with ``Depends``)::
 
-        config: MyConfig = get_tool_config(MyConfig)
+        from fastmcp.dependencies import Depends
+
+        config: MyConfig = Depends(get_tool_config(MyConfig))
     """
     from unique_mcp.unique_injectors import get_request_meta  # avoid circular
 
     def _inner() -> _T:
-        server = CurrentFastMCP()
+        server = get_server()
         raw = (get_request_meta() or {}).get(CONFIG_META_KEY)
         if raw is not None:
             if isinstance(raw, str):

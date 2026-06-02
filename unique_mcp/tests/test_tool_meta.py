@@ -205,7 +205,7 @@ class _MockServer:
 def _call_dep(dep, server_name: str = "test-server"):
     """Call a get_tool_config resolver with a mocked FastMCP server."""
     with mock.patch(
-        "unique_mcp.meta.tool.CurrentFastMCP", return_value=_MockServer(server_name)
+        "unique_mcp.meta.tool.get_server", return_value=_MockServer(server_name)
     ):
         return dep()
 
