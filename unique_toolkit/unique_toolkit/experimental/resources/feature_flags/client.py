@@ -230,7 +230,7 @@ class _EnvOnlyFeatureFlagClient(FeatureFlagClient):
     _env_instance: ClassVar[_EnvOnlyFeatureFlagClient | None] = None
 
     def __init__(self) -> None:  # no URL / HTTP client / cache needed
-        pass
+        super().__init__(url="", service_id="")
 
     async def evaluate(
         self,
