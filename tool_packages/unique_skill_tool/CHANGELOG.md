@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.22.0...unique-skill-tool-v2026.24.0) (2026-06-03)
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
 ## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.20.0...unique-skill-tool-v2026.22.0) (2026-05-21)
 
 

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.22.0...unique-web-search-v2026.24.0) (2026-06-03)
+
+
+### Features
+
+* Introduce Perplexity search engine ([#1775](https://github.com/Unique-AG/ai/issues/1775)) ([6a72167](https://github.com/Unique-AG/ai/commit/6a72167f80afa23b5c3bbe82ba9914aa0ab5c1f0))
+
+
+### Bug Fixes
+
+* **unique_web_search:** Use exclude=True if field is defined through env ([#1787](https://github.com/Unique-AG/ai/issues/1787)) ([2c57b34](https://github.com/Unique-AG/ai/commit/2c57b346d2b079222685171e52102712294f8d71))
+* V3 prompt improvements ([#1772](https://github.com/Unique-AG/ai/issues/1772)) ([466e931](https://github.com/Unique-AG/ai/commit/466e931378e9c68d5b107ab596eed94f7cfd1ff6))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
 ## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.20.0...unique-web-search-v2026.22.0) (2026-05-21)
 
 

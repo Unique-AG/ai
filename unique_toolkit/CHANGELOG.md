@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.22.0...unique-toolkit-v2026.24.0) (2026-06-03)
+
+
+### Features
+
+* Enable model picking ([#1735](https://github.com/Unique-AG/ai/issues/1735)) ([753eab5](https://github.com/Unique-AG/ai/commit/753eab56adc3097c269b5c62da4bd2e09d7f871f))
+* **feature-flags:** add get_feature_flag_client / is_flag_enabled helpers (UN-20510) ([#1768](https://github.com/Unique-AG/ai/issues/1768)) ([def94ee](https://github.com/Unique-AG/ai/commit/def94ee621c79dc3c06d253980618f89ce6de23a))
+* **kb-config:** replace loose metadata_filter type with validated UniqueQLDict ([#1696](https://github.com/Unique-AG/ai/issues/1696)) ([0915be3](https://github.com/Unique-AG/ai/commit/0915be3f1d263d87f7e873d1494b83ae61ada093))
+* **unique_toolkit:** multiprocess-aware metrics + python_ prefix rename (UN-19849) ([#1652](https://github.com/Unique-AG/ai/issues/1652)) ([3a1b762](https://github.com/Unique-AG/ai/commit/3a1b762907dc054d7475b94712df10c08efcd256))
+* **unique-toolkit:** add FeatureFlagClient to experimental/resources (UN-20510) ([#1715](https://github.com/Unique-AG/ai/issues/1715)) ([4601a4d](https://github.com/Unique-AG/ai/commit/4601a4dfd750bc2e45cf2354164d8ff3c5e2bb0d))
+* **unique-toolkit:** allow sub-agents to take orchestrator control ([#1737](https://github.com/Unique-AG/ai/issues/1737)) ([cd711ce](https://github.com/Unique-AG/ai/commit/cd711ced727dc1f1c3440274c141da4b24337ad7))
+* **unique-toolkit:** UN-20677 runnable doc examples via uv ([#1742](https://github.com/Unique-AG/ai/issues/1742)) ([7c7e058](https://github.com/Unique-AG/ai/commit/7c7e058575b10084233fa17249ec69c6580796ce))
+
+
+### Bug Fixes
+
+* **code-interpreter:** prevent Plotly header overlap in HTML artifacts (UN-21182) ([#1749](https://github.com/Unique-AG/ai/issues/1749)) ([d77ccce](https://github.com/Unique-AG/ai/commit/d77ccce92e4f0a42273dd65c0a59a8cacc3e4540))
+* **deps:** resolve open Dependabot alerts via constraint-dependencies ([#1751](https://github.com/Unique-AG/ai/issues/1751)) ([f92b9f5](https://github.com/Unique-AG/ai/commit/f92b9f5d1c9d2145316d2bf1f9b91b8b359c2324))
+* **short-term-memory:** return None instead of crashing on empty SDK response ([#1730](https://github.com/Unique-AG/ai/issues/1730)) ([3fa5bc0](https://github.com/Unique-AG/ai/commit/3fa5bc0e33d50dca26792eed5652409d695a03e7))
+* **toolkit:** clarify code interpreter dangling-link UX (UN-21188) ([#1750](https://github.com/Unique-AG/ai/issues/1750)) ([9f4b836](https://github.com/Unique-AG/ai/commit/9f4b83671a522a93ae2ecfa9ea94da2671996e11))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
 ## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.0...unique-toolkit-v2026.22.0) (2026-05-21)
 
 
