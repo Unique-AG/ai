@@ -45,7 +45,7 @@ jobs:
 
       - name: Export hash-pinned requirements
         run: >
-          uv export --locked
+          uv export --frozen
           --package ${{ inputs.pypi_name }}
           --no-dev --no-emit-project
           -o ${{ inputs.package_dir }}/deploy/requirements.txt
