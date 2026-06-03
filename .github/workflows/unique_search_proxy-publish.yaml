@@ -76,6 +76,23 @@ jobs:
           --no-dev --no-emit-project
           -o connectors/unique_search_proxy/deploy/requirements.txt
 
+      - name: Wait for PyPI to publish unique-search-proxy
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          echo "Polling PyPI for unique-search-proxy==$VERSION ..."
+          for i in $(seq 1 20); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://pypi.org/pypi/unique-search-proxy/$VERSION/json")
+            if [[ "$STATUS" == "200" ]]; then
+              echo "unique-search-proxy==$VERSION is available on PyPI"
+              exit 0
+            fi
+            echo "Attempt $i/20: HTTP $STATUS — retrying in 30s..."
+            sleep 30
+          done
+          echo "ERROR: unique-search-proxy==$VERSION not found on PyPI after 10 minutes"
+          exit 1
+
       - name: Setup docker buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
