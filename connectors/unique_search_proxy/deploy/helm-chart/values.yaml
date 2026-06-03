@@ -1,0 +1,121 @@
+nameOverride: search-proxy
+fullnameOverride: search-proxy
+selectorComponentLabel: server
+
+# ── Deployment ────────────────────────────────────────────────────────────────
+env:
+  LOG_LEVEL: info
+  WORKERS: "4"
+  TIMEOUT: "120"
+  GOOGLE_SEARCH_API_ENDPOINT: https://customsearch.googleapis.com/customsearch/v1
+  GOOGLE_SEARCH_ENGINE_ID: "00c5f6e9ac4644f42"
+
+# Google Search API key is read from an EXISTING Secret. The chart only
+# references it (secretKeyRef) and never creates it, so any mechanism
+# (External Secrets, sealed-secrets, manual kubectl) that produces
+# `search-proxy-secret` works. Override name/key in your overlay if it differs.
+envVars:
+  - name: GOOGLE_SEARCH_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: search-proxy-secret
+        key: GOOGLE_SEARCH_API_KEY
+
+image:
+  pullPolicy: IfNotPresent
+  registry: ghcr.io
+  repository: unique-ag/ai/search-proxy
+  tag: "0.0.0" # x-release-please-version
+  useDigest: false # not yet supported for out-of-tree charts
+
+ports:
+  application: 8080
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 384Mi
+
+probes:
+  enabled: true
+  liveness:
+    failureThreshold: 6
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+  readiness:
+    failureThreshold: 6
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+  startup:
+    failureThreshold: 30
+    httpGet:
+      path: /health
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+deployment:
+  revisionHistoryLimit: 3
+  metadata:
+    annotations:
+      reloader.stakater.com/auto: "true"
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  port: 80
+
+# ── ServiceAccount ────────────────────────────────────────────────────────────
+serviceAccount:
+  enabled: true
+
+# ── Autoscaling ───────────────────────────────────────────────────────────────
+autoscaling:
+  enabled: false
+
+# ── PodDisruptionBudget ───────────────────────────────────────────────────────
+pdb:
+  maxUnavailable: 30%
+
+# ── NetworkPolicy ─────────────────────────────────────────────────────────────
+networkPolicy:
+  enabled: false
+
+# ── WorkloadIdentity (GCP, Vertex AI) ─────────────────────────────────────────
+# Vertex AI backend authenticates via GCP Workload Identity Federation; base
+# sets GOOGLE_APPLICATION_CREDENTIALS for the SDK. Enable and fill the
+# env-specific fields in your environment overlay. base.validateGcpWorkloadIdentity
+# fails fast if enabled and any field below is empty.
+workloadIdentity:
+  gcp:
+    enabled: false
+    projectId: ""
+    workloadIdentityPool: ""
+    provider: ""
+    serviceAccountEmail: ""
+
+# ── Prometheus ────────────────────────────────────────────────────────────────
+prometheus:
+  enabled: false

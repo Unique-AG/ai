@@ -1,0 +1,105 @@
+name: "[CD] Containerize"
+
+on:
+  workflow_call:
+    inputs:
+      package_dir:
+        description: 'Package root directory (contains deploy/Dockerfile)'
+        required: true
+        type: string
+      pypi_name:
+        description: 'PyPI distribution name'
+        required: true
+        type: string
+      image_repo:
+        description: 'Container image repository (e.g. ghcr.io/org/image)'
+        required: true
+        type: string
+      version:
+        description: 'Version to install from PyPI and tag the image with'
+        required: true
+        type: string
+      tag_latest:
+        description: 'When true, additionally tag latest and v<version> (stable). The raw <version> tag is always emitted so chart image.tag resolves.'
+        required: false
+        type: boolean
+        default: false
+      python:
+        description: 'Python version for uv export'
+        required: false
+        type: string
+        default: '3.12'
+
+permissions:
+  packages: write
+
+jobs:
+  containerize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Export hash-pinned requirements
+        run: >
+          uv export --locked
+          --package ${{ inputs.pypi_name }}
+          --no-dev --no-emit-project
+          -o ${{ inputs.package_dir }}/deploy/requirements.txt
+
+      - name: Wait for PyPI to publish package
+        run: |
+          VERSION="${{ inputs.version }}"
+          PYPI_NAME="${{ inputs.pypi_name }}"
+          echo "Polling PyPI for ${PYPI_NAME}==${VERSION} ..."
+          for i in $(seq 1 20); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              "https://pypi.org/pypi/${PYPI_NAME}/${VERSION}/json")
+            if [[ "$STATUS" == "200" ]]; then
+              echo "${PYPI_NAME}==${VERSION} is available on PyPI"
+              exit 0
+            fi
+            echo "Attempt $i/20: HTTP $STATUS — retrying in 30s..."
+            sleep 30
+          done
+          echo "ERROR: ${PYPI_NAME}==${VERSION} not found on PyPI after 10 minutes"
+          exit 1
+
+      - name: Setup docker buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Add docker metadata
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ${{ inputs.image_repo }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=raw,value=${{ inputs.version }}
+            type=raw,value=v${{ inputs.version }},enable=${{ inputs.tag_latest }}
+            type=raw,value=latest,enable=${{ inputs.tag_latest }}
+
+      - name: Login to registry hub
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push container
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          build-args: |
+            PACKAGE_VERSION=${{ inputs.version }}
+          cache-from: type=registry,ref=${{ inputs.image_repo }}:cache
+          cache-to: type=registry,ref=${{ inputs.image_repo }}:cache,mode=min
+          context: ${{ inputs.package_dir }}/deploy
+          file: ${{ inputs.package_dir }}/deploy/Dockerfile
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          provenance: false
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
