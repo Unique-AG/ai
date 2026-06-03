@@ -1,0 +1,5 @@
+# Chart.lock and the charts/ directory are generated at build time by helm-chart-publish.
+# The base library is pulled from oci://ghcr.io/unique-ag/helm by helm dependency build
+# during the publish action — nothing here should be committed.
+Chart.lock
+charts/

@@ -1,0 +1,163 @@
+nameOverride: search-proxy
+fullnameOverride: search-proxy
+
+# ── SecretProvider ────────────────────────────────────────────────────────────
+# Google Search API credentials are supplied via the overlay-managed ExternalSecret
+# named search-proxy-secret (see extraEnvSecrets below). Example overlay fragment:
+#
+# ---
+# apiVersion: external-secrets.io/v1
+# kind: ExternalSecret
+# metadata:
+#   name: search-proxy-secret
+# spec:
+#   secretStoreRef:
+#     kind: ClusterSecretStore
+#     name: kv-app-common
+#   target:
+#     name: search-proxy-secret
+#     template:
+#       data:
+#         GOOGLE_SEARCH_API_ENDPOINT: "https://customsearch.googleapis.com/customsearch/v1"
+#         GOOGLE_SEARCH_ENGINE_ID: "<engine-id>"
+#         GOOGLE_SEARCH_API_KEY: "{{ .google_search_api_key }}"
+#   data:
+#     - secretKey: google_search_api_key
+#       remoteRef:
+#         key: manual-google-search-api-key
+
+# ── Deployment ────────────────────────────────────────────────────────────────
+env:
+  LOG_LEVEL: info
+  WORKERS: '4'
+  TIMEOUT: '120'
+
+extraEnvSecrets:
+  - search-proxy-secret
+
+image:
+  registry: ghcr.io
+  repository: unique-ag/ai/search-proxy
+  pullPolicy: IfNotPresent
+  # @publish-strip:begin image-stamp-doc
+  # Stamped at release time by .github/actions/helm-chart-publish/action.yml:
+  #   tag:       <release version>          # also written to Chart.yaml appVersion
+  #   digest:    sha256:<64-hex>            # immutable pull reference
+  #   useDigest: true                       # set false in your cluster overlay to opt out
+  # The published chart is digest-pinned by default; this comment block is
+  # stripped from the published values.yaml so consumers see only the
+  # final stamped values.
+  # @publish-strip:end image-stamp-doc
+
+ports:
+  application: 8080
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 384Mi
+
+probes:
+  enabled: true
+  liveness:
+    httpGet:
+      path: /health
+      port: http
+  readiness:
+    httpGet:
+      path: /health
+      port: http
+  startup:
+    httpGet:
+      path: /health
+      port: http
+
+deployment:
+  revisionHistoryLimit: 3
+  metadata:
+    annotations:
+      reloader.stakater.com/auto: "true"
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  port: 80
+
+# ── ServiceAccount ────────────────────────────────────────────────────────────
+serviceAccount:
+  enabled: true
+
+# ── Autoscaling ───────────────────────────────────────────────────────────────
+autoscaling:
+  enabled: false
+
+# ── PodDisruptionBudget ───────────────────────────────────────────────────────
+pdb:
+  maxUnavailable: 30%
+
+# ── NetworkPolicy ─────────────────────────────────────────────────────────────
+# Internal-only service — no HTTPRoute. Enable Cilium policy in your overlay.
+# baseline supplies DNS, Prometheus scrape, ICMP, and ephemeral return ports;
+# add ingress/egress rules for assistants-core, Elasticsearch, and world HTTPS.
+#
+# networkPolicy:
+#   enabled: true
+#   flavor: cilium
+#   description: "Network policy for search-proxy connector"
+#   enableDefaultDeny:
+#     ingress: true
+#     egress: true
+#   ingress:
+#     - fromEndpoints:
+#         - matchLabels:
+#             "k8s:io.kubernetes.pod.namespace": <assistants-namespace>
+#             "k8s:app.kubernetes.io/name": assistants-core
+#       toPorts:
+#         - ports:
+#             - port: "8080"
+#               protocol: TCP
+#   egress:
+#     - toEndpoints:
+#         - matchLabels:
+#             "k8s:elasticsearch.k8s.elastic.co/cluster-name": elasticsearch-ingestion
+#       toPorts:
+#         - ports:
+#             - port: "9200"
+#               protocol: TCP
+#     - toEntities:
+#         - world
+#       toPorts:
+#         - ports:
+#             - port: "443"
+#               protocol: TCP
+#           - port: "80"
+#               protocol: TCP
+
+# ── WorkloadIdentity ──────────────────────────────────────────────────────────
+# GCP WIF for Vertex AI — set per environment in your overlay (QA example):
+#
+# workloadIdentity:
+#   gcp:
+#     enabled: true
+#     projectId: "<gcp-project-number>"
+#     workloadIdentityPool: aks-unique-qa
+#     provider: aks-oidc
+#     serviceAccountEmail: vertex-ai-workload@unique-qa.iam.gserviceaccount.com
+
+# ── Prometheus ────────────────────────────────────────────────────────────────
+prometheus:
+  scraping:
+    enabled: false
