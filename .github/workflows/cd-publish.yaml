@@ -23,6 +23,7 @@ on:
           - internal_search
           - quartr
           - six
+          - search_proxy
           - skill_tool
         default: ""
       ref:
