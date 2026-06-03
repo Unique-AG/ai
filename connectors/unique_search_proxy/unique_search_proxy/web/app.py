@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from unique_search_proxy.web.api import health_router, v1_router
 from unique_search_proxy.web.core.client.service import create_http_client_pool
 from unique_search_proxy.web.core.errors import register_exception_handlers
+from unique_search_proxy.web.core.providers import register_builtin_providers
 from unique_search_proxy.web.monitoring import setup_prometheus
 
 load_dotenv()
@@ -44,6 +45,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    register_builtin_providers()
     application = FastAPI(
         title="Unique Search Proxy",
         description="Unified web egress proxy for search engines and crawlers",

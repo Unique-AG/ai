@@ -6,8 +6,10 @@ from pydantic import BaseModel
 
 from unique_search_proxy.web.core.crawlers.base import BaseCrawler
 from unique_search_proxy.web.core.errors import EngineNotConfiguredError
-from unique_search_proxy.web.core.schema import CrawlerConfig, SearchEngineConfig
 from unique_search_proxy.web.core.search_engines.base import SearchEngine
+from unique_search_proxy.web.core.search_engines.config_types import (
+    ENGINE_NAME_TO_CONFIG,
+)
 
 SearchEngineT = TypeVar("SearchEngineT", bound=SearchEngine)
 CrawlerT = TypeVar("CrawlerT", bound=BaseCrawler)
@@ -65,17 +67,12 @@ def get_crawler(crawler_id: str) -> type[BaseCrawler]:
     return crawler_cls
 
 
-def parse_search_engine_config(data: object) -> SearchEngineConfig:
-    return SearchEngineConfig.model_validate(data)
-
-
-def parse_crawler_config(data: object) -> CrawlerConfig:
-    return CrawlerConfig.model_validate(data)
-
-
 def build_search_engine_config_union() -> list[type[BaseModel]]:
     """Registered per-engine config models for discriminated-union assembly."""
-    return list(_SEARCH_ENGINE_CONFIG_MODELS.values())
+    registered = list(_SEARCH_ENGINE_CONFIG_MODELS.values())
+    if registered:
+        return registered
+    return list(ENGINE_NAME_TO_CONFIG.values())
 
 
 def build_crawler_config_union() -> list[type[BaseModel]]:

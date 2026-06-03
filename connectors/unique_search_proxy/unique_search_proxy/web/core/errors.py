@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from unique_search_proxy.web.core.schema import (
@@ -108,6 +109,12 @@ class UpstreamTimeoutError(ProxyError):
     retryable = True
 
 
+class EmptySearchResultsError(ProxyError):
+    code = ProxyErrorCode.EMPTY_SEARCH_RESULTS
+    status_code = 404
+    retryable = False
+
+
 def proxy_error_response(exc: ProxyError) -> JSONResponse:
     headers: dict[str, str] = {}
     if isinstance(exc, RateLimitedError) and exc.retry_after_seconds is not None:
@@ -140,6 +147,24 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(
         _request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        details = [
+            {
+                "loc": list(error.get("loc", ())),
+                "msg": error.get("msg", ""),
+                "type": error.get("type", ""),
+            }
+            for error in exc.errors()
+        ]
+        proxy_exc = ValidationProxyError(
+            "Request validation failed",
+            details=details,
+        )
+        return proxy_error_response(proxy_exc)
+
+    @app.exception_handler(ValidationError)
+    async def pydantic_validation_handler(
+        _request: Request, exc: ValidationError
     ) -> JSONResponse:
         details = [
             {

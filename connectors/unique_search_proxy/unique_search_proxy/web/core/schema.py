@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, overload
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -20,6 +20,7 @@ class ProxyErrorCode(StrEnum):
     UPSTREAM_ERROR = "UPSTREAM_ERROR"
     ENGINE_NOT_CONFIGURED = "ENGINE_NOT_CONFIGURED"
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
+    EMPTY_SEARCH_RESULTS = "EMPTY_SEARCH_RESULTS"
 
 
 class ErrorDetail(BaseModel):
@@ -56,6 +57,48 @@ class WebSearchResult(BaseModel):
     )
 
 
+class WebSearchResults(BaseModel):
+    model_config = camelized_model_config
+    results: list[WebSearchResult]
+
+    def __len__(self) -> int:
+        return len(self.results)
+
+    @overload
+    def extend(self, other: WebSearchResults) -> WebSearchResults: ...
+    @overload
+    def extend(self, other: list[WebSearchResult]) -> WebSearchResults: ...
+
+    def extend(
+        self, other: WebSearchResults | list[WebSearchResult]
+    ) -> WebSearchResults:
+        if isinstance(other, WebSearchResults):
+            return WebSearchResults(results=self.results + other.results)
+        elif isinstance(other, list):
+            return WebSearchResults(results=self.results + other)
+        else:
+            raise ValueError(f"Invalid type: {type(other)}")
+
+    def dedupe(self) -> WebSearchResults:
+        """Drop duplicate results with the same URL string."""
+        seen: set[str] = set()
+        deduped: list[WebSearchResult] = []
+        for result in self.results:
+            if result.url in seen:
+                continue
+            seen.add(result.url)
+            deduped.append(result)
+        return WebSearchResults(results=deduped)
+
+
+class SearchEngineRaw(BaseModel):
+    model_config = camelized_model_config
+    pages: list[dict]
+
+    def append(self, page: dict) -> None:
+        self.pages.append(page)
+
+
 class ProviderConfigBase(BaseModel):
     """Base config for engines and crawlers."""
 
@@ -67,8 +110,30 @@ class ProviderConfigBase(BaseModel):
     )
 
 
-class SearchEngineConfig(ProviderConfigBase):
-    engine: str = Field(..., description="Search engine identifier")
+class PerUrlError(BaseModel):
+    model_config = camelized_model_config
+
+    code: str
+    message: str
+
+
+class CrawlUrlResult(BaseModel):
+    model_config = camelized_model_config
+
+    url: str
+    content: str | None = Field(
+        default=None,
+        description="Markdown extracted from HTML responses; null when unprocessed",
+    )
+    content_type: str | None = Field(
+        default=None,
+        description="Response Content-Type (media type only, parameters stripped)",
+    )
+    error: PerUrlError | None = None
+    raw: Any | None = Field(
+        default=None,
+        description="Unmodified response body text, or null when no body was received",
+    )
 
 
 class CrawlerConfig(ProviderConfigBase):
