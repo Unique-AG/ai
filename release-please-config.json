@@ -61,8 +61,8 @@
     "connectors/unique_search_proxy": {
       "component": "unique-search-proxy",
       "extra-files": [
-        { "type": "generic", "path": "connectors/unique_search_proxy/deploy/helm-chart/Chart.yaml" },
-        { "type": "generic", "path": "connectors/unique_search_proxy/deploy/helm-chart/values.yaml" }
+        { "type": "generic", "path": "deploy/helm-chart/Chart.yaml" },
+        { "type": "generic", "path": "deploy/helm-chart/values.yaml" }
       ]
     },
     "tool_packages/unique_skill_tool": {
