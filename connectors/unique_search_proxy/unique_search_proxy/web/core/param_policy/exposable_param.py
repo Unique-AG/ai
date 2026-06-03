@@ -91,9 +91,7 @@ class ExposableParam(BaseModel, Generic[T]):
         and generated SDK file names. We derive a short label from the inner type, e.g.
         ``ExposableStr`` or ``ExposableEI``.
         """
-        return "Exposable" + "".join(
-            _exposable_type_label(param) for param in params
-        )
+        return "Exposable" + "".join(_exposable_type_label(param) for param in params)
 
     @model_validator(mode="before")
     @classmethod
