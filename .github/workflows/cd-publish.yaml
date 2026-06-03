@@ -118,6 +118,9 @@ jobs:
     # release-only: a manual workflow_dispatch has no release tag to derive the
     # image version from, so containerization runs solely on release events.
     if: needs.publish.result == 'success' && github.event_name == 'release'
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/cd-containerize-batch.yaml
     secrets: inherit
     with:
