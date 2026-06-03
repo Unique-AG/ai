@@ -106,9 +106,17 @@ jobs:
         if: steps.deps.outcome == 'success'
         run: helm lint "$CHART_DIR"
 
+      # The base chart guards cilium-flavored NetworkPolicies behind a
+      # capability check that `fail`s when the Cilium CRDs are absent. A
+      # clusterless render has no such capability, so we register the GVKs
+      # via --api-versions to mirror a Cilium-enabled target cluster.
       - name: Helm template (render check)
         if: steps.deps.outcome == 'success'
-        run: helm template search-proxy "$CHART_DIR" > /dev/null
+        run: |
+          helm template search-proxy "$CHART_DIR" \
+            --api-versions cilium.io/v2/CiliumNetworkPolicy \
+            --api-versions cilium.io/v2/CiliumClusterwideNetworkPolicy \
+            > /dev/null
 
       - name: Note skipped render
         if: steps.deps.outcome != 'success'
