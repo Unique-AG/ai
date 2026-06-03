@@ -13,7 +13,8 @@ Unified web egress proxy for search engines and crawlers. Built with FastAPI; pr
 
 ```bash
 uv sync
-cp .env.example .env  # when present
+cp .env.example .env
+# Edit .env: set GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID for live /v1/search
 ```
 
 ### Running
@@ -30,33 +31,46 @@ uv run uvicorn unique_search_proxy.web.app:app --reload --port 2349
 |----------|-------------|
 | `GET /health` | Liveness |
 | `GET /ready` | Readiness (httpx pool + registered providers) |
+| `POST /v1/search/call-schema` | JSON Schema for `call` given deployment `config` (LLM discovery) |
 | `POST /v1/search` | Search via configured engine |
 | `POST /v1/crawl` | Crawl URLs via configured crawler |
 | `GET /metrics` | Prometheus scrape endpoint (when enabled) |
-| `/docs` | OpenAPI (Swagger UI) |
+| `/docs` | OpenAPI (Swagger UI) — use **Try it out** and the request-body **Examples** dropdown on `/v1/search`, `/v1/search/call-schema`, and `/v1/crawl` |
 
 Set `ENABLED=false` on monitoring settings (`PrometheusSettings`) to disable metrics. With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct aggregation across uvicorn workers.
 
 Settings are colocated with each component and use env prefixes:
 
-| Component | Prefix | Example |
-|-----------|--------|---------|
+| Component | Prefix / vars | Example |
+|-----------|----------------|---------|
+| Google search | (no prefix) | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
-| URL safety | `URL_SAFETY_` | `URL_SAFETY_ENABLED` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
+| Container entrypoint | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL`, `PROMETHEUS_MULTIPROC_DIR` |
 
-Shared helpers live in `web/settings/`.
+Copy `.example.env` to `.env` for a annotated template of all settings. Shared helpers live in `web/settings/`.
 
 ### Search (`POST /v1/search`)
 
 ```json
 {
-  "query": "example query",
-  "config": { "engine": "google" },
+  "config": {
+    "engine": "google",
+    "fetchSize": 10,
+    "dateRestrict": "d7",
+    "exposedFields": ["gl"]
+  },
+  "call": {
+    "query": "example query",
+    "gl": "de"
+  },
   "includeContent": false,
   "timeout": 30
 }
 ```
+
+- **`config`**: deployment defaults (`fetchSize`, engine-specific parameters, `exposedFields` for LLM-visible optional params)
+- **`call`**: per-request values from the caller/LLM (`query` required; optional fields override config defaults)
 
 Response:
 
@@ -64,7 +78,16 @@ Response:
 {
   "engine": "google",
   "query": "example query",
-  "raw": {},
+  "raw": {
+    "pages": [
+      {
+        "pageIndex": 1,
+        "offset": 1,
+        "requestedCount": 10,
+        "response": {}
+      }
+    ]
+  },
   "curated": [
     {
       "url": "https://example.com",

@@ -4,8 +4,9 @@ import asyncio
 import logging
 import time
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Body, Request
 
+from unique_search_proxy.web.api.v1.openapi_examples import CRAWL_OPENAPI_EXAMPLES
 from unique_search_proxy.web.api.v1.schema import CrawlRequest, CrawlResponse
 from unique_search_proxy.web.core.client import get_http_client_pool
 from unique_search_proxy.web.core.crawlers.factory import get_crawler_service
@@ -20,8 +21,15 @@ router = APIRouter(tags=["crawl"])
 _LOGGER = logging.getLogger(__name__)
 
 
-@router.post("/crawl", response_model=CrawlResponse)
-async def crawl(request: Request, body: CrawlRequest) -> CrawlResponse:
+@router.post(
+    "/crawl",
+    response_model=CrawlResponse,
+    summary="Crawl URLs with a configured crawler",
+)
+async def crawl(
+    request: Request,
+    body: CrawlRequest = Body(openapi_examples=CRAWL_OPENAPI_EXAMPLES),
+) -> CrawlResponse:
     crawler_id = body.config.crawler
     started = time.perf_counter()
 

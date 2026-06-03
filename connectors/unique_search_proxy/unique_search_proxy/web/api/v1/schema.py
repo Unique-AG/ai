@@ -47,11 +47,42 @@ class SearchResponse(BaseModel):
     curated: list[WebSearchResult]
 
 
+class SearchCallSchemaRequest(BaseModel):
+    model_config = camelized_model_config
+
+    config: SearchEngineConfigTypes = Field(
+        discriminator="engine",
+        description="Deployment search-engine config used to project the call schema",
+    )
+
+
+class SearchCallSchemaResponse(BaseModel):
+    model_config = camelized_model_config
+
+    engine: str = Field(..., description="Search engine id from config")
+    mode: str = Field(
+        ...,
+        description="Engine mode (e.g. standard) for observability and tooling",
+    )
+    snippet_only: bool = Field(
+        ...,
+        description=(
+            "When true, search hits are snippet-only; includeContent requires crawlerConfig"
+        ),
+    )
+    call_schema: dict[str, Any] = Field(
+        ...,
+        description="JSON Schema for SearchRequest.call for this config",
+    )
+
+
 __all__ = [
     "CrawlRequest",
     "CrawlResponse",
     "CrawlUrlResult",
     "PerUrlError",
+    "SearchCallSchemaRequest",
+    "SearchCallSchemaResponse",
     "SearchRequest",
     "SearchResponse",
 ]

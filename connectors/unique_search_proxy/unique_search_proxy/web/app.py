@@ -48,9 +48,22 @@ def create_app() -> FastAPI:
     register_builtin_providers()
     application = FastAPI(
         title="Unique Search Proxy",
-        description="Unified web egress proxy for search engines and crawlers",
+        description=(
+            "Unified web egress proxy for search engines and crawlers. "
+            "Use **Try it out** on `/v1/search` and `/v1/crawl` — pick an example "
+            "from the request-body dropdown (snippets-only Google search, crawl with "
+            "HTML markdown, etc.). Requires provider env vars (e.g. "
+            "`GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls."
+        ),
         version="0.2.0",
         lifespan=lifespan,
+        swagger_ui_parameters={
+            "defaultModelsExpandDepth": 1,
+            "defaultModelExpandDepth": 2,
+            "docExpansion": "list",
+            "tryItOutEnabled": True,
+            "displayRequestDuration": True,
+        },
     )
     register_exception_handlers(application)
     setup_prometheus(application)

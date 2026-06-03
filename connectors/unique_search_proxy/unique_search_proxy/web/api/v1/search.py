@@ -5,9 +5,18 @@ import logging
 import time
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Body, Request
 
-from unique_search_proxy.web.api.v1.schema import SearchRequest, SearchResponse
+from unique_search_proxy.web.api.v1.openapi_examples import (
+    SEARCH_CALL_SCHEMA_OPENAPI_EXAMPLES,
+    SEARCH_OPENAPI_EXAMPLES,
+)
+from unique_search_proxy.web.api.v1.schema import (
+    SearchCallSchemaRequest,
+    SearchCallSchemaResponse,
+    SearchRequest,
+    SearchResponse,
+)
 from unique_search_proxy.web.core.client import get_http_client_pool
 from unique_search_proxy.web.core.crawlers.factory import get_crawler_service
 from unique_search_proxy.web.core.errors import (
@@ -23,6 +32,9 @@ from unique_search_proxy.web.core.schema import (
 from unique_search_proxy.web.core.search_engines import (
     get_search_engine_service,
     resolve_engine_call,
+)
+from unique_search_proxy.web.core.search_engines.call_schema import (
+    resolve_search_call_schema,
 )
 from unique_search_proxy.web.core.search_engines.params import call_query
 from unique_search_proxy.web.monitoring.metrics import (
@@ -75,8 +87,34 @@ async def _fill_content_from_crawler(
     return filled
 
 
-@router.post("/search", response_model=SearchResponse)
-async def search(request: Request, body: SearchRequest) -> SearchResponse:
+@router.post(
+    "/search/call-schema",
+    response_model=SearchCallSchemaResponse,
+    summary="JSON Schema for SearchRequest.call",
+)
+async def search_call_schema(
+    body: SearchCallSchemaRequest = Body(
+        openapi_examples=SEARCH_CALL_SCHEMA_OPENAPI_EXAMPLES,
+    ),
+) -> SearchCallSchemaResponse:
+    descriptor = resolve_search_call_schema(body.config)
+    return SearchCallSchemaResponse(
+        engine=descriptor.engine,
+        mode=descriptor.mode,
+        snippet_only=descriptor.snippet_only,
+        call_schema=descriptor.call_schema,
+    )
+
+
+@router.post(
+    "/search",
+    response_model=SearchResponse,
+    summary="Run a configured search engine",
+)
+async def search(
+    request: Request,
+    body: SearchRequest = Body(openapi_examples=SEARCH_OPENAPI_EXAMPLES),
+) -> SearchResponse:
     engine_id = body.config.engine.value
     started = time.perf_counter()
     call = resolve_engine_call(body.config, body.call)

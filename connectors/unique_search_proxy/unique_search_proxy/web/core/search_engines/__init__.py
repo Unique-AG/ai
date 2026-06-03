@@ -12,6 +12,10 @@ from unique_search_proxy.web.core.search_engines.config_types import (
     get_search_engine_config_types_from_names,
     parse_search_engine_config,
 )
+from unique_search_proxy.web.core.search_engines.call_schema import (
+    SearchCallSchemaDescriptor,
+    resolve_search_call_schema,
+)
 from unique_search_proxy.web.core.search_engines.factory import (
     get_search_engine_service,
     resolve_engine_call,
@@ -54,6 +58,8 @@ __all__ = [
     "parse_search_engine_config",
     "register_builtin_search_engines",
     "resolve_engine_call",
+    "resolve_search_call_schema",
+    "SearchCallSchemaDescriptor",
     "SearchEngineRaw",
     "DEFAULT_MAX_PAGE_SIZE",
 ]
