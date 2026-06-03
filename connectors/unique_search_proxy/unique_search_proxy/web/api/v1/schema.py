@@ -5,37 +5,17 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from unique_search_proxy.web.core.crawlers.config_types import CrawlerConfigTypes
+from unique_search_proxy.web.core.projection import build_request_model
 from unique_search_proxy.web.core.schema import (
     CrawlUrlResult,
     PerUrlError,
     WebSearchResult,
     camelized_model_config,
 )
-from unique_search_proxy.web.core.search_engines import SearchEngineConfigTypes
+from unique_search_proxy.web.core.search_engines.google.schema import GoogleConfig
 
-
-class SearchRequest(BaseModel):
-    model_config = camelized_model_config
-
-    config: SearchEngineConfigTypes = Field(discriminator="engine")
-    call: dict[str, Any] = Field(
-        ...,
-        description=(
-            "Per-invocation parameters merged over config defaults "
-            "(must include query; may include LLM-exposed fields)"
-        ),
-    )
-    include_content: bool = Field(
-        default=False,
-        description="When true and the engine is snippet-only, crawl to fill content",
-    )
-    crawler_config: CrawlerConfigTypes | None = None
-    timeout: int = Field(
-        default=30,
-        ge=1,
-        le=600,
-        description="Request timeout in seconds",
-    )
+# Derived flat request body; add union members when more engines register.
+SearchRequest = build_request_model(GoogleConfig)
 
 
 class SearchResponse(BaseModel):
@@ -47,45 +27,58 @@ class SearchResponse(BaseModel):
     curated: list[WebSearchResult]
 
 
-class SearchCallSchemaRequest(BaseModel):
+class ProvidersListResponse(BaseModel):
     model_config = camelized_model_config
 
-    config: SearchEngineConfigTypes = Field(
-        discriminator="engine",
-        description="Deployment search-engine config used to project the call schema",
+    search_engines: list[str] = Field(
+        ...,
+        description="Registered search engine ids (config discriminator values)",
+    )
+    crawlers: list[str] = Field(
+        ...,
+        description="Registered crawler ids (config discriminator values)",
+    )
+
+
+class ProviderJsonSchemaResponse(BaseModel):
+    model_config = camelized_model_config
+
+    json_schema: dict[str, Any] = Field(
+        ...,
+        description="JSON Schema for provider deployment configuration",
+    )
+    provider_id: str | None = Field(
+        default=None,
+        description="Set when the schema is for a single provider",
+    )
+
+
+class ProviderDefaultConfigResponse(BaseModel):
+    model_config = camelized_model_config
+
+    provider_id: str
+    default_config: dict[str, Any] = Field(
+        ...,
+        description="Default deployment config (camelCase keys)",
     )
 
 
 class SearchCallSchemaResponse(BaseModel):
     model_config = camelized_model_config
 
-    engine: str = Field(..., description="Search engine id from config")
+    engine: str = Field(..., description="Search engine id")
     mode: str = Field(
         ...,
         description="Engine mode (e.g. standard) for observability and tooling",
     )
     snippet_only: bool = Field(
         ...,
-        description=(
-            "When true, search hits are snippet-only; includeContent requires crawlerConfig"
-        ),
+        description="When true, search hits are snippet-only; use POST /v1/crawl for bodies",
     )
     call_schema: dict[str, Any] = Field(
         ...,
-        description="JSON Schema for SearchRequest.call for this config",
+        description="JSON Schema for the engine call model on POST /v1/search",
     )
-
-
-__all__ = [
-    "CrawlRequest",
-    "CrawlResponse",
-    "CrawlUrlResult",
-    "PerUrlError",
-    "SearchCallSchemaRequest",
-    "SearchCallSchemaResponse",
-    "SearchRequest",
-    "SearchResponse",
-]
 
 
 class CrawlRequest(BaseModel):
@@ -117,3 +110,17 @@ class CrawlResponse(BaseModel):
 
     crawler: str
     results: list[CrawlUrlResult]
+
+
+__all__ = [
+    "CrawlRequest",
+    "CrawlResponse",
+    "CrawlUrlResult",
+    "PerUrlError",
+    "ProviderDefaultConfigResponse",
+    "ProviderJsonSchemaResponse",
+    "ProvidersListResponse",
+    "SearchCallSchemaResponse",
+    "SearchRequest",
+    "SearchResponse",
+]

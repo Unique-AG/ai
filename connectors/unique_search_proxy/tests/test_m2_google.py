@@ -17,7 +17,7 @@ from unique_search_proxy.web.core.errors import (
 from unique_search_proxy.web.core.schema import ProxyErrorCode
 from unique_search_proxy.web.core.search_engines.google.schema import (
     GoogleConfig,
-    GoogleSearchCall,
+    GoogleSearchRequest,
 )
 from unique_search_proxy.web.core.search_engines.google.service import (
     GoogleSearchService,
@@ -52,10 +52,13 @@ def _google_items_payload() -> dict[str, Any]:
     }
 
 
-def _search_body(**call: Any) -> dict[str, Any]:
+def _search_body(**fields: Any) -> dict[str, Any]:
     return {
-        "config": {"engine": "google"},
-        "call": {"query": "hello", **call},
+        "engine": "google",
+        "query": "hello",
+        "fetchSize": 10,
+        "timeout": 30,
+        **fields,
     }
 
 
@@ -103,7 +106,7 @@ class TestGoogleSearchService:
                 http_client=client,
             )
             raw, curated = await engine.search(
-                GoogleSearchCall(query="hello"),
+                GoogleSearchRequest(query="hello"),
                 timeout=30,
             )
 
@@ -145,12 +148,9 @@ class TestGoogleSearchService:
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:
-            engine = GoogleSearchService(
-                GoogleConfig(fetch_size=15),
-                http_client=client,
-            )
+            engine = GoogleSearchService(http_client=client)
             _raw, curated = await engine.search(
-                GoogleSearchCall(query="pages"),
+                GoogleSearchRequest(query="pages", fetch_size=15),
                 timeout=30,
             )
 
@@ -177,7 +177,7 @@ class TestGoogleSearchService:
                 http_client=client,
             )
             await engine.search(
-                GoogleSearchCall(query="hello", gl="de"),
+                GoogleSearchRequest(query="hello", gl="de"),
                 timeout=30,
             )
 
@@ -185,7 +185,7 @@ class TestGoogleSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_config_search_engine_id_overrides_env_cx(
+    async def test_call_search_engine_id_overrides_env_cx(
         self, google_env: None
     ) -> None:
         captured: dict[str, str] = {}
@@ -196,17 +196,17 @@ class TestGoogleSearchService:
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:
-            engine = GoogleSearchService(
-                GoogleConfig(search_engine_id="config-cx"),
-                http_client=client,
+            engine = GoogleSearchService(http_client=client)
+            await engine.search(
+                GoogleSearchRequest(query="hello", search_engine_id="call-cx"),
+                timeout=30,
             )
-            await engine.search(GoogleSearchCall(query="hello"), timeout=30)
 
-        assert captured["cx"] == "config-cx"
+        assert captured["cx"] == "call-cx"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_config_search_engine_id_without_env_cx(
+    async def test_call_search_engine_id_without_env_cx(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -226,13 +226,16 @@ class TestGoogleSearchService:
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:
-            engine = GoogleSearchService(
-                GoogleConfig(search_engine_id="config-only-cx"),
-                http_client=client,
+            engine = GoogleSearchService(http_client=client)
+            await engine.search(
+                GoogleSearchRequest(
+                    query="hello",
+                    search_engine_id="call-only-cx",
+                ),
+                timeout=30,
             )
-            await engine.search(GoogleSearchCall(query="hello"), timeout=30)
 
-        assert captured["cx"] == "config-only-cx"
+        assert captured["cx"] == "call-only-cx"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -246,7 +249,7 @@ class TestGoogleSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             engine = GoogleSearchService(GoogleConfig(), http_client=client)
             with pytest.raises(EmptySearchResultsError, match="no results"):
-                await engine.search(GoogleSearchCall(query="hello"), timeout=30)
+                await engine.search(GoogleSearchRequest(query="hello"), timeout=30)
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -262,7 +265,7 @@ class TestGoogleSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             engine = GoogleSearchService(GoogleConfig(), http_client=client)
             with pytest.raises(EmptySearchResultsError, match="no results"):
-                await engine.search(GoogleSearchCall(query="hello"), timeout=30)
+                await engine.search(GoogleSearchRequest(query="hello"), timeout=30)
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -279,7 +282,7 @@ class TestGoogleSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             engine = GoogleSearchService(GoogleConfig(), http_client=client)
             _raw, curated = await engine.search(
-                GoogleSearchCall(query="hello"),
+                GoogleSearchRequest(query="hello"),
                 timeout=30,
             )
 
@@ -305,12 +308,9 @@ class TestGoogleSearchService:
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:
-            engine = GoogleSearchService(
-                GoogleConfig(fetch_size=20),
-                http_client=client,
-            )
+            engine = GoogleSearchService(http_client=client)
             _raw, curated = await engine.search(
-                GoogleSearchCall(query="hello"),
+                GoogleSearchRequest(query="hello", fetch_size=20),
                 timeout=30,
             )
 
@@ -323,12 +323,12 @@ class TestGoogleSearchService:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         reset_google_search_settings_for_tests()
-        monkeypatch.delenv("GOOGLE_SEARCH_API_KEY", raising=False)
-        monkeypatch.delenv("GOOGLE_SEARCH_ENGINE_ID", raising=False)
+        monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "")
+        monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "")
 
         engine = GoogleSearchService(GoogleConfig())
         with pytest.raises(EngineNotConfiguredError):
-            await engine.search(GoogleSearchCall(query="hello"), timeout=30)
+            await engine.search(GoogleSearchRequest(query="hello"), timeout=30)
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -340,7 +340,7 @@ class TestGoogleSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             engine = GoogleSearchService(GoogleConfig(), http_client=client)
             with pytest.raises(UpstreamError, match="500"):
-                await engine.search(GoogleSearchCall(query="fail"), timeout=30)
+                await engine.search(GoogleSearchRequest(query="fail"), timeout=30)
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -352,7 +352,7 @@ class TestGoogleSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             engine = GoogleSearchService(GoogleConfig(), http_client=client)
             with pytest.raises(RateLimitedError) as exc_info:
-                await engine.search(GoogleSearchCall(query="slow"), timeout=30)
+                await engine.search(GoogleSearchRequest(query="slow"), timeout=30)
             assert exc_info.value.retry_after_seconds == 12
 
     @pytest.mark.ai
@@ -365,13 +365,19 @@ class TestGoogleSearchService:
         async with httpx.AsyncClient(transport=transport) as client:
             engine = GoogleSearchService(GoogleConfig(), http_client=client)
             with pytest.raises(UpstreamTimeoutError):
-                await engine.search(GoogleSearchCall(query="slow"), timeout=1)
+                await engine.search(GoogleSearchRequest(query="slow"), timeout=1)
 
 
 class TestGoogleSearchEndpoint:
     @pytest.mark.ai
-    def test_not_configured_returns_503(self, client: TestClient) -> None:
+    def test_not_configured_returns_503(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         reset_google_search_settings_for_tests()
+        monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "")
+        monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "")
         resp = client.post("/v1/search", json=_search_body())
         assert resp.status_code == 503
         assert (
@@ -382,7 +388,7 @@ class TestGoogleSearchEndpoint:
     def test_validation_error_returns_422(self, google_client: TestClient) -> None:
         resp = google_client.post(
             "/v1/search",
-            json={"config": {"engine": "google"}, "call": {"query": ""}},
+            json={"engine": "google", "query": "", "fetchSize": 10, "timeout": 30},
         )
         assert resp.status_code == 422
 
@@ -394,7 +400,7 @@ class TestGoogleSearchEndpoint:
     ) -> None:
         async def mock_search(
             self: GoogleSearchService,
-            call: GoogleSearchCall,
+            call: GoogleSearchRequest,
             *,
             timeout: int,
         ) -> tuple[dict[str, Any], list]:
@@ -413,17 +419,14 @@ class TestGoogleSearchEndpoint:
         monkeypatch.setattr(GoogleSearchService, "search", mock_search)
         resp = google_client.post(
             "/v1/search",
-            json={
-                "config": {"engine": "google", "fetchSize": 5},
-                "call": {"query": "hello"},
-            },
+            json=_search_body(query="hello", fetchSize=5),
         )
         assert resp.status_code == 200
         body = resp.json()
         assert body["query"] == "hello"
 
     @pytest.mark.ai
-    def test_call_merges_over_config_defaults(
+    def test_call_sends_provider_params_from_payload(
         self,
         google_env: None,
         monkeypatch: pytest.MonkeyPatch,
@@ -450,14 +453,7 @@ class TestGoogleSearchEndpoint:
         with TestClient(create_app()) as client:
             resp = client.post(
                 "/v1/search",
-                json={
-                    "config": {
-                        "engine": "google",
-                        "dateRestrict": "d7",
-                        "gl": "us",
-                    },
-                    "call": {"query": "hello", "gl": "de"},
-                },
+                json=_search_body(dateRestrict="d7", gl="de"),
             )
 
         assert resp.status_code == 200
@@ -472,7 +468,7 @@ class TestGoogleSearchEndpoint:
     ) -> None:
         async def mock_search(
             self: GoogleSearchService,
-            call: GoogleSearchCall,
+            call: GoogleSearchRequest,
             *,
             timeout: int,
         ) -> tuple[Any, list]:
@@ -490,7 +486,7 @@ class TestGoogleSearchEndpoint:
     ) -> None:
         async def mock_search(
             self: GoogleSearchService,
-            call: GoogleSearchCall,
+            call: GoogleSearchRequest,
             *,
             timeout: int,
         ) -> tuple[Any, list]:

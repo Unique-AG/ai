@@ -31,12 +31,14 @@ class TestProviderConfig:
     @pytest.mark.ai
     def test_google_config_discriminator(self) -> None:
         config = parse_search_engine_config(
-            {"engine": "google", "exposedFields": ["dateRestrict"]},
+            {"engine": "google", "dateRestrict": "d7", "gl": "ch"},
         )
         assert isinstance(config, GoogleConfig)
         assert config.engine == SearchEngineType.GOOGLE
-        assert config.exposed_fields == ["dateRestrict"]
-        assert config.llm_field_names() == ["query", "date_restrict"]
+        assert config.date_restrict is not None
+        assert config.date_restrict.value == "d7"
+        assert config.gl is not None
+        assert config.gl.value == "ch"
 
     @pytest.mark.ai
     def test_unknown_engine_id_rejected(self) -> None:

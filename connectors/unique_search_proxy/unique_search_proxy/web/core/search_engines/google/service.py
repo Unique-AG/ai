@@ -26,7 +26,6 @@ from unique_search_proxy.web.core.search_engines.base import (
 from unique_search_proxy.web.core.search_engines.google.schema import (
     GoogleConfig,
     GoogleCredentials,
-    GoogleSearchCall,
     build_google_query_params,
 )
 from unique_search_proxy.web.core.search_engines.pagination import (
@@ -34,22 +33,26 @@ from unique_search_proxy.web.core.search_engines.pagination import (
     PageRequest,
     iter_page_requests,
 )
+from unique_search_proxy.web.core.search_engines.params import (
+    FETCH_SIZE_FIELD,
+    call_query,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class GoogleSearchService(SearchEngine[GoogleConfig, GoogleSearchCall]):
+class GoogleSearchService(SearchEngine[GoogleConfig]):
     """Google Custom Search JSON API provider."""
 
     engine_id = SearchEngineType.GOOGLE.value
 
     def __init__(
         self,
-        config: GoogleConfig,
+        config: GoogleConfig | None = None,
         *,
         http_client: AsyncClient | None = None,
     ) -> None:
-        super().__init__(config, http_client=http_client)
+        super().__init__(config or GoogleConfig(), http_client=http_client)
 
     @property
     def snippet_only(self) -> bool:
@@ -61,14 +64,15 @@ class GoogleSearchService(SearchEngine[GoogleConfig, GoogleSearchCall]):
 
     async def search(
         self,
-        call: GoogleSearchCall,
+        request: BaseModel,
         *,
         timeout: int,
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
+        search_engine_id = getattr(request, "search_engine_id", None)
         credentials = GoogleCredentials.from_env(
-            search_engine_id=self.config.search_engine_id,
+            search_engine_id=search_engine_id,
         )
-        fetch_size = self.config.fetch_size
+        fetch_size = getattr(request, FETCH_SIZE_FIELD, self.config.fetch_size)
 
         raw_pages = SearchEngineRaw(pages=[])
         curated = WebSearchResults(results=[])
@@ -78,7 +82,7 @@ class GoogleSearchService(SearchEngine[GoogleConfig, GoogleSearchCall]):
             max_page_size=DEFAULT_MAX_PAGE_SIZE,
         ):
             page = await self._fetch_page(
-                call=call,
+                request=request,
                 credentials=credentials,
                 page=page_request,
                 timeout=timeout,
@@ -88,7 +92,7 @@ class GoogleSearchService(SearchEngine[GoogleConfig, GoogleSearchCall]):
             if not page_results:
                 if not curated:
                     raise EmptySearchResultsError(
-                        f"Google search returned no results for query {call.query!r}",
+                        f"Google search returned no results for query {call_query(request)!r}",
                         engine=SearchEngineType.GOOGLE.value,
                     )
                 break
@@ -102,15 +106,15 @@ class GoogleSearchService(SearchEngine[GoogleConfig, GoogleSearchCall]):
     async def _fetch_page(
         self,
         *,
-        call: GoogleSearchCall,
+        request: BaseModel,
         credentials: GoogleCredentials,
         page: PageRequest,
         timeout: int,
     ) -> dict[str, Any]:
         params = build_google_query_params(
-            query=call.query,
+            query=call_query(request),
             credentials=credentials,
-            engine=call,
+            request=request,
             page=page,
         )
 
@@ -182,10 +186,15 @@ class GoogleSearchService(SearchEngine[GoogleConfig, GoogleSearchCall]):
         return results
 
     @staticmethod
-    def llm_call_schema(config: GoogleConfig) -> type[BaseModel]:
-        from unique_search_proxy.web.core.projection import project_call_schema
+    def llm_call_schema(
+        config: GoogleConfig,
+        *,
+        strict_required: bool = True,
+    ) -> type[BaseModel]:
+        from unique_search_proxy.web.core.projection import build_llm_call_model
 
-        return project_call_schema(
-            GoogleSearchCall,
-            config.llm_field_names(),
+        return build_llm_call_model(
+            GoogleConfig,
+            config,
+            strict_required=strict_required,
         )

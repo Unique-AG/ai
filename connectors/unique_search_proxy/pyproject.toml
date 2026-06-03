@@ -6,6 +6,7 @@ authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "attrs>=24.3.0,<26",
     "fastapi>=0.115.0,<1.0.0",
     "uvicorn[standard]>=0.32.0,<1.0.0",
     "pydantic>=2.12.5,<3.0.0",
@@ -17,7 +18,13 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = []
+dev = [
+    "basedpyright>=1.39.1",
+    "openapi-python-client>=0.28.4",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.10",
+]
 
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8"]
@@ -37,6 +44,7 @@ unique-toolkit = { workspace = true }
 
 [tool.ruff]
 target-version = "py312"
+extend-exclude = ["unique_search_proxy/sdk/_generated"]
 
 [tool.ruff.lint]
 extend-select = ["I"]
@@ -53,6 +61,7 @@ DEP002 = ["unique-toolkit"]
 DEP003 = ["unique_toolkit"]
 
 [tool.poe.tasks]
+generate-sdk = "python scripts/generate_sdk.py"
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."

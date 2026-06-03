@@ -65,8 +65,9 @@ class TestV1StructuredErrors:
         resp = client.post(
             "/v1/search",
             json={
-                "config": {"engine": "unknown-engine"},
-                "call": {"query": "test"},
+                "engine": "unknown-engine",
+                "query": "test",
+                "fetchSize": 10,
             },
         )
         assert resp.status_code == 422
@@ -92,7 +93,7 @@ class TestV1StructuredErrors:
     def test_validation_error_returns_422(self, client: TestClient) -> None:
         resp = client.post(
             "/v1/search",
-            json={"config": {"engine": "google"}, "call": {"query": ""}},
+            json={"engine": "google", "query": "", "fetchSize": 10},
         )
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == ProxyErrorCode.VALIDATION_ERROR.value

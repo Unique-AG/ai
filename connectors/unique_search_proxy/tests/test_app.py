@@ -31,8 +31,9 @@ class TestV1SearchEndpoint:
         resp = client.post(
             "/v1/search",
             json={
-                "config": {"engine": "unknown-engine"},
-                "call": {"query": "test"},
+                "engine": "unknown-engine",
+                "query": "test",
+                "fetchSize": 10,
             },
         )
         assert resp.status_code == 422

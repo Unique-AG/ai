@@ -6,7 +6,10 @@ from unique_search_proxy.web.core.search_engines import (
     SearchEngineType,
     parse_search_engine_config,
 )
-from unique_search_proxy.web.core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy.web.core.search_engines.google.schema import (
+    GoogleConfig,
+    GoogleSearchRequest,
+)
 
 
 class TestSearchEngineConfigUnion:
@@ -22,19 +25,23 @@ class TestSearchEngineConfigUnion:
         assert isinstance(config, GoogleConfig)
         assert config.engine == SearchEngineType.GOOGLE
         assert config.fetch_size == 15
-        assert config.date_restrict == "d7"
+        assert config.date_restrict is not None
+        assert config.date_restrict.value == "d7"
 
     @pytest.mark.ai
-    def test_search_request_parses_discriminated_config(self) -> None:
+    def test_search_request_parses_flat_google_payload(self) -> None:
         req = SearchRequest.model_validate(
             {
-                "config": {"engine": "google", "fetchSize": 8},
-                "call": {"query": "hello"},
+                "engine": "google",
+                "query": "hello",
+                "fetchSize": 8,
+                "timeout": 30,
             },
         )
-        assert isinstance(req.config, GoogleConfig)
-        assert req.config.fetch_size == 8
-        assert req.call["query"] == "hello"
+        assert req.engine == SearchEngineType.GOOGLE
+        assert isinstance(req, GoogleSearchRequest)
+        assert req.fetch_size == 8
+        assert req.query == "hello"
 
     @pytest.mark.ai
     def test_unknown_engine_rejected_by_union(self) -> None:

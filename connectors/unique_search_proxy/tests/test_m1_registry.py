@@ -61,11 +61,12 @@ class TestDiscriminatedConfig:
     @pytest.mark.ai
     def test_search_engine_config_parses_google_discriminator(self) -> None:
         config = parse_search_engine_config(
-            {"engine": "google", "exposedFields": ["dateRestrict"]},
+            {"engine": "google", "dateRestrict": "d7"},
         )
         assert isinstance(config, GoogleConfig)
         assert config.engine == SearchEngineType.GOOGLE
-        assert config.exposed_fields == ["dateRestrict"]
+        assert config.date_restrict is not None
+        assert config.date_restrict.value == "d7"
 
     @pytest.mark.ai
     def test_crawler_config_parses_crawler_field(self) -> None:

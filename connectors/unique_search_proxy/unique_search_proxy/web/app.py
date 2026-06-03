@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
+# Application entrypoint only. HTTP SDK lives in unique_search_proxy.sdk.
 from unique_search_proxy.web.api import health_router, v1_router
 from unique_search_proxy.web.core.client.service import create_http_client_pool
 from unique_search_proxy.web.core.errors import register_exception_handlers

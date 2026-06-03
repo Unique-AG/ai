@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
+from unique_search_proxy.web.core.param_policy.exposable_param import (
+    merge_exposable_params_with_factory_defaults,
+)
 from unique_search_proxy.web.core.schema import (
     ProviderConfigBase,
     SearchEngineRaw,
@@ -52,16 +55,34 @@ class BaseSearchEngineConfig(ProviderConfigBase, Generic[T]):
         default=10,
         ge=1,
         le=100,
-        description="Configured result count for this deployment (not LLM-exposed)",
-        json_schema_extra={"exposure": "config_only"},
+        description="Default result count merged into each search request",
     )
+    timeout: int = Field(
+        default=30,
+        ge=1,
+        le=600,
+        description="Request timeout in seconds",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _merge_exposable_factory_defaults(cls, data: Any) -> Any:
+        """Merge exposable knobs with field ``default_factory`` when JSON omits ``value``."""
+        return merge_exposable_params_with_factory_defaults(cls, data)
+
+    def provider_query_params_from(self, request: BaseModel) -> dict[str, Any]:
+        """Provider query string params from a derived ``*ConfigRequest`` model."""
+        from unique_search_proxy.web.core.search_engines.params import (
+            provider_query_params_from_request,
+        )
+
+        return provider_query_params_from_request(request, type(self))
 
 
 SearchEngineConfigT = TypeVar("SearchEngineConfigT", bound=BaseSearchEngineConfig)
-SearchEngineCallT = TypeVar("SearchEngineCallT", bound=BaseModel)
 
 
-class SearchEngine(ABC, Generic[SearchEngineConfigT, SearchEngineCallT]):
+class SearchEngine(ABC, Generic[SearchEngineConfigT]):
     """Search engine contract for v1 providers."""
 
     engine_id: str
@@ -78,7 +99,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfigT, SearchEngineCallT]):
     @property
     @abstractmethod
     def snippet_only(self) -> bool:
-        """When true, results need a crawler when includeContent is set."""
+        """When true, search returns snippets only; use ``POST /v1/crawl`` for page bodies."""
 
     @property
     @abstractmethod
@@ -88,8 +109,8 @@ class SearchEngine(ABC, Generic[SearchEngineConfigT, SearchEngineCallT]):
     @abstractmethod
     async def search(
         self,
-        call: SearchEngineCallT,
+        request: BaseModel,
         *,
         timeout: int,
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
-        """Run search using a resolved per-engine call model."""
+        """Run search using a derived request model (``build_request_model(config_cls)``)."""

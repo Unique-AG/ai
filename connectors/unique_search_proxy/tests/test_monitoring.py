@@ -45,7 +45,11 @@ class TestMetricsEndpoint:
     def test_search_increments_proxy_error_metric(self, client: TestClient) -> None:
         client.post(
             "/v1/search",
-            json={"config": {"engine": "google"}, "call": {"query": "test"}},
+            json={
+                "engine": "google",
+                "query": "test",
+                "fetchSize": 10,
+            },
         )
         metrics = client.get("/metrics").text
         assert "unique_search_proxy_proxy_errors_total" in metrics

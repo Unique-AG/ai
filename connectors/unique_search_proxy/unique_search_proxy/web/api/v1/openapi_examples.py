@@ -6,35 +6,22 @@ from typing import Any
 
 from fastapi.openapi.models import Example
 
-SEARCH_GOOGLE_SNIPPETS: dict[str, Any] = {
-    "config": {
-        "engine": "google",
-        "fetchSize": 10,
-        "safe": "active",
-        "exposedFields": [],
-    },
-    "call": {"query": "unique ag"},
-    "includeContent": False,
+SEARCH_GOOGLE: dict[str, Any] = {
+    "engine": "google",
+    "query": "unique ag",
+    "fetchSize": 10,
+    "safe": "active",
     "timeout": 30,
 }
 
-SEARCH_GOOGLE_WITH_CONTENT: dict[str, Any] = {
-    "config": {
-        "engine": "google",
-        "fetchSize": 5,
-        "safe": "active",
-        "exposedFields": [],
-    },
-    "call": {"query": "unique ag"},
-    "includeContent": True,
-    "crawlerConfig": {
-        "crawler": "basic",
-        "contentTypeHandlers": {
-            "text/html": "allow",
-            "application/xhtml+xml": "allow",
-        },
-    },
-    "timeout": 60,
+SEARCH_GOOGLE_WITH_GL: dict[str, Any] = {
+    "engine": "google",
+    "query": "unique ag",
+    "fetchSize": 10,
+    "gl": "ch",
+    "dateRestrict": "d7",
+    "safe": "active",
+    "timeout": 30,
 }
 
 CRAWL_BASIC_RAW: dict[str, Any] = {
@@ -57,48 +44,43 @@ CRAWL_BASIC_HTML_MARKDOWN: dict[str, Any] = {
     "timeout": 30,
 }
 
-SEARCH_CALL_SCHEMA_GOOGLE_MINIMAL: dict[str, Any] = {
-    "config": {
-        "engine": "google",
-        "fetchSize": 10,
-        "safe": "active",
-        "exposedFields": [],
-    },
+GOOGLE_CONFIG_DEFAULT: dict[str, Any] = {
+    "engine": "google",
+    "fetchSize": 10,
+    "safe": "active",
 }
 
-SEARCH_CALL_SCHEMA_GOOGLE_WITH_GL: dict[str, Any] = {
-    "config": {
-        "engine": "google",
-        "fetchSize": 10,
-        "gl": "ch",
-        "exposedFields": ["gl", "dateRestrict"],
-        "dateRestrict": "m1",
-    },
+GOOGLE_CONFIG_WITH_EXPOSED_GL: dict[str, Any] = {
+    "engine": "google",
+    "fetchSize": 10,
+    "safe": "active",
+    "gl": {"expose": True, "value": "ch"},
+    "dateRestrict": {"expose": False, "value": "d7"},
 }
 
-SEARCH_CALL_SCHEMA_OPENAPI_EXAMPLES: dict[str, Example] = {
-    "google_query_only": Example(
-        summary="Google call schema (query only)",
-        description="Default exposure: only query is LLM-visible.",
-        value=SEARCH_CALL_SCHEMA_GOOGLE_MINIMAL,
+SEARCH_ENGINE_CALL_SCHEMA_OPENAPI_EXAMPLES: dict[str, Example] = {
+    "default_projection": Example(
+        summary="Call schema (query + fetchSize only)",
+        description="Default LLM projection when optional params are not exposed.",
+        value=GOOGLE_CONFIG_DEFAULT,
     ),
-    "google_with_optional_params": Example(
-        summary="Google call schema (+ gl, dateRestrict)",
-        description="exposedFields adds optional invocation knobs to the returned JSON Schema.",
-        value=SEARCH_CALL_SCHEMA_GOOGLE_WITH_GL,
+    "with_exposed_params": Example(
+        summary="Call schema (+ gl)",
+        description="`gl.expose=true` adds `gl` to the LLM call schema; `dateRestrict` stays merge-only.",
+        value=GOOGLE_CONFIG_WITH_EXPOSED_GL,
     ),
 }
 
 SEARCH_OPENAPI_EXAMPLES: dict[str, Example] = {
-    "google_snippets": Example(
-        summary="Google search (snippets only)",
-        description="Minimal config; requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID in .env.",
-        value=SEARCH_GOOGLE_SNIPPETS,
+    "google_search": Example(
+        summary="Google search",
+        description="Flat search request; requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID in .env.",
+        value=SEARCH_GOOGLE,
     ),
-    "google_with_content": Example(
-        summary="Google search + basic crawler fill",
-        description="Sets includeContent and a basic crawler with HTML markdown processing.",
-        value=SEARCH_GOOGLE_WITH_CONTENT,
+    "google_search_with_gl": Example(
+        summary="Google search (with gl and dateRestrict)",
+        description="Full execution payload including optional provider parameters.",
+        value=SEARCH_GOOGLE_WITH_GL,
     ),
 }
 

@@ -7,6 +7,9 @@ from unique_search_proxy.web.api.v1.schema import (
     SearchResponse,
 )
 from unique_search_proxy.web.core.schema import WebSearchResult
+from unique_search_proxy.web.core.search_engines.google.schema import (
+    GoogleSearchRequest,
+)
 
 
 class TestV1SearchSchemas:
@@ -14,13 +17,13 @@ class TestV1SearchSchemas:
     def test_search_request_camel_case(self) -> None:
         req = SearchRequest.model_validate(
             {
-                "config": {"engine": "google"},
-                "call": {"query": "test"},
-                "includeContent": True,
+                "engine": "google",
+                "query": "test",
+                "fetchSize": 10,
                 "timeout": 60,
             },
         )
-        assert req.include_content is True
+        assert isinstance(req, GoogleSearchRequest)
         assert req.timeout == 60
 
     @pytest.mark.ai

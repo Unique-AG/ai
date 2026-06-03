@@ -1,140 +1,157 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
+from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 
-from unique_search_proxy.web.core.schema import camelized_model_config
+from unique_search_proxy.web.core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy.web.core.search_engines.base import (
     BaseSearchEngineConfig,
     SearchEngineType,
 )
 from unique_search_proxy.web.core.search_engines.google.settings import (
     GoogleSearchSettings,
+    default_google_search_engine_id,
     get_google_search_settings,
 )
 from unique_search_proxy.web.core.search_engines.pagination import PageRequest
-from unique_search_proxy.web.core.search_engines.params import (
-    ParamExposure,
-    llm_field_names,
-    to_provider_params,
-    validate_exposed_fields,
-)
+
+GoogleSafeDefault: TypeAlias = Literal["active", "off"]
+GoogleSiteSearchFilter: TypeAlias = Literal["e", "i"]
+
+StrOrNone: TypeAlias = Annotated[str | None, DeactivatedNone]
+SiteSearchFilterOrNone: TypeAlias = Annotated[
+    GoogleSiteSearchFilter | None, DeactivatedNone
+]
+
+ExposableStrOrNone = ExposableParam[StrOrNone]
+ExposableSiteSearchFilter = ExposableParam[SiteSearchFilterOrNone]
 
 
-class GoogleEngineParameters(BaseModel):
-    """All configurable Google Custom Search API parameters (single source of truth)."""
+def _inactive_str_exposable() -> ExposableStrOrNone:
+    return ExposableStrOrNone(expose=False, value=None)
 
-    model_config = camelized_model_config
 
-    date_restrict: str | None = Field(
-        default=None,
-        description="Restricts results by date (e.g. d7, w2, m6)",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
+def _inactive_site_search_filter_exposable() -> ExposableSiteSearchFilter:
+    return ExposableSiteSearchFilter(expose=False, value=None)
+
+
+class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
+    """Single source of truth for Google deployment + derived request/LLM surfaces."""
+
+    engine: Literal[SearchEngineType.GOOGLE] = Field(
+        default=SearchEngineType.GOOGLE,
+        title="Search engine",
+        description="Provider discriminator; must be `google` for this config.",
     )
-    exact_terms: str | None = Field(
-        default=None,
-        description="Phrase that all results must contain",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
+
+    search_engine_id: StrOrNone = Field(
+        default_factory=default_google_search_engine_id,
+        title="Search engine ID (cx)",
+        description=(
+            "Google Programmable Search Engine ID (`cx`). "
+            "Defaults from `GOOGLE_SEARCH_ENGINE_ID` when deployed. "
+            "Not sent as a query parameter (resolved at runtime)."
+        ),
     )
-    exclude_terms: str | None = Field(
-        default=None,
-        description="Word or phrase that must not appear in results",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    file_type: str | None = Field(
-        default=None,
-        description="Restrict results to a file extension",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    gl: str | None = Field(
-        default=None,
-        description="Geolocation country code for the end user",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    hl: str | None = Field(
-        default=None,
-        description="Interface language",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    lr: str | None = Field(
-        default=None,
-        description="Restrict results to a language (e.g. lang_en)",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    safe: Literal["active", "off"] | None = Field(
+
+    safe: GoogleSafeDefault = Field(
         default="active",
-        description="Safe-search level",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    site_search: str | None = Field(
-        default=None,
-        description="Site to always include or exclude from results",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    site_search_filter: Literal["e", "i"] | None = Field(
-        default=None,
-        description="Whether siteSearch is included (i) or excluded (e)",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-    sort: str | None = Field(
-        default=None,
-        description="Sort expression (e.g. date)",
-        json_schema_extra={"exposure": ParamExposure.EXPOSABLE.value},
-    )
-
-    def provider_query_params(self) -> dict[str, Any]:
-        return to_provider_params(self)
-
-
-class GoogleSearchCall(GoogleEngineParameters):
-    """Per-invocation call surface (query is always LLM-visible)."""
-
-    query: str = Field(
-        ...,
-        min_length=1,
-        description="Search query string",
-        json_schema_extra={"exposure": ParamExposure.ALWAYS_EXPOSED.value},
-    )
-
-
-class GoogleConfig(
-    BaseSearchEngineConfig[SearchEngineType.GOOGLE], GoogleEngineParameters
-):
-    """Deployment config: engine id, fetch_size, parameter defaults, LLM exposure policy."""
-
-    engine: Literal[SearchEngineType.GOOGLE] = SearchEngineType.GOOGLE
-
-    search_engine_id: str | None = Field(
-        default=None,
+        title="Safe search",
         description=(
-            "Programmable Search Engine ID (cx). "
-            "Overrides GOOGLE_SEARCH_ENGINE_ID when set."
-        ),
-        json_schema_extra={"exposure": ParamExposure.CONFIG_ONLY.value},
-    )
-
-    exposed_fields: list[str] = Field(
-        default_factory=list,
-        description=(
-            "Optional GoogleEngineParameters fields exposed to LLM callers. "
-            "query is always exposed; fetchSize is config-only."
+            "SafeSearch level for every search: `active` (default) or `off`. "
+            "Applied on all requests unless the call body overrides it."
         ),
     )
 
-    @field_validator("exposed_fields")
-    @classmethod
-    def _validate_exposed_fields(cls, value: list[str]) -> list[str]:
-        return validate_exposed_fields(GoogleEngineParameters, value)
-
-    def llm_field_names(self) -> list[str]:
-        return llm_field_names(GoogleSearchCall, self.exposed_fields)
-
-    def provider_query_params(self) -> dict[str, Any]:
-        return GoogleEngineParameters.model_validate(
-            self.model_dump(),
-        ).provider_query_params()
+    gl: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        title="Geolocation (gl)",
+        description=(
+            "Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). "
+            "Set `value` for a fixed default; set `expose` so the LLM may override per query."
+        ),
+    )
+    hl: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        title="Interface language (hl)",
+        description=(
+            "Language for snippets/UI (Google `hl`). "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
+    lr: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        title="Language restrict (lr)",
+        description=(
+            "Document language restrict (Google `lr`), e.g. `lang_en`. "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
+    date_restrict: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        alias="dateRestrict",
+        title="Date restrict",
+        description=(
+            "Google `dateRestrict` recency filter (`d7`, `m1`, …). "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
+    exact_terms: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        alias="exactTerms",
+        title="Exact terms",
+        description=(
+            "Phrase every hit must contain (Google `exactTerms`). "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
+    exclude_terms: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        alias="excludeTerms",
+        title="Exclude terms",
+        description=(
+            "Phrase that must not appear (Google `excludeTerms`). "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
+    file_type: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        alias="fileType",
+        title="File type",
+        description=(
+            "File extension filter (Google `fileType`), e.g. `pdf`. "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
+    site_search: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        alias="siteSearch",
+        title="Site search",
+        description=(
+            "Site or domain (Google `siteSearch`). "
+            "Pair with `siteSearchFilter`. `value` + `expose` behave like `gl`."
+        ),
+    )
+    site_search_filter: ExposableSiteSearchFilter = Field(
+        default_factory=_inactive_site_search_filter_exposable,
+        alias="siteSearchFilter",
+        title="Site search filter",
+        description=(
+            "With `siteSearch`: `i` = include only that site, `e` = exclude. "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
+    sort: ExposableStrOrNone = Field(
+        default_factory=_inactive_str_exposable,
+        title="Sort",
+        description=(
+            "Sort expression (Google `sort`), e.g. `date`. "
+            "`value` + `expose` behave like `gl`."
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -163,7 +180,6 @@ class GoogleCredentials:
     @classmethod
     def from_env(cls, *, search_engine_id: str | None = None) -> GoogleCredentials:
         from unique_search_proxy.web.core.errors import EngineNotConfiguredError
-        from unique_search_proxy.web.core.search_engines.base import SearchEngineType
 
         settings = get_google_search_settings()
         if (
@@ -192,15 +208,35 @@ def build_google_query_params(
     *,
     query: str,
     credentials: GoogleCredentials,
-    engine: GoogleEngineParameters,
+    request: BaseModel,
     page: PageRequest,
 ) -> dict[str, Any]:
-    """Assemble the Google API query string from public config + private runtime parts."""
+    """Assemble the Google API query string from the derived request + credentials."""
+    config = GoogleConfig()
     return {
         "q": query,
         "cx": credentials.search_engine_id,
         "key": credentials.api_key,
         "start": page.offset,
         "num": page.count,
-        **engine.provider_query_params(),
+        **config.provider_query_params_from(request),
     }
+
+
+def google_request_model() -> type[BaseModel]:
+    """Derived ``POST /v1/search`` model (cached via ``build_request_model``)."""
+    from unique_search_proxy.web.core.projection import build_request_model
+
+    return build_request_model(GoogleConfig)
+
+
+GoogleSearchRequest = google_request_model()
+
+
+__all__ = [
+    "GoogleConfig",
+    "GoogleCredentials",
+    "GoogleSearchRequest",
+    "build_google_query_params",
+    "google_request_model",
+]

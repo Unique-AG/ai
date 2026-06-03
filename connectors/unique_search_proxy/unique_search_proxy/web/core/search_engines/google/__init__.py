@@ -1,7 +1,6 @@
 from unique_search_proxy.web.core.search_engines.google.schema import (
     GoogleConfig,
-    GoogleEngineParameters,
-    GoogleSearchCall,
+    google_request_model,
 )
 from unique_search_proxy.web.core.search_engines.google.service import (
     GoogleSearchService,
@@ -9,7 +8,6 @@ from unique_search_proxy.web.core.search_engines.google.service import (
 
 __all__ = [
     "GoogleConfig",
-    "GoogleEngineParameters",
-    "GoogleSearchCall",
     "GoogleSearchService",
+    "google_request_model",
 ]

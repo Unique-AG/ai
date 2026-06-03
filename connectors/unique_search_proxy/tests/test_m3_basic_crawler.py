@@ -11,9 +11,6 @@ from unique_search_proxy.web.core.crawlers.basic.processing import (
 from unique_search_proxy.web.core.crawlers.basic.schema import BasicCrawlerConfig
 from unique_search_proxy.web.core.crawlers.basic.service import BasicCrawlerService
 from unique_search_proxy.web.core.schema import ProxyErrorCode
-from unique_search_proxy.web.core.search_engines.google.service import (
-    GoogleSearchService,
-)
 
 _HTML_PAGE = """
 <html><head><title>Test</title></head>
@@ -145,48 +142,6 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
 
 
 @pytest.mark.ai
-def test_search_include_content_fills_curated(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def mock_search(
-        self: GoogleSearchService,
-        call,
-        *,
-        timeout: int,
-    ):
-        from unique_search_proxy.web.core.schema import WebSearchResult
-
-        return {"items": []}, [
-            WebSearchResult(
-                url="https://example.com/page",
-                title="T",
-                snippet="S",
-            ),
-        ]
-
-    monkeypatch.setattr(GoogleSearchService, "search", mock_search)
-
-    resp = client.post(
-        "/v1/search",
-        json={
-            "config": {"engine": "google"},
-            "call": {"query": "test"},
-            "includeContent": True,
-            "crawlerConfig": {
-                "crawler": "basic",
-                "contentTypeHandlers": {"text/html": "allow"},
-            },
-        },
-    )
-    assert resp.status_code == 200
-    curated = resp.json()["curated"]
-    assert len(curated) == 1
-    assert curated[0]["content"]
-    assert "Hello" in curated[0]["content"]
-
-
-@pytest.mark.ai
 def test_crawl_reports_markdown_conversion_error(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -270,16 +225,3 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
     assert result["error"] is not None
     assert "PDF processing" in result["error"]["message"]
     assert result["raw"] == "%PDF-1.4"
-
-
-@pytest.mark.ai
-def test_search_include_content_requires_crawler_config(client: TestClient) -> None:
-    resp = client.post(
-        "/v1/search",
-        json={
-            "config": {"engine": "google"},
-            "call": {"query": "test"},
-            "includeContent": True,
-        },
-    )
-    assert resp.status_code == 422

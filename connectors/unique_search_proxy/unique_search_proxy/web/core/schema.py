@@ -104,11 +104,6 @@ class ProviderConfigBase(BaseModel):
 
     model_config = camelized_model_config
 
-    exposed_fields: list[str] = Field(
-        default_factory=list,
-        description="Call-schema fields exposed to LLM-driven callers",
-    )
-
 
 class PerUrlError(BaseModel):
     model_config = camelized_model_config

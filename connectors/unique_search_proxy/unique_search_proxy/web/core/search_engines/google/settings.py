@@ -58,6 +58,14 @@ def get_google_search_settings() -> GoogleSearchSettings:
     return _google_search_settings
 
 
+def default_google_search_engine_id() -> str | None:
+    """``GoogleConfig.search_engine_id`` default: env cx when configured, else EnvDefault (null)."""
+    engine_id = get_google_search_settings().google_search_engine_id
+    if not engine_id:
+        return None
+    return engine_id
+
+
 def reset_google_search_settings_for_tests() -> None:
     global _google_search_settings
     _google_search_settings = None
