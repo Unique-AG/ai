@@ -20,7 +20,7 @@ on:
         required: true
         type: string
       tag_latest:
-        description: 'When true, also tag latest and v<version>; when false, tag raw version only'
+        description: 'When true, additionally tag latest and v<version> (stable). The raw <version> tag is always emitted so chart image.tag resolves.'
         required: false
         type: boolean
         default: false
@@ -78,9 +78,9 @@ jobs:
           images: ${{ inputs.image_repo }}
           tags: |
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ inputs.tag_latest }}
+            type=raw,value=${{ inputs.version }}
             type=raw,value=v${{ inputs.version }},enable=${{ inputs.tag_latest }}
-            type=raw,value=${{ inputs.version }},enable=${{ !inputs.tag_latest }}
+            type=raw,value=latest,enable=${{ inputs.tag_latest }}
 
       - name: Login to registry hub
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0

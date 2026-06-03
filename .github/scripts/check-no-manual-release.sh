@@ -24,8 +24,18 @@ while IFS= read -r file; do
   fi
 done <<< "$CHANGED"
 
+# Adding a brand-new package to the manifest is an onboarding action (paired
+# with release-please-config.json edits, which are not guarded). Only block
+# changes that touch an EXISTING entry's version or remove an entry — those are
+# the manual version edits release-please owns.
 if echo "$CHANGED" | grep -qx '.release-please-manifest.json'; then
-  ERRORS+=(".release-please-manifest.json")
+  BASE_MANIFEST=$(git show "$MERGE_BASE:.release-please-manifest.json" 2>/dev/null || echo '{}')
+  HEAD_MANIFEST=$(git show "$HEAD:.release-please-manifest.json" 2>/dev/null || echo '{}')
+  TOUCHED_EXISTING=$(jq -n --argjson base "$BASE_MANIFEST" --argjson head "$HEAD_MANIFEST" \
+    '[$base | to_entries[] | select(($head[.key] // null) != .value) | .key] | join(", ")')
+  if [[ -n "$TOUCHED_EXISTING" ]]; then
+    ERRORS+=(".release-please-manifest.json (modified/removed existing entries: $TOUCHED_EXISTING)")
+  fi
 fi
 
 TOMLS=$(echo "$CHANGED" | grep 'pyproject.toml$' || true)
