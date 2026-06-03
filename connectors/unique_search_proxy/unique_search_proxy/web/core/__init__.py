@@ -1,30 +1,19 @@
-from typing import Annotated, Any, Protocol
+from unique_search_proxy.web.core.registry import (
+    get_crawler,
+    get_search_engine,
+    register_crawler,
+    register_search_engine,
+    registered_crawlers,
+    registered_search_engines,
+)
+from unique_search_proxy.web.core.schema import WebSearchResult
 
-from pydantic import Field
-
-from unique_search_proxy.web.core.google_search import GoogleSearch, GoogleSearchRequest
-from unique_search_proxy.web.core.schema import SearchEngineType, WebSearchResult
-from unique_search_proxy.web.core.vertexai import VertexAiRequest, VertexAISearchEngine
-
-
-class SearchEngine(Protocol):
-    def __init__(self, params: Any): ...
-
-    async def search(self, query: str) -> list[WebSearchResult]: ...
-
-
-SearchEngineRequestType = Annotated[
-    GoogleSearchRequest | VertexAiRequest, Field(discriminator="search_engine")
+__all__ = [
+    "WebSearchResult",
+    "get_crawler",
+    "get_search_engine",
+    "register_crawler",
+    "register_search_engine",
+    "registered_crawlers",
+    "registered_search_engines",
 ]
-
-
-def get_search_engine(search_engine_type: SearchEngineType) -> type[SearchEngine]:
-    if search_engine_type == SearchEngineType.GOOGLE:
-        return GoogleSearch
-    elif search_engine_type == SearchEngineType.VERTEXAI:
-        return VertexAISearchEngine
-    else:
-        raise ValueError(f"Invalid search engine type: {search_engine_type}")
-
-
-__all__ = ["get_search_engine", "SearchEngineRequestType"]

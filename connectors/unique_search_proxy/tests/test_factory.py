@@ -1,36 +1,26 @@
 import pytest
 
-from unique_search_proxy.web.core import get_search_engine
-from unique_search_proxy.web.core.google_search.search import GoogleSearch
-from unique_search_proxy.web.core.schema import SearchEngineType
-from unique_search_proxy.web.core.vertexai.search import VertexAISearchEngine
+from unique_search_proxy.web.core.errors import EngineNotConfiguredError
+from unique_search_proxy.web.core.registry import (
+    clear_registries_for_tests,
+    get_search_engine,
+    registered_search_engines,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_registry() -> None:
+    clear_registries_for_tests()
+    yield
+    clear_registries_for_tests()
 
 
 class TestGetSearchEngine:
     @pytest.mark.ai
-    def test_google(self):
-        """
-        Purpose: Verify GOOGLE engine type returns the GoogleSearch class.
-        Why this matters: Incorrect factory mapping would route searches to the wrong engine.
-        Setup summary: Call get_search_engine with GOOGLE and assert the returned class.
-        """
-        assert get_search_engine(SearchEngineType.GOOGLE) is GoogleSearch
+    def test_registry_starts_empty(self) -> None:
+        assert registered_search_engines() == frozenset()
 
     @pytest.mark.ai
-    def test_vertexai(self):
-        """
-        Purpose: Verify VERTEXAI engine type returns the VertexAISearchEngine class.
-        Why this matters: Incorrect factory mapping would route searches to the wrong engine.
-        Setup summary: Call get_search_engine with VERTEXAI and assert the returned class.
-        """
-        assert get_search_engine(SearchEngineType.VERTEXAI) is VertexAISearchEngine
-
-    @pytest.mark.ai
-    def test_invalid_type(self):
-        """
-        Purpose: Verify an unknown engine type raises ValueError.
-        Why this matters: Invalid config should fail fast rather than silently misbehave.
-        Setup summary: Call with a nonexistent type and expect ValueError.
-        """
-        with pytest.raises(ValueError, match="Invalid search engine type"):
-            get_search_engine("nonexistent")
+    def test_unregistered_engine_raises(self) -> None:
+        with pytest.raises(EngineNotConfiguredError, match="google"):
+            get_search_engine("google")

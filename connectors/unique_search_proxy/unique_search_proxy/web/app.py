@@ -1,21 +1,16 @@
-import asyncio
+from __future__ import annotations
+
 import logging
 from contextlib import asynccontextmanager
-from typing import List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from fastapi import FastAPI
 
-from unique_search_proxy.web.core import (
-    SearchEngineRequestType,
-    WebSearchResult,
-    get_search_engine,
-)
+from unique_search_proxy.web.api import health_router, v1_router
+from unique_search_proxy.web.core.client.service import create_http_client_pool
+from unique_search_proxy.web.core.errors import register_exception_handlers
+from unique_search_proxy.web.monitoring import setup_prometheus
 
-# Load environment variables from .env file
 load_dotenv()
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,88 +21,43 @@ class HealthCheckFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         message = record.getMessage()
-        # Filter out GET /health requests
-        if "/health" in message and "GET" in message:
+        if "GET" in message and any(
+            path in message for path in ("/health", "/ready", "/metrics")
+        ):
             return False
         return True
 
 
-# Apply filter to uvicorn access logger
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
-
-
-class SearchResponse(BaseModel):
-    """Response model for search endpoint."""
-
-    results: List[WebSearchResult] = Field(..., description="Search results")
-
-
-class ErrorResponse(BaseModel):
-    """Response model for errors."""
-
-    status: str = Field(default="failed")
-    error: str = Field(..., description="Error message")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     _LOGGER.info("Starting Unique Search Proxy...")
-    yield
-    # Shutdown
-    _LOGGER.info("Shutting down Unique Search Proxy...")
+    pool = await create_http_client_pool()
+    app.state.http_client_pool = pool
+    try:
+        yield
+    finally:
+        await pool.aclose()
+        _LOGGER.info("Shutting down Unique Search Proxy...")
 
 
-app = FastAPI(
-    title="Unique Search Proxy",
-    description="A unified web search proxy API for multiple search backends",
-    version="0.1.0",
-    lifespan=lifespan,
-)
-
-
-# Exception Handlers
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    _LOGGER.exception(f"Validation error: {exc}")
-    return JSONResponse(
-        status_code=400,
-        content=ErrorResponse(error=str(exc)).model_dump(),
+def create_app() -> FastAPI:
+    application = FastAPI(
+        title="Unique Search Proxy",
+        description="Unified web egress proxy for search engines and crawlers",
+        version="0.2.0",
+        lifespan=lifespan,
     )
+    register_exception_handlers(application)
+    setup_prometheus(application)
+    application.include_router(health_router)
+    application.include_router(v1_router)
+    return application
 
 
-@app.exception_handler(Exception)
-async def generic_exception_handler(request: Request, exc: Exception):
-    _LOGGER.exception(f"An error occurred: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content=ErrorResponse(error=str(exc)).model_dump(),
-    )
-
-
-@app.exception_handler(asyncio.TimeoutError)
-async def timeout_exception_handler(request: Request, exc: asyncio.TimeoutError):
-    _LOGGER.exception(f"A timeout occurred: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content=ErrorResponse(error=f"Search engine timed out: {exc}").model_dump(),
-    )
-
-
-@app.post("/search", response_model=SearchResponse)
-async def search(request_data: SearchEngineRequestType):
-    search_engine = get_search_engine(request_data.search_engine)
-    search_engine = search_engine(params=request_data.params)
-
-    async with asyncio.timeout(request_data.timeout):
-        results = await search_engine.search(request_data.query)
-
-    return SearchResponse(results=results)
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
+app = create_app()
 
 
 if __name__ == "__main__":

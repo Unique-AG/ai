@@ -1,15 +1,6 @@
 # Unique Search Proxy
 
-A unified web search proxy API that provides a consistent interface for multiple search backends. Built with FastAPI and designed for seamless integration with AI applications.
-
-## Overview
-
-This service acts as an abstraction layer over different search providers, allowing clients to switch between search engines without changing their integration code. Currently supports:
-
-| Engine | Description |
-|--------|-------------|
-| **Google Custom Search** | Direct integration with Google's Custom Search JSON API |
-| **Vertex AI (Gemini)** | AI-powered search using Google's Gemini models with grounding capabilities |
+Unified web egress proxy for search engines and crawlers. Built with FastAPI; providers are registered at runtime and invoked via a versioned HTTP API.
 
 ## Quick Start
 
@@ -17,278 +8,135 @@ This service acts as an abstraction layer over different search providers, allow
 
 - Python 3.12+
 - uv for dependency management
-- Google Cloud credentials (for Vertex AI)
-- Google Custom Search API key and Engine ID (for Google Search)
 
 ### Installation
 
 ```bash
-# Install dependencies
 uv sync
-
-# Copy and configure environment variables
-cp .env.example .env
+cp .env.example .env  # when present
 ```
 
-### Environment Variables
+### Running
 
-```bash
-# Google Custom Search
-GOOGLE_SEARCH_API_KEY=your-api-key
-GOOGLE_SEARCH_API_ENDPOINT=https://www.googleapis.com/customsearch/v1
-GOOGLE_SEARCH_ENGINE_ID=your-engine-id
-
-# Vertex AI
-VERTEXAI_SERVICE_ACCOUNT_CREDENTIALS=path/to/credentials.json
-```
-
-### Running the Service
-
-**Development:**
 ```bash
 uv run python -m unique_search_proxy.web.app
+# or
+uv run uvicorn unique_search_proxy.web.app:app --reload --port 2349
 ```
 
-**Docker (from published package — hash-verified):**
+## API
 
-CI generates a hash-pinned `requirements.txt` from `uv.lock` and passes it into the
-Docker build. Dependencies are installed with `--require-hashes`, then the package
-itself is installed with `--no-deps`. To reproduce locally:
+| Endpoint | Description |
+|----------|-------------|
+| `GET /health` | Liveness |
+| `GET /ready` | Readiness (httpx pool + registered providers) |
+| `POST /v1/search` | Search via configured engine |
+| `POST /v1/crawl` | Crawl URLs via configured crawler |
+| `GET /metrics` | Prometheus scrape endpoint (when enabled) |
+| `/docs` | OpenAPI (Swagger UI) |
 
-```bash
-uv export --locked --package unique-search-proxy --no-dev --no-emit-project \
-  -o deploy/requirements.txt
-docker build --build-arg PACKAGE_VERSION=0.2.0 -t search-proxy deploy/
-```
+Set `ENABLED=false` on monitoring settings (`PrometheusSettings`) to disable metrics. With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct aggregation across uvicorn workers.
 
-Every transitive dependency is verified against its sha256 hash from the lockfile.
+Settings are colocated with each component and use env prefixes:
 
-**Docker (from local source — no registry required):**
+| Component | Prefix | Example |
+|-----------|--------|---------|
+| HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
+| URL safety | `URL_SAFETY_` | `URL_SAFETY_ENABLED` |
+| Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
 
-Build a wheel first, copy it into `deploy/`, then reference it:
+Shared helpers live in `web/settings/`.
 
-```bash
-uv build --wheel --out-dir deploy/
-docker build \
-  --build-arg LOCAL_WHEEL=unique_search_proxy-0.2.0-py3-none-any.whl \
-  -t search-proxy deploy/
-```
+### Search (`POST /v1/search`)
 
-**Running the container:**
-
-```bash
-docker run --rm -p 8080:8080 search-proxy
-
-# With custom environment variables
-docker run --rm -p 8080:8080 -e WORKERS=8 -e LOG_LEVEL=debug search-proxy
-```
-
-## API Documentation
-
-FastAPI provides automatic interactive API documentation:
-
-| URL | Description |
-|-----|-------------|
-| `/docs` | Swagger UI - interactive API explorer |
-| `/redoc` | ReDoc - alternative documentation |
-| `/openapi.json` | OpenAPI schema |
-
-## API Reference
-
-### Health Check
-
-```http
-GET /health
-```
-
-**Response:**
 ```json
 {
-  "status": "healthy"
+  "query": "example query",
+  "config": { "engine": "google" },
+  "includeContent": false,
+  "timeout": 30
 }
 ```
 
----
+Response:
 
-### Search
-
-```http
-POST /search
-Content-Type: application/json
-```
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `search_engine` | string | No | `"google"` or `"vertexai"` (default: `"google"`) |
-| `query` | string | Yes | The search query |
-| `kwargs` | object | No | Engine-specific parameters |
-
-**Response:**
 ```json
 {
-  "results": [
+  "engine": "google",
+  "query": "example query",
+  "raw": {},
+  "curated": [
     {
-      "url": "https://example.com/article",
-      "title": "Article Title",
-      "snippet": "A brief description of the content...",
+      "url": "https://example.com",
+      "title": "Example",
+      "snippet": "...",
       "content": ""
     }
   ]
 }
 ```
 
----
+### Crawl (`POST /v1/crawl`)
 
-## Search Engine Configuration
-
-### Google Custom Search
-
-Uses Google's Custom Search JSON API for traditional web search results.
-
-**Parameters (`kwargs`):**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `cx` | string | env default | Custom Search Engine ID (overrides env) |
-| `fetchSize` | int | 10 | Number of results to fetch |
-| `timeout` | int | 10 | Request timeout in seconds |
-
-**Example:**
 ```json
 {
-  "search_engine": "google",
-  "query": "latest AI developments",
-  "kwargs": {
-    "fetchSize": 20,
-    "timeout": 15
-  }
+  "urls": ["https://example.com"],
+  "config": { "crawler": "basic" },
+  "parallel": true,
+  "timeout": 30
 }
 ```
 
----
+### Errors
 
-### Vertex AI (Gemini)
+Non-2xx responses use a structured envelope:
 
-Leverages Google's Gemini models with web grounding for AI-enhanced search results. This engine:
-
-1. Uses Gemini to search and synthesize information from the web
-2. Generates structured results with citations
-3. Optionally resolves shortened/redirect URLs to final destinations
-
-**Parameters (`kwargs`):**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `modelName` | string | `"gemini-2.5-flash"` | Gemini model to use |
-| `entrepriseSearch` | bool | `false` | Use Enterprise Web Search |
-| `systemInstruction` | string | (built-in) | Custom system prompt |
-| `resolveUrls` | bool | `true` | Resolve redirect URLs |
-
-**Example:**
 ```json
 {
-  "search_engine": "vertexai",
-  "query": "Compare the top 3 cloud providers for ML workloads",
-  "kwargs": {
-    "modelName": "gemini-2.5-flash",
-    "resolveUrls": true
+  "error": {
+    "code": "ENGINE_NOT_CONFIGURED",
+    "message": "Engine 'google' is not registered or not configured",
+    "engine": "google",
+    "retryable": false
   }
 }
 ```
-
----
 
 ## Project Structure
 
 ```
 connectors/unique_search_proxy/
-├── unique_search_proxy/          # Python package (published to PyPI)
-│   ├── __init__.py
-│   └── web/                      # Web search API sub-module
-│       ├── __init__.py
-│       ├── app.py                # FastAPI application
-│       ├── settings.py           # Global settings
-│       └── core/                 # Search engine implementations
-│           ├── schema.py         # Shared schemas
-│           ├── google_search/    # Google Custom Search backend
-│           └── vertexai/         # Vertex AI (Gemini) backend
-├── tests/                        # Test suite
-├── deploy/                       # Container build artifacts
-│   ├── Dockerfile                # Hash-verified install or local wheel
-│   └── entrypoint.sh
-└── pyproject.toml
+├── unique_search_proxy/
+│   └── web/
+│       ├── app.py              # FastAPI app factory
+│       ├── settings/           # Shared settings helpers (env path, config factory)
+│       ├── api/
+│       │   ├── health.py       # /health, /ready
+│       │   └── v1/             # Versioned API
+│       │       ├── schema.py   # Request/response models
+│       │       ├── search.py
+│       │       └── crawl.py
+│       ├── monitoring/         # Prometheus metrics (unique_toolkit)
+│       └── core/
+│           ├── schema.py       # Shared domain types
+│           ├── errors.py
+│           ├── registry.py
+│           ├── client/         # HTTP egress service (settings + pool)
+│           ├── search_engines/
+│           └── crawlers/
+│               └── url_safety/
+├── tests/
+└── deploy/
 ```
 
-The package uses a sub-module hierarchy (`web/`) to support future extensions (e.g. `internal/` search) that can be deployed as separate containers from the same package.
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       FastAPI App                           │
-│                      /search endpoint                       │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                    ┌─────▼─────┐
-                    │  Factory  │
-                    └─────┬─────┘
-                          │
-          ┌───────────────┼───────────────┐
-          │                               │
-    ┌─────▼─────┐                   ┌─────▼─────┐
-    │  Google   │                   │ Vertex AI │
-    │  Search   │                   │  (Gemini) │
-    └───────────┘                   └───────────┘
-```
-
-The service uses a **factory pattern** to register and resolve search engines, making it easy to add new backends.
-
-## Error Handling
-
-All errors return a consistent format:
-
-```json
-{
-  "status": "failed",
-  "error": "Error description"
-}
-```
-
-| Status Code | Description |
-|-------------|-------------|
-| 400 | Validation error (invalid request) |
-| 500 | Internal server error |
-
-## Production Deployment
-
-The service includes a production-ready `deploy/entrypoint.sh` that uses Uvicorn:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST` | `0.0.0.0` | Bind address |
-| `PORT` | `8080` | Listen port |
-| `WORKERS` | `4` | Uvicorn workers |
-| `TIMEOUT` | `120` | Keep-alive timeout |
-| `LOG_LEVEL` | `info` | Logging verbosity |
+Engines and crawlers are registered via `core/registry.py` (empty until provider milestones land).
 
 ## Development
 
 ```bash
-# Run with hot reload
-uv run uvicorn unique_search_proxy.web.app:app --reload --port 2349
-
-# Format code
-uv run ruff format .
-
-# Lint
 uv run ruff check .
-
-# Run tests
+uv run ruff format .
 uv run pytest
-
-# Type check
 uv run basedpyright
 ```
 

@@ -8,6 +8,14 @@ WORKERS="${WORKERS:-4}"
 TIMEOUT="${TIMEOUT:-120}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
 
+# Prometheus multiprocess mode (required when WORKERS > 1)
+if [ "${WORKERS}" -gt 1 ]; then
+  export PROMETHEUS_MULTIPROC_DIR="${PROMETHEUS_MULTIPROC_DIR:-/tmp/prometheus}"
+  mkdir -p "${PROMETHEUS_MULTIPROC_DIR}"
+  rm -f "${PROMETHEUS_MULTIPROC_DIR}"/*
+  echo "Prometheus multiprocess dir: ${PROMETHEUS_MULTIPROC_DIR}"
+fi
+
 echo "=========================================="
 echo "            🧪 EXPERIMENTAL 🧪            "
 echo "    Search Proxy - Starting Application   "
@@ -18,7 +26,6 @@ echo "Workers: ${WORKERS}"
 echo "Log Level: ${LOG_LEVEL}"
 echo "=========================================="
 
-# Execute the main process (replaces shell, proper signal handling)
 exec uvicorn \
     unique_search_proxy.web.app:app \
     --host "${HOST}" \
