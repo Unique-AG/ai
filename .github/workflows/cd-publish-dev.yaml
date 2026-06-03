@@ -270,39 +270,15 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
 
-  prepare-container-matrix:
+  containerize:
     needs: [resolve, publish]
     if: needs.publish.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.out.outputs.matrix }}
-    steps:
-      - name: Build container matrix
-        id: out
-        env:
-          PUBLISH_MATRIX: ${{ needs.resolve.outputs.matrix }}
-          NEW_VERSIONS: ${{ needs.resolve.outputs.new_versions }}
-        run: |
-          MATRIX=$(echo "$PUBLISH_MATRIX" | jq -c --argjson versions "$NEW_VERSIONS" \
-            '{include: [.include[] | select(.containerize == true) | . + {version: $versions[.id]}]}')
-          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
-
-  containerize:
-    needs: prepare-container-matrix
-    if: fromJson(needs.prepare-container-matrix.outputs.matrix).include[0] != null
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.prepare-container-matrix.outputs.matrix) }}
-    name: containerize-${{ matrix.id }}
-    uses: ./.github/workflows/cd-containerize.yaml
+    uses: ./.github/workflows/cd-containerize-batch.yaml
     secrets: inherit
     with:
-      package_dir: ${{ matrix.dir }}
-      pypi_name: ${{ matrix.pypi_name }}
-      image_repo: ${{ matrix.container_repo }}
-      version: ${{ matrix.version }}
+      publish_matrix: ${{ needs.resolve.outputs.matrix }}
+      versions: ${{ needs.resolve.outputs.new_versions }}
       tag_latest: false
-      python: ${{ matrix.python }}
 
   tag-cut:
     # Tag every successful dev publish so it can later be promoted to an
