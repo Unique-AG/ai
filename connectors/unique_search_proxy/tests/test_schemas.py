@@ -1,11 +1,14 @@
 import pytest
+from pydantic import ValidationError
 
-from unique_search_proxy.web.core.schema import (
-    CrawlerConfig,
-    ProxyErrorCode,
-    SearchEngineConfig,
-    WebSearchResult,
+from unique_search_proxy.web.core.crawlers import parse_crawler_config
+from unique_search_proxy.web.core.crawlers.basic.schema import BasicCrawlerConfig
+from unique_search_proxy.web.core.schema import ProxyErrorCode, WebSearchResult
+from unique_search_proxy.web.core.search_engines import (
+    SearchEngineType,
+    parse_search_engine_config,
 )
+from unique_search_proxy.web.core.search_engines.google.schema import GoogleConfig
 
 
 class TestWebSearchResult:
@@ -26,16 +29,24 @@ class TestWebSearchResult:
 
 class TestProviderConfig:
     @pytest.mark.ai
-    def test_search_engine_config(self) -> None:
-        config = SearchEngineConfig.model_validate(
-            {"engine": "google", "exposedFields": ["query"]},
+    def test_google_config_discriminator(self) -> None:
+        config = parse_search_engine_config(
+            {"engine": "google", "exposedFields": ["dateRestrict"]},
         )
-        assert config.engine == "google"
-        assert config.exposed_fields == ["query"]
+        assert isinstance(config, GoogleConfig)
+        assert config.engine == SearchEngineType.GOOGLE
+        assert config.exposed_fields == ["dateRestrict"]
+        assert config.llm_field_names() == ["query", "date_restrict"]
+
+    @pytest.mark.ai
+    def test_unknown_engine_id_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            parse_search_engine_config({"engine": "unknown-engine"})
 
     @pytest.mark.ai
     def test_crawler_config(self) -> None:
-        config = CrawlerConfig.model_validate({"crawler": "basic"})
+        config = parse_crawler_config({"crawler": "basic"})
+        assert isinstance(config, BasicCrawlerConfig)
         assert config.crawler == "basic"
 
 

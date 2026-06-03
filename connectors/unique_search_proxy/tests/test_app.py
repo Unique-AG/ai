@@ -27,17 +27,18 @@ class TestV1SearchEndpoint:
         assert resp.status_code == 422
 
     @pytest.mark.ai
-    def test_unregistered_engine_returns_structured_503(
-        self, client: TestClient
-    ) -> None:
+    def test_unknown_engine_returns_structured_422(self, client: TestClient) -> None:
         resp = client.post(
             "/v1/search",
-            json={"query": "test", "config": {"engine": "google"}},
+            json={
+                "config": {"engine": "unknown-engine"},
+                "call": {"query": "test"},
+            },
         )
-        assert resp.status_code == 503
+        assert resp.status_code == 422
         body = resp.json()
         assert "error" in body
-        assert body["error"]["code"] == "ENGINE_NOT_CONFIGURED"
+        assert body["error"]["code"] == "VALIDATION_ERROR"
 
 
 class TestHealthCheckFilter:

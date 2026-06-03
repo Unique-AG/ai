@@ -35,7 +35,9 @@ class TestMetricsEndpoint:
         assert "unique_search_proxy" in body
 
     @pytest.mark.ai
-    def test_metrics_disabled_returns_404(self, client_metrics_disabled: TestClient) -> None:
+    def test_metrics_disabled_returns_404(
+        self, client_metrics_disabled: TestClient
+    ) -> None:
         resp = client_metrics_disabled.get("/metrics")
         assert resp.status_code == 404
 
@@ -43,7 +45,7 @@ class TestMetricsEndpoint:
     def test_search_increments_proxy_error_metric(self, client: TestClient) -> None:
         client.post(
             "/v1/search",
-            json={"query": "test", "config": {"engine": "google"}},
+            json={"config": {"engine": "google"}, "call": {"query": "test"}},
         )
         metrics = client.get("/metrics").text
         assert "unique_search_proxy_proxy_errors_total" in metrics

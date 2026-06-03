@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from unique_search_proxy.web.app import create_app
 from unique_search_proxy.web.core.errors import (
     BadRequestProxyError,
+    EmptySearchResultsError,
     EngineNotConfiguredError,
     ForbiddenTargetError,
     RateLimitedError,
@@ -30,6 +31,11 @@ from unique_search_proxy.web.core.schema import ProxyErrorCode
         (UpstreamError("upstream"), 502, ProxyErrorCode.UPSTREAM_ERROR),
         (EngineNotConfiguredError("google"), 503, ProxyErrorCode.ENGINE_NOT_CONFIGURED),
         (UpstreamTimeoutError("timeout"), 504, ProxyErrorCode.UPSTREAM_TIMEOUT),
+        (
+            EmptySearchResultsError("none", engine="google"),
+            404,
+            ProxyErrorCode.EMPTY_SEARCH_RESULTS,
+        ),
     ],
 )
 def test_proxy_error_status_mapping(exc, status, code) -> None:
@@ -55,21 +61,23 @@ def client() -> TestClient:
 
 class TestV1StructuredErrors:
     @pytest.mark.ai
-    def test_unregistered_search_engine_returns_503(self, client: TestClient) -> None:
+    def test_unknown_search_engine_returns_422(self, client: TestClient) -> None:
         resp = client.post(
             "/v1/search",
             json={
-                "query": "test",
-                "config": {"engine": "google"},
+                "config": {"engine": "unknown-engine"},
+                "call": {"query": "test"},
             },
         )
-        assert resp.status_code == 503
+        assert resp.status_code == 422
         body = resp.json()
-        assert body["error"]["code"] == ProxyErrorCode.ENGINE_NOT_CONFIGURED.value
-        assert body["error"]["engine"] == "google"
+        assert body["error"]["code"] == ProxyErrorCode.VALIDATION_ERROR.value
 
     @pytest.mark.ai
     def test_unregistered_crawler_returns_503(self, client: TestClient) -> None:
+        from unique_search_proxy.web.core.registry import _CRAWLER_REGISTRY
+
+        _CRAWLER_REGISTRY.clear()
         resp = client.post(
             "/v1/crawl",
             json={
@@ -83,7 +91,8 @@ class TestV1StructuredErrors:
     @pytest.mark.ai
     def test_validation_error_returns_422(self, client: TestClient) -> None:
         resp = client.post(
-            "/v1/search", json={"query": "", "config": {"engine": "google"}}
+            "/v1/search",
+            json={"config": {"engine": "google"}, "call": {"query": ""}},
         )
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == ProxyErrorCode.VALIDATION_ERROR.value

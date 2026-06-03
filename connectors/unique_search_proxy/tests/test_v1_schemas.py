@@ -14,8 +14,8 @@ class TestV1SearchSchemas:
     def test_search_request_camel_case(self) -> None:
         req = SearchRequest.model_validate(
             {
-                "query": "test",
                 "config": {"engine": "google"},
+                "call": {"query": "test"},
                 "includeContent": True,
                 "timeout": 60,
             },
