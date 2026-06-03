@@ -138,11 +138,8 @@ jobs:
         env:
           RAW_MATRIX: ${{ steps.select.outputs.matrix }}
         run: |
-          # Strip entries that must not appear in the dev CalVer publish:
-          # - publish_skip: true  — never published to PyPI at all
-          # - dev_publish_skip: true — published only on stable release
-          # - no pypi_name — not a PyPI package
-          MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.dev_publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
+          # Strip publish_skip entries and any package without a pypi_name.
+          MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
           SELECTED_IDS=$(jq -c '[.include[].id]' <<<"$MATRIX")
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "selected_ids=$SELECTED_IDS" >> "$GITHUB_OUTPUT"
