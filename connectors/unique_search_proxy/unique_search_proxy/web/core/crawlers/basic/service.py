@@ -14,12 +14,12 @@ from unique_search_proxy.web.core.crawlers.basic.processing import (
     process_content,
 )
 from unique_search_proxy.web.core.crawlers.basic.schema import BasicCrawlerConfig
+from unique_search_proxy.web.core.crawlers.basic.user_agent import random_user_agent
 from unique_search_proxy.web.core.schema import (
     CrawlUrlResult,
     PerUrlError,
     ProxyErrorCode,
 )
-from unique_search_proxy.web.core.utils.user_agent import random_user_agent
 
 _LOGGER = logging.getLogger(__name__)
 
