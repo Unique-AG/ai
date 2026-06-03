@@ -25,7 +25,9 @@ def conditional_type(tp: type[T], value: T | None, description: str, default: T)
     if value is None:
         return tp, Field(default=default, description=description)
     else:
-        return SkipJsonSchema[tp], Field(default=value, description=description)
+        return SkipJsonSchema[tp], Field(
+            default=value, description=description, exclude=True
+        )
 
 
 ApiEndpointType, ApiEndpointField = conditional_type(
