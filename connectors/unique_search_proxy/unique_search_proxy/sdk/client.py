@@ -213,7 +213,7 @@ class UniqueSearchProxyClient:
     ) -> SearchResponse:
         engine_value = engine.value if isinstance(engine, SearchEngineType) else engine
         sdk_request = to_sdk_google_config_request(request)
-        sdk_request.engine = engine_value 
+        sdk_request.engine = engine_value # type: ignore
         if timeout is not None:
             sdk_request.timeout = timeout
         return await self.search(sdk_request)
