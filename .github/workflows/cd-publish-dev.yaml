@@ -136,11 +136,13 @@ jobs:
         env:
           RAW_MATRIX: ${{ steps.select.outputs.matrix }}
         run: |
-          # The shared matrix includes connectors/unique_search_proxy
-          # (publish_skip=true) and any future entry without a pypi_name.
-          # Strip them here so the publish strategy only spins up jobs for
-          # things we actually ship.
-          MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
+          # Strip entries that must not appear in the dev CalVer publish:
+          # - publish_skip: true  — never published to PyPI at all
+          # - dev_publish_skip: true — published only on stable release
+          #   (e.g. unique_search_proxy uses independent semver via
+          #   release-please and must not receive CalVer dev stamps)
+          # - no pypi_name — not a PyPI package
+          MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.dev_publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
           SELECTED_IDS=$(jq -c '[.include[].id]' <<<"$MATRIX")
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           echo "selected_ids=$SELECTED_IDS" >> "$GITHUB_OUTPUT"
