@@ -112,3 +112,38 @@ jobs:
           python_version: ${{ matrix.python }}
           check_version: "false"
           pypi_token: ${{ secrets.PYPI_TOKEN }}
+
+  prepare-container-matrix:
+    needs: [resolve-package, publish]
+    if: needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.out.outputs.matrix }}
+    steps:
+      - name: Build container matrix
+        id: out
+        env:
+          PUBLISH_MATRIX: ${{ needs.resolve-package.outputs.matrix }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="${RELEASE_TAG##*-v}"
+          MATRIX=$(echo "$PUBLISH_MATRIX" | jq -c --arg v "$VERSION" \
+            '{include: [.include[] | select(.containerize == true) | . + {version: $v}]}')
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  containerize:
+    needs: prepare-container-matrix
+    if: fromJson(needs.prepare-container-matrix.outputs.matrix).include[0] != null
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare-container-matrix.outputs.matrix) }}
+    name: containerize-${{ matrix.id }}
+    uses: ./.github/workflows/cd-containerize.yaml
+    secrets: inherit
+    with:
+      package_dir: ${{ matrix.dir }}
+      pypi_name: ${{ matrix.pypi_name }}
+      image_repo: ${{ matrix.container_repo }}
+      version: ${{ matrix.version }}
+      tag_latest: true
+      python: ${{ matrix.python }}
