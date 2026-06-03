@@ -18,6 +18,7 @@ from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.custom_api import (
     CustomAPI,
     CustomAPIConfig,
+    conditional_type,
 )
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 from unique_web_search.services.search_engine.jina import JinaConfig, JinaSearch
@@ -1265,6 +1266,91 @@ class TestCustomAPISearch:
         assert call_kwargs["timeout"] == 120  # default timeout
         assert call_kwargs["follow_redirects"] is True
         assert call_kwargs["max_redirects"] == 10
+
+
+class TestConditionalType:
+    """Tests for the conditional_type field factory used by CustomAPIConfig."""
+
+    @pytest.mark.ai
+    def test_conditional_type__no_exclude__when_env_value_unset(self) -> None:
+        """
+        Purpose: Verify the field is NOT excluded from serialization when no env value is set.
+        Why this matters: When unset, the field is user-configurable and must appear in
+            model_dump() output and the JSON schema so it can be edited and round-tripped.
+        Setup summary: Call conditional_type with value=None; inspect the returned FieldInfo.
+        """
+        # Arrange & Act
+        tp, field = conditional_type(str, None, "desc", "default")
+
+        # Assert
+        assert tp is str  # exposed in schema (not SkipJsonSchema)
+        assert field.exclude is not True
+        assert field.default == "default"
+
+    @pytest.mark.ai
+    def test_conditional_type__excludes_field__when_env_value_set(self) -> None:
+        """
+        Purpose: Verify the field is excluded from serialization when an env value is set.
+        Why this matters: Env-sourced values (e.g. endpoints/headers) should not leak into
+            model_dump() output and are re-sourced from env on load, so they must be excluded.
+        Setup summary: Call conditional_type with a concrete value; inspect the returned FieldInfo.
+        """
+        # Arrange & Act
+        _, field = conditional_type(str, "from-env", "desc", "default")
+
+        # Assert
+        assert field.exclude is True
+        assert field.default == "from-env"
+
+    @pytest.mark.ai
+    def test_conditional_type__field_excluded_from_model_dump__when_env_value_set(
+        self,
+    ) -> None:
+        """
+        Purpose: End-to-end check that exclude=True actually drops the field from model_dump().
+        Why this matters: This is the observable behavior callers rely on; a regression would
+            re-expose env-sourced config values in serialized output.
+        Setup summary: Build a tiny model whose field uses conditional_type with a set value,
+            then dump it and assert the field is absent.
+        """
+        # Arrange
+        from pydantic import BaseModel
+
+        tp, field = conditional_type(str, "from-env", "desc", "default")
+
+        class _Model(BaseModel):
+            value: tp = field  # type: ignore[valid-type]
+
+        # Act
+        dumped = _Model().model_dump()
+
+        # Assert
+        assert "value" not in dumped
+
+    @pytest.mark.ai
+    def test_conditional_type__field_present_in_model_dump__when_env_value_unset(
+        self,
+    ) -> None:
+        """
+        Purpose: Counterpart check that an unset (None) env value keeps the field in model_dump().
+        Why this matters: User-configurable fields must remain serializable so they can be
+            persisted and round-tripped.
+        Setup summary: Build a tiny model whose field uses conditional_type with value=None,
+            then dump it and assert the field is present with its default.
+        """
+        # Arrange
+        from pydantic import BaseModel
+
+        tp, field = conditional_type(str, None, "desc", "default")
+
+        class _Model(BaseModel):
+            value: tp = field  # type: ignore[valid-type]
+
+        # Act
+        dumped = _Model().model_dump()
+
+        # Assert
+        assert dumped["value"] == "default"
 
 
 if __name__ == "__main__":
