@@ -34,9 +34,6 @@ from unique_search_proxy.web.core.search_engines.pagination import (
     PageRequest,
     iter_page_requests,
 )
-from unique_search_proxy.web.core.utils.content import (
-    canonicalize_url,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -177,7 +174,7 @@ class GoogleSearchService(SearchEngine[GoogleConfig, GoogleSearchCall]):
             link = item.get("link") or ""
             results.append(
                 WebSearchResult(
-                    url=canonicalize_url(link) if link else "",
+                    url=link.strip() if link else "",
                     title=item.get("title") or item.get("htmlTitle") or "",
                     snippet=item.get("snippet", ""),
                 ),
