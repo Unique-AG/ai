@@ -11,6 +11,8 @@ on:
     paths:
       - connectors/unique_search_proxy/**
       - .github/workflows/unique_search_proxy-publish.yaml
+  release:
+    types: [published]
 
 jobs:
   validate-pr:
@@ -129,3 +131,64 @@ jobs:
           provenance: false
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+
+  # Release-triggered build: when release-please publishes a
+  # `unique-search-proxy-v<version>` release, push an image tagged with that
+  # exact version. The Helm chart's image.tag (stamped by release-please in the
+  # same release commit) points at this tag. Builds from the tagged commit's
+  # local wheel so it never races the PyPI publish.
+  release-container:
+    if: github.event_name == 'release' && startsWith(github.event.release.tag_name, 'unique-search-proxy-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      packages: write
+    env:
+      CHART_REPO: ghcr.io/unique-ag/ai/search-proxy
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Resolve release version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: echo "version=${RELEASE_TAG#unique-search-proxy-v}" >> $GITHUB_OUTPUT
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Build wheel from source
+        working-directory: connectors/unique_search_proxy
+        run: uv build --wheel --out-dir deploy/
+
+      - name: Resolve wheel filename
+        id: wheel
+        working-directory: connectors/unique_search_proxy/deploy
+        run: echo "name=$(ls unique_search_proxy-*.whl)" >> $GITHUB_OUTPUT
+
+      - name: Setup docker buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Login to registry hub
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push release container
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          build-args: |
+            LOCAL_WHEEL=${{ steps.wheel.outputs.name }}
+          cache-from: type=registry,ref=${{ env.CHART_REPO }}:cache
+          context: connectors/unique_search_proxy/deploy
+          file: connectors/unique_search_proxy/deploy/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          push: true
+          tags: ${{ env.CHART_REPO }}:${{ steps.version.outputs.version }}
