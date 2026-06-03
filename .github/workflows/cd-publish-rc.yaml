@@ -317,6 +317,9 @@ jobs:
   containerize:
     needs: [resolve, publish]
     if: needs.publish.result == 'success'
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/cd-containerize-batch.yaml
     secrets: inherit
     with:
