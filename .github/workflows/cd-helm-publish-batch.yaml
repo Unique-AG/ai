@@ -1,0 +1,71 @@
+name: "[CD] Helm publish (batch)"
+
+# Filters a publish matrix down to entries with `helm_chart: true`, attaches
+# the version each chart should be stamped with, and fans out one
+# `cd-helm-publish.yaml` run per chart. Mirrors cd-containerize-batch.yaml.
+#
+# Two version-resolution modes:
+#   - versions:    per-package map (dev/rc, from resolve.new_versions). Each
+#                  chart is stamped with its raw PyPI version.
+#   - release_tag: stable release event. release-please has already bumped the
+#                  chart files, so no version is passed (charts package as-is).
+
+on:
+  workflow_call:
+    inputs:
+      publish_matrix:
+        description: 'Publish matrix JSON ({include: [...]}) to filter for helm_chart==true'
+        required: true
+        type: string
+      versions:
+        description: 'JSON map of {id: version} (dev/rc). Takes precedence over release_tag.'
+        required: false
+        type: string
+        default: ''
+      release_tag:
+        description: 'Release tag (<component>-v<version>); when set without versions, charts package as-is (stable).'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.out.outputs.matrix }}
+    steps:
+      - name: Build helm matrix
+        id: out
+        env:
+          PUBLISH_MATRIX: ${{ inputs.publish_matrix }}
+          VERSIONS: ${{ inputs.versions }}
+        run: |
+          # dev/rc: attach each chart's raw PyPI version from the map.
+          # stable: leave version empty so the chart packages as bumped by
+          # release-please.
+          if [[ -n "$VERSIONS" ]]; then
+            MATRIX=$(jq -c --argjson versions "$VERSIONS" \
+              '{include: [.include[] | select(.helm_chart == true) | . + {version: $versions[.id]}]}' <<<"$PUBLISH_MATRIX")
+          else
+            MATRIX=$(jq -c \
+              '{include: [.include[] | select(.helm_chart == true) | . + {version: ""}]}' <<<"$PUBLISH_MATRIX")
+          fi
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  helm-publish:
+    needs: prepare
+    if: fromJson(needs.prepare.outputs.matrix).include[0] != null
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    name: helm-publish-${{ matrix.id }}
+    uses: ./.github/workflows/cd-helm-publish.yaml
+    secrets: inherit
+    with:
+      chart_dir: ${{ matrix.dir }}/deploy/helm-chart
+      registry: ${{ matrix.chart_registry }}
+      version: ${{ matrix.version }}
