@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -7,8 +8,9 @@ from fastapi import APIRouter, Request
 
 from unique_search_proxy.web.api.v1.schema import CrawlRequest, CrawlResponse
 from unique_search_proxy.web.core.client import get_http_client_pool
-from unique_search_proxy.web.core.errors import ProxyError
-from unique_search_proxy.web.core.registry import get_crawler
+from unique_search_proxy.web.core.crawlers.factory import get_crawler_service
+from unique_search_proxy.web.core.errors import ProxyError, UpstreamTimeoutError
+from unique_search_proxy.web.core.schema import ProxyErrorCode
 from unique_search_proxy.web.monitoring.metrics import (
     record_crawl_error,
     record_crawl_success,
@@ -24,11 +26,20 @@ async def crawl(request: Request, body: CrawlRequest) -> CrawlResponse:
     started = time.perf_counter()
 
     try:
-        crawler_cls = get_crawler(crawler_id)
-        _ = get_http_client_pool(request.app)
-
-        crawler = crawler_cls(body.config)
-        await crawler.crawl(body.urls)
+        pool = get_http_client_pool(request.app)
+        crawler = get_crawler_service(body.config, http_client=pool.client)
+        async with asyncio.timeout(body.timeout):
+            results = await crawler.crawl(body.urls, timeout=body.timeout)
+    except TimeoutError as exc:
+        record_crawl_error(
+            crawler_id,
+            ProxyErrorCode.UPSTREAM_TIMEOUT.value,
+            time.perf_counter() - started,
+        )
+        raise UpstreamTimeoutError(
+            f"Crawler '{crawler_id}' timed out after {body.timeout}s",
+            crawler=crawler_id,
+        ) from exc
     except ProxyError:
         raise
     except Exception:
@@ -40,4 +51,4 @@ async def crawl(request: Request, body: CrawlRequest) -> CrawlResponse:
         raise
 
     record_crawl_success(crawler_id, len(body.urls), time.perf_counter() - started)
-    return CrawlResponse(crawler=crawler_id, results=[])
+    return CrawlResponse(crawler=crawler_id, results=results)

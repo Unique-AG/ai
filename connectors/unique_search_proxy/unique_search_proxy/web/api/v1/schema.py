@@ -4,30 +4,32 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from unique_search_proxy.web.core.crawlers.config_types import CrawlerConfigTypes
 from unique_search_proxy.web.core.schema import (
-    CrawlerConfig,
-    SearchEngineConfig,
+    CrawlUrlResult,
+    PerUrlError,
     WebSearchResult,
     camelized_model_config,
 )
+from unique_search_proxy.web.core.search_engines import SearchEngineConfigTypes
 
 
 class SearchRequest(BaseModel):
     model_config = camelized_model_config
 
-    query: str = Field(..., min_length=1, description="Search query string")
-    config: SearchEngineConfig
-    fetch_size: int | None = Field(
-        default=None,
-        ge=1,
-        le=100,
-        description="Number of results to fetch",
+    config: SearchEngineConfigTypes = Field(discriminator="engine")
+    call: dict[str, Any] = Field(
+        ...,
+        description=(
+            "Per-invocation parameters merged over config defaults "
+            "(must include query; may include LLM-exposed fields)"
+        ),
     )
     include_content: bool = Field(
         default=False,
         description="When true and the engine is snippet-only, crawl to fill content",
     )
-    crawler_config: CrawlerConfig | None = None
+    crawler_config: CrawlerConfigTypes | None = None
     timeout: int = Field(
         default=30,
         ge=1,
@@ -45,30 +47,28 @@ class SearchResponse(BaseModel):
     curated: list[WebSearchResult]
 
 
-class PerUrlError(BaseModel):
-    model_config = camelized_model_config
-
-    code: str
-    message: str
-
-
-class CrawlUrlResult(BaseModel):
-    model_config = camelized_model_config
-
-    url: str
-    content: str | None = None
-    error: PerUrlError | None = None
-    raw: Any | None = Field(
-        default=None,
-        description="Opaque fetched payload, or null when fetch failed",
-    )
+__all__ = [
+    "CrawlRequest",
+    "CrawlResponse",
+    "CrawlUrlResult",
+    "PerUrlError",
+    "SearchRequest",
+    "SearchResponse",
+]
 
 
 class CrawlRequest(BaseModel):
     model_config = camelized_model_config
 
     urls: list[str] = Field(..., min_length=1, description="URLs to crawl")
-    config: CrawlerConfig
+    config: CrawlerConfigTypes
+    accepted_content_types: list[str] | None = Field(
+        default=None,
+        description=(
+            "Optional hint for callers (e.g. text/html). The proxy does not filter "
+            "on this; consumers decide how to handle each result's contentType."
+        ),
+    )
     parallel: bool = Field(
         default=True,
         description="Whether to crawl URLs concurrently",
