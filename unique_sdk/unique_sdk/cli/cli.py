@@ -7,6 +7,7 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_ask,
     cmd_elicit_create,
@@ -298,6 +299,34 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
       unique-cli download cont_abc123 ~/Desktop/
     """
     click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
+
+
+@main.command(name="cite")
+@click.argument("name_or_id")
+@click.option(
+    "--pages",
+    "-p",
+    default=None,
+    help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
+)
+@click.pass_context
+def cite(
+    ctx: click.Context,
+    name_or_id: str,
+    pages: str | None,
+) -> None:
+    """Declare page citations for a file.
+
+    \b
+    Registers [filesourceN] markers for pages you referenced in your answer.
+    Does NOT read or extract the file — use your own tools for that.
+
+    \b
+    Examples:
+      unique-cli cite report.pdf --pages 3,5,7
+      unique-cli cite cont_abc123 --pages 1-4
+    """
+    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
 
 
 @main.command()
