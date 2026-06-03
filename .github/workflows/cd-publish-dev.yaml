@@ -102,6 +102,9 @@ jobs:
             ".github/actions/publish-to-pypi-with-uv/action.yml"
             ".github/workflows/ci-containerize.yaml"
             ".github/workflows/cd-containerize.yaml"
+            ".github/workflows/cd-helm-publish.yaml"
+            ".github/workflows/cd-helm-publish-batch.yaml"
+            ".github/scripts/helm_package_push.py"
           )
           NULL_SHA="0000000000000000000000000000000000000000"
           if [[ -z "$BEFORE" || "$BEFORE" == "$NULL_SHA" ]] \
@@ -282,6 +285,20 @@ jobs:
       publish_matrix: ${{ needs.resolve.outputs.matrix }}
       versions: ${{ needs.resolve.outputs.new_versions }}
       tag_latest: false
+
+  helm-publish:
+    # Publish dev Helm charts after the container images exist, so each chart's
+    # stamped image.tag resolves to a pushed image.
+    needs: [resolve, containerize]
+    if: needs.containerize.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/cd-helm-publish-batch.yaml
+    secrets: inherit
+    with:
+      publish_matrix: ${{ needs.resolve.outputs.matrix }}
+      versions: ${{ needs.resolve.outputs.new_versions }}
 
   tag-cut:
     # Tag every successful dev publish so it can later be promoted to an

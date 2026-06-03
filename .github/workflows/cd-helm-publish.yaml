@@ -1,0 +1,59 @@
+name: "[CD] Helm publish"
+
+# Package one dedicated Helm chart and push it to an OCI registry.
+#
+# Two version modes (see .github/scripts/helm_package_push.py):
+#   - stable: omit `version`; the chart's Chart.yaml/values.yaml are already
+#     bumped by release-please at the `# x-release-please-version` markers.
+#   - dev/rc: pass the raw PyPI `version` (e.g. 2026.24.0.dev11); the script
+#     stamps it in (SemVer-2 chart version, raw appVersion/image.tag) before
+#     packaging. The container image at that tag is pushed first by
+#     cd-containerize, so the chart resolves to an image that exists.
+#
+# The base library chart is pulled from oci://ghcr.io/unique-ag/helm, so the
+# job logs into GHCR before resolving dependencies.
+
+on:
+  workflow_call:
+    inputs:
+      chart_dir:
+        description: 'Chart directory (contains Chart.yaml), e.g. connectors/unique_search_proxy/deploy/helm-chart'
+        required: true
+        type: string
+      registry:
+        description: 'OCI registry to push to, e.g. oci://ghcr.io/unique-ag/ai/helm'
+        required: true
+        type: string
+      version:
+        description: 'Raw PyPI version to stamp (dev/rc). Omit on stable to package the chart as checked out.'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  helm-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Verify helm is available
+        run: helm version
+
+      - name: Login to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Package and push chart
+        run: |
+          python3 .github/scripts/helm_package_push.py \
+            --chart "${{ inputs.chart_dir }}" \
+            --registry "${{ inputs.registry }}" \
+            --destination "$RUNNER_TEMP/helm-dist" \
+            ${{ inputs.version && format('--version {0}', inputs.version) || '' }}
