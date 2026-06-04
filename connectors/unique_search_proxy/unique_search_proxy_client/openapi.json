@@ -1,0 +1,722 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Unique Search Proxy",
+    "description": "Unified web egress proxy for search engines and crawlers. Use **Try it out** on `/v1/search` and `/v1/crawl` \u2014 pick an example from the request-body dropdown (snippets-only Google search, crawl with HTML markdown, etc.). Requires provider env vars (e.g. `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls.",
+    "version": "0.2.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Ready",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Ready Ready Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/providers": {
+      "get": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "List registered search engines and crawlers",
+        "operationId": "list_providers_v1_configuration_providers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvidersListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/search": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Run a search engine with a typed call payload",
+        "operationId": "search_v1_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleRequest"
+              },
+              "examples": {
+                "google_search": {
+                  "summary": "Google search",
+                  "description": "Flat search request; requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID in .env.",
+                  "value": {
+                    "engine": "google",
+                    "query": "unique ag",
+                    "fetchSize": 10,
+                    "safe": "active",
+                    "timeout": 30
+                  }
+                },
+                "google_search_with_gl": {
+                  "summary": "Google search (with gl and dateRestrict)",
+                  "description": "Full execution payload including optional provider parameters.",
+                  "value": {
+                    "engine": "google",
+                    "query": "unique ag",
+                    "fetchSize": 10,
+                    "gl": "ch",
+                    "dateRestrict": "d7",
+                    "safe": "active",
+                    "timeout": 30
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/crawl": {
+      "post": {
+        "tags": [
+          "crawl"
+        ],
+        "summary": "Crawl URLs with a configured crawler",
+        "operationId": "crawl_v1_crawl_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BasicCrawlerRequest"
+              },
+              "examples": {
+                "basic_raw": {
+                  "summary": "Basic crawl (raw body only)",
+                  "description": "Returns raw response text and contentType; content stays null.",
+                  "value": {
+                    "urls": [
+                      "https://example.com"
+                    ],
+                    "crawlerType": "BasicProxyCrawler",
+                    "contentTypes": {
+                      "html": false,
+                      "xhtml": false,
+                      "plainText": false,
+                      "markdown": false,
+                      "pdf": false
+                    },
+                    "timeout": 30
+                  }
+                },
+                "basic_html_markdown": {
+                  "summary": "Basic crawl (HTML to markdown)",
+                  "description": "Processes allowed content types into the content field.",
+                  "value": {
+                    "urls": [
+                      "https://example.com"
+                    ],
+                    "crawlerType": "BasicProxyCrawler",
+                    "contentTypes": {
+                      "html": true,
+                      "xhtml": true
+                    },
+                    "timeout": 30
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BasicCrawlerRequest": {
+        "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
+          "crawlerType": {
+            "type": "string",
+            "const": "BasicProxyCrawler",
+            "title": "Crawler Type",
+            "default": "BasicProxyCrawler"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "contentTypes": {
+            "$ref": "#/components/schemas/ContentTypeToggles",
+            "title": "Content types",
+            "description": "Enable built-in processing per media type. Unchecked types return raw body only.",
+            "default": {
+              "html": true,
+              "xhtml": true,
+              "plainText": true,
+              "markdown": true,
+              "pdf": false
+            }
+          },
+          "maxConcurrentRequests": {
+            "type": "integer",
+            "title": "Maximum concurrent HTTP fetches",
+            "description": "Maximum concurrent HTTP fetches",
+            "default": 10
+          }
+        },
+        "type": "object",
+        "required": [
+          "urls"
+        ],
+        "title": "Basic Proxy Crawler "
+      },
+      "ContentTypeToggles": {
+        "properties": {
+          "html": {
+            "type": "boolean",
+            "title": "HTML",
+            "description": "text/html",
+            "default": true
+          },
+          "xhtml": {
+            "type": "boolean",
+            "title": "XHTML",
+            "description": "application/xhtml+xml",
+            "default": true
+          },
+          "plainText": {
+            "type": "boolean",
+            "title": "Plain text",
+            "description": "text/plain",
+            "default": true
+          },
+          "markdown": {
+            "type": "boolean",
+            "title": "Markdown",
+            "description": "text/markdown",
+            "default": true
+          },
+          "pdf": {
+            "type": "boolean",
+            "title": "PDF",
+            "description": "application/pdf",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "Content Types",
+        "description": "Per-type activation flags for basic-crawler content processing."
+      },
+      "CrawlResponse": {
+        "properties": {
+          "crawlerType": {
+            "type": "string",
+            "title": "Crawler Type"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/CrawlUrlResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "crawlerType",
+          "results"
+        ],
+        "title": "Crawl Response"
+      },
+      "CrawlUrlResult": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "Markdown extracted from HTML responses; null when unprocessed"
+          },
+          "contentType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type",
+            "description": "Response Content-Type (media type only, parameters stripped)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerUrlError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "raw": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw",
+            "description": "Unmodified response body text, or null when no body was received"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "Crawl Url Result"
+      },
+      "GoogleRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "google",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `google` for this config.",
+            "default": "google"
+          },
+          "fetchSize": {
+            "type": "integer",
+            "title": "Fetch Size",
+            "description": "Default result count merged into each search request",
+            "default": 10
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "searchEngineId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search engine ID (cx)",
+            "description": "Google Programmable Search Engine ID (`cx`). Resolved from deployment env at runtime when not set. Not sent as a query parameter."
+          },
+          "safe": {
+            "type": "string",
+            "enum": [
+              "active",
+              "off"
+            ],
+            "title": "Safe search",
+            "description": "SafeSearch level for every search: `active` (default) or `off`. Applied on all requests unless the call body overrides it.",
+            "default": "active"
+          },
+          "gl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geolocation (gl)",
+            "description": "Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). Set `value` for a fixed default; set `expose` so the LLM may override per query."
+          },
+          "hl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interface language (hl)",
+            "description": "Language for snippets/UI (Google `hl`). `value` + `expose` behave like `gl`."
+          },
+          "lr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language restrict (lr)",
+            "description": "Document language restrict (Google `lr`), e.g. `lang_en`. `value` + `expose` behave like `gl`."
+          },
+          "dateRestrict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date restrict",
+            "description": "Google `dateRestrict` recency filter (`d7`, `m1`, \u2026). `value` + `expose` behave like `gl`."
+          },
+          "exactTerms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exact terms",
+            "description": "Phrase every hit must contain (Google `exactTerms`). `value` + `expose` behave like `gl`."
+          },
+          "excludeTerms": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude terms",
+            "description": "Phrase that must not appear (Google `excludeTerms`). `value` + `expose` behave like `gl`."
+          },
+          "fileType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File type",
+            "description": "File extension filter (Google `fileType`), e.g. `pdf`. `value` + `expose` behave like `gl`."
+          },
+          "siteSearch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site search",
+            "description": "Site or domain (Google `siteSearch`). Pair with `siteSearchFilter`. `value` + `expose` behave like `gl`."
+          },
+          "siteSearchFilter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "e",
+                  "i"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site search filter",
+            "description": "With `siteSearch`: `i` = include only that site, `e` = exclude. `value` + `expose` behave like `gl`."
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort",
+            "description": "Sort expression (Google `sort`), e.g. `date`. `value` + `expose` behave like `gl`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Google Request"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PerUrlError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "Per Url Error"
+      },
+      "ProvidersListResponse": {
+        "properties": {
+          "searchEngines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Search Engines",
+            "description": "Registered search engine ids (config discriminator values)"
+          },
+          "crawlers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Crawlers",
+            "description": "Registered crawler ids (config discriminator values)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "searchEngines",
+          "crawlers"
+        ],
+        "title": "Providers List Response"
+      },
+      "SearchResponse": {
+        "properties": {
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "raw": {
+            "title": "Raw",
+            "description": "Opaque provider payload"
+          },
+          "curated": {
+            "items": {
+              "$ref": "#/components/schemas/WebSearchResult"
+            },
+            "type": "array",
+            "title": "Curated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "engine",
+          "query",
+          "raw",
+          "curated"
+        ],
+        "title": "Search Response"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WebSearchResult": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "A short description of the content found on this website"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "The content of the website",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "title",
+          "snippet"
+        ],
+        "title": "Web Search Result",
+        "description": "Normalized search result used on the curated response path."
+      }
+    }
+  }
+}

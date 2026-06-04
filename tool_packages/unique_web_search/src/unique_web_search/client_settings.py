@@ -235,3 +235,30 @@ def get_perplexity_search_settings() -> PerplexitySearchSettings:
     if _perplexity_search_settings is None:
         _perplexity_search_settings = PerplexitySearchSettings.from_env_settings()
     return _perplexity_search_settings
+
+
+class SearchProxySettings(BaseModel):
+    base_url: str | None = None
+
+    @property
+    def is_configured(self) -> bool:
+        return self.base_url is not None
+
+    @classmethod
+    def from_env_settings(cls):
+        if env_settings.search_proxy_base_url is None:
+            _LOGGER.warning("Unique Search Proxy missing required setting: Base URL")
+        else:
+            _LOGGER.info("Unique Search Proxy is properly configured")
+
+        return cls(base_url=env_settings.search_proxy_base_url)
+
+
+_search_proxy_settings: SearchProxySettings | None = None
+
+
+def get_search_proxy_settings() -> SearchProxySettings:
+    global _search_proxy_settings
+    if _search_proxy_settings is None:
+        _search_proxy_settings = SearchProxySettings.from_env_settings()
+    return _search_proxy_settings
