@@ -79,16 +79,23 @@ class TestV1StructuredErrors:
     def test_unregistered_crawler_returns_503(self, client: TestClient) -> None:
         from unique_search_proxy_client.web.core.registry import _CRAWLER_REGISTRY
 
+        # Snapshot the global registry so clearing it cannot leak into later
+        # tests in the same process (collection order is not guaranteed).
+        saved = dict(_CRAWLER_REGISTRY)
         _CRAWLER_REGISTRY.clear()
-        resp = client.post(
-            "/v1/crawl",
-            json={
-                "urls": ["https://example.com"],
-                "crawlerType": CrawlerType.BASIC.value,
-            },
-        )
-        assert resp.status_code == 503
-        assert resp.json()["error"]["crawler"] == CrawlerType.BASIC.value
+        try:
+            resp = client.post(
+                "/v1/crawl",
+                json={
+                    "urls": ["https://example.com"],
+                    "crawlerType": CrawlerType.BASIC.value,
+                },
+            )
+            assert resp.status_code == 503
+            assert resp.json()["error"]["crawler"] == CrawlerType.BASIC.value
+        finally:
+            _CRAWLER_REGISTRY.clear()
+            _CRAWLER_REGISTRY.update(saved)
 
     @pytest.mark.ai
     def test_validation_error_returns_422(self, client: TestClient) -> None:
