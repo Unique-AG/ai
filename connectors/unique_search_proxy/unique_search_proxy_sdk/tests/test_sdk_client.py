@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 from unique_search_proxy_client.web.app import create_app
@@ -14,7 +15,7 @@ from unique_search_proxy_core.search_engines.call_schema import (
 from unique_search_proxy_sdk import CrawlClient, SearchClient, UniqueSearchProxyClient
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def sdk_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[UniqueSearchProxyClient]:

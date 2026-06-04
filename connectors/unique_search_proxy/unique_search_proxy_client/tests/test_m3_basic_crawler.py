@@ -175,6 +175,13 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
         json={
             "urls": ["https://example.com/a"],
             "crawlerType": CrawlerType.BASIC.value,
+            "contentTypes": {
+                "html": False,
+                "xhtml": False,
+                "plainText": False,
+                "markdown": False,
+                "pdf": False,
+            },
         },
     )
     assert resp.status_code == 200

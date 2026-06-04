@@ -140,3 +140,14 @@ members = [
 # package directory.
 [tool.poe.tasks]
 check-imports = "lint-imports --config unique_toolkit/pyproject.toml"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]

@@ -115,7 +115,13 @@ async def test_process_content_allow_without_processor_raises() -> None:
 
 @pytest.mark.ai
 def test_content_types_to_handlers() -> None:
-    toggles = ContentTypeToggles(html=True, pdf=True)
+    toggles = ContentTypeToggles(
+        html=True,
+        xhtml=False,
+        plain_text=False,
+        markdown=False,
+        pdf=True,
+    )
     assert toggles.to_handlers() == {
         "text/html": ContentTypeHandlerPolicy.ALLOW,
         "application/pdf": ContentTypeHandlerPolicy.ALLOW,
@@ -123,10 +129,15 @@ def test_content_types_to_handlers() -> None:
 
 
 @pytest.mark.ai
-def test_content_types_default_all_disabled() -> None:
+def test_content_types_defaults_enable_common_text_types() -> None:
     toggles = BasicCrawlerConfig().content_types
     assert toggles == ContentTypeToggles()
-    assert toggles.to_handlers() == {}
+    assert toggles.to_handlers() == {
+        "text/html": ContentTypeHandlerPolicy.ALLOW,
+        "application/xhtml+xml": ContentTypeHandlerPolicy.ALLOW,
+        "text/plain": ContentTypeHandlerPolicy.ALLOW,
+        "text/markdown": ContentTypeHandlerPolicy.ALLOW,
+    }
 
 
 @pytest.mark.ai
