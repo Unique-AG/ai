@@ -30,6 +30,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
   packages: write
 
 jobs:
@@ -49,10 +50,10 @@ jobs:
           # release-please.
           if [[ -n "$VERSIONS" ]]; then
             MATRIX=$(jq -c --argjson versions "$VERSIONS" \
-              '{include: [.include[] | select(.helm_chart == true) | . + {version: $versions[.id]}]}' <<<"$PUBLISH_MATRIX")
+              '{include: [.include[] | select(.helm_chart == true) | . + {version: $versions[.id], chart_registries: (.chart_registries // [.chart_registry])}]}' <<<"$PUBLISH_MATRIX")
           else
             MATRIX=$(jq -c \
-              '{include: [.include[] | select(.helm_chart == true) | . + {version: ""}]}' <<<"$PUBLISH_MATRIX")
+              '{include: [.include[] | select(.helm_chart == true) | . + {version: "", chart_registries: (.chart_registries // [.chart_registry])}]}' <<<"$PUBLISH_MATRIX")
           fi
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
@@ -67,5 +68,5 @@ jobs:
     secrets: inherit
     with:
       chart_dir: ${{ matrix.dir }}/deploy/helm-chart
-      registry: ${{ matrix.chart_registry }}
+      registries: ${{ toJson(matrix.chart_registries) }}
       version: ${{ matrix.version }}

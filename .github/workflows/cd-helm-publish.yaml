@@ -1,6 +1,6 @@
 name: "[CD] Helm publish"
 
-# Package one dedicated Helm chart and push it to an OCI registry.
+# Package one dedicated Helm chart and push it to OCI registries.
 #
 # Two version modes (see .github/scripts/helm_package_push.py):
 #   - stable: omit `version`; the chart's Chart.yaml/values.yaml are already
@@ -20,8 +20,8 @@ on:
         description: 'Chart directory (contains Chart.yaml), e.g. connectors/unique_search_proxy/deploy/helm-chart'
         required: true
         type: string
-      registry:
-        description: 'OCI registry to push to, e.g. oci://ghcr.io/unique-ag/ai/helm'
+      registries:
+        description: 'JSON array of OCI registries to push to, e.g. ["oci://ghcr.io/unique-ag/ai/helm"]'
         required: true
         type: string
       version:
@@ -32,6 +32,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
   packages: write
 
 jobs:
@@ -50,10 +51,40 @@ jobs:
         run: |
           echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Package and push chart
+      - name: Login to Azure as getunique token issuer (OIDC)
+        if: contains(inputs.registries, 'getunique.azurecr.io')
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        with:
+          client-id: daa88f8d-0943-459c-890a-17b1a018d11e # acr_oidc getunique_push
+          tenant-id: 99330c76-81d2-460e-861e-35af8e2a4266
+          subscription-id: fb8bce09-908a-459f-b200-a578005bfeb2
+
+      - name: Login to getunique ACR
+        if: contains(inputs.registries, 'getunique.azurecr.io')
         run: |
+          TOKEN=$(az acr login --name getunique --expose-token --output tsv --query accessToken)
+          echo "::add-mask::$TOKEN"
+          echo "$TOKEN" | helm registry login getunique.azurecr.io \
+            --username 00000000-0000-0000-0000-000000000000 \
+            --password-stdin
+
+      - name: Package and push chart
+        env:
+          REGISTRIES: ${{ inputs.registries }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          REGISTRY_ARGS=()
+          while IFS= read -r registry; do
+            REGISTRY_ARGS+=(--registry "$registry")
+          done < <(jq -r '.[]' <<<"$REGISTRIES")
+
+          VERSION_ARGS=()
+          if [[ -n "$VERSION" ]]; then
+            VERSION_ARGS=(--version "$VERSION")
+          fi
+
           python3 .github/scripts/helm_package_push.py \
             --chart "${{ inputs.chart_dir }}" \
-            --registry "${{ inputs.registry }}" \
+            "${REGISTRY_ARGS[@]}" \
             --destination "$RUNNER_TEMP/helm-dist" \
-            ${{ inputs.version && format('--version {0}', inputs.version) || '' }}
+            "${VERSION_ARGS[@]}"
