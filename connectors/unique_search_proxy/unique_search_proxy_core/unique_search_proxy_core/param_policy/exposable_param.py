@@ -10,12 +10,14 @@ from typing import (
     Literal,
     TypeVar,
     Union,
+    cast,
     get_args,
     get_origin,
 )
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, GetCoreSchemaHandler, model_validator
 from pydantic.fields import FieldInfo
+from pydantic_core import CoreSchema
 
 from unique_search_proxy_core.schema import camelized_model_config
 
@@ -92,6 +94,28 @@ class ExposableParam(BaseModel, Generic[T]):
         ``ExposableStr`` or ``ExposableEI``.
         """
         return "Exposable" + "".join(_exposable_type_label(param) for param in params)
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls,
+        source: type[Any],
+        handler: GetCoreSchemaHandler,
+    ) -> CoreSchema:
+        """Give parametrized generics a clean core ``ref`` so OpenAPI ``$defs`` keys are readable.
+
+        Pydantic derives the JSON Schema ``$defs`` key (and generated SDK file name)
+        from the core schema ``ref``, which for a parametrized generic embeds the full
+        ``Annotated[..., FieldInfo(...)]`` repr of the type argument. ``model_parametrized_name``
+        only cleans the schema ``title``, not the ``ref``. Here we rewrite the ``ref`` to the
+        clean parametrized name (e.g. ``ExposableStr``/``ExposableEI``) so the definition key
+        matches the title.
+        """
+        schema = handler(source)
+        metadata = getattr(cls, "__pydantic_generic_metadata__", None)
+        if isinstance(metadata, dict) and metadata.get("args") and schema.get("ref"):
+            clean_ref = f"{cls.__module__}.{cls.__name__}:{id(cls)}"
+            return cast(CoreSchema, {**schema, "ref": clean_ref})
+        return schema
 
     @model_validator(mode="before")
     @classmethod
