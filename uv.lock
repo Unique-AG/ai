@@ -5807,6 +5807,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "starlette" },
     { name = "unique-search-proxy-core" },
     { name = "unique-toolkit", extra = ["monitoring"] },
     { name = "uvicorn", extra = ["standard"] },
@@ -5830,6 +5831,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
     { name = "pydantic-settings", specifier = ">=2.12.0,<3.0.0" },
     { name = "python-dotenv", specifier = ">=1.2.1,<2.0.0" },
+    { name = "starlette", specifier = ">=0.41.0,<1.0.0" },
     { name = "unique-search-proxy-core", editable = "connectors/unique_search_proxy/unique_search_proxy_core" },
     { name = "unique-toolkit", extras = ["monitoring"], editable = "unique_toolkit" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0,<1.0.0" },
@@ -5847,7 +5849,7 @@ dev = [
 
 [[package]]
 name = "unique-search-proxy-core"
-version = "2026.24.0.dev0"
+version = "2026.24.0"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_core" }
 dependencies = [
     { name = "pydantic" },
@@ -5858,7 +5860,7 @@ requires-dist = [{ name = "pydantic", specifier = ">=2.12.5,<3.0.0" }]
 
 [[package]]
 name = "unique-search-proxy-sdk"
-version = "2026.24.0.dev0"
+version = "2026.24.0"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_sdk" }
 dependencies = [
     { name = "attrs" },
