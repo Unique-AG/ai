@@ -38,11 +38,12 @@ if echo "$CHANGED" | grep -qx '.release-please-manifest.json'; then
     '[$base | to_entries[]
       | select(($head[.key] // null) != .value)
       | select(
-          if ($head[.key] // null) == null then
-            ($config_keys | index(.key) != null)
-          else
-            true
-          end
+          .key as $k
+          | if ($head[$k] // null) == null then
+              ($config_keys | index($k) != null)
+            else
+              true
+            end
         )
       | .key] | join(", ")')
   if [[ -n "$TOUCHED_EXISTING" ]]; then
