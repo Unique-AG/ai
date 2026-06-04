@@ -334,6 +334,7 @@ jobs:
     if: needs.containerize.result == 'success'
     permissions:
       contents: read
+      id-token: write
       packages: write
     uses: ./.github/workflows/cd-helm-publish-batch.yaml
     secrets: inherit
