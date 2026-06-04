@@ -206,5 +206,4 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
 
         if not isinstance(config, BasicCrawlerConfig):
             config = BasicCrawlerConfig.model_validate(config)
-        exposed = list(dict.fromkeys(["urls", *config.exposed_fields]))
-        return project_call_schema(BasicCrawlerCall, exposed)
+        return project_call_schema(BasicCrawlerCall, ["urls"])

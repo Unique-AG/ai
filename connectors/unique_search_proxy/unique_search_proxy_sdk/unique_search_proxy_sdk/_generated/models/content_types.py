@@ -8,25 +8,25 @@ from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="ContentTypeToggles")
+T = TypeVar("T", bound="ContentTypes")
 
 
 @_attrs_define
-class ContentTypeToggles:
+class ContentTypes:
     """Per-type activation flags for basic-crawler content processing.
 
     Attributes:
-        html (bool | Unset): Process ``text/html`` responses into the content field Default: False.
-        xhtml (bool | Unset): Process ``application/xhtml+xml`` responses into the content field Default: False.
-        plain_text (bool | Unset): Process ``text/plain`` responses into the content field Default: False.
-        markdown (bool | Unset): Process ``text/markdown`` responses into the content field Default: False.
-        pdf (bool | Unset): Process ``application/pdf`` responses into the content field Default: False.
+        html (bool | Unset): text/html Default: True.
+        xhtml (bool | Unset): application/xhtml+xml Default: True.
+        plain_text (bool | Unset): text/plain Default: True.
+        markdown (bool | Unset): text/markdown Default: True.
+        pdf (bool | Unset): application/pdf Default: False.
     """
 
-    html: bool | Unset = False
-    xhtml: bool | Unset = False
-    plain_text: bool | Unset = False
-    markdown: bool | Unset = False
+    html: bool | Unset = True
+    xhtml: bool | Unset = True
+    plain_text: bool | Unset = True
+    markdown: bool | Unset = True
     pdf: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -70,7 +70,7 @@ class ContentTypeToggles:
 
         pdf = d.pop("pdf", UNSET)
 
-        content_type_toggles = cls(
+        content_types = cls(
             html=html,
             xhtml=xhtml,
             plain_text=plain_text,
@@ -78,8 +78,8 @@ class ContentTypeToggles:
             pdf=pdf,
         )
 
-        content_type_toggles.additional_properties = d
-        return content_type_toggles
+        content_types.additional_properties = d
+        return content_types
 
     @property
     def additional_keys(self) -> list[str]:

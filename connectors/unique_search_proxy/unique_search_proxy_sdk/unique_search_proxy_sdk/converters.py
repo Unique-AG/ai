@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 
-from unique_search_proxy_sdk._generated.models.basic_crawler_request import (
-    BasicCrawlerRequest as SdkBasicCrawlerRequest,
+from unique_search_proxy_sdk._generated.models.basic_proxy_crawler import (
+    BasicProxyCrawler as SdkBasicCrawlerRequest,
 )
 from unique_search_proxy_sdk._generated.models.google_request import (
     GoogleRequest as SdkGoogleRequest,

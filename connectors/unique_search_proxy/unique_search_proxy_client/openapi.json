@@ -164,6 +164,13 @@
                       "https://example.com"
                     ],
                     "crawlerType": "BasicProxyCrawler",
+                    "contentTypes": {
+                      "html": false,
+                      "xhtml": false,
+                      "plainText": false,
+                      "markdown": false,
+                      "pdf": false
+                    },
                     "timeout": 30
                   }
                 },
@@ -242,10 +249,10 @@
             "title": "Content types",
             "description": "Enable built-in processing per media type. Unchecked types return raw body only.",
             "default": {
-              "html": false,
-              "xhtml": false,
-              "plainText": false,
-              "markdown": false,
+              "html": true,
+              "xhtml": true,
+              "plainText": true,
+              "markdown": true,
               "pdf": false
             }
           },
@@ -260,43 +267,43 @@
         "required": [
           "urls"
         ],
-        "title": "Basic Crawler Request"
+        "title": "Basic Proxy Crawler "
       },
       "ContentTypeToggles": {
         "properties": {
           "html": {
             "type": "boolean",
             "title": "HTML",
-            "description": "Process ``text/html`` responses into the content field",
-            "default": false
+            "description": "text/html",
+            "default": true
           },
           "xhtml": {
             "type": "boolean",
             "title": "XHTML",
-            "description": "Process ``application/xhtml+xml`` responses into the content field",
-            "default": false
+            "description": "application/xhtml+xml",
+            "default": true
           },
           "plainText": {
             "type": "boolean",
             "title": "Plain text",
-            "description": "Process ``text/plain`` responses into the content field",
-            "default": false
+            "description": "text/plain",
+            "default": true
           },
           "markdown": {
             "type": "boolean",
             "title": "Markdown",
-            "description": "Process ``text/markdown`` responses into the content field",
-            "default": false
+            "description": "text/markdown",
+            "default": true
           },
           "pdf": {
             "type": "boolean",
             "title": "PDF",
-            "description": "Process ``application/pdf`` responses into the content field",
+            "description": "application/pdf",
             "default": false
           }
         },
         "type": "object",
-        "title": "Content Type Toggles",
+        "title": "Content Types",
         "description": "Per-type activation flags for basic-crawler content processing."
       },
       "CrawlResponse": {

@@ -15,27 +15,27 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.content_type_toggles import ContentTypeToggles
+    from ..models.content_types import ContentTypes
 
 
-T = TypeVar("T", bound="BasicCrawlerRequest")
+T = TypeVar("T", bound="BasicProxyCrawler")
 
 
 @_attrs_define
-class BasicCrawlerRequest:
+class BasicProxyCrawler:
     """
     Attributes:
         urls (list[str]): URLs to crawl
         crawler_type (Literal['BasicProxyCrawler'] | Unset):  Default: 'BasicProxyCrawler'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
-        content_types (ContentTypeToggles | Unset): Per-type activation flags for basic-crawler content processing.
+        content_types (ContentTypes | Unset): Per-type activation flags for basic-crawler content processing.
         max_concurrent_requests (int | Unset): Maximum concurrent HTTP fetches Default: 10.
     """
 
     urls: list[str]
     crawler_type: Literal["BasicProxyCrawler"] | Unset = "BasicProxyCrawler"
     timeout: int | Unset = 30
-    content_types: ContentTypeToggles | Unset = UNSET
+    content_types: ContentTypes | Unset = UNSET
     max_concurrent_requests: int | Unset = 10
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -72,7 +72,7 @@ class BasicCrawlerRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.content_type_toggles import ContentTypeToggles
+        from ..models.content_types import ContentTypes
 
         d = dict(src_dict)
         urls = cast(list[str], d.pop("urls"))
@@ -88,15 +88,15 @@ class BasicCrawlerRequest:
         timeout = d.pop("timeout", UNSET)
 
         _content_types = d.pop("contentTypes", UNSET)
-        content_types: ContentTypeToggles | Unset
+        content_types: ContentTypes | Unset
         if isinstance(_content_types, Unset):
             content_types = UNSET
         else:
-            content_types = ContentTypeToggles.from_dict(_content_types)
+            content_types = ContentTypes.from_dict(_content_types)
 
         max_concurrent_requests = d.pop("maxConcurrentRequests", UNSET)
 
-        basic_crawler_request = cls(
+        basic_proxy_crawler = cls(
             urls=urls,
             crawler_type=crawler_type,
             timeout=timeout,
@@ -104,8 +104,8 @@ class BasicCrawlerRequest:
             max_concurrent_requests=max_concurrent_requests,
         )
 
-        basic_crawler_request.additional_properties = d
-        return basic_crawler_request
+        basic_proxy_crawler.additional_properties = d
+        return basic_proxy_crawler
 
     @property
     def additional_keys(self) -> list[str]:

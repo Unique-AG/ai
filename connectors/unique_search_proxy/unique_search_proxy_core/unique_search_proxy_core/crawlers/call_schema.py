@@ -30,8 +30,7 @@ class CrawlCallSchemaDescriptor:
 
 def _llm_call_schema_for_config(config: CrawlerConfigTypes) -> type[BaseModel]:
     if isinstance(config, BasicCrawlerConfig):
-        exposed = list(dict.fromkeys(["urls", *config.exposed_fields]))
-        return project_call_schema(BasicCrawlerCall, exposed)
+        return project_call_schema(BasicCrawlerCall, ["urls"])
     raise ValueError(f"No LLM call schema for crawler config {type(config).__name__}")
 
 

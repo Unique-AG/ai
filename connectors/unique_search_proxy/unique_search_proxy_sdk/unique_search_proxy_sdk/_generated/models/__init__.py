@@ -1,7 +1,7 @@
 """Contains all the data models used in inputs/outputs"""
 
-from .basic_crawler_request import BasicCrawlerRequest
-from .content_type_toggles import ContentTypeToggles
+from .basic_proxy_crawler import BasicProxyCrawler
+from .content_types import ContentTypes
 from .crawl_response import CrawlResponse
 from .crawl_url_result import CrawlUrlResult
 from .google_request import GoogleRequest
@@ -19,8 +19,8 @@ from .validation_error import ValidationError
 from .web_search_result import WebSearchResult
 
 __all__ = (
-    "BasicCrawlerRequest",
-    "ContentTypeToggles",
+    "BasicProxyCrawler",
+    "ContentTypes",
     "CrawlResponse",
     "CrawlUrlResult",
     "GoogleRequest",

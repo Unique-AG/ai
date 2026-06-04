@@ -28,6 +28,13 @@ SEARCH_GOOGLE_WITH_GL: dict[str, Any] = {
 CRAWL_BASIC_RAW: dict[str, Any] = {
     "urls": ["https://example.com"],
     "crawlerType": CrawlerType.BASIC.value,
+    "contentTypes": {
+        "html": False,
+        "xhtml": False,
+        "plainText": False,
+        "markdown": False,
+        "pdf": False,
+    },
     "timeout": 30,
 }
 
