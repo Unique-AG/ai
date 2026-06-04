@@ -24,6 +24,8 @@ on:
           - quartr
           - six
           - search_proxy
+          - search_proxy_core
+          - search_proxy_sdk
           - skill_tool
         default: ""
       ref:

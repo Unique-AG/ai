@@ -20,11 +20,11 @@ from unique_web_search.services.helpers import (
 class CrawlerType(StrEnum):
     CRAWL4AI = "Crawl4AiCrawler"
     BASIC = "BasicCrawler"
+    BASIC_PROXY = "BasicProxyCrawler"
     NO_CRAWLER = "NoCrawler"
     TAVILY = "TavilyCrawler"
     FIRECRAWL = "FirecrawlCrawler"
     JINA = "JinaCrawler"
-    NONE = "None"
 
 
 T = TypeVar("T", bound=CrawlerType)

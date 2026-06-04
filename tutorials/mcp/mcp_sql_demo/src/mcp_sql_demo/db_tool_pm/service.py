@@ -141,9 +141,7 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
         # eliminate SQL injection. In production, use a query builder or allowlist
         # of permitted column/operator combinations instead.
         if self._DANGEROUS_SQL_PATTERN.search(where_clause):
-            raise ValueError(
-                "LLM-generated WHERE clause contains disallowed SQL keywords"
-            )
+            raise ValueError("LLM-generated WHERE clause contains disallowed SQL keywords")
 
         base_sql = f"SELECT * FROM (SELECT * FROM {TABLE_NAME} WHERE email = %s) AS tmp {where_clause}"
         print(base_sql, [email])
