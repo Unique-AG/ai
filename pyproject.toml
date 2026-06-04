@@ -103,6 +103,8 @@ override-dependencies = [
 "unique-follow-up-questions" = false
 "unique-six" = false
 "unique-search-proxy" = false
+"unique-search-proxy-core" = false
+"unique-search-proxy-sdk" = false
 "unique-quartr" = false
 # pymdown-extensions 10.21.3 uploaded 2026-05-13; remove after 2026-05-27.
 "pymdown-extensions" = "2026-05-14"
@@ -112,6 +114,8 @@ override-dependencies = [
 [tool.uv.sources]
 unique-sdk = { workspace = true }
 unique-toolkit = { workspace = true }
+unique-search-proxy-core = { workspace = true }
+unique-search-proxy-sdk = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -122,7 +126,11 @@ members = [
     "unique_orchestrator",
     "tool_packages/*",
     "postprocessors/*",
-    "connectors/*",
+    "connectors/unique_quartr",
+    "connectors/unique_six",
+    "connectors/unique_search_proxy/unique_search_proxy_client",
+    "connectors/unique_search_proxy/unique_search_proxy_core",
+    "connectors/unique_search_proxy/unique_search_proxy_sdk",
     "tutorials/mcp/mcp_test",
 ]
 
