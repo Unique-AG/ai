@@ -78,7 +78,7 @@ class GoogleSearchService(SearchEngine[GoogleRequest]):
             raw_pages.append(page)
             page_results = self._extract_results(page)
             if not page_results:
-                if not curated:
+                if not len(curated.results):
                     raise EmptySearchResultsError(
                         f"Google search returned no results for query {request.query!r}",
                         engine=SearchEngineType.GOOGLE.value,
