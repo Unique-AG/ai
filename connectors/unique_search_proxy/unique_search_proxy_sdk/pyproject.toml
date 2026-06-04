@@ -69,4 +69,5 @@ asyncio_mode = "auto"
 markers = [
     "ai: AI-authored or AI-generated tests",
     "asyncio: asyncio tests",
+    "integration: requires unique-search-proxy (FastAPI app) in the environment",
 ]

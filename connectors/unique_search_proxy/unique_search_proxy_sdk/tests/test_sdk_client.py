@@ -5,7 +5,6 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
-from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 from unique_search_proxy_core.search_engines.call_schema import (
@@ -19,6 +18,7 @@ from unique_search_proxy_sdk import CrawlClient, SearchClient, UniqueSearchProxy
 async def sdk_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[UniqueSearchProxyClient]:
+    from unique_search_proxy_client.web.app import create_app
     from unique_search_proxy_client.web.core.client.service import HttpClientPool
 
     async def mock_create_pool() -> HttpClientPool:
@@ -41,6 +41,7 @@ async def sdk_client(
             yield client
 
 
+@pytest.mark.integration
 class TestSearchClient:
     @pytest.mark.ai
     async def test_search_with_kwargs(
@@ -90,6 +91,7 @@ class TestSearchClient:
             await sdk_client.search.search("")
 
 
+@pytest.mark.integration
 class TestCrawlClient:
     @pytest.mark.ai
     async def test_crawl_with_kwargs(
@@ -137,6 +139,7 @@ class TestCoreCallSchema:
         assert "fetchSize" not in descriptor.call_schema["properties"]
 
 
+@pytest.mark.integration
 class TestSubclientTypes:
     @pytest.mark.ai
     async def test_subclients_are_typed(
