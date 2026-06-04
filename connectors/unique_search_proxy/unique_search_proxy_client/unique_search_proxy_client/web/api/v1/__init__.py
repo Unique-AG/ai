@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 
-from unique_search_proxy_client.web.api.v1.configuration import router as configuration_router
+from unique_search_proxy_client.web.api.v1.configuration import (
+    router as configuration_router,
+)
 from unique_search_proxy_client.web.api.v1.crawl import router as crawl_router
 from unique_search_proxy_client.web.api.v1.search import router as search_router
 

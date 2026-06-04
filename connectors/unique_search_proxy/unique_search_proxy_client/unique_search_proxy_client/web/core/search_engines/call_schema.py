@@ -36,7 +36,9 @@ def resolve_search_call_schema_from_config(
     strict: bool = True,
 ) -> SearchCallSchemaDescriptor:
     """Project the LLM-visible call surface from a parsed deployment config."""
-    from unique_search_proxy_client.web.core.registry import get_search_engine_descriptor
+    from unique_search_proxy_client.web.core.registry import (
+        get_search_engine_descriptor,
+    )
 
     try:
         engine_type = SearchEngineType(engine_id.lower())

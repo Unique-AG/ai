@@ -1,13 +1,12 @@
 [project]
 name = "unique-search-proxy-core"
-version = "2026.22.0"
+version = "2026.24.0.dev0"
 description = "Shared Pydantic types for the Unique Search Proxy API"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.12.5,<3.0.0",
-    "unique-toolkit>=2026.22.0",
 ]
 
 [build-system]
@@ -20,12 +19,6 @@ module-root = "."
 [tool.uv]
 exclude-newer = "2 weeks"
 
-[tool.uv.exclude-newer-package]
-"unique-toolkit" = false
-
-[tool.uv.sources]
-unique-toolkit = { workspace = true }
-
 [tool.ruff]
 target-version = "py312"
 
@@ -37,11 +30,12 @@ typeCheckingMode = "standard"
 include = ["unique_search_proxy_core"]
 
 [tool.deptry]
-known_first_party = ["unique_search_proxy_core", "unique_toolkit"]
+known_first_party = ["unique_search_proxy_core"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["unique-toolkit"]
-DEP003 = ["unique_toolkit"]
+# pydantic_core ships with (and is version-pinned by) pydantic; importing
+# CoreSchema from it is the canonical way to type __get_pydantic_core_schema__.
+DEP003 = ["pydantic_core"]
 
 [tool.poe.tasks]
 lint = "ruff check ."

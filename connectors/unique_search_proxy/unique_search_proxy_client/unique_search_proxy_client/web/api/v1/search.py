@@ -16,7 +16,9 @@ from unique_search_proxy_core.schema import (
 )
 from unique_search_proxy_core.search_engines.params import call_query
 
-from unique_search_proxy_client.web.api.v1.openapi_examples import SEARCH_OPENAPI_EXAMPLES
+from unique_search_proxy_client.web.api.v1.openapi_examples import (
+    SEARCH_OPENAPI_EXAMPLES,
+)
 from unique_search_proxy_client.web.api.v1.schema import (
     SearchRequest,
     SearchResponse,

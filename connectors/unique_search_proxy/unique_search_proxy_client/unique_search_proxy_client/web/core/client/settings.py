@@ -3,7 +3,10 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
-from unique_search_proxy_client.web.settings.base import is_test_runtime, settings_config
+from unique_search_proxy_client.web.settings.base import (
+    is_test_runtime,
+    settings_config,
+)
 
 HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
 

@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, Field
-from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.projection import build_request_model
+from unique_search_proxy_core.schema import DeactivatedNone
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
     SearchEngineType,

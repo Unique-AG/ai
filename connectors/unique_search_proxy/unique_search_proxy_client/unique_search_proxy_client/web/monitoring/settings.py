@@ -1,6 +1,9 @@
 from pydantic_settings import BaseSettings
 
-from unique_search_proxy_client.web.settings.base import is_test_runtime, settings_config
+from unique_search_proxy_client.web.settings.base import (
+    is_test_runtime,
+    settings_config,
+)
 
 
 class PrometheusSettings(BaseSettings):

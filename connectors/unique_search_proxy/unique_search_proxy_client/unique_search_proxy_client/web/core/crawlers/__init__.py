@@ -13,7 +13,9 @@ from unique_search_proxy_core.crawlers.config_types import (
     parse_crawler_config,
 )
 
-from unique_search_proxy_client.web.core.crawlers.basic.service import BasicCrawlerService
+from unique_search_proxy_client.web.core.crawlers.basic.service import (
+    BasicCrawlerService,
+)
 
 
 def register_builtin_crawlers() -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, overload
+from typing import Annotated, Any, overload
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -10,6 +10,13 @@ camelized_model_config = ConfigDict(
     alias_generator=to_camel,
     populate_by_name=True,
 )
+
+# Marks the deactivated branch of an optional config value. Locally declared so
+# core has no runtime dependency on unique-toolkit for this one-line alias.
+DeactivatedNone = Annotated[
+    None,
+    Field(title="Deactivated", description="None"),
+]
 
 
 class ProxyErrorCode(StrEnum):

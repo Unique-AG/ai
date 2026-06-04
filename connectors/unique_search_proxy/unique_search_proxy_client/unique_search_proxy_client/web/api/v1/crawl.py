@@ -8,7 +8,9 @@ from fastapi import APIRouter, Body, Request
 from unique_search_proxy_core.errors import ProxyError, UpstreamTimeoutError
 from unique_search_proxy_core.schema import ProxyErrorCode
 
-from unique_search_proxy_client.web.api.v1.openapi_examples import CRAWL_OPENAPI_EXAMPLES
+from unique_search_proxy_client.web.api.v1.openapi_examples import (
+    CRAWL_OPENAPI_EXAMPLES,
+)
 from unique_search_proxy_client.web.api.v1.schema import CrawlRequest, CrawlResponse
 from unique_search_proxy_client.web.core.client import get_http_client_pool
 from unique_search_proxy_client.web.core.crawlers.factory import get_crawler_service

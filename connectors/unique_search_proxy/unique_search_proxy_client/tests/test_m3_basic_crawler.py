@@ -10,7 +10,9 @@ from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerConfig
 from unique_search_proxy_core.schema import ProxyErrorCode
 
 from unique_search_proxy_client.web.app import create_app
-from unique_search_proxy_client.web.core.crawlers.basic.service import BasicCrawlerService
+from unique_search_proxy_client.web.core.crawlers.basic.service import (
+    BasicCrawlerService,
+)
 
 _HTML_PAGE = """
 <html><head><title>Test</title></head>

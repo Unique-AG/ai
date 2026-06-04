@@ -62,7 +62,9 @@ def get_search_engine_service_from_config(
 
 
 def get_request_model_for_engine(engine_id: str) -> type[BaseModel]:
-    from unique_search_proxy_client.web.core.registry import get_search_engine_descriptor
+    from unique_search_proxy_client.web.core.registry import (
+        get_search_engine_descriptor,
+    )
 
     descriptor = get_search_engine_descriptor(engine_id)
     if descriptor is None:

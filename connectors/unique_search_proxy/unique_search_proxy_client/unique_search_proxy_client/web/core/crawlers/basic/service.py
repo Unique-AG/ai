@@ -19,7 +19,9 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing import (
     ContentProcessingTimeoutError,
     process_content,
 )
-from unique_search_proxy_client.web.core.crawlers.basic.user_agent import random_user_agent
+from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
+    random_user_agent,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
