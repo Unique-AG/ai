@@ -53,6 +53,9 @@ known_first_party = [
     "unique_search_proxy_client",
 ]
 
+[tool.deptry.per_rule_ignores]
+DEP002 = ["unique-search-proxy-core"]
+
 [tool.poe.tasks]
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
