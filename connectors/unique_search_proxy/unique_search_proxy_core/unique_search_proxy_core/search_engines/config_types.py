@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import operator
 from functools import reduce
-from typing import TypeAlias, cast
+from typing import Annotated, Any, Mapping, TypeAlias, Union, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter
 
+from unique_search_proxy_core.projection import build_request_model
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
     SearchEngineType,
@@ -43,3 +44,31 @@ def get_search_engine_config_types_from_names(
     if len(selected_types) == 1:
         return selected_types[0]
     return cast(type[BaseSearchEngineConfig], reduce(operator.or_, selected_types))
+
+
+def _union_members_from_mapping(
+    mapping: Mapping[str, type[BaseModel]],
+) -> tuple[type[BaseModel], ...]:
+    return tuple(mapping.values())
+
+
+def build_search_request_union() -> Any:
+    """Discriminated union of flat ``POST /v1/search`` bodies (``engine`` discriminator)."""
+    members = _union_members_from_mapping(ENGINE_NAME_TO_CONFIG)
+    request_models = tuple(build_request_model(config_cls) for config_cls in members)
+    if len(request_models) == 1:
+        return request_models[0]
+    return Annotated[
+        Union[request_models],  # type: ignore[valid-type]
+        Field(discriminator="engine"),
+    ]
+
+
+SearchRequestTypes = build_search_request_union()
+SearchRequest = SearchRequestTypes
+
+_search_request_adapter: TypeAdapter[BaseModel] = TypeAdapter(SearchRequestTypes)  # type: ignore[arg-type]
+
+
+def parse_search_request(data: object) -> BaseModel:
+    return _search_request_adapter.validate_python(data)

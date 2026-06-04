@@ -7,7 +7,10 @@ from typing import Any
 import httpx
 from httpx import AsyncClient, Timeout
 from unique_search_proxy_core.crawlers.base import BaseCrawler, CrawlerType
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerConfig
+from unique_search_proxy_core.crawlers.basic.processing.policy import (
+    ContentTypeHandlerPolicy,
+)
+from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerRequest
 from unique_search_proxy_core.schema import (
     CrawlUrlResult,
     PerUrlError,
@@ -33,22 +36,29 @@ def _content_type_from_response(response: httpx.Response) -> str | None:
     return str(header).split(";")[0].strip().lower() or None
 
 
-class BasicCrawlerService(BaseCrawler[BasicCrawlerConfig]):
+class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
     """Fetch URLs over HTTP and return the response body plus content type."""
 
     crawler_id = CrawlerType.BASIC.value
 
-    async def crawl(self, urls: list[str], *, timeout: int) -> list[CrawlUrlResult]:
+    async def crawl(self, request: BasicCrawlerRequest) -> list[CrawlUrlResult]:  # type: ignore
         client = self._http_client
         if client is None:
             raise RuntimeError("HTTP client is required for Basic crawler")
 
-        semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
+        timeout = request.timeout
+        semaphore = asyncio.Semaphore(request.max_concurrent_requests)
         return list(
             await asyncio.gather(
                 *[
-                    self._crawl_one(client, url, timeout=timeout, semaphore=semaphore)
-                    for url in urls
+                    self._crawl_one(
+                        client,
+                        url,
+                        timeout=timeout,
+                        semaphore=semaphore,
+                        content_type_handlers=request.content_types.to_handlers(),
+                    )
+                    for url in request.urls
                 ],
             ),
         )
@@ -60,6 +70,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerConfig]):
         *,
         timeout: int,
         semaphore: asyncio.Semaphore,
+        content_type_handlers: dict[str, ContentTypeHandlerPolicy],
     ) -> CrawlUrlResult:
         request_url = url.strip()
         async with semaphore:
@@ -120,6 +131,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerConfig]):
                 content_type,
                 request_url=request_url,
                 timeout=timeout,
+                content_type_handlers=content_type_handlers,
             )
             if isinstance(content, CrawlUrlResult):
                 return content
@@ -139,15 +151,16 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerConfig]):
         *,
         request_url: str,
         timeout: int,
+        content_type_handlers: dict[str, ContentTypeHandlerPolicy],
     ) -> str | None | CrawlUrlResult:
-        if not self.config.content_type_handlers:
+        if not content_type_handlers:
             return None
 
         try:
             return await process_content(
                 raw_body,
                 content_type,
-                handlers=self.config.content_type_handlers,
+                handlers=content_type_handlers,
                 timeout=float(timeout),
             )
         except ContentProcessingTimeoutError as exc:
@@ -184,9 +197,14 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerConfig]):
             )
 
     @staticmethod
-    def llm_call_schema(config: BasicCrawlerConfig) -> type[Any]:
-        from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerCall
+    def llm_call_schema(config: Any) -> type[Any]:
+        from unique_search_proxy_core.crawlers.basic.schema import (
+            BasicCrawlerCall,
+            BasicCrawlerConfig,
+        )
         from unique_search_proxy_core.projection import project_call_schema
 
+        if not isinstance(config, BasicCrawlerConfig):
+            config = BasicCrawlerConfig.model_validate(config)
         exposed = list(dict.fromkeys(["urls", *config.exposed_fields]))
         return project_call_schema(BasicCrawlerCall, exposed)

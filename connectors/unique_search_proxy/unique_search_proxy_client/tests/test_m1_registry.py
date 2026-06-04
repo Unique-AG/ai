@@ -1,5 +1,9 @@
+from typing import Any
+
 import pytest
+from pydantic import BaseModel
 from unique_search_proxy_core.crawlers import parse_crawler_config
+from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerConfig
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 from unique_search_proxy_core.search_engines import (
@@ -38,7 +42,7 @@ class TestRegistry:
 
     @pytest.mark.ai
     def test_register_and_resolve_search_engine(self) -> None:
-        class StubEngine(SearchEngine):
+        class StubEngine(SearchEngine[Any]):
             engine_id = "stub"
 
             @property
@@ -49,7 +53,7 @@ class TestRegistry:
             def mode(self) -> str:
                 return "stub"
 
-            async def search(self, call, *, timeout):
+            async def search(self, call: BaseModel) -> tuple[list, list]:
                 return [], []
 
         register_search_engine("stub", StubEngine)
@@ -70,6 +74,6 @@ class TestDiscriminatedConfig:
 
     @pytest.mark.ai
     def test_crawler_config_parses_crawler_field(self) -> None:
-        config = parse_crawler_config({"crawler": "basic"})
+        config = parse_crawler_config({"crawlerType": CrawlerType.BASIC.value})
         assert isinstance(config, BasicCrawlerConfig)
-        assert config.crawler == "basic"
+        assert config.crawler_type == CrawlerType.BASIC

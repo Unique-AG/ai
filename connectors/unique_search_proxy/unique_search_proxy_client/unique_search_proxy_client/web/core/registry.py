@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 from unique_search_proxy_core.crawlers.base import BaseCrawler
@@ -14,12 +14,12 @@ from unique_search_proxy_client.web.core.search_engines.descriptor import (
     SearchEngineDescriptor,
 )
 
-SearchEngineT = TypeVar("SearchEngineT", bound=SearchEngine)
-CrawlerT = TypeVar("CrawlerT", bound=BaseCrawler)
+SearchEngineT = TypeVar("SearchEngineT", bound=SearchEngine[Any])
+CrawlerT = TypeVar("CrawlerT", bound=BaseCrawler[Any])
 
-_SEARCH_ENGINE_REGISTRY: dict[str, type[SearchEngine]] = {}
+_SEARCH_ENGINE_REGISTRY: dict[str, type[SearchEngine[Any]]] = {}
 _SEARCH_ENGINE_DESCRIPTORS: dict[str, SearchEngineDescriptor] = {}
-_CRAWLER_REGISTRY: dict[str, type[BaseCrawler]] = {}
+_CRAWLER_REGISTRY: dict[str, type[BaseCrawler[Any]]] = {}
 
 _SEARCH_ENGINE_CONFIG_MODELS: dict[str, type[BaseModel]] = {}
 _CRAWLER_CONFIG_MODELS: dict[str, type[BaseModel]] = {}
@@ -69,14 +69,14 @@ def registered_crawlers() -> frozenset[str]:
     return frozenset(_CRAWLER_REGISTRY)
 
 
-def get_search_engine(engine_id: str) -> type[SearchEngine]:
+def get_search_engine(engine_id: str) -> type[SearchEngine[Any]]:
     engine_cls = _SEARCH_ENGINE_REGISTRY.get(engine_id)
     if engine_cls is None:
         raise EngineNotConfiguredError(engine_id, kind="engine")
     return engine_cls
 
 
-def get_crawler(crawler_id: str) -> type[BaseCrawler]:
+def get_crawler(crawler_id: str) -> type[BaseCrawler[Any]]:
     crawler_cls = _CRAWLER_REGISTRY.get(crawler_id)
     if crawler_cls is None:
         raise EngineNotConfiguredError(crawler_id, kind="crawler")
@@ -101,6 +101,13 @@ def get_search_engine_config_model(engine_id: str) -> type[BaseModel] | None:
 
 def get_crawler_config_model(crawler_id: str) -> type[BaseModel] | None:
     return _CRAWLER_CONFIG_MODELS.get(crawler_id.lower())
+
+
+def list_registered_providers() -> dict[str, list[str]]:
+    return {
+        "search_engines": sorted(registered_search_engines()),
+        "crawlers": sorted(registered_crawlers()),
+    }
 
 
 def clear_registries_for_tests() -> None:

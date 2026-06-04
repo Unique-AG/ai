@@ -17,16 +17,16 @@ T = TypeVar("T", bound="CrawlResponse")
 class CrawlResponse:
     """
     Attributes:
-        crawler (str):
+        crawler_type (str):
         results (list[CrawlUrlResult]):
     """
 
-    crawler: str
+    crawler_type: str
     results: list[CrawlUrlResult]
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        crawler = self.crawler
+        crawler_type = self.crawler_type
 
         results = []
         for results_item_data in self.results:
@@ -37,7 +37,7 @@ class CrawlResponse:
         field_dict.update(self.additional_properties)
         field_dict.update(
             {
-                "crawler": crawler,
+                "crawlerType": crawler_type,
                 "results": results,
             }
         )
@@ -49,7 +49,7 @@ class CrawlResponse:
         from ..models.crawl_url_result import CrawlUrlResult
 
         d = dict(src_dict)
-        crawler = d.pop("crawler")
+        crawler_type = d.pop("crawlerType")
 
         results = []
         _results = d.pop("results")
@@ -59,7 +59,7 @@ class CrawlResponse:
             results.append(results_item)
 
         crawl_response = cls(
-            crawler=crawler,
+            crawler_type=crawler_type,
             results=results,
         )
 

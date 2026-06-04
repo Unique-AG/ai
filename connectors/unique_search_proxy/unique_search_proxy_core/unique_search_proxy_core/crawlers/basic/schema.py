@@ -5,9 +5,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
-from unique_search_proxy_core.crawlers.basic.processing.policy import (
-    ContentTypeHandlerPolicy,
-)
+from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
+from unique_search_proxy_core.projection import build_crawl_request_model
+from unique_search_proxy_core.schema import get_model_config
 
 
 class BasicCrawlerCall(BaseModel):
@@ -23,30 +23,38 @@ class BasicCrawlerCall(BaseModel):
 class BasicCrawlerConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
     """Deployment config for the HTTP basic crawler."""
 
-    crawler: Literal[CrawlerType.BASIC] = CrawlerType.BASIC
+    model_config = get_model_config(title="Basic Proxy Crawler ")
 
-    content_type_handlers: dict[str, ContentTypeHandlerPolicy] = Field(
-        default_factory=dict,
+    crawler_type: Literal[CrawlerType.BASIC] = CrawlerType.BASIC
+
+    content_types: ContentTypeToggles = Field(
+        default_factory=ContentTypeToggles,
+        title="Content types",
         description=(
-            "Per media-type policy using exact Content-Type values (no parameters). "
-            "allow: run the built-in processor into ``content``; "
-            "forbid: return ``raw`` only. Types not listed are not processed."
+            "Enable built-in processing per media type. "
+            "Unchecked types return raw body only."
         ),
-        examples=[
-            {
-                "text/html": "allow",
-                "application/xhtml+xml": "allow",
-                "application/pdf": "forbid",
-            },
-        ],
     )
     max_concurrent_requests: int = Field(
         default=10,
         ge=1,
         le=50,
+        title="Maximum concurrent HTTP fetches",
         description="Maximum concurrent HTTP fetches",
     )
-    exposed_fields: list[str] = Field(
-        default_factory=list,
-        description="Call-schema fields exposed to LLM-driven callers (urls always exposed)",
-    )
+
+
+def basic_crawler_request_model() -> type[BaseModel]:
+    """Derived ``POST /v1/crawl`` model (cached via ``build_crawl_request_model``)."""
+    return build_crawl_request_model(BasicCrawlerConfig)
+
+
+BasicCrawlerRequest = basic_crawler_request_model()
+
+
+__all__ = [
+    "BasicCrawlerCall",
+    "BasicCrawlerConfig",
+    "BasicCrawlerRequest",
+    "basic_crawler_request_model",
+]

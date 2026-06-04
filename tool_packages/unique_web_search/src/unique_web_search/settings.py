@@ -38,7 +38,7 @@ class Base(BaseSettings):
     active_search_engines: list[str] = ["google"]
 
     # Default Crawlers
-    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai"]
+    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai", "basic_proxy"]
 
     # Google Search settings
     google_search_api_key: str | None = None

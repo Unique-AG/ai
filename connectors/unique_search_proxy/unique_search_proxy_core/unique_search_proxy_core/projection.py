@@ -15,6 +15,42 @@ from unique_search_proxy_core.param_policy.exposable_param import (
 )
 from unique_search_proxy_core.schema import camelized_model_config
 
+URLS_FIELD = "urls"
+
+
+def _request_model_name(config_cls: type[BaseModel]) -> str:
+    """``GoogleConfig`` -> ``GoogleRequest``; ``BasicCrawlerConfig`` -> ``BasicCrawlerRequest``."""
+    base = config_cls.__name__
+    if base.endswith("Config"):
+        base = base[: -len("Config")]
+    return f"{base}Request"
+
+
+@lru_cache(maxsize=32)
+def _build_flat_request_model(
+    config_cls: type[BaseModel],
+    leading_fields: tuple[tuple[str, tuple[Any, Any]], ...],
+) -> type[BaseModel]:
+    """Flatten a provider config into a request model with caller-supplied leading fields."""
+    field_definitions: dict[str, tuple[Any, Any]] = dict(leading_fields)
+    for field_name, field_info in config_cls.model_fields.items():
+        plain_annotation = _plain_annotation_for_request(field_info.annotation)
+        field_definitions[field_name] = _field_definition_from_info(
+            field_info,
+            annotation=plain_annotation,
+            force_default_none=is_exposable_param_type(field_info.annotation),
+        )
+
+    model_config = config_cls.model_config or camelized_model_config
+    request_model = create_model(
+        _request_model_name(config_cls),
+        __config__=model_config,
+        **cast(Any, field_definitions),
+    )
+    config_module = importlib.import_module(config_cls.__module__)
+    request_model.model_rebuild(_types_namespace=dict(vars(config_module)))
+    return request_model
+
 
 def project_call_schema(
     call_schema: type[BaseModel],
@@ -78,33 +114,43 @@ def project_json_schema(
 @lru_cache(maxsize=32)
 def build_request_model(config_cls: type[BaseModel]) -> type[BaseModel]:
     """Derive ``POST /v1/search`` body: ``query`` + all config fields as plain types."""
-    field_definitions: dict[str, tuple[Any, Any]] = {
-        QUERY_FIELD: (
-            str,
-            Field(
-                ...,
-                min_length=1,
-                description="Search query string",
+    return _build_flat_request_model(
+        config_cls,
+        (
+            (
+                QUERY_FIELD,
+                (
+                    str,
+                    Field(
+                        ...,
+                        min_length=1,
+                        description="Search query string",
+                    ),
+                ),
             ),
         ),
-    }
-    for field_name, field_info in config_cls.model_fields.items():
-        plain_annotation = _plain_annotation_for_request(field_info.annotation)
-        field_definitions[field_name] = _field_definition_from_info(
-            field_info,
-            annotation=plain_annotation,
-            force_default_none=is_exposable_param_type(field_info.annotation),
-        )
-
-    model_config = config_cls.model_config or camelized_model_config
-    request_model = create_model(
-        f"{config_cls.__name__}Request",
-        __config__=model_config,
-        **cast(Any, field_definitions),
     )
-    config_module = importlib.import_module(config_cls.__module__)
-    request_model.model_rebuild(_types_namespace=dict(vars(config_module)))
-    return request_model
+
+
+@lru_cache(maxsize=32)
+def build_crawl_request_model(config_cls: type[BaseModel]) -> type[BaseModel]:
+    """Derive ``POST /v1/crawl`` body: ``urls`` + flattened crawler config."""
+    return _build_flat_request_model(
+        config_cls,
+        (
+            (
+                URLS_FIELD,
+                (
+                    list[str],
+                    Field(
+                        ...,
+                        min_length=1,
+                        description="URLs to crawl",
+                    ),
+                ),
+            ),
+        ),
+    )
 
 
 def build_llm_call_model(
@@ -152,6 +198,9 @@ def _plain_annotation_for_non_strict_llm(config_field_annotation: Any) -> Any:
     return _plain_annotation(config_field_annotation)
 
 
+_COLLECTION_ORIGINS = (dict, list, tuple, set, frozenset)
+
+
 def _plain_annotation(annotation: Any) -> Any:
     """Unwrap unions and ``Annotated`` for plain derived types."""
     if is_exposable_param_type(annotation):
@@ -163,6 +212,13 @@ def _plain_annotation(annotation: Any) -> Any:
         args = get_args(annotation)
         if args:
             return _plain_annotation(args[0])
+
+    if origin in _COLLECTION_ORIGINS:
+        args = get_args(annotation)
+        if args:
+            plain_args = tuple(_plain_annotation(arg) for arg in args)
+            return origin[plain_args]  # type: ignore[index]
+        return annotation
 
     union_args = flatten_union_args(annotation)
     if len(union_args) > 1:

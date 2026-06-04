@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi.openapi.models import Example
+from unique_search_proxy_core.crawlers.base import CrawlerType
 
 SEARCH_GOOGLE: dict[str, Any] = {
     "engine": "google",
@@ -26,49 +27,18 @@ SEARCH_GOOGLE_WITH_GL: dict[str, Any] = {
 
 CRAWL_BASIC_RAW: dict[str, Any] = {
     "urls": ["https://example.com"],
-    "config": {"crawler": "basic"},
-    "parallel": True,
+    "crawlerType": CrawlerType.BASIC.value,
     "timeout": 30,
 }
 
 CRAWL_BASIC_HTML_MARKDOWN: dict[str, Any] = {
     "urls": ["https://example.com"],
-    "config": {
-        "crawler": "basic",
-        "contentTypeHandlers": {
-            "text/html": "allow",
-            "application/xhtml+xml": "allow",
-        },
+    "crawlerType": CrawlerType.BASIC.value,
+    "contentTypes": {
+        "html": True,
+        "xhtml": True,
     },
-    "parallel": True,
     "timeout": 30,
-}
-
-GOOGLE_CONFIG_DEFAULT: dict[str, Any] = {
-    "engine": "google",
-    "fetchSize": 10,
-    "safe": "active",
-}
-
-GOOGLE_CONFIG_WITH_EXPOSED_GL: dict[str, Any] = {
-    "engine": "google",
-    "fetchSize": 10,
-    "safe": "active",
-    "gl": {"expose": True, "value": "ch"},
-    "dateRestrict": {"expose": False, "value": "d7"},
-}
-
-SEARCH_ENGINE_CALL_SCHEMA_OPENAPI_EXAMPLES: dict[str, Example] = {
-    "default_projection": Example(
-        summary="Call schema (query + fetchSize only)",
-        description="Default LLM projection when optional params are not exposed.",
-        value=GOOGLE_CONFIG_DEFAULT,
-    ),
-    "with_exposed_params": Example(
-        summary="Call schema (+ gl)",
-        description="`gl.expose=true` adds `gl` to the LLM call schema; `dateRestrict` stays merge-only.",
-        value=GOOGLE_CONFIG_WITH_EXPOSED_GL,
-    ),
 }
 
 SEARCH_OPENAPI_EXAMPLES: dict[str, Example] = {

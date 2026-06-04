@@ -3,13 +3,35 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Any, overload
 
+import humps
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
+from pydantic.fields import ComputedFieldInfo, FieldInfo
 
-camelized_model_config = ConfigDict(
-    alias_generator=to_camel,
-    populate_by_name=True,
-)
+
+def field_title_generator(
+    title: str,
+    info: FieldInfo | ComputedFieldInfo,
+) -> str:
+    return humps.decamelize(title).replace("_", " ").title()
+
+
+def model_title_generator(model: type) -> str:
+    return humps.decamelize(model.__name__).replace("_", " ").title()
+
+
+def get_model_config(title: str | None = None) -> ConfigDict:
+    return ConfigDict(
+        alias_generator=to_camel,
+        field_title_generator=field_title_generator,
+        model_title_generator=model_title_generator,
+        populate_by_name=True,
+        title=title,
+    )
+
+
+camelized_model_config = get_model_config()
+
 
 # Marks the deactivated branch of an optional config value. Locally declared so
 # core has no runtime dependency on unique-toolkit for this one-line alias.
@@ -106,12 +128,6 @@ class SearchEngineRaw(BaseModel):
         self.pages.append(page)
 
 
-class ProviderConfigBase(BaseModel):
-    """Base config for engines and crawlers."""
-
-    model_config = camelized_model_config
-
-
 class PerUrlError(BaseModel):
     model_config = camelized_model_config
 
@@ -138,5 +154,38 @@ class CrawlUrlResult(BaseModel):
     )
 
 
-class CrawlerConfig(ProviderConfigBase):
-    crawler: str = Field(..., description="Crawler identifier")
+class SearchResponse(BaseModel):
+    model_config = camelized_model_config
+
+    engine: str
+    query: str
+    raw: Any = Field(..., description="Opaque provider payload")
+    curated: list[WebSearchResult]
+
+
+class ProvidersListResponse(BaseModel):
+    model_config = camelized_model_config
+
+    search_engines: list[str] = Field(
+        ...,
+        description="Registered search engine ids (config discriminator values)",
+    )
+    crawlers: list[str] = Field(
+        ...,
+        description="Registered crawler ids (config discriminator values)",
+    )
+
+
+class CrawlResponse(BaseModel):
+    model_config = camelized_model_config
+
+    crawler_type: str
+    results: list[CrawlUrlResult]
+
+
+class CrawlerConfig(BaseModel):
+    model_config = camelized_model_config
+
+    crawler_type: str = Field(
+        ..., title="Crawler type", description="Crawler identifier"
+    )

@@ -4,8 +4,7 @@ import logging
 from typing import Any
 
 import httpx
-from httpx import AsyncClient, Response
-from pydantic import BaseModel
+from httpx import Response
 from unique_search_proxy_core.errors import (
     EmptySearchResultsError,
     RateLimitedError,
@@ -22,15 +21,14 @@ from unique_search_proxy_core.search_engines.base import (
     SearchEngineType,
     get_search_engine_mode,
 )
-from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy_core.search_engines.google.schema import (
+    GoogleConfig,
+    GoogleRequest,
+)
 from unique_search_proxy_core.search_engines.pagination import (
     DEFAULT_MAX_PAGE_SIZE,
     PageRequest,
     iter_page_requests,
-)
-from unique_search_proxy_core.search_engines.params import (
-    FETCH_SIZE_FIELD,
-    call_query,
 )
 
 from unique_search_proxy_client.web.core.search_engines.google.credentials import (
@@ -41,18 +39,10 @@ from unique_search_proxy_client.web.core.search_engines.google.credentials impor
 _LOGGER = logging.getLogger(__name__)
 
 
-class GoogleSearchService(SearchEngine[GoogleConfig]):
+class GoogleSearchService(SearchEngine[GoogleRequest]):
     """Google Custom Search JSON API provider."""
 
     engine_id = SearchEngineType.GOOGLE.value
-
-    def __init__(
-        self,
-        config: GoogleConfig | None = None,
-        *,
-        http_client: AsyncClient | None = None,
-    ) -> None:
-        super().__init__(config or GoogleConfig(), http_client=http_client)
 
     @property
     def snippet_only(self) -> bool:
@@ -64,15 +54,13 @@ class GoogleSearchService(SearchEngine[GoogleConfig]):
 
     async def search(
         self,
-        request: BaseModel,
-        *,
-        timeout: int,
+        request: GoogleRequest,  # type: ignore
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
-        search_engine_id = getattr(request, "search_engine_id", None)
         credentials = GoogleCredentials.from_env(
-            search_engine_id=search_engine_id,
+            search_engine_id=request.search_engine_id,
         )
-        fetch_size = getattr(request, FETCH_SIZE_FIELD, self.config.fetch_size)
+        fetch_size = request.fetch_size
+        timeout = request.timeout
 
         raw_pages = SearchEngineRaw(pages=[])
         curated = WebSearchResults(results=[])
@@ -92,7 +80,7 @@ class GoogleSearchService(SearchEngine[GoogleConfig]):
             if not page_results:
                 if not curated:
                     raise EmptySearchResultsError(
-                        f"Google search returned no results for query {call_query(request)!r}",
+                        f"Google search returned no results for query {request.query!r}",
                         engine=SearchEngineType.GOOGLE.value,
                     )
                 break
@@ -106,13 +94,13 @@ class GoogleSearchService(SearchEngine[GoogleConfig]):
     async def _fetch_page(
         self,
         *,
-        request: BaseModel,
+        request: GoogleRequest,  # type: ignore
         credentials: GoogleCredentials,
         page: PageRequest,
         timeout: int,
     ) -> dict[str, Any]:
         params = build_google_query_params(
-            query=call_query(request),
+            query=request.query,
             credentials=credentials,
             request=request,
             page=page,
@@ -190,7 +178,8 @@ class GoogleSearchService(SearchEngine[GoogleConfig]):
         config: GoogleConfig,
         *,
         strict_required: bool = True,
-    ) -> type[BaseModel]:
+    ) -> type[Any]:
+
         from unique_search_proxy_core.projection import build_llm_call_model
 
         return build_llm_call_model(

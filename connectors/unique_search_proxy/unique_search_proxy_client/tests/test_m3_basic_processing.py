@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 from unique_search_proxy_core.crawlers.basic.processing.policy import (
     ContentTypeHandlerPolicy,
 )
@@ -113,8 +114,19 @@ async def test_process_content_allow_without_processor_raises() -> None:
 
 
 @pytest.mark.ai
-def test_content_type_handlers_default_empty() -> None:
-    assert BasicCrawlerConfig().content_type_handlers == {}
+def test_content_types_to_handlers() -> None:
+    toggles = ContentTypeToggles(html=True, pdf=True)
+    assert toggles.to_handlers() == {
+        "text/html": ContentTypeHandlerPolicy.ALLOW,
+        "application/pdf": ContentTypeHandlerPolicy.ALLOW,
+    }
+
+
+@pytest.mark.ai
+def test_content_types_default_all_disabled() -> None:
+    toggles = BasicCrawlerConfig().content_types
+    assert toggles == ContentTypeToggles()
+    assert toggles.to_handlers() == {}
 
 
 @pytest.mark.ai

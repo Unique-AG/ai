@@ -66,7 +66,6 @@ class ExposableParam(BaseModel, Generic[T]):
     """
 
     model_config = camelized_model_config
-
     expose: bool = Field(
         description="When true, this parameter is included on the LLM call JSON Schema.",
     )

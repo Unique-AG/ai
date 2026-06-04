@@ -2,6 +2,9 @@ import operator
 from functools import reduce
 from typing import TypeAlias
 
+
+from unique_search_proxy_core.crawlers import BasicCrawlerConfig as BasicCrawlerProxyConfig
+
 from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
@@ -36,6 +39,7 @@ CrawlerConfigTypes = (
     | FirecrawlCrawlerConfig
     | JinaCrawlerConfig
     | TavilyCrawlerConfig
+    | BasicCrawlerProxyConfig
 )
 
 CRAWLER_NAME_TO_CONFIG = {
@@ -44,6 +48,7 @@ CRAWLER_NAME_TO_CONFIG = {
     "firecrawl": FirecrawlCrawlerConfig,
     "jina": JinaCrawlerConfig,
     "tavily": TavilyCrawlerConfig,
+    "basic_proxy": BasicCrawlerProxyConfig,
 }
 
 
@@ -61,7 +66,8 @@ def get_crawler_service(
             return FirecrawlCrawler(crawler_config)
         case CrawlerType.JINA:
             return JinaCrawler(crawler_config)
-
+        case CrawlerType.BASIC_PROXY:
+            return BasicCrawler(crawler_config)
 
 def get_crawler_config_types_from_names(crawler_names: list[str]) -> TypeAlias:
     assert len(crawler_names) >= 1, "At least one crawler must be active"

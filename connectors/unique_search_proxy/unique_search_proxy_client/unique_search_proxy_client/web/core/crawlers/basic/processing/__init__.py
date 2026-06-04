@@ -1,5 +1,4 @@
 from unique_search_proxy_core.crawlers.basic.processing.policy import (
-    DEFAULT_HTML_HANDLERS,
     ContentTypeHandlerPolicy,
 )
 
@@ -16,7 +15,6 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing.registry impo
 
 __all__ = [
     "CONTENT_TYPE_PROCESSORS",
-    "DEFAULT_HTML_HANDLERS",
     "ContentProcessingError",
     "ContentProcessingTimeoutError",
     "ContentTypeHandlerPolicy",

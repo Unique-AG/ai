@@ -1,11 +1,11 @@
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
-    GoogleSearchRequest,
+    GoogleRequest,
     google_request_model,
 )
 
 __all__ = [
     "GoogleConfig",
-    "GoogleSearchRequest",
+    "GoogleRequest",
     "google_request_model",
 ]

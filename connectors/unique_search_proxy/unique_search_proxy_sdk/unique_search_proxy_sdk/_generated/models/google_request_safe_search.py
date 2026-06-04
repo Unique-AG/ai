@@ -1,9 +1,9 @@
 from enum import Enum
 
 
-class GoogleConfigRequestSiteSearchFilterType0(str, Enum):
-    E = "e"
-    I = "i"
+class GoogleRequestSafeSearch(str, Enum):
+    ACTIVE = "active"
+    OFF = "off"
 
     def __str__(self) -> str:
         return str(self.value)

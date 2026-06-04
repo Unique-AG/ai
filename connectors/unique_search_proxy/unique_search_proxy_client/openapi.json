@@ -75,308 +75,6 @@
         }
       }
     },
-    "/v1/configuration/search-engines/json-schema": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "JSON Schema for search-engine config (discriminated union)",
-        "operationId": "search_engines_config_schema_v1_configuration_search_engines_json_schema_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProviderJsonSchemaResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/configuration/search-engines/{engine_id}/json-schema": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "JSON Schema for one search-engine config",
-        "operationId": "search_engine_config_schema_v1_configuration_search_engines__engine_id__json_schema_get",
-        "parameters": [
-          {
-            "name": "engine_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Engine Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProviderJsonSchemaResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/configuration/search-engines/{engine_id}/default-config": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "Default deployment config for one search engine",
-        "operationId": "search_engine_default_config_v1_configuration_search_engines__engine_id__default_config_get",
-        "parameters": [
-          {
-            "name": "engine_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Engine Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProviderDefaultConfigResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/configuration/search-engines/{engine_id}/call-schema": {
-      "post": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "JSON Schema for POST /v1/search from deployment config",
-        "operationId": "search_engine_call_schema_v1_configuration_search_engines__engine_id__call_schema_post",
-        "parameters": [
-          {
-            "name": "engine_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Engine Id"
-            }
-          },
-          {
-            "name": "strict",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "description": "When true (default), the call schema marks every exposed field as required with no defaults (for strict LLM JSON generation). When false, optional provider knobs keep nullable types and defaults.",
-              "default": true,
-              "title": "Strict"
-            },
-            "description": "When true (default), the call schema marks every exposed field as required with no defaults (for strict LLM JSON generation). When false, optional provider knobs keep nullable types and defaults."
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GoogleConfig"
-              },
-              "examples": {
-                "default_projection": {
-                  "summary": "Call schema (query + fetchSize only)",
-                  "description": "Default LLM projection when optional params are not exposed.",
-                  "value": {
-                    "engine": "google",
-                    "fetchSize": 10,
-                    "safe": "active"
-                  }
-                },
-                "with_exposed_params": {
-                  "summary": "Call schema (+ gl)",
-                  "description": "`gl.expose=true` adds `gl` to the LLM call schema; `dateRestrict` stays merge-only.",
-                  "value": {
-                    "engine": "google",
-                    "fetchSize": 10,
-                    "safe": "active",
-                    "gl": {
-                      "expose": true,
-                      "value": "ch"
-                    },
-                    "dateRestrict": {
-                      "expose": false,
-                      "value": "d7"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SearchCallSchemaResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/configuration/crawlers/json-schema": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "JSON Schema for crawler config (discriminated union)",
-        "operationId": "crawlers_config_schema_v1_configuration_crawlers_json_schema_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProviderJsonSchemaResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/configuration/crawlers/{crawler_id}/json-schema": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "JSON Schema for one crawler config",
-        "operationId": "crawler_config_schema_v1_configuration_crawlers__crawler_id__json_schema_get",
-        "parameters": [
-          {
-            "name": "crawler_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Crawler Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProviderJsonSchemaResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/configuration/crawlers/{crawler_id}/default-config": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "Default deployment config for one crawler",
-        "operationId": "crawler_default_config_v1_configuration_crawlers__crawler_id__default_config_get",
-        "parameters": [
-          {
-            "name": "crawler_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Crawler Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProviderDefaultConfigResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/search": {
       "post": {
         "tags": [
@@ -388,7 +86,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GoogleConfigRequest"
+                "$ref": "#/components/schemas/GoogleRequest"
               },
               "examples": {
                 "google_search": {
@@ -455,7 +153,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CrawlRequest"
+                "$ref": "#/components/schemas/BasicCrawlerRequest"
               },
               "examples": {
                 "basic_raw": {
@@ -465,10 +163,7 @@
                     "urls": [
                       "https://example.com"
                     ],
-                    "config": {
-                      "crawler": "basic"
-                    },
-                    "parallel": true,
+                    "crawlerType": "BasicProxyCrawler",
                     "timeout": 30
                   }
                 },
@@ -479,14 +174,11 @@
                     "urls": [
                       "https://example.com"
                     ],
-                    "config": {
-                      "crawler": "basic",
-                      "contentTypeHandlers": {
-                        "text/html": "allow",
-                        "application/xhtml+xml": "allow"
-                      }
+                    "crawlerType": "BasicProxyCrawler",
+                    "contentTypes": {
+                      "html": true,
+                      "xhtml": true
                     },
-                    "parallel": true,
                     "timeout": 30
                   }
                 }
@@ -522,60 +214,7 @@
   },
   "components": {
     "schemas": {
-      "BasicCrawlerConfig": {
-        "properties": {
-          "crawler": {
-            "type": "string",
-            "const": "basic",
-            "title": "Crawler",
-            "default": "basic"
-          },
-          "contentTypeHandlers": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/ContentTypeHandlerPolicy"
-            },
-            "type": "object",
-            "title": "Contenttypehandlers",
-            "description": "Per media-type policy using exact Content-Type values (no parameters). allow: run the built-in processor into ``content``; forbid: return ``raw`` only. Types not listed are not processed.",
-            "examples": [
-              {
-                "application/pdf": "forbid",
-                "application/xhtml+xml": "allow",
-                "text/html": "allow"
-              }
-            ]
-          },
-          "maxConcurrentRequests": {
-            "type": "integer",
-            "maximum": 50.0,
-            "minimum": 1.0,
-            "title": "Maxconcurrentrequests",
-            "description": "Maximum concurrent HTTP fetches",
-            "default": 10
-          },
-          "exposedFields": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Exposedfields",
-            "description": "Call-schema fields exposed to LLM-driven callers (urls always exposed)"
-          }
-        },
-        "type": "object",
-        "title": "BasicCrawlerConfig",
-        "description": "Deployment config for the HTTP basic crawler."
-      },
-      "ContentTypeHandlerPolicy": {
-        "type": "string",
-        "enum": [
-          "allow",
-          "forbid"
-        ],
-        "title": "ContentTypeHandlerPolicy",
-        "description": "Whether the basic crawler may run the built-in processor for a media type."
-      },
-      "CrawlRequest": {
+      "BasicCrawlerRequest": {
         "properties": {
           "urls": {
             "items": {
@@ -586,51 +225,85 @@
             "title": "Urls",
             "description": "URLs to crawl"
           },
-          "config": {
-            "$ref": "#/components/schemas/BasicCrawlerConfig"
-          },
-          "acceptedContentTypes": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Acceptedcontenttypes",
-            "description": "Optional hint for callers (e.g. text/html). The proxy does not filter on this; consumers decide how to handle each result's contentType."
-          },
-          "parallel": {
-            "type": "boolean",
-            "title": "Parallel",
-            "description": "Whether to crawl URLs concurrently",
-            "default": true
+          "crawlerType": {
+            "type": "string",
+            "const": "BasicProxyCrawler",
+            "title": "Crawler Type",
+            "default": "BasicProxyCrawler"
           },
           "timeout": {
             "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
             "title": "Timeout",
-            "description": "Per-request timeout in seconds",
+            "description": "Request timeout in seconds",
             "default": 30
+          },
+          "contentTypes": {
+            "$ref": "#/components/schemas/ContentTypeToggles",
+            "title": "Content types",
+            "description": "Enable built-in processing per media type. Unchecked types return raw body only.",
+            "default": {
+              "html": false,
+              "xhtml": false,
+              "plainText": false,
+              "markdown": false,
+              "pdf": false
+            }
+          },
+          "maxConcurrentRequests": {
+            "type": "integer",
+            "title": "Maximum concurrent HTTP fetches",
+            "description": "Maximum concurrent HTTP fetches",
+            "default": 10
           }
         },
         "type": "object",
         "required": [
-          "urls",
-          "config"
+          "urls"
         ],
-        "title": "CrawlRequest"
+        "title": "Basic Crawler Request"
+      },
+      "ContentTypeToggles": {
+        "properties": {
+          "html": {
+            "type": "boolean",
+            "title": "HTML",
+            "description": "Process ``text/html`` responses into the content field",
+            "default": false
+          },
+          "xhtml": {
+            "type": "boolean",
+            "title": "XHTML",
+            "description": "Process ``application/xhtml+xml`` responses into the content field",
+            "default": false
+          },
+          "plainText": {
+            "type": "boolean",
+            "title": "Plain text",
+            "description": "Process ``text/plain`` responses into the content field",
+            "default": false
+          },
+          "markdown": {
+            "type": "boolean",
+            "title": "Markdown",
+            "description": "Process ``text/markdown`` responses into the content field",
+            "default": false
+          },
+          "pdf": {
+            "type": "boolean",
+            "title": "PDF",
+            "description": "Process ``application/pdf`` responses into the content field",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "Content Type Toggles",
+        "description": "Per-type activation flags for basic-crawler content processing."
       },
       "CrawlResponse": {
         "properties": {
-          "crawler": {
+          "crawlerType": {
             "type": "string",
-            "title": "Crawler"
+            "title": "Crawler Type"
           },
           "results": {
             "items": {
@@ -642,10 +315,10 @@
         },
         "type": "object",
         "required": [
-          "crawler",
+          "crawlerType",
           "results"
         ],
-        "title": "CrawlResponse"
+        "title": "Crawl Response"
       },
       "CrawlUrlResult": {
         "properties": {
@@ -674,7 +347,7 @@
                 "type": "null"
               }
             ],
-            "title": "Contenttype",
+            "title": "Content Type",
             "description": "Response Content-Type (media type only, parameters stripped)"
           },
           "error": {
@@ -685,7 +358,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Error"
           },
           "raw": {
             "anyOf": [
@@ -702,169 +376,9 @@
         "required": [
           "url"
         ],
-        "title": "CrawlUrlResult"
+        "title": "Crawl Url Result"
       },
-      "ExposableEI": {
-        "properties": {
-          "expose": {
-            "type": "boolean",
-            "title": "Expose",
-            "description": "When true, this parameter is included on the LLM call JSON Schema."
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "e",
-                  "i"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Admin default merged into each search when not ``None``."
-          }
-        },
-        "type": "object",
-        "required": [
-          "expose",
-          "value"
-        ],
-        "title": "ExposableEI"
-      },
-      "ExposableStr": {
-        "properties": {
-          "expose": {
-            "type": "boolean",
-            "title": "Expose",
-            "description": "When true, this parameter is included on the LLM call JSON Schema."
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value",
-            "description": "Admin default merged into each search when not ``None``."
-          }
-        },
-        "type": "object",
-        "required": [
-          "expose",
-          "value"
-        ],
-        "title": "ExposableStr"
-      },
-      "GoogleConfig": {
-        "properties": {
-          "engine": {
-            "type": "string",
-            "const": "google",
-            "title": "Search engine",
-            "description": "Provider discriminator; must be `google` for this config.",
-            "default": "google"
-          },
-          "fetchSize": {
-            "type": "integer",
-            "maximum": 100.0,
-            "minimum": 1.0,
-            "title": "Fetchsize",
-            "description": "Default result count merged into each search request",
-            "default": 10
-          },
-          "timeout": {
-            "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
-            "title": "Timeout",
-            "description": "Request timeout in seconds",
-            "default": 30
-          },
-          "searchEngineId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Search engine ID (cx)",
-            "description": "Google Programmable Search Engine ID (`cx`). Resolved from deployment env at runtime when not set. Not sent as a query parameter."
-          },
-          "safe": {
-            "type": "string",
-            "enum": [
-              "active",
-              "off"
-            ],
-            "title": "Safe search",
-            "description": "SafeSearch level for every search: `active` (default) or `off`. Applied on all requests unless the call body overrides it.",
-            "default": "active"
-          },
-          "gl": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Geolocation (gl)",
-            "description": "Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). Set `value` for a fixed default; set `expose` so the LLM may override per query."
-          },
-          "hl": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Interface language (hl)",
-            "description": "Language for snippets/UI (Google `hl`). `value` + `expose` behave like `gl`."
-          },
-          "lr": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Language restrict (lr)",
-            "description": "Document language restrict (Google `lr`), e.g. `lang_en`. `value` + `expose` behave like `gl`."
-          },
-          "dateRestrict": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Date restrict",
-            "description": "Google `dateRestrict` recency filter (`d7`, `m1`, \u2026). `value` + `expose` behave like `gl`."
-          },
-          "exactTerms": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Exact terms",
-            "description": "Phrase every hit must contain (Google `exactTerms`). `value` + `expose` behave like `gl`."
-          },
-          "excludeTerms": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Exclude terms",
-            "description": "Phrase that must not appear (Google `excludeTerms`). `value` + `expose` behave like `gl`."
-          },
-          "fileType": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "File type",
-            "description": "File extension filter (Google `fileType`), e.g. `pdf`. `value` + `expose` behave like `gl`."
-          },
-          "siteSearch": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Site search",
-            "description": "Site or domain (Google `siteSearch`). Pair with `siteSearchFilter`. `value` + `expose` behave like `gl`."
-          },
-          "siteSearchFilter": {
-            "$ref": "#/components/schemas/ExposableEI",
-            "title": "Site search filter",
-            "description": "With `siteSearch`: `i` = include only that site, `e` = exclude. `value` + `expose` behave like `gl`."
-          },
-          "sort": {
-            "$ref": "#/components/schemas/ExposableStr",
-            "title": "Sort",
-            "description": "Sort expression (Google `sort`), e.g. `date`. `value` + `expose` behave like `gl`."
-          }
-        },
-        "type": "object",
-        "title": "GoogleConfig",
-        "description": "Single source of truth for Google deployment + derived request/LLM surfaces."
-      },
-      "GoogleConfigRequest": {
+      "GoogleRequest": {
         "properties": {
           "query": {
             "type": "string",
@@ -881,7 +395,7 @@
           },
           "fetchSize": {
             "type": "integer",
-            "title": "Fetchsize",
+            "title": "Fetch Size",
             "description": "Default result count merged into each search request",
             "default": 10
           },
@@ -1042,7 +556,7 @@
         "required": [
           "query"
         ],
-        "title": "GoogleConfigRequest"
+        "title": "Google Request"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1073,54 +587,7 @@
           "code",
           "message"
         ],
-        "title": "PerUrlError"
-      },
-      "ProviderDefaultConfigResponse": {
-        "properties": {
-          "providerId": {
-            "type": "string",
-            "title": "Providerid"
-          },
-          "defaultConfig": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Defaultconfig",
-            "description": "Default deployment config (camelCase keys)"
-          }
-        },
-        "type": "object",
-        "required": [
-          "providerId",
-          "defaultConfig"
-        ],
-        "title": "ProviderDefaultConfigResponse"
-      },
-      "ProviderJsonSchemaResponse": {
-        "properties": {
-          "jsonSchema": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Jsonschema",
-            "description": "JSON Schema for provider deployment configuration"
-          },
-          "providerId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Providerid",
-            "description": "Set when the schema is for a single provider"
-          }
-        },
-        "type": "object",
-        "required": [
-          "jsonSchema"
-        ],
-        "title": "ProviderJsonSchemaResponse"
+        "title": "Per Url Error"
       },
       "ProvidersListResponse": {
         "properties": {
@@ -1129,7 +596,7 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Searchengines",
+            "title": "Search Engines",
             "description": "Registered search engine ids (config discriminator values)"
           },
           "crawlers": {
@@ -1146,40 +613,7 @@
           "searchEngines",
           "crawlers"
         ],
-        "title": "ProvidersListResponse"
-      },
-      "SearchCallSchemaResponse": {
-        "properties": {
-          "engine": {
-            "type": "string",
-            "title": "Engine",
-            "description": "Search engine id"
-          },
-          "mode": {
-            "type": "string",
-            "title": "Mode",
-            "description": "Engine mode (e.g. standard) for observability and tooling"
-          },
-          "snippetOnly": {
-            "type": "boolean",
-            "title": "Snippetonly",
-            "description": "When true, search hits are snippet-only; use POST /v1/crawl for bodies"
-          },
-          "callSchema": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Callschema",
-            "description": "JSON Schema for the engine call model on POST /v1/search"
-          }
-        },
-        "type": "object",
-        "required": [
-          "engine",
-          "mode",
-          "snippetOnly",
-          "callSchema"
-        ],
-        "title": "SearchCallSchemaResponse"
+        "title": "Providers List Response"
       },
       "SearchResponse": {
         "properties": {
@@ -1210,7 +644,7 @@
           "raw",
           "curated"
         ],
-        "title": "SearchResponse"
+        "title": "Search Response"
       },
       "ValidationError": {
         "properties": {
@@ -1273,7 +707,7 @@
           "title",
           "snippet"
         ],
-        "title": "WebSearchResult",
+        "title": "Web Search Result",
         "description": "Normalized search result used on the curated response path."
       }
     }

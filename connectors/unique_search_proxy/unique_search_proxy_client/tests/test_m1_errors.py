@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.errors import (
     BadRequestProxyError,
     EmptySearchResultsError,
@@ -83,11 +84,11 @@ class TestV1StructuredErrors:
             "/v1/crawl",
             json={
                 "urls": ["https://example.com"],
-                "config": {"crawler": "basic"},
+                "crawlerType": CrawlerType.BASIC.value,
             },
         )
         assert resp.status_code == 503
-        assert resp.json()["error"]["crawler"] == "basic"
+        assert resp.json()["error"]["crawler"] == CrawlerType.BASIC.value
 
     @pytest.mark.ai
     def test_validation_error_returns_422(self, client: TestClient) -> None:

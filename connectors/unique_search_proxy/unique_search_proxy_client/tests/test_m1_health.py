@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from unique_search_proxy_core.crawlers.base import CrawlerType
 
 from unique_search_proxy_client.web.app import create_app
 
@@ -25,4 +26,4 @@ class TestHealthEndpoints:
         assert body["status"] == "ready"
         assert body["httpClient"] == "ok"
         assert body["searchEngines"] == ["google"]
-        assert body["crawlers"] == ["basic"]
+        assert body["crawlers"] == [CrawlerType.BASIC.value]

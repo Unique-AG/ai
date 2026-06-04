@@ -1,8 +1,7 @@
-from unique_search_proxy_core.schema import WebSearchResult
-
 from unique_search_proxy_client.web.core.registry import (
     get_crawler,
     get_search_engine,
+    list_registered_providers,
     register_crawler,
     register_search_engine,
     registered_crawlers,
@@ -10,9 +9,9 @@ from unique_search_proxy_client.web.core.registry import (
 )
 
 __all__ = [
-    "WebSearchResult",
     "get_crawler",
     "get_search_engine",
+    "list_registered_providers",
     "register_crawler",
     "register_search_engine",
     "registered_crawlers",

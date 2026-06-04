@@ -96,11 +96,3 @@ def provider_query_params_from_request(
         exclude=provider_param_exclude_fields(config_cls),
         by_alias=True,
     )
-
-
-def call_query(request: BaseModel) -> str:
-    """Return the query string from a resolved search request model."""
-    query = getattr(request, QUERY_FIELD, None)
-    if not isinstance(query, str) or not query:
-        raise ValueError("Resolved search request is missing a non-empty query")
-    return query

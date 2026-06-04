@@ -3,17 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
-from unique_search_proxy_core.search_engines.base import (
-    SearchEngine,
-    SearchEngineType,
-)
-from unique_search_proxy_core.search_engines.config_types import (
-    SearchEngineConfigTypes,
-)
-from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
-from unique_search_proxy_core.search_engines.params import (
-    merge_config_and_invocation,
-)
+from unique_search_proxy_core.search_engines.base import SearchEngine, SearchEngineType
+from unique_search_proxy_core.search_engines.config_types import SearchEngineConfigTypes
+from unique_search_proxy_core.search_engines.params import merge_config_and_invocation
 
 from unique_search_proxy_client.web.core.search_engines.google.service import (
     GoogleSearchService,
@@ -52,15 +44,6 @@ def resolve_engine_request(
             raise ValueError(f"Unsupported search engine: {config.engine}")
 
 
-def get_search_engine_service_from_config(
-    config: GoogleConfig,
-    *,
-    http_client: AsyncClient | None = None,
-) -> SearchEngine[Any]:
-    """Legacy helper when a deployment config object is already parsed."""
-    return get_search_engine_service(config.engine, http_client=http_client)
-
-
 def get_request_model_for_engine(engine_id: str) -> type[BaseModel]:
     from unique_search_proxy_client.web.core.registry import (
         get_search_engine_descriptor,
@@ -79,7 +62,6 @@ resolve_engine_call = resolve_engine_request
 __all__ = [
     "get_request_model_for_engine",
     "get_search_engine_service",
-    "get_search_engine_service_from_config",
     "resolve_engine_call",
     "resolve_engine_request",
 ]

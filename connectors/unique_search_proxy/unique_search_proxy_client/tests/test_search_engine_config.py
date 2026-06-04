@@ -4,12 +4,11 @@ from unique_search_proxy_core.search_engines import (
     SearchEngineType,
     parse_search_engine_config,
 )
+from unique_search_proxy_core.search_engines.config_types import SearchRequest
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
-    GoogleSearchRequest,
+    GoogleRequest,
 )
-
-from unique_search_proxy_client.web.api.v1.schema import SearchRequest
 
 
 class TestSearchEngineConfigUnion:
@@ -39,7 +38,7 @@ class TestSearchEngineConfigUnion:
             },
         )
         assert req.engine == SearchEngineType.GOOGLE
-        assert isinstance(req, GoogleSearchRequest)
+        assert isinstance(req, GoogleRequest)
         assert req.fetch_size == 8
         assert req.query == "hello"
 

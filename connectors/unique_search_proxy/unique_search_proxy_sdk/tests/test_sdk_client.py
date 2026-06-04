@@ -3,17 +3,15 @@ from collections.abc import AsyncIterator
 import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
+from pydantic import ValidationError
 from unique_search_proxy_client.web.app import create_app
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerConfig
-from unique_search_proxy_core.errors import (
-    EngineNotConfiguredError,
-    ValidationProxyError,
+from unique_search_proxy_core.crawlers.base import CrawlerType
+from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
+from unique_search_proxy_core.search_engines.call_schema import (
+    resolve_search_call_schema,
 )
 
-from unique_search_proxy_sdk import UniqueSearchProxyClient
-from unique_search_proxy_sdk._generated.models.google_config_request import (
-    GoogleConfigRequest as SdkGoogleConfigRequest,
-)
+from unique_search_proxy_sdk import CrawlClient, SearchClient, UniqueSearchProxyClient
 
 
 @pytest.fixture
@@ -42,86 +40,72 @@ async def sdk_client(
             yield client
 
 
-class TestUniqueSearchProxyClientConfiguration:
+class TestSearchClient:
     @pytest.mark.ai
-    async def test_list_providers(self, sdk_client: UniqueSearchProxyClient) -> None:
-        providers = await sdk_client.list_providers()
-        assert "google" in providers.search_engines
-        assert "basic" in providers.crawlers
-
-    @pytest.mark.ai
-    async def test_search_engine_config_schema(
+    async def test_search_with_kwargs(
         self,
         sdk_client: UniqueSearchProxyClient,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        schema = await sdk_client.search_engine_config_json_schema("google")
-        assert schema.provider_id == "google"
-        assert schema.json_schema["properties"]["engine"]["const"] == "google"
+        from unique_search_proxy_core.schema import (
+            SearchEngineRaw,
+            WebSearchResult,
+            WebSearchResults,
+        )
+        from unique_search_proxy_core.search_engines.google.schema import GoogleRequest
 
-    @pytest.mark.ai
-    async def test_search_engine_default_config(
-        self,
-        sdk_client: UniqueSearchProxyClient,
-    ) -> None:
-        defaults = await sdk_client.search_engine_default_config("google")
-        assert defaults.default_config["engine"] == "google"
+        async def fake_search(
+            self: object,
+            request: GoogleRequest,
+        ) -> tuple[SearchEngineRaw, WebSearchResults]:
+            return SearchEngineRaw(pages=[]), WebSearchResults(
+                results=[
+                    WebSearchResult(url="https://example.com", title="t", snippet="s"),
+                ],
+            )
 
-    @pytest.mark.ai
-    async def test_search_call_schema(
-        self, sdk_client: UniqueSearchProxyClient
-    ) -> None:
-        result = await sdk_client.search_call_schema("google")
-        assert result.engine == "google"
-        assert result.snippet_only is True
-        assert "query" in result.call_schema["properties"]
-        assert "fetchSize" not in result.call_schema["properties"]
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.search_engines.google.service.GoogleSearchService.search",
+            fake_search,
+        )
+        monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "test-key")
+        monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "test-cx")
 
-    @pytest.mark.ai
-    async def test_unknown_engine_raises_engine_not_configured(
-        self,
-        sdk_client: UniqueSearchProxyClient,
-    ) -> None:
-        with pytest.raises(EngineNotConfiguredError):
-            await sdk_client.search_engine_config_json_schema("brave")
+        response = await sdk_client.search.search(
+            "unique ag",
+            fetch_size=3,
+            gl="ch",
+        )
+        assert response.engine == "google"
+        assert response.query == "unique ag"
+        assert len(response.curated) == 1
 
-
-class TestUniqueSearchProxyClientValidation:
     @pytest.mark.ai
     async def test_search_validation_error(
         self,
         sdk_client: UniqueSearchProxyClient,
     ) -> None:
-        with pytest.raises(ValidationProxyError):
-            await sdk_client.search(
-                SdkGoogleConfigRequest.from_dict(
-                    {
-                        "engine": "google",
-                        "query": "",
-                        "fetchSize": 10,
-                        "timeout": 30,
-                    },
-                ),
-            )
+        with pytest.raises(ValidationError):
+            await sdk_client.search.search("")
 
 
-class TestUniqueSearchProxyClientCrawl:
+class TestCrawlClient:
     @pytest.mark.ai
-    async def test_crawl_urls_mocked(
+    async def test_crawl_with_kwargs(
         self,
         sdk_client: UniqueSearchProxyClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerRequest
         from unique_search_proxy_core.schema import CrawlUrlResult
 
         async def fake_crawl(
             self: object,
-            urls: list[str],
-            *,
-            timeout: int,
+            request: BasicCrawlerRequest,
         ) -> list[CrawlUrlResult]:
             return [
                 CrawlUrlResult(
-                    url=urls[0],
+                    url=request.urls[0],
                     raw="<html>hi</html>",
                     content_type="text/html",
                     content=None,
@@ -133,10 +117,30 @@ class TestUniqueSearchProxyClientCrawl:
             fake_crawl,
         )
 
-        response = await sdk_client.crawl_urls(
-            urls=["https://example.com"],
-            config=BasicCrawlerConfig(),
+        response = await sdk_client.crawl.crawl(
+            ["https://example.com"],
+            content_types=ContentTypeToggles(html=True),
         )
-        assert response.crawler == "basic"
+        assert response.crawler_type == CrawlerType.BASIC.value
         assert len(response.results) == 1
         assert response.results[0].url == "https://example.com"
+
+
+class TestCoreCallSchema:
+    @pytest.mark.ai
+    def test_resolve_search_call_schema_in_core(self) -> None:
+        descriptor = resolve_search_call_schema("google")
+        assert descriptor.engine == "google"
+        assert descriptor.snippet_only is True
+        assert "query" in descriptor.call_schema["properties"]
+        assert "fetchSize" not in descriptor.call_schema["properties"]
+
+
+class TestSubclientTypes:
+    @pytest.mark.ai
+    async def test_subclients_are_typed(
+        self,
+        sdk_client: UniqueSearchProxyClient,
+    ) -> None:
+        assert isinstance(sdk_client.search, SearchClient)
+        assert isinstance(sdk_client.crawl, CrawlClient)

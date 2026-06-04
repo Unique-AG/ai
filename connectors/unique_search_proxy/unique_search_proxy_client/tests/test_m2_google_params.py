@@ -10,7 +10,7 @@ from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import (
     ExposableStrOrNone,
     GoogleConfig,
-    GoogleSearchRequest,
+    GoogleRequest,
 )
 from unique_search_proxy_core.search_engines.pagination import PageRequest
 from unique_search_proxy_core.search_engines.params import (
@@ -68,7 +68,7 @@ class TestMergeConfigAndInvocation:
             config,
             {"query": "news", "gl": "ch"},
         )
-        assert isinstance(request, GoogleSearchRequest)
+        assert isinstance(request, GoogleRequest)
         assert request.date_restrict == "m1"
         assert request.gl == "ch"
 

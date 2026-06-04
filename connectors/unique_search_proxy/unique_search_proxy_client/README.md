@@ -75,50 +75,26 @@ uv run python scripts/generate_sdk.py
 
 ```python
 from unique_search_proxy_sdk import UniqueSearchProxyClient
-from unique_search_proxy_core.search_engines.base import SearchEngineType
-from unique_search_proxy_core.search_engines.google.schema import (
-    GoogleConfig,
-    GoogleSearchRequest,
-)
 
 async with UniqueSearchProxyClient("http://unique-search-proxy:2349") as client:
-    config = GoogleConfig(gl={"expose": True, "value": "ch"})
-    schema = await client.search_call_schema("google", config=config)
-    providers = await client.list_providers()
-    from unique_search_proxy_core.search_engines.params import (
-        merge_config_and_invocation,
-    )
-
-    request = merge_config_and_invocation(
-        config,
-        {"query": "unique ag"},
-        engine=SearchEngineType.GOOGLE,
-    )
-    result = await client.search_with(
-        engine=SearchEngineType.GOOGLE,
-        request=request,
-    )
+    await client.health()
+    result = await client.search.search("unique ag", engine="google", fetchSize=10)
+    crawl = await client.crawl.crawl(["https://example.com"], crawler="basic")
 
     # Low-level: one generated function per route
-    raw = await client.openapi  # OpenAPIClient from _generated
+    raw = client.openapi  # OpenAPIClient from _generated
 ```
 
 | Facade method | HTTP |
 |---------------|------|
 | `health()` | `GET /health` |
 | `ready()` | `GET /ready` |
-| `list_providers()` | `GET /v1/configuration/providers` |
-| `search_engines_config_json_schema()` | `GET /v1/configuration/search-engines/json-schema` |
-| `search_engine_config_json_schema(id)` | `GET /v1/configuration/search-engines/{id}/json-schema` |
-| `search_engine_default_config(id)` | `GET /v1/configuration/search-engines/{id}/default-config` |
-| `crawlers_config_json_schema()` | `GET /v1/configuration/crawlers/json-schema` |
-| `crawler_config_json_schema(id)` | `GET /v1/configuration/crawlers/{id}/json-schema` |
-| `crawler_default_config(id)` | `GET /v1/configuration/crawlers/{id}/default-config` |
-| `search_call_schema(engine_id, config=...)` | `POST /v1/configuration/search-engines/{id}/call-schema` |
-| `search(request)` / `search_with(engine, request)` | `POST /v1/search` (derived `GoogleConfigRequest`) |
-| `crawl(request)` / `crawl_urls(...)` | `POST /v1/crawl` |
+| `search.search(...)` | `POST /v1/search` |
+| `crawl.crawl(...)` | `POST /v1/crawl` |
 
-Non-success responses raise the same `ProxyError` subclasses as the service. Generated models live under `sdk._generated.models`; the facade accepts application Pydantic configs (`GoogleConfig`, `BasicCrawlerConfig`) and converts them for requests.
+Deployment config JSON Schema, defaults, and LLM call-schema projection live in **`unique_search_proxy_core`** (not HTTP). Assistants-core and tooling import those helpers directly.
+
+Non-success responses raise the same `ProxyError` subclasses as the service. Generated request/response models live under `sdk._generated.models`.
 
 For tests, pass an `httpx.AsyncClient` with `ASGITransport(app=create_app())` and run the app lifespan so in-app egress is initialized.
 
@@ -138,17 +114,10 @@ For tests, pass an `httpx.AsyncClient` with `ASGITransport(app=create_app())` an
 | `GET /health` | Liveness |
 | `GET /ready` | Readiness (httpx pool + registered providers) |
 | `GET /v1/configuration/providers` | Registered search engine and crawler ids |
-| `GET /v1/configuration/search-engines/json-schema` | JSON Schema for search-engine deployment config (union) |
-| `GET /v1/configuration/search-engines/{id}/json-schema` | JSON Schema for one search engine |
-| `GET /v1/configuration/search-engines/{id}/default-config` | Default deployment config for one search engine |
-| `GET /v1/configuration/crawlers/json-schema` | JSON Schema for crawler deployment config (union) |
-| `GET /v1/configuration/crawlers/{id}/json-schema` | JSON Schema for one crawler |
-| `GET /v1/configuration/crawlers/{id}/default-config` | Default deployment config for one crawler |
-| `POST /v1/configuration/search-engines/{id}/call-schema` | LLM call JSON Schema from deployment `GoogleConfig` body |
-| `POST /v1/search` | Execute search (derived request: `engine`, `query`, `fetchSize`, `timeout`, …) |
-| `POST /v1/crawl` | Crawl URLs via configured crawler |
+| `POST /v1/search` | Execute search (flat request: `engine`, `query`, provider params, `timeout`) |
+| `POST /v1/crawl` | Crawl URLs via configured crawler (flat request: `crawler`, `urls`, `timeout`, …) |
 | `GET /metrics` | Prometheus scrape endpoint (when enabled) |
-| `/docs` | OpenAPI (Swagger UI) — use **Try it out** and the request-body **Examples** dropdown on `/v1/search`, `/v1/search/call-schema`, and `/v1/crawl` |
+| `/docs` | OpenAPI (Swagger UI) — use **Try it out** and the request-body **Examples** dropdown on `/v1/search` and `/v1/crawl` |
 
 Set `ENABLED=false` on monitoring settings (`PrometheusSettings`) to disable metrics. With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct aggregation across uvicorn workers.
 
@@ -163,22 +132,15 @@ Settings are colocated with each component and use env prefixes:
 
 Copy `.example.env` to `.env` for a annotated template of all settings. Shared helpers live in `web/settings/`.
 
-### Configuration discovery (`GET /v1/configuration/...`)
+### Runtime discovery (`GET /v1/configuration/providers`)
 
-Replaces the embedded `search_engine_config` / `crawler_config` unions that used to live in `unique_web_search` and were exposed via assistants-core `GET /configuration/tools/WebSearch/json-schema`.
+Lists search engine and crawler ids registered in the proxy pod (depends on env/secrets). Use this for health checks and capability discovery at runtime.
 
-| Old surface | New proxy surface |
-|-------------|-------------------|
-| `WebSearchConfig.search_engine_config` (discriminator `search_engine_name`) | `GET /v1/configuration/search-engines/json-schema` (discriminator `engine`) |
-| `WebSearchConfig.crawler_config` (discriminator `crawler_type`) | `GET /v1/configuration/crawlers/json-schema` (discriminator `crawler`) |
-| Per-engine nested config in tool JSON Schema | `GET /v1/configuration/search-engines/{id}/json-schema` |
-| LLM invocation params for search | `POST /v1/configuration/search-engines/{id}/call-schema` (body = deployment config) |
-
-Assistants-core can keep exposing the full `WebSearch` tool manifest for modes, citations, and content processing; provider deployment shapes should be sourced from the proxy as engines and crawlers register there.
+Deployment config JSON Schema, defaults, and LLM call-schema projection are **core library** concerns — import from `unique_search_proxy_core.providers.schema` and `unique_search_proxy_core.search_engines.call_schema` (or the crawl equivalents). Assistants-core embeds those shapes in tool manifests rather than calling extra HTTP routes on the proxy.
 
 ### Search (`POST /v1/search`)
 
-One hand-written **`GoogleConfig`** per engine drives admin schema, LLM call-schema, and the derived search request. Callers load defaults via `GET /v1/configuration/search-engines/...`, merge with `merge_config_and_invocation`, then `POST /v1/search`. Crawling is separate (`POST /v1/crawl`).
+Flat request body: all execution fields at the top level (`engine`, `query`, optional provider knobs, `timeout`). Tooling merges deployment config with LLM invocation in **core** (`merge_config_and_invocation`) before calling the proxy.
 
 ```json
 {
@@ -192,9 +154,9 @@ One hand-written **`GoogleConfig`** per engine drives admin schema, LLM call-sch
 ```
 
 - **`engine`**: registered search engine id (discriminator)
-- **`query`**, **`fetchSize`**, optional provider knobs: execution payload on `POST /v1/search`
-- **Deployment config** (`ExposableParam` with `expose` + `value`; optional knobs use `Annotated[T | None, DeactivatedNone]` and `Field(default_factory=...)` with `value=None` when inactive): configuration routes only — not sent on `POST /v1/search`
-- **LLM call schema**: `POST /v1/configuration/search-engines/{id}/call-schema?strict=true` (default) with parsed `GoogleConfig` body; use `strict=false` for optional fields with defaults
+- **`query`**, **`fetchSize`**, optional provider knobs, **`timeout`**: flat execution payload on `POST /v1/search`
+- **Deployment config** (`ExposableParam` with `expose` + `value`): resolved in core before building the flat search request — not a separate HTTP surface on the proxy
+- **LLM call schema**: `unique_search_proxy_core.search_engines.call_schema.resolve_search_call_schema(...)` with optional `strict=False` for nullable exposed fields
 
 Response:
 
@@ -228,8 +190,7 @@ Response:
 ```json
 {
   "urls": ["https://example.com"],
-  "config": { "crawler": "basic" },
-  "parallel": true,
+  "crawler": "basic",
   "timeout": 30
 }
 ```
@@ -267,7 +228,6 @@ connectors/unique_search_proxy/
 │       ├── api/
 │       │   ├── health.py
 │       │   └── v1/
-│       │       ├── schema.py   # OpenAPI models (shared with SDK)
 │       │       ├── configuration.py
 │       │       ├── search.py
 │       │       └── crawl.py

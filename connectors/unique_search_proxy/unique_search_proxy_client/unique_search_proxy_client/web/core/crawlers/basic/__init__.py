@@ -1,5 +1,5 @@
+from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 from unique_search_proxy_core.crawlers.basic.processing.policy import (
-    DEFAULT_HTML_HANDLERS,
     ContentTypeHandlerPolicy,
 )
 from unique_search_proxy_core.crawlers.basic.schema import (
@@ -19,6 +19,6 @@ __all__ = [
     "BasicCrawlerConfig",
     "BasicCrawlerService",
     "CONTENT_TYPE_PROCESSORS",
-    "DEFAULT_HTML_HANDLERS",
     "ContentTypeHandlerPolicy",
+    "ContentTypeToggles",
 ]

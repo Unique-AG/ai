@@ -6,9 +6,3 @@ class ContentTypeHandlerPolicy(StrEnum):
 
     ALLOW = "allow"
     FORBID = "forbid"
-
-
-DEFAULT_HTML_HANDLERS: dict[str, ContentTypeHandlerPolicy] = {
-    "text/html": ContentTypeHandlerPolicy.ALLOW,
-    "application/xhtml+xml": ContentTypeHandlerPolicy.ALLOW,
-}
