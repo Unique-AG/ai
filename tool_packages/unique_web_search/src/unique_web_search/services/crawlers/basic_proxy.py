@@ -15,8 +15,11 @@ from unique_web_search.services.crawlers.base import BaseCrawlerConfig, CrawlerT
 _LOGGER = logging.getLogger(__name__)
 
 
-class BasicCrawlerProxyConfig(BaseCrawlerConfig[CrawlerType.BASIC_PROXY], BasicCrawlerProxyCoreConfig):
+class BasicCrawlerProxyConfig(
+    BaseCrawlerConfig[CrawlerType.BASIC_PROXY], BasicCrawlerProxyCoreConfig
+):
     crawler_type: Literal[CrawlerType.BASIC_PROXY] = CrawlerType.BASIC_PROXY
+
 
 class BasicProxyCrawler:
     """Crawler that delegates fetching to the remote Unique Search Proxy service.

@@ -76,7 +76,6 @@ def get_crawler_service(
             return BasicProxyCrawler(crawler_config)
 
 
-
 def get_crawler_config_types_from_names(crawler_names: list[str]) -> TypeAlias:
     assert len(crawler_names) >= 1, "At least one crawler must be active"
 
