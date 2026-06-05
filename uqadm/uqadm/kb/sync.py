@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob
 import mimetypes
 import sys
 from pathlib import Path
@@ -17,8 +18,16 @@ _PAGE_SIZE = 100
 
 
 def _collect_files(folder: Path, recursive: bool) -> list[Path]:
-    """Return files to sync: top-level only, or the whole tree when recursive."""
-    walker = folder.rglob("*") if recursive else folder.iterdir()
+    """Return files to sync: top-level only, or the whole tree when recursive.
+
+    Uses ``glob`` rather than ``Path.rglob`` for the recursive case because the
+    latter does not descend into symlinked directories, whereas ``glob`` does —
+    skills are wired up as directory symlinks, so their files must be followed.
+    """
+    if recursive:
+        walker = (Path(p) for p in glob.glob(f"{folder}/**", recursive=True))
+    else:
+        walker = folder.iterdir()
     return sorted(p for p in walker if p.is_file())
 
 
