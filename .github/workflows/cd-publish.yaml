@@ -129,6 +129,7 @@ jobs:
       publish_matrix: ${{ needs.resolve-package.outputs.matrix }}
       release_tag: ${{ github.event.release.tag_name }}
       tag_latest: true
+      ref: ${{ github.event.release.tag_name }}
 
   helm-publish:
     # release-only: stable charts are bumped by release-please at the
