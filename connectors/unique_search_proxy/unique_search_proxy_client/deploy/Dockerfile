@@ -35,7 +35,7 @@ RUN if [ -n "$LOCAL_WHEEL_CLIENT" ]; then \
       pip install --no-cache-dir "./$LOCAL_WHEEL" && rm -f "./$LOCAL_WHEEL"; \
     elif [ -n "$PACKAGE_VERSION" ]; then \
       pip install --no-cache-dir --require-hashes -r ./requirements.txt \
-        && pip install --no-cache-dir "unique-search-proxy==${PACKAGE_VERSION}" \
+        && pip install --no-cache-dir --no-deps "unique-search-proxy==${PACKAGE_VERSION}" \
         && rm -f ./requirements.txt; \
     else \
       echo "ERROR: set PACKAGE_VERSION, LOCAL_WHEEL, or LOCAL_WHEEL_CORE+LOCAL_WHEEL_CLIENT" >&2; exit 1; \
