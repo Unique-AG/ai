@@ -70,9 +70,18 @@ def cmd_read(state: ShellState, cont_id: str) -> str:
             continue
         start = chunk.get("startPage")
         end = chunk.get("endPage")
-        if start and end:
-            page_ref = f"[p.{start}]" if start == end else f"[p.{start}-{end}]"
-            lines.append(f"{page_ref} {text}")
+        if start is not None or end is not None:
+            page_start = start if start is not None else end
+            page_end = end if end is not None else start
+            if page_start is not None and page_end is not None:
+                page_ref = (
+                    f"[p.{page_start}]"
+                    if page_start == page_end
+                    else f"[p.{page_start}-{page_end}]"
+                )
+                lines.append(f"{page_ref} {text}")
+            else:
+                lines.append(text)
         else:
             lines.append(text)
 

@@ -109,6 +109,42 @@ class TestCmdRead:
         assert "[p.1]" in output
         assert "[p.2-3]" in output
 
+    def test_start_page_only_gets_page_label(self, state: ShellState) -> None:
+        chunks = [
+            {
+                "id": "ch1",
+                "text": "Single page chunk.",
+                "order": 1,
+                "startPage": 4,
+                "endPage": None,
+            }
+        ]
+        content = _make_content(chunks=chunks)
+        with patch(
+            "unique_sdk.cli.commands.read.unique_sdk.Content.search",
+            return_value=[content],
+        ):
+            output = cmd_read(state, "cont_abc123")
+        assert "[p.4] Single page chunk." in output
+
+    def test_page_zero_gets_page_label(self, state: ShellState) -> None:
+        chunks = [
+            {
+                "id": "ch1",
+                "text": "Cover page.",
+                "order": 1,
+                "startPage": 0,
+                "endPage": 0,
+            }
+        ]
+        content = _make_content(chunks=chunks)
+        with patch(
+            "unique_sdk.cli.commands.read.unique_sdk.Content.search",
+            return_value=[content],
+        ):
+            output = cmd_read(state, "cont_abc123")
+        assert "[p.0] Cover page." in output
+
     def test_chunks_sorted_by_order(self, state: ShellState) -> None:
         chunks = [
             {"id": "ch2", "text": "B", "order": 2, "startPage": None, "endPage": None},

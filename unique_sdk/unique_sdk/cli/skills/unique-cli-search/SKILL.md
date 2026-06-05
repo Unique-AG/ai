@@ -24,6 +24,8 @@ description: >-
 | You have a **query or topic** and want to find relevant chunks across documents | `unique-cli search "<query>"` |
 | You already have a **`cont_*` ID** and want the **full indexed text** of that document | `unique-cli read <cont_id>` |
 
+**What "full indexed text" means:** the platform has already ingested the document — OCR for scanned pages, extracted text from PDFs and Office files, and image descriptions from figures/charts. `read` returns that pre-processed text directly; you do **not** need to download the file or run OCR yourself.
+
 Use `read` after a `ls` or `search` surfaces a content ID and you need to go deeper into that specific document — it retrieves every chunk directly from the database with no query needed. Use `search` for discovery.
 
 ---
@@ -164,7 +166,7 @@ Content: annual-report.pdf (cont_abc123) — 42 chunk(s)
 [p.4] Key risks include supply chain disruptions...
 ```
 
-Each paragraph is one indexed chunk, prefixed with its page range when available.
+Each paragraph is one ingested chunk (OCR, extracted text, image descriptions) prefixed with its page range when available. No further file parsing or OCR is required on your side.
 
 **When chunks are empty:** if the document was just uploaded and ingestion hasn't finished, `read` returns a message saying so — retry after a short wait.
 
