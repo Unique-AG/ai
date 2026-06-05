@@ -1,6 +1,6 @@
 [project]
 name = "unique-search-proxy"
-version = "2026.24.0"
+version = "2026.26.0.dev4"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
@@ -14,8 +14,8 @@ dependencies = [
     "python-dotenv>=1.2.1,<2.0.0",
     "pydantic-settings>=2.12.0,<3.0.0",
     "markdownify>=0.14.1,<1",
-    "unique-toolkit[monitoring]>=2026.22.0",
-    "unique-search-proxy-core>=2026.22.0",
+    "unique-toolkit[monitoring]>=2026.26.0.dev4,<2026.26.0rc0",
+    "unique-search-proxy-core>=2026.26.0.dev2,<2026.26.0rc0",
 ]
 
 [dependency-groups]
