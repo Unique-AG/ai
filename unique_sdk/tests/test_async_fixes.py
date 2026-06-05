@@ -58,6 +58,37 @@ async def test_get_sheet_data_forwards_include_sheet_metadata_query_param():
 
 
 @pytest.mark.asyncio
+async def test_get_sheet_data_forwards_scope_to_assigned_rows_query_param():
+    with patch.object(
+        AgenticTable, "_static_request_async", new_callable=AsyncMock
+    ) as mock_req:
+        mock_req.return_value = {
+            "sheetId": "s1",
+            "name": "n",
+            "state": "IDLE",
+            "chatId": "ch1",
+            "createdBy": "u0",
+            "companyId": "c1",
+            "createdAt": "t0",
+            "magicTableRowCount": 0,
+        }
+
+        await AgenticTable.get_sheet_data(
+            user_id="u1",
+            company_id="c1",
+            tableId="t1",
+            includeRowCount=True,
+            scopeToAssignedRows=True,
+        )
+
+        mock_req.assert_awaited_once()
+        _method, _url, _uid, _cid, params = mock_req.await_args[0]
+        assert params["tableId"] == "t1"
+        assert params["includeRowCount"] is True
+        assert params["scopeToAssignedRows"] is True
+
+
+@pytest.mark.asyncio
 async def test_get_sheet_data_forwards_include_row_metadata_query_param():
     with patch.object(
         AgenticTable, "_static_request_async", new_callable=AsyncMock
