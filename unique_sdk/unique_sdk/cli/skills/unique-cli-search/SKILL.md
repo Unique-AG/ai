@@ -24,7 +24,7 @@ description: >-
 | You have a **query or topic** and want to find relevant chunks across documents | `unique-cli search "<query>"` |
 | You already have a **`cont_*` ID** and want the **full indexed text** of that document | `unique-cli read <cont_id>` |
 
-**What "full indexed text" means:** the platform has already ingested the document — OCR for scanned pages, extracted text from PDFs and Office files, and image descriptions from figures/charts. `read` returns that pre-processed text directly; you do **not** need to download the file or run OCR yourself.
+**What "full indexed text" means:** the platform has already ingested the document — OCR for scanned pages, extracted text from PDFs and Office files, and image descriptions from figures/charts. `read` returns that pre-processed text directly; you do **not** need to download the file or run OCR yourself. If `read` returns no chunks after ingestion should be complete, download the file with `unique-cli download` and inspect it directly — ingestion occasionally fails and the raw file must be checked.
 
 Use `read` after a `ls` or `search` surfaces a content ID and you need to go deeper into that specific document — it retrieves every chunk directly from the database with no query needed. Use `search` for discovery.
 
@@ -168,7 +168,7 @@ Content: annual-report.pdf (cont_abc123) — 42 chunk(s)
 
 Each paragraph is one ingested chunk (OCR, extracted text, image descriptions) prefixed with its page range when available. No further file parsing or OCR is required on your side.
 
-**When chunks are empty:** if the document was just uploaded and ingestion hasn't finished, `read` returns a message saying so — retry after a short wait.
+**When chunks are empty:** if the document was just uploaded and ingestion hasn't finished, `read` returns a message saying so — retry after a short wait. If chunks stay empty after a reasonable wait, download the file (`unique-cli download <cont_id>`) and inspect it yourself; some files are not ingested correctly and must be read directly.
 
 **`read` does not produce `[sourceN]` citations.** It is for reading and understanding document content. If you need to cite specific facts in your answer, run `unique-cli search "<relevant query>"` against the same document's folder to generate proper `[sourceN]` references.
 
