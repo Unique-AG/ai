@@ -38,6 +38,7 @@ permissions:
 jobs:
   helm-publish:
     runs-on: ubuntu-latest
+    environment: ${{ contains(inputs.registries, 'getunique.azurecr.io') && 'getunique-github-oidc' || '' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -55,9 +56,9 @@ jobs:
         if: contains(inputs.registries, 'getunique.azurecr.io')
         uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
         with:
-          client-id: daa88f8d-0943-459c-890a-17b1a018d11e # acr_oidc getunique_push
-          tenant-id: 99330c76-81d2-460e-861e-35af8e2a4266
-          subscription-id: fb8bce09-908a-459f-b200-a578005bfeb2
+          client-id: ${{ vars.CLIENT_ID }}
+          tenant-id: ${{ vars.TENANT_ID }}
+          subscription-id: ${{ vars.SUBSCRIPTION_ID }}
 
       - name: Login to getunique ACR
         if: contains(inputs.registries, 'getunique.azurecr.io')
