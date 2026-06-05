@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.1](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.24.0...unique-toolkit-v2026.24.1) (2026-06-05)
+
+
+### Features
+
+* **sdk:** add scopeToAssignedRows for magic table sheet reads ([#1827](https://github.com/Unique-AG/ai/issues/1827)) ([ae0b076](https://github.com/Unique-AG/ai/commit/ae0b07697f56a3deee6d7575fb38a1daf2b47e22))
+* **toolkit:** preserve requestedByUserId on generate-artifact payload ([#1830](https://github.com/Unique-AG/ai/issues/1830)) ([e3764f9](https://github.com/Unique-AG/ai/commit/e3764f98f2e384e11dbb5bfc54d91ded3168fd1a))
+
 ## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.22.0...unique-toolkit-v2026.24.0) (2026-06-04)
 
 
