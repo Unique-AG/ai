@@ -726,3 +726,169 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
             "**The currently uploaded and searchable documents are the following**"
             in result
         )
+
+
+def _make_uploaded_search_tool(
+    documents: list[Content],
+    config: UploadedSearchConfig,
+    event: ChatEvent,
+    tool_progress_reporter=None,
+) -> UploadedSearchTool:
+    with patch(
+        "unique_internal_search.uploaded_search.service.ContentService"
+    ) as mock_content_service_class:
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service.get_documents_uploaded_to_chat = Mock(
+            return_value=documents
+        )
+        mock_content_service_class.from_event.return_value = mock_content_service
+        tool = UploadedSearchTool(
+            config=config,
+            event=event,
+            tool_progress_reporter=tool_progress_reporter,
+        )
+    return tool
+
+
+@pytest.mark.ai
+class TestUploadedSearchToolContentIdFilter:
+    """Tests for the enable_content_id_filter feature on UploadedSearchTool."""
+
+    @pytest.mark.ai
+    def test_tool_description__no_content_ids__when_flag_off(
+        self,
+        mock_chat_event: ChatEvent,
+        mock_tool_progress_reporter: ToolProgressReporter,
+        mock_uploaded_documents_valid: list[Content],
+    ) -> None:
+        """
+        Purpose: Verify content_ids is absent from the tool schema when enable_content_id_filter=False.
+        Why this matters: Ensures the LLM is not exposed to the parameter unless explicitly opted in.
+        Setup summary: Create tool with default config (flag off), call tool_description(), assert
+                       content_ids is not a field in the returned model.
+        """
+        config = UploadedSearchConfig(enable_content_id_filter=False)
+        tool = _make_uploaded_search_tool(
+            mock_uploaded_documents_valid,
+            config,
+            mock_chat_event,
+            mock_tool_progress_reporter,
+        )
+
+        result = tool.tool_description()
+
+        assert hasattr(result.parameters, "model_fields")
+        assert "content_ids" not in result.parameters.model_fields  # type: ignore
+
+    @pytest.mark.ai
+    def test_tool_description__content_ids_present__when_flag_on(
+        self,
+        mock_chat_event: ChatEvent,
+        mock_tool_progress_reporter: ToolProgressReporter,
+        mock_uploaded_documents_valid: list[Content],
+    ) -> None:
+        """
+        Purpose: Verify content_ids appears as an optional Literal-typed field when enable_content_id_filter=True.
+        Why this matters: The Literal type constrains the LLM to only supply known document IDs,
+                          preventing hallucinated IDs from reaching the search layer.
+        Setup summary: Create tool with flag on and two valid documents, call tool_description(), assert
+                       content_ids is present, optional (default None), and typed as a Literal of known IDs.
+        """
+        config = UploadedSearchConfig(enable_content_id_filter=True)
+        tool = _make_uploaded_search_tool(
+            mock_uploaded_documents_valid,
+            config,
+            mock_chat_event,
+            mock_tool_progress_reporter,
+        )
+
+        result = tool.tool_description()
+
+        assert hasattr(result.parameters, "model_fields")
+        assert "content_ids" in result.parameters.model_fields  # type: ignore
+        field_info = result.parameters.model_fields["content_ids"]  # type: ignore
+        assert field_info.default is None
+
+    @pytest.mark.ai
+    def test_tool_description__no_content_ids__when_flag_on_but_no_documents(
+        self,
+        mock_chat_event: ChatEvent,
+        mock_tool_progress_reporter: ToolProgressReporter,
+    ) -> None:
+        """
+        Purpose: Verify content_ids is absent from the schema when the flag is on but no valid documents exist.
+        Why this matters: Literal[*()] is invalid — building a schema with zero known IDs would crash
+                          at tool-description time and break the agent for users with no uploads.
+        Setup summary: Create tool with flag on and an empty document list, call tool_description(),
+                       assert content_ids is not in the schema and no exception is raised.
+        """
+        config = UploadedSearchConfig(enable_content_id_filter=True)
+        tool = _make_uploaded_search_tool(
+            [], config, mock_chat_event, mock_tool_progress_reporter
+        )
+
+        result = tool.tool_description()
+
+        assert hasattr(result.parameters, "model_fields")
+        assert "content_ids" not in result.parameters.model_fields  # type: ignore
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__filters_invalid_content_ids(
+        self,
+        mock_chat_event: ChatEvent,
+        mock_uploaded_documents_valid: list[Content],
+    ) -> None:
+        """
+        Purpose: Verify that content_ids not in _valid_documents are silently filtered before forwarding.
+        Why this matters: The LLM schema may not be strict; a hallucinated or stale ID must not
+                          reach the search layer and potentially expose unauthorized content.
+        Setup summary: Create tool with two valid docs, run with one valid + one unknown ID,
+                       assert only the valid ID is forwarded in tool_call.arguments.
+        """
+        config = UploadedSearchConfig(enable_content_id_filter=True)
+        tool = _make_uploaded_search_tool(
+            mock_uploaded_documents_valid, config, mock_chat_event
+        )
+        tool._internal_search_tool.run = AsyncMock(
+            return_value=Mock(spec=["id", "name", "content", "system_reminder"])
+        )
+
+        tool_call = Mock(spec=["id", "arguments"])
+        tool_call.id = "call_001"
+        tool_call.arguments = {
+            "search_string": "annual budget",
+            "content_ids": ["doc_1", "doc_unknown_xyz"],
+        }
+
+        await tool.run(tool_call)
+
+        assert tool_call.arguments["content_ids"] == ["doc_1"]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__raises__when_all_content_ids_invalid(
+        self,
+        mock_chat_event: ChatEvent,
+        mock_uploaded_documents_valid: list[Content],
+    ) -> None:
+        """
+        Purpose: Verify that a ValueError is raised when every supplied content_id is unknown.
+        Why this matters: Silently returning empty results when all IDs are bad would confuse both
+                          the LLM and the user; a clear error surfaces the misconfiguration immediately.
+        Setup summary: Create tool with two valid docs, run with two unknown IDs, assert ValueError.
+        """
+        config = UploadedSearchConfig(enable_content_id_filter=True)
+        tool = _make_uploaded_search_tool(
+            mock_uploaded_documents_valid, config, mock_chat_event
+        )
+
+        tool_call = Mock(spec=["id", "arguments"])
+        tool_call.id = "call_002"
+        tool_call.arguments = {
+            "search_string": "quarterly results",
+            "content_ids": ["doc_does_not_exist", "another_fake_id"],
+        }
+
+        with pytest.raises(ValueError, match="content_ids"):
+            await tool.run(tool_call)

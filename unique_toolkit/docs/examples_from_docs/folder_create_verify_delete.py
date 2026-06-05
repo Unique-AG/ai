@@ -1,4 +1,13 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+
 # %%
+
 from __future__ import annotations
 
 from unique_toolkit.experimental.resources.content_folder import ContentFolder
@@ -21,8 +30,5 @@ print(
 
 delete_result = folder_service.delete(scope_id=leaf.id)
 print(
-    "Deleted:",
-    delete_result.success_folders,
-    "Failed:",
-    delete_result.failed_folders,
+    "Deleted:", delete_result.success_folders, "Failed:", delete_result.failed_folders
 )

@@ -23,6 +23,9 @@ on:
           - internal_search
           - quartr
           - six
+          - search_proxy
+          - search_proxy_core
+          - search_proxy_sdk
           - skill_tool
         default: ""
       ref:
@@ -111,3 +114,35 @@ jobs:
           python_version: ${{ matrix.python }}
           check_version: "false"
           pypi_token: ${{ secrets.PYPI_TOKEN }}
+
+  containerize:
+    needs: [resolve-package, publish]
+    # release-only: a manual workflow_dispatch has no release tag to derive the
+    # image version from, so containerization runs solely on release events.
+    if: needs.publish.result == 'success' && github.event_name == 'release'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/cd-containerize-batch.yaml
+    secrets: inherit
+    with:
+      publish_matrix: ${{ needs.resolve-package.outputs.matrix }}
+      release_tag: ${{ github.event.release.tag_name }}
+      tag_latest: true
+
+  helm-publish:
+    # release-only: stable charts are bumped by release-please at the
+    # `# x-release-please-version` markers, so no version is stamped here — the
+    # chart is packaged as checked out at the release tag. Runs after
+    # containerize so the chart's image.tag resolves to a pushed image.
+    needs: [resolve-package, containerize]
+    if: needs.containerize.result == 'success' && github.event_name == 'release'
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/cd-helm-publish-batch.yaml
+    secrets: inherit
+    with:
+      publish_matrix: ${{ needs.resolve-package.outputs.matrix }}
+      release_tag: ${{ github.event.release.tag_name }}

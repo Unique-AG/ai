@@ -1,4 +1,14 @@
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#./docs/.python_files/kb_content_search_with_smart_rule_on_folders.py>>[init]
+# ~/~ begin <<docs/setup/_script_dependencies.md#example-script-deps>>[init]
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+# ~/~ end
+
 # ~/~ begin <<docs/modules/examples/content/smart_rules.md#smart_rules_imports>>[init]
 from unique_toolkit.smart_rules.compile import Statement, Operator, AndStatement, OrStatement
 # ~/~ end
@@ -9,6 +19,7 @@ from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent 
 from unique_toolkit import ChatService, ContentService, EmbeddingService, LanguageModelService, LanguageModelName, KnowledgeBaseService
+from unique_toolkit.experimental.identity import Identity
 from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
 import os
 import io

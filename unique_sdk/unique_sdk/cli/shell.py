@@ -52,6 +52,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
       download <name|id> [dest] Download a file to local machine
       rm <name|id>              Delete a file
       mv <old> <new>            Rename a file
+      cite <name|id> [--pages]  Declare page citations for a file
 
     Search:
       search <query> [options]  Combined search (vector + full-text)
@@ -359,6 +360,40 @@ class UniqueShell(cmd.Cmd):
         name_or_id = parts[0]
         local_dest = parts[1] if len(parts) > 1 else None
         self._print(cmd_download(self.state, name_or_id, local_dest))
+
+    def do_cite(self, arg: str) -> None:
+        """Declare page citations for a file.
+
+        Usage: cite <name|content_id> [--pages RANGE]
+
+        Examples:
+          /Reports> cite report.pdf --pages 3,5,7
+          /Reports> cite cont_abc123 --pages 1-4
+        """
+        from unique_sdk.cli.commands.cite_file import cmd_cite_file
+
+        parts = shlex.split(arg)
+        if not parts:
+            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            return
+        pages: str | None = None
+        positional: list[str] = []
+        index = 0
+        while index < len(parts):
+            token = parts[index]
+            if token in ("--pages", "-p"):
+                if index + 1 >= len(parts):
+                    self._print("cite: --pages requires a value")
+                    return
+                pages = parts[index + 1]
+                index += 2
+            else:
+                positional.append(token)
+                index += 1
+        if not positional:
+            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            return
+        self._print(cmd_cite_file(self.state, positional[0], pages))
 
     def do_rm(self, arg: str) -> None:
         """Delete a file.

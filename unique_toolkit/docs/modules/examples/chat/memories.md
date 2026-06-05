@@ -11,11 +11,11 @@ The most used functionality is to create an assistant message via a stream to th
 
 ```{.python #chat_service_chat_memory}
 
-try:
-    old_memory = chat_service.find_chat_memory(key="user_message")
+old_memory = chat_service.find_chat_memory(key="user_message")
+if old_memory is not None:
     print(old_memory)
-except Exception as e:
-    print(f"No chat memory found with key 'user_message'")
+else:
+    print("No chat memory found with key 'user_message'")
 
 
 chat_service.create_chat_memory(

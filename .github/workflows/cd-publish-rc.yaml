@@ -314,6 +314,34 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
 
+  containerize:
+    needs: [resolve, publish]
+    if: needs.publish.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/cd-containerize-batch.yaml
+    secrets: inherit
+    with:
+      publish_matrix: ${{ needs.resolve.outputs.matrix }}
+      versions: ${{ needs.resolve.outputs.new_versions }}
+      tag_latest: false
+
+  helm-publish:
+    # Publish rc Helm charts after the container images exist, so each chart's
+    # stamped image.tag resolves to a pushed image.
+    needs: [resolve, containerize]
+    if: needs.containerize.result == 'success'
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/cd-helm-publish-batch.yaml
+    secrets: inherit
+    with:
+      publish_matrix: ${{ needs.resolve.outputs.matrix }}
+      versions: ${{ needs.resolve.outputs.new_versions }}
+
   tag-release:
     # After every package in the cut publishes successfully, tag the
     # cut SHA with the rc version and create the matching GitHub

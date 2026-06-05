@@ -8,7 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from uqadm.space.upsert import cmd_upsert, load_space_snapshot, snapshot_format_for_path
+from uqadm.core.payload_files import snapshot_format_for_path
+from uqadm.space.upsert import cmd_upsert, load_space_snapshot
 
 
 def _minimal_create_snapshot() -> dict[str, object]:

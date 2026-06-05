@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.22.0...unique-orchestrator-v2026.24.0) (2026-06-04)
+
+
+### Features
+
+* Enable model picking ([#1735](https://github.com/Unique-AG/ai/issues/1735)) ([753eab5](https://github.com/Unique-AG/ai/commit/753eab56adc3097c269b5c62da4bd2e09d7f871f))
+* **unique_orchestrator:** RJSF textarea tags for agent prompt config ([#1780](https://github.com/Unique-AG/ai/issues/1780)) ([96691f0](https://github.com/Unique-AG/ai/commit/96691f0a1beae47529b6eb0d09d6f8358ab99b81))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.20.0...unique-orchestrator-v2026.22.0) (2026-05-21)
+
+
+### Features
+
+* **unique_orchestrator:** Allow configuration of UploadedSearch Tool ([#1674](https://github.com/Unique-AG/ai/issues/1674)) ([1e41209](https://github.com/Unique-AG/ai/commit/1e412094a97b574ef1dac422ed62793667a34c8d))
+* **unique_orchestrator:** Debug info thinking level ([#1716](https://github.com/Unique-AG/ai/issues/1716)) ([660277f](https://github.com/Unique-AG/ai/commit/660277f03902af3c759a6f583b8324fe7a3e3ff2))
+* **unique_toolkit:** Add display of code interpreter files to the co… ([#1665](https://github.com/Unique-AG/ai/issues/1665)) ([4d661da](https://github.com/Unique-AG/ai/commit/4d661dabb0269061b3833c36872ff70e9de49fd0))
+* **unique-skill-tool:** add optional thinking level to skills ([#1692](https://github.com/Unique-AG/ai/issues/1692)) ([9aad730](https://github.com/Unique-AG/ai/commit/9aad730ac739bdd6f48a10c2f29fb602a052fab6))
+* **unique-skill-tool:** load skill by content_id and not name  ([#1698](https://github.com/Unique-AG/ai/issues/1698)) ([926554e](https://github.com/Unique-AG/ai/commit/926554e5046457a46a42c4e8a129f7d0ad0b36fb))
+
+
+### Bug Fixes
+
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([b8c35b4](https://github.com/Unique-AG/ai/commit/b8c35b41466ab23165ccde8e1bd6b5dc4a0f1c62))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.18.0...unique-orchestrator-v2026.20.0) (2026-05-08)
 
 

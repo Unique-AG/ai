@@ -29,7 +29,7 @@ class QueryElicitationConfig(BaseModel):
     enable_elicitation: bool = Field(
         default=False,
         title="Enable Query Review",
-        description="When enabled, users can review and modify proposed search queries before they are executed. Requires the associated feature flag to be active.",
+        description="When enabled, users can review and modify proposed search queries before they are executed.",
     )
     timeout_seconds: int = Field(
         default=60,

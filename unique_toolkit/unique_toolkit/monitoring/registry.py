@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import os
 import time
+import warnings
 from contextlib import contextmanager
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from prometheus_client import (  # pyright: ignore[reportMissingImports]
     CollectorRegistry,
@@ -18,7 +20,36 @@ REGISTRY = CollectorRegistry()
 
 
 def get_metrics() -> bytes:
-    """Returns all registered metrics in Prometheus text format."""
+    """Returns all registered metrics in Prometheus text format.
+
+    In multiprocess mode (PROMETHEUS_MULTIPROC_DIR is set), aggregates
+    per-PID .db files from all Gunicorn workers via MultiProcessCollector.
+    In single-process mode, returns metrics from the in-process REGISTRY.
+
+    NOTE: PROMETHEUS_MULTIPROC_DIR must be set in the shell/entrypoint
+    *before* Python starts. Setting it from Python after prometheus_client
+    has been imported has no effect — metrics will silently bypass per-PID
+    files and this function will emit a warning.
+    """
+    if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        from prometheus_client import (  # pyright: ignore[reportMissingImports]
+            multiprocess,
+            values,
+        )
+
+        if not getattr(values.ValueClass, "_multiprocess", False):
+            warnings.warn(
+                "PROMETHEUS_MULTIPROC_DIR is set but prometheus_client was imported "
+                "before the env var — metrics will silently bypass per-PID files. "
+                "Set PROMETHEUS_MULTIPROC_DIR in the shell/entrypoint before launching Python.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+        registry = CollectorRegistry()
+        multiprocess.MultiProcessCollector(registry)
+        return generate_latest(registry)
+
     return generate_latest(REGISTRY)
 
 
@@ -43,8 +74,31 @@ class MetricNamespace:
     def counter(self, name: str, description: str, labels: list[str]) -> Counter:
         return Counter(f"{self._prefix}_{name}", description, labels, registry=REGISTRY)
 
-    def gauge(self, name: str, description: str, labels: list[str]) -> Gauge:
-        return Gauge(f"{self._prefix}_{name}", description, labels, registry=REGISTRY)
+    def gauge(
+        self,
+        name: str,
+        description: str,
+        labels: list[str],
+        multiprocess_mode: Literal[
+            "all",
+            "liveall",
+            "min",
+            "livemin",
+            "max",
+            "livemax",
+            "sum",
+            "livesum",
+            "mostrecent",
+            "livemostrecent",
+        ] = "all",
+    ) -> Gauge:
+        return Gauge(
+            f"{self._prefix}_{name}",
+            description,
+            labels,
+            registry=REGISTRY,
+            multiprocess_mode=multiprocess_mode,
+        )
 
 
 @contextmanager

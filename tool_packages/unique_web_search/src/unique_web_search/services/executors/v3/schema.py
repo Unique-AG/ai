@@ -11,12 +11,29 @@ class Command(StrEnum):
     FETCH_URLS = "read_urls"
 
 
+class SearchPhase(StrEnum):
+    """How this WebSearch call fits in the research arc."""
+
+    EXPLORATORY = "exploratory"
+    TARGET = "target"
+    REDIRECT = "redirect"
+
+
 class SearchPayload(BaseModel):
     gap: str = Field(
-        description="A brief description of the gap that the query is meant to fill"
+        description=(
+            "One atomic facet this call addresses (e.g. '2023 revenue band for Company X in CH')—"
+            "not the whole user question. Pair with `phase`: exploratory scopes the topic; "
+            "target pursues this facet precisely; redirect seeks related context when the facet "
+            "is unlikely to be on the public web."
+        )
     )
     query: str = Field(
-        description="Search query for the configured search engine. Query must be fixed for the entire rounds."
+        description=(
+            "Short search-engine keyword line (~3–8 words, not a sentence). "
+            "Do not pack multiple facets into one query—issue parallel `search` calls with "
+            "one `gap` each instead. Do not paste the user question or `gap` text here."
+        )
     )
 
 
@@ -35,13 +52,30 @@ class WebSearchV3ToolParameters(BaseModel):
         description="The command to execute. Must be either 'search' or 'read_urls'."
     )
 
-    objective: str = Field(
-        description="One concise sentence: what this call is meant to accomplish."
+    phase: SearchPhase = Field(
+        description=(
+            "Research phase for this call. "
+            "`exploratory` — sense what exists on the web and what is closest to the user's ask "
+            "(broad, mapping queries). "
+            "`target` — pursue one specific facet in `payload.gap` with a precise, short `query`. "
+            "`redirect` — last resort when the exact facet is not on the public web; find related, "
+            "attributable context (sector, peers, parent entity, adjacent news)—not invented facts."
+        )
     )
 
     payload: SearchPayload | FetchUrlsPayload = Field(
         description="The payload of the command. Must be either a SearchPayload or a FetchUrlsPayload."
     )
+
+    def relevance_focus(self) -> str:
+        """Focus string for notify UI, snippet judging, and content processing."""
+        phase_label = self.phase.value
+        if isinstance(self.payload, SearchPayload):
+            return f"[{phase_label}] {self.payload.gap}"
+        urls_preview = ", ".join(self.payload.urls[:3])
+        if len(self.payload.urls) > 3:
+            urls_preview += ", …"
+        return f"[{phase_label}] {urls_preview}"
 
     @classmethod
     def schema_hint(cls) -> str:
@@ -67,6 +101,9 @@ class WebSearchV3ToolParameters(BaseModel):
         for name, field in cls.model_fields.items():
             if name == "command":
                 choices = " or ".join(f'`"{c.value}"`' for c in Command)
+                lines.append(f"- **`{name}`** — {choices}.")
+            elif name == "phase":
+                choices = " | ".join(f'`"{c.value}"`' for c in SearchPhase)
                 lines.append(f"- **`{name}`** — {choices}.")
             elif name == "payload":
                 continue

@@ -187,7 +187,7 @@ def convert_to_unique_object(
                 or (getattr(obj, "object") == "search_result")
             )
         ):
-            obj._retrieve_params = params  # pyright: ignore[reportPrivateUsage]
+            obj._retrieve_params = params
 
         return obj
     else:

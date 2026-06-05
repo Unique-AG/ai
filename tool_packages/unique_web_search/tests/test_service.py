@@ -810,7 +810,7 @@ class TestWebSearchToolRun:
         tool_call.id = "test-id"
         tool_call.arguments = {
             "command": "search",
-            "objective": "Test sub-goal for this search",
+            "phase": "target",
             "payload": {"gap": "Test gap to fill", "query": "test"},
         }
 

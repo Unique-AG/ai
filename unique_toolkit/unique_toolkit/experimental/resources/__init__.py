@@ -1,4 +1,4 @@
-"""Typed adapters over ``unique_sdk``.
+"""Typed adapters over internal Unique AI backends (``unique_sdk``, configuration-backend, etc.).
 
 Thin wrappers around individual SDK resources that add little beyond
 Pydantic schemas and sync/async function pairs. The canonical shape is::
@@ -53,6 +53,8 @@ Planned contents (current home → new home):
 * ``scheduled_task``   ← :mod:`unique_toolkit.experimental.scheduled_task`
 * ``facades.identity`` ← :mod:`unique_toolkit.experimental.identity`
   (the :class:`Identity` facade bundling the :class:`Users` and :class:`Groups` services)
+* ``feature_flags``    — configuration-backend GraphQL adapter; evaluates feature flags
+  with TTL cache, stale-value fallback, and env-var fallback
 
 One thing that *looks* like it should live here but does not:
 

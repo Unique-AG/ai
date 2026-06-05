@@ -6,8 +6,10 @@ from typing import Annotated, Self
 from pydantic import Field, model_validator
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit.content.schemas import ContentRerankerConfig
+from unique_toolkit.content.smart_rules import UniqueQLField
 from unique_toolkit.experimental.components.internal_search.base.config import (
     InternalSearchConfig,
 )
@@ -15,9 +17,11 @@ from unique_toolkit.experimental.components.internal_search.base.config import (
 
 @register_config()
 class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
-    scope_ids: list[str] | DeactivatedNone = Field(
+    scope_ids: Annotated[
+        Annotated[list[str], Field(title="Scope IDs")] | DeactivatedNone,
+        RJSFMetaTag({"anyOf": [{"items": {"ui:title": "Scope ID"}}, {}]}),
+    ] = Field(
         default=None,
-        title="Active",
         deprecated=True,
         description=(
             "Not accepted for new configs. Use ``metadata_filter`` with "
@@ -26,10 +30,29 @@ class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
             "a ``folderId in [scope_ids]`` metadata filter at search time."
         ),
     )
-    metadata_filter: dict[str, object] | None = Field(
+    metadata_filter: Annotated[
+        UniqueQLField,
+        # Put textarea attrs on the string branch (index 0) only, not at field level.
+        # If set at field level, RJSF's MultiSchemaField applies ui:widget to every
+        # anyOf branch during option iteration, which crashes on non-string branches.
+        RJSFMetaTag(
+            {
+                "ui:options": {"customValidation": "uniqueql"},
+                "anyOf": [
+                    {
+                        "ui:widget": "textarea",
+                        "ui:placeholder": '{"operator": "equals", "value": "...", "path": ["fieldName"]}',
+                        "ui:emptyValue": "",
+                    },
+                    {},
+                ],
+            }
+        ),
+    ] = Field(
         default=None,
         description=(
-            "Static metadata filter applied to every KB search. "
+            "Static UniqueQL metadata filter applied to every KB search. "
+            "Pass as a JSON string or a plain dict. "
             "Overridden by chat context filter or per-invocation state override."
         ),
     )

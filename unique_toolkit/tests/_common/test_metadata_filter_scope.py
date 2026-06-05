@@ -8,6 +8,7 @@ from unique_toolkit._common.metadata_filter_scope import (
     build_folder_id_in_clause,
     merge_scope_clause_into_metadata_filter,
 )
+from unique_toolkit.content.smart_rules import Operator, Statement
 
 
 @pytest.mark.ai
@@ -65,3 +66,17 @@ def test_and_merge__returns_scope_when_no_existing_filter() -> None:
 def test_and_merge__treats_empty_dict_as_no_filter() -> None:
     scope = build_folder_id_in_clause(["scope-x"])
     assert merge_scope_clause_into_metadata_filter(scope, {}) == scope
+
+
+@pytest.mark.ai
+def test_and_merge__accepts_uniqueql_model() -> None:
+    """Purpose: Verify merge accepts typed UniqueQL models from config fields."""
+    scope = build_folder_id_in_clause(["scope-x"])
+    existing = Statement(operator=Operator.EQUALS, value="Legal", path=["dept"])
+    merged = merge_scope_clause_into_metadata_filter(scope, existing)
+    assert merged == {
+        "and": [
+            scope,
+            {"path": ["dept"], "operator": "equals", "value": "Legal"},
+        ]
+    }

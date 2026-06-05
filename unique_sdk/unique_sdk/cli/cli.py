@@ -7,6 +7,7 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_ask,
     cmd_elicit_create,
@@ -26,7 +27,16 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_list,
     cmd_schedule_update,
 )
-from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.search import (
+    cmd_search,
+)
+from unique_sdk.cli.commands.search import (
+    is_error_output as _is_search_error_output,
+)
+from unique_sdk.cli.commands.subagent import cmd_subagent
+from unique_sdk.cli.commands.subagent import (
+    is_error_output as _is_subagent_error_output,
+)
 from unique_sdk.cli.commands.web_search import (
     cmd_web_crawl,
     cmd_web_search,
@@ -82,6 +92,7 @@ Examples:
   unique-cli upload ./file.pdf      Upload to current folder
   unique-cli download cont_abc123   Download by content ID
   unique-cli elicit ask "Which?"    Ask the user a question synchronously
+  unique-cli subagent Legal "Review" Invoke a connected space/subagent
   unique-cli web-search search "x"  Search the web via the public API
   unique-cli web-search crawl URL   Crawl a URL via the public API
 """
@@ -290,6 +301,34 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
 
 
+@main.command(name="cite")
+@click.argument("name_or_id")
+@click.option(
+    "--pages",
+    "-p",
+    default=None,
+    help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
+)
+@click.pass_context
+def cite(
+    ctx: click.Context,
+    name_or_id: str,
+    pages: str | None,
+) -> None:
+    """Declare page citations for a file.
+
+    \b
+    Registers [filesourceN] markers for pages you referenced in your answer.
+    Does NOT read or extract the file — use your own tools for that.
+
+    \b
+    Examples:
+      unique-cli cite report.pdf --pages 3,5,7
+      unique-cli cite cont_abc123 --pages 1-4
+    """
+    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
+
+
 @main.command()
 @click.argument("name_or_id")
 @click.pass_context
@@ -396,16 +435,17 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    click.echo(
-        cmd_search(
-            state,
-            query,
-            folder=folder,
-            metadata=parsed_metadata,
-            limit=limit,
-            content_ids=list(content_ids) if content_ids else None,
-        )
+    output = cmd_search(
+        state,
+        query,
+        folder=folder,
+        metadata=parsed_metadata,
+        limit=limit,
+        content_ids=list(content_ids) if content_ids else None,
     )
+    click.echo(output)
+    if _is_search_error_output(output):
+        ctx.exit(1)
 
 
 @main.command()
@@ -481,6 +521,87 @@ def mcp(
             stdin=use_stdin,
         )
     )
+
+
+@main.command()
+@click.argument("tool_name")
+@click.argument("message")
+@click.option(
+    "--config",
+    "config_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Path to .unique-subagents.json. Defaults to $UNIQUE_SUBAGENTS_CONFIG or cwd.",
+)
+@click.option(
+    "--chat-id",
+    "parent_chat_id",
+    default=None,
+    envvar="UNIQUE_CHAT_ID",
+    help="Parent chat ID for message correlation.",
+)
+@click.option(
+    "--message-id",
+    "parent_message_id",
+    default=None,
+    envvar="UNIQUE_MESSAGE_ID",
+    help="Parent message ID for message correlation.",
+)
+@click.option(
+    "--assistant-id",
+    "parent_assistant_id",
+    default=None,
+    envvar="UNIQUE_ASSISTANT_ID",
+    help="Parent assistant ID for message correlation.",
+)
+@click.option(
+    "--reset-chat",
+    is_flag=True,
+    help="Ignore any saved reusable chat for this subagent call.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Print the raw response JSON instead of a human-readable response.",
+)
+@click.pass_context
+def subagent(
+    ctx: click.Context,
+    tool_name: str,
+    message: str,
+    config_path: str | None,
+    parent_chat_id: str | None,
+    parent_message_id: str | None,
+    parent_assistant_id: str | None,
+    reset_chat: bool,
+    output_json: bool,
+) -> None:
+    """Invoke a configured connected-space subagent.
+
+    \b
+    TOOL_NAME must match an entry in .unique-subagents.json. The command sends
+    MESSAGE to that connected assistant and waits for the assistant response.
+
+    \b
+    Examples:
+      unique-cli subagent LegalReview "Review this contract clause"
+      unique-cli subagent Finance "Summarize Q4 revenue" --reset-chat
+    """
+    output = cmd_subagent(
+        LazyState.get(ctx),
+        tool_name=tool_name,
+        message=message,
+        config_path=config_path,
+        parent_chat_id=parent_chat_id,
+        parent_message_id=parent_message_id,
+        parent_assistant_id=parent_assistant_id,
+        reset_chat=reset_chat,
+        output_json=output_json,
+    )
+    click.echo(output)
+    if _is_subagent_error_output(output):
+        ctx.exit(1)
 
 
 # -- Scheduled Tasks -------------------------------------------------------

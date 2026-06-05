@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.22.0...unique-internal-search-v2026.24.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **deps:** resolve open Dependabot alerts via constraint-dependencies ([#1751](https://github.com/Unique-AG/ai/issues/1751)) ([f92b9f5](https://github.com/Unique-AG/ai/commit/f92b9f5d1c9d2145316d2bf1f9b91b8b359c2324))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.20.0...unique-internal-search-v2026.22.0) (2026-05-21)
+
+
+### Features
+
+* **unique_internal_search:** Allow agent to search inside specific files ([#1720](https://github.com/Unique-AG/ai/issues/1720)) ([ce1911a](https://github.com/Unique-AG/ai/commit/ce1911a06e1de69e495e285157385e4244da43be))
+* **unique_orchestrator:** Allow configuration of UploadedSearch Tool ([#1674](https://github.com/Unique-AG/ai/issues/1674)) ([1e41209](https://github.com/Unique-AG/ai/commit/1e412094a97b574ef1dac422ed62793667a34c8d))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.18.0...unique-internal-search-v2026.20.0) (2026-05-08)
 
 

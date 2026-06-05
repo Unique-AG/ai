@@ -9,6 +9,7 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfigExperimental,
     CrawlerType,
 )
+from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
 
 
 class TavilyCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.TAVILY]):
@@ -24,7 +25,8 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
     # @track(
     #     tags=["tavily", "scrape"],
     # )
-    async def _crawl(self, urls: list[str]) -> list[str]:
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+        urls = [target.normalized_url for target in targets]
         api_key = get_tavily_search_settings().api_key
         assert api_key is not None, "Tavily API key is not configured"
 
@@ -54,19 +56,6 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
         for result in results:
             response["results"].extend(result.get("results", []))
             response["failed_results"].extend(result.get("failed_results", []))
-
-        for i in range(0, len(urls), batch_size):
-            batch_urls = urls[i : i + batch_size]
-            batch_response = await client.extract(
-                urls=batch_urls,
-                format="markdown",
-                include_images=False,
-                extract_depth=self.config.depth,
-                timeout=self.config.timeout,
-                include_favicon=False,
-            )
-            response["results"].extend(batch_response.get("results", []))
-            response["failed_results"].extend(batch_response.get("failed_results", []))
 
         # Create a mapping from URL to content
         url_to_content = {}

@@ -256,3 +256,28 @@ def test_middleware__uses_custom_excluded_paths__when_provided() -> None:
     middleware = MetricsMiddleware(_simple_app, excluded_paths={"/custom"})
 
     assert middleware._excluded_paths == {"/custom"}
+
+
+# ---------------------------------------------------------------------------
+# Metric naming
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_middleware__emits_python_prefixed_metric_names() -> None:
+    """
+    Purpose: Verify MetricsMiddleware emits metrics with the python_ prefix.
+    Why this matters: Grafana dashboards are built on python_http_* names; the old
+    unprefixed names must not appear so cross-service naming is consistent.
+    Setup summary: Inspect the module-level metric objects for their fully-qualified name.
+    """
+    assert (
+        middleware_module._http_request_duration_seconds._name
+        == "python_http_request_duration_seconds"
+    )
+    # prometheus_client strips the _total suffix from Counter._name (it appends it at render time)
+    assert middleware_module._http_requests_total._name == "python_http_requests"
+    assert (
+        middleware_module._http_requests_in_progress._name
+        == "python_http_requests_in_progress"
+    )

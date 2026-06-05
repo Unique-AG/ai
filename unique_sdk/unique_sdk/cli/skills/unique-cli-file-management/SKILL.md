@@ -59,6 +59,10 @@ unique-cli upload ./data.csv scope_abc123
 unique-cli download report.pdf ./local/
 unique-cli download cont_abc123 ~/Desktop/
 
+# Declare page citations after reading a file
+unique-cli cite report.pdf --pages 3,5,7
+unique-cli cite cont_abc123 --pages 1-4
+
 # Delete a file
 unique-cli rm report.pdf
 unique-cli rm cont_abc123
@@ -118,6 +122,29 @@ unique-cli download cont_abc123 ./downloads/
 unique-cli mkdir "2025/Q1/Financials"
 unique-cli upload ./budget.xlsx /2025/Q1/Financials/
 ```
+
+## Citing File Pages
+
+After reading **any** file and using its content in your answer, declare citations:
+
+```bash
+unique-cli cite report.pdf --pages 3,5
+unique-cli cite cont_abc123 --pages 1-4
+```
+
+This registers `[filesourceN]` markers. Use them inline in your answer.
+The platform converts `[filesourceN]` into footnotes and clickable reference chips.
+
+**MANDATORY 3-step verification before EVERY `unique-cli cite` call — NO EXCEPTIONS:**
+
+1. `pdfinfo file.pdf | grep Pages` — get total physical page count.
+2. For **each** page you intend to cite, run `pdftotext -f N -l N file.pdf -` and confirm the content you are referencing is actually on that physical page. Do NOT skip this. Do NOT assume page numbers.
+3. Only after step 2 confirms a match, call `unique-cli cite` with the verified physical page numbers.
+
+Page numbers are **physical PDF positions** (1-based). NEVER use printed page numbers from headers/footers — they often differ from physical positions.
+
+- Numbers are **per-turn only**; do not reuse from prior turns.
+- Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search`.
 
 ## Error Handling
 

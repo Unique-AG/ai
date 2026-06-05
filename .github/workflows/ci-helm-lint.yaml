@@ -1,0 +1,131 @@
+name: "[CI] Helm Lint"
+
+on:
+  workflow_call:
+    inputs:
+      changes:
+        description: 'Pre-computed changes JSON from ci.yaml (skips detection when set)'
+        required: false
+        type: string
+        default: ''
+      matrix:
+        description: 'Pre-computed matrix JSON from ci.yaml (skips select-packages when set)'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: ./.github/actions/detect-changes
+        if: inputs.matrix == ''
+        id: detect
+
+      - uses: ./.github/actions/get-packages-matrix
+        if: inputs.matrix == ''
+        id: pkgs
+
+      - name: Select packages
+        if: inputs.matrix == ''
+        id: select
+        uses: ./.github/actions/select-packages
+        with:
+          packages: ${{ steps.pkgs.outputs.packages }}
+          selected: ''
+          changes: ${{ inputs.changes || steps.detect.outputs.changes }}
+
+      - name: Filter packages that ship a helm chart
+        id: filter
+        env:
+          RAW_MATRIX: ${{ inputs.matrix || steps.select.outputs.matrix }}
+        run: |
+          INCLUDE=$(jq -c '.include // []' <<<"$RAW_MATRIX")
+          OUT='[]'
+          LEN=$(jq 'length' <<<"$INCLUDE")
+          for i in $(seq 0 $((LEN - 1))); do
+            ENTRY=$(jq -c ".[$i]" <<<"$INCLUDE")
+            DIR=$(jq -r '.dir' <<<"$ENTRY")
+            if [[ -f "$DIR/deploy/helm-chart/Chart.yaml" ]]; then
+              OUT=$(jq -c ". + [$ENTRY]" <<<"$OUT")
+            fi
+          done
+          echo "matrix={\"include\":$OUT}" >> "$GITHUB_OUTPUT"
+
+  helm-lint:
+    needs: prepare
+    if: fromJson(needs.prepare.outputs.matrix).include[0] != null
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    name: helm-lint-${{ matrix.id }}
+    env:
+      CHART_DIR: ${{ matrix.dir }}/deploy/helm-chart
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      # Hermetic gate — no registry access required. Catches the common breakages
+      # (wrong keys, malformed structures) by validating values.yaml against the
+      # chart's own JSON schema.
+      - name: Validate values.yaml against values.schema.json
+        run: |
+          uvx check-jsonschema \
+            --schemafile "$CHART_DIR/values.schema.json" \
+            "$CHART_DIR/values.yaml"
+
+      - name: Verify helm is available
+        run: helm version
+
+      # Best-effort render gate. The chart depends on the `base` library pulled
+      # from oci://ghcr.io/unique-ag/helm. If that dependency cannot be resolved
+      # (e.g. cross-org package read not granted to this token), we skip the
+      # render rather than fail the PR — the schema gate above still holds.
+      - name: Resolve chart dependencies
+        id: deps
+        continue-on-error: true
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm dependency build "$CHART_DIR"
+
+      - name: Helm lint
+        if: steps.deps.outcome == 'success'
+        run: helm lint "$CHART_DIR"
+
+      # Best-effort render. The base chart guards cilium-flavored
+      # NetworkPolicies behind a capability check that `fail`s when the Cilium
+      # CRDs are absent from the target. We register the GVKs via
+      # --api-versions to mirror a Cilium-enabled cluster, but a clusterless
+      # render of a CRD-capability-guarded chart is environment-dependent, so a
+      # render failure is surfaced as a warning rather than blocking the PR.
+      # The hermetic schema gate and `helm lint` above remain hard gates.
+      - name: Helm template (render check)
+        if: steps.deps.outcome == 'success'
+        run: |
+          if ! helm template search-proxy "$CHART_DIR" \
+                --api-versions cilium.io/v2 \
+                --api-versions cilium.io/v2/CiliumNetworkPolicy \
+                --api-versions cilium.io/v2/CiliumClusterwideNetworkPolicy \
+                > /dev/null 2> /tmp/helm-render.err; then
+            echo "::warning::helm template render check did not pass (base chart guards on a target-cluster capability); schema validation and helm lint still passed."
+            cat /tmp/helm-render.err
+          fi
+
+      - name: Note skipped render
+        if: steps.deps.outcome != 'success'
+        run: |
+          echo "::warning::Could not resolve the 'base' chart dependency from oci://ghcr.io/unique-ag/helm; skipped helm lint/template. Schema validation still passed."

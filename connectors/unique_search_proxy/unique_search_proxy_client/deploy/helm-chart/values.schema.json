@@ -1,0 +1,1303 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Unique AI Dedicated Chart Values",
+  "description": "Shared schema for dedicated Helm charts based on the base library chart. Validates critical fields; overlay keys are permitted without restriction.",
+  "type": "object",
+  "properties": {
+    "nameOverride": {
+      "type": "string",
+      "description": "Override the name of the chart"
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Override the full name of the chart"
+    },
+    "selectorComponentLabel": {
+      "type": "string",
+      "description": "Value for the app.kubernetes.io/component label in selector and pod template labels. Do not change after first deployment — Kubernetes Deployment selectors are immutable.",
+      "examples": ["server"]
+    },
+    "replicaCount": {
+      "type": "integer",
+      "description": "Number of replicas for the deployment",
+      "minimum": 0,
+      "examples": [1]
+    },
+    "image": {
+      "type": "object",
+      "description": "Container image configuration",
+      "properties": {
+        "registry": {
+          "type": "string",
+          "description": "Container image registry",
+          "examples": ["uniquecr.azurecr.io"]
+        },
+        "repository": {
+          "type": "string",
+          "description": "Container image repository (without registry prefix)",
+          "examples": ["node-chat", "unique/gatekeeper"]
+        },
+        "tag": {
+          "type": "string",
+          "description": "Container image tag. Omit to use appVersion from Chart.yaml.",
+          "examples": ["2026.10.0-abc1234"]
+        },
+        "digest": {
+          "type": "string",
+          "description": "Container image digest (sha256). Stamped by helm-chart-publish at release time. When useDigest is true the kubelet pulls by this digest; the tag is kept only for human readability. Never reference this from a label.",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "examples": ["sha256:6d8b1bbd9bca5e0000000000000000000000000000000000000000000000000a"]
+        },
+        "useDigest": {
+          "type": "boolean",
+          "description": "When true, render container image as repository:tag@sha256:digest (kubelet pulls by digest). When false, render as repository:tag (digest field is ignored even if present). Default in source values.yaml is false; helm-chart-publish flips it to true at release time alongside stamping image.digest. Customers can opt out of digest enforcement by overriding this back to false in their cluster overlay.",
+          "default": false
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "description": "Image pull policy",
+          "examples": ["IfNotPresent"]
+        }
+      },
+      "required": ["repository"]
+    },
+    "imagePullSecrets": {
+      "type": "array",
+      "description": "List of image pull secrets",
+      "items": {
+        "type": "object"
+      }
+    },
+    "env": {
+      "type": "object",
+      "description": "Environment variables rendered into a ConfigMap and mounted into the container. Values are passed through tpl (Go template expressions supported) and toString (numeric values allowed). Prefer quoting numeric values in YAML to keep types explicit."
+    },
+    "envSecrets": {
+      "type": "object",
+      "description": "Environment variables rendered into a Secret (base64-encoded). Use for values you do not want in the ConfigMap."
+    },
+    "envVars": {
+      "type": "array",
+      "description": "Additional environment variables in native Kubernetes syntax (e.g. valueFrom secretKeyRef).",
+      "items": {
+        "type": "object"
+      }
+    },
+    "extraEnvCM": {
+      "type": "array",
+      "description": "Names of existing ConfigMaps to mount as environment variables",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extraEnvSecrets": {
+      "type": "array",
+      "description": "Names of existing Secrets to mount as environment variables",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ports": {
+      "type": "object",
+      "description": "Port configuration",
+      "additionalProperties": false,
+      "properties": {
+        "application": {
+          "type": "integer",
+          "description": "Container port. Sets the PORT env var and containerPort in the Deployment.",
+          "minimum": 1,
+          "maximum": 65535,
+          "examples": [8080]
+        },
+        "metrics": {
+          "type": "integer",
+          "description": "Optional dedicated metrics port. Disabled when not set.",
+          "minimum": 1,
+          "maximum": 65535,
+          "examples": [8081]
+        },
+        "service": {
+          "type": "integer",
+          "description": "Service port (legacy field — prefer service.port)",
+          "minimum": 1,
+          "maximum": 65535,
+          "examples": [80]
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "description": "Kubernetes Service configuration",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable Service creation",
+          "examples": [true]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"],
+          "description": "Service type",
+          "examples": ["ClusterIP"]
+        },
+        "port": {
+          "type": "integer",
+          "description": "Service port",
+          "minimum": 1,
+          "maximum": 65535,
+          "examples": [80]
+        },
+        "extraLabels": {
+          "type": "object",
+          "description": "Extra labels for the Service"
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations for the Service"
+        }
+      }
+    },
+    "routes": {
+      "type": "object",
+      "description": "Gateway API HTTPRoute configuration. Routes are only rendered when routes.hostname is set.",
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "description": "Hostname for the HTTPRoute. Must be set in each environment overlay — the chart default is a {{ fail }} sentinel that aborts render if not overridden.",
+          "examples": ["app.example.com"]
+        },
+        "pathPrefix": {
+          "type": "string",
+          "description": "URL path prefix applied to all paths in this chart",
+          "examples": ["/chat"]
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Request timeout for all routes, e.g. 60s",
+          "examples": ["60s"]
+        },
+        "auth": {
+          "type": "object",
+          "description": "Authentication settings for the route",
+          "properties": {
+            "jwt": {
+              "type": "boolean",
+              "description": "Enable JWT validation on the route",
+              "examples": [true]
+            }
+          }
+        },
+        "gateway": {
+          "type": "object",
+          "description": "Reference to the parent Gateway resource",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Gateway resource name",
+              "examples": ["kong"]
+            },
+            "namespace": {
+              "type": "string",
+              "description": "Namespace of the Gateway resource",
+              "examples": ["system"]
+            }
+          }
+        },
+        "paths": {
+          "type": "object",
+          "description": "Map of named path configurations",
+          "examples": [
+            {
+              "default": { "enabled": true, "blockList": ["/metrics"] },
+              "versioned": { "enabled": true },
+              "probe": { "enabled": true }
+            }
+          ]
+        }
+      }
+    },
+    "extraRoutes": {
+      "type": "object",
+      "description": "Additional HTTPRoutes beyond the main route, keyed by name",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "prometheus": {
+      "type": "object",
+      "description": "Prometheus monitoring configuration. All resources render by default when the monitoring.coreos.com/v1 CRD is available; opt out via prometheus.enabled: false.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Defaults to true. Set false to opt out of all Prometheus resources (ServiceMonitor, PodMonitor, PrometheusRule).",
+          "examples": [false]
+        },
+        "serviceMonitor": {
+          "type": "object",
+          "description": "ServiceMonitor configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable ServiceMonitor creation",
+              "examples": [true]
+            }
+          }
+        },
+        "defaultAlerts": {
+          "type": "object",
+          "description": "Built-in alert groups from base",
+          "properties": {
+            "argocd": {
+              "type": "object",
+              "description": "ArgoCD sync-health alert group",
+              "properties": {
+                "enabled": { "type": "boolean", "description": "Defaults to true; set false to opt out of this alert group." },
+                "applicationName": { "type": "string" },
+                "for": { "type": "string" },
+                "customRules": { "type": "object" },
+                "additionalLabels": {
+                  "type": "object",
+                  "description": "Routing labels applied to argocd alert rules; overrides defaultAlerts.additionalLabels"
+                }
+              }
+            },
+            "kubernetesApplication": {
+              "type": "object",
+              "description": "Standard kube-state-metrics application alert group",
+              "properties": {
+                "enabled": { "type": "boolean", "description": "Defaults to true; set false to opt out of this alert group." },
+                "for": { "type": "string" },
+                "disabled": { "type": "object" },
+                "customRules": { "type": "object" },
+                "additionalLabels": {
+                  "type": "object",
+                  "description": "Routing labels applied to kubernetesApplication alert rules; overrides defaultAlerts.additionalLabels"
+                }
+              }
+            },
+            "kubernetesResources": {
+              "type": "object",
+              "description": "Resource utilization alert group",
+              "properties": {
+                "enabled": { "type": "boolean", "description": "Defaults to true; set false to opt out of this alert group." },
+                "for": { "type": "string" },
+                "disabled": { "type": "object" },
+                "customRules": { "type": "object" },
+                "additionalLabels": {
+                  "type": "object",
+                  "description": "Routing labels applied to kubernetesResources alert rules; overrides defaultAlerts.additionalLabels"
+                }
+              }
+            },
+            "additionalLabels": {
+              "type": "object",
+              "description": "Extra labels applied to all default alert rules, e.g. team routing labels"
+            }
+          }
+        },
+        "additionalAlerts": {
+          "type": "object",
+          "description": "Chart-specific PrometheusRule entries, keyed by alert name",
+          "properties": {
+            "additionalLabels": {
+              "type": "object",
+              "description": "Routing labels applied to all custom alert rules; overrides defaultAlerts.additionalLabels"
+            }
+          },
+          "additionalProperties": {
+            "type": "object"
+          }
+        },
+        "additionalRules": {
+          "type": "object",
+          "description": "Additional raw Prometheus recording or alerting rules"
+        }
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "description": "Horizontal Pod Autoscaler configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable HPA",
+          "examples": [false]
+        },
+        "minReplicas": {
+          "type": "integer",
+          "description": "Minimum number of replicas",
+          "minimum": 0,
+          "examples": [1]
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "description": "Maximum number of replicas",
+          "minimum": 1,
+          "examples": [10]
+        },
+        "targetCPUUtilizationPercentage": {
+          "type": "integer",
+          "description": "Target CPU utilization percentage for HPA",
+          "minimum": 1,
+          "maximum": 100,
+          "examples": [80]
+        },
+        "targetMemoryUtilizationPercentage": {
+          "type": "integer",
+          "description": "Target memory utilization percentage for HPA",
+          "minimum": 1,
+          "maximum": 100,
+          "examples": [80]
+        }
+      }
+    },
+    "keda": {
+      "type": "object",
+      "description": "KEDA event-based autoscaling configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable KEDA ScaledObject",
+          "examples": [false]
+        },
+        "minReplicaCount": {
+          "type": "integer",
+          "minimum": 0,
+          "examples": [0]
+        },
+        "maxReplicaCount": {
+          "type": "integer",
+          "minimum": 1,
+          "examples": [8]
+        },
+        "triggers": {
+          "description": "KEDA triggers. Either a list of trigger objects or a map of named triggers.",
+          "oneOf": [
+            { "type": "array" },
+            { "type": "object" }
+          ]
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "description": "Container CPU/memory resource requests and limits",
+      "properties": {
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "oneOf": [{ "type": "string" }, { "type": "number", "minimum": 0 }],
+              "examples": ["1000m"]
+            },
+            "memory": {
+              "type": "string",
+              "examples": ["1Gi"]
+            }
+          }
+        },
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "oneOf": [{ "type": "string" }, { "type": "number", "minimum": 0 }],
+              "examples": ["100m"]
+            },
+            "memory": {
+              "type": "string",
+              "examples": ["128Mi"]
+            }
+          }
+        }
+      }
+    },
+    "podLabels": {
+      "type": "object",
+      "description": "Extra labels added to every pod"
+    },
+    "podAnnotations": {
+      "type": "object",
+      "description": "Extra annotations added to every pod"
+    },
+    "podSecurityContext": {
+      "type": "object",
+      "description": "Pod-level security context"
+    },
+    "securityContext": {
+      "type": "object",
+      "description": "Container-level security context",
+      "properties": {
+        "allowPrivilegeEscalation": {
+          "type": "boolean",
+          "examples": [false]
+        },
+        "readOnlyRootFilesystem": {
+          "type": "boolean",
+          "examples": [true]
+        },
+        "runAsNonRoot": {
+          "type": "boolean",
+          "examples": [true]
+        },
+        "runAsUser": {
+          "type": "integer",
+          "minimum": 0,
+          "examples": [1000]
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "drop": {
+              "type": "array",
+              "items": { "type": "string" },
+              "examples": [["ALL"]]
+            },
+            "add": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "probes": {
+      "type": "object",
+      "description": "Kubernetes liveness, readiness and startup probe configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable all probes",
+          "examples": [true]
+        },
+        "liveness": { "type": "object" },
+        "readiness": { "type": "object" },
+        "startup": { "type": "object" }
+      }
+    },
+    "pdb": {
+      "type": "object",
+      "description": "PodDisruptionBudget configuration",
+      "properties": {
+        "maxUnavailable": {
+          "oneOf": [{ "type": "string" }, { "type": "integer", "minimum": 0 }],
+          "description": "Maximum number of unavailable pods during voluntary disruptions",
+          "examples": ["30%"]
+        },
+        "minAvailable": {
+          "oneOf": [{ "type": "string" }, { "type": "integer", "minimum": 0 }],
+          "description": "Minimum number of available pods during voluntary disruptions",
+          "examples": [1]
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "description": "Kubernetes ServiceAccount configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "examples": [false]
+        },
+        "annotations": {
+          "type": "object"
+        },
+        "name": {
+          "type": "string"
+        },
+        "automountServiceAccountToken": {
+          "type": "boolean",
+          "examples": [true]
+        }
+      }
+    },
+    "workloadIdentity": {
+      "type": "object",
+      "description": "Cloud workload identity configuration (Azure / GCP)",
+      "properties": {
+        "azure": {
+          "type": "object",
+          "description": "Azure Workload Identity configuration",
+          "properties": {
+            "enabled": { "type": "boolean", "examples": [false] }
+          }
+        },
+        "gcp": {
+          "type": "object",
+          "description": "GCP Workload Identity Federation configuration",
+          "properties": {
+            "enabled": { "type": "boolean", "examples": [false] },
+            "projectId": { "type": "string" },
+            "workloadIdentityPool": { "type": "string" },
+            "provider": { "type": "string" },
+            "serviceAccountEmail": { "type": "string" },
+            "tokenExpirationSeconds": { "type": "integer", "minimum": 600 }
+          }
+        }
+      }
+    },
+    "secretProvider": {
+      "type": "object",
+      "description": "Azure Key Vault secret provider configuration. When tenantId or useVMManagedIdentity are set, vaults are required.",
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "examples": ["00000000-0000-0000-0000-000000000000"]
+        },
+        "userAssignedIdentityID": {
+          "type": "string",
+          "examples": ["00000000-0000-0000-0000-000000000000"]
+        },
+        "useVMManagedIdentity": {
+          "type": ["boolean", "string"]
+        },
+        "vaults": {
+          "type": "object",
+          "description": "Map of Key Vault names to env-var-to-secret-name mappings",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "description": "Additional Deployment configuration",
+      "properties": {
+        "revisionHistoryLimit": {
+          "type": "integer",
+          "minimum": 0,
+          "examples": [3]
+        },
+        "initContainers": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "strategy": {
+      "type": "object",
+      "description": "Deployment update strategy (Recreate or RollingUpdate)",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Recreate", "RollingUpdate"],
+          "examples": ["Recreate"]
+        }
+      }
+    },
+    "rollingUpdate": {
+      "type": "object",
+      "description": "RollingUpdate strategy parameters. Only applied when strategy.type is RollingUpdate.",
+      "properties": {
+        "maxSurge": {
+          "oneOf": [{ "type": "string" }, { "type": "integer", "minimum": 0 }],
+          "examples": [1]
+        },
+        "maxUnavailable": {
+          "oneOf": [{ "type": "string" }, { "type": "integer", "minimum": 0 }],
+          "examples": [0]
+        }
+      }
+    },
+    "minReadySeconds": {
+      "type": "integer",
+      "description": "Minimum number of seconds a newly created pod must be ready before it is considered available",
+      "minimum": 0,
+      "examples": [5]
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "description": "Override the pod termination grace period in seconds",
+      "minimum": 0,
+      "examples": [30]
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "Container lifecycle hooks (preStop, postStart)",
+      "examples": [{ "preStop": { "httpGet": { "path": "can_shutdown", "port": 8080 } } }]
+    },
+    "hooks": {
+      "type": "object",
+      "description": "Pre/post-install Helm hook jobs, keyed by hook name (e.g. migration, seed). Top-level boolean and object properties (e.g. enabled, image, resources) are also supported as shared defaults applied to all hook jobs."
+    },
+    "cronJob": {
+      "type": "object",
+      "description": "Single primary CronJob configuration",
+      "properties": {
+        "enabled": { "type": "boolean", "examples": [false] },
+        "schedule": { "type": "string" },
+        "concurrencyPolicy": {
+          "type": "string",
+          "enum": ["Allow", "Forbid", "Replace"]
+        },
+        "timeZone": { "type": "string" },
+        "suspend": { "type": "boolean" },
+        "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+        "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+        "startingDeadlineSeconds": { "type": "integer", "minimum": 0 },
+        "env": { "type": "object" }
+      }
+    },
+    "cronJobs": {
+      "type": "object",
+      "description": "Map of named CronJob configurations (base multi-cronjob pattern)",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "suspend": { "type": "boolean" },
+          "schedule": { "type": "string" },
+          "timeZone": { "type": "string" },
+          "concurrencyPolicy": {
+            "type": "string",
+            "enum": ["Allow", "Forbid", "Replace"]
+          },
+          "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+          "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+          "startingDeadlineSeconds": { "type": "integer", "minimum": 0 },
+          "restartPolicy": {
+            "type": "string",
+            "enum": ["Never", "OnFailure"]
+          },
+          "env": { "type": "object" }
+        }
+      }
+    },
+    "extraCronJobs": {
+      "type": "object",
+      "description": "Additional named CronJobs beyond the primary cronJob",
+      "additionalProperties": {
+        "type": "object"
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "description": "NetworkPolicy or CiliumNetworkPolicy configuration",
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "flavor": {
+          "type": "string",
+          "enum": ["kubernetes", "cilium"],
+          "examples": ["cilium"]
+        },
+        "ingress": { "type": "array", "items": { "type": "object" } },
+        "egress": { "type": "array", "items": { "type": "object" } },
+        "ingressDeny": { "type": "array", "items": { "type": "object" } },
+        "egressDeny": { "type": "array", "items": { "type": "object" } },
+        "policyTypes": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["Ingress", "Egress"] }
+        },
+        "baseline": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dns": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled":   { "type": "boolean", "default": true },
+                "namespace": { "type": "string", "default": "kube-system",
+                               "description": "Namespace containing kube-dns pods." },
+                "matchLabels": { "type": "object", "additionalProperties": { "type": "string" },
+                               "description": "Pod selector labels for kube-dns. Default: {k8s:k8s-app: kube-dns}." },
+                "ports": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["port", "protocol"],
+                    "properties": {
+                      "port":     { "type": "string" },
+                      "protocol": { "type": "string", "enum": ["TCP", "UDP", "ANY"] }
+                    }
+                  },
+                  "description": "DNS port list. Default: [{port: \"53\", protocol: UDP}, {port: \"53\", protocol: TCP}]."
+                },
+                "matchPatterns": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "default": ["*"],
+                  "description": "DNS match patterns for toPorts.rules.dns[]. Default: [\"*\"] (all domains)."
+                }
+              }
+            },
+            "prometheus": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled":     { "type": "boolean", "default": true },
+                "namespace":   { "type": "string", "default": "monitoring",
+                                 "description": "Namespace Prometheus pods are in." },
+                "matchLabels": { "type": "object", "additionalProperties": { "type": "string" },
+                                 "description": "Pod selector labels for Prometheus. Default: {k8s:app.kubernetes.io/name: prometheus}. Port is derived from ports.metrics when set, else the application port." }
+              }
+            },
+            "icmp": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean", "default": true },
+                "ipv4": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": { "type": "boolean", "default": true },
+                    "types": {
+                      "type": "array",
+                      "items": { "oneOf": [{ "type": "string" }, { "type": "integer" }] },
+                      "default": ["Echo", "EchoReply"],
+                      "description": "ICMPv4 type names or numbers accepted by Cilium."
+                    }
+                  }
+                },
+                "ipv6": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "enabled": { "type": "boolean", "default": true },
+                    "types": {
+                      "type": "array",
+                      "items": { "oneOf": [{ "type": "string" }, { "type": "integer" }] },
+                      "default": [
+                        "NeighborSolicitation", "NeighborAdvertisement",
+                        "RouterSolicitation",   "RouterAdvertisement",
+                        "MulticastListenerQuery", "MulticastListenerReport",
+                        "MulticastListenerDone", 143,
+                        "EchoRequest", "EchoReply"
+                      ],
+                      "description": "ICMPv6 type names or numbers accepted by Cilium. Default covers Neighbor/Router Discovery, MLD, and diagnostics."
+                    }
+                  }
+                }
+              }
+            },
+            "ephemeralPorts": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled":  { "type": "boolean", "default": true },
+                "entities": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "default": ["world"],
+                  "description": "Cilium entity names to allow ingress from. Default: [world]."
+                },
+                "port": {
+                  "type": "integer",
+                  "default": 32768,
+                  "description": "Start of the ephemeral port range. Default: 32768 (Linux default)."
+                },
+                "endPort": {
+                  "type": "integer",
+                  "default": 60999,
+                  "description": "End of the ephemeral port range (inclusive). Default: 60999 (Linux default)."
+                },
+                "protocol": {
+                  "type": "string",
+                  "enum": ["TCP", "UDP", "ANY"],
+                  "default": "TCP",
+                  "description": "Protocol for the ephemeral port range."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "internalServices": {
+      "type": "object",
+      "description": "Symmetric in-cluster service-to-service traffic declarations. Each chart declares both the services it calls (dependencies) and the services that call it (dependents). Map keys are arbitrary logical names; values are per-entry descriptors.",
+      "additionalProperties": false,
+      "properties": {
+        "dependencies": {
+          "type": "object",
+          "description": "Map of logical name to dependency descriptor. One entry per service this chart calls.",
+          "additionalProperties": { "$ref": "#/$defs/internalServiceDependency" }
+        },
+        "dependents": {
+          "type": "object",
+          "description": "Map of logical name to dependent descriptor. One entry per service that calls this chart.",
+          "additionalProperties": { "$ref": "#/$defs/internalServiceDependent" }
+        }
+      }
+    },
+    "volumeMounts": {
+      "type": "array",
+      "description": "Volume mounts for the main container",
+      "items": {
+        "type": "object",
+        "required": ["name", "mountPath"],
+        "properties": {
+          "name": { "type": "string" },
+          "mountPath": { "type": "string" },
+          "readOnly": { "type": "boolean" }
+        }
+      }
+    },
+    "volumes": {
+      "type": "array",
+      "description": "Volumes for the pod",
+      "items": { "type": "object" }
+    },
+    "pvc": {
+      "type": "object",
+      "description": "PersistentVolumeClaim configuration",
+      "properties": {
+        "enabled": { "type": "boolean", "examples": [false] },
+        "storage": { "type": "string", "examples": ["32Gi"] },
+        "storageClassName": { "type": "string" },
+        "accessMode": {
+          "type": "string",
+          "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+        }
+      }
+    },
+    "auditVolumes": {
+      "type": "object",
+      "description": "Cloud-agnostic audit log volume configuration"
+    },
+    "nodeSelector": {
+      "type": "object",
+      "description": "Node selector for pod placement"
+    },
+    "tolerations": {
+      "type": "array",
+      "description": "Tolerations for pod placement",
+      "items": { "type": "object" }
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Affinity rules for pod placement"
+    },
+    "priorityClassName": {
+      "type": "string",
+      "description": "Priority class for pod scheduling",
+      "examples": ["high-priority"]
+    },
+    "extraManifests": {
+      "type": "array",
+      "description": "Additional raw Kubernetes manifests to include",
+      "items": { "type": "object" }
+    },
+    "grafana": {
+      "type": "object",
+      "description": "Grafana dashboard ConfigMap provisioning. Place dashboard JSON files under files/grafana/dashboards/ in the consuming chart.",
+      "properties": {
+        "dashboards": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "When true, one ConfigMap is created per JSON file under files/grafana/dashboards/. Defaults to false.",
+              "examples": [false]
+            },
+            "replacements": {
+              "type": "object",
+              "description": "Map of placeholder to resolved datasource UID. Dashboard JSON files should use %%PLACEHOLDER%% markers (e.g. %%PROMETHEUS_UID%%) instead of hardcoded UIDs. Each entry replaces a marker with the actual UID before the ConfigMap is rendered. The dedicated chart sets defaults; customer overlays override per tenant.",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "examples": [{"prometheus": "thanos-querier"}]
+            }
+          }
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "description": "Global values merged into all subcharts",
+      "properties": {
+        "image": {
+          "type": "object",
+          "properties": {
+            "registry": {
+              "type": "string",
+              "description": "Global registry override — takes precedence over image.registry in all charts. Use uniqueapp.azurecr.io to revert to the legacy registry without modifying chart code.",
+              "examples": ["uniqueapp.azurecr.io"]
+            }
+          }
+        }
+      }
+    },
+    "postgresql": {
+      "type": "object",
+      "description": "PostgreSQL external service contract. When enabled, injects POSTGRESQL_* env vars and DATABASE_URL. CNP egress shape is determined by connection.host source kind.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "networkPolicyEgressManaged": { "type": "boolean", "description": "Set to true when connection.url or an opaque host is used and networkPolicy is enabled. Suppresses the render-time fail; you must define the egress rule in networkPolicy.egress[] yourself." },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host":     { "$ref": "#/$defs/valueSourceHost",      "description": "Required when enabled. Source kind determines CNP egress: literal → toFQDNs, fromKubernetesService → toEndpoints, opaque → soft-skip." },
+            "port":     { "$ref": "#/$defs/valueSourceInteger",   "description": "PostgreSQL port. Defaults to 5432 when host uses a non-KSvc source." },
+            "database": { "$ref": "#/$defs/valueSourceString" },
+            "username": { "$ref": "#/$defs/valueSourceString" },
+            "sslMode":  { "$ref": "#/$defs/valueSourceString",    "description": "One of: disable | allow | prefer | require | verify-ca | verify-full | verify" },
+            "password": { "$ref": "#/$defs/valueSourceSensitive", "description": "Sensitive. Accepts only fromSecret or fromSecretProvider." },
+            "url":      { "$ref": "#/$defs/valueSourceSensitive", "description": "Sensitive full DSN. When set, DATABASE_URL is injected directly; individual POSTGRESQL_* fields are still emitted for convenience." },
+            "envVarNames": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Optional override of canonical env-var names."
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "then": {
+            "required": ["connection"],
+            "properties": {
+              "connection": {
+                "required": ["host"],
+                "anyOf": [
+                  { "required": ["url"] },
+                  { "required": ["password", "database", "username"] }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "redis": {
+      "type": "object",
+      "description": "Redis external service contract. Non-cluster: PUBSUB_REDIS_{HOST,PORT,...}. Cluster: PUBSUB_REDIS_CLUSTER_{MODE,NODES,...}.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "networkPolicyEgressManaged": { "type": "boolean", "description": "Set to true when an opaque host is used and networkPolicy is enabled. Suppresses the render-time fail; you must define the egress rule in networkPolicy.egress[] yourself." },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host":                    { "$ref": "#/$defs/valueSourceHost",      "description": "Required when enabled." },
+            "port":                    { "$ref": "#/$defs/valueSourceInteger",   "description": "Redis port. Defaults to 6379." },
+            "db":                      { "$ref": "#/$defs/valueSourceInteger",   "description": "Redis database index." },
+            "username":                { "$ref": "#/$defs/valueSourceString" },
+            "password":                { "$ref": "#/$defs/valueSourceSensitive", "description": "Sensitive. Accepts only fromSecret or fromSecretProvider." },
+            "clusterMode":             { "$ref": "#/$defs/valueSourceBoolean",   "description": "When true, emit PUBSUB_REDIS_CLUSTER_* vars instead of PUBSUB_REDIS_*." },
+            "clusterNodes": {
+              "type": "array",
+              "description": "Explicit seed-node list. When present in cluster mode, builds PUBSUB_REDIS_CLUSTER_NODES. All entries use connection.port as the dial port.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["host"],
+                "properties": {
+                  "host": { "$ref": "#/$defs/valueSourceHost" }
+                }
+              }
+            },
+            "slotsRefreshInterval":    { "$ref": "#/$defs/valueSourceInteger" },
+            "slotsRefreshTimeout":     { "$ref": "#/$defs/valueSourceInteger" },
+            "commandTimeout":          { "$ref": "#/$defs/valueSourceInteger" },
+            "envVarNames": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Optional override of canonical env-var names."
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "then": { "required": ["connection"], "properties": { "connection": { "required": ["host"] } } }
+        }
+      ]
+    },
+    "rabbitmq": {
+      "type": "object",
+      "description": "RabbitMQ external service contract. URL mode: AMQP_URL via secretKeyRef. Structured mode: AMQP_{HOST,PORT,VHOST,USERNAME,PASSWORD}.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "networkPolicyEgressManaged": { "type": "boolean", "description": "Set to true when connection.url or an opaque host is used and networkPolicy is enabled. Suppresses the render-time fail; you must define the egress rule in networkPolicy.egress[] yourself." },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host":     { "$ref": "#/$defs/valueSourceHost",      "description": "Required when enabled." },
+            "port":     { "$ref": "#/$defs/valueSourceInteger",   "description": "AMQP port. Defaults to 5672." },
+            "vhost":    { "$ref": "#/$defs/valueSourceString" },
+            "username": { "$ref": "#/$defs/valueSourceString" },
+            "password": { "$ref": "#/$defs/valueSourceSensitive", "description": "Sensitive. Accepts only fromSecret or fromSecretProvider." },
+            "url":      { "$ref": "#/$defs/valueSourceSensitive", "description": "Sensitive full AMQP URL. When set, AMQP_URL is injected directly." },
+            "envVarNames": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Optional override of canonical env-var names."
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "then": {
+            "required": ["connection"],
+            "properties": {
+              "connection": {
+                "required": ["host"],
+                "anyOf": [
+                  { "required": ["url"] },
+                  { "required": ["password"] }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "elasticsearch": {
+      "type": "object",
+      "description": "Elasticsearch external service contract. URL mode: ELASTICSEARCH_URL directly. Structured mode: ELASTICSEARCH_{SCHEME,HOST,PORT} + $(VAR)-composed URL.",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "networkPolicyEgressManaged": { "type": "boolean", "description": "Set to true when connection.url or an opaque host is used and networkPolicy is enabled. Suppresses the render-time fail; you must define the egress rule in networkPolicy.egress[] yourself." },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host":     { "$ref": "#/$defs/valueSourceHost",      "description": "Required when enabled." },
+            "port":     { "$ref": "#/$defs/valueSourceInteger",   "description": "Elasticsearch HTTP port. Defaults to 9200." },
+            "scheme":   { "$ref": "#/$defs/valueSourceString",    "description": "http or https. Defaults to https." },
+            "username": { "$ref": "#/$defs/valueSourceString" },
+            "password": { "$ref": "#/$defs/valueSourceSensitive", "description": "Sensitive. Accepts only fromSecret or fromSecretProvider." },
+            "url":      { "$ref": "#/$defs/valueSourceSensitive", "description": "Sensitive full URL. When set, ELASTICSEARCH_URL is injected directly." },
+            "caBundle": { "$ref": "#/$defs/valueSourceCaBundle",  "description": "CA bundle Secret for TLS verification. Drives ELASTICSEARCH_CA_BUNDLE and auto-generates volume + volumeMount." },
+            "envVarNames": {
+              "type": "object",
+              "additionalProperties": { "type": "string" },
+              "description": "Optional override of canonical env-var names."
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "then": {
+            "required": ["connection"],
+            "properties": {
+              "connection": {
+                "required": ["host"],
+                "anyOf": [
+                  { "required": ["url"] },
+                  { "required": ["password"] }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "internalServiceDependency": {
+      "type": "object",
+      "description": "A service this chart calls (outbound dependency). Used to build the service URL and to generate pod-selector egress rules in Cilium network policies.",
+      "additionalProperties": false,
+      "required": ["name", "namespace", "servicePort"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Kubernetes Service name; used as the default app.kubernetes.io/name pod selector label value when podSelectorLabels is omitted."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace the peer Service lives in."
+        },
+        "servicePort": {
+          "type": "integer",
+          "description": "The Kubernetes Service port the app dials. Used to build http://<name>.<namespace>.svc.cluster.local:<servicePort><basePath>."
+        },
+        "podPort": {
+          "type": "integer",
+          "description": "The container port Cilium toPorts matches on the pod-selector egress rule. Defaults to servicePort when omitted — set explicitly only when Service targetPort != containerPort."
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["TCP", "UDP", "SCTP"],
+          "default": "TCP"
+        },
+        "basePath": {
+          "type": "string",
+          "description": "Optional path suffix appended to the service URL."
+        },
+        "podSelectorLabels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Pod selector labels for Cilium egress rules to this dependency. When networkPolicy.flavor is cilium, keys must use the k8s: source prefix (e.g. k8s:app.kubernetes.io/name). Defaults to { app.kubernetes.io/name: <name> }."
+        }
+      }
+    },
+    "internalServiceDependent": {
+      "type": "object",
+      "description": "A service that calls this chart (inbound caller). Used by the CNP generator (Phase 3) for pod-selector ingress rules.",
+      "additionalProperties": false,
+      "required": ["name", "namespace"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Kubernetes Service name of the calling service; used as the default app.kubernetes.io/name pod selector label value when podSelectorLabels is omitted."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace the calling service lives in."
+        },
+        "podSelectorLabels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Pod selector labels for Cilium ingress rules from this caller. When networkPolicy.flavor is cilium, keys must use the k8s: source prefix. Defaults to { app.kubernetes.io/name: <name> }."
+        },
+        "podPorts": {
+          "type": "array",
+          "description": "Listener pod ports on THIS chart that the caller hits. Defaults to [{ port: ports.application, protocol: TCP }] when omitted. No servicePort here — Cilium ingress matches the destination Pod's container port, not the Service VIP port.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["port"],
+            "properties": {
+              "port": { "type": "integer" },
+              "endPort": { "type": "integer", "description": "Inclusive upper bound for a port range. When set, port is the lower bound." },
+              "protocol": { "type": "string", "enum": ["TCP", "UDP", "SCTP"], "default": "TCP" }
+            }
+          }
+        }
+      }
+    },
+    "_fromConfigMapRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "key"],
+      "properties": {
+        "name":     { "type": "string" },
+        "key":      { "type": "string" },
+        "optional": { "type": "boolean" }
+      }
+    },
+    "_fromSecretRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "key"],
+      "properties": {
+        "name":     { "type": "string" },
+        "key":      { "type": "string" },
+        "optional": { "type": "boolean" }
+      }
+    },
+    "_fromSecretProviderRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vault", "secretKey"],
+      "properties": {
+        "vault":     { "type": "string" },
+        "secretKey": { "type": "string" }
+      }
+    },
+    "valueSourceString": {
+      "description": "String-typed value source: bare shorthand or one of the four standard sources.",
+      "oneOf": [
+        { "type": "string", "description": "Shorthand: equivalent to { value: <string> }" },
+        { "type": "object",
+          "oneOf": [
+            { "required": ["value"],              "properties": { "value":              { "type": "string" } },                                    "additionalProperties": false },
+            { "required": ["fromConfigMap"],      "properties": { "fromConfigMap":      { "$ref": "#/$defs/_fromConfigMapRef" } },      "additionalProperties": false },
+            { "required": ["fromSecret"],         "properties": { "fromSecret":         { "$ref": "#/$defs/_fromSecretRef" } },         "additionalProperties": false },
+            { "required": ["fromSecretProvider"], "properties": { "fromSecretProvider": { "$ref": "#/$defs/_fromSecretProviderRef" } }, "additionalProperties": false }
+          ]
+        }
+      ]
+    },
+    "valueSourceInteger": {
+      "description": "Integer-typed value source: bare integer shorthand or one of the four standard sources.",
+      "oneOf": [
+        { "type": "integer", "description": "Shorthand: equivalent to { value: <integer> }" },
+        { "type": "object",
+          "oneOf": [
+            { "required": ["value"],              "properties": { "value":              { "type": "integer" } },                                    "additionalProperties": false },
+            { "required": ["fromConfigMap"],      "properties": { "fromConfigMap":      { "$ref": "#/$defs/_fromConfigMapRef" } },      "additionalProperties": false },
+            { "required": ["fromSecret"],         "properties": { "fromSecret":         { "$ref": "#/$defs/_fromSecretRef" } },         "additionalProperties": false },
+            { "required": ["fromSecretProvider"], "properties": { "fromSecretProvider": { "$ref": "#/$defs/_fromSecretProviderRef" } }, "additionalProperties": false }
+          ]
+        }
+      ]
+    },
+    "valueSourceBoolean": {
+      "description": "Boolean-typed value source: bare boolean shorthand or one of the four standard sources.",
+      "oneOf": [
+        { "type": "boolean", "description": "Shorthand: equivalent to { value: <boolean> }" },
+        { "type": "object",
+          "oneOf": [
+            { "required": ["value"],              "properties": { "value":              { "type": "boolean" } },                                    "additionalProperties": false },
+            { "required": ["fromConfigMap"],      "properties": { "fromConfigMap":      { "$ref": "#/$defs/_fromConfigMapRef" } },      "additionalProperties": false },
+            { "required": ["fromSecret"],         "properties": { "fromSecret":         { "$ref": "#/$defs/_fromSecretRef" } },         "additionalProperties": false },
+            { "required": ["fromSecretProvider"], "properties": { "fromSecretProvider": { "$ref": "#/$defs/_fromSecretProviderRef" } }, "additionalProperties": false }
+          ]
+        }
+      ]
+    },
+    "valueSourceHost": {
+      "description": "Host-typed value source: string shorthand or one of the five sources (includes fromKubernetesService for in-cluster Services).",
+      "oneOf": [
+        { "type": "string", "description": "Shorthand: equivalent to { value: <string> }" },
+        { "type": "object",
+          "oneOf": [
+            { "required": ["value"],              "properties": { "value":              { "type": "string" } },                                    "additionalProperties": false },
+            { "required": ["fromConfigMap"],      "properties": { "fromConfigMap":      { "$ref": "#/$defs/_fromConfigMapRef" } },      "additionalProperties": false },
+            { "required": ["fromSecret"],         "properties": { "fromSecret":         { "$ref": "#/$defs/_fromSecretRef" } },         "additionalProperties": false },
+            { "required": ["fromSecretProvider"], "properties": { "fromSecretProvider": { "$ref": "#/$defs/_fromSecretProviderRef" } }, "additionalProperties": false },
+            { "required": ["fromKubernetesService"],
+              "additionalProperties": false,
+              "properties": {
+                "fromKubernetesService": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["name", "namespace", "podPort"],
+                  "description": "In-cluster Kubernetes Service descriptor. The helper resolves the host literal to <name>.<namespace>.svc.cluster.local AND feeds CNP pod-selector egress. Set connection.port for the dial port. The CIDR-fallback hack for evicted-pod identity loss is NOT part of this shape; charts that need it declare an explicit networkPolicy.egress[] entry.",
+                  "properties": {
+                    "name":              { "type": "string" },
+                    "namespace":         { "type": "string" },
+                    "podPort":           { "type": "integer", "description": "The container port Cilium toPorts matches on the pod-selector egress rule." },
+                    "podSelectorLabels": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Keys must include the k8s: source prefix. Defaults to { k8s:app.kubernetes.io/name: <name> } when omitted." }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "valueSourceSensitive": {
+      "description": "Sensitive value source: only fromSecret or fromSecretProvider. Bare-string, value:, and fromConfigMap: are deliberately absent to prevent plain-text secrets in values.yaml.",
+      "type": "object",
+      "oneOf": [
+        { "required": ["fromSecret"],         "properties": { "fromSecret":         { "$ref": "#/$defs/_fromSecretRef" } },         "additionalProperties": false },
+        { "required": ["fromSecretProvider"], "properties": { "fromSecretProvider": { "$ref": "#/$defs/_fromSecretProviderRef" } }, "additionalProperties": false }
+      ]
+    },
+    "valueSourceCaBundle": {
+      "description": "CA-bundle source: sensitive source (fromSecret or fromSecretProvider) plus a sibling mountPath. The helper auto-generates volumes and volumeMounts from mountPath.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mountPath"],
+      "properties": {
+        "mountPath":          { "type": "string", "description": "Container file path at which the helper mounts the CA Secret. Drives ELASTICSEARCH_CA_BUNDLE env and auto-generated volumes/volumeMounts." },
+        "fromSecret":         { "$ref": "#/$defs/_fromSecretRef" },
+        "fromSecretProvider": { "$ref": "#/$defs/_fromSecretProviderRef" }
+      },
+      "oneOf": [
+        { "required": ["fromSecret"],         "not": { "required": ["fromSecretProvider"] } },
+        { "required": ["fromSecretProvider"], "not": { "required": ["fromSecret"] } }
+      ]
+    }
+  }
+}

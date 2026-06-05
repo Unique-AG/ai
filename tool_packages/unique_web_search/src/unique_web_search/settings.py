@@ -38,7 +38,10 @@ class Base(BaseSettings):
     active_search_engines: list[str] = ["google"]
 
     # Default Crawlers
-    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai"]
+    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai", "basic_proxy"]
+
+    # Unique Search Proxy service (used by the basic_proxy crawler)
+    search_proxy_base_url: str | None = None
 
     # Google Search settings
     google_search_api_key: str | None = None
@@ -59,6 +62,9 @@ class Base(BaseSettings):
     # Brave Search API settings
     brave_search_api_key: str | None = None
     brave_search_api_endpoint: str | None = None
+
+    # Perplexity API settings
+    perplexity_api_key: str | None = None
 
     # VertexAI API settings
     vertexai_service_account_credentials: str | None = None
@@ -108,23 +114,6 @@ class Base(BaseSettings):
 
     # LLM processor config override (JSON string matching LLMProcessorConfig schema)
     llm_process_config: str | None = None
-
-    # URL safety settings
-    url_safety_allowed_schemes: list[str] = ["http", "https"]
-    url_safety_localhost_hosts: list[str] = [
-        "localhost",
-        "localhost.localdomain",
-    ]
-    url_safety_metadata_hosts: list[str] = [
-        "100.100.100.200",  # Alibaba Cloud
-        "169.254.169.254",  # AWS / GCP / Azure IMDS
-        "169.254.170.2",  # AWS ECS task credentials
-        "metadata.azure.internal",
-        "metadata.google.internal",
-    ]
-    url_safety_cluster_local_suffix: str = ".cluster.local"
-    url_safety_service_suffix: str = ".svc"
-    url_safety_resolve_redirects: bool = True
 
     @property
     def active_crawlers(self) -> list[str]:

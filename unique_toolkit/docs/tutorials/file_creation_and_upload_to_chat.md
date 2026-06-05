@@ -78,6 +78,8 @@ chat_service.free_user_input()
 
 <!--
 ```{.python file=docs/.python_files/chat_upload_to_chat.py}
+<<example-script-deps>>
+
 <<full_sse_setup>>
     settings.update_from_event(event)
     <<init_services_from_event>>

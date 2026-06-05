@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.22.0...unique-follow-up-questions-v2026.24.0) (2026-06-04)
+
+
+### Features
+
+* **unique_orchestrator:** RJSF textarea tags for agent prompt config ([#1780](https://github.com/Unique-AG/ai/issues/1780)) ([96691f0](https://github.com/Unique-AG/ai/commit/96691f0a1beae47529b6eb0d09d6f8358ab99b81))
+
+
+### Bug Fixes
+
+* **deps:** resolve open Dependabot alerts via constraint-dependencies ([#1751](https://github.com/Unique-AG/ai/issues/1751)) ([f92b9f5](https://github.com/Unique-AG/ai/commit/f92b9f5d1c9d2145316d2bf1f9b91b8b359c2324))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.20.0...unique-follow-up-questions-v2026.22.0) (2026-05-21)
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-follow-up-questions-v2026.18.0...unique-follow-up-questions-v2026.20.0) (2026-05-08)
 
 

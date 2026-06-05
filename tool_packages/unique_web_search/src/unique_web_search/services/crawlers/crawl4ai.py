@@ -10,8 +10,12 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfig,
     CrawlerType,
 )
+from unique_web_search.services.crawlers.url_safety import (
+    ResolvedCrawlTarget,
+    UrlSafetyService,
+    url_safety_settings,
+)
 from unique_web_search.services.crawlers.utils import get_random_user_agent
-from unique_web_search.services.url_safety import validate_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -188,7 +192,7 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
 
             async def _route_handler(route: Route, request: Request) -> None:
                 req_url = request.url
-                error = await validate_url(req_url)
+                error = await UrlSafetyService.validate_url(req_url)
                 if error is not None:
                     category, reason = error
                     _LOGGER.warning(
@@ -205,7 +209,8 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
 
         return _ssrf_guard_hook
 
-    async def _crawl(self, urls: list[str]) -> list[str]:
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+        urls = [target.normalized_url for target in targets]
         # Lazy import of crawl4ai - only import when actually needed
         from crawl4ai import (
             AsyncWebCrawler,
@@ -276,11 +281,14 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
             rate_limiter=rate_limiter,
         )
 
+        hooks = (
+            {"before_goto": self._get_ssrf_guard_hook()}
+            if url_safety_settings.enabled
+            else {}
+        )
         crawler_strategy = AsyncPlaywrightCrawlerStrategy(
             browser_config=browser_config,
-            hooks={
-                "before_goto": self._get_ssrf_guard_hook(),
-            },
+            hooks=hooks,
         )
 
         _LOGGER.info(f"Crawling {len(urls)} URLs with Crawl4AiCrawler")

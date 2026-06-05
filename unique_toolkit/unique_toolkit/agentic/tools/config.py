@@ -5,8 +5,8 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     Field,
+    SerializeAsAny,
     ValidationInfo,
-    field_serializer,
     model_validator,
 )
 from typing_extensions import TypeVar
@@ -53,7 +53,7 @@ class ToolBuildConfig(BaseModel, Generic[T]):
     """Main tool configuration"""
 
     name: str
-    configuration: T
+    configuration: SerializeAsAny[T]
     display_name: str = ""
     icon: Annotated[ToolIcon, BeforeValidator(handle_undefined_icon)] = Field(
         default=ToolIcon.BOOK,
@@ -125,7 +125,3 @@ class ToolBuildConfig(BaseModel, Generic[T]):
             config = configuration
         value["configuration"] = config
         return value
-
-    @field_serializer("configuration")
-    def serialize_config(self, value: T) -> dict[str, Any]:
-        return value.__class__.model_dump(value)

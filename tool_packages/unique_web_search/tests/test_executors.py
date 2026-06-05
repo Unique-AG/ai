@@ -5,6 +5,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from unique_web_search.services.crawlers.url_safety import (
+    CrawlTargetValidationError,
+    UrlSafetyService,
+)
 from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.executors.v1.executor import (
     RefinedQueries,
@@ -27,10 +31,6 @@ from unique_web_search.services.executors.v3.schema import (
     WebSearchV3ToolParameters,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
-from unique_web_search.services.url_safety import (
-    CrawlTargetValidationError,
-    validate_crawl_urls,
-)
 
 
 class TestQueryGenerationAgent:
@@ -315,7 +315,7 @@ class TestWebSearchV1ExecutorRun:
         )
         mock_executor_dependencies["search_service"].requires_scraping = True
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV1Executor(
@@ -759,7 +759,7 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             "search_service"
         ].config.search_engine_name.name = "TEST"
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV2Executor(
@@ -839,7 +839,7 @@ class TestWebSearchV3ExecutorSearch:
         tool_parameters = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
-                "objective": "Find recent search hits about NVIDIA coverage",
+                "phase": "target",
                 "payload": {
                     "gap": "Need fresh NVIDIA press coverage",
                     "query": "nvidia coverage",
@@ -905,7 +905,7 @@ class TestWebSearchV3ExecutorFetchUrls:
         tool_parameters = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "read_urls",
-                "objective": "Read the linked articles for full text",
+                "phase": "target",
                 "payload": {"urls": urls},
             }
         )
@@ -949,12 +949,12 @@ class TestWebSearchV3ExecutorFetchUrls:
         tool_parameters = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "read_urls",
-                "objective": "Read the linked articles for full text",
+                "phase": "target",
                 "payload": {"urls": ["https://localhost/internal"]},
             }
         )
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV3Executor(
@@ -970,7 +970,7 @@ class TestWebSearchV3ExecutorFetchUrls:
 
 
 class TestWebSearchV3ToolParametersValidation:
-    """Validators on the V3 tool parameter schema (``command``/``objective``/``payload``)."""
+    """Validators on the V3 tool parameter schema (``command``/``phase``/``payload``)."""
 
     @pytest.mark.ai
     def test_search_command_with_search_payload_parses(self) -> None:
@@ -978,7 +978,7 @@ class TestWebSearchV3ToolParametersValidation:
         params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
-                "objective": "Look up the current Fed funds target rate.",
+                "phase": "target",
                 "payload": {
                     "gap": "Need the current target rate",
                     "query": "fed funds rate",
@@ -995,7 +995,7 @@ class TestWebSearchV3ToolParametersValidation:
         params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "read_urls",
-                "objective": "Read the linked SEC filing for exact figures.",
+                "phase": "target",
                 "payload": {
                     "urls": [
                         "https://www.sec.gov/Archives/edgar/data/foo/10-k.htm",
@@ -1016,9 +1016,21 @@ class TestWebSearchV3ToolParametersValidation:
             WebSearchV3ToolParameters.model_validate(
                 {
                     "command": "search",
-                    "objective": "Anything",
+                    "phase": "target",
                     "payload": {"gap": "g", "query": "q"},
                     "task_complexity": "simple",
+                }
+            )
+
+    @pytest.mark.ai
+    def test_objective_field_is_rejected(self) -> None:
+        """Legacy ``objective`` is replaced by ``phase``."""
+        with pytest.raises(ValueError):
+            WebSearchV3ToolParameters.model_validate(
+                {
+                    "command": "search",
+                    "objective": "Look up rate",
+                    "payload": {"gap": "g", "query": "q"},
                 }
             )
 
@@ -1034,17 +1046,18 @@ class TestWebSearchV3ToolParametersValidation:
         search_params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
-                "objective": "Search obj",
+                "phase": "exploratory",
                 "payload": {"gap": "g", "query": "q"},
             }
         )
         fetch_params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "read_urls",
-                "objective": "Fetch obj",
+                "phase": "target",
                 "payload": {"urls": ["https://example.com/a"]},
             }
         )
+        assert search_params.relevance_focus() == "[exploratory] g"
         assert search_params.get_display_name_suffix() == " - Searching"
         assert fetch_params.get_display_name_suffix() == " - Reading Pages"
 
@@ -1143,7 +1156,7 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         Setup summary: Execute a READ_URL step pointing at localhost and assert CrawlTargetValidationError is raised.
         """
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            side_effect=validate_crawl_urls
+            side_effect=UrlSafetyService.validate_batch_urls
         )
 
         executor = WebSearchV2Executor(

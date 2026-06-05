@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.22.0...unique-sdk-v2026.24.0) (2026-06-04)
+
+
+### Features
+
+* **cli:** add unique-cli cite command for file page citation declarations [UN-21284] ([#1774](https://github.com/Unique-AG/ai/issues/1774)) ([2d46309](https://github.com/Unique-AG/ai/commit/2d46309a8aec2f68650932b76dd2fcec087ecc94))
+* include subagent into conduct ([#1740](https://github.com/Unique-AG/ai/issues/1740)) ([3d4faae](https://github.com/Unique-AG/ai/commit/3d4faaef05729f44acee7c4acf06e610a2dbe8c3))
+* **unique-toolkit:** allow sub-agents to take orchestrator control ([#1737](https://github.com/Unique-AG/ai/issues/1737)) ([cd711ce](https://github.com/Unique-AG/ai/commit/cd711ced727dc1f1c3440274c141da4b24337ad7))
+* **web-search:** add citation manifest support ([#1733](https://github.com/Unique-AG/ai/issues/1733)) ([230b3d4](https://github.com/Unique-AG/ai/commit/230b3d4ee7bb4cfc1369b695e0cbbabac4908832))
+
+
+### Bug Fixes
+
+* remove empty bearer in header for httpx cli calls ([#1747](https://github.com/Unique-AG/ai/issues/1747)) ([9915515](https://github.com/Unique-AG/ai/commit/9915515ff830d58e0e9a653caaf367b58eef01a2))
+* **short-term-memory:** return None instead of crashing on empty SDK response ([#1730](https://github.com/Unique-AG/ai/issues/1730)) ([3fa5bc0](https://github.com/Unique-AG/ai/commit/3fa5bc0e33d50dca26792eed5652409d695a03e7))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.20.0...unique-sdk-v2026.22.0) (2026-05-21)
+
+
+### Bug Fixes
+
+* **security:** address Dependabot pillow alerts and CodeQL finding ([#1617](https://github.com/Unique-AG/ai/issues/1617)) ([6e49fcb](https://github.com/Unique-AG/ai/commit/6e49fcbf59fd6e93e36326869038b1f89f4c23d0))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.18.0...unique-sdk-v2026.20.0) (2026-05-08)
 
 

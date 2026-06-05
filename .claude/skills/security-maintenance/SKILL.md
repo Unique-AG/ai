@@ -36,7 +36,7 @@ Versions and changelogs are **fully owned by release-please** (config: `release-
 
 Because of that:
 
-- **Never** edit `CHANGELOG.md` or bump `version` by hand. Do **not** call the `changelog-pyproject` skill in security PRs.
+- **Never** edit `CHANGELOG.md` or bump `version` by hand. Do **not** use the `release-process` skill to justify manual edits in security PRs — that skill documents automation, not hand bumps.
 - Drive the next release entries through **conventional commit subjects** (see `git-conventional-commits`). For Dependabot/CodeQL fixes use `fix(<scope>): ...` so release-please groups them under "Bug Fixes". Use `chore(deps): ...` only for risk-free dep bumps you don't want to surface in user-facing notes (it's hidden in the changelog).
 - One commit per PR is fine; release-please derives bumps per workspace package from the commit subject + changed paths.
 

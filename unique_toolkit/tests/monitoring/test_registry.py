@@ -104,6 +104,27 @@ def test_metric_namespace__gauge__registers_with_prefix(
     assert "svc_in_flight" in output
 
 
+@pytest.mark.ai
+def test_metric_namespace__gauge__forwards_multiprocess_mode(
+    fresh_registry: CollectorRegistry,
+) -> None:
+    """
+    Purpose: Verify MetricNamespace.gauge() forwards the multiprocess_mode parameter to prometheus_client.
+    Why this matters: Callers tracking in-flight requests under Gunicorn need livesum semantics;
+    if multiprocess_mode is silently ignored they get incorrect aggregation across workers.
+    Setup summary: Create a gauge with multiprocess_mode="livesum", assert the internal
+    _multiprocess_mode attribute reflects the chosen mode.
+    """
+    from prometheus_client import Gauge
+
+    m = MetricNamespace("svc")
+
+    g = m.gauge("active", "Active", ["label"], multiprocess_mode="livesum")
+
+    assert isinstance(g, Gauge)
+    assert g._multiprocess_mode == "livesum"
+
+
 # ---------------------------------------------------------------------------
 # get_metrics()
 # ---------------------------------------------------------------------------

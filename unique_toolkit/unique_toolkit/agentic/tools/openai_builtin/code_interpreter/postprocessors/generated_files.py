@@ -620,13 +620,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 self._log.info("Fence injection modified the message text")
 
         _warn_missing_content_ids(loop_response.message.text or "", self._content_map)
+        ci_ran = bool(loop_response.code_interpreter_calls)
         loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
-            loop_response.message.text
+            loop_response.message.text, ci_ran=ci_ran
         )
         changed |= dangling_replaced
         if dangling_replaced:
             self._log.warning(
-                "apply_postprocessing found and replaced dangling sandbox links"
+                "apply_postprocessing found and replaced dangling sandbox links "
+                "(ci_ran=%s)",
+                ci_ran,
             )
 
         apply_ms = (time.monotonic() - apply_t0) * 1000
@@ -1254,7 +1257,9 @@ _SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
 _SANDBOX_FILENAME_RE = re.compile(r"sandbox:/mnt/data/([^)\s]+)")
 
 
-def _replace_dangling_sandbox_links(text: str) -> tuple[str, bool]:
+def _replace_dangling_sandbox_links(
+    text: str, *, ci_ran: bool = True
+) -> tuple[str, bool]:
     """Replace any remaining sandbox:/mnt/data/ markdown links with a per-file notice.
 
     A dangling link means either the LLM hallucinated a file reference (the sandbox
@@ -1263,6 +1268,12 @@ def _replace_dangling_sandbox_links(text: str) -> tuple[str, bool]:
     cases the user would see a broken link; this function replaces each such link with
     an actionable message that names the specific file, and logs a warning so the
     incident is visible in production logs.
+
+    Args:
+        text: The message text to scan for dangling sandbox links.
+        ci_ran: Whether the code interpreter was called at all this turn.  When
+            ``False`` the LLM emitted a sandbox link without invoking the tool
+            (hallucination); a more accurate message is shown to the user.
     """
     if not _SANDBOX_MARKDOWN_LINK_RE.search(text):
         return text, False
@@ -1271,11 +1282,17 @@ def _replace_dangling_sandbox_links(text: str) -> tuple[str, bool]:
         filename_match = _SANDBOX_FILENAME_RE.search(m.group())
         filename = filename_match.group(1) if filename_match else "the file"
         logger.warning(
-            "Dangling sandbox link found in final text: '%s'. "
-            "The file was either never uploaded or the link format did not match "
+            "Dangling sandbox link found in final text: '%s'. ci_ran=%s. "
+            "The file was either never generated or the link format did not match "
             "the expected pattern — replacing with per-file notice.",
             m.group(),
+            ci_ran,
         )
+        if not ci_ran:
+            return (
+                f"⚠️ The file *{filename}* was not generated. "
+                "Please ask me to create it."
+            )
         return f"⚠️ The file *{filename}* could not be retrieved. You can ask me to regenerate it."
 
     return _SANDBOX_MARKDOWN_LINK_RE.sub(_replacement, text), True

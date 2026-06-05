@@ -66,11 +66,6 @@ class FeatureFlags(BaseSettings):
         description="Enable new answers UI (UN-14411)",
     )
 
-    enable_elicitation_un_15809: FeatureFlag = Field(
-        default=FeatureFlag(False),
-        description="Enable elicitation (UN-15809)",
-    )
-
     enable_html_rendering_un_15131: FeatureFlag = Field(
         default=FeatureFlag(False),
         description="Enable HTML rendering for code interpreter files (UN-15131). Can be 'true' or comma-separated company IDs.",

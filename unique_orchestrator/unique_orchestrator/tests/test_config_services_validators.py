@@ -29,6 +29,45 @@ from unique_orchestrator.config import (
 )
 
 
+class TestUniqueAISpaceConfigModelSwitching:
+    def test_accepts_camel_case_model_switching_fields(self):
+        config = UniqueAISpaceConfig.model_validate(
+            {
+                "allowModelSwitching": True,
+                "switchableLanguageModels": [
+                    {
+                        "displayName": "GPT-4o",
+                        "languageModel": LanguageModelName.AZURE_GPT_4o_2024_1120,
+                    }
+                ],
+            }
+        )
+
+        assert config.allow_model_switching is True
+        assert len(config.switchable_language_models) == 1
+        assert config.switchable_language_models[0].display_name == "GPT-4o"
+        assert (
+            config.switchable_language_models[0].language_model.name
+            == LanguageModelName.AZURE_GPT_4o_2024_1120
+        )
+
+    @pytest.mark.ai
+    def test_defaults_absent_switchable_language_models_from_node_backend(self):
+        """Purpose: Verify omitted node-backend model-switching payloads parse.
+        Why this matters: Existing spaces can omit the new JSON field before it is configured.
+        Setup summary: Validate a payload without switchableLanguageModels and assert it defaults to [].
+        """
+        config = UniqueAIConfig.model_validate(
+            {
+                "space": {
+                    "allowModelSwitching": False,
+                },
+            }
+        )
+
+        assert config.space.switchable_language_models == []
+
+
 class TestUniqueAIServicesStockTickerConfigValidator:
     """Test suite for UniqueAIServices.check_if_stock_ticker_config_is_none validator"""
 

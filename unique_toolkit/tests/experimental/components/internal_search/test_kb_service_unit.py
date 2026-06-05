@@ -132,11 +132,15 @@ def test_effective_metadata_filter__unset_no_chat_uses_config_filter():
     """
     cfg = KnowledgeBaseInternalSearchConfig(
         scope_ids=None,
-        metadata_filter={"doc_type": "report"},
+        metadata_filter={"operator": "equals", "value": "report", "path": ["doc_type"]},
     )
     svc, _ = _make_service(config=cfg, chat_context=None)
 
-    assert svc._effective_metadata_filter == {"doc_type": "report"}
+    assert svc._effective_metadata_filter == {
+        "operator": "equals",
+        "value": "report",
+        "path": ["doc_type"],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -172,11 +176,15 @@ def test_config__keeps_existing_metadata_filter_when_scope_ids_are_present() -> 
     with pytest.deprecated_call(match="scope_ids"):
         cfg = KnowledgeBaseInternalSearchConfig(
             scope_ids=["kb-1"],
-            metadata_filter={"type": "policy"},
+            metadata_filter={"operator": "equals", "value": "policy", "path": ["type"]},
         )
 
     assert cfg.scope_ids == ["kb-1"]
-    assert cfg.metadata_filter == {"type": "policy"}
+    assert cfg.metadata_filter.to_dict() == {
+        "operator": "equals",
+        "value": "policy",
+        "path": ["type"],
+    }
 
 
 @pytest.mark.ai
@@ -211,7 +219,8 @@ async def test_search_single_query__uses_metadata_filter_when_no_scope_ids():
         called with metadata_filter.
     """
     cfg = KnowledgeBaseInternalSearchConfig(
-        scope_ids=None, metadata_filter={"type": "policy"}
+        scope_ids=None,
+        metadata_filter={"operator": "equals", "value": "policy", "path": ["type"]},
     )
     svc, mock_kb_svc = _make_service(config=cfg, chat_context=None)
     mock_kb_svc.search_content_chunks_async = AsyncMock(return_value=[])
@@ -219,7 +228,11 @@ async def test_search_single_query__uses_metadata_filter_when_no_scope_ids():
     await svc._search_single_query(query="policy question")
 
     call_kwargs = mock_kb_svc.search_content_chunks_async.call_args.kwargs
-    assert call_kwargs["metadata_filter"] == {"type": "policy"}
+    assert call_kwargs["metadata_filter"] == {
+        "operator": "equals",
+        "value": "policy",
+        "path": ["type"],
+    }
     assert "scope_ids" not in call_kwargs
 
 
@@ -233,7 +246,8 @@ async def test_search_single_query__includes_content_ids_with_metadata_filter():
         appear in the call kwargs.
     """
     cfg = KnowledgeBaseInternalSearchConfig(
-        scope_ids=None, metadata_filter={"type": "doc"}
+        scope_ids=None,
+        metadata_filter={"operator": "equals", "value": "doc", "path": ["type"]},
     )
     svc, mock_kb_svc = _make_service(config=cfg, chat_context=None)
     svc._state.content_ids = ["doc-1", "doc-2"]
@@ -242,7 +256,11 @@ async def test_search_single_query__includes_content_ids_with_metadata_filter():
     await svc._search_single_query(query="question")
 
     call_kwargs = mock_kb_svc.search_content_chunks_async.call_args.kwargs
-    assert call_kwargs["metadata_filter"] == {"type": "doc"}
+    assert call_kwargs["metadata_filter"] == {
+        "operator": "equals",
+        "value": "doc",
+        "path": ["type"],
+    }
     assert call_kwargs["content_ids"] == ["doc-1", "doc-2"]
 
 

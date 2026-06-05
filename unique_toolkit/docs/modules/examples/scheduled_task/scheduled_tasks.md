@@ -45,6 +45,8 @@ scheduled_tasks = ScheduledTasks.from_settings(settings)
 
 <!--
 ```{.python #scheduled_tasks_setup file=./docs/.python_files/scheduled_tasks_setup.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<scheduled_tasks_imports>>
 <<scheduled_tasks_setup_from_settings>>
@@ -90,6 +92,8 @@ continue an existing chat rather than starting a new one on every run.
 
 <!--
 ```{.python file=./docs/.python_files/scheduled_tasks_create_task.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<scheduled_tasks_imports>>
 <<scheduled_tasks_setup_from_settings>>
@@ -112,6 +116,8 @@ detail = scheduled_tasks.get(task_id=task.id)
 
 <!--
 ```{.python file=./docs/.python_files/scheduled_tasks_list_tasks.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<scheduled_tasks_imports>>
 <<scheduled_tasks_setup_from_settings>>
@@ -155,6 +161,8 @@ scheduled_tasks.update(
 
 <!--
 ```{.python file=./docs/.python_files/scheduled_tasks_update_task.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<scheduled_tasks_imports>>
 <<scheduled_tasks_setup_from_settings>>
@@ -176,6 +184,8 @@ assert ack.deleted is True
 
 <!--
 ```{.python file=./docs/.python_files/scheduled_tasks_delete_task.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<scheduled_tasks_imports>>
 <<scheduled_tasks_setup_from_settings>>
@@ -202,6 +212,8 @@ await scheduled_tasks.delete_async(task_id=task.id)
 
 <!--
 ```{.python file=./docs/.python_files/scheduled_tasks_async.py}
+<<example-script-deps>>
+
 import asyncio
 
 <<common_imports>>

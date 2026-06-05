@@ -7,6 +7,7 @@ from unique_toolkit.content.smart_rules import (
     OrStatement,
     Statement,
     UniqueQL,
+    UniqueQLField,
     array_operator,
     binary_operator,
     calculate_current_date,
@@ -19,9 +20,11 @@ from unique_toolkit.content.smart_rules import (
     is_array_of_strings,
     null_operator,
     parse_uniqueql,
+    parse_uniqueql_input,
     replace_tool_parameters_patterns,
     replace_user_metadata_patterns,
     replace_variables,
+    uniqueql_to_dict,
 )
 
 warnings.warn(
@@ -38,6 +41,7 @@ __all__ = [
     "OrStatement",
     "Statement",
     "UniqueQL",
+    "UniqueQLField",
     "array_operator",
     "binary_operator",
     "calculate_current_date",
@@ -50,7 +54,9 @@ __all__ = [
     "is_array_of_strings",
     "null_operator",
     "parse_uniqueql",
+    "parse_uniqueql_input",
     "replace_tool_parameters_patterns",
     "replace_user_metadata_patterns",
     "replace_variables",
+    "uniqueql_to_dict",
 ]

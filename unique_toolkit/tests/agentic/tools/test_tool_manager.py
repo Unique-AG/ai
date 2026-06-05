@@ -1831,6 +1831,145 @@ async def test_tool_manager__execute_selected_tools__handles_exceptions(
 
 
 @pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_selected_tools__returns_conflict_error_for_take_control_in_batch(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify that when a take-control tool is called alongside other tools in the same
+        batch, execute_selected_tools refuses to run any of them and returns a conflict
+        error response for every call.
+    Why this matters: A take-control tool ends the orchestrator loop by writing the final
+        assistant message itself. Running it in parallel with other tools would race —
+        either the others' output is lost (the loop ended) or the assistant message gets
+        clobbered. The toolkit prevents that by short-circuiting the whole batch and
+        feeding the LLM a recovery hint.
+    Setup summary: Register a control_tool + mock_tool, build a tool call list containing
+        both, and assert both responses are conflict errors that name the take-control tool.
+    """
+    # Arrange
+    tool_configs = [
+        ToolBuildConfig(
+            name="control_tool",
+            configuration=MockToolConfig(),
+            display_name="Control Tool",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id="call_control",
+            name="control_tool",
+            arguments={"query": "ctrl"},
+        ),
+        LanguageModelFunction(
+            id="call_mock",
+            name="mock_tool",
+            arguments={"query": "other"},
+        ),
+    ]
+
+    # Act
+    responses = await tool_manager.execute_selected_tools(tool_calls)
+
+    # Assert
+    assert len(responses) == 2
+    by_id = {r.id: r for r in responses}
+
+    control_response = by_id["call_control"]
+    assert "control_tool" in control_response.content
+    # The control tool gets the "called on its own" hint
+    assert (
+        "alone" in control_response.content or "on its own" in control_response.content
+    )
+
+    other_response = by_id["call_mock"]
+    # The other tool gets a "not executed because of X" hint that names control_tool
+    assert "control_tool" in other_response.content
+    assert "Not executed" in other_response.content
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_selected_tools__runs_take_control_tool_alone(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify a take-control tool runs normally when it's the only call in the batch.
+    Why this matters: The conflict guard must only fire when there are siblings; a solo
+        take-control call is the supported happy path and must execute without interference.
+    Setup summary: Register a control_tool, submit it as the only tool call, assert the
+        successful tool response comes through (not a conflict error).
+    """
+    # Arrange
+    tool_configs = [
+        ToolBuildConfig(
+            name="control_tool",
+            configuration=MockToolConfig(),
+            display_name="Control Tool",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id="call_control",
+            name="control_tool",
+            arguments={"query": "ctrl"},
+        ),
+    ]
+
+    # Act
+    responses = await tool_manager.execute_selected_tools(tool_calls)
+
+    # Assert
+    assert len(responses) == 1
+    assert responses[0].id == "call_control"
+    # MockControlTool.run returns "Control response" — not a conflict error.
+    assert responses[0].content == "Control response"
+
+
+@pytest.mark.ai
 def test_responses_api_tool_manager__get_tool_by_name__can_return_builtin(
     logger,
     base_event,

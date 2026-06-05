@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.22.0...unique-toolkit-v2026.24.0) (2026-06-04)
+
+
+### Features
+
+* Enable model picking ([#1735](https://github.com/Unique-AG/ai/issues/1735)) ([753eab5](https://github.com/Unique-AG/ai/commit/753eab56adc3097c269b5c62da4bd2e09d7f871f))
+* **feature-flags:** add get_feature_flag_client / is_flag_enabled helpers (UN-20510) ([#1768](https://github.com/Unique-AG/ai/issues/1768)) ([def94ee](https://github.com/Unique-AG/ai/commit/def94ee621c79dc3c06d253980618f89ce6de23a))
+* **kb-config:** replace loose metadata_filter type with validated UniqueQLDict ([#1696](https://github.com/Unique-AG/ai/issues/1696)) ([0915be3](https://github.com/Unique-AG/ai/commit/0915be3f1d263d87f7e873d1494b83ae61ada093))
+* **unique_toolkit:** multiprocess-aware metrics + python_ prefix rename (UN-19849) ([#1652](https://github.com/Unique-AG/ai/issues/1652)) ([3a1b762](https://github.com/Unique-AG/ai/commit/3a1b762907dc054d7475b94712df10c08efcd256))
+* **unique-toolkit:** add FeatureFlagClient to experimental/resources (UN-20510) ([#1715](https://github.com/Unique-AG/ai/issues/1715)) ([4601a4d](https://github.com/Unique-AG/ai/commit/4601a4dfd750bc2e45cf2354164d8ff3c5e2bb0d))
+* **unique-toolkit:** allow sub-agents to take orchestrator control ([#1737](https://github.com/Unique-AG/ai/issues/1737)) ([cd711ce](https://github.com/Unique-AG/ai/commit/cd711ced727dc1f1c3440274c141da4b24337ad7))
+* **unique-toolkit:** UN-20677 runnable doc examples via uv ([#1742](https://github.com/Unique-AG/ai/issues/1742)) ([7c7e058](https://github.com/Unique-AG/ai/commit/7c7e058575b10084233fa17249ec69c6580796ce))
+
+
+### Bug Fixes
+
+* **code-interpreter:** prevent Plotly header overlap in HTML artifacts (UN-21182) ([#1749](https://github.com/Unique-AG/ai/issues/1749)) ([d77ccce](https://github.com/Unique-AG/ai/commit/d77ccce92e4f0a42273dd65c0a59a8cacc3e4540))
+* **deps:** resolve open Dependabot alerts via constraint-dependencies ([#1751](https://github.com/Unique-AG/ai/issues/1751)) ([f92b9f5](https://github.com/Unique-AG/ai/commit/f92b9f5d1c9d2145316d2bf1f9b91b8b359c2324))
+* **short-term-memory:** return None instead of crashing on empty SDK response ([#1730](https://github.com/Unique-AG/ai/issues/1730)) ([3fa5bc0](https://github.com/Unique-AG/ai/commit/3fa5bc0e33d50dca26792eed5652409d695a03e7))
+* **toolkit:** clarify code interpreter dangling-link UX (UN-21188) ([#1750](https://github.com/Unique-AG/ai/issues/1750)) ([9f4b836](https://github.com/Unique-AG/ai/commit/9f4b83671a522a93ae2ecfa9ea94da2671996e11))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.20.0...unique-toolkit-v2026.22.0) (2026-05-21)
+
+
+### Features
+
+* **toolkit:** Adopt settings to better manage hardcoded values ([#1626](https://github.com/Unique-AG/ai/issues/1626)) ([ebdb018](https://github.com/Unique-AG/ai/commit/ebdb018e9ff2c5f874d9d28d715ba14de142466b))
+* **unique_toolkit:** Add display of code interpreter files to the co… ([#1665](https://github.com/Unique-AG/ai/issues/1665)) ([4d661da](https://github.com/Unique-AG/ai/commit/4d661dabb0269061b3833c36872ff70e9de49fd0))
+* **unique-skill-tool:** add optional thinking level to skills ([#1692](https://github.com/Unique-AG/ai/issues/1692)) ([9aad730](https://github.com/Unique-AG/ai/commit/9aad730ac739bdd6f48a10c2f29fb602a052fab6))
+* **web-search:** Expose query elicitation ([#1721](https://github.com/Unique-AG/ai/issues/1721)) ([3307b52](https://github.com/Unique-AG/ai/commit/3307b5245ea5579546e5b6162fa50b8be9ac70b3))
+
+
+### Bug Fixes
+
+* **toolkit:** add enable_html_with_fence_un_17927 FF to opt in to htmlWithSource for HTML files (UN-17927) ([#1695](https://github.com/Unique-AG/ai/issues/1695)) ([60b129a](https://github.com/Unique-AG/ai/commit/60b129ab1a31466fb17b4db031356f927268640c))
+* **toolkit:** Add model config to camelize language model token limits attributes ([#1684](https://github.com/Unique-AG/ai/issues/1684)) ([522f29f](https://github.com/Unique-AG/ai/commit/522f29f9d760818f18d92bd963d534b98b1a5739))
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([b8c35b4](https://github.com/Unique-AG/ai/commit/b8c35b41466ab23165ccde8e1bd6b5dc4a0f1c62))
+* **unique-toolkit:** adding skill as capability ([#1705](https://github.com/Unique-AG/ai/issues/1705)) ([3167e86](https://github.com/Unique-AG/ai/commit/3167e86080dc88d71a5f5053305a05f5be7910b0))
+* **unique-toolkit:** adding skill as capability ([#1707](https://github.com/Unique-AG/ai/issues/1707)) ([cab4d9e](https://github.com/Unique-AG/ai/commit/cab4d9efe8cf50c1199dee1fe346a0e3b004cbfc))
+* **unique-toolkit:** enable chatupload of dotx ([#1709](https://github.com/Unique-AG/ai/issues/1709)) ([525c030](https://github.com/Unique-AG/ai/commit/525c030cbcaded2af463979997a24241672368f2))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.18.0...unique-toolkit-v2026.20.0) (2026-05-08)
 
 

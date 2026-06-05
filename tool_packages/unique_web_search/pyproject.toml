@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "2026.22.0.dev1"
+version = "2026.24.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -23,7 +23,7 @@ dependencies = [
     "unidecode>=1.4.0,<2",
     "azure-ai-projects>=1.0.0,<2",
     "azure-identity>=1.25.0,<2",
-    "unique-toolkit[monitoring]>=2026.22.0.dev1,<2026.22.0rc0",
+    "unique-toolkit[monitoring]>=2026.24.0",
     "azure-core>=1.36.0,<2",
     "google-cloud-aiplatform>=1.128.0,<2",
     "google-auth>=2.43.0,<3",
@@ -33,6 +33,9 @@ dependencies = [
     "certifi>=2025.11.12",
     "jinja2>=3.1.6",
     "playwright>=1.58.0",
+    "perplexityai>=0.34.0",
+    "unique-search-proxy-core>=2026.24.0",
+    "unique-search-proxy-sdk>=2026.24.0",
 ]
 
 [build-system]
@@ -90,3 +93,5 @@ extend-select = ["I"]
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }
+unique-search-proxy-sdk = { workspace = true }
+unique-search-proxy-core = { workspace = true }

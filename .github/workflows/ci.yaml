@@ -73,6 +73,26 @@ jobs:
       changes: ${{ needs.detect-changes.outputs.changes }}
       matrix: ${{ needs.detect-changes.outputs.matrix }}
 
+  containerize:
+    name: Containerize
+    needs: detect-changes
+    uses: ./.github/workflows/ci-containerize.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
+
+  helm-lint:
+    name: Helm Lint
+    needs: detect-changes
+    uses: ./.github/workflows/ci-helm-lint.yaml
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: read
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
+
   config:
     name: Config Compatibility Check
     uses: ./.github/workflows/ci-config-check.yaml
@@ -100,7 +120,7 @@ jobs:
 
   status:
     name: Gatekeeper
-    needs: [detect-changes, lint, test, types, coverage, deps, config, pr-title, no-manual-release]
+    needs: [detect-changes, lint, test, types, coverage, deps, containerize, helm-lint, config, pr-title, no-manual-release]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -115,6 +135,8 @@ jobs:
           TYPES: ${{ needs.types.result }}
           COVERAGE: ${{ needs.coverage.result }}
           DEPS: ${{ needs.deps.result }}
+          CONTAINERIZE: ${{ needs.containerize.result }}
+          HELM_LINT: ${{ needs.helm-lint.result }}
           CONFIG: ${{ needs.config.result }}
           PR_TITLE: ${{ needs.pr-title.result }}
           NO_MANUAL_RELEASE: ${{ needs.no-manual-release.result }}
@@ -126,6 +148,8 @@ jobs:
           echo "types: $TYPES"
           echo "coverage: $COVERAGE"
           echo "deps: $DEPS"
+          echo "containerize: $CONTAINERIZE"
+          echo "helm-lint: $HELM_LINT"
           echo "config: $CONFIG"
           echo "pr-title: $PR_TITLE"
           echo "no-manual-release: $NO_MANUAL_RELEASE"
@@ -135,7 +159,7 @@ jobs:
 
           # Required checks (skipped is OK for when no packages changed or merge_group).
           # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE"; do
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "containerize:$CONTAINERIZE" "helm-lint:$HELM_LINT" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then

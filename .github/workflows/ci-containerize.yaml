@@ -1,0 +1,105 @@
+name: "[CI] Containerize"
+
+on:
+  workflow_call:
+    inputs:
+      changes:
+        description: 'Pre-computed changes JSON from ci.yaml (skips detection when set)'
+        required: false
+        type: string
+        default: ''
+      matrix:
+        description: 'Pre-computed matrix JSON from ci.yaml (skips select-packages when set)'
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to containerize (leave empty for auto-detect based on changes)'
+        type: choice
+        options:
+          - ''
+          - all
+          - search_proxy
+        default: ''
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: inputs.matrix == ''
+
+      - uses: ./.github/actions/detect-changes
+        if: inputs.matrix == ''
+        id: detect
+
+      - uses: ./.github/actions/get-packages-matrix
+        if: inputs.matrix == ''
+        id: pkgs
+
+      - name: Select packages
+        if: inputs.matrix == ''
+        id: select
+        uses: ./.github/actions/select-packages
+        with:
+          packages: ${{ steps.pkgs.outputs.packages }}
+          selected: ${{ github.event.inputs.package }}
+          changes: ${{ inputs.changes || steps.detect.outputs.changes }}
+
+      - name: Filter containerized packages
+        id: filter
+        env:
+          RAW_MATRIX: ${{ inputs.matrix || steps.select.outputs.matrix }}
+        run: |
+          MATRIX=$(jq -c '{include: [.include[]? | select(.containerize == true)]}' <<<"$RAW_MATRIX")
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  containerize:
+    needs: prepare
+    if: fromJson(needs.prepare.outputs.matrix).include[0] != null
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    name: containerize-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Build wheels from source
+        id: wheels
+        run: |
+          DEPLOY_DIR="${{ github.workspace }}/${{ matrix.dir }}/deploy"
+          mkdir -p "$DEPLOY_DIR"
+          if [[ "${{ matrix.id }}" == "search_proxy" ]]; then
+            uv build --wheel --package unique-search-proxy-core --out-dir "$DEPLOY_DIR"
+            uv build --wheel --package unique-search-proxy --out-dir "$DEPLOY_DIR"
+            echo "core=$(basename "$DEPLOY_DIR"/unique_search_proxy_core-*.whl)" >> "$GITHUB_OUTPUT"
+            echo "client=$(basename "$DEPLOY_DIR"/unique_search_proxy-*.whl)" >> "$GITHUB_OUTPUT"
+          else
+            uv build --wheel --directory "${{ matrix.dir }}" --out-dir "$DEPLOY_DIR"
+            echo "name=$(basename "$(ls "$DEPLOY_DIR"/*.whl | head -n1)")" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup docker buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Build container (no push)
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          build-args: |
+            LOCAL_WHEEL_CORE=${{ steps.wheels.outputs.core }}
+            LOCAL_WHEEL_CLIENT=${{ steps.wheels.outputs.client }}
+            LOCAL_WHEEL=${{ steps.wheels.outputs.name }}
+          context: ${{ matrix.dir }}/deploy
+          file: ${{ matrix.dir }}/deploy/Dockerfile
+          platforms: linux/amd64
+          push: false

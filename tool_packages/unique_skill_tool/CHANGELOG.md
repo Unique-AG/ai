@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.22.0...unique-skill-tool-v2026.24.0) (2026-06-04)
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.20.0...unique-skill-tool-v2026.22.0) (2026-05-21)
+
+
+### Features
+
+* **unique-skill-tool:** add optional thinking level to skills ([#1692](https://github.com/Unique-AG/ai/issues/1692)) ([9aad730](https://github.com/Unique-AG/ai/commit/9aad730ac739bdd6f48a10c2f29fb602a052fab6))
+* **unique-skill-tool:** load skill by content_id and not name  ([#1698](https://github.com/Unique-AG/ai/issues/1698)) ([926554e](https://github.com/Unique-AG/ai/commit/926554e5046457a46a42c4e8a129f7d0ad0b36fb))
+
+
+### Bug Fixes
+
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([b8c35b4](https://github.com/Unique-AG/ai/commit/b8c35b41466ab23165ccde8e1bd6b5dc4a0f1c62))
+* **unique-toolkit:** adding skill as capability ([#1707](https://github.com/Unique-AG/ai/issues/1707)) ([cab4d9e](https://github.com/Unique-AG/ai/commit/cab4d9efe8cf50c1199dee1fe346a0e3b004cbfc))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
 ## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.18.0...unique-skill-tool-v2026.20.0) (2026-05-08)
 
 
