@@ -103,6 +103,17 @@ pdb:
 networkPolicy:
   enabled: false
 
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumeMounts:
+  - mountPath: /tmp
+    name: tmp-volume
+
+volumes:
+  - emptyDir:
+      sizeLimit: 5Gi
+    name: tmp-volume
+
+
 # ── WorkloadIdentity (GCP, Vertex AI) ─────────────────────────────────────────
 # Vertex AI backend authenticates via GCP Workload Identity Federation; base
 # sets GOOGLE_APPLICATION_CREDENTIALS for the SDK. Enable and fill the
@@ -118,4 +129,4 @@ workloadIdentity:
 
 # ── Prometheus ────────────────────────────────────────────────────────────────
 prometheus:
-  enabled: false
+  enabled: true
