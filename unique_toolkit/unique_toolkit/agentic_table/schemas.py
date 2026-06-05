@@ -164,6 +164,13 @@ class MagicTableGenerateArtifactPayload(
     MagicTableBasePayload[Literal[MagicTableAction.GENERATE_ARTIFACT], BaseMetadata]
 ):
     data: ArtifactData
+    requested_by_user_id: str | None = Field(
+        default=None,
+        description=(
+            "User who initiated the export when the event top-level user_id is the "
+            "sheet owner (set by node-chat as requestedByUserId)."
+        ),
+    )
 
 
 ########## Sheet Completed Payload ##########
