@@ -172,6 +172,52 @@ class TestCmdRead:
             where={"id": {"equals": "cont_abc123"}},
         )
 
+    def test_read_outside_workspace_blocked(self, state: ShellState) -> None:
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        output = cmd_read(state, "cont_abc123")
+        assert is_error_output(output)
+        assert "permission denied" in output
+
+    @patch("unique_sdk.Content.get_info")
+    def test_read_content_id_outside_workspace_blocked(
+        self, mock_info: MagicMock, state: ShellState
+    ) -> None:
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_other_tenant"}]}
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        output = cmd_read(state, "cont_outside")
+        assert is_error_output(output)
+        assert "permission denied" in output
+
+    @patch("unique_sdk.cli.commands.read.unique_sdk.Content.search")
+    @patch("unique_sdk.Content.get_info")
+    def test_read_content_id_within_workspace_allowed(
+        self,
+        mock_info: MagicMock,
+        mock_search: MagicMock,
+        state: ShellState,
+    ) -> None:
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_ws"}]}
+        content = _make_content(
+            cont_id="cont_inside",
+            chunks=[
+                {
+                    "id": "ch1",
+                    "text": "Allowed text.",
+                    "order": 1,
+                    "startPage": None,
+                    "endPage": None,
+                }
+            ],
+        )
+        mock_search.return_value = [content]
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        output = cmd_read(state, "cont_inside")
+        assert "permission denied" not in output
+        assert "Allowed text." in output
+
 
 class TestIsErrorOutput:
     def test_error_string(self) -> None:

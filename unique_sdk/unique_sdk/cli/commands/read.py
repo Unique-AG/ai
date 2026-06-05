@@ -31,6 +31,12 @@ def cmd_read(state: ShellState, cont_id: str) -> str:
     if not cont_id.startswith("cont_"):
         return f"{READ_ERROR_PREFIX} expected a content ID starting with 'cont_', got: {cont_id!r}"
 
+    # Enforce the same .unique-search.json workspace boundary as search/ls/rm.
+    # Content.search has no scopeIds param, so we guard by owner scope before
+    # the point-lookup — matching rm/mv, not search's API-level scopeIds filter.
+    if not state.is_content_within_workspace(cont_id):
+        return f"{READ_ERROR_PREFIX} permission denied (outside workspace scope)"
+
     try:
         results = unique_sdk.Content.search(
             user_id=state.config.user_id,

@@ -59,6 +59,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --folder <path|id>        Restrict to a folder
         --metadata <key=value>    Filter by metadata (repeatable)
         --limit <N>               Max results (default: 200)
+      read <cont_id>            Read all indexed text chunks for a content ID
 
     MCP:
       mcp [options] <json>      Call an MCP server tool
