@@ -59,6 +59,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --folder <path|id>        Restrict to a folder
         --metadata <key=value>    Filter by metadata (repeatable)
         --limit <N>               Max results (default: 200)
+      read <cont_id>            Read all indexed text chunks for a content ID
 
     MCP:
       mcp [options] <json>      Call an MCP server tool
@@ -393,6 +394,28 @@ class UniqueShell(cmd.Cmd):
             self._print("Usage: cite <name|content_id> [--pages RANGE]")
             return
         self._print(cmd_cite_file(self.state, positional[0], pages))
+
+    def do_read(self, arg: str) -> None:
+        """Read all indexed text chunks for a known content ID.
+
+        Usage: read <cont_id>
+
+        Retrieves every indexed chunk for the document directly from the
+        database — no vector search, no query string needed.
+
+        Use `search` to find documents by topic; use `read` once you have
+        the content ID and want the full text.
+
+        Examples:
+          /Reports> read cont_abc123
+        """
+        from unique_sdk.cli.commands.read import cmd_read
+
+        parts = shlex.split(arg)
+        if not parts:
+            self._print("Usage: read <cont_id>")
+            return
+        self._print(cmd_read(self.state, parts[0]))
 
     def do_rm(self, arg: str) -> None:
         """Delete a file.
