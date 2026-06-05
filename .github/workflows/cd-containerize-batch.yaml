@@ -28,6 +28,11 @@ on:
         required: false
         type: boolean
         default: false
+      ref:
+        description: 'Git ref to build from (branch, tag, or full SHA). Must match the ref used by the publish job. Defaults to the workflow trigger ref.'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -72,3 +77,4 @@ jobs:
       version: ${{ matrix.version }}
       tag_latest: ${{ inputs.tag_latest }}
       python: ${{ matrix.python }}
+      ref: ${{ inputs.ref }}
