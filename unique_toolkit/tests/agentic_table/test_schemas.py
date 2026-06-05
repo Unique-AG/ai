@@ -141,6 +141,22 @@ class TestMagicTableGenerateArtifactPayload:
         )
         assert payload.data.artifact_type == ArtifactType.FULL_REPORT
 
+    def test_generate_artifact_payload_requested_by_user_id_from_camel_case(self):
+        payload = MagicTableGenerateArtifactPayload.model_validate(
+            {
+                "name": "test_module",
+                "sheetName": "test_sheet",
+                "action": MagicTableAction.GENERATE_ARTIFACT,
+                "chatId": "chat_123",
+                "assistantId": "assistant_123",
+                "tableId": "table_123",
+                "metadata": {},
+                "data": {"artifactType": ArtifactType.AGENTIC_REPORT},
+                "requestedByUserId": "answer-360",
+            }
+        )
+        assert payload.requested_by_user_id == "answer-360"
+
     def test_generate_artifact_payload_serialization_agentic_report(self):
         """Test payload serialization with AGENTIC_REPORT maintains type."""
         payload = MagicTableGenerateArtifactPayload(
