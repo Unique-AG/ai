@@ -6,6 +6,8 @@ description: >-
   as clickable reference chips and `<sup>N</sup>` footnotes on the Unique
   platform. Use whenever the user asks to find, search, or query documents
   or content on Unique, including filtering by folder or metadata.
+  Also covers `unique-cli read <cont_id>` for reading the full indexed text
+  of a document when its content ID is already known.
   NOTE: This search uses combined vector + full-text indexing. Excel
   (.xlsx/.xls), CSV (.csv), and image files are NOT full-text indexed,
   so they will not appear in search results. To locate these file types,
@@ -13,7 +15,18 @@ description: >-
   `unique-cli ls` to find them by name).
 ---
 
-# Unique CLI -- Knowledge Base Search
+# Unique CLI -- Knowledge Base Search & Document Read
+
+## `search` vs `read` — which command to use
+
+| Situation | Command |
+|-----------|---------|
+| You have a **query or topic** and want to find relevant chunks across documents | `unique-cli search "<query>"` |
+| You already have a **`cont_*` ID** and want the **full indexed text** of that document | `unique-cli read <cont_id>` |
+
+Use `read` after a `ls` or `search` surfaces a content ID and you need to go deeper into that specific document — it retrieves every chunk directly from the database with no query needed. Use `search` for discovery.
+
+---
 
 Search the Unique knowledge base using combined vector + full-text search via the `unique-cli search` command. Every invocation wraps each result in a `<sourceN>...</sourceN>` block and records a per-turn citation manifest at `.unique/kb-search-refs.jsonl`, so any fact you cite as `[sourceN]` is rendered with a footnote and a clickable reference chip in the chat UI.
 
@@ -130,6 +143,32 @@ unique-cli search "Q4 earnings" \
   --metadata year=2025 \
   --limit 100
 ```
+
+## Reading a Document by ID (`read`)
+
+When you already know a `cont_*` ID, use `read` to retrieve every indexed chunk in one call:
+
+```bash
+unique-cli read cont_abc123
+```
+
+Output:
+
+```
+Content: annual-report.pdf (cont_abc123) — 42 chunk(s)
+
+[p.1] The company was founded in 1998 with a focus on...
+
+[p.2-3] Revenue grew 15% year over year, driven by...
+
+[p.4] Key risks include supply chain disruptions...
+```
+
+Each paragraph is one indexed chunk, prefixed with its page range when available.
+
+**When chunks are empty:** if the document was just uploaded and ingestion hasn't finished, `read` returns a message saying so — retry after a short wait.
+
+**`read` does not produce `[sourceN]` citations.** It is for reading and understanding document content. If you need to cite specific facts in your answer, run `unique-cli search "<relevant query>"` against the same document's folder to generate proper `[sourceN]` references.
 
 ## Prerequisites
 

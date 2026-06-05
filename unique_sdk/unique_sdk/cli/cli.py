@@ -20,6 +20,10 @@ from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.read import cmd_read
+from unique_sdk.cli.commands.read import (
+    is_error_output as _is_read_error_output,
+)
 from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_create,
     cmd_schedule_delete,
@@ -327,6 +331,32 @@ def cite(
       unique-cli cite cont_abc123 --pages 1-4
     """
     click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
+
+
+@main.command(name="read")
+@click.argument("cont_id")
+@click.pass_context
+def read_cmd(ctx: click.Context, cont_id: str) -> None:
+    """Read all indexed text chunks for a known content ID.
+
+    \b
+    CONT_ID must be a content ID (cont_...) obtained from a prior `ls` or
+    `search` result. Retrieves every indexed chunk directly from the database
+    — no vector search, no query string needed.
+
+    \b
+    Use `search` when you need to find documents by topic or keyword.
+    Use `read` when you already know the content ID and want the full text.
+
+    \b
+    Examples:
+      unique-cli read cont_abc123
+    """
+    output = cmd_read(LazyState.get(ctx), cont_id)
+    if _is_read_error_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()
