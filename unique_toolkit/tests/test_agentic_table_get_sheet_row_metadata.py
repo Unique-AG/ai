@@ -172,3 +172,43 @@ async def test_get_sheet_does_not_forward_include_row_metadata_when_disabled() -
     assert len(batch_kwargs) == 1
     assert "includeRowMetadata" not in batch_kwargs[0]
     get_cell.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_forwards_scope_to_assigned_rows_on_count_and_batch() -> None:
+    header = _minimal_sheet_header()
+    batch = {
+        **_minimal_sheet_header(),
+        "magicTableCells": [_cell(0, 0)],
+    }
+
+    async def fake_get_sheet_data(
+        *_args: object,
+        **kwargs: object,
+    ) -> dict:
+        if kwargs.get("includeCells") is False:
+            return header
+        return batch
+
+    svc = AgenticTableService("user-1", "company-1", "table-1")
+    with patch(
+        "unique_toolkit.agentic_table.service.AgenticTable.get_sheet_data",
+        new_callable=AsyncMock,
+        side_effect=fake_get_sheet_data,
+    ) as gsm:
+        await svc.get_sheet(
+            start_row=0,
+            end_row=1,
+            scope_to_assigned_rows=True,
+        )
+
+    count_kwargs = [
+        c.kwargs for c in gsm.await_args_list if c.kwargs.get("includeRowCount")
+    ]
+    batch_kwargs = [
+        c.kwargs for c in gsm.await_args_list if c.kwargs.get("includeCells")
+    ]
+    assert len(count_kwargs) == 1
+    assert count_kwargs[0].get("scopeToAssignedRows") is True
+    assert len(batch_kwargs) == 1
+    assert batch_kwargs[0].get("scopeToAssignedRows") is True
