@@ -326,6 +326,7 @@ jobs:
       publish_matrix: ${{ needs.resolve.outputs.matrix }}
       versions: ${{ needs.resolve.outputs.new_versions }}
       tag_latest: false
+      ref: ${{ needs.resolve.outputs.cut_sha }}
 
   helm-publish:
     # Publish rc Helm charts after the container images exist, so each chart's

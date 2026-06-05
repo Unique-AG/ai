@@ -75,6 +75,7 @@ jobs:
       all_current_versions: ${{ steps.resolve_versions.outputs.all_current_versions }}
       branch_suffix: ${{ steps.resolve_versions.outputs.branch_suffix }}
       cycle: ${{ steps.calver.outputs.cycle }}
+      cut_sha: ${{ github.sha }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -285,6 +286,7 @@ jobs:
       publish_matrix: ${{ needs.resolve.outputs.matrix }}
       versions: ${{ needs.resolve.outputs.new_versions }}
       tag_latest: false
+      ref: ${{ needs.resolve.outputs.cut_sha }}
 
   helm-publish:
     # Publish dev Helm charts after the container images exist, so each chart's
