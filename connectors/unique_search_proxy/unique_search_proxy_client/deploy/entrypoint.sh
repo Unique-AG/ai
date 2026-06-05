@@ -17,7 +17,7 @@ if [ "${WORKERS}" -gt 1 ]; then
 fi
 
 echo "=========================================="
-echo "    Search Proxy - Starting Application   "
+echo "    Search Proxy - Starting Application...   "
 echo "=========================================="
 echo "Host: ${HOST}"
 echo "Port: ${PORT}"
