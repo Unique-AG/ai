@@ -17,7 +17,6 @@ if [ "${WORKERS}" -gt 1 ]; then
 fi
 
 echo "=========================================="
-echo "            🧪 EXPERIMENTAL 🧪            "
 echo "    Search Proxy - Starting Application   "
 echo "=========================================="
 echo "Host: ${HOST}"
