@@ -44,11 +44,15 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
       - name: Export hash-pinned requirements
-        run: >
-          uv export --frozen
-          --package ${{ inputs.pypi_name }}
-          --no-dev --no-emit-project
-          -o ${{ inputs.package_dir }}/deploy/requirements.txt
+        run: |
+          uv export --frozen \
+            --package ${{ inputs.pypi_name }} \
+            --no-dev --no-emit-project \
+            -o ${{ inputs.package_dir }}/deploy/requirements.txt
+          # Workspace members export as local editable paths (-e ./...) which pip
+          # cannot resolve inside a Docker build context. Strip them here; the main
+          # package install below will pull them from PyPI as regular dependencies.
+          sed -i '/^-e /d' "${{ inputs.package_dir }}/deploy/requirements.txt"
 
       - name: Wait for PyPI to publish package
         run: |
