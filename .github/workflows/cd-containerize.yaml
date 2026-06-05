@@ -48,6 +48,7 @@ jobs:
           uv export --frozen
           --package ${{ inputs.pypi_name }}
           --no-dev --no-emit-project
+          --no-sources
           -o ${{ inputs.package_dir }}/deploy/requirements.txt
 
       - name: Wait for PyPI to publish package
