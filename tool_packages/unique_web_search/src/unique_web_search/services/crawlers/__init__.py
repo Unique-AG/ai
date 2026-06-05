@@ -9,6 +9,10 @@ from unique_web_search.services.crawlers.basic import (
     BasicCrawler,
     BasicCrawlerConfig,
 )
+from unique_web_search.services.crawlers.basic_proxy import (
+    BasicCrawlerProxyConfig,
+    BasicProxyCrawler,
+)
 from unique_web_search.services.crawlers.crawl4ai import (
     Crawl4AiCrawler,
     Crawl4AiCrawlerConfig,
@@ -27,11 +31,17 @@ from unique_web_search.services.crawlers.tavily import (
 )
 
 CrawlerTypes = (
-    BasicCrawler | Crawl4AiCrawler | FirecrawlCrawler | JinaCrawler | TavilyCrawler
+    BasicCrawler
+    | BasicProxyCrawler
+    | Crawl4AiCrawler
+    | FirecrawlCrawler
+    | JinaCrawler
+    | TavilyCrawler
 )
 
 CrawlerConfigTypes = (
     BasicCrawlerConfig
+    | BasicCrawlerProxyConfig
     | Crawl4AiCrawlerConfig
     | FirecrawlCrawlerConfig
     | JinaCrawlerConfig
@@ -44,6 +54,7 @@ CRAWLER_NAME_TO_CONFIG = {
     "firecrawl": FirecrawlCrawlerConfig,
     "jina": JinaCrawlerConfig,
     "tavily": TavilyCrawlerConfig,
+    "basic_proxy": BasicCrawlerProxyConfig,
 }
 
 
@@ -61,6 +72,8 @@ def get_crawler_service(
             return FirecrawlCrawler(crawler_config)
         case CrawlerType.JINA:
             return JinaCrawler(crawler_config)
+        case CrawlerType.BASIC_PROXY:
+            return BasicProxyCrawler(crawler_config)
 
 
 def get_crawler_config_types_from_names(crawler_names: list[str]) -> TypeAlias:
@@ -90,6 +103,8 @@ def get_default_crawler_config(
 __all__ = [
     "BasicCrawler",
     "BasicCrawlerConfig",
+    "BasicProxyCrawler",
+    "BasicCrawlerProxyConfig",
     "Crawl4AiCrawler",
     "Crawl4AiCrawlerConfig",
     "FirecrawlCrawler",

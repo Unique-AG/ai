@@ -34,6 +34,8 @@ on:
           - quartr
           - six
           - search_proxy
+          - search_proxy_core
+          - search_proxy_sdk
         default: ''
 
 jobs:
@@ -81,3 +83,4 @@ jobs:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
           extras: ${{ matrix.extras }}
+          test_args: ${{ matrix.min_deps_test_args || matrix.test_args }}

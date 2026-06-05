@@ -34,6 +34,8 @@ dependencies = [
     "jinja2>=3.1.6",
     "playwright>=1.58.0",
     "perplexityai>=0.34.0",
+    "unique-search-proxy-core>=2026.24.0",
+    "unique-search-proxy-sdk>=2026.24.0",
 ]
 
 [build-system]
@@ -91,3 +93,5 @@ extend-select = ["I"]
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }
+unique-search-proxy-sdk = { workspace = true }
+unique-search-proxy-core = { workspace = true }
