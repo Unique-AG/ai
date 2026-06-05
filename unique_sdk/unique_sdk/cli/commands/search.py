@@ -31,6 +31,13 @@ DEFAULT_LIMIT = 200
 
 SEARCH_ERROR_PREFIX = "search:"
 
+# Search types accepted by the platform ``/search/search`` endpoint
+# (mirrors ``unique_sdk.Search.CreateParams.searchType``). Exposed via the
+# CLI ``--search-type`` flag so callers can pick the backend explicitly —
+# e.g. POSTGRES_FULL_TEXT to sweep a document's stored text chunks straight
+# from the Postgres FTS index, bypassing Qdrant/vector embedding entirely.
+VALID_SEARCH_TYPES = ("VECTOR", "COMBINED", "FULL_TEXT", "POSTGRES_FULL_TEXT")
+
 _REFS_LOG_RELATIVE_PATH = Path(".unique") / "kb-search-refs.jsonl"
 _LOCK_FILENAME = "kb-search-refs.lock"
 
@@ -191,6 +198,7 @@ def cmd_search(
     metadata: list[tuple[str, str]] | None = None,
     limit: int = DEFAULT_LIMIT,
     content_ids: list[str] | None = None,
+    search_type: str | None = None,
     *,
     refs_log_path: Path | None = None,
 ) -> str:
@@ -206,11 +214,24 @@ def cmd_search(
         limit: Maximum number of results.
         content_ids: Optional list of content IDs (``cont_*``) whose
             indexed chunks to retrieve, bypassing implicit scope narrowing.
+        search_type: Optional explicit search backend (one of
+            :data:`VALID_SEARCH_TYPES`). When ``None`` the search type is
+            picked automatically: ``VECTOR`` for the ``--content-id`` +
+            empty-query fetch shortcut, otherwise ``COMBINED``. Pass
+            ``POSTGRES_FULL_TEXT`` (with ``contentIds``) to read a
+            document's stored text chunks from the Postgres FTS index
+            without touching Qdrant.
         refs_log_path: Override the per-turn citation manifest path —
             for tests; production callers leave this ``None`` so the
             manifest lives at ``<cwd>/.unique/kb-search-refs.jsonl`` and
             the Swappable Intelligence runner can find it.
     """
+    if search_type is not None and search_type not in VALID_SEARCH_TYPES:
+        return (
+            f"{SEARCH_ERROR_PREFIX} invalid search type '{search_type}' "
+            f"(expected one of: {', '.join(VALID_SEARCH_TYPES)})"
+        )
+
     try:
         folder_scope_id: str | None = None
         if folder:
@@ -229,11 +250,32 @@ def cmd_search(
             metadata,
         )
 
+        # When --content-id is provided with an empty query (and no explicit
+        # --search-type), switch to VECTOR search with scoreThreshold=0. The
+        # Qdrant adapter applies contentIds as a pre-filter (Qdrant `must`
+        # clause), so all chunks for those IDs are returned ordered by vector
+        # similarity — score 0 disables cutoff. Using COMBINED would run
+        # Postgres FTS with an empty string, which convertToFTSQuery trims to
+        # "", causing to_tsquery('english', '') to fail and return no results
+        # regardless of the contentIds filter. An explicit --search-type opts
+        # out of this shortcut and is passed through verbatim.
+        content_id_fetch_mode = (
+            search_type is None and bool(content_ids) and not query.strip()
+        )
+        if content_id_fetch_mode:
+            query = " "
+
+        resolved_search_type = search_type or (
+            "VECTOR" if content_id_fetch_mode else "COMBINED"
+        )
+
         search_params: dict[str, Any] = {
             "searchString": query,
-            "searchType": "COMBINED",
+            "searchType": resolved_search_type,
             "limit": limit,
         }
+        if content_id_fetch_mode:
+            search_params["scoreThreshold"] = 0.0
         if scope_ids:
             search_params["scopeIds"] = scope_ids
         if metadata_filter:

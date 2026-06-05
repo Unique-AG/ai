@@ -122,9 +122,27 @@ unique-cli search "regulatory changes" -f /Legal -m year=2025 -l 50
 unique-cli search "quarterly" -m department=Finance -m status=published
 ```
 
+## Choosing a Search Backend
+
+Use `--search-type` (or `-t`) to pick the backend explicitly:
+
+| Value | When to use |
+|-------|-------------|
+| `COMBINED` | Default — vector + full-text, results ranked by relevance |
+| `VECTOR` | Semantic similarity only; auto-selected for the `--content-id` + empty-query fetch shortcut |
+| `FULL_TEXT` | Keyword-only search (Qdrant FTS index) |
+| `POSTGRES_FULL_TEXT` | Keyword-only via Postgres FTS index — no Qdrant, no embedding. Best for sweeping all stored chunks of a document |
+
+```bash
+# Retrieve all stored text chunks for a file using Postgres FTS (no vector needed)
+unique-cli search "*" --content-id cont_abc123 --search-type POSTGRES_FULL_TEXT --limit 500
+```
+
+When `--search-type` is omitted the CLI picks automatically: `VECTOR` (with `scoreThreshold=0`) when `--content-id` is given with an empty query; otherwise `COMBINED`.
+
 ## Technical Details
 
-- **Search type**: Always `COMBINED` (vector similarity + full-text keyword matching, results merged and ranked)
+- **Default search type**: `COMBINED` (vector similarity + full-text keyword matching, results merged and ranked)
 - **Scope filtering**: When a folder is specified, its scope ID is passed as `scopeIds` to the Search API
 - **Metadata filtering**: Built using [UniqueQL](../uniqueql.md) operators (`EQUALS` for `--metadata`, `CONTAINS` for folder path)
 - **Default limit**: 200 results

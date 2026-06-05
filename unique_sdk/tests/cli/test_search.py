@@ -447,3 +447,85 @@ class TestCmdSearchCallShapes:
         out = cmd_search(_state(), "q")
         assert out.startswith(SEARCH_ERROR_PREFIX)
         assert "oops" in out
+
+    @patch("unique_sdk.Search.create")
+    def test_content_id_fetch_uses_vector_search(self, mock: MagicMock) -> None:
+        """Empty query + content_ids → VECTOR + scoreThreshold=0, scopeIds bypassed."""
+        mock.return_value = []
+        cmd_search(_state(), "", content_ids=["cont_abc"])
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchString"] == " "
+        assert call_kwargs["searchType"] == "VECTOR"
+        assert call_kwargs["scoreThreshold"] == 0.0
+        assert "scopeIds" not in call_kwargs
+
+    @patch("unique_sdk.Search.create")
+    def test_content_id_with_real_query_uses_combined(self, mock: MagicMock) -> None:
+        """Non-empty query + content_ids → still uses COMBINED, no scoreThreshold override."""
+        mock.return_value = []
+        cmd_search(_state(), "investment", content_ids=["cont_abc"])
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchString"] == "investment"
+        assert call_kwargs["searchType"] == "COMBINED"
+        assert "scoreThreshold" not in call_kwargs
+
+    @patch("unique_sdk.Search.create")
+    def test_empty_query_without_content_id_uses_combined(
+        self, mock: MagicMock
+    ) -> None:
+        """Empty query without content_ids still hits the API as COMBINED (guard lives in cli.py)."""
+        mock.return_value = []
+        cmd_search(_state(), "")
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchString"] == ""
+        assert call_kwargs["searchType"] == "COMBINED"
+
+
+class TestCmdSearchType:
+    """Coverage for the explicit ``search_type`` override."""
+
+    @patch("unique_sdk.Search.create")
+    def test_explicit_search_type_passed_through(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        cmd_search(_state(), "revenue", search_type="POSTGRES_FULL_TEXT")
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchType"] == "POSTGRES_FULL_TEXT"
+        assert call_kwargs["searchString"] == "revenue"
+
+    @patch("unique_sdk.Search.create")
+    def test_explicit_type_with_content_id_skips_vector_shortcut(
+        self, mock: MagicMock
+    ) -> None:
+        """Empty query + content_ids + explicit type → keep the type and the
+        empty query, not the auto VECTOR/scoreThreshold fetch shortcut."""
+        mock.return_value = []
+        cmd_search(
+            _state(),
+            "",
+            content_ids=["cont_abc"],
+            search_type="POSTGRES_FULL_TEXT",
+        )
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchType"] == "POSTGRES_FULL_TEXT"
+        assert call_kwargs["searchString"] == ""
+        assert "scoreThreshold" not in call_kwargs
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+
+    @patch("unique_sdk.Search.create")
+    def test_explicit_vector_does_not_force_score_threshold(
+        self, mock: MagicMock
+    ) -> None:
+        mock.return_value = []
+        cmd_search(_state(), "growth", search_type="VECTOR")
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchType"] == "VECTOR"
+        assert "scoreThreshold" not in call_kwargs
+
+    @patch("unique_sdk.Search.create")
+    def test_invalid_search_type_returns_error_without_api_call(
+        self, mock: MagicMock
+    ) -> None:
+        out = cmd_search(_state(), "q", search_type="BOGUS")
+        assert out.startswith(SEARCH_ERROR_PREFIX)
+        assert "BOGUS" in out
+        mock.assert_not_called()

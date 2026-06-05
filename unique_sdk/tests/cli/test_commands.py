@@ -702,7 +702,9 @@ class TestSearch:
         assert "No results found" in result
         call_kwargs = mock.call_args[1]
         assert call_kwargs["contentIds"] == ["cont_test123"]
-        assert call_kwargs["searchString"] == ""
+        assert call_kwargs["searchString"] == " "
+        assert call_kwargs["searchType"] == "VECTOR"
+        assert call_kwargs["scoreThreshold"] == 0.0
 
     @patch("unique_sdk.Search.create")
     def test_cmd_search_content_ids_bypass_cwd_scope(self, mock: MagicMock) -> None:
@@ -802,13 +804,49 @@ class TestSearchClick:
         assert result.exit_code == 0
         call_kwargs = mock.call_args[1]
         assert call_kwargs["contentIds"] == ["cont_abc"]
-        assert call_kwargs["searchString"] == ""
+        assert call_kwargs["searchString"] == " "
+        assert call_kwargs["searchType"] == "VECTOR"
+        assert call_kwargs["scoreThreshold"] == 0.0
 
     def test_cli_search_short_flag_repeatable(self) -> None:
         result, mock = self._invoke(["search", "", "-i", "cont_a", "-i", "cont_b"])
         assert result.exit_code == 0
         call_kwargs = mock.call_args[1]
         assert call_kwargs["contentIds"] == ["cont_a", "cont_b"]
+
+    def test_cli_search_empty_query_without_content_id_exits_nonzero(self) -> None:
+        """``unique-cli search ""`` without --content-id should print a usage hint and exit 1."""
+        result, mock = self._invoke(["search", ""])
+        assert result.exit_code == 1
+        assert "QUERY is required" in result.output
+        mock.assert_not_called()
+
+    def test_cli_search_type_postgres_full_text(self) -> None:
+        result, mock = self._invoke(
+            [
+                "search",
+                "*",
+                "--content-id",
+                "cont_abc",
+                "--search-type",
+                "POSTGRES_FULL_TEXT",
+            ]
+        )
+        assert result.exit_code == 0
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchType"] == "POSTGRES_FULL_TEXT"
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+        assert "scoreThreshold" not in call_kwargs
+
+    def test_cli_search_type_case_insensitive(self) -> None:
+        result, mock = self._invoke(["search", "q", "--search-type", "vector"])
+        assert result.exit_code == 0
+        assert mock.call_args[1]["searchType"] == "VECTOR"
+
+    def test_cli_search_type_short_flag(self) -> None:
+        result, mock = self._invoke(["search", "q", "-t", "FULL_TEXT"])
+        assert result.exit_code == 0
+        assert mock.call_args[1]["searchType"] == "FULL_TEXT"
 
 
 class TestSearchRepl:
@@ -834,7 +872,9 @@ class TestSearchRepl:
         _, mock = self._run(_state(), '"" --content-id cont_abc')
         assert mock.called
         assert mock.call_args[1]["contentIds"] == ["cont_abc"]
-        assert mock.call_args[1]["searchString"] == ""
+        assert mock.call_args[1]["searchString"] == " "
+        assert mock.call_args[1]["searchType"] == "VECTOR"
+        assert mock.call_args[1]["scoreThreshold"] == 0.0
 
     def test_repl_search_short_flag_repeatable(self) -> None:
         """`-i` accepted, repeatable, order preserved."""
@@ -859,6 +899,30 @@ class TestSearchRepl:
         call_kwargs = mock.call_args[1]
         assert call_kwargs["contentIds"] == ["cont_abc"]
         assert "scopeIds" not in call_kwargs
+
+    def test_repl_search_type_long_flag(self) -> None:
+        _, mock = self._run(
+            _state(), '"*" -i cont_abc --search-type POSTGRES_FULL_TEXT -l 500'
+        )
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["searchType"] == "POSTGRES_FULL_TEXT"
+        assert call_kwargs["contentIds"] == ["cont_abc"]
+        assert call_kwargs["limit"] == 500
+        assert "scoreThreshold" not in call_kwargs
+
+    def test_repl_search_type_short_flag(self) -> None:
+        _, mock = self._run(_state(), '"revenue" -t FULL_TEXT')
+        assert mock.call_args[1]["searchType"] == "FULL_TEXT"
+
+    def test_repl_search_type_case_insensitive(self) -> None:
+        _, mock = self._run(_state(), '"revenue" --search-type vector')
+        assert mock.call_args[1]["searchType"] == "VECTOR"
+
+    def test_repl_search_type_invalid_prints_error(self) -> None:
+        out, mock = self._run(_state(), '"q" --search-type BOGUS')
+        assert not mock.called
+        assert "BOGUS" in out
+        assert "POSTGRES_FULL_TEXT" in out
 
 
 class TestReadPayload:

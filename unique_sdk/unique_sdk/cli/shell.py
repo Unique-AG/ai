@@ -27,7 +27,7 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_list,
     cmd_schedule_update,
 )
-from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.search import VALID_SEARCH_TYPES, cmd_search
 from unique_sdk.cli.state import ShellState
 
 OVERVIEW_HELP = textwrap.dedent("""\
@@ -444,6 +444,7 @@ class UniqueShell(cmd.Cmd):
 
         Usage: search <query> [--folder <path|id>] [--metadata key=value ...]
                               [--limit N] [--content-id cont_*]
+                              [--search-type TYPE]
 
         Performs a combined (vector + full-text) search across the knowledge
         base. By default searches within the current directory scope with a
@@ -455,6 +456,8 @@ class UniqueShell(cmd.Cmd):
           --limit <N>               Maximum number of results (default: 200)
           --content-id <cont_*>     Fetch all indexed chunks for a file ID
                                     (can be repeated; query may be empty)
+          --search-type <TYPE>      Search backend: VECTOR, COMBINED,
+                                    FULL_TEXT, or POSTGRES_FULL_TEXT
 
         Examples:
           /Reports> search "revenue growth"
@@ -463,6 +466,7 @@ class UniqueShell(cmd.Cmd):
           /> search "compliance" --metadata department=Legal --metadata year=2025
           /> search "" --content-id cont_abc123
           /> search "" -i cont_abc123 -i cont_def456
+          /> search "*" -i cont_abc123 --search-type POSTGRES_FULL_TEXT -l 500
         """
         parts = shlex.split(arg)
         if not parts:
@@ -477,6 +481,7 @@ class UniqueShell(cmd.Cmd):
         metadata: list[tuple[str, str]] = []
         limit = 200
         content_ids: list[str] = []
+        search_type: str | None = None
 
         i = 0
         while i < len(parts):
@@ -502,6 +507,16 @@ class UniqueShell(cmd.Cmd):
             elif parts[i] in ("--content-id", "-i") and i + 1 < len(parts):
                 content_ids.append(parts[i + 1])
                 i += 2
+            elif parts[i] in ("--search-type", "-t") and i + 1 < len(parts):
+                raw_type = parts[i + 1].upper()
+                if raw_type not in VALID_SEARCH_TYPES:
+                    self._print(
+                        f"Invalid search type: {parts[i + 1]} "
+                        f"(expected one of: {', '.join(VALID_SEARCH_TYPES)})"
+                    )
+                    return
+                search_type = raw_type
+                i += 2
             else:
                 query_parts.append(parts[i])
                 i += 1
@@ -510,7 +525,8 @@ class UniqueShell(cmd.Cmd):
         if not query and not content_ids:
             self._print(
                 "Usage: search <query> [--folder <path|id>] "
-                "[--metadata key=value ...] [--limit N] [--content-id cont_*]"
+                "[--metadata key=value ...] [--limit N] [--content-id cont_*] "
+                "[--search-type TYPE]"
             )
             return
 
@@ -522,6 +538,7 @@ class UniqueShell(cmd.Cmd):
                 metadata=metadata if metadata else None,
                 limit=limit,
                 content_ids=content_ids if content_ids else None,
+                search_type=search_type,
             )
         )
 

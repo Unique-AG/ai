@@ -55,7 +55,7 @@ To retrieve every indexed text chunk for a file whose content ID you already kno
 This is faster and complete — it does **not** download the binary file.
 
 ```bash
-# All chunks for one file
+# All chunks for one file (auto-selects VECTOR backend, scoreThreshold=0)
 unique-cli search "" --content-id cont_abc123
 
 # Chunks for multiple files in one call
@@ -72,6 +72,26 @@ set of files (e.g. all SOW documents, all KYC forms for a client).
 `--content-id` retrieves chunks regardless of your current directory or any
 workspace restriction. Pass an explicit `--folder` if you want to additionally
 constrain the lookup.
+
+### Read Full Document Text via Postgres Full-Text Index
+
+For a more exhaustive sweep — bypassing the vector backend entirely — use
+`--search-type POSTGRES_FULL_TEXT`. This hits the Postgres FTS index directly
+(no Qdrant, no embedding for the query). Combine it with `--content-id` and a
+broad query like `"*"` to pull every stored chunk for a document:
+
+```bash
+# All stored text chunks for one file, straight from Postgres FTS
+unique-cli search "*" --content-id cont_abc123 --search-type POSTGRES_FULL_TEXT --limit 500
+
+# Short form
+unique-cli search "*" -i cont_abc123 -t POSTGRES_FULL_TEXT -l 500
+```
+
+Use `POSTGRES_FULL_TEXT` when:
+- You want **all** text from a document without vector-relevance ordering
+- The document is large and you want to sweep it completely without Qdrant cutoffs
+- You need to extract structured data (tables, lists) from a specific file
 
 ## Metadata Filtering
 
@@ -93,6 +113,7 @@ unique-cli search "regulatory" -f /Legal -m year=2025 -l 50
 ```
 unique-cli search <query> [--folder <path|scope_id>] [--metadata <key=value>]...
                           [--limit <N>] [--content-id <cont_*>]...
+                          [--search-type <TYPE>]
 ```
 
 | Option | Short | Default | Description |
@@ -101,6 +122,7 @@ unique-cli search <query> [--folder <path|scope_id>] [--metadata <key=value>]...
 | `--metadata` | `-m` | None | Key=value filter (repeatable) |
 | `--limit` | `-l` | 200 | Max results |
 | `--content-id` | `-i` | None | Fetch all chunks for a file ID (repeatable) |
+| `--search-type` | `-t` | Auto | Search backend: `VECTOR`, `COMBINED`, `FULL_TEXT`, or `POSTGRES_FULL_TEXT` (default: `COMBINED`, or `VECTOR` for the `--content-id` + empty-query shortcut) |
 
 ## Output Format
 

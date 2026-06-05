@@ -28,6 +28,7 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_update,
 )
 from unique_sdk.cli.commands.search import (
+    VALID_SEARCH_TYPES,
     cmd_search,
 )
 from unique_sdk.cli.commands.search import (
@@ -394,6 +395,19 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
     multiple=True,
     help="Fetch all indexed chunks for a specific content ID (cont_*). Can be repeated.",
 )
+@click.option(
+    "--search-type",
+    "-t",
+    "search_type",
+    type=click.Choice(VALID_SEARCH_TYPES, case_sensitive=False),
+    default=None,
+    help=(
+        "Search backend to use. Defaults to COMBINED (vector + full-text), "
+        "or VECTOR for the --content-id fetch shortcut. Use POSTGRES_FULL_TEXT "
+        "to read a document's stored text chunks straight from the Postgres "
+        "full-text index (no vector embedding)."
+    ),
+)
 @click.pass_context
 def search(
     ctx: click.Context,
@@ -402,6 +416,7 @@ def search(
     metadata: tuple[str, ...],
     limit: int,
     content_ids: tuple[str, ...],
+    search_type: str | None,
 ) -> None:
     """Search the knowledge base using combined (vector + full-text) search.
 
@@ -412,8 +427,9 @@ def search(
     \b
     By default, searches within the current directory scope with up
     to 200 results. Use --folder to target a different folder,
-    --metadata to filter by custom metadata fields, and --content-id
-    to retrieve all indexed text chunks for a specific file.
+    --metadata to filter by custom metadata fields, --content-id
+    to retrieve all indexed text chunks for a specific file, and
+    --search-type to pick the search backend explicitly.
 
     \b
     Examples:
@@ -423,8 +439,19 @@ def search(
       unique-cli search "audit" -m department=Legal -m year=2025
       unique-cli search "" --content-id cont_abc123
       unique-cli search "" -i cont_abc123 -i cont_def456
+      unique-cli search "*" -i cont_abc123 --search-type POSTGRES_FULL_TEXT -l 500
     """
     state = LazyState.get(ctx)
+
+    if not query.strip() and not content_ids:
+        click.echo(
+            "QUERY is required unless --content-id is provided.\n"
+            '  unique-cli search "investment" -l 10\n'
+            '  unique-cli search "" --content-id cont_abc123'
+        )
+        ctx.exit(1)
+        return  # pyright: ignore[reportUnreachable]
+
     parsed_metadata: list[tuple[str, str]] | None = None
     if metadata:
         parsed_metadata = []
@@ -442,6 +469,7 @@ def search(
         metadata=parsed_metadata,
         limit=limit,
         content_ids=list(content_ids) if content_ids else None,
+        search_type=search_type.upper() if search_type else None,
     )
     click.echo(output)
     if _is_search_error_output(output):
