@@ -438,17 +438,18 @@ class UniqueShell(cmd.Cmd):
     def do_cite(self, arg: str) -> None:
         """Declare page citations for a file.
 
-        Usage: cite <name|content_id> [--pages RANGE]
+        Usage: cite <name|path|content_id> [--pages RANGE]
 
         Examples:
           /Reports> cite report.pdf --pages 3,5,7
+          /Reports> cite /Reports/Q1/report.pdf --pages 3,5,7
           /Reports> cite cont_abc123 --pages 1-4
         """
         from unique_sdk.cli.commands.cite_file import cmd_cite_file
 
         parts = shlex.split(arg)
         if not parts:
-            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            self._print("Usage: cite <name|path|content_id> [--pages RANGE]")
             return
         pages: str | None = None
         positional: list[str] = []
@@ -465,7 +466,7 @@ class UniqueShell(cmd.Cmd):
                 positional.append(token)
                 index += 1
         if not positional:
-            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            self._print("Usage: cite <name|path|content_id> [--pages RANGE]")
             return
         self._print(cmd_cite_file(self.state, positional[0], pages))
 
@@ -494,13 +495,16 @@ class UniqueShell(cmd.Cmd):
     def do_rm(self, arg: str) -> None:
         """Delete a file.
 
-        Usage: rm <name|content_id>
+        Usage: rm <name|path|content_id>
 
-        Permanently deletes a file by its name (matched in the current
-        directory) or content ID.
+        Permanently deletes a file by its Unique path, name (matched in
+        the current directory), or content ID.
 
         Examples:
           /Reports> rm annual.pdf
+          Deleted: annual.pdf (cont_mno345)
+
+          /Reports> rm /Reports/Q1/annual.pdf
           Deleted: annual.pdf (cont_mno345)
 
           /Reports> rm cont_xyz789
@@ -508,14 +512,14 @@ class UniqueShell(cmd.Cmd):
         """
         name_or_id = arg.strip()
         if not name_or_id:
-            self._print("Usage: rm <name|content_id>")
+            self._print("Usage: rm <name|path|content_id>")
             return
         self._print(cmd_rm(self.state, name_or_id))
 
     def do_mv(self, arg: str) -> None:
         """Rename a file.
 
-        Usage: mv <old_name|content_id> <new_name>
+        Usage: mv <old_name|path|content_id> <new_name>
 
         Changes the file's display title. The content ID and location
         remain the same.
@@ -524,12 +528,15 @@ class UniqueShell(cmd.Cmd):
           /Reports> mv annual.pdf annual-2025.pdf
           Renamed: annual.pdf -> annual-2025.pdf
 
+          /Reports> mv /Reports/Q1/annual.pdf annual-2025.pdf
+          Renamed: annual.pdf -> annual-2025.pdf
+
           /Reports> mv cont_abc123 "New Title.pdf"
           Renamed: cont_abc123 -> New Title.pdf
         """
         parts = shlex.split(arg)
         if len(parts) != 2:
-            self._print("Usage: mv <old_name|content_id> <new_name>")
+            self._print("Usage: mv <old_name|path|content_id> <new_name>")
             return
         self._print(cmd_mv_file(self.state, parts[0], parts[1]))
 
