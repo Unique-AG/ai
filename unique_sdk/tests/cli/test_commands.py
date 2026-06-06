@@ -320,8 +320,10 @@ class TestFiles:
 
     @patch("unique_sdk.Content.get_infos")
     def test_resolve_content_id_scans_paginated_files(self, mock: MagicMock) -> None:
+        other = _content_info(title="other.pdf")
+        other["key"] = "other.pdf"
         mock.side_effect = [
-            {"contentInfos": [_content_info(title="other.pdf")], "totalCount": 2},
+            {"contentInfos": [other], "totalCount": 2},
             {"contentInfos": [_content_info()], "totalCount": 2},
         ]
         cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
@@ -329,6 +331,16 @@ class TestFiles:
         assert name == "report.pdf"
         assert mock.call_args_list[0].kwargs["skip"] == 0
         assert mock.call_args_list[1].kwargs["skip"] == 1
+
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_content_id_matches_storage_key(self, mock: MagicMock) -> None:
+        mock.return_value = {
+            "contentInfos": [_content_info(title="Display Name.pdf")],
+            "totalCount": 1,
+        }
+        cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert cid == "cont_123"
+        assert name == "Display Name.pdf"
 
     @patch("unique_sdk.Content.get_infos")
     def test_resolve_content_id_not_found(self, mock: MagicMock) -> None:
