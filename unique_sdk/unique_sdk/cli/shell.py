@@ -58,7 +58,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
       upload <local> [name]     Upload a local file with versioning
       versions <name|path|id>   List archived file versions
       restore-version <ver_id>  Restore a file from a version
-      download <name|id> [dest] Download a file to local machine
+      download <name|path|id> [dest] Download a file to local machine
       rm <name|id>              Delete a file
       mv <old> <new>            Rename a file
       cite <name|id> [--pages]  Declare page citations for a file
@@ -404,14 +404,14 @@ class UniqueShell(cmd.Cmd):
     def do_download(self, arg: str) -> None:
         """Download a file from the platform to your local machine.
 
-        Usage: download <name|content_id> [local_path]
+        Usage: download <name|path|content_id> [local_path]
 
-        Downloads a file identified by its name (matched in the current
-        directory) or content ID (cont_...). Saves to the specified local
-        path, or the current working directory if omitted.
+        Downloads a file identified by its Unique path, name (matched in
+        the current directory), or content ID (cont_...). Saves to the
+        specified local path, or the current working directory if omitted.
 
         Arguments:
-          name_or_id    File name or content ID (cont_...)
+          name_or_id    File path, file name, or content ID (cont_...)
           local_path    Optional local directory or file path
 
         Examples:
@@ -421,12 +421,15 @@ class UniqueShell(cmd.Cmd):
           /Reports> download annual.pdf ./downloads/
           Downloaded: annual.pdf -> ./downloads/annual.pdf
 
+          /Reports> download /Reports/Q1/annual.pdf ./downloads/
+          Downloaded: annual.pdf -> ./downloads/annual.pdf
+
           /Reports> download cont_mno345 ~/Desktop/
           Downloaded: cont_mno345 -> ~/Desktop/cont_mno345
         """
         parts = shlex.split(arg)
         if not parts:
-            self._print("Usage: download <name|content_id> [local_path]")
+            self._print("Usage: download <name|path|content_id> [local_path]")
             return
         name_or_id = parts[0]
         local_dest = parts[1] if len(parts) > 1 else None

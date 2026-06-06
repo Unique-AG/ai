@@ -269,7 +269,7 @@ def cmd_versions(
 
 def cmd_restore_version(state: ShellState, content_version_id: str) -> str:
     """Restore a file from an archived content version ID."""
-    if state.workspace_restricted:
+    if not state.is_within_workspace():
         return "restore-version: permission denied (outside workspace scope)"
     try:
         result = unique_sdk.Content.restore_version(

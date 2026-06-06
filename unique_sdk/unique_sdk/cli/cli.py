@@ -349,8 +349,8 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     """Download a file to your local machine.
 
     \b
-    NAME_OR_ID is a file name (matched in the current directory) or
-    a content ID (cont_...) which is resolved directly.
+    NAME_OR_ID is a file path, a file name matched in the current
+    directory, or a content ID (cont_...) which is resolved directly.
 
     \b
     LOCAL_DEST is an optional path (directory or file) to save to.
@@ -359,6 +359,7 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     \b
     Examples:
       unique-cli download annual.pdf
+      unique-cli download /Reports/Q1/annual.pdf
       unique-cli download annual.pdf ./downloads/
       unique-cli download cont_abc123 ~/Desktop/
     """

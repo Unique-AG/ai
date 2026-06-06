@@ -743,11 +743,24 @@ class TestFiles:
         assert mock_restore.call_args.kwargs["contentVersionId"] == "cver_1"
 
     @patch("unique_sdk.Content.restore_version")
-    def test_restore_version_workspace_restricted_blocked(
+    def test_restore_version_workspace_restricted_inside_allowed(
         self,
         mock_restore: MagicMock,
     ) -> None:
+        mock_restore.return_value = _content_info(title="report.pdf")
         state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_restore_version(state, "cver_1")
+        assert "Restored" in result
+        assert mock_restore.call_args.kwargs["contentVersionId"] == "cver_1"
+
+    @patch("unique_sdk.Content.restore_version")
+    def test_restore_version_workspace_restricted_outside_blocked(
+        self,
+        mock_restore: MagicMock,
+    ) -> None:
+        state = _state("/Outside", "scope_other")
         state.workspace_scope_ids = ["scope_ws"]
         state._workspace_scope_paths = ["/Workspace"]
         result = cmd_restore_version(state, "cver_1")
