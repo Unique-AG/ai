@@ -401,6 +401,15 @@ class TestFiles:
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
 
+    @patch("unique_sdk.Folder.get_info")
+    def test_resolve_content_id_rejects_paths_above_root(
+        self,
+        mock_folder: MagicMock,
+    ) -> None:
+        with pytest.raises(ValueError, match="escapes root"):
+            _resolve_content_id(_state("/Reports", "scope_r"), "../../secret.pdf")
+        mock_folder.assert_not_called()
+
     @patch("unique_sdk.Content.get_infos")
     def test_resolve_content_id_scans_paginated_files(self, mock: MagicMock) -> None:
         other = _content_info(title="other.pdf")

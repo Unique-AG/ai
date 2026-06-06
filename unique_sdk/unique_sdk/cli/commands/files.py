@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import mimetypes
-import posixpath
 import shutil
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -13,6 +12,24 @@ import unique_sdk
 from unique_sdk.cli.formatting import format_content_info
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
+
+
+def _normalize_unique_file_path(cwd: str, path: str) -> str:
+    """Normalize a Unique file path without allowing traversal above root."""
+    raw_parts = (
+        path.split("/") if path.startswith("/") else [*cwd.split("/"), *path.split("/")]
+    )
+    parts: list[str] = []
+    for part in raw_parts:
+        if part in ("", "."):
+            continue
+        if part == "..":
+            if not parts:
+                raise ValueError(f"File path escapes root: {path}")
+            parts.pop()
+            continue
+        parts.append(part)
+    return "/" + "/".join(parts)
 
 
 def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
@@ -27,12 +44,7 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
     lookup_name = name_or_id
     scope_id = state.scope_id
     if "/" in name_or_id:
-        unique_path = (
-            name_or_id
-            if name_or_id.startswith("/")
-            else f"{state.cwd.rstrip('/')}/{name_or_id}"
-        )
-        unique_path = posixpath.normpath(unique_path)
+        unique_path = _normalize_unique_file_path(state.cwd, name_or_id)
         folder_path, lookup_name = unique_path.rsplit("/", 1)
         if not lookup_name:
             raise ValueError(f"File path must include a file name: {name_or_id}")
