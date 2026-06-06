@@ -366,6 +366,23 @@ class TestFiles:
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
 
     @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_resolve_content_id_normalizes_dot_path(
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+    ) -> None:
+        mock_folder.return_value = {"id": "scope_q1"}
+        mock_content.return_value = {"contentInfos": [_content_info()]}
+        cid, name = _resolve_content_id(
+            _state("/Reports", "scope_r"),
+            "./Q1/report.pdf",
+        )
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+        assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
+
+    @patch("unique_sdk.Content.get_infos")
     def test_resolve_content_id_not_found(self, mock: MagicMock) -> None:
         mock.return_value = {"contentInfos": []}
         with pytest.raises(ValueError, match="File not found"):

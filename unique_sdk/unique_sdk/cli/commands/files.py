@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import mimetypes
+import posixpath
 import shutil
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
             folder_path = "/"
         elif not folder_path.startswith("/"):
             folder_path = f"{state.cwd.rstrip('/')}/{folder_path}"
+        folder_path = posixpath.normpath(folder_path)
 
         info = unique_sdk.Folder.get_info(
             user_id=state.config.user_id,
