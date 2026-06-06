@@ -75,5 +75,7 @@ class DynamicFrontend(APIResource["DynamicFrontend"]):
             user_id,
             company_id,
         )
+        if isinstance(response, list):
+            return cast(list[DynamicFrontend], response)
         data = response.get("data", []) if isinstance(response, dict) else []
         return cast(list[DynamicFrontend], data)

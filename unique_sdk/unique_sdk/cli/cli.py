@@ -57,6 +57,8 @@ from unique_sdk.cli.config import load_config
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
 
+_DYNAMIC_FRONTEND_ERROR_PREFIX = "dynamic-frontend "
+
 MAIN_HELP = """\
 Unique CLI -- Linux-like file explorer for the Unique AI Platform.
 
@@ -410,16 +412,17 @@ def dynamic_frontend_deploy(
       unique-cli dynamic-frontend deploy --content-id content_123 --name "Revenue Dashboard"
       unique-cli dynamic-frontend deploy --space-id assistant_123 --file ./app.zip
     """
-    click.echo(
-        cmd_dynamic_frontend_deploy(
-            LazyState.get(ctx),
-            file=file_path,
-            content_id=content_id,
-            name=name,
-            space_id=space_id,
-            output_json=output_json,
-        )
+    output = cmd_dynamic_frontend_deploy(
+        LazyState.get(ctx),
+        file=file_path,
+        content_id=content_id,
+        name=name,
+        space_id=space_id,
+        output_json=output_json,
     )
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
 
 
 @dynamic_frontend.command(name="list")
@@ -429,7 +432,10 @@ def dynamic_frontend_deploy(
 @click.pass_context
 def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
     """List Dynamic Frontend spaces the current user can manage."""
-    click.echo(cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json))
+    output = cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json)
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
 
 
 @main.command()

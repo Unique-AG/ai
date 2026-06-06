@@ -67,12 +67,16 @@ def cmd_dynamic_frontend_deploy(
             return "dynamic-frontend deploy: expected a content id after resolving deploy input."
 
         if space_id:
+            update_params: unique_sdk.DynamicFrontend.UpdateParams = {
+                "contentId": resolved_content_id,
+            }
+            if name is not None:
+                update_params["name"] = name
             space = unique_sdk.DynamicFrontend.modify(
                 space_id,
                 user_id=state.config.user_id,
                 company_id=state.config.company_id,
-                contentId=resolved_content_id,
-                name=name,
+                **update_params,
             )
             action = "Updated"
         else:

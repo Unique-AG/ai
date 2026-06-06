@@ -7,9 +7,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import CliRunner
 
 import unique_sdk
 from unique_sdk.api_resources._dynamic_frontend import DynamicFrontend
+from unique_sdk.cli.cli import main
 from unique_sdk.cli.commands.dynamic_frontend import (
     _format_space,
     cmd_dynamic_frontend_deploy,
@@ -147,16 +149,16 @@ def test_dynamic_frontend_list__returns_response_data(
 
 
 @patch.object(DynamicFrontend, "_static_request", autospec=True)
-def test_dynamic_frontend_list__non_dict_response_returns_empty(
+def test_dynamic_frontend_list__top_level_array_response_returns_spaces(
     mock_request: MagicMock,
 ) -> None:
-    """Purpose: Verify malformed list responses degrade to an empty list.
-    Why this matters: The command formatter can handle no spaces without crashing.
-    Setup summary: Mock a non-dict response, call list, and assert an empty list.
+    """Purpose: Verify top-level list responses are preserved.
+    Why this matters: Some list endpoints return arrays directly after object conversion.
+    Setup summary: Mock a list response, call list, and assert the spaces are returned.
     """
-    mock_request.return_value = object()
+    mock_request.return_value = [_space()]
 
-    assert DynamicFrontend.list(user_id="user_1", company_id="company_1") == []
+    assert DynamicFrontend.list(user_id="user_1", company_id="company_1") == [_space()]
 
 
 @patch("unique_sdk.cli.commands.dynamic_frontend.upload_file")
@@ -223,6 +225,30 @@ def test_cmd_dynamic_frontend_deploy__updates_existing_space(
         company_id="company_1",
         contentId="cont_2",
         name="Revenue Dashboard v2",
+    )
+
+
+@patch("unique_sdk.DynamicFrontend.modify")
+def test_cmd_dynamic_frontend_deploy__omits_name_when_updating_without_rename(
+    mock_modify: MagicMock,
+) -> None:
+    """Purpose: Verify update deploys do not send name=None.
+    Why this matters: Sending a JSON null name could clear the existing display name.
+    Setup summary: Mock modify, update by content id without name, and assert payload.
+    """
+    mock_modify.return_value = _space(content_id="cont_2")
+
+    cmd_dynamic_frontend_deploy(
+        _state(),
+        content_id="cont_2",
+        space_id="space_1",
+    )
+
+    mock_modify.assert_called_once_with(
+        "space_1",
+        user_id="user_1",
+        company_id="company_1",
+        contentId="cont_2",
     )
 
 
@@ -361,3 +387,43 @@ def test_cmd_dynamic_frontend_list__api_error_is_returned(mock_list: MagicMock) 
     output = cmd_dynamic_frontend_list(_state())
 
     assert "dynamic-frontend list: upstream boom" in output
+
+
+@patch("unique_sdk.cli.cli.LazyState.get")
+@patch("unique_sdk.cli.cli.cmd_dynamic_frontend_deploy")
+def test_dynamic_frontend_deploy_cli__errors_exit_nonzero(
+    mock_deploy: MagicMock,
+    mock_get_state: MagicMock,
+) -> None:
+    """Purpose: Verify deploy command errors return a non-zero process status.
+    Why this matters: Automation must be able to fail fast when deploy validation fails.
+    Setup summary: Mock the command helper to return an error string and assert exit code 1.
+    """
+    mock_get_state.return_value = _state()
+    mock_deploy.return_value = "dynamic-frontend deploy: upstream boom"
+
+    result = CliRunner().invoke(
+        main, ["dynamic-frontend", "deploy", "--content-id", "cont_1"]
+    )
+
+    assert result.exit_code == 1
+    assert "dynamic-frontend deploy: upstream boom" in result.output
+
+
+@patch("unique_sdk.cli.cli.LazyState.get")
+@patch("unique_sdk.cli.cli.cmd_dynamic_frontend_list")
+def test_dynamic_frontend_list_cli__errors_exit_nonzero(
+    mock_list: MagicMock,
+    mock_get_state: MagicMock,
+) -> None:
+    """Purpose: Verify list command errors return a non-zero process status.
+    Why this matters: Scripts should not treat failed list requests as successful commands.
+    Setup summary: Mock the command helper to return an error string and assert exit code 1.
+    """
+    mock_get_state.return_value = _state()
+    mock_list.return_value = "dynamic-frontend list: upstream boom"
+
+    result = CliRunner().invoke(main, ["dynamic-frontend", "list"])
+
+    assert result.exit_code == 1
+    assert "dynamic-frontend list: upstream boom" in result.output
