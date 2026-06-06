@@ -63,9 +63,10 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
         )
         content_infos = result.get("contentInfos", [])
         for info in content_infos:
-            title = info.get("title") or info.get("key") or ""
-            if title == lookup_name:
-                return info["id"], title
+            title = info.get("title") or ""
+            key = info.get("key") or ""
+            if lookup_name in {title, key}:
+                return info["id"], title or key
 
         total_count = result.get("totalCount")
         skip += len(content_infos)
