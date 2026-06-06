@@ -8,6 +8,10 @@ import click
 
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.cite_file import cmd_cite_file
+from unique_sdk.cli.commands.dynamic_frontend import (
+    cmd_dynamic_frontend_deploy,
+    cmd_dynamic_frontend_list,
+)
 from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_ask,
     cmd_elicit_create,
@@ -52,6 +56,8 @@ from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
 from unique_sdk.cli.config import load_config
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
+
+_DYNAMIC_FRONTEND_ERROR_PREFIX = "dynamic-frontend "
 
 MAIN_HELP = """\
 Unique CLI -- Linux-like file explorer for the Unique AI Platform.
@@ -99,6 +105,7 @@ Examples:
   unique-cli subagent Legal "Review" Invoke a connected space/subagent
   unique-cli web-search search "x"  Search the web via the public API
   unique-cli web-search crawl URL   Crawl a URL via the public API
+  unique-cli dynamic-frontend list  List manageable Dynamic Frontend spaces
 """
 
 
@@ -357,6 +364,78 @@ def read_cmd(ctx: click.Context, cont_id: str) -> None:
         click.echo(output, err=True)
         raise SystemExit(1)
     click.echo(output)
+
+
+@main.group(name="dynamic-frontend")
+def dynamic_frontend() -> None:
+    """Deploy and list Dynamic Frontend spaces."""
+
+
+@dynamic_frontend.command(name="deploy")
+@click.option(
+    "--file",
+    "file_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Path to an upload-ready Dynamic Frontend ZIP bundle.",
+)
+@click.option(
+    "--content-id",
+    default=None,
+    help="Existing Knowledge Base content id for the ZIP bundle.",
+)
+@click.option(
+    "--name",
+    default=None,
+    help="Space display name. Required when creating; optional rename when updating.",
+)
+@click.option(
+    "--space-id", default=None, help="Existing Dynamic Frontend space id to update."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_deploy(
+    ctx: click.Context,
+    file_path: str | None,
+    content_id: str | None,
+    name: str | None,
+    space_id: str | None,
+    output_json: bool,
+) -> None:
+    """Create or update a Dynamic Frontend space.
+
+    \b
+    Examples:
+      unique-cli dynamic-frontend deploy --file ./app.zip --name "Revenue Dashboard"
+      unique-cli dynamic-frontend deploy --content-id content_123 --name "Revenue Dashboard"
+      unique-cli dynamic-frontend deploy --space-id assistant_123 --file ./app.zip
+    """
+    output = cmd_dynamic_frontend_deploy(
+        LazyState.get(ctx),
+        file=file_path,
+        content_id=content_id,
+        name=name,
+        space_id=space_id,
+        output_json=output_json,
+    )
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
+
+
+@dynamic_frontend.command(name="list")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
+    """List Dynamic Frontend spaces the current user can manage."""
+    output = cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json)
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
 
 
 @main.command()
