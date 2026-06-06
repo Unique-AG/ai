@@ -5,6 +5,7 @@ from __future__ import annotations
 import mimetypes
 import posixpath
 import shutil
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -75,16 +76,16 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
             **params,
         )
         content_infos = result.get("contentInfos", [])
+        if not content_infos:
+            break
+
         for info in content_infos:
             title = info.get("title") or ""
             key = info.get("key") or ""
             if lookup_name in {title, key}:
                 return info["id"], title or key
 
-        total_count = result.get("totalCount")
         skip += len(content_infos)
-        if not content_infos or (total_count is not None and skip >= total_count):
-            break
 
     raise ValueError(f"File not found: {name_or_id}")
 
@@ -95,7 +96,7 @@ def _format_version_value(value: Any) -> str:
     return str(value)
 
 
-def _format_content_versions(versions: list[dict[str, Any]]) -> str:
+def _format_content_versions(versions: Sequence[Mapping[str, Any]]) -> str:
     if not versions:
         return "No versions found."
 

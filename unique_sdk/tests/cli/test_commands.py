@@ -416,6 +416,22 @@ class TestFiles:
         assert mock.call_args_list[1].kwargs["skip"] == 1
 
     @patch("unique_sdk.Content.get_infos")
+    def test_resolve_content_id_ignores_total_count_for_pagination(
+        self,
+        mock: MagicMock,
+    ) -> None:
+        other = _content_info(title="other.pdf")
+        other["key"] = "other.pdf"
+        mock.side_effect = [
+            {"contentInfos": [other], "totalCount": 1},
+            {"contentInfos": [], "totalCount": 1},
+        ]
+        with pytest.raises(ValueError, match="File not found"):
+            _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert mock.call_args_list[0].kwargs["skip"] == 0
+        assert mock.call_args_list[1].kwargs["skip"] == 1
+
+    @patch("unique_sdk.Content.get_infos")
     def test_resolve_content_id_matches_storage_key(self, mock: MagicMock) -> None:
         mock.return_value = {
             "contentInfos": [_content_info(title="Display Name.pdf")],
