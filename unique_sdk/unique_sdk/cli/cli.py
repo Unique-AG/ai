@@ -16,7 +16,14 @@ from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_respond,
     cmd_elicit_wait,
 )
-from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
+from unique_sdk.cli.commands.files import (
+    cmd_download,
+    cmd_mv_file,
+    cmd_restore_version,
+    cmd_rm,
+    cmd_upload,
+    cmd_versions,
+)
 from unique_sdk.cli.commands.folder_access import cmd_folder_access
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
@@ -71,6 +78,7 @@ Path formats accepted by all commands:
 \b
 File identifiers:
   report.pdf          File name (matched in current directory)
+  /Reports/report.pdf File path (absolute or relative)
   cont_abc123         Content ID (used directly)
 
 \b
@@ -79,8 +87,10 @@ Examples:
   unique-cli ls                     List root folders
   unique-cli ls /Reports            List a specific folder
   unique-cli search "revenue" -l 50 Search with custom limit
-  unique-cli upload ./file.pdf      Upload to current folder
+  unique-cli upload ./file.pdf      Upload versioned to current folder
   unique-cli download cont_abc123   Download by content ID
+  unique-cli versions cont_abc123   List archived file versions
+  unique-cli restore-version ver_1  Restore a file from a version
   unique-cli elicit ask "Which?"    Ask the user a question synchronously
   unique-cli users search "Peter"   Look up users by display name
   unique-cli chat info chat_abc     Show chat metadata (incl. projectScopeId)
@@ -240,12 +250,13 @@ def mvdir(ctx: click.Context, old_name: str, new_name: str) -> None:
 @click.argument("destination", required=False, default=None)
 @click.pass_context
 def upload(ctx: click.Context, local_path: str, destination: str | None) -> None:
-    """Upload a local file (works like Linux cp).
+    """Upload a local file with versioning enabled (works like Linux cp).
 
     \b
-    Uploads LOCAL_PATH to the Unique platform. DESTINATION works like
-    the target in cp -- it can be a folder path, a new filename, or
-    a combination of both. MIME type is auto-detected.
+    Uploads LOCAL_PATH to the Unique platform with immutable versioning
+    enabled. DESTINATION works like the target in cp -- it can be a
+    folder path, a new filename, or a combination of both. MIME type is
+    auto-detected.
 
     \b
     Destination formats:
@@ -265,6 +276,48 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
       unique-cli upload ./report.pdf /Archive/2025/
     """
     click.echo(cmd_upload(LazyState.get(ctx), local_path, destination))
+
+
+@main.command()
+@click.argument("name_or_id")
+@click.option("--skip", type=int, default=None, help="Number of versions to skip.")
+@click.option("--take", type=int, default=None, help="Number of versions to return.")
+@click.pass_context
+def versions(
+    ctx: click.Context,
+    name_or_id: str,
+    skip: int | None,
+    take: int | None,
+) -> None:
+    """List archived versions for a file.
+
+    \b
+    NAME_OR_ID is a file path, a file name matched in the current
+    directory, or a content ID (cont_...) which is resolved directly.
+
+    \b
+    Examples:
+      unique-cli versions report.pdf
+      unique-cli versions /Reports/Q1/report.pdf
+      unique-cli versions cont_abc123 --take 10
+    """
+    click.echo(cmd_versions(LazyState.get(ctx), name_or_id, skip=skip, take=take))
+
+
+@main.command(name="restore-version")
+@click.argument("content_version_id")
+@click.pass_context
+def restore_version(ctx: click.Context, content_version_id: str) -> None:
+    """Restore a file from a content version ID.
+
+    \b
+    CONTENT_VERSION_ID is returned by `unique-cli versions`.
+
+    \b
+    Examples:
+      unique-cli restore-version cver_abc123
+    """
+    click.echo(cmd_restore_version(LazyState.get(ctx), content_version_id))
 
 
 @main.command()
