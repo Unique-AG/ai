@@ -10,6 +10,11 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfig,
     CrawlerType,
 )
+from unique_web_search.services.crawlers.url_safety import (
+    ResolvedCrawlTarget,
+    UrlSafetyService,
+    url_safety_settings,
+)
 from unique_web_search.services.crawlers.utils import get_random_user_agent
 
 _LOGGER = logging.getLogger(__name__)
@@ -164,7 +169,48 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
     # @track(
     #     tags=["crawl4ai", "scrape"],
     # )
-    async def crawl(self, urls: list[str]) -> list[str]:
+
+    @staticmethod
+    def _get_ssrf_guard_hook():
+        from playwright.async_api import Page, Request, Route
+
+        async def _ssrf_guard_hook(page: Page, **kwargs: object) -> None:
+            """Playwright ``before_goto`` hook that installs a route interceptor.
+
+            Registers a ``page.route`` handler that validates **every** network request
+            Chromium makes (navigation, sub-resources, JS ``fetch``) against the shared
+            url_safety rules.  Requests to internal/private targets are aborted before
+            any TCP connection is opened, closing bypass vectors A–D and sub-resource
+            SSRF that pre-flight URL validation cannot see.
+
+            crawl4ai calls this hook as::
+
+                hook(page, context=context, url=url, config=config)
+
+            so all arguments after ``page`` are captured via ``**kwargs``.
+            """
+
+            async def _route_handler(route: Route, request: Request) -> None:
+                req_url = request.url
+                error = await UrlSafetyService.validate_url(req_url)
+                if error is not None:
+                    category, reason = error
+                    _LOGGER.warning(
+                        "Crawl4AI blocked internal request: %s — %s (%s)",
+                        req_url,
+                        reason,
+                        category,
+                    )
+                    await route.abort("blockedbyclient")
+                    return
+                await route.continue_()
+
+            await page.route("**/*", _route_handler)
+
+        return _ssrf_guard_hook
+
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+        urls = [target.normalized_url for target in targets]
         # Lazy import of crawl4ai - only import when actually needed
         from crawl4ai import (
             AsyncWebCrawler,
@@ -177,6 +223,7 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
         from crawl4ai.async_dispatcher import (
             SemaphoreDispatcher,
         )
+        from crawl4ai.async_webcrawler import AsyncPlaywrightCrawlerStrategy
         from crawl4ai.content_filter_strategy import PruningContentFilter
         from crawl4ai.markdown_generation_strategy import (
             DefaultMarkdownGenerator,
@@ -234,8 +281,21 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
             rate_limiter=rate_limiter,
         )
 
+        hooks = (
+            {"before_goto": self._get_ssrf_guard_hook()}
+            if url_safety_settings.enabled
+            else {}
+        )
+        crawler_strategy = AsyncPlaywrightCrawlerStrategy(
+            browser_config=browser_config,
+            hooks=hooks,
+        )
+
         _LOGGER.info(f"Crawling {len(urls)} URLs with Crawl4AiCrawler")
-        async with AsyncWebCrawler(config=browser_config) as crawler:
+
+        async with AsyncWebCrawler(
+            crawler_strategy=crawler_strategy, config=browser_config
+        ) as crawler:
             crawler_results = await crawler.arun_many(
                 urls, config=run_config, dispatcher=dispatcher
             )

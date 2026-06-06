@@ -75,6 +75,7 @@ jobs:
       all_current_versions: ${{ steps.resolve_versions.outputs.all_current_versions }}
       branch_suffix: ${{ steps.resolve_versions.outputs.branch_suffix }}
       cycle: ${{ steps.calver.outputs.cycle }}
+      cut_sha: ${{ github.sha }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -100,6 +101,11 @@ jobs:
             ".github/actions/detect-changes/action.yml"
             ".github/actions/select-packages/action.yml"
             ".github/actions/publish-to-pypi-with-uv/action.yml"
+            ".github/workflows/ci-containerize.yaml"
+            ".github/workflows/cd-containerize.yaml"
+            ".github/workflows/cd-helm-publish.yaml"
+            ".github/workflows/cd-helm-publish-batch.yaml"
+            ".github/scripts/helm_package_push.py"
           )
           NULL_SHA="0000000000000000000000000000000000000000"
           if [[ -z "$BEFORE" || "$BEFORE" == "$NULL_SHA" ]] \
@@ -136,10 +142,7 @@ jobs:
         env:
           RAW_MATRIX: ${{ steps.select.outputs.matrix }}
         run: |
-          # The shared matrix includes connectors/unique_search_proxy
-          # (publish_skip=true) and any future entry without a pypi_name.
-          # Strip them here so the publish strategy only spins up jobs for
-          # things we actually ship.
+          # Strip publish_skip entries and any package without a pypi_name.
           MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
           SELECTED_IDS=$(jq -c '[.include[].id]' <<<"$MATRIX")
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
@@ -270,6 +273,35 @@ jobs:
       - name: Publish to PyPI
         working-directory: ${{ matrix.dir }}
         run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
+
+  containerize:
+    needs: [resolve, publish]
+    if: needs.publish.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/cd-containerize-batch.yaml
+    secrets: inherit
+    with:
+      publish_matrix: ${{ needs.resolve.outputs.matrix }}
+      versions: ${{ needs.resolve.outputs.new_versions }}
+      tag_latest: false
+      ref: ${{ needs.resolve.outputs.cut_sha }}
+
+  helm-publish:
+    # Publish dev Helm charts after the container images exist, so each chart's
+    # stamped image.tag resolves to a pushed image.
+    needs: [resolve, containerize]
+    if: needs.containerize.result == 'success'
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    uses: ./.github/workflows/cd-helm-publish-batch.yaml
+    secrets: inherit
+    with:
+      publish_matrix: ${{ needs.resolve.outputs.matrix }}
+      versions: ${{ needs.resolve.outputs.new_versions }}
 
   tag-cut:
     # Tag every successful dev publish so it can later be promoted to an

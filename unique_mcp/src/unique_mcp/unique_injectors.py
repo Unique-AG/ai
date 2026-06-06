@@ -28,7 +28,7 @@ from unique_toolkit.app.unique_settings import (
 from unique_toolkit.services.factory import UniqueServiceFactory
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
-from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
+from unique_mcp.meta.keys import META_FLAT_ALIASES, MetaKeys
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -5,6 +5,10 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from unique_web_search.services.crawlers.url_safety import (
+    CrawlTargetValidationError,
+    UrlSafetyService,
+)
 from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.executors.v1.executor import (
     RefinedQueries,
@@ -186,6 +190,7 @@ class TestWebSearchV1ExecutorInit:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
         )
 
         assert executor.company_id == "test-company"
@@ -230,6 +235,7 @@ class TestWebSearchV1ExecutorRun:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.DEACTIVATED,
         )
 
@@ -273,12 +279,58 @@ class TestWebSearchV1ExecutorRun:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.DEACTIVATED,
         )
 
         await executor.run()
 
         mock_executor_dependencies["crawler_service"].crawl.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__raises__when_search_result_url_is_blocked_before_crawl(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """
+        Purpose: Verify V1 blocks unsafe search-result URLs when crawling is attempted.
+        Why this matters: Search-driven crawl flows must not bypass the shared SSRF guard.
+        Setup summary: Return a localhost URL from the search service with scraping enabled and assert CrawlTargetValidationError is raised.
+        """
+        tool_parameters = WebSearchToolParameters(
+            query="test query", date_restrict=None
+        )
+
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(
+                    url="https://localhost/internal",
+                    title="Local page",
+                    snippet="Unsafe",
+                    content="",
+                )
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=UrlSafetyService.validate_batch_urls
+        )
+
+        executor = WebSearchV1Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+            refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
+            mode=RefineQueryMode.DEACTIVATED,
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor.run()
 
 
 class TestWebSearchV1ExecutorRefineQuery:
@@ -315,6 +367,7 @@ class TestWebSearchV1ExecutorRefineQuery:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.BASIC,
         )
 
@@ -358,6 +411,7 @@ class TestWebSearchV1ExecutorRefineQuery:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             mode=RefineQueryMode.ADVANCED,
         )
 
@@ -392,6 +446,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             max_queries=5,
         )
 
@@ -421,6 +476,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
             max_queries=3,
         )
 
@@ -677,6 +733,54 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_execute_search_step__raises__when_search_result_url_is_blocked(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+    ) -> None:
+        """
+        Purpose: Verify crawl handoff rejects unsafe search-result URLs when crawling is attempted.
+        Why this matters: Search engines remain untrusted input sources and must not bypass the SSRF guard.
+        Setup summary: Return a metadata URL from the search service, require scraping, and assert CrawlTargetValidationError is raised.
+        """
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=[
+                WebSearchResult(
+                    url="http://169.254.169.254/latest/meta-data",
+                    title="Metadata",
+                    snippet="Unsafe",
+                    content="",
+                )
+            ]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=UrlSafetyService.validate_batch_urls
+        )
+
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+
+        step = Step(
+            step_type=StepType.SEARCH,
+            objective="Test search",
+            query_or_url="test query",
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor._execute_search_step(step)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_execute_search_step__adds_log_entry__after_search(
         self,
         executor_context_objects: dict,
@@ -735,7 +839,7 @@ class TestWebSearchV3ExecutorSearch:
         tool_parameters = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
-                "objective": "Find recent search hits about NVIDIA coverage",
+                "phase": "target",
                 "payload": {
                     "gap": "Need fresh NVIDIA press coverage",
                     "query": "nvidia coverage",
@@ -801,7 +905,7 @@ class TestWebSearchV3ExecutorFetchUrls:
         tool_parameters = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "read_urls",
-                "objective": "Read the linked articles for full text",
+                "phase": "target",
                 "payload": {"urls": urls},
             }
         )
@@ -830,9 +934,43 @@ class TestWebSearchV3ExecutorFetchUrls:
         mock_executor_dependencies["content_processor"].run.assert_awaited_once()
         assert isinstance(result, list)
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run_fetch_urls__raises__when_payload_contains_blocked_url(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """
+        Purpose: Verify V3 read_urls rejects blocked targets when crawling is attempted.
+        Why this matters: Direct URL reads are the highest-risk ingress for SSRF-style abuse.
+        Setup summary: Provide a localhost URL in the payload and assert CrawlTargetValidationError is raised.
+        """
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "command": "read_urls",
+                "phase": "target",
+                "payload": {"urls": ["https://localhost/internal"]},
+            }
+        )
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=UrlSafetyService.validate_batch_urls
+        )
+
+        executor = WebSearchV3Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor.run()
+
 
 class TestWebSearchV3ToolParametersValidation:
-    """Validators on the V3 tool parameter schema (``command``/``objective``/``payload``)."""
+    """Validators on the V3 tool parameter schema (``command``/``phase``/``payload``)."""
 
     @pytest.mark.ai
     def test_search_command_with_search_payload_parses(self) -> None:
@@ -840,7 +978,7 @@ class TestWebSearchV3ToolParametersValidation:
         params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
-                "objective": "Look up the current Fed funds target rate.",
+                "phase": "target",
                 "payload": {
                     "gap": "Need the current target rate",
                     "query": "fed funds rate",
@@ -857,7 +995,7 @@ class TestWebSearchV3ToolParametersValidation:
         params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "read_urls",
-                "objective": "Read the linked SEC filing for exact figures.",
+                "phase": "target",
                 "payload": {
                     "urls": [
                         "https://www.sec.gov/Archives/edgar/data/foo/10-k.htm",
@@ -878,9 +1016,21 @@ class TestWebSearchV3ToolParametersValidation:
             WebSearchV3ToolParameters.model_validate(
                 {
                     "command": "search",
-                    "objective": "Anything",
+                    "phase": "target",
                     "payload": {"gap": "g", "query": "q"},
                     "task_complexity": "simple",
+                }
+            )
+
+    @pytest.mark.ai
+    def test_objective_field_is_rejected(self) -> None:
+        """Legacy ``objective`` is replaced by ``phase``."""
+        with pytest.raises(ValueError):
+            WebSearchV3ToolParameters.model_validate(
+                {
+                    "command": "search",
+                    "objective": "Look up rate",
+                    "payload": {"gap": "g", "query": "q"},
                 }
             )
 
@@ -896,17 +1046,18 @@ class TestWebSearchV3ToolParametersValidation:
         search_params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
-                "objective": "Search obj",
+                "phase": "exploratory",
                 "payload": {"gap": "g", "query": "q"},
             }
         )
         fetch_params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "read_urls",
-                "objective": "Fetch obj",
+                "phase": "target",
                 "payload": {"urls": ["https://example.com/a"]},
             }
         )
+        assert search_params.relevance_focus() == "[exploratory] g"
         assert search_params.get_display_name_suffix() == " - Searching"
         assert fetch_params.get_display_name_suffix() == " - Reading Pages"
 
@@ -990,6 +1141,40 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies[
             "message_log_callback"
         ].log_web_search_results.assert_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_execute_read_url_step__raises__when_target_url_is_blocked(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+    ) -> None:
+        """
+        Purpose: Verify READ_URL steps reject blocked targets when crawling is attempted.
+        Why this matters: The direct URL-read path must not allow localhost or private-network access.
+        Setup summary: Execute a READ_URL step pointing at localhost and assert CrawlTargetValidationError is raised.
+        """
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            side_effect=UrlSafetyService.validate_batch_urls
+        )
+
+        executor = WebSearchV2Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=sample_web_search_plan,
+        )
+
+        step = Step(
+            step_type=StepType.READ_URL,
+            objective="Read page",
+            query_or_url="https://localhost/private",
+        )
+
+        with pytest.raises(CrawlTargetValidationError):
+            await executor._execute_read_url_step(step)
 
 
 class TestWebSearchV2ExecutorEnforceMaxSteps:

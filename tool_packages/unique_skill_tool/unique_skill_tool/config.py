@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field
-from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from pydantic import BaseModel, Field
+from unique_toolkit._common.pydantic.rjsf_tags import CustomWidgetName, RJSFMetaTag
+from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+from unique_toolkit.app.schemas import SkillReference
 
 from unique_skill_tool.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
@@ -14,12 +16,31 @@ from unique_skill_tool.prompts import (
     DEFAULT_TOOL_PARAMETER_SKILL_NAME_DESCRIPTION,
     DEFAULT_TOOL_SYSTEM_REMINDER_FOR_USER_MESSAGE,
 )
-from unique_skill_tool.schemas import SelectableSkill
 
 CHARS_PER_TOKEN = 4
 DEFAULT_CHAR_BUDGET = 8_000
 SKILL_BUDGET_CONTEXT_PERCENT = 0.03
 MAX_LISTING_DESC_CHARS = 250
+
+
+class SkillSelection(BaseModel):
+    """Operator-curated set of skills, plus the folder they were picked from.
+
+    Bundles the picker's two pieces of state — the root folder being browsed
+    and the explicit list of selected skills — so the SKILLS_PICKER widget
+    sees them as a single object.
+    """
+
+    model_config = get_configuration_dict()
+
+    source_folder_id: str = Field(
+        default="",
+        description="The root skills folder ID.",
+    )
+    selected: list[SkillReference] = Field(
+        default_factory=list,
+        description="Individual skills selected from the knowledge base.",
+    )
 
 
 class SkillToolConfig(BaseToolConfig):
@@ -80,24 +101,13 @@ class SkillToolConfig(BaseToolConfig):
         description="The description of the 'arguments' parameter.",
     )
 
-    scope_ids: list[str] = Field(
-        default_factory=list,
-        title="Scope IDs",
-        description=(
-            "Knowledge base scope IDs to load skills from. Each scope "
-            "acts as a subtree root — every ``SKILL.md`` reachable "
-            "under it (at any depth) is loaded. Top-level and nested "
-            "folder scope IDs are both supported."
-        ),
-    )
-
     selectable_skills: Annotated[
-        list[SelectableSkill],
-        RJSFMetaTag.SpecialWidget.hidden(),
+        SkillSelection,
+        RJSFMetaTag.CustomWidget.custom(CustomWidgetName.SKILLS_PICKER),
     ] = Field(
-        default_factory=list,
-        title="Selectable Skills",
-        description=("Individual skill selected from the knowledge base."),
+        default_factory=lambda: SkillSelection(),
+        title="Selected Skills",
+        description="Skills selected from the knowledge base.",
     )
 
     max_listing_desc_chars: int = Field(

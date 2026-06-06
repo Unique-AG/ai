@@ -11,6 +11,7 @@ from pydantic import Field, TypeAdapter, create_model
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
+from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit._common.referencing import (
     get_all_ref_numbers,
     get_detection_pattern_for_ref,
@@ -41,9 +42,15 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 from unique_toolkit.app import ChatEvent
-from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
+from unique_toolkit.chat.schemas import (
+    ChatMessageAssessmentLabel,
+    ChatMessageAssessmentStatus,
+    ChatMessageAssessmentType,
+    MessageLog,
+    MessageLogStatus,
+)
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content import ContentChunk
+from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -147,6 +154,10 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         return self.config.tool_format_information_for_user_prompt
 
     @override
+    def takes_control(self) -> bool:
+        return self.config.passthrough_config.enabled
+
+    @override
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return [EvaluationMetricName.SUB_AGENT] if self._should_run_evaluation else []
 
@@ -198,7 +209,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 )
 
                 active_message_log = self._create_or_update_message_log(
-                    progress_message=f"_Executing sub agent with input: {tool_input}_",
+                    progress_message=f"<em>Executing sub agent with input: {tool_input}</em>",
                     active_message_log=active_message_log,
                 )
 
@@ -215,6 +226,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 self._should_run_evaluation |= (
                     response["assessment"] is not None
                     and len(response["assessment"]) > 0
+                    and not self.config.passthrough_config.enabled
                 )  # Run evaluation if any sub agent returned an assessment
 
                 self._notify_watcher(response, sequence_number, timestamp)
@@ -268,10 +280,13 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
                 # Update message log entry to completed
                 active_message_log = self._create_or_update_message_log(
-                    progress_message=f"_Completed sub agent with input: {tool_input}_",
+                    progress_message=f"<em>Completed sub agent with input: {tool_input}</em>",
                     status=MessageLogStatus.COMPLETED,
                     active_message_log=active_message_log,
                 )
+
+                if self.config.passthrough_config.enabled:
+                    await self._display_sub_agent_response(response)
 
                 return ToolCallResponse(
                     id=tool_call.id,
@@ -302,6 +317,68 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 active_message_log=active_message_log,
             )
             raise e
+
+    async def _display_sub_agent_response(self, response: Space.Message) -> None:
+        await self._publish_sub_agent_response(response, set_completed_at=True)
+
+        if self.config.passthrough_config.include_assessments:
+            await self._forward_sub_agent_assessments(response["assessment"] or [])
+
+    async def _publish_sub_agent_response(
+        self,
+        response: Space.Message,
+        *,
+        set_completed_at: bool,
+    ) -> None:
+        await self._chat_service.modify_assistant_message_async(
+            content=response["text"],
+            original_content=response["originalText"],
+            references=[
+                ContentReference.from_sdk_reference(ref)
+                for ref in response["references"] or []
+            ],
+            set_completed_at=set_completed_at,
+        )
+
+    async def _publish_sub_agent_response_update(
+        self,
+        response: Space.Message,
+    ) -> None:
+        try:
+            await self._publish_sub_agent_response(response, set_completed_at=False)
+        except Exception:
+            logger.warning(
+                "Failed to publish streaming sub agent passthrough update",
+                exc_info=True,
+            )
+
+    async def _forward_sub_agent_assessments(
+        self,
+        assessments: list[unique_sdk.Space.Assessment],
+    ) -> None:
+        async def _create_one_assessment(
+            assessment: unique_sdk.Space.Assessment,
+        ) -> None:
+            await self._chat_service.create_message_assessment_async(
+                assistant_message_id=self._chat_service._assistant_message_id,
+                status=ChatMessageAssessmentStatus(assessment["status"]),
+                type=ChatMessageAssessmentType(assessment["type"]),
+                title=assessment["title"],
+                explanation=assessment["explanation"],
+                label=ChatMessageAssessmentLabel(assessment["label"]),
+                is_visible=assessment["isVisible"],
+            )
+
+        if not assessments:
+            return
+
+        task_executor = SafeTaskExecutor(logger=logger)
+        await asyncio.gather(
+            *(
+                task_executor.execute_async(_create_one_assessment, a)
+                for a in assessments
+            ),
+        )
 
     async def _get_chat_id(self) -> str | None:
         if not self.config.reuse_chat:
@@ -388,6 +465,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         active_message_log: MessageLog | None = None,
     ) -> unique_sdk.Space.Message:
         try:
+            on_message_update = (
+                self._publish_sub_agent_response_update
+                if self.config.passthrough_config.enabled
+                else None
+            )
+
             return await send_message_and_wait_for_completion(
                 user_id=self._user_id,
                 assistant_id=self.config.assistant_id,
@@ -403,6 +486,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     parentChatId=self._event.payload.chat_id,
                     parentAssistantId=self.config.assistant_id,
                 ),
+                on_message_update=on_message_update,
             )
         except TimeoutError as e:
             await self._notify_progress(

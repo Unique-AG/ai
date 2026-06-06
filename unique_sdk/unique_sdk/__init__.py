@@ -77,6 +77,9 @@ from unique_sdk.api_resources._message import Message as Message
 from unique_sdk.api_resources._integrated import Integrated as Integrated
 from unique_sdk.api_resources._search import Search as Search
 from unique_sdk.api_resources._content import Content as Content
+from unique_sdk.api_resources._dynamic_frontend import (
+    DynamicFrontend as DynamicFrontend,
+)
 from unique_sdk.api_resources._search_string import SearchString as SearchString
 from unique_sdk.api_resources._short_term_memory import (
     ShortTermMemory as ShortTermMemory,
@@ -109,6 +112,12 @@ from unique_sdk.api_resources._analytics_order import (
 )
 from unique_sdk.api_resources._module import Module as Module
 from unique_sdk.api_resources._briefing import Briefing as Briefing
+from unique_sdk.api_resources._web_search import (
+    WebSearch as WebSearch,
+    WebCrawl as WebCrawl,
+    WebSearchResultItem as WebSearchResultItem,
+    WebCrawlResultItem as WebCrawlResultItem,
+)
 
 # Unique QL
 from unique_sdk._unique_ql import UQLOperator as UQLOperator

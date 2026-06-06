@@ -1,9 +1,16 @@
-from unique_mcp.context_requirements import (
+from unique_mcp.meta import (
+    CONFIG_META_KEY,
+    CONFIG_SCHEMA_META_KEY,
     CONTEXT_REQUIREMENTS_META_KEY,
+    META_FLAT_ALIASES,
+    ConfigSchemaMeta,
     ContextRequirements,
+    MetaKeys,
+    MetaPart,
+    UniqueAIToolMeta,
+    get_tool_config,
     merge_tool_meta,
 )
-from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
 from unique_mcp.unique_injectors import (
     get_request_meta,
     get_unique_service_factory,
@@ -12,11 +19,17 @@ from unique_mcp.unique_injectors import (
 )
 
 __all__ = [
+    "CONFIG_META_KEY",
+    "CONFIG_SCHEMA_META_KEY",
     "CONTEXT_REQUIREMENTS_META_KEY",
+    "ConfigSchemaMeta",
     "ContextRequirements",
     "META_FLAT_ALIASES",
     "MetaKeys",
+    "MetaPart",
+    "UniqueAIToolMeta",
     "get_request_meta",
+    "get_tool_config",
     "get_unique_service_factory",
     "get_unique_settings",
     "get_unique_userinfo",

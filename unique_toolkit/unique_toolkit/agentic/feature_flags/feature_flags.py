@@ -66,11 +66,6 @@ class FeatureFlags(BaseSettings):
         description="Enable new answers UI (UN-14411)",
     )
 
-    enable_elicitation_un_15809: FeatureFlag = Field(
-        default=FeatureFlag(False),
-        description="Enable elicitation (UN-15809)",
-    )
-
     enable_html_rendering_un_15131: FeatureFlag = Field(
         default=FeatureFlag(False),
         description="Enable HTML rendering for code interpreter files (UN-15131). Can be 'true' or comma-separated company IDs.",
@@ -79,6 +74,11 @@ class FeatureFlags(BaseSettings):
     enable_code_execution_fence_un_17972: FeatureFlag = Field(
         default=FeatureFlag(False),
         description="Emit codeExecution fences in message.text for code interpreter outputs (UN-17972). When disabled, inline file refs are kept as-is. Can be 'true' or comma-separated company IDs.",
+    )
+
+    enable_html_with_fence_un_17927: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Render HTML code interpreter files as htmlWithSource fences instead of HtmlRendering blocks (UN-17927). Requires enable_code_execution_fence_un_17972 to also be enabled. Can be 'true' or comma-separated company IDs.",
     )
 
     enable_web_search_argument_screening_un_18741: FeatureFlag = Field(

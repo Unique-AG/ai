@@ -136,6 +136,20 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "Invalid metadata" in result.output
 
+    @patch("unique_sdk.Search.create")
+    def test_search_api_error_exits_nonzero(self, mock: MagicMock) -> None:
+        """Bugbot regression: ``search:``-prefixed error strings must map
+        to a non-zero exit code so shells / scripts can detect failures —
+        mirroring the existing ``web-search`` behaviour.
+        """
+        from unique_sdk import APIError
+
+        mock.side_effect = APIError("boom")
+        runner = CliRunner()
+        result = runner.invoke(main, ["search", "query"])
+        assert result.exit_code == 1
+        assert "search:" in result.output
+
     def test_upload_nonexistent(self) -> None:
         runner = CliRunner()
         result = runner.invoke(main, ["upload", "/nonexistent/file.pdf"])

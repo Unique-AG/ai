@@ -8,6 +8,11 @@ import click
 
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.chat import cmd_chat_info
+from unique_sdk.cli.commands.cite_file import cmd_cite_file
+from unique_sdk.cli.commands.dynamic_frontend import (
+    cmd_dynamic_frontend_deploy,
+    cmd_dynamic_frontend_list,
+)
 from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_ask,
     cmd_elicit_create,
@@ -28,6 +33,10 @@ from unique_sdk.cli.commands.folder_access import cmd_folder_access
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.read import cmd_read
+from unique_sdk.cli.commands.read import (
+    is_error_output as _is_read_error_output,
+)
 from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_create,
     cmd_schedule_delete,
@@ -35,16 +44,35 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_list,
     cmd_schedule_update,
 )
-from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.search import (
+    cmd_search,
+)
+from unique_sdk.cli.commands.search import (
+    is_error_output as _is_search_error_output,
+)
 from unique_sdk.cli.commands.share_artifact import cmd_share_artifact
+from unique_sdk.cli.commands.subagent import cmd_subagent
+from unique_sdk.cli.commands.subagent import (
+    is_error_output as _is_subagent_error_output,
+)
 from unique_sdk.cli.commands.users import (
     cmd_group_members,
     cmd_groups_list,
     cmd_users_search,
 )
+from unique_sdk.cli.commands.web_search import (
+    cmd_web_crawl,
+    cmd_web_search,
+)
+from unique_sdk.cli.commands.web_search import (
+    is_error_output as _is_web_search_error_output,
+)
+from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
 from unique_sdk.cli.config import load_config
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
+
+_DYNAMIC_FRONTEND_ERROR_PREFIX = "dynamic-frontend "
 
 MAIN_HELP = """\
 Unique CLI -- Linux-like file explorer for the Unique AI Platform.
@@ -95,6 +123,10 @@ Examples:
   unique-cli users search "Peter"   Look up users by display name
   unique-cli chat info chat_abc     Show chat metadata (incl. projectScopeId)
   unique-cli share-artifact cont_x  Share an artifact from a chat with users/groups
+  unique-cli subagent Legal "Review" Invoke a connected space/subagent
+  unique-cli web-search search "x"  Search the web via the public API
+  unique-cli web-search crawl URL   Crawl a URL via the public API
+  unique-cli dynamic-frontend list  List manageable Dynamic Frontend spaces
 """
 
 
@@ -344,6 +376,132 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
 
 
+@main.command(name="cite")
+@click.argument("name_or_id")
+@click.option(
+    "--pages",
+    "-p",
+    default=None,
+    help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
+)
+@click.pass_context
+def cite(
+    ctx: click.Context,
+    name_or_id: str,
+    pages: str | None,
+) -> None:
+    """Declare page citations for a file.
+
+    \b
+    Registers [filesourceN] markers for pages you referenced in your answer.
+    Does NOT read or extract the file — use your own tools for that.
+
+    \b
+    Examples:
+      unique-cli cite report.pdf --pages 3,5,7
+      unique-cli cite cont_abc123 --pages 1-4
+    """
+    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
+
+
+@main.command(name="read")
+@click.argument("cont_id")
+@click.pass_context
+def read_cmd(ctx: click.Context, cont_id: str) -> None:
+    """Read all indexed text chunks for a known content ID.
+
+    \b
+    CONT_ID must be a content ID (cont_...) obtained from a prior `ls` or
+    `search` result. Retrieves every indexed chunk directly from the database
+    — no vector search, no query string needed.
+
+    \b
+    Use `search` when you need to find documents by topic or keyword.
+    Use `read` when you already know the content ID and want the full text.
+
+    \b
+    Examples:
+      unique-cli read cont_abc123
+    """
+    output = cmd_read(LazyState.get(ctx), cont_id)
+    if _is_read_error_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
+
+
+@main.group(name="dynamic-frontend")
+def dynamic_frontend() -> None:
+    """Deploy and list Dynamic Frontend spaces."""
+
+
+@dynamic_frontend.command(name="deploy")
+@click.option(
+    "--file",
+    "file_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Path to an upload-ready Dynamic Frontend ZIP bundle.",
+)
+@click.option(
+    "--content-id",
+    default=None,
+    help="Existing Knowledge Base content id for the ZIP bundle.",
+)
+@click.option(
+    "--name",
+    default=None,
+    help="Space display name. Required when creating; optional rename when updating.",
+)
+@click.option(
+    "--space-id", default=None, help="Existing Dynamic Frontend space id to update."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_deploy(
+    ctx: click.Context,
+    file_path: str | None,
+    content_id: str | None,
+    name: str | None,
+    space_id: str | None,
+    output_json: bool,
+) -> None:
+    """Create or update a Dynamic Frontend space.
+
+    \b
+    Examples:
+      unique-cli dynamic-frontend deploy --file ./app.zip --name "Revenue Dashboard"
+      unique-cli dynamic-frontend deploy --content-id content_123 --name "Revenue Dashboard"
+      unique-cli dynamic-frontend deploy --space-id assistant_123 --file ./app.zip
+    """
+    output = cmd_dynamic_frontend_deploy(
+        LazyState.get(ctx),
+        file=file_path,
+        content_id=content_id,
+        name=name,
+        space_id=space_id,
+        output_json=output_json,
+    )
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
+
+
+@dynamic_frontend.command(name="list")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
+    """List Dynamic Frontend spaces the current user can manage."""
+    output = cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json)
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
+
+
 @main.command()
 @click.argument("name_or_id")
 @click.pass_context
@@ -439,9 +597,12 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    click.echo(
-        cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit)
+    output = cmd_search(
+        state, query, folder=folder, metadata=parsed_metadata, limit=limit
     )
+    click.echo(output)
+    if _is_search_error_output(output):
+        ctx.exit(1)
 
 
 @main.command()
@@ -517,6 +678,87 @@ def mcp(
             stdin=use_stdin,
         )
     )
+
+
+@main.command()
+@click.argument("tool_name")
+@click.argument("message")
+@click.option(
+    "--config",
+    "config_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Path to .unique-subagents.json. Defaults to $UNIQUE_SUBAGENTS_CONFIG or cwd.",
+)
+@click.option(
+    "--chat-id",
+    "parent_chat_id",
+    default=None,
+    envvar="UNIQUE_CHAT_ID",
+    help="Parent chat ID for message correlation.",
+)
+@click.option(
+    "--message-id",
+    "parent_message_id",
+    default=None,
+    envvar="UNIQUE_MESSAGE_ID",
+    help="Parent message ID for message correlation.",
+)
+@click.option(
+    "--assistant-id",
+    "parent_assistant_id",
+    default=None,
+    envvar="UNIQUE_ASSISTANT_ID",
+    help="Parent assistant ID for message correlation.",
+)
+@click.option(
+    "--reset-chat",
+    is_flag=True,
+    help="Ignore any saved reusable chat for this subagent call.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Print the raw response JSON instead of a human-readable response.",
+)
+@click.pass_context
+def subagent(
+    ctx: click.Context,
+    tool_name: str,
+    message: str,
+    config_path: str | None,
+    parent_chat_id: str | None,
+    parent_message_id: str | None,
+    parent_assistant_id: str | None,
+    reset_chat: bool,
+    output_json: bool,
+) -> None:
+    """Invoke a configured connected-space subagent.
+
+    \b
+    TOOL_NAME must match an entry in .unique-subagents.json. The command sends
+    MESSAGE to that connected assistant and waits for the assistant response.
+
+    \b
+    Examples:
+      unique-cli subagent LegalReview "Review this contract clause"
+      unique-cli subagent Finance "Summarize Q4 revenue" --reset-chat
+    """
+    output = cmd_subagent(
+        LazyState.get(ctx),
+        tool_name=tool_name,
+        message=message,
+        config_path=config_path,
+        parent_chat_id=parent_chat_id,
+        parent_message_id=parent_message_id,
+        parent_assistant_id=parent_assistant_id,
+        reset_chat=reset_chat,
+        output_json=output_json,
+    )
+    click.echo(output)
+    if _is_subagent_error_output(output):
+        ctx.exit(1)
 
 
 # -- Scheduled Tasks -------------------------------------------------------
@@ -1426,3 +1668,239 @@ def share_artifact(
             output_json=output_json,
         )
     )
+
+
+# -- Web Search ------------------------------------------------------------
+
+
+# Key under which the `web-search` group stashes its `--config` path on
+# `ctx.meta`, so subcommands can read it back via
+# ``_resolve_web_search_config_path``. Kept as a module-level constant so the
+# writer (group) and reader (subcommand helper) cannot drift.
+_WEB_SEARCH_GROUP_CONFIG_KEY = "web_search_config_path"
+
+
+@main.group("web-search")
+@click.version_option(version=__version__, prog_name="unique-cli web-search")
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help=(
+        "Path to a JSON config file (full WebSearchConfig payload or "
+        "simple {search_engine_config: {...}, crawler_config: {...}} "
+        f"overrides). Falls back to ${ENV_CONFIG_PATH} and then "
+        "~/.unique-websearch.json."
+    ),
+)
+@click.pass_context
+def web_search_group(ctx: click.Context, config_path: str | None) -> None:
+    """Two-phase web search through the Unique public API.
+
+    \b
+    Phase 1 -- search:  query a search engine, get back URLs and snippets.
+    Phase 2 -- crawl:   fetch full page content for selected URLs.
+
+    \b
+    Engine and crawler are resolved server-side from
+    ACTIVE_SEARCH_ENGINES / ACTIVE_INHOUSE_CRAWLERS, matching the
+    server's WebSearchConfig defaults. Per-call overrides use the
+    same JSON shapes the assistants-core service expects, and can be
+    supplied via --config (file), inline --engine-config /
+    --crawler-config (JSON), or the equivalent flags on each subcommand.
+
+    \b
+    Override precedence (highest first):
+      1. Inline --fetch-size / --engine-config / --crawler-config flags
+      2. Config file (--config / $UNIQUE_WEBSEARCH_CONFIG / ~/.unique-websearch.json)
+      3. Server-side defaults
+
+    \b
+    Subcommands:
+      search    Run a web search and print URLs + snippets
+      crawl     Crawl a list of URLs and print their content
+    """
+    if config_path is not None:
+        ctx.meta[_WEB_SEARCH_GROUP_CONFIG_KEY] = config_path
+
+
+def _resolve_web_search_config_path(
+    ctx: click.Context, subcommand_value: str | None
+) -> str | None:
+    """Subcommand value wins; otherwise fall back to the group's --config."""
+    if subcommand_value is not None:
+        return subcommand_value
+    return ctx.meta.get(_WEB_SEARCH_GROUP_CONFIG_KEY)
+
+
+def _emit_web_search(ctx: click.Context, output: str) -> None:
+    """Echo a cmd_web_* result and translate error strings to exit code 1."""
+    click.echo(output)
+    if _is_web_search_error_output(output):
+        ctx.exit(1)
+
+
+_SEARCH_HELP = """\
+Run a web search via /web-search-api/search.
+
+\b
+Examples:
+  unique-cli web-search search "quarterly earnings 2026"
+  unique-cli web-search search "AI regulation" -n 10
+  unique-cli web-search search "python tutorial" --json
+  unique-cli web-search search "sustainability" --include-content --json
+  unique-cli web-search search "tax reform" \\
+    --engine-config '{"searchEngineName":"Google","fetchSize":3}'
+  unique-cli web-search --config ./ws.json search "EU AI act"
+"""
+
+
+@web_search_group.command("search", help=_SEARCH_HELP)
+@click.argument("query")
+@click.option(
+    "--fetch-size",
+    "-n",
+    default=None,
+    type=int,
+    help="Override the engine's fetchSize (number of results to fetch).",
+)
+@click.option(
+    "--include-content",
+    "-i",
+    is_flag=True,
+    default=False,
+    help="Populate result.content via the configured crawler when the engine requires scraping.",
+)
+@click.option(
+    "--engine-config",
+    "engine_config_raw",
+    default=None,
+    help='Override the searchEngineConfig as a JSON object (e.g. \'{"searchEngineName":"Google"}\').',
+)
+@click.option(
+    "--crawler-config",
+    "crawler_config_raw",
+    default=None,
+    help="Override the crawlerConfig as a JSON object (only used with --include-content).",
+)
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help="Per-call override of the web-search group's --config path.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
+)
+@click.pass_context
+def web_search_search_cmd(
+    ctx: click.Context,
+    query: str,
+    fetch_size: int | None,
+    include_content: bool,
+    engine_config_raw: str | None,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    output_json: bool,
+) -> None:
+    """Search the web via the Unique public API."""
+    resolved_config = _resolve_web_search_config_path(ctx, config_path)
+    output = cmd_web_search(
+        LazyState.get(ctx),
+        query,
+        fetch_size=fetch_size,
+        include_content=include_content,
+        engine_config_raw=engine_config_raw,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=resolved_config,
+    )
+    _emit_web_search(ctx, output)
+
+
+_CRAWL_HELP = """\
+Crawl a list of URLs via /web-search-api/crawl.
+
+URLs can be passed as positional arguments or piped via stdin (one per line).
+
+\b
+Examples:
+  unique-cli web-search crawl https://example.com https://other.com
+  unique-cli web-search crawl --parallel 5 https://a.com https://b.com
+  echo "https://example.com" | unique-cli web-search crawl --stdin
+  unique-cli web-search search "query" --json | jq -r '.results[].url' \\
+    | unique-cli web-search crawl --stdin
+"""
+
+
+@web_search_group.command("crawl", help=_CRAWL_HELP)
+@click.argument("urls", nargs=-1)
+@click.option(
+    "--parallel",
+    "-p",
+    default=10,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help="Number of URLs the server crawls concurrently per batch.",
+)
+@click.option(
+    "--stdin",
+    "from_stdin",
+    is_flag=True,
+    help="Read URLs from stdin (one per line).",
+)
+@click.option(
+    "--crawler-config",
+    "crawler_config_raw",
+    default=None,
+    help='Override the crawlerConfig as a JSON object (e.g. \'{"crawlerType":"BasicCrawler"}\').',
+)
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    default=None,
+    type=click.Path(),
+    help="Per-call override of the web-search group's --config path.",
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output results as JSON.",
+)
+@click.pass_context
+def web_search_crawl_cmd(
+    ctx: click.Context,
+    urls: tuple[str, ...],
+    parallel: int,
+    from_stdin: bool,
+    crawler_config_raw: str | None,
+    config_path: str | None,
+    output_json: bool,
+) -> None:
+    """Crawl URLs via the Unique public API."""
+    url_list: list[str] = list(urls)
+    if from_stdin:
+        stdin_urls = [
+            line.strip() for line in click.get_text_stream("stdin") if line.strip()
+        ]
+        url_list.extend(stdin_urls)
+
+    resolved_config = _resolve_web_search_config_path(ctx, config_path)
+    output = cmd_web_crawl(
+        LazyState.get(ctx),
+        url_list,
+        parallel=parallel,
+        crawler_config_raw=crawler_config_raw,
+        output_json=output_json,
+        config_path=resolved_config,
+    )
+    _emit_web_search(ctx, output)

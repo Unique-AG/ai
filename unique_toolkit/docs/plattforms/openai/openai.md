@@ -84,6 +84,8 @@ response = client.responses.create(
 
 <!--
 ```{.python file=docs/.python_files/openai_simple_completion.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<toolkit_language_model>>
 <<get_openai_client>>
@@ -94,6 +96,8 @@ response = client.responses.create(
 
 <!--
 ```{.python file=docs/.python_files/openai_simple_response.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<toolkit_language_model>>
 <<get_openai_client>>
@@ -142,6 +146,8 @@ response = client.responses.parse(
 
 <!--
 ```{.python file=docs/.python_files/openai_structured_completion.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<toolkit_language_model>>
 <<get_openai_client>>
@@ -152,6 +158,8 @@ response = client.responses.parse(
 
 <!--
 ```{.python file=docs/.python_files/openai_responses_structured_output.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<toolkit_language_model>>
 <<get_openai_client>>
@@ -226,6 +234,8 @@ completion.choices[0].message.tool_calls
 ```
 <!--
 ```{.python file=docs/.python_files/openai_completion_function_call.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<toolkit_language_model>>
 <<get_openai_client>>
@@ -256,6 +266,8 @@ response = client.responses.create(
 
 <!--
 ```{.python file=docs/.python_files/openai_responses_function_call.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<toolkit_language_model>>
 <<get_openai_client>>

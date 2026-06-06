@@ -1,4 +1,14 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+
 # %%
+
+
 from unique_toolkit import (
     ChatService,
     KnowledgeBaseService,
@@ -23,10 +33,10 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         .messages
     )
 
-    try:
-        old_memory = chat_service.find_chat_memory(key="user_message")
+    old_memory = chat_service.find_chat_memory(key="user_message")
+    if old_memory is not None:
         print(old_memory)
-    except Exception:
+    else:
         print("No chat memory found with key 'user_message'")
 
     chat_service.create_chat_memory(

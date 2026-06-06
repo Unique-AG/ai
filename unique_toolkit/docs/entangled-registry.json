@@ -191,6 +191,9 @@
   "#event-driven-ngrok-run-app": [
     "docs/application_types/event_driven/event_driven_as_app_with_ngrok.md"
   ],
+  "#example-script-deps": [
+    "docs/setup/_script_dependencies.md"
+  ],
   "#folder-mgmt-constants": [
     "docs/modules/examples/content/content-folder.md"
   ],

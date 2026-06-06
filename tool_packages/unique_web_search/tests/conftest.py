@@ -1,12 +1,36 @@
 import asyncio
+import socket
 from unittest.mock import Mock
 
 import pytest
 
+import unique_web_search.services.crawlers.url_safety.dns as url_safety_dns
 from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.search_engine.schema import WebSearchResult
+
+
+@pytest.fixture(autouse=True)
+def stable_public_dns_for_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Return a deterministic public IP for dotted hostnames during unit tests."""
+
+    def fake_getaddrinfo(host: str, *args: object, **kwargs: object) -> list[tuple]:
+        normalized_host = str(host).rstrip(".").lower()
+        if "." not in normalized_host:
+            raise socket.gaierror("single-label host not resolved in tests")
+
+        return [
+            (
+                socket.AF_INET,
+                socket.SOCK_STREAM,
+                6,
+                "",
+                ("93.184.216.34", 443),
+            )
+        ]
+
+    monkeypatch.setattr(url_safety_dns.socket, "getaddrinfo", fake_getaddrinfo)
 
 
 @pytest.fixture
@@ -72,11 +96,35 @@ def _mock_experimental_features(
     return exp
 
 
+def _mock_argument_screening_config() -> Mock:
+    """Build a Mock matching ArgumentScreeningConfig with a per-feature LM."""
+    arg = Mock()
+    arg.enabled = False
+    arg.language_model = Mock()
+    return arg
+
+
+def _mock_experimental_features_with_arg_screening(
+    enable_system_reminder: bool = False,
+    system_reminder_prompt: str = "",
+) -> Mock:
+    exp = _mock_experimental_features(
+        enable_system_reminder=enable_system_reminder,
+        system_reminder_prompt=system_reminder_prompt,
+    )
+    exp.argument_screening_config = _mock_argument_screening_config()
+    return exp
+
+
 @pytest.fixture
 def mock_web_search_config_v1():
     """Mock WebSearchConfig for V1 mode testing."""
     config = Mock()
-    config.language_model = Mock()
+    # Deprecated top-level field — kept on the mock for backward compatibility
+    # with any test that still touches it; production code reads from the new
+    # per-feature fields below.
+    config.language_model = None
+    config.token_counting_language_model = Mock()
     config.search_engine_config = Mock()
     config.crawler_config = Mock()
     config.content_processor_config = Mock()
@@ -87,7 +135,7 @@ def mock_web_search_config_v1():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
-    config.experimental_features = _mock_experimental_features()
+    config.experimental_features = _mock_experimental_features_with_arg_screening()
     config.web_search_active_mode = WebSearchMode.V1
     config.web_search_mode_config.mode = WebSearchMode.V1
     config.web_search_mode_config.tool_description = "V1 tool description"
@@ -99,6 +147,7 @@ def mock_web_search_config_v1():
     )
     config.web_search_mode_config.tool_parameters_description.date_restrict_description = "Date restrict description"
     config.web_search_mode_config.refine_query_mode.mode = Mock()
+    config.web_search_mode_config.refine_query_mode.language_model = Mock()
     config.web_search_mode_config.max_queries = 5
     config.web_search_mode_config.refine_query_mode.system_prompt = (
         "Refine query prompt"
@@ -110,7 +159,8 @@ def mock_web_search_config_v1():
 def mock_web_search_config_v2():
     """Mock WebSearchConfig for V2 mode testing."""
     config = Mock()
-    config.language_model = Mock()
+    config.language_model = None
+    config.token_counting_language_model = Mock()
     config.search_engine_config = Mock()
     config.crawler_config = Mock()
     config.content_processor_config = Mock()
@@ -121,7 +171,7 @@ def mock_web_search_config_v2():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
-    config.experimental_features = _mock_experimental_features()
+    config.experimental_features = _mock_experimental_features_with_arg_screening()
     config.web_search_active_mode = WebSearchMode.V2
     config.web_search_mode_config.mode = WebSearchMode.V2
     config.web_search_mode_config.tool_description = "V2 tool description"
@@ -136,7 +186,8 @@ def mock_web_search_config_v2():
 def mock_web_search_config_v3():
     """Mock WebSearchConfig for V3 mode testing."""
     config = Mock()
-    config.language_model = Mock()
+    config.language_model = None
+    config.token_counting_language_model = Mock()
     config.search_engine_config = Mock()
     config.crawler_config = Mock()
     config.content_processor_config = Mock()
@@ -147,7 +198,7 @@ def mock_web_search_config_v3():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
-    config.experimental_features = _mock_experimental_features()
+    config.experimental_features = _mock_experimental_features_with_arg_screening()
     config.web_search_active_mode = WebSearchMode.V3
     config.web_search_mode_config.mode = WebSearchMode.V3
     config.web_search_mode_config.tool_description = "V3 tool description"
@@ -362,7 +413,6 @@ def executor_context_objects(mock_executor_dependencies: dict):
     )
 
     config = ExecutorConfiguration(
-        language_model=mock_executor_dependencies["language_model"],
         chunk_relevancy_sort_config=mock_executor_dependencies[
             "chunk_relevancy_sort_config"
         ],

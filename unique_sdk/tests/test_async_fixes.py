@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from unique_sdk.api_resources._agentic_table import AgenticTable
+from unique_sdk.api_resources._space import Space
 
 
 @pytest.mark.asyncio
@@ -54,6 +55,37 @@ async def test_get_sheet_data_forwards_include_sheet_metadata_query_param():
         assert params["tableId"] == "t1"
         assert params["includeCells"] is True
         assert params["includeSheetMetadata"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_data_forwards_scope_to_assigned_rows_query_param():
+    with patch.object(
+        AgenticTable, "_static_request_async", new_callable=AsyncMock
+    ) as mock_req:
+        mock_req.return_value = {
+            "sheetId": "s1",
+            "name": "n",
+            "state": "IDLE",
+            "chatId": "ch1",
+            "createdBy": "u0",
+            "companyId": "c1",
+            "createdAt": "t0",
+            "magicTableRowCount": 0,
+        }
+
+        await AgenticTable.get_sheet_data(
+            user_id="u1",
+            company_id="c1",
+            tableId="t1",
+            includeRowCount=True,
+            scopeToAssignedRows=True,
+        )
+
+        mock_req.assert_awaited_once()
+        _method, _url, _uid, _cid, params = mock_req.await_args[0]
+        assert params["tableId"] == "t1"
+        assert params["includeRowCount"] is True
+        assert params["scopeToAssignedRows"] is True
 
 
 @pytest.mark.asyncio
@@ -107,3 +139,40 @@ async def test_wait_for_ingestion_completion_uses_async_search():
 
         mock_search.assert_awaited()
         assert state == "FINISHED"
+
+
+def test_space_create_message_defaults_skill_choices_to_empty_list():
+    with patch.object(Space, "_static_request") as mock_req:
+        mock_req.return_value = {"id": "m1", "chatId": "c1"}
+
+        Space.create_message(
+            user_id="u1",
+            company_id="c1",
+            assistantId="a1",
+            text="hello",
+        )
+
+        mock_req.assert_called_once()
+        params = mock_req.call_args.kwargs["params"]
+        assert params["toolChoices"] == []
+        assert params["skillChoices"] == []
+
+
+@pytest.mark.asyncio
+async def test_space_create_message_async_defaults_skill_choices_to_empty_list():
+    with patch.object(
+        Space, "_static_request_async", new_callable=AsyncMock
+    ) as mock_req:
+        mock_req.return_value = {"id": "m1", "chatId": "c1"}
+
+        await Space.create_message_async(
+            user_id="u1",
+            company_id="c1",
+            assistantId="a1",
+            text="hello",
+        )
+
+        mock_req.assert_awaited_once()
+        params = mock_req.await_args.kwargs["params"]
+        assert params["toolChoices"] == []
+        assert params["skillChoices"] == []

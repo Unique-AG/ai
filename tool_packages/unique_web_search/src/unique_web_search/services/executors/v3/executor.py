@@ -58,11 +58,13 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         p = self.tool_parameters
         if isinstance(p.payload, SearchPayload):
             await self._message_log_callback.log_progress("_Executing Search_")
-            return await self._run_search(query=p.payload.query, objective=p.objective)
+            return await self._run_search(
+                query=p.payload.query, objective=p.relevance_focus()
+            )
         if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
             return await self._run_fetch_urls(
-                urls=p.payload.urls, objective=p.objective
+                urls=p.payload.urls, objective=p.relevance_focus()
             )
 
         msg = "WebSearchV3ToolParameters requires exactly one of 'query' or 'urls'."
@@ -79,7 +81,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         self.notify_message = objective
         await self.notify_callback()
 
-        elicited = await self._ff_elicitate_queries([query])
+        elicited = await self.query_elicitation([query])
         query = elicited[0]
 
         self.debug_info.steps.append(
@@ -182,7 +184,6 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info("Company %s Crawling %s URLs", self.company_id, len(urls))
-
         await self._message_log_callback.log_queries(urls)
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
             contents = await self.crawler_service.crawl(urls)

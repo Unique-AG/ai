@@ -8,6 +8,8 @@ from unique_web_search.services.search_engine import (
     BingSearchConfig,
     BraveSearch,
     BraveSearchConfig,
+    PerplexitySearch,
+    PerplexitySearchConfig,
     get_default_search_engine_config,
     get_search_engine_config_types_from_names,
     get_search_engine_service,
@@ -16,6 +18,7 @@ from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.custom_api import (
     CustomAPI,
     CustomAPIConfig,
+    conditional_type,
 )
 from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
 from unique_web_search.services.search_engine.jina import JinaConfig, JinaSearch
@@ -77,6 +80,12 @@ class TestSearchEngineFactory:
         config = BraveSearchConfig(search_engine_name=SearchEngineType.BRAVE)
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, BraveSearch)
+
+    def test_get_perplexity_search_engine_service(self):
+        """Test getting Perplexity search engine service."""
+        config = PerplexitySearchConfig(search_engine_name=SearchEngineType.PERPLEXITY)
+        service = get_search_engine_service(config, Mock())
+        assert isinstance(service, PerplexitySearch)
 
     def test_get_config_types_from_names_single(self):
         """Test getting config types from single engine name."""
@@ -150,6 +159,7 @@ class TestGetSearchEngineModelConfig:
             (SearchEngineType.FIRECRAWL, "Firecrawl Search"),
             (SearchEngineType.TAVILY, "Tavily Search"),
             (SearchEngineType.BRAVE, "Brave Search"),
+            (SearchEngineType.PERPLEXITY, "Perplexity Search"),
             (SearchEngineType.BING, "Grounding with Bing"),
             (SearchEngineType.DUCKDUCKGO, "DuckDuckGo Search"),
             (SearchEngineType.VERTEXAI, "Grounding with VertexAI"),
@@ -161,6 +171,7 @@ class TestGetSearchEngineModelConfig:
             "firecrawl",
             "tavily",
             "brave",
+            "perplexity",
             "bing",
             "duckduckgo",
             "vertexai",
@@ -496,6 +507,7 @@ class TestSearchEngineTypes:
         assert SearchEngineType.FIRECRAWL == "Firecrawl"
         assert SearchEngineType.TAVILY == "Tavily"
         assert SearchEngineType.BRAVE == "Brave"
+        assert SearchEngineType.PERPLEXITY == "Perplexity"
         assert SearchEngineType.BING == "Bing"
         assert SearchEngineType.DUCKDUCKGO == "DuckDuckGo"
         assert SearchEngineType.VERTEXAI == "VertexAI"
@@ -1254,6 +1266,91 @@ class TestCustomAPISearch:
         assert call_kwargs["timeout"] == 120  # default timeout
         assert call_kwargs["follow_redirects"] is True
         assert call_kwargs["max_redirects"] == 10
+
+
+class TestConditionalType:
+    """Tests for the conditional_type field factory used by CustomAPIConfig."""
+
+    @pytest.mark.ai
+    def test_conditional_type__no_exclude__when_env_value_unset(self) -> None:
+        """
+        Purpose: Verify the field is NOT excluded from serialization when no env value is set.
+        Why this matters: When unset, the field is user-configurable and must appear in
+            model_dump() output and the JSON schema so it can be edited and round-tripped.
+        Setup summary: Call conditional_type with value=None; inspect the returned FieldInfo.
+        """
+        # Arrange & Act
+        tp, field = conditional_type(str, None, "desc", "default")
+
+        # Assert
+        assert tp is str  # exposed in schema (not SkipJsonSchema)
+        assert field.exclude is not True
+        assert field.default == "default"
+
+    @pytest.mark.ai
+    def test_conditional_type__excludes_field__when_env_value_set(self) -> None:
+        """
+        Purpose: Verify the field is excluded from serialization when an env value is set.
+        Why this matters: Env-sourced values (e.g. endpoints/headers) should not leak into
+            model_dump() output and are re-sourced from env on load, so they must be excluded.
+        Setup summary: Call conditional_type with a concrete value; inspect the returned FieldInfo.
+        """
+        # Arrange & Act
+        _, field = conditional_type(str, "from-env", "desc", "default")
+
+        # Assert
+        assert field.exclude is True
+        assert field.default == "from-env"
+
+    @pytest.mark.ai
+    def test_conditional_type__field_excluded_from_model_dump__when_env_value_set(
+        self,
+    ) -> None:
+        """
+        Purpose: End-to-end check that exclude=True actually drops the field from model_dump().
+        Why this matters: This is the observable behavior callers rely on; a regression would
+            re-expose env-sourced config values in serialized output.
+        Setup summary: Build a tiny model whose field uses conditional_type with a set value,
+            then dump it and assert the field is absent.
+        """
+        # Arrange
+        from pydantic import BaseModel
+
+        tp, field = conditional_type(str, "from-env", "desc", "default")
+
+        class _Model(BaseModel):
+            value: tp = field  # type: ignore[valid-type]
+
+        # Act
+        dumped = _Model().model_dump()
+
+        # Assert
+        assert "value" not in dumped
+
+    @pytest.mark.ai
+    def test_conditional_type__field_present_in_model_dump__when_env_value_unset(
+        self,
+    ) -> None:
+        """
+        Purpose: Counterpart check that an unset (None) env value keeps the field in model_dump().
+        Why this matters: User-configurable fields must remain serializable so they can be
+            persisted and round-tripped.
+        Setup summary: Build a tiny model whose field uses conditional_type with value=None,
+            then dump it and assert the field is present with its default.
+        """
+        # Arrange
+        from pydantic import BaseModel
+
+        tp, field = conditional_type(str, None, "desc", "default")
+
+        class _Model(BaseModel):
+            value: tp = field  # type: ignore[valid-type]
+
+        # Act
+        dumped = _Model().model_dump()
+
+        # Assert
+        assert dumped["value"] == "default"
 
 
 if __name__ == "__main__":

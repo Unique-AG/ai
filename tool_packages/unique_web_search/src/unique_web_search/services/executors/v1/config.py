@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.executors.base_config import (
@@ -16,6 +17,7 @@ from unique_web_search.services.executors.v1.prompts import (
     REFINE_QUERY_SYSTEM_PROMPT,
     RESTRICT_DATE_DESCRIPTION,
 )
+from unique_web_search.settings import env_settings
 
 
 class RefineQueryMode(StrEnum):
@@ -59,6 +61,17 @@ class QueryRefinementConfig(BaseModel):
         default=RefineQueryMode.BASIC,
         title="Refinement Mode",
         description="Basic: simple query cleanup. Advanced: AI-powered query optimization. Deactivated: use the original query as-is.",
+    )
+
+    language_model: LMI = get_LMI_default_field(
+        env_settings.web_search_default_language_model,
+        title="Refinement Language Model",
+        description=(
+            "AI model used to refine the user's query in V1 Search Mode."
+            " Requires the STRUCTURED_OUTPUT capability when 'Refinement"
+            " Mode' is Basic or Advanced; otherwise refinement is"
+            " automatically deactivated."
+        ),
     )
 
     system_prompt: Annotated[

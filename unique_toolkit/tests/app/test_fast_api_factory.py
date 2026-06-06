@@ -258,7 +258,7 @@ async def test_webhook_handler__returns_401__when_signature_invalid(
         "unique_toolkit.app.webhook.is_webhook_signature_valid",
         return_value=False,
     )
-    event_data = sample_chat_event.model_dump()
+    event_data = sample_chat_event.model_dump(mode="json")
     # Act
     from fastapi.testclient import TestClient
 
@@ -384,7 +384,7 @@ async def test_webhook_handler__returns_200__when_event_filtered(
         "unique_toolkit.app.webhook.is_webhook_signature_valid",
         return_value=True,
     )
-    event_data = sample_chat_event.model_dump()
+    event_data = sample_chat_event.model_dump(mode="json")
     # Act
     from fastapi.testclient import TestClient
 

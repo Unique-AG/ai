@@ -9,6 +9,28 @@ from unique_toolkit.app.schemas import (
     EventPayload,
     EventUserMessage,
 )
+from unique_toolkit.language_model.infos import LanguageModelInfo
+
+
+def _minimal_chat_event_payload_data() -> dict:
+    return {
+        "name": "unique.chat.external-module.chosen",
+        "description": "Test description",
+        "configuration": {"key": "value"},
+        "chatId": "chat1",
+        "assistantId": "assistant1",
+        "userMessage": {
+            "id": "msg1",
+            "text": "Hello",
+            "createdAt": "2023-01-01T00:00:00Z",
+            "originalText": "Hello",
+            "language": "en",
+        },
+        "assistantMessage": {
+            "id": "msg2",
+            "createdAt": "2023-01-01T00:01:00Z",
+        },
+    }
 
 
 class TestEventSchemas:
@@ -203,6 +225,56 @@ class TestEventSchemas:
         assert (
             payload.additional_parameters.user_space_instructions == "some instructions"
         )
+
+    def test_chat_event_payload_defaults_model_choice_when_omitted(self) -> None:
+        payload = ChatEventPayload.model_validate(_minimal_chat_event_payload_data())
+
+        assert isinstance(payload.model_choice, LanguageModelInfo)
+        assert payload.has_model_choice_override is False
+        assert "modelChoice" not in payload.model_dump(
+            mode="json",
+            by_alias=True,
+            exclude_unset=True,
+        )
+
+    def test_chat_event_payload_tracks_explicit_model_choice_alias(self) -> None:
+        payload_data = _minimal_chat_event_payload_data()
+        payload_data["modelChoice"] = "selected-test-model"
+
+        payload = ChatEventPayload.model_validate(payload_data)
+
+        assert isinstance(payload.model_choice, LanguageModelInfo)
+        assert payload.model_choice.display_name == "selected-test-model"
+        assert payload.has_model_choice_override is True
+
+    def test_chat_event_payload_deserializes_available_skills(self) -> None:
+        json_data = """{
+            "name": "unique.chat.external-module.chosen",
+            "description": "Test description",
+            "configuration": {"key": "value"},
+            "chatId": "chat1",
+            "assistantId": "assistant1",
+            "userMessage": {
+                "id": "msg1",
+                "text": "Hello",
+                "createdAt": "2023-01-01T00:00:00Z",
+                "originalText": "Hello",
+                "language": "en"
+            },
+            "assistantMessage": {
+                "id": "msg2",
+                "createdAt": "2023-01-01T00:01:00Z"
+            },
+            "availableSkills": [
+                {"contentId": "cont_a", "scopeId": "scope_b"}
+            ]
+        }"""
+        payload = ChatEventPayload.model_validate_json(json_data)
+
+        assert len(payload.available_skills) == 1
+        assert payload.available_skills[0].content_id == "cont_a"
+        assert payload.available_skills[0].scope_id == "scope_b"
+        assert payload.available_skills[0].name == ""
 
     def test_additional_parameters__uploaded_files__object_format_deserialization(self):
         json_data = """{

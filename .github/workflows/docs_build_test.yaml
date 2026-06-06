@@ -22,6 +22,8 @@ on:
       - '.github/scripts/docs_build_versioned.sh'
       - 'pyproject.toml'
       - '.github/workflows/docs_build_test.yaml'
+      - 'unique_toolkit/generate_examples.sh'
+      - 'unique_toolkit/scripts/**'
 
 jobs:
   build:
@@ -41,3 +43,23 @@ jobs:
 
       - name: Build versioned documentation
         run: ./.github/scripts/docs_build_versioned.sh --clean
+
+
+      - name: Install toolkit packages for example validation
+        # --inexact preserves the docs group (entangled-cli) installed above.
+        # Without it, this sync prunes 112 packages from the env — including
+        # entangled-cli — and generate_examples.sh then silently falls back
+        # to the annotated `.python_files/*.py` left behind by `mkdocs build`,
+        # producing apparent drift in `examples_from_docs/`.
+        run: |
+          uv sync --locked --inexact --package unique_sdk --package unique_toolkit
+          uv sync --inexact --package unique_toolkit --extra langchain
+
+      - name: Regenerate doc examples and check drift
+        run: |
+          cd unique_toolkit
+          UV_PROJECT="${{ github.workspace }}/pyproject.toml" ./generate_examples.sh
+          git diff --exit-code docs/examples_from_docs/
+
+      - name: Validate doc examples
+        run: uv run python unique_toolkit/scripts/validate_doc_examples.py

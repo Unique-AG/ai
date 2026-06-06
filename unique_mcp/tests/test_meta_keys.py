@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
+from unique_mcp.meta.keys import META_FLAT_ALIASES, MetaKeys
 
 
 @pytest.mark.ai
@@ -40,3 +40,4 @@ def test_flat_aliases_are_camel_case_strings() -> None:
 def test_metakeys_reverse_lookup() -> None:
     """Round-tripping a wire value produces the matching enum member."""
     assert MetaKeys("unique.app/chat/chat-id") is MetaKeys.CHAT_ID
+    assert MetaKeys("unique.app/system-prompt") is MetaKeys.UNIQUE_AI_TOOL_SYSTEM_PROMPT

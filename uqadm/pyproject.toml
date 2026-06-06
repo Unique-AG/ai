@@ -1,0 +1,74 @@
+[project]
+name = "uqadm"
+version = "2026.24.0"
+description = "Unique admin CLI (space list, export, upsert, migrate, delete): separate from unique-cli"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "unique-sdk>=2026.24.0",
+    "typer>=0.12,<1",
+    "python-dotenv>=1.0.0,<2",
+    "pyyaml>=6.0.1,<7",
+    "rich>=13.3.5",
+    "tomli-w>=1.0,<2",
+]
+
+[project.scripts]
+uqadm = "uqadm.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.basedpyright]
+pythonVersion = "3.12"
+typeCheckingMode = "recommended"
+include = ["uqadm"]
+exclude = ["**/tests/**", "**/test_*.py"]
+
+# Any-cascade: all triggered by untyped third-party code (click, unique-sdk);
+# fixing requires sprinkling `Any` everywhere which defeats the purpose.
+reportAny = "none"
+reportExplicitAny = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
+
+# Third-party libraries that ship no type stubs.
+reportMissingTypeStubs = "none"
+
+# Typer/options use typing.Optional idioms aligned with codebase style.
+reportDeprecated = "none"
+
+# Style preferences.
+reportImplicitStringConcatenation = "none"
+
+# CLI tools intentionally discard many return values.
+reportUnusedCallResult = "none"
+
+# uqadm accesses SDK-internal symbols.
+reportPrivateUsage = "none"
+reportPrivateLocalImportUsage = "none"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=uqadm --cov-report=term-missing"

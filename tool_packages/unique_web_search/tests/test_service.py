@@ -342,7 +342,6 @@ class TestWebSearchToolGetExecutor:
         tool.config = mock_web_search_config_v2
         tool.search_engine_service = Mock()
         tool._language_model_service = Mock()
-        tool.language_model = Mock()
         tool.crawler_service = Mock()
         tool.company_id = "test-company"
         tool.content_processor = Mock()
@@ -402,7 +401,6 @@ class TestWebSearchToolGetExecutor:
         tool.config = mock_web_search_config_v1
         tool.search_engine_service = Mock()
         tool._language_model_service = Mock()
-        tool.language_model = Mock()
         tool.crawler_service = Mock()
         tool.company_id = "test-company"
         tool.content_processor = Mock()
@@ -461,7 +459,6 @@ class TestWebSearchToolGetExecutor:
         tool.settings.display_name = "Web Search"
         tool.search_engine_service = Mock()
         tool._language_model_service = Mock()
-        tool.language_model = Mock()
         tool.crawler_service = Mock()
         tool.company_id = "test-company"
         tool.content_processor = Mock()
@@ -813,7 +810,7 @@ class TestWebSearchToolRun:
         tool_call.id = "test-id"
         tool_call.arguments = {
             "command": "search",
-            "objective": "Test sub-goal for this search",
+            "phase": "target",
             "payload": {"gap": "Test gap to fill", "query": "test"},
         }
 

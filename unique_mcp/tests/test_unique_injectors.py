@@ -13,7 +13,7 @@ from unique_toolkit.app.unique_settings import (
 )
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
-from unique_mcp.meta_keys import MetaKeys
+from unique_mcp.meta.keys import MetaKeys
 from unique_mcp.unique_injectors import (
     _CLAIM_COMPANY_ID,
     _CLAIM_USER_ID,

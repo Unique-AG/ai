@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import override
+from typing import cast, override
 
 from jinja2.sandbox import SandboxedEnvironment
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -11,14 +11,14 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressRepo
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.language_model.schemas import (
+    REASONING_EFFORT_ORDER,
     LanguageModelFunction,
     LanguageModelToolDescription,
+    ReasoningEffort,
 )
 
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.schemas import (
-    SkillDefinition,
-)
+from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.utils import (
     format_skill_listing,
     normalize_skill_name,
@@ -46,6 +46,7 @@ class SkillTool(Tool[SkillToolConfig]):
     ) -> None:
         super().__init__(config, event, tool_progress_reporter)
         self._skill_registry: dict[str, SkillDefinition] = {}
+        self._activated_skills: list[SkillDefinition] = []
 
     @property
     def skill_registry(self) -> dict[str, SkillDefinition]:
@@ -54,6 +55,27 @@ class SkillTool(Tool[SkillToolConfig]):
     @skill_registry.setter
     def skill_registry(self, value: dict[str, SkillDefinition]) -> None:
         self._skill_registry = value
+
+    @property
+    def activated_skills(self) -> list[SkillDefinition]:
+        """All skills successfully activated in this run, in activation order."""
+        return self._activated_skills
+
+    @property
+    def max_thinking_level(self) -> ReasoningEffort | None:
+        """Highest ``thinking_level`` across all skills activated in this run.
+
+        Returns ``None`` when no activated skill declares a ``thinking_level``.
+        The ordering is ``none < minimal < low < medium < high < xhigh``.
+        """
+        levels = [
+            s.metadata.thinking_level
+            for s in self._activated_skills
+            if s.metadata is not None and s.metadata.thinking_level is not None
+        ]
+        if not levels:
+            return None
+        return cast(ReasoningEffort, max(levels, key=REASONING_EFFORT_ORDER.index))
 
     @override
     def display_name(self) -> str:
@@ -124,6 +146,10 @@ class SkillTool(Tool[SkillToolConfig]):
         )
 
     @override
+    def is_capability(self) -> bool:
+        return True
+
+    @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}
         raw_skill_name: str = args.get("skill_name", "")
@@ -149,6 +175,7 @@ class SkillTool(Tool[SkillToolConfig]):
                 ),
             )
 
+        self._activated_skills.append(skill)
         self._active_message_log = await self._log_skill_loaded(skill_name=skill_name)
 
         content_parts = [
@@ -173,7 +200,7 @@ class SkillTool(Tool[SkillToolConfig]):
 
     async def _log_skill_loaded(self, *, skill_name: str) -> MessageLog | None:
         """Emit a completed message log entry for the loaded skill."""
-        progress_message = f"Loaded skill `{skill_name}`"
+        progress_message = f"Using /{skill_name} skill"
 
         try:
             return await self._message_step_logger.create_or_update_message_log_async(

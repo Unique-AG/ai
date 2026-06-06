@@ -22,6 +22,10 @@ from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.names import (
+    INTERNAL_SEARCH_TOOL_NAME,
+    UPLOADED_SEARCH_TOOL_NAME,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
@@ -157,18 +161,52 @@ class _ToolManager(Generic[_ApiMode]):
                 continue
             # if tool choices are given, only include those tools
             if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
-                if t.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
-                    self._tools.append(t)
                 continue
             # is the tool exclusive and has been choosen by the user?
             if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:
                 self._tools = [t]  # override all other tools
+                self._restore_uploaded_search_for_internal_search_if_available(
+                    exclusive_tool=t
+                )
                 break
             # if the tool is exclusive but no tool choices are given, skip it
             if t.is_exclusive():
                 continue
 
             self._tools.append(t)
+
+        # Capability tools bypass tool_choices filtering — they are always
+        # included when enabled, regardless of what was force-selected.
+        active_names = {t.name for t in self._tools}
+        for t in self.available_tools:
+            if (
+                t.is_enabled()
+                and t.name not in self._disabled_tools
+                and t.is_capability()
+                and t.name not in active_names
+            ):
+                self._tools.append(t)
+
+    def _restore_uploaded_search_for_internal_search_if_available(
+        self,
+        exclusive_tool: Tool[Any] | OpenAIBuiltInTool[Any],
+    ) -> None:
+        """Keep UploadedSearch available when InternalSearch wins exclusivity."""
+        if exclusive_tool.name != INTERNAL_SEARCH_TOOL_NAME:
+            return
+
+        uploaded_search_tool = next(
+            (
+                tool
+                for tool in self.available_tools
+                if tool.name == UPLOADED_SEARCH_TOOL_NAME
+            ),
+            None,
+        )
+        if uploaded_search_tool is None:
+            return
+
+        self._tools.append(uploaded_search_tool)
 
     def filter_tool_calls(
         self,
@@ -272,20 +310,65 @@ class _ToolManager(Generic[_ApiMode]):
         if tool.name not in self._tool_choices:
             self._tool_choices.append(tool.name)
 
-    def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
+    def _get_tool_calls_that_take_control(
+        self, tool_calls: list[LanguageModelFunction]
+    ) -> list[LanguageModelFunction]:
+        tools = []
         for tool_call in tool_calls:
             tool_instance = self.get_tool_by_name(tool_call.name)
             if tool_instance and tool_instance.takes_control():
-                return True
-        return False
+                tools.append(tool_call)
+
+        return tools
+
+    def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
+        return len(self._get_tool_calls_that_take_control(tool_calls)) > 0
 
     def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
         return list(self._tool_evaluation_check_list)
+
+    def _take_control_conflict_response(
+        self,
+        tool_call: LanguageModelFunction,
+        take_control_names: list[str],
+    ) -> ToolCallResponse:
+        if tool_call.name in take_control_names:
+            content = (
+                f"ERROR: Tool `{tool_call.name}` directly returns its response to the user and therefore must be called on its own. "
+                "None of the tools in this batch were executed. "
+                f"You may recover by first calling the other tools, then calling `{tool_call.name}` alone."
+            )
+        else:
+            names = ", ".join(f"`{n}`" for n in take_control_names)
+            content = f"ERROR: Not executed because the following tool(s) must be called on their own: {names}"
+
+        return ToolCallResponse(
+            id=tool_call.id,
+            name=tool_call.name,
+            content=content,
+        )
 
     async def execute_selected_tools(
         self,
         tool_calls: list[LanguageModelFunction],
     ) -> list[ToolCallResponse]:
+        if len(tool_calls) > 1:
+            take_control_tools = [
+                t.name for t in self._get_tool_calls_that_take_control(tool_calls)
+            ]
+
+            if len(take_control_tools) > 0:
+                self._logger.warning(
+                    "Tool(s) %s take control and cannot be called alongside other tools. "
+                    "Returning error for all %d tool calls.",
+                    take_control_tools,
+                    len(tool_calls),
+                )
+                return [
+                    self._take_control_conflict_response(tool_call, take_control_tools)
+                    for tool_call in tool_calls
+                ]
+
         tool_call_responses = await self._execute_parallelized(tool_calls)
         return tool_call_responses
 

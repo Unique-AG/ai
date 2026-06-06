@@ -7,6 +7,9 @@ import pytest
 import unique_sdk
 from pydantic import SecretStr
 
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_in_clause,
+)
 from unique_toolkit.app.schemas import (
     BaseEvent,
     ChatEvent,
@@ -378,22 +381,20 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify search_content_chunks returns results when scope_ids are provided.
+        Purpose: Verify search_content_chunks folds scope_ids into a folderId `in` filter.
         Why this matters: Scope-based search is a core functionality for knowledge base queries.
-        Setup summary: Mock search_content_chunks function, call service method with scope_ids, assert results.
+        Setup summary: Mock search_content_chunks, call with scope_ids, assert folderId `in` filter used.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
 
-        # Act
-        result = base_kb_service.search_content_chunks(
-            search_string="test query",
-            search_type=ContentSearchType.VECTOR,
-            limit=10,
-            scope_ids=["scope1", "scope2"],
-        )
+        with pytest.deprecated_call(match="scope_ids"):
+            result = base_kb_service.search_content_chunks(
+                search_string="test query",
+                search_type=ContentSearchType.VECTOR,
+                limit=10,
+                scope_ids=["scope1", "scope2"],
+            )
 
-        # Assert
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0].id == "cont_test123"
@@ -406,9 +407,8 @@ class TestKnowledgeBaseServiceSearchContentChunks:
             limit=10,
             search_language="english",
             reranker_config=None,
-            scope_ids=["scope1", "scope2"],
             chat_only=False,
-            metadata_filter=None,
+            metadata_filter=build_folder_id_in_clause(["scope1", "scope2"]),
             content_ids=None,
             score_threshold=None,
         )
@@ -422,26 +422,26 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify search_content_chunks uses instance metadata_filter when parameter is None.
+        Purpose: Verify search_content_chunks ANDs the scope clause with the instance metadata_filter.
         Why this matters: Ensures metadata filtering works consistently across searches.
-        Setup summary: Create service with metadata_filter, call search without metadata_filter param, verify instance filter used.
+        Setup summary: Service with metadata_filter, call with scope_ids, assert ANDed filter sent.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
 
-        # Act
-        result = kb_service_with_metadata.search_content_chunks(
-            search_string="test",
-            search_type=ContentSearchType.VECTOR,
-            limit=10,
-            scope_ids=["scope1"],
-        )
+        with pytest.deprecated_call(match="scope_ids"):
+            result = kb_service_with_metadata.search_content_chunks(
+                search_string="test",
+                search_type=ContentSearchType.VECTOR,
+                limit=10,
+                scope_ids=["scope1"],
+            )
 
-        # Assert
         assert len(result) == 1
-        mock_search.assert_called_once()
         call_kwargs = mock_search.call_args[1]
-        assert call_kwargs["metadata_filter"] == {"key": "test_value"}
+        assert call_kwargs["metadata_filter"] == {
+            "and": [build_folder_id_in_clause(["scope1"]), {"key": "test_value"}]
+        }
+        assert "scope_ids" not in call_kwargs
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
@@ -452,48 +452,49 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify provided metadata_filter parameter overrides instance metadata_filter.
+        Purpose: Verify provided metadata_filter is ANDed with the scope clause, not the instance filter.
         Why this matters: Allows per-query metadata filtering flexibility.
-        Setup summary: Create service with metadata_filter, call search with different metadata_filter, verify provided one used.
+        Setup summary: Service with metadata_filter, call with scope_ids + explicit filter, verify ANDed result.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
 
-        # Act
-        result = kb_service_with_metadata.search_content_chunks(
-            search_string="test",
-            search_type=ContentSearchType.VECTOR,
-            limit=10,
-            scope_ids=["scope1"],
-            metadata_filter={"override": "value"},
-        )
+        with pytest.deprecated_call(match="scope_ids"):
+            result = kb_service_with_metadata.search_content_chunks(
+                search_string="test",
+                search_type=ContentSearchType.VECTOR,
+                limit=10,
+                scope_ids=["scope1"],
+                metadata_filter={"override": "value"},
+            )
 
-        # Assert
         assert len(result) == 1
         call_kwargs = mock_search.call_args[1]
-        assert call_kwargs["metadata_filter"] == {"override": "value"}
+        assert call_kwargs["metadata_filter"] == {
+            "and": [build_folder_id_in_clause(["scope1"]), {"override": "value"}]
+        }
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
     def test_search_content_chunks__handles_error__and_reraises(
-        self, mock_search: Mock, base_kb_service: KnowledgeBaseService
+        self,
+        mock_search: Mock,
+        base_kb_service: KnowledgeBaseService,
     ) -> None:
         """
         Purpose: Verify search_content_chunks handles exceptions and re-raises them.
         Why this matters: Error handling must preserve exception information for debugging.
         Setup summary: Mock search to raise exception, call service method, assert exception is raised.
         """
-        # Arrange
         mock_search.side_effect = Exception("Search failed")
 
-        # Act & Assert
         with pytest.raises(Exception, match="Search failed"):
-            base_kb_service.search_content_chunks(
-                search_string="test",
-                search_type=ContentSearchType.VECTOR,
-                limit=10,
-                scope_ids=["scope1"],
-            )
+            with pytest.deprecated_call(match="scope_ids"):
+                base_kb_service.search_content_chunks(
+                    search_string="test",
+                    search_type=ContentSearchType.VECTOR,
+                    limit=10,
+                    scope_ids=["scope1"],
+                )
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
@@ -536,25 +537,24 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         """
         Purpose: Verify search_content_chunks accepts and passes reranker_config.
         Why this matters: Reranking improves search result quality.
-        Setup summary: Create reranker config, call search with it, verify config passed.
+        Setup summary: Create reranker config, call search with scope_ids, verify config and filter passed.
         """
-        # Arrange
         mock_search.return_value = [mock_content_chunk]
         reranker_config = ContentRerankerConfig(deployment_name="test_reranker")
 
-        # Act
-        result = base_kb_service.search_content_chunks(
-            search_string="test",
-            search_type=ContentSearchType.VECTOR,
-            limit=10,
-            scope_ids=["scope1"],
-            reranker_config=reranker_config,
-        )
+        with pytest.deprecated_call(match="scope_ids"):
+            result = base_kb_service.search_content_chunks(
+                search_string="test",
+                search_type=ContentSearchType.VECTOR,
+                limit=10,
+                scope_ids=["scope1"],
+                reranker_config=reranker_config,
+            )
 
-        # Assert
         assert len(result) == 1
         call_kwargs = mock_search.call_args[1]
         assert call_kwargs["reranker_config"] == reranker_config
+        assert call_kwargs["metadata_filter"] == build_folder_id_in_clause(["scope1"])
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -566,26 +566,28 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         mock_content_chunk: ContentChunk,
     ) -> None:
         """
-        Purpose: Verify async search_content_chunks_async returns results correctly.
+        Purpose: Verify async search_content_chunks_async folds scope_ids into a folderId `in` filter.
         Why this matters: Async operations are essential for non-blocking I/O.
-        Setup summary: Mock async search function, await service method, assert results.
+        Setup summary: Mock async search, call with scope_ids, assert folderId `in` filter used.
         """
-        # Arrange
         mock_search_async.return_value = [mock_content_chunk]
 
-        # Act
-        result = await base_kb_service.search_content_chunks_async(
-            search_string="test query",
-            search_type=ContentSearchType.VECTOR,
-            limit=10,
-            scope_ids=["scope1", "scope2"],
-        )
+        with pytest.deprecated_call(match="scope_ids"):
+            result = await base_kb_service.search_content_chunks_async(
+                search_string="test query",
+                search_type=ContentSearchType.VECTOR,
+                limit=10,
+                scope_ids=["scope1", "scope2"],
+            )
 
-        # Assert
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0].id == "cont_test123"
-        mock_search_async.assert_called_once()
+        call_kwargs = mock_search_async.call_args[1]
+        assert "scope_ids" not in call_kwargs
+        assert call_kwargs["metadata_filter"] == build_folder_id_in_clause(
+            ["scope1", "scope2"]
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -605,23 +607,31 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         mock_search_async.return_value = [mock_content_chunk]
 
         # Act
-        result = await kb_service_with_metadata.search_content_chunks_async(
-            search_string="test",
-            search_type=ContentSearchType.VECTOR,
-            limit=10,
-            scope_ids=["scope1"],
-        )
+        with pytest.deprecated_call(match="scope_ids"):
+            result = await kb_service_with_metadata.search_content_chunks_async(
+                search_string="test",
+                search_type=ContentSearchType.VECTOR,
+                limit=10,
+                scope_ids=["scope1"],
+            )
 
         # Assert
         assert len(result) == 1
         call_kwargs = mock_search_async.call_args[1]
-        assert call_kwargs["metadata_filter"] == {"key": "test_value"}
+        assert call_kwargs["metadata_filter"] == {
+            "and": [
+                build_folder_id_in_clause(["scope1"]),
+                {"key": "test_value"},
+            ]
+        }
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch("unique_toolkit.services.knowledge_base.search_content_chunks_async")
     async def test_search_content_chunks_async__handles_error__and_reraises(
-        self, mock_search_async: AsyncMock, base_kb_service: KnowledgeBaseService
+        self,
+        mock_search_async: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
     ) -> None:
         """
         Purpose: Verify async search handles exceptions and re-raises them.
@@ -633,12 +643,13 @@ class TestKnowledgeBaseServiceSearchContentChunks:
 
         # Act & Assert
         with pytest.raises(Exception, match="Async search failed"):
-            await base_kb_service.search_content_chunks_async(
-                search_string="test",
-                search_type=ContentSearchType.VECTOR,
-                limit=10,
-                scope_ids=["scope1"],
-            )
+            with pytest.deprecated_call(match="scope_ids"):
+                await base_kb_service.search_content_chunks_async(
+                    search_string="test",
+                    search_type=ContentSearchType.VECTOR,
+                    limit=10,
+                    scope_ids=["scope1"],
+                )
 
 
 class TestKnowledgeBaseServiceSearchContents:
@@ -1405,8 +1416,7 @@ class TestKnowledgeBaseServiceFolderManagement:
         result = base_kb_service.get_scope_id_path(scope_id="scope_child")
 
         # Assert
-        assert isinstance(result, list)
-        assert all(isinstance(scope_id, str) for scope_id in result)
+        assert result == ["scope_root", "scope_child"]
 
 
 class TestKnowledgeBaseServiceMetadata:
@@ -1972,9 +1982,7 @@ class TestKnowledgeBaseServiceEdgeCases:
         result = base_kb_service.get_scope_id_path(scope_id="scope_root")
 
         # Assert
-        assert isinstance(result, list)
-        assert len(result) >= 1
-        assert "scope_root" in result
+        assert result == ["scope_root"]
 
     @pytest.mark.ai
     @patch("unique_toolkit.services.knowledge_base.update_content")

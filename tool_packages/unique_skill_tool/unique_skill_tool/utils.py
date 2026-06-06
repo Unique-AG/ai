@@ -13,13 +13,17 @@ from unique_skill_tool.schemas import (
 
 MIN_DESC_LENGTH = 20
 
-# Matches a ``/skill-name`` token that is properly word-boundaried:
-# preceded by start-of-string (optionally followed by whitespace) or by
-# whitespace, and followed by whitespace or end-of-string. The leading
-# ``\A\s*|\s`` is consumed (not a lookbehind) so that, on replacement, we
-# also remove the single whitespace character that immediately preceded
-# the token and avoid leaving double spaces in the remaining text.
-_SKILL_TOKEN_RE = re.compile(r"(\A\s*|\s)/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z)")
+# Finds slash-prefixed candidate tokens (``/foo``) that are bounded by
+# start-of-string/whitespace on the left and by either:
+# - whitespace/end-of-string, or
+# - sentence punctuation immediately followed by whitespace/end-of-string.
+#
+# This keeps punctuation such as ``/analyze-data.`` detectable while still
+# avoiding partial matches inside tokens like ``/analyze``.
+_SKILL_TOKEN_RE = re.compile(
+    r"(\A\s*|\s)/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z|[.,!?;:)\]]+(?:\s|\Z))"
+)
+_VALID_SKILL_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
 
 
 def get_char_budget(
@@ -105,7 +109,7 @@ def normalize_skill_name(skill: str) -> str:
 def extract_invoked_skills(
     user_text: str,
     skill_registry: dict[str, SkillDefinition],
-) -> tuple[list[SkillDefinition], str]:
+) -> list[SkillDefinition]:
     """Pull every ``/skill-name`` invocation out of *user_text*.
 
     Tokens are recognised wherever they appear in the message — at the
@@ -121,23 +125,20 @@ def extract_invoked_skills(
     swallowed. Duplicates are dropped while preserving first-occurrence
     order.
 
-    Returns ``(ordered_skills, remaining_text)`` where *remaining_text*
-    is the original message with the matched tokens removed and any
-    surrounding whitespace tidied up so the final string reads naturally
-    to a downstream LLM.
+    Returns the invoked registered skills, deduplicated in first-occurrence
+    order.
     """
     ordered: list[SkillDefinition] = []
     seen: set[str] = set()
 
-    def _replace(match: re.Match[str]) -> str:
+    for match in _SKILL_TOKEN_RE.finditer(user_text):
         name = match.group(2)
+        if _VALID_SKILL_NAME_RE.fullmatch(name) is None:
+            continue
         skill = skill_registry.get(name)
         if skill is None:
-            return match.group(0)
+            continue
         if name not in seen:
             seen.add(name)
             ordered.append(skill)
-        return ""
-
-    remaining = _SKILL_TOKEN_RE.sub(_replace, user_text)
-    return ordered, remaining.strip()
+    return ordered

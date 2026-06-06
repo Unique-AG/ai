@@ -1,4 +1,14 @@
-Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations.
+Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations — use **parallel** `search` calls when several facets are independent (one short `query` per call, not one long query).
+
+### `phase` — research phase (required on every call)
+
+Set **`phase`** on each WebSearch invocation (replaces the old `objective` field):
+
+- **`exploratory`** — sense what exists on the web and what is closest to the user's ask. Use broad, short mapping queries. Typical at the start of a complex task or when scoping an entity.
+- **`target`** — pursue one specific facet named in `payload.gap` with a precise, short `payload.query`. Use for verifiable facts (revenue, ownership, officers, filings).
+- **`redirect`** — last resort when the exact facet is not on the public web. Search for **related, attributable** context (sector, peers, parent company, adjacent news). Label results as related, not confirmed; never invent figures or ownership.
+
+**`payload.gap`** — one atomic facet per call (not the whole user question). **`payload.query`** — ~3–8 keywords only; decompose multi-facet asks into parallel `search` calls instead of one bloated query.
 
 #### `command: "search"` — search the web
 
@@ -35,6 +45,34 @@ Use it when:
 - **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
 - **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
 
-For the deeper explore-then-exploit playbook (snippet hedging triggers, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns, worked examples), activate the `web-search-v3` skill before/while using this tool.
+### WebSearch — Complex and diligence-style research
+
+Use this pattern when the user needs **multiple facts about an entity** (ownership, revenue, officers, filings, sanctions, geography, industry context)—including Source of Wealth / KYC-style profiles where not everything is on the public web.
+
+- **Before the first WebSearch call** (in your reasoning, not in tool args), decompose the task into **5–10 atomic gaps**—each gap is one verifiable facet (e.g. legal name and jurisdiction, revenue scale, ownership / UBO signals, key executives, recent filings, adverse media, industry peer context).
+- **Execute gradually:** one `command: "search"` (and `read_urls` when snippets are insufficient) **per gap**, in a deliberate order (identity → scale → ownership → corroboration). Use `phase: "exploratory"` to map, then `phase: "target"` per facet; use `phase: "redirect"` only when a target facet has no public evidence after refinement.
+- **After each tool round**, update a mental **evidence ledger** per facet: **Confirmed**, **Partial**, **Not found**, or **Related only**. Do not discard partial or adjacent SERP hits—they may matter in the final synthesis.
+
+### WebSearch — When public evidence is missing or indirect
+
+- **Do not stop** after one empty or weak SERP for a gap. Refine the query (keywords, entity disambiguation, registry/filing terms, language) before marking a gap **Not found**.
+- If the **exact** fact is not published on the open web, still surface **related, attributable context** from search results: sector, approximate scale, parent/subsidiary links, adjacent filings, news mentioning the person or company, comparable peers. Label these clearly as **related, not confirmed** for the original ask.
+- **Never invent** figures, ownership percentages, or ultimate-beneficial-owner claims. **Never** present related context as if it answered the exact question.
+
+### WebSearch — Synthesizing before you answer
+
+After WebSearch research (or when the user needs an interim summary), **synthesize**—do not dump raw tool output or answer only the facets that were easy to find.
+
+For **complex** tasks, structure the answer as:
+
+1. **Direct answer** — what you can support with citations.
+2. **Evidence by facet** — facet → finding → confidence (**Confirmed** / **Partial** / **Related**) → [sourceX].
+3. **Gaps and limitations** — what was not found on the public web and which searches you tried.
+4. **Related leads** — indirect but useful pointers for the user's underlying goal (all cited).
+5. **Suggested next steps** (optional)—e.g. corporate registry, paid databases, user-provided documents—only when appropriate.
+
+For **simple** lookups, a short cited answer is enough; do not force the full structure.
+
+For the deeper explore-then-exploit playbook (snippet hedging, decomposition, partial evidence, synthesis, URL-selection, anti-patterns, worked examples including Source of Wealth), activate the `web-search-v3` skill before/while using this tool.
 
 Tool arguments are defined by the tool schema; the live JSON schema comes from the tool definition.

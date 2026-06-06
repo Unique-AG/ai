@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from unique_toolkit.content.functions import (
+    _extract_filename,
     download_content,
     download_content_to_bytes,
     download_content_to_bytes_async,
@@ -762,3 +763,66 @@ async def test_trigger_upload_content_async_timeout_not_default_5s(
     assert not isinstance(timeout, httpx.Timeout) or timeout.read != 5.0, (
         "read timeout must not be the default 5 s"
     )
+
+
+class TestExtractFilename:
+    def test_prefers_utf8_filename_over_ascii(self):
+        header = (
+            'attachment; filename="??? ???????.pptx"; '
+            "filename*=UTF-8''%D0%98%D0%9A%D0%A2%20%D0%A3%D0%A0%D0%95%D0%82%D0%90%D0%88%D0%98.pptx"
+        )
+        assert _extract_filename(header) == "ИКТ УРЕЂАЈИ.pptx"
+
+    def test_utf8_filename_only(self):
+        header = "attachment; filename*=UTF-8''%C3%BCbersicht.pdf"
+        assert _extract_filename(header) == "übersicht.pdf"
+
+    def test_falls_back_to_ascii_filename(self):
+        header = 'attachment; filename="report.pdf"'
+        assert _extract_filename(header) == "report.pdf"
+
+    def test_returns_none_when_no_filename(self):
+        assert _extract_filename("") is None
+        assert _extract_filename("attachment") is None
+
+    def test_case_insensitive_charset(self):
+        header = "attachment; filename*=utf-8''%C3%A9t%C3%A9.docx"
+        assert _extract_filename(header) == "été.docx"
+
+    def test_latin_diacritics(self):
+        header = "attachment; filename=\"obican.txt\"; filename*=UTF-8''obi%C4%8Dan.txt"
+        assert _extract_filename(header) == "običan.txt"
+
+    def test_with_language_tag(self):
+        header = "attachment; filename*=UTF-8'sr'%D0%98%D0%9A%D0%A2%20%D0%A3%D0%A0%D0%95%D0%82%D0%90%D0%88%D0%98.pptx"
+        assert _extract_filename(header) == "ИКТ УРЕЂАЈИ.pptx"
+
+    def test_with_language_tag_and_ascii_fallback(self):
+        header = "attachment; filename=\"fallback.pptx\"; filename*=UTF-8'en'%C3%BCbersicht.pdf"
+        assert _extract_filename(header) == "übersicht.pdf"
+
+
+@patch("unique_toolkit.content.functions.requests.get")
+def test_download_content_to_file_by_id_utf8_filename(mock_get, tmp_path):
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.content = b"file bytes"
+    mock_response.headers = {
+        "Content-Disposition": (
+            'attachment; filename="??? ???????.pptx"; '
+            "filename*=UTF-8''%D0%98%D0%9A%D0%A2%20%D0%A3%D0%A0%D0%95%D0%82%D0%90%D0%88%D0%98.pptx"
+        )
+    }
+    mock_get.return_value = mock_response
+
+    result = download_content_to_file_by_id(
+        user_id="user123",
+        company_id="company123",
+        content_id="content123",
+        chat_id="chat123",
+        tmp_dir_path=tmp_path,
+    )
+
+    assert result.exists()
+    assert result.name == "ИКТ УРЕЂАЈИ.pptx"
+    assert result.read_bytes() == b"file bytes"

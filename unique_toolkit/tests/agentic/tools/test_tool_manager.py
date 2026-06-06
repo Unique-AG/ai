@@ -140,12 +140,76 @@ class MockControlTool(Tool[MockToolConfig]):
         )
 
 
+class MockUploadedSearchTool(Tool[MockToolConfig]):
+    """Mock UploadedSearch tool for InternalSearch carve-out tests."""
+
+    name = "UploadedSearch"
+
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
+
+    def tool_description(self):
+        from unique_toolkit.language_model.schemas import LanguageModelToolDescription
+
+        return LanguageModelToolDescription(
+            name=self.name,
+            description="Mock UploadedSearch tool",
+            parameters=MockParameters,
+        )
+
+    def evaluation_check_list(self):
+        return []
+
+    def get_evaluation_checks_based_on_tool_response(self, tool_response):
+        return []
+
+    async def run(self, tool_call):
+        return ToolCallResponse(
+            id=tool_call.id,
+            name=tool_call.name,
+            content="Uploaded search response",
+        )
+
+
+class MockInternalSearchExclusiveTool(Tool[MockToolConfig]):
+    """Mock InternalSearch exclusive tool for carve-out tests."""
+
+    name = "InternalSearch"
+
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
+
+    def tool_description(self):
+        from unique_toolkit.language_model.schemas import LanguageModelToolDescription
+
+        return LanguageModelToolDescription(
+            name=self.name,
+            description="Mock InternalSearch exclusive tool",
+            parameters=MockParameters,
+        )
+
+    def evaluation_check_list(self):
+        return []
+
+    def get_evaluation_checks_based_on_tool_response(self, tool_response):
+        return []
+
+    async def run(self, tool_call):
+        return ToolCallResponse(
+            id=tool_call.id,
+            name=tool_call.name,
+            content="Internal search response",
+        )
+
+
 @pytest.fixture(autouse=True)
 def register_mock_tools():
     """Register mock tools with ToolFactory"""
     ToolFactory.register_tool(MockTool, MockToolConfig)
     ToolFactory.register_tool(MockExclusiveTool, MockToolConfig)
     ToolFactory.register_tool(MockControlTool, MockToolConfig)
+    ToolFactory.register_tool(MockUploadedSearchTool, MockToolConfig)
+    ToolFactory.register_tool(MockInternalSearchExclusiveTool, MockToolConfig)
     yield
     # Cleanup not needed as registry persists across tests
 
@@ -552,6 +616,87 @@ def test_tool_manager__uses_exclusive_tool__when_in_tool_choices(
     tools = tool_manager.get_tools()
     assert len(tools) == 1
     assert tools[0].name == "exclusive_tool"
+
+
+@pytest.mark.ai
+def test_tool_manager__keeps_uploaded_search_with_internal_search_exclusive_choice(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """InternalSearch exclusivity keeps UploadedSearch available when configured."""
+    tool_configs = [
+        ToolBuildConfig(
+            name="UploadedSearch",
+            configuration=MockToolConfig(),
+            display_name="Uploaded Search",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+        ToolBuildConfig(
+            name="InternalSearch",
+            configuration=MockToolConfig(),
+            display_name="Internal Search",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=True,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    base_event.payload.tool_choices = ["InternalSearch", "UploadedSearch"]
+
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    tool_names = [tool.name for tool in tool_manager.get_tools()]
+    assert tool_names == ["InternalSearch", "UploadedSearch"]
+
+
+@pytest.mark.ai
+def test_tool_manager__internal_search_exclusive_without_uploaded_search_keeps_single_tool(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """InternalSearch remains sole tool when UploadedSearch is unavailable."""
+    tool_configs = [
+        ToolBuildConfig(
+            name="InternalSearch",
+            configuration=MockToolConfig(),
+            display_name="Internal Search",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=True,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    base_event.payload.tool_choices = ["InternalSearch"]
+
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    tool_names = [tool.name for tool in tool_manager.get_tools()]
+    assert tool_names == ["InternalSearch"]
 
 
 @pytest.mark.ai
@@ -1683,6 +1828,145 @@ async def test_tool_manager__execute_selected_tools__handles_exceptions(
     assert isinstance(response, ToolCallResponse)
     assert not response.successful
     assert "Tool error" in response.error_message
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_selected_tools__returns_conflict_error_for_take_control_in_batch(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify that when a take-control tool is called alongside other tools in the same
+        batch, execute_selected_tools refuses to run any of them and returns a conflict
+        error response for every call.
+    Why this matters: A take-control tool ends the orchestrator loop by writing the final
+        assistant message itself. Running it in parallel with other tools would race —
+        either the others' output is lost (the loop ended) or the assistant message gets
+        clobbered. The toolkit prevents that by short-circuiting the whole batch and
+        feeding the LLM a recovery hint.
+    Setup summary: Register a control_tool + mock_tool, build a tool call list containing
+        both, and assert both responses are conflict errors that name the take-control tool.
+    """
+    # Arrange
+    tool_configs = [
+        ToolBuildConfig(
+            name="control_tool",
+            configuration=MockToolConfig(),
+            display_name="Control Tool",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id="call_control",
+            name="control_tool",
+            arguments={"query": "ctrl"},
+        ),
+        LanguageModelFunction(
+            id="call_mock",
+            name="mock_tool",
+            arguments={"query": "other"},
+        ),
+    ]
+
+    # Act
+    responses = await tool_manager.execute_selected_tools(tool_calls)
+
+    # Assert
+    assert len(responses) == 2
+    by_id = {r.id: r for r in responses}
+
+    control_response = by_id["call_control"]
+    assert "control_tool" in control_response.content
+    # The control tool gets the "called on its own" hint
+    assert (
+        "alone" in control_response.content or "on its own" in control_response.content
+    )
+
+    other_response = by_id["call_mock"]
+    # The other tool gets a "not executed because of X" hint that names control_tool
+    assert "control_tool" in other_response.content
+    assert "Not executed" in other_response.content
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_selected_tools__runs_take_control_tool_alone(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify a take-control tool runs normally when it's the only call in the batch.
+    Why this matters: The conflict guard must only fire when there are siblings; a solo
+        take-control call is the supported happy path and must execute without interference.
+    Setup summary: Register a control_tool, submit it as the only tool call, assert the
+        successful tool response comes through (not a conflict error).
+    """
+    # Arrange
+    tool_configs = [
+        ToolBuildConfig(
+            name="control_tool",
+            configuration=MockToolConfig(),
+            display_name="Control Tool",
+            icon=ToolIcon.ANALYTICS,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_calls = [
+        LanguageModelFunction(
+            id="call_control",
+            name="control_tool",
+            arguments={"query": "ctrl"},
+        ),
+    ]
+
+    # Act
+    responses = await tool_manager.execute_selected_tools(tool_calls)
+
+    # Assert
+    assert len(responses) == 1
+    assert responses[0].id == "call_control"
+    # MockControlTool.run returns "Control response" — not a conflict error.
+    assert responses[0].content == "Control response"
 
 
 @pytest.mark.ai

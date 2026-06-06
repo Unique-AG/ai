@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.22.0...unique-mcp-v2026.24.0) (2026-06-04)
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.20.0...unique-mcp-v2026.22.0) (2026-05-21)
+
+
+### Features
+
+* **mcp-search:** rewrite tutorial using InternalSearchService + search_mode switcher ([#1623](https://github.com/Unique-AG/ai/issues/1623)) ([d60b1b8](https://github.com/Unique-AG/ai/commit/d60b1b8c933f0911ceaaeb76247711c9e4ee41a6))
+* **unique-mcp:** add UniqueAIToolMeta and ContextRequirements meta parts ([#1690](https://github.com/Unique-AG/ai/issues/1690)) ([6958951](https://github.com/Unique-AG/ai/commit/6958951ca4298c46a875a831625f3f8cc3b29902))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v2026.18.0...unique-mcp-v2026.20.0) (2026-05-08)
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-mcp-v0.3.3...unique-mcp-v2026.18.0) (2026-04-23)
 
 

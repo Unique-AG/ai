@@ -9,8 +9,12 @@ from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
+from unique_internal_search.uploaded_search.config import (
+    UploadedSearchConfig,
+)
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -73,6 +77,20 @@ class SpaceType(StrEnum):
 T = TypeVar("T", bound=SpaceType)
 
 
+class SwitchableLanguageModelConfig(BaseToolConfig):
+    """A language model that chat users may select for a single message."""
+
+    display_name: str = Field(
+        description="Human-readable label shown to chat users in the model picker.",
+    )
+    language_model: LMI = Field(
+        description=(
+            "Language-model configuration accepted from the platform payload as "
+            "`languageModel`."
+        ),
+    )
+
+
 class SpaceConfigBase(BaseToolConfig, Generic[T]):
     """Base class for space configuration."""
 
@@ -84,6 +102,18 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
     )
 
     language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+
+    allow_model_switching: bool = Field(
+        default=False,
+        description=(
+            "Whether chat users may override the language model for a single message"
+        ),
+    )
+
+    switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
+        default_factory=list,
+        description=("Language models selectable by chat users for a single message."),
+    )
 
     custom_instructions: str = Field(
         default="",
@@ -207,14 +237,20 @@ class EvaluationConfig(BaseToolConfig):
 
 
 class UniqueAIPromptConfig(BaseToolConfig):
-    system_prompt_template: str = Field(
+    system_prompt_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=25),
+    ] = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "system_prompt.jinja2"
         ).read_text(),
         description="The system prompt template as a Jinja2 template string.",
     )
 
-    user_message_prompt_template: str = Field(
+    user_message_prompt_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=4),
+    ] = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "user_message_prompt.jinja2"
         ).read_text(),
@@ -329,6 +365,20 @@ class ResponsesApiConfig(BaseToolConfig):
     )
 
 
+class UploadedSearchToolConfig(BaseToolConfig):
+    force: bool = Field(
+        default=True,
+        title="Force tool",
+        description="If set, the tool will be forced when the user uploads a file",
+    )
+    tool_config: UploadedSearchConfig = UploadedSearchConfig()
+
+    @model_validator(mode="after")
+    def validate_tool_config(self) -> "UploadedSearchToolConfig":
+        self.tool_config.enable_tool_call_system_reminder = self.force
+        return self
+
+
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -367,6 +417,8 @@ class ExperimentalConfig(BaseToolConfig):
         default_factory=TodoConfig,
     )
 
+    uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()
+
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
@@ -400,6 +452,27 @@ class UniqueAIConfig(BaseToolConfig):
     def disable_sub_agent_referencing_if_not_used(self) -> "UniqueAIConfig":
         if not any(tool.is_sub_agent for tool in self.space.tools):
             self.agent.experimental.sub_agents_config.referencing_config = None
+        return self
+
+    @model_validator(mode="after")
+    def remove_tools_with_unsupported_model_capabilities(self) -> "UniqueAIConfig":
+        if ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities:
+            return self
+
+        self.space.tools = [
+            tool
+            for tool in self.space.tools
+            if tool.name != OpenAIBuiltInToolName.CODE_INTERPRETER
+        ]
+        return self
+
+    @model_validator(mode="after")
+    def disable_responses_api_when_model_does_not_support_it(self) -> "UniqueAIConfig":
+        if ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities:
+            return self
+
+        self.agent.experimental.responses_api_config.use_responses_api = False
+        self.agent.experimental.use_responses_api = False
         return self
 
     @model_validator(mode="after")

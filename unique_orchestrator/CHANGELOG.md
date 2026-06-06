@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.22.0...unique-orchestrator-v2026.24.0) (2026-06-04)
+
+
+### Features
+
+* Enable model picking ([#1735](https://github.com/Unique-AG/ai/issues/1735)) ([753eab5](https://github.com/Unique-AG/ai/commit/753eab56adc3097c269b5c62da4bd2e09d7f871f))
+* **unique_orchestrator:** RJSF textarea tags for agent prompt config ([#1780](https://github.com/Unique-AG/ai/issues/1780)) ([96691f0](https://github.com/Unique-AG/ai/commit/96691f0a1beae47529b6eb0d09d6f8358ab99b81))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.20.0...unique-orchestrator-v2026.22.0) (2026-05-21)
+
+
+### Features
+
+* **unique_orchestrator:** Allow configuration of UploadedSearch Tool ([#1674](https://github.com/Unique-AG/ai/issues/1674)) ([1e41209](https://github.com/Unique-AG/ai/commit/1e412094a97b574ef1dac422ed62793667a34c8d))
+* **unique_orchestrator:** Debug info thinking level ([#1716](https://github.com/Unique-AG/ai/issues/1716)) ([660277f](https://github.com/Unique-AG/ai/commit/660277f03902af3c759a6f583b8324fe7a3e3ff2))
+* **unique_toolkit:** Add display of code interpreter files to the co… ([#1665](https://github.com/Unique-AG/ai/issues/1665)) ([4d661da](https://github.com/Unique-AG/ai/commit/4d661dabb0269061b3833c36872ff70e9de49fd0))
+* **unique-skill-tool:** add optional thinking level to skills ([#1692](https://github.com/Unique-AG/ai/issues/1692)) ([9aad730](https://github.com/Unique-AG/ai/commit/9aad730ac739bdd6f48a10c2f29fb602a052fab6))
+* **unique-skill-tool:** load skill by content_id and not name  ([#1698](https://github.com/Unique-AG/ai/issues/1698)) ([926554e](https://github.com/Unique-AG/ai/commit/926554e5046457a46a42c4e8a129f7d0ad0b36fb))
+
+
+### Bug Fixes
+
+* **unique-skills:** available skill parameter included ([#1691](https://github.com/Unique-AG/ai/issues/1691)) ([b8c35b4](https://github.com/Unique-AG/ai/commit/b8c35b41466ab23165ccde8e1bd6b5dc4a0f1c62))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.18.0...unique-orchestrator-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* Activate todo tool as experimental ([#1590](https://github.com/Unique-AG/ai/issues/1590)) ([f3541ad](https://github.com/Unique-AG/ai/commit/f3541ad5c6af2a384056e4c34d37e6f5ae56879b))
+* **orchestrator:** raise max iteration limits for multi-step workflows ([#1413](https://github.com/Unique-AG/ai/issues/1413)) ([2ea265e](https://github.com/Unique-AG/ai/commit/2ea265e015adb367c5cc95fb1320148314154e55))
+* **orchestrator:** wire RetrieveSearchScope experimental tool ([#1473](https://github.com/Unique-AG/ai/issues/1473)) ([e665c56](https://github.com/Unique-AG/ai/commit/e665c569e542d22f386a53e59e86854e1bd798d4))
+* **unique-orchestrator:** update skills folder structure ([#1568](https://github.com/Unique-AG/ai/issues/1568)) ([0d0ed34](https://github.com/Unique-AG/ai/commit/0d0ed345e788bf563bcb43d61f14a8bcc2b7d018))
+* **unique-skill-tool:** adding selectable skill parameter; allow ski… ([#1597](https://github.com/Unique-AG/ai/issues/1597)) ([1b30de5](https://github.com/Unique-AG/ai/commit/1b30de5408eb0c1a7c8279feb7d18a4dc91eacfe))
+* **unique-skill:** including skill choices to payload ([#1636](https://github.com/Unique-AG/ai/issues/1636)) ([36e8275](https://github.com/Unique-AG/ai/commit/36e82750e89d350e2293b8144035bac903829445))
+* **unique-skill:** removing scope id and use selectable skills param ([#1630](https://github.com/Unique-AG/ai/issues/1630)) ([28b8b5e](https://github.com/Unique-AG/ai/commit/28b8b5e9ee7e0e01e215dbf54179eb20f88f6cb1))
+* **unique-skill:** updating config merging ([#1619](https://github.com/Unique-AG/ai/issues/1619)) ([e84306b](https://github.com/Unique-AG/ai/commit/e84306bc1061d108eb7006aa515f54a33b03b776))
+* **uploaded_search:** Update logic of Uploaded files ([#1591](https://github.com/Unique-AG/ai/issues/1591)) ([7407c95](https://github.com/Unique-AG/ai/commit/7407c95a7ac9498e268873794309c06d7c47c63b))
+
+
+### Bug Fixes
+
+* **unique-skills:** moving tool out of experimental ([#1580](https://github.com/Unique-AG/ai/issues/1580)) ([bcedf9d](https://github.com/Unique-AG/ai/commit/bcedf9d61e44d787d304b105317555122ecf1207))
+* **unique-toolkit:** using response API fpr GPT 55 ([#1556](https://github.com/Unique-AG/ai/issues/1556)) ([dd105e9](https://github.com/Unique-AG/ai/commit/dd105e97c5931b872beaa0905cb6e2ae433f345f))
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v1.22.2...unique-orchestrator-v2026.18.0) (2026-04-23)
 
 

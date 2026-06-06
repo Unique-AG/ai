@@ -86,6 +86,7 @@ def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
     ua._execution_times = []
     ua._current_loop_timing = {}
     ua.current_iteration_index = 0
+    ua._skill_choices = []
 
     return ua
 

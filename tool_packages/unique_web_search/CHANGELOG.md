@@ -5,6 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.22.0...unique-web-search-v2026.24.0) (2026-06-04)
+
+
+### Features
+
+* Introduce Perplexity search engine ([#1775](https://github.com/Unique-AG/ai/issues/1775)) ([6a72167](https://github.com/Unique-AG/ai/commit/6a72167f80afa23b5c3bbe82ba9914aa0ab5c1f0))
+
+
+### Bug Fixes
+
+* **unique_web_search:** Use exclude=True if field is defined through env ([#1787](https://github.com/Unique-AG/ai/issues/1787)) ([2c57b34](https://github.com/Unique-AG/ai/commit/2c57b346d2b079222685171e52102712294f8d71))
+* V3 prompt improvements ([#1772](https://github.com/Unique-AG/ai/issues/1772)) ([466e931](https://github.com/Unique-AG/ai/commit/466e931378e9c68d5b107ab596eed94f7cfd1ff6))
+
+
+### Miscellaneous
+
+* arm release 2026.24.0 ([2b3ff5d](https://github.com/Unique-AG/ai/commit/2b3ff5d2e13c4c98cd0012f0306db10f980aa886))
+
+## [2026.22.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.20.0...unique-web-search-v2026.22.0) (2026-05-21)
+
+
+### Features
+
+* **web-search:** Expose query elicitation ([#1721](https://github.com/Unique-AG/ai/issues/1721)) ([3307b52](https://github.com/Unique-AG/ai/commit/3307b5245ea5579546e5b6162fa50b8be9ac70b3))
+
+
+### Bug Fixes
+
+* **unique_web_search:** limit requests to public http(s) endpoints ([#1664](https://github.com/Unique-AG/ai/issues/1664)) ([342265b](https://github.com/Unique-AG/ai/commit/342265be0f9f9545bd2e32d594560ae00b713522))
+* **web-search:** Local import of crawl4ai libraries ([#1678](https://github.com/Unique-AG/ai/issues/1678)) ([a5e72d7](https://github.com/Unique-AG/ai/commit/a5e72d7f2383933ac7b9bf606b99e1d4f602f1a4))
+
+
+### Miscellaneous
+
+* arm release 2026.22.0 ([3fe07bd](https://github.com/Unique-AG/ai/commit/3fe07bdafc85a45f8275a18b72f6ebe766c15464))
+
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.18.0...unique-web-search-v2026.20.0) (2026-05-08)
+
+
+### Features
+
+* **web-search:** Dynamic Prompt Selection depending on the SearchEngineMode (Agent/Standard) ([#1577](https://github.com/Unique-AG/ai/issues/1577)) ([a7a583f](https://github.com/Unique-AG/ai/commit/a7a583f51438706b9a5253fdf43f0e3b0660988c))
+* **web-search:** redesign V3 as two-command (search / read_urls) tool ([#1578](https://github.com/Unique-AG/ai/issues/1578)) ([d471cf6](https://github.com/Unique-AG/ai/commit/d471cf6d216e51215ff958baef72aacebc8d0af6))
+
+
+### Bug Fixes
+
+* **web-search:** correct "triggerd" typo to "triggered" in elicitation messages ([#1526](https://github.com/Unique-AG/ai/issues/1526)) ([dc3c1cc](https://github.com/Unique-AG/ai/commit/dc3c1ccd8fd8b69bf320d35178ced2977a900afc))
+* **web-search:** Remap llm configuration to correct place ([#1655](https://github.com/Unique-AG/ai/issues/1655)) ([c208527](https://github.com/Unique-AG/ai/commit/c2085271332c0a16d01fb995db3074c62506aecc))
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v1.17.0...unique-web-search-v2026.18.0) (2026-04-23)
 
 

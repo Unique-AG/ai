@@ -97,6 +97,8 @@ kb_service = KnowledgeBaseService.from_settings()
 
 <!--
 ```{.python file=docs/.python_files/standalone_setup.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<unique_setup_settings_sdk_from_env_standalone>>
 <<unique_init_service_standalone>>
@@ -107,6 +109,8 @@ client = get_openai_client(unique_settings=settings)
 
 <!--
 ```{.python file=docs/.python_files/standalone_setup_auto.py}
+<<example-script-deps>>
+
 <<common_imports>>
 <<unique_init_service_standalone_auto>>
 client = get_openai_client()

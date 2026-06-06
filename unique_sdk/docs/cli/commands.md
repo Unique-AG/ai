@@ -474,6 +474,43 @@ For full details on search features, see the [Search Guide](search.md).
 
 ---
 
+### read
+
+Read all indexed text chunks for a known content ID. Use this when you already have a `cont_*` ID from a prior `ls` or `search` result and want the full document text. For discovery by topic or keyword, use `search` instead.
+
+**Synopsis:**
+
+```
+read <cont_id>
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `cont_id` | Content ID (`cont_...`) |
+
+**Examples:**
+
+```
+/Reports> read cont_mno345
+Content: annual.pdf (cont_mno345) — 42 chunk(s)
+
+[p.1] The company was founded in 1998 with a focus on...
+
+[p.2-3] Revenue grew 15% year over year, driven by...
+```
+
+If the document exists but has no indexed chunks yet, the command reports that ingestion may still be in progress.
+
+**One-shot:**
+
+```bash
+unique-cli read cont_abc123
+```
+
+---
+
 ## Shell Control
 
 ### help
@@ -485,7 +522,7 @@ Show available commands or help for a specific command.
 
 Documented commands (type help <topic>):
 ========================================
-cd  download  exit  help  ls  mkdir  mv  mvdir  pwd  quit  rm  rmdir  search  upload
+cd  download  exit  help  ls  mkdir  mv  mvdir  pwd  quit  read  rm  rmdir  search  upload
 
 /> help search
 Search files: search <query> [--folder <path|id>] [--metadata key=value ...] [--limit N]

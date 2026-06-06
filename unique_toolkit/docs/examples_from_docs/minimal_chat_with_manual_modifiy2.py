@@ -1,5 +1,13 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+
 # %%
-import time
+
 
 from unique_toolkit import (
     ChatService,
@@ -14,6 +22,8 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # Initialize services from event
     chat_service = ChatService(event)
     kb_service = KnowledgeBaseService.from_event(event)
+    import time
+
     chat_service.modify_assistant_message(
         content="Intermediate assistant message",
     )

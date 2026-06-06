@@ -13,4 +13,6 @@ DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT = (
     "Format the data you receive always as a table showing all the instrument data information you have found.\n\n"
 )
 
-DEFAULT_TOOL_DESCRIPTION = "Search a database of stocks, or instruments for relevant information on price, sector and stock ticker "
+DEFAULT_TOOL_DESCRIPTION = (
+    "Search a database of stocks, or instruments for relevant information on price, sector and stock ticker "
+)

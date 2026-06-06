@@ -1,4 +1,13 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#   "unique-toolkit[langchain]>=2026.22.0",
+#   "unique-sdk>=2026.22.0",
+# ]
+# ///
+
 # %%
+
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from unique_toolkit import get_langchain_client

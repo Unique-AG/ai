@@ -4,7 +4,6 @@ from time import time
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
 )
@@ -49,7 +48,6 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         self.chunk_relevancy_sorter = services.chunk_relevancy_sorter
 
         # Extract from configuration
-        self.language_model = config.language_model
         self.chunk_relevancy_sort_config = config.chunk_relevancy_sort_config
         self.company_id = config.company_id
         self.debug_info = config.debug_info
@@ -152,12 +150,3 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
             return sorted_chunks.content_chunks
         else:
             return content
-
-    async def _ff_elicitate_queries(self, queries: list[str]) -> list[str]:
-        if not feature_flags.enable_elicitation_un_15809.is_enabled(self.company_id):
-            return queries
-
-        # Create a query elicitation
-        elicitation = await self.query_elicitation(queries)
-
-        return elicitation

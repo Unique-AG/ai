@@ -1,0 +1,80 @@
+name: "[CD] Containerize (batch)"
+
+# Filters a publish matrix down to entries with `containerize: true`, attaches
+# the version each image should be tagged with, and fans out one
+# `cd-containerize.yaml` build per package. Two version-resolution modes:
+#   - versions:    per-package map (dev/rc, from resolve.new_versions)
+#   - release_tag: single <component>-v<version> tag (stable release event)
+
+on:
+  workflow_call:
+    inputs:
+      publish_matrix:
+        description: 'Publish matrix JSON ({include: [...]}) to filter for containerize==true'
+        required: true
+        type: string
+      versions:
+        description: 'JSON map of {id: version} (dev/rc). Takes precedence over release_tag.'
+        required: false
+        type: string
+        default: ''
+      release_tag:
+        description: 'Release tag (<component>-v<version>) to derive a single version from (stable).'
+        required: false
+        type: string
+        default: ''
+      tag_latest:
+        description: 'When true, also tag v<version> and latest (stable).'
+        required: false
+        type: boolean
+        default: false
+      ref:
+        description: 'Git ref to build from (branch, tag, or full SHA). Must match the ref used by the publish job. Defaults to the workflow trigger ref.'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.out.outputs.matrix }}
+    steps:
+      - name: Build container matrix
+        id: out
+        env:
+          PUBLISH_MATRIX: ${{ inputs.publish_matrix }}
+          VERSIONS: ${{ inputs.versions }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ -n "$VERSIONS" ]]; then
+            MATRIX=$(jq -c --argjson versions "$VERSIONS" \
+              '{include: [.include[] | select(.containerize == true) | . + {version: $versions[.id]}]}' <<<"$PUBLISH_MATRIX")
+          else
+            VERSION="${RELEASE_TAG##*-v}"
+            MATRIX=$(jq -c --arg v "$VERSION" \
+              '{include: [.include[] | select(.containerize == true) | . + {version: $v}]}' <<<"$PUBLISH_MATRIX")
+          fi
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
+  containerize:
+    needs: prepare
+    if: fromJson(needs.prepare.outputs.matrix).include[0] != null
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    name: containerize-${{ matrix.id }}
+    uses: ./.github/workflows/cd-containerize.yaml
+    secrets: inherit
+    with:
+      package_dir: ${{ matrix.dir }}
+      pypi_name: ${{ matrix.pypi_name }}
+      image_repo: ${{ matrix.container_repo }}
+      version: ${{ matrix.version }}
+      tag_latest: ${{ inputs.tag_latest }}
+      python: ${{ matrix.python }}
+      ref: ${{ inputs.ref }}

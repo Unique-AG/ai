@@ -14,7 +14,6 @@ from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import ModelCapabilities
 
 from unique_web_search.prompts import (
@@ -45,8 +44,6 @@ from unique_web_search.services.search_engine import (
 from unique_web_search.settings import env_settings
 
 _LOGGER = getLogger(__name__)
-
-DEFAULT_MODEL_NAME = DEFAULT_GPT_4o
 
 ActivatedSearchEngine = get_search_engine_config_types_from_names(
     env_settings.active_search_engines
@@ -108,11 +105,6 @@ class AnswerGenerationConfig(BaseModel):
 
 
 class ExperimentalFeatures(FeatureExtendedSourceSerialization):
-    query_elicitation_config: QueryElicitationConfig = Field(
-        default_factory=QueryElicitationConfig,
-        title="Query Review",
-        description="Allow users to review and modify search queries before execution.",
-    )
     tool_response_system_reminder: ToolResponseSystemReminderConfig = Field(
         default_factory=ToolResponseSystemReminderConfig,
         title="Tool Response System Reminder",
@@ -126,14 +118,6 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
 
 
 class WebSearchConfig(BaseToolConfig):
-    language_model: LMI = get_LMI_default_field(
-        DEFAULT_MODEL_NAME,
-        title="Query Refinement Language Model (V1)",
-        description="The AI model used to refine and improve the user's search query in V1 search mode."
-        " **This setting will be moved to the V1 Search Mode Settings in a future release.**",
-    )
-    # TODO [UN-17641]: Remove this field in a future release.
-
     limit_token_sources: SkipJsonSchema[int] = Field(
         default=60_000,  # TODO: Remove SkipJsonSchema once UI (Spaces 2.0) can be configured to not include certain fields
         description="Token Source Limit",
@@ -179,7 +163,12 @@ class WebSearchConfig(BaseToolConfig):
         description="Settings for the agent-driven search mode (V3): the model itself chains snippet-only `search` calls with on-demand full-page `read_urls` calls per task.",
     )
 
-    # Todo [UN-17655] RJSF Tags don't function properly when using union + dscriminator
+    query_elicitation_config: QueryElicitationConfig = Field(
+        default_factory=QueryElicitationConfig,
+        title="Query Elicitation",
+        description="Allow users to review and modify search queries before execution.",
+    )
+
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         title="Search Engine",
@@ -227,6 +216,14 @@ class WebSearchConfig(BaseToolConfig):
         description="Advanced: Instructions that tell the AI how to cite web search sources in its answers.",
     )
 
+    token_counting_language_model: LMI = get_LMI_default_field(
+        env_settings.web_search_default_language_model,
+        title="Fallback Language Model For Token Counting",
+        description=(
+            "Fallback AI model whose tokenizer is used to count and slice source tokens when the host assistant does not inject its own orchestrator model."
+        ),
+    )
+
     experimental_features: ExperimentalFeatures = Field(
         default_factory=ExperimentalFeatures,
         title="Experimental Features",
@@ -241,8 +238,12 @@ class WebSearchConfig(BaseToolConfig):
 
     @model_validator(mode="after")
     def disable_query_refinement_if_no_structured_output(self):
+        refine_query_language_model = (
+            self.web_search_mode_config_v1.refine_query_mode.language_model
+        )
         if (
-            ModelCapabilities.STRUCTURED_OUTPUT not in self.language_model.capabilities
+            ModelCapabilities.STRUCTURED_OUTPUT
+            not in refine_query_language_model.capabilities
             and self.web_search_active_mode == WebSearchMode.V1
             and self.web_search_mode_config_v1.refine_query_mode.mode
             != RefineQueryMode.DEACTIVATED
@@ -251,7 +252,8 @@ class WebSearchConfig(BaseToolConfig):
                 RefineQueryMode.DEACTIVATED
             )
             _LOGGER.warning(
-                "The language model does not support structured output. Query refinement is disabled."
+                "The V1 query refinement language model does not support"
+                " structured output. Query refinement is disabled."
             )
         return self
 

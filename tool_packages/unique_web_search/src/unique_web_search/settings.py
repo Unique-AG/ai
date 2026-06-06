@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
+from unique_toolkit.language_model.infos import LanguageModelName
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,13 +30,18 @@ class Base(BaseSettings):
     log_level: str | None = None
     tiktoken_cache_dir: str = "./tiktoken_cache/"
 
+    web_search_default_language_model: LanguageModelName = DEFAULT_LANGUAGE_MODEL
+
     web_search_mode: WebSearchMode = "v2"
 
     # Active search engines
     active_search_engines: list[str] = ["google"]
 
     # Default Crawlers
-    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai"]
+    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai", "basic_proxy"]
+
+    # Unique Search Proxy service (used by the basic_proxy crawler)
+    search_proxy_base_url: str | None = None
 
     # Google Search settings
     google_search_api_key: str | None = None
@@ -55,6 +62,9 @@ class Base(BaseSettings):
     # Brave Search API settings
     brave_search_api_key: str | None = None
     brave_search_api_endpoint: str | None = None
+
+    # Perplexity API settings
+    perplexity_api_key: str | None = None
 
     # VertexAI API settings
     vertexai_service_account_credentials: str | None = None

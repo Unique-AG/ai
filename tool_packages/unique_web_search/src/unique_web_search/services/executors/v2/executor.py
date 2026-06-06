@@ -196,7 +196,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
             results = await self.crawler_service.crawl([step.query_or_url])
         await self._message_log_callback.log_web_search_results(
@@ -275,7 +274,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             return read_url_steps
 
         search_queries = [step.query_or_url for step in search_steps]
-        elicited_queries = await self._ff_elicitate_queries(search_queries)
+        elicited_queries = await self.query_elicitation(search_queries)
 
         elicited_search_steps = [
             Step(step_type=StepType.SEARCH, query_or_url=query, objective="")

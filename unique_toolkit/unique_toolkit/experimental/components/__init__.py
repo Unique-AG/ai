@@ -24,4 +24,7 @@ Planned contents (current home → new home):
   (re-export: :mod:`unique_toolkit.experimental.content_tree`); a derived
   tree/fuzzy-search view over the ``content`` resource; does not wrap an SDK
   endpoint of its own
+* ``internal_search``        ← :mod:`unique_toolkit.experimental.components.internal_search`
+  (UN-19039 / UN-20075); pure-retrieval KB and chat search services plus an
+  optional post-processing pipeline (:class:`InternalSearchPostProcessor`)
 """

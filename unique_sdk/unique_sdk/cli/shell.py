@@ -61,12 +61,14 @@ OVERVIEW_HELP = textwrap.dedent("""\
       download <name|id> [dest] Download a file to local machine
       rm <name|id>              Delete a file
       mv <old> <new>            Rename a file
+      cite <name|id> [--pages]  Declare page citations for a file
 
     Search:
       search <query> [options]  Combined search (vector + full-text)
         --folder <path|id>        Restrict to a folder
         --metadata <key=value>    Filter by metadata (repeatable)
         --limit <N>               Max results (default: 200)
+      read <cont_id>            Read all indexed text chunks for a content ID
 
     MCP:
       mcp [options] <json>      Call an MCP server tool
@@ -429,6 +431,62 @@ class UniqueShell(cmd.Cmd):
         name_or_id = parts[0]
         local_dest = parts[1] if len(parts) > 1 else None
         self._print(cmd_download(self.state, name_or_id, local_dest))
+
+    def do_cite(self, arg: str) -> None:
+        """Declare page citations for a file.
+
+        Usage: cite <name|content_id> [--pages RANGE]
+
+        Examples:
+          /Reports> cite report.pdf --pages 3,5,7
+          /Reports> cite cont_abc123 --pages 1-4
+        """
+        from unique_sdk.cli.commands.cite_file import cmd_cite_file
+
+        parts = shlex.split(arg)
+        if not parts:
+            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            return
+        pages: str | None = None
+        positional: list[str] = []
+        index = 0
+        while index < len(parts):
+            token = parts[index]
+            if token in ("--pages", "-p"):
+                if index + 1 >= len(parts):
+                    self._print("cite: --pages requires a value")
+                    return
+                pages = parts[index + 1]
+                index += 2
+            else:
+                positional.append(token)
+                index += 1
+        if not positional:
+            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            return
+        self._print(cmd_cite_file(self.state, positional[0], pages))
+
+    def do_read(self, arg: str) -> None:
+        """Read all indexed text chunks for a known content ID.
+
+        Usage: read <cont_id>
+
+        Retrieves every indexed chunk for the document directly from the
+        database — no vector search, no query string needed.
+
+        Use `search` to find documents by topic; use `read` once you have
+        the content ID and want the full text.
+
+        Examples:
+          /Reports> read cont_abc123
+        """
+        from unique_sdk.cli.commands.read import cmd_read
+
+        parts = shlex.split(arg)
+        if not parts:
+            self._print("Usage: read <cont_id>")
+            return
+        self._print(cmd_read(self.state, parts[0]))
 
     def do_rm(self, arg: str) -> None:
         """Delete a file.

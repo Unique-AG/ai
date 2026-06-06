@@ -1,8 +1,9 @@
+import logging
 import re
 from enum import StrEnum
-from typing import Annotated, Generic, Literal, TypeVar
+from typing import Annotated, Generic, Literal, Self, TypeVar
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic.main import BaseModel
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
@@ -24,6 +25,9 @@ class SystemReminderConfig(BaseModel, Generic[T]):
     model_config = get_configuration_dict()
 
     type: T
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 _SYSTEM_REMINDER_FIELD_DESCRIPTION = """
@@ -103,6 +107,19 @@ This is the message that will be sent to the sub-agent.
 """.strip()
 
 
+class SubAgentPassthroughConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    enabled: bool = Field(
+        default=False,
+        description="If set, this sub agent's response will be directly displayed to the user once the agent is called, ending the orchestrator loop.",
+    )
+    include_assessments: bool = Field(
+        default=True,
+        description="If set, this sub agent's assessments will be added to the main agent response.",
+    )
+
+
 class SubAgentToolConfig(BaseToolConfig):
     model_config = get_configuration_dict()
 
@@ -171,10 +188,12 @@ class SubAgentToolConfig(BaseToolConfig):
     poll_interval: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=1.0,
         description="Time interval in seconds between polling attempts when waiting for sub-agent response.",
+        gt=0,
     )
     max_wait: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=120.0,
         description="Maximum time in seconds to wait for the sub-agent response before timing out.",
+        gt=0,
     )
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = Field(
         default="completedAt",
@@ -197,6 +216,11 @@ class SubAgentToolConfig(BaseToolConfig):
         default=False,
         description="If set, the sub-agent response will be interpreted as a list of content chunks.",
     )
+    passthrough_config: SubAgentPassthroughConfig = Field(
+        default_factory=SubAgentPassthroughConfig,
+        description="Configuration for streaming the sub-agent response directly back to the user.",
+        title="Direct Streaming Configuration (Experimental)",
+    )
 
     system_reminders_config: list[
         Annotated[
@@ -207,3 +231,28 @@ class SubAgentToolConfig(BaseToolConfig):
         default=[],
         description="Configuration for the system reminders to add to the tool response.",
     )
+
+    @model_validator(mode="after")
+    def _ensure_response_passthrough_and_returns_content_chunks_mutually_exclusive(
+        self,
+    ) -> Self:
+        if self.passthrough_config.enabled and self.returns_content_chunks:
+            raise ValueError(
+                f"SubAgent (assistant_id={self.assistant_id!r}): "
+                "`passthrough_config.enabled` and `returns_content_chunks` are mutually exclusive."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _ensure_use_sub_agent_references_off_when_tool_response_passthrough(
+        self,
+    ) -> Self:
+        if self.passthrough_config.enabled and self.use_sub_agent_references:
+            _LOGGER.warning(
+                "SubAgent (assistant_id=%r): `passthrough_config.enabled=True` and `use_sub_agent_references=True`. "
+                "`use_sub_agent_references` will be overridden to False.",
+                self.assistant_id,
+            )
+            self.use_sub_agent_references = False
+
+        return self

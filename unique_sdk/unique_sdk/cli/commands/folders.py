@@ -9,6 +9,8 @@ from unique_sdk.cli.state import ShellState
 
 def cmd_mkdir(state: ShellState, name: str) -> str:
     """Create a new folder under the current directory."""
+    if not state.is_folder_target_within_workspace(name):
+        return "mkdir: permission denied (outside workspace scope)"
     try:
         full_path = f"{state.cwd.rstrip('/')}/{name}"
         result = unique_sdk.Folder.create_paths(
@@ -27,6 +29,8 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
 
 def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
     """Delete a folder by path or scope ID."""
+    if not state.is_folder_target_within_workspace(target):
+        return "rmdir: permission denied (outside workspace scope)"
     try:
         if target.startswith("scope_"):
             unique_sdk.Folder.delete(
@@ -52,6 +56,8 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
 
 def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a folder."""
+    if not state.is_folder_target_within_workspace(old_name):
+        return "mvdir: permission denied (outside workspace scope)"
     try:
         if old_name.startswith("scope_"):
             result = unique_sdk.Folder.update(

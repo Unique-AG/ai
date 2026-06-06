@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import warnings
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Sequence, overload
 
@@ -8,8 +9,6 @@ from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import (
     ResponseIncludable,
-    ResponseInputItemParam,
-    ResponseOutputItem,
     ResponseTextConfigParam,
     ToolParam,
     response_create_params,
@@ -18,6 +17,10 @@ from openai.types.shared_params import Metadata, Reasoning
 from pydantic import BaseModel
 from typing_extensions import Self, deprecated
 
+from unique_toolkit._common.metadata_filter_scope import (
+    build_folder_id_in_clause,
+    merge_scope_clause_into_metadata_filter,
+)
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.message_log_order import next_message_log_order
@@ -79,10 +82,13 @@ from unique_toolkit.chat.schemas import (
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
+from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
     download_content_to_bytes_async,
+    search_content_chunks_async,
     search_contents,
+    search_contents_async,
     upload_content_from_bytes,
     upload_content_from_bytes_async,
 )
@@ -90,6 +96,8 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentReference,
+    ContentRerankerConfig,
+    ContentSearchType,
 )
 from unique_toolkit.elicitation.service import ElicitationService
 from unique_toolkit.language_model.constants import (
@@ -100,13 +108,13 @@ from unique_toolkit.language_model.infos import (
     LanguageModelName,
 )
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessageOptions,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolDescription,
     ResponsesLanguageModelStreamResponse,
+    ResponsesMessageInput,
 )
 from unique_toolkit.short_term_memory.functions import (
     create_memory,
@@ -1669,13 +1677,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         model_name: LanguageModelName | str,
-        messages: str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam
-            | LanguageModelMessageOptions
-            | ResponseOutputItem  # History is automatically convertible
-        ],
+        messages: ResponsesMessageInput,
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -1722,11 +1724,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         model_name: LanguageModelName | str,
-        messages: str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-        ],
+        messages: ResponsesMessageInput,
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
@@ -1988,6 +1986,19 @@ class ChatService(ChatServiceDeprecated):
             chat_id=self._content_scope_chat_id,
         )
 
+    @staticmethod
+    def _filter_images_and_documents(
+        contents: list[Content],
+    ) -> tuple[list[Content], list[Content]]:
+        images: list[Content] = []
+        files: list[Content] = []
+        for c in contents:
+            if is_file_content(filename=c.key):
+                files.append(c)
+            if is_image_content(filename=c.key):
+                images.append(c)
+        return images, files
+
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
         """Return images and documents from the content-scope chat (e.g. parent chat when subagent).
 
@@ -1997,19 +2008,91 @@ class ChatService(ChatServiceDeprecated):
         Returns:
             tuple[list[Content], list[Content]]: (images, documents) from the content-scope chat.
         """
-        images: list[Content] = []
-        files: list[Content] = []
-        for c in search_contents(
+        contents = search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
             chat_id=self._content_scope_chat_id,
             where={"ownerId": {"equals": self._content_scope_chat_id}},
-        ):
-            if is_file_content(filename=c.key):
-                files.append(c)
-            if is_image_content(filename=c.key):
-                images.append(c)
-        return images, files
+        )
+        return self._filter_images_and_documents(contents)
+
+    async def download_chat_images_and_documents_async(
+        self,
+    ) -> tuple[list[Content], list[Content]]:
+        """Async version of download_chat_images_and_documents.
+
+        Return images and documents from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Returns:
+            tuple[list[Content], list[Content]]: (images, documents) from the content-scope chat.
+        """
+        contents = await search_contents_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            where={"ownerId": {"equals": self._content_scope_chat_id}},
+        )
+        return self._filter_images_and_documents(contents)
+
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        scope_ids: list[str] | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+        content_ids: list[str] | None = None,
+        score_threshold: float | None = None,
+    ) -> list[ContentChunk]:
+        """Search content chunks scoped to this chat session (chat_only=True)."""
+        if scope_ids:
+            warnings.warn(
+                "Passing scope_ids to ChatService.search_content_chunks_async is "
+                "deprecated; use metadata_filter with folderId operator 'in' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            clause = build_folder_id_in_clause(scope_ids)
+            metadata_filter = merge_scope_clause_into_metadata_filter(
+                clause, metadata_filter
+            )
+            scope_ids = None
+        return await search_content_chunks_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            search_string=search_string,
+            search_type=search_type,
+            limit=limit,
+            search_language=search_language,
+            reranker_config=reranker_config,
+            scope_ids=scope_ids,
+            chat_only=True,
+            metadata_filter=metadata_filter,
+            content_ids=content_ids,
+            score_threshold=score_threshold,
+        )
+
+    async def search_contents_async(
+        self,
+        *,
+        where: dict[str, Any],
+        include_failed_content: bool = False,
+    ) -> list[Content]:
+        """Search content files uploaded to this chat session."""
+        return await search_contents_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            where=where,
+            include_failed_content=include_failed_content,
+        )
 
     # Short Term Memories
     ############################################################################
@@ -2126,7 +2209,9 @@ class ChatService(ChatServiceDeprecated):
             message_id=message_id,
         )
 
-    def find_chat_memory_by_id(self, *, chat_id: str, key: str) -> ShortTermMemory:
+    def find_chat_memory_by_id(
+        self, *, chat_id: str, key: str
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific chat synchronously.
 
         Args:
@@ -2134,7 +2219,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2148,7 +2233,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def find_chat_memory_by_id_async(
         self, *, chat_id: str, key: str
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific chat asynchronously.
 
         Args:
@@ -2156,7 +2241,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2170,7 +2255,7 @@ class ChatService(ChatServiceDeprecated):
 
     def find_message_memory_by_id(
         self, *, message_id: str, key: str
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific message synchronously.
 
         Args:
@@ -2178,7 +2263,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2192,7 +2277,7 @@ class ChatService(ChatServiceDeprecated):
 
     async def find_message_memory_by_id_async(
         self, *, message_id: str, key: str
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for a specific message asynchronously.
 
         Args:
@@ -2200,7 +2285,7 @@ class ChatService(ChatServiceDeprecated):
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2333,14 +2418,14 @@ class ChatService(ChatServiceDeprecated):
             value=value,
         )
 
-    def find_chat_memory(self, *, key: str) -> ShortTermMemory:
+    def find_chat_memory(self, *, key: str) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current chat synchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2350,14 +2435,14 @@ class ChatService(ChatServiceDeprecated):
             key=key,
         )
 
-    async def find_chat_memory_async(self, *, key: str) -> ShortTermMemory:
+    async def find_chat_memory_async(self, *, key: str) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current chat asynchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2368,21 +2453,23 @@ class ChatService(ChatServiceDeprecated):
         )
 
     @overload
-    def find_message_memory(self, *, key: str) -> ShortTermMemory: ...
+    def find_message_memory(self, *, key: str) -> ShortTermMemory | None: ...
 
     @overload
-    def find_message_memory(self, *, key: str, message_id: str) -> ShortTermMemory: ...
+    def find_message_memory(
+        self, *, key: str, message_id: str
+    ) -> ShortTermMemory | None: ...
 
     def find_message_memory(
         self, *, key: str, message_id: str | None = None
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current assistant message synchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails
@@ -2393,23 +2480,25 @@ class ChatService(ChatServiceDeprecated):
         )
 
     @overload
-    async def find_message_memory_async(self, *, key: str) -> ShortTermMemory: ...
+    async def find_message_memory_async(
+        self, *, key: str
+    ) -> ShortTermMemory | None: ...
 
     @overload
     async def find_message_memory_async(
         self, *, key: str, message_id: str
-    ) -> ShortTermMemory: ...
+    ) -> ShortTermMemory | None: ...
 
     async def find_message_memory_async(
         self, *, key: str, message_id: str | None = None
-    ) -> ShortTermMemory:
+    ) -> ShortTermMemory | None:
         """Finds the latest short-term memory for the current assistant message asynchronously.
 
         Args:
             key (str): The memory key
 
         Returns:
-            ShortTermMemory: The latest short-term memory
+            ShortTermMemory | None: The latest short-term memory, or None if not found
 
         Raises:
             Exception: If the retrieval fails

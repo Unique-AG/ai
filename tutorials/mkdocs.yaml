@@ -13,6 +13,7 @@ nav:
     - Zitadel Authentication: mcp/mcp_demo.md
     - Google Authentication: mcp/mcp_google_auth.md
     - Unique credentials <-> Tools: mcp/mcp_search.md
+    - Production MCP Server Template: mcp/mcp_server_template.md
     - Using MCP Tools in Unique AI: mcp/mcp_unique_ai.md
 
 markdown_extensions:

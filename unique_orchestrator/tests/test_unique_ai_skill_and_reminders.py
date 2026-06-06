@@ -3,8 +3,8 @@
 These tests exercise the *new* code paths added to ``UniqueAI`` when the
 Skill tool was introduced:
 
-* ``run()`` preloads ``/skill-name`` invocations before the first
-  LLM call.
+* ``run()`` preloads skills from per-turn ``skill_choices`` before the
+  first LLM call.
 * ``_compose_message_plan_execution()`` injects per-turn
   ``tool_system_reminder_for_user_prompt`` strings on the latest
   user message.
@@ -89,7 +89,6 @@ class TestPreloadSkillsInRun:
     async def _run_until_preload(
         self,
         ua: "UniqueAI",
-        preload_return: str | None,
     ) -> None:
         ua._chat_service.modify_assistant_message_async = AsyncMock()
         ua._chat_service.cancellation.on_cancellation.subscribe = MagicMock(
@@ -99,7 +98,7 @@ class TestPreloadSkillsInRun:
         with (
             patch(
                 "unique_orchestrator.unique_ai.preload_invoked_skills",
-                new=AsyncMock(return_value=preload_return),
+                new=AsyncMock(),
             ),
             patch("unique_orchestrator.unique_ai.feature_flags") as mock_feature_flags,
         ):
@@ -108,14 +107,14 @@ class TestPreloadSkillsInRun:
                 await ua.run()
 
     @pytest.mark.asyncio
-    async def test_stripped_text_replaces_user_message(
+    async def test_preload_does_not_mutate_user_message(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._event.payload.user_message.text = "/foo the real query"
 
-        await self._run_until_preload(mock_unique_ai, "the real query")
+        await self._run_until_preload(mock_unique_ai)
 
-        assert mock_unique_ai._event.payload.user_message.text == "the real query"
+        assert mock_unique_ai._event.payload.user_message.text == "/foo the real query"
 
     @pytest.mark.asyncio
     async def test_no_skills_leaves_user_message_untouched(
@@ -123,7 +122,7 @@ class TestPreloadSkillsInRun:
     ) -> None:
         mock_unique_ai._event.payload.user_message.text = "plain question"
 
-        await self._run_until_preload(mock_unique_ai, None)
+        await self._run_until_preload(mock_unique_ai)
 
         assert mock_unique_ai._event.payload.user_message.text == "plain question"
 

@@ -56,6 +56,8 @@ if __name__ == "__main__":
 ### Runnable script
 
 ```{.python #kb-tree-main file=docs/.python_files/kb_tree_visible.py}
+<<example-script-deps>>
+
 <<kb-tree-imports>>
 
 <<kb-tree-async-main>>

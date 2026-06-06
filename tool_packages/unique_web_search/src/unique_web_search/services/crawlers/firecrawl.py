@@ -10,6 +10,7 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfigExperimental,
     CrawlerType,
 )
+from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
 
 
 class FirecrawlCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.FIRECRAWL]):
@@ -24,7 +25,8 @@ class FirecrawlCrawler(BaseCrawler[FirecrawlCrawlerConfig]):
     # @track(
     #     tags=["firecrawl", "scrape"],
     # )
-    async def crawl(self, urls: list[str]) -> list[str]:
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+        urls = [target.normalized_url for target in targets]
         api_key = get_firecrawl_search_settings().api_key
         assert api_key is not None, "Firecrawl API key is not configured"
 

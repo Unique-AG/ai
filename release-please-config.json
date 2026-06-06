@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "python",
   "separate-pull-requests": false,
-  "group-pull-request-title-pattern": "chore: stable release ${version}",
+  "group-pull-request-title-pattern": "chore: stable release ${branch}",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
   "tag-separator": "-",
@@ -19,6 +19,9 @@
     {"type": "build", "section": "Build", "hidden": true}
   ],
   "packages": {
+    "uqadm": {
+      "component": "uqadm"
+    },
     "unique_sdk": {
       "component": "unique-sdk"
     },
@@ -55,6 +58,19 @@
     "connectors/unique_six": {
       "component": "unique-six"
     },
+    "connectors/unique_search_proxy/unique_search_proxy_client": {
+      "component": "unique-search-proxy",
+      "extra-files": [
+        { "type": "generic", "path": "deploy/helm-chart/Chart.yaml" },
+        { "type": "generic", "path": "deploy/helm-chart/values.yaml" }
+      ]
+    },
+    "connectors/unique_search_proxy/unique_search_proxy_core": {
+      "component": "unique-search-proxy-core"
+    },
+    "connectors/unique_search_proxy/unique_search_proxy_sdk": {
+      "component": "unique-search-proxy-sdk"
+    },
     "tool_packages/unique_skill_tool": {
       "component": "unique-skill-tool"
     }
@@ -64,6 +80,7 @@
       "type": "linked-versions",
       "groupName": "ai",
       "components": [
+        "uqadm",
         "unique-sdk",
         "unique-toolkit",
         "unique-mcp",
@@ -76,6 +93,9 @@
         "unique-stock-ticker",
         "unique-quartr",
         "unique-six",
+        "unique-search-proxy",
+        "unique-search-proxy-core",
+        "unique-search-proxy-sdk",
         "unique-skill-tool"
       ]
     }

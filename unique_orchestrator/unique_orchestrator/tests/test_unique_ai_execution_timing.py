@@ -727,9 +727,11 @@ class TestRunExecutionTimingIntegration:
 
         await ua.run()
 
-        call_args = ua._debug_info_manager.add.call_args
-        assert call_args[0][0] == "execution_time"
-        payload = call_args[0][1]
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert "execution_time" in calls_by_key
+        payload = calls_by_key["execution_time"]
         assert "loop_iterations" in payload
         assert "total_time" in payload
 

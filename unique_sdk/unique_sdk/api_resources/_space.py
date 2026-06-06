@@ -89,6 +89,7 @@ class Space(APIResource["Space"]):
         assistantId: str
         text: NotRequired[str | None]
         toolChoices: NotRequired[list[str] | None]
+        skillChoices: NotRequired[list[dict[str, Any]]]
         scopeRules: NotRequired[dict[str, Any] | None]
         correlation: NotRequired["Space.Correlation | None"]
 
@@ -297,6 +298,7 @@ class Space(APIResource["Space"]):
         Send a message in a space.
         """
         params["toolChoices"] = params.get("toolChoices") or []
+        params["skillChoices"] = params.get("skillChoices") or []
         return cast(
             "Space.Message",
             cls._static_request(
@@ -319,6 +321,7 @@ class Space(APIResource["Space"]):
         Async send a message in a space.
         """
         params["toolChoices"] = params.get("toolChoices") or []
+        params["skillChoices"] = params.get("skillChoices") or []
         return cast(
             "Space.Message",
             await cls._static_request_async(

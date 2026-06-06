@@ -33,9 +33,11 @@ def _make_event(
 @pytest.fixture
 def _patch_constructors(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub out heavy service constructors so _build_common runs without real infra."""
-    monkeypatch.setattr(f"{MODULE}.ChatService", lambda event: MagicMock())
     monkeypatch.setattr(
         f"{MODULE}.LanguageModelService.from_event", lambda event: MagicMock()
+    )
+    monkeypatch.setattr(
+        f"{MODULE}.ContentService.from_event", lambda event: MagicMock()
     )
     monkeypatch.setattr(f"{MODULE}.SubAgentResponseWatcher", MagicMock)
     monkeypatch.setattr(f"{MODULE}.ToolProgressReporter", lambda **kw: MagicMock())
@@ -50,6 +52,14 @@ def _patch_constructors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(f"{MODULE}.MessageStepLogger", lambda *a: MagicMock())
 
 
+def _make_chat_service_mock(docs: list, images: list | None = None) -> MagicMock:
+    mock = MagicMock()
+    mock.download_chat_images_and_documents_async = AsyncMock(
+        return_value=(images or [], docs)
+    )
+    return mock
+
+
 class TestBuildCommonSelectedUploadedFiles:
     """Tests for the selected_uploaded_files filtering in _build_common."""
 
@@ -62,18 +72,14 @@ class TestBuildCommonSelectedUploadedFiles:
         selected subset when the feature flag is enabled and a selection exists.
         Why this matters: Users who select specific files must only have those
         files used by the orchestrator; other uploads must be excluded.
-        Setup summary: Three docs returned from the async content service;
+        Setup summary: Three docs returned from the chat service;
         only two selected; assert result contains exactly those two.
         """
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b"), _make_doc("c")]
-        mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
         monkeypatch.setattr(
-            f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
+            f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
         mock_ff = MagicMock()
@@ -105,12 +111,8 @@ class TestBuildCommonSelectedUploadedFiles:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b"), _make_doc("c")]
-        mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
         monkeypatch.setattr(
-            f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
+            f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
         mock_ff = MagicMock()
@@ -138,12 +140,8 @@ class TestBuildCommonSelectedUploadedFiles:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b")]
-        mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
         monkeypatch.setattr(
-            f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
+            f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
         mock_ff = MagicMock()
@@ -175,12 +173,8 @@ class TestBuildCommonSelectedUploadedFiles:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("a"), _make_doc("b"), _make_doc("c")]
-        mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
         monkeypatch.setattr(
-            f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
+            f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
         mock_ff = MagicMock()
@@ -211,12 +205,8 @@ class TestBuildCommonSelectedUploadedFiles:
         from unique_orchestrator.unique_ai_builder import _build_common
 
         docs = [_make_doc("x"), _make_doc("y"), _make_doc("z")]
-        mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=docs
-        )
         monkeypatch.setattr(
-            f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
+            f"{MODULE}.ChatService", lambda event: _make_chat_service_mock(docs)
         )
 
         mock_ff = MagicMock()
@@ -234,27 +224,21 @@ class TestBuildCommonSelectedUploadedFiles:
         assert result_ids == ["y"]
 
     @pytest.mark.ai
-    async def test_uses_async_content_service_method(
+    async def test_uses_async_chat_service_method(
         self, monkeypatch: pytest.MonkeyPatch, _patch_constructors: None
     ) -> None:
         """
-        Purpose: Verify that _build_common calls get_documents_uploaded_to_chat_async
-        rather than the synchronous variant.
-        Why this matters: The sync method may block the event loop; the PR
-        explicitly migrated the call to the async API.
-        Setup summary: Spy on both methods; after _build_common completes,
-        assert async was called and sync was not.
+        Purpose: Verify that _build_common calls download_chat_images_and_documents_async
+        on the chat service to retrieve both images and documents.
+        Why this matters: The orchestrator must use the async API to avoid blocking
+        the event loop and to obtain uploaded images alongside documents.
+        Setup summary: Spy on download_chat_images_and_documents_async;
+        after _build_common completes, assert it was awaited exactly once.
         """
         from unique_orchestrator.unique_ai_builder import _build_common
 
-        mock_content_service = MagicMock()
-        mock_content_service.get_documents_uploaded_to_chat_async = AsyncMock(
-            return_value=[]
-        )
-        mock_content_service.get_documents_uploaded_to_chat = MagicMock(return_value=[])
-        monkeypatch.setattr(
-            f"{MODULE}.ContentService.from_event", lambda event: mock_content_service
-        )
+        mock_chat_service = _make_chat_service_mock([])
+        monkeypatch.setattr(f"{MODULE}.ChatService", lambda event: mock_chat_service)
 
         mock_ff = MagicMock()
         mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
@@ -264,5 +248,4 @@ class TestBuildCommonSelectedUploadedFiles:
 
         await _build_common(event, MagicMock(), UniqueAIConfig())
 
-        mock_content_service.get_documents_uploaded_to_chat_async.assert_awaited_once()
-        mock_content_service.get_documents_uploaded_to_chat.assert_not_called()
+        mock_chat_service.download_chat_images_and_documents_async.assert_awaited_once()

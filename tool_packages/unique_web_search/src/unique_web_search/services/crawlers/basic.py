@@ -7,12 +7,17 @@ import timeout_decorator
 from httpx import AsyncClient, Timeout
 from markdownify import markdownify
 from pydantic import Field
+from typing_extensions import override
 
 from unique_web_search.services.client.proxy_config import async_client
 from unique_web_search.services.crawlers.base import (
     BaseCrawler,
     BaseCrawlerConfig,
     CrawlerType,
+)
+from unique_web_search.services.crawlers.url_safety import (
+    CrawlTargetValidationError,
+    ResolvedCrawlTarget,
 )
 from unique_web_search.services.crawlers.utils import get_random_user_agent
 
@@ -49,18 +54,29 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
     def __init__(self, config: BasicCrawlerConfig):
         super().__init__(config)
 
-        self.semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
+        self.semaphore: asyncio.Semaphore = asyncio.Semaphore(
+            self.config.max_concurrent_requests
+        )
 
     # TODO: Find a good way for tracking
     # @track(
     #     tags=["basic", "scrape"],
     # )
-    async def crawl(self, urls: list[str]) -> list[str]:
+    @override
+    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         async with async_client(timeout=Timeout(self.config.timeout)) as client:
-            tasks = [self._crawl_url_with_client(client, url) for url in urls]
+            tasks = [self._crawl_url_with_client(client, target) for target in targets]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            markdowns = []
+            validation_errors = [
+                result
+                for result in results
+                if isinstance(result, CrawlTargetValidationError)
+            ]
+            if validation_errors:
+                raise validation_errors[0]
+
+            markdowns: list[str] = []
             for result in results:
                 if isinstance(result, BaseException):
                     markdowns.append(
@@ -72,17 +88,32 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
 
             return markdowns
 
-    async def _crawl_url_with_client(self, client: AsyncClient, url: str) -> str:
+    async def _crawl_url_with_client(
+        self, client: AsyncClient, target: ResolvedCrawlTarget
+    ) -> str:
         headers = {"User-Agent": get_random_user_agent()}
 
-        if self._is_url_blacklisted(url):
+        if self._is_url_blacklisted(target.normalized_url):
             return "Unable to crawl URL due to blacklisted pattern"
 
-        response = await client.get(url, headers=headers)
+        request_headers = dict(headers)
+        request_extensions: dict[str, str] = {}
+        if target.host_header is not None:
+            request_headers["Host"] = target.host_header
+        if target.sni_hostname is not None:
+            request_extensions["sni_hostname"] = target.sni_hostname
 
-        response.raise_for_status()
+        response = await client.get(
+            target.request_url,
+            headers=request_headers,
+            extensions=request_extensions or None,
+        )
 
-        content_type = response.headers.get("content-type", "").lower().split(";")[0]
+        _ = response.raise_for_status()
+
+        content_type = (
+            str(response.headers.get("content-type", "")).lower().split(";")[0]
+        )
 
         if self._content_type_not_allowed(content_type):
             return f"Content type {content_type} is not allowed"
