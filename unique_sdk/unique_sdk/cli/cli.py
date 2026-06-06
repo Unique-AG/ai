@@ -110,7 +110,7 @@ Examples:
   unique-cli upload ./file.pdf      Upload versioned to current folder
   unique-cli download cont_abc123   Download by content ID
   unique-cli versions cont_abc123   List archived file versions
-  unique-cli restore-version ver_1  Restore a file from a version
+  unique-cli restore-version cver_1 Restore a file from a version
   unique-cli elicit ask "Which?"    Ask the user a question synchronously
   unique-cli subagent Legal "Review" Invoke a connected space/subagent
   unique-cli web-search search "x"  Search the web via the public API
