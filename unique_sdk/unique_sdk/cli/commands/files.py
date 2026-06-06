@@ -25,18 +25,18 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
 
     lookup_name = name_or_id
     scope_id = state.scope_id
-    # Preserve support for unusual literal filenames like "../../.bashrc".
-    # Only resolve slash-containing values as Unique paths when they are not
-    # path traversal shaped names.
-    if "/" in name_or_id and ".." not in name_or_id.split("/"):
-        folder_path, lookup_name = name_or_id.rsplit("/", 1)
+    if "/" in name_or_id:
+        unique_path = (
+            name_or_id
+            if name_or_id.startswith("/")
+            else f"{state.cwd.rstrip('/')}/{name_or_id}"
+        )
+        unique_path = posixpath.normpath(unique_path)
+        folder_path, lookup_name = unique_path.rsplit("/", 1)
         if not lookup_name:
             raise ValueError(f"File path must include a file name: {name_or_id}")
         if not folder_path:
             folder_path = "/"
-        elif not folder_path.startswith("/"):
-            folder_path = f"{state.cwd.rstrip('/')}/{folder_path}"
-        folder_path = posixpath.normpath(folder_path)
 
         info = unique_sdk.Folder.get_info(
             user_id=state.config.user_id,
@@ -51,15 +51,26 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
     if scope_id:
         params["parentId"] = scope_id
 
-    result = unique_sdk.Content.get_infos(
-        user_id=state.config.user_id,
-        company_id=state.config.company_id,
-        **params,
-    )
-    for info in result.get("contentInfos", []):
-        title = info.get("title") or info.get("key") or ""
-        if title == lookup_name:
-            return info["id"], title
+    take = 100
+    skip = 0
+    while True:
+        result = unique_sdk.Content.get_infos(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            skip=skip,
+            take=take,
+            **params,
+        )
+        content_infos = result.get("contentInfos", [])
+        for info in content_infos:
+            title = info.get("title") or info.get("key") or ""
+            if title == lookup_name:
+                return info["id"], title
+
+        total_count = result.get("totalCount")
+        skip += len(content_infos)
+        if not content_infos or (total_count is not None and skip >= total_count):
+            break
 
     raise ValueError(f"File not found: {name_or_id}")
 

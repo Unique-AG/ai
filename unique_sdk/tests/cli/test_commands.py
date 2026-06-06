@@ -347,6 +347,8 @@ class TestFiles:
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
         assert mock_content.call_args.kwargs["parentId"] == "scope_q1"
+        assert mock_content.call_args.kwargs["skip"] == 0
+        assert mock_content.call_args.kwargs["take"] == 100
 
     @patch("unique_sdk.Content.get_infos")
     @patch("unique_sdk.Folder.get_info")
@@ -381,6 +383,35 @@ class TestFiles:
         assert cid == "cont_123"
         assert name == "report.pdf"
         assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_resolve_content_id_normalizes_dot_dot_path(
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+    ) -> None:
+        mock_folder.return_value = {"id": "scope_q1"}
+        mock_content.return_value = {"contentInfos": [_content_info()]}
+        cid, name = _resolve_content_id(
+            _state("/Reports/Q2", "scope_q2"),
+            "../Q1/report.pdf",
+        )
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+        assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
+
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_content_id_scans_paginated_files(self, mock: MagicMock) -> None:
+        mock.side_effect = [
+            {"contentInfos": [_content_info(title="other.pdf")], "totalCount": 2},
+            {"contentInfos": [_content_info()], "totalCount": 2},
+        ]
+        cid, name = _resolve_content_id(_state("/Reports", "scope_r"), "report.pdf")
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+        assert mock.call_args_list[0].kwargs["skip"] == 0
+        assert mock.call_args_list[1].kwargs["skip"] == 1
 
     @patch("unique_sdk.Content.get_infos")
     def test_resolve_content_id_not_found(self, mock: MagicMock) -> None:
@@ -683,18 +714,17 @@ class TestFiles:
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
-    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.cli.commands.files._resolve_content_id")
     def test_download_sanitizes_path_traversal(
         self,
-        mock_infos: MagicMock,
+        mock_resolve: MagicMock,
         mock_dl: MagicMock,
         mock_move: MagicMock,
         tmp_path,  # type: ignore[no-untyped-def]
     ) -> None:
-        malicious = _content_info(title="../../.bashrc")
-        mock_infos.return_value = {"contentInfos": [malicious]}
+        mock_resolve.return_value = ("cont_123", "../../.bashrc")
         mock_dl.return_value = tmp_path / "downloaded"
-        cmd_download(_state("/R", "scope_r"), "../../.bashrc", str(tmp_path))
+        cmd_download(_state("/R", "scope_r"), "cont_123", str(tmp_path))
         move_dest = mock_move.call_args[0][1]
         assert ".." not in move_dest
 
