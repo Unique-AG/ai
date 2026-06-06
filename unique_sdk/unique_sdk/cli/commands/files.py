@@ -39,6 +39,8 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
     or an absolute/relative Unique file path.
     """
     if name_or_id.startswith("cont_"):
+        if not state.is_content_within_workspace(name_or_id):
+            raise ValueError("permission denied (outside workspace scope)")
         return name_or_id, name_or_id
 
     lookup_name = name_or_id
@@ -50,6 +52,8 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
             raise ValueError(f"File path must include a file name: {name_or_id}")
         if not folder_path:
             folder_path = "/"
+        if not state.is_folder_target_within_workspace(folder_path):
+            raise ValueError("permission denied (outside workspace scope)")
 
         info = unique_sdk.Folder.get_info(
             user_id=state.config.user_id,
@@ -59,6 +63,8 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
         scope_id = info.get("id")
         if not scope_id:
             raise ValueError(f"folder not found: {folder_path}")
+    elif not state.is_within_workspace():
+        raise ValueError("permission denied (outside workspace scope)")
 
     params: dict[str, Any] = {}
     if scope_id:
@@ -263,6 +269,8 @@ def cmd_versions(
 
 def cmd_restore_version(state: ShellState, content_version_id: str) -> str:
     """Restore a file from an archived content version ID."""
+    if state.workspace_restricted:
+        return "restore-version: permission denied (outside workspace scope)"
     try:
         result = unique_sdk.Content.restore_version(
             user_id=state.config.user_id,

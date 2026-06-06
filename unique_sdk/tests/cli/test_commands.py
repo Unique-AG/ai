@@ -710,6 +710,30 @@ class TestFiles:
         assert "Versions for report.pdf" in result
         assert mock_versions.call_args.kwargs["contentId"] == "cont_123"
 
+    @patch("unique_sdk.Folder.get_info")
+    def test_versions_path_outside_workspace_blocked(
+        self,
+        mock_folder: MagicMock,
+    ) -> None:
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_versions(state, "/Outside/report.pdf")
+        assert "permission denied" in result
+        mock_folder.assert_not_called()
+
+    @patch("unique_sdk.Content.get_info")
+    def test_versions_content_id_outside_workspace_blocked(
+        self,
+        mock_info: MagicMock,
+    ) -> None:
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_other"}]}
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_versions(state, "cont_outside")
+        assert "permission denied" in result
+
     @patch("unique_sdk.Content.restore_version")
     def test_restore_version(self, mock_restore: MagicMock) -> None:
         mock_restore.return_value = _content_info(title="report.pdf")
@@ -717,6 +741,18 @@ class TestFiles:
         assert "Restored" in result
         assert "cver_1" in result
         assert mock_restore.call_args.kwargs["contentVersionId"] == "cver_1"
+
+    @patch("unique_sdk.Content.restore_version")
+    def test_restore_version_workspace_restricted_blocked(
+        self,
+        mock_restore: MagicMock,
+    ) -> None:
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_restore_version(state, "cver_1")
+        assert "permission denied" in result
+        mock_restore.assert_not_called()
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
@@ -729,6 +765,18 @@ class TestFiles:
         mock_dl.return_value = tmp_path / "downloaded"
         result = cmd_download(_state(), "cont_abc")
         assert "Downloaded" in result
+
+    @patch("unique_sdk.Content.get_info")
+    def test_download_content_id_outside_workspace_blocked(
+        self,
+        mock_info: MagicMock,
+    ) -> None:
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_other"}]}
+        state = _state("/Workspace", "scope_ws")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_download(state, "cont_outside")
+        assert "permission denied" in result
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
