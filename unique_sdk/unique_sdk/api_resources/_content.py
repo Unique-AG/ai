@@ -170,6 +170,50 @@ class Content(APIResource["Content"]):
         # a SAS URL the caller PUTs the PDF bytes to. ``file_io.upload_file``
         # exposes this as ``preview_pdf_path`` for a one-call flow.
         previewPdfFileName: NotRequired[str | None]
+        # When true, the platform archives previous blobs for this
+        # content and makes them restorable through the version APIs.
+        versioningEnabled: NotRequired[bool | None]
+
+    class VersionsParams(RequestOptions):
+        contentId: str
+        skip: NotRequired[int | None]
+        take: NotRequired[int | None]
+
+    class ContentVersion(TypedDict):
+        id: str
+        contentId: str
+        versionNumber: int
+        reason: str
+        blobObjectKey: str
+        key: str
+        title: str | None
+        description: str | None
+        url: str | None
+        byteSize: int
+        mimeType: str
+        ownerType: str
+        ownerId: str
+        contentHash: str | None
+        archivedAt: str
+        archivedBy: str | None
+        originalCreatedAt: str
+        originalCreatedBy: str | None
+        createdBy: str | None
+
+    class PaginatedContentVersions(TypedDict):
+        data: list["Content.ContentVersion"]
+        object: str
+
+    class VersionDownloadUrlParams(RequestOptions):
+        contentVersionId: str
+
+    class ContentVersionDownloadUrl(TypedDict):
+        id: str
+        object: str
+        url: str
+
+    class RestoreVersionParams(RequestOptions):
+        contentVersionId: str
 
     class UpdateParams(RequestOptions):
         contentId: NotRequired[str]
@@ -461,6 +505,120 @@ class Content(APIResource["Content"]):
             await cls._static_request_async(
                 "post",
                 "/content/upsert",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def versions(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.VersionsParams"],
+    ) -> "Content.PaginatedContentVersions":
+        content_id = params.pop("contentId")
+        return cast(
+            Content.PaginatedContentVersions,
+            cls._static_request(
+                "get",
+                f"/content/{content_id}/versions",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def versions_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.VersionsParams"],
+    ) -> "Content.PaginatedContentVersions":
+        content_id = params.pop("contentId")
+        return cast(
+            Content.PaginatedContentVersions,
+            await cls._static_request_async(
+                "get",
+                f"/content/{content_id}/versions",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def version_download_url(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.VersionDownloadUrlParams"],
+    ) -> "Content.ContentVersionDownloadUrl":
+        content_version_id = params.pop("contentVersionId")
+        return cast(
+            Content.ContentVersionDownloadUrl,
+            cls._static_request(
+                "get",
+                f"/content/versions/{content_version_id}/download-url",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def version_download_url_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.VersionDownloadUrlParams"],
+    ) -> "Content.ContentVersionDownloadUrl":
+        content_version_id = params.pop("contentVersionId")
+        return cast(
+            Content.ContentVersionDownloadUrl,
+            await cls._static_request_async(
+                "get",
+                f"/content/versions/{content_version_id}/download-url",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def restore_version(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.RestoreVersionParams"],
+    ) -> "Content.ContentInfo":
+        content_version_id = params.pop("contentVersionId")
+        return cast(
+            Content.ContentInfo,
+            cls._static_request(
+                "post",
+                f"/content/versions/{content_version_id}/restore",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def restore_version_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.RestoreVersionParams"],
+    ) -> "Content.ContentInfo":
+        content_version_id = params.pop("contentVersionId")
+        return cast(
+            Content.ContentInfo,
+            await cls._static_request_async(
+                "post",
+                f"/content/versions/{content_version_id}/restore",
                 user_id,
                 company_id,
                 params=params,

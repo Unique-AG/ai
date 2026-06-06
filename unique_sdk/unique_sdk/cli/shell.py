@@ -16,7 +16,14 @@ from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_respond,
     cmd_elicit_wait,
 )
-from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
+from unique_sdk.cli.commands.files import (
+    cmd_download,
+    cmd_mv_file,
+    cmd_restore_version,
+    cmd_rm,
+    cmd_upload,
+    cmd_versions,
+)
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
@@ -35,7 +42,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
 
     Navigate the knowledge base like a Linux filesystem. Folders are
     identified by name, path, or scope ID. Files are identified by
-    name or content ID.
+    name, path, or content ID.
 
     Navigation:
       pwd                       Print current working directory
@@ -48,11 +55,13 @@ OVERVIEW_HELP = textwrap.dedent("""\
       mvdir <old> <new>         Rename a folder
 
     File operations:
-      upload <local> [name]     Upload a local file
-      download <name|id> [dest] Download a file to local machine
-      rm <name|id>              Delete a file
-      mv <old> <new>            Rename a file
-      cite <name|id> [--pages]  Declare page citations for a file
+      upload <local> [name]     Upload a local file with versioning
+      versions <name|path|id>   List archived file versions
+      restore-version <ver_id>  Restore a file from a version
+      download <name|path|id> [dest] Download a file to local machine
+      rm <name|path|id>         Delete a file
+      mv <old|path|id> <new>    Rename a file
+      cite <name|path|id> [--pages] Declare page citations for a file
 
     Search:
       search <query> [options]  Combined search (vector + full-text)
@@ -292,13 +301,14 @@ class UniqueShell(cmd.Cmd):
     # -- File operations --
 
     def do_upload(self, arg: str) -> None:
-        """Upload a local file (works like Linux cp).
+        """Upload a local file with versioning enabled (works like Linux cp).
 
         Usage: upload <local_path> [destination]
 
-        Uploads a file from your local machine. The destination argument
-        works like cp -- it can be a folder, a new filename, or both.
-        MIME type is auto-detected from the file extension.
+        Uploads a file from your local machine with immutable versioning
+        enabled. The destination argument works like cp -- it can be a
+        folder, a new filename, or both. MIME type is auto-detected from
+        the file extension.
 
         Destination formats:
           (omitted)       Upload to current dir, keep original name
@@ -330,17 +340,78 @@ class UniqueShell(cmd.Cmd):
         destination = parts[1] if len(parts) > 1 else None
         self._print(cmd_upload(self.state, local_path, destination))
 
+    def do_versions(self, arg: str) -> None:
+        """List archived versions for a file.
+
+        Usage: versions <name|path|content_id> [--skip N] [--take N]
+
+        Lists immutable versions for a file identified by its Unique
+        path, name (matched in the current directory), or content ID
+        (cont_...). Use the VERSION_ID column with restore-version.
+
+        Examples:
+          /Reports> versions annual.pdf
+          /Reports> versions /Reports/Q1/annual.pdf
+          /Reports> versions cont_mno345 --take 10
+        """
+        parts = shlex.split(arg)
+        if not parts:
+            self._print("Usage: versions <name|path|content_id> [--skip N] [--take N]")
+            return
+
+        name_or_id = parts[0]
+        skip: int | None = None
+        take: int | None = None
+        i = 1
+        while i < len(parts):
+            if parts[i] == "--skip" and i + 1 < len(parts):
+                try:
+                    skip = int(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid --skip: {parts[i + 1]}")
+                    return
+                i += 2
+            elif parts[i] == "--take" and i + 1 < len(parts):
+                try:
+                    take = int(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid --take: {parts[i + 1]}")
+                    return
+                i += 2
+            else:
+                self._print(f"Unknown option: {parts[i]}")
+                return
+
+        self._print(cmd_versions(self.state, name_or_id, skip=skip, take=take))
+
+    def do_restore_version(self, arg: str) -> None:
+        """Restore a file from a content version ID.
+
+        Usage: restore-version <content_version_id>
+
+        The content version ID is shown by the versions command.
+
+        Example:
+          /Reports> restore-version cver_abc123
+          Restored: annual.pdf (cont_mno345) from version cver_abc123
+        """
+        content_version_id = arg.strip()
+        if not content_version_id:
+            self._print("Usage: restore-version <content_version_id>")
+            return
+        self._print(cmd_restore_version(self.state, content_version_id))
+
     def do_download(self, arg: str) -> None:
         """Download a file from the platform to your local machine.
 
-        Usage: download <name|content_id> [local_path]
+        Usage: download <name|path|content_id> [local_path]
 
-        Downloads a file identified by its name (matched in the current
-        directory) or content ID (cont_...). Saves to the specified local
-        path, or the current working directory if omitted.
+        Downloads a file identified by its Unique path, name (matched in
+        the current directory), or content ID (cont_...). Saves to the
+        specified local path, or the current working directory if omitted.
 
         Arguments:
-          name_or_id    File name or content ID (cont_...)
+          name_or_id    File path, file name, or content ID (cont_...)
           local_path    Optional local directory or file path
 
         Examples:
@@ -350,12 +421,15 @@ class UniqueShell(cmd.Cmd):
           /Reports> download annual.pdf ./downloads/
           Downloaded: annual.pdf -> ./downloads/annual.pdf
 
+          /Reports> download /Reports/Q1/annual.pdf ./downloads/
+          Downloaded: annual.pdf -> ./downloads/annual.pdf
+
           /Reports> download cont_mno345 ~/Desktop/
           Downloaded: cont_mno345 -> ~/Desktop/cont_mno345
         """
         parts = shlex.split(arg)
         if not parts:
-            self._print("Usage: download <name|content_id> [local_path]")
+            self._print("Usage: download <name|path|content_id> [local_path]")
             return
         name_or_id = parts[0]
         local_dest = parts[1] if len(parts) > 1 else None
@@ -364,17 +438,18 @@ class UniqueShell(cmd.Cmd):
     def do_cite(self, arg: str) -> None:
         """Declare page citations for a file.
 
-        Usage: cite <name|content_id> [--pages RANGE]
+        Usage: cite <name|path|content_id> [--pages RANGE]
 
         Examples:
           /Reports> cite report.pdf --pages 3,5,7
+          /Reports> cite /Reports/Q1/report.pdf --pages 3,5,7
           /Reports> cite cont_abc123 --pages 1-4
         """
         from unique_sdk.cli.commands.cite_file import cmd_cite_file
 
         parts = shlex.split(arg)
         if not parts:
-            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            self._print("Usage: cite <name|path|content_id> [--pages RANGE]")
             return
         pages: str | None = None
         positional: list[str] = []
@@ -391,7 +466,7 @@ class UniqueShell(cmd.Cmd):
                 positional.append(token)
                 index += 1
         if not positional:
-            self._print("Usage: cite <name|content_id> [--pages RANGE]")
+            self._print("Usage: cite <name|path|content_id> [--pages RANGE]")
             return
         self._print(cmd_cite_file(self.state, positional[0], pages))
 
@@ -420,13 +495,16 @@ class UniqueShell(cmd.Cmd):
     def do_rm(self, arg: str) -> None:
         """Delete a file.
 
-        Usage: rm <name|content_id>
+        Usage: rm <name|path|content_id>
 
-        Permanently deletes a file by its name (matched in the current
-        directory) or content ID.
+        Permanently deletes a file by its Unique path, name (matched in
+        the current directory), or content ID.
 
         Examples:
           /Reports> rm annual.pdf
+          Deleted: annual.pdf (cont_mno345)
+
+          /Reports> rm /Reports/Q1/annual.pdf
           Deleted: annual.pdf (cont_mno345)
 
           /Reports> rm cont_xyz789
@@ -434,14 +512,14 @@ class UniqueShell(cmd.Cmd):
         """
         name_or_id = arg.strip()
         if not name_or_id:
-            self._print("Usage: rm <name|content_id>")
+            self._print("Usage: rm <name|path|content_id>")
             return
         self._print(cmd_rm(self.state, name_or_id))
 
     def do_mv(self, arg: str) -> None:
         """Rename a file.
 
-        Usage: mv <old_name|content_id> <new_name>
+        Usage: mv <old_name|path|content_id> <new_name>
 
         Changes the file's display title. The content ID and location
         remain the same.
@@ -450,12 +528,15 @@ class UniqueShell(cmd.Cmd):
           /Reports> mv annual.pdf annual-2025.pdf
           Renamed: annual.pdf -> annual-2025.pdf
 
+          /Reports> mv /Reports/Q1/annual.pdf annual-2025.pdf
+          Renamed: annual.pdf -> annual-2025.pdf
+
           /Reports> mv cont_abc123 "New Title.pdf"
           Renamed: cont_abc123 -> New Title.pdf
         """
         parts = shlex.split(arg)
         if len(parts) != 2:
-            self._print("Usage: mv <old_name|content_id> <new_name>")
+            self._print("Usage: mv <old_name|path|content_id> <new_name>")
             return
         self._print(cmd_mv_file(self.state, parts[0], parts[1]))
 
@@ -1103,6 +1184,9 @@ class UniqueShell(cmd.Cmd):
         return False
 
     def default(self, line: str) -> None:
+        if line.startswith("restore-version"):
+            self.do_restore_version(line[len("restore-version") :].strip())
+            return
         self._print(
             f"Unknown command: {line.split()[0]}. Type 'help' for available commands."
         )
