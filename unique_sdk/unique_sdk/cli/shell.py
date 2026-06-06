@@ -59,9 +59,9 @@ OVERVIEW_HELP = textwrap.dedent("""\
       versions <name|path|id>   List archived file versions
       restore-version <ver_id>  Restore a file from a version
       download <name|path|id> [dest] Download a file to local machine
-      rm <name|id>              Delete a file
-      mv <old> <new>            Rename a file
-      cite <name|id> [--pages]  Declare page citations for a file
+      rm <name|path|id>         Delete a file
+      mv <old|path|id> <new>    Rename a file
+      cite <name|path|id> [--pages] Declare page citations for a file
 
     Search:
       search <query> [options]  Combined search (vector + full-text)

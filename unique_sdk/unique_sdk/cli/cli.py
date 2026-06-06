@@ -385,10 +385,12 @@ def cite(
     \b
     Registers [filesourceN] markers for pages you referenced in your answer.
     Does NOT read or extract the file — use your own tools for that.
+    NAME_OR_ID can be a file path, current-directory file name, or content ID.
 
     \b
     Examples:
       unique-cli cite report.pdf --pages 3,5,7
+      unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7
       unique-cli cite cont_abc123 --pages 1-4
     """
     click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
@@ -496,15 +498,16 @@ def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
 @click.argument("name_or_id")
 @click.pass_context
 def rm(ctx: click.Context, name_or_id: str) -> None:
-    """Delete a file by name or content ID.
+    """Delete a file by path, name, or content ID.
 
     \b
-    NAME_OR_ID is a file name (matched in the current directory) or
-    a content ID (cont_...).
+    NAME_OR_ID is a file path, a file name matched in the current
+    directory, or a content ID (cont_...).
 
     \b
     Examples:
       unique-cli rm report.pdf
+      unique-cli rm /Reports/Q1/report.pdf
       unique-cli rm cont_abc123
     """
     click.echo(cmd_rm(LazyState.get(ctx), name_or_id))
@@ -519,11 +522,12 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 
     \b
     Changes the file's display title without changing its content ID
-    or location. OLD_NAME can be a file name or content ID.
+    or location. OLD_NAME can be a file path, file name, or content ID.
 
     \b
     Examples:
       unique-cli mv annual.pdf annual-2025.pdf
+      unique-cli mv /Reports/Q1/annual.pdf annual-2025.pdf
       unique-cli mv cont_abc123 "New Title.pdf"
     """
     click.echo(cmd_mv_file(LazyState.get(ctx), old_name, new_name))
