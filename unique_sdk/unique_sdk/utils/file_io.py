@@ -106,6 +106,7 @@ def upload_file(
     ingestion_config: Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
     preview_pdf_path: str | None = None,
+    versioning_enabled: bool | None = None,
 ):
     """Upload *path_to_file* as a Unique :class:`Content`.
 
@@ -148,6 +149,9 @@ def upload_file(
             responsibility — there is no override kwarg, by design,
             so all callers land on the same ``${content.id}_pdfPreview``
             convention as the ingestion worker.
+        versioning_enabled: When ``True``, ask the platform to archive
+            previous blobs for the same content so they can be listed
+            and restored through the content version endpoints.
     """
     if not chat_id and not scope_or_unique_path:
         raise ValueError("chat_id or scope_or_unique_path must be provided")
@@ -177,6 +181,7 @@ def upload_file(
         },
         scopeId=scope_or_unique_path,
         chatId=chat_id,
+        versioningEnabled=versioning_enabled,
     )
 
     # Step 2 — PUT the original bytes to the SAS URL minted by Step 1.
@@ -229,6 +234,7 @@ def upload_file(
             },
             fileUrl=createdContent.readUrl,
             chatId=chat_id,
+            versioningEnabled=versioning_enabled,
             **preview_kwargs,
         )
     else:
@@ -246,6 +252,7 @@ def upload_file(
             },
             fileUrl=createdContent.readUrl,
             scopeId=scope_or_unique_path,
+            versioningEnabled=versioning_enabled,
             **preview_kwargs,
         )
 

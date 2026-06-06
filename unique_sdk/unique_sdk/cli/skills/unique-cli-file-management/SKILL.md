@@ -3,7 +3,7 @@ name: unique-cli-file-management
 description: >-
   Manage files and folders on the Unique AI Platform using the unique-cli
   command-line tool. Use when the user asks to upload, download, delete,
-  rename, list, find, look for, or organize files and folders on Unique,
+  rename, list, find, restore versions, list versions, look for, or organize files and folders on Unique,
   or when working with scope IDs (scope_*) or content IDs (cont_*).
   IMPORTANT: When a user says they are "looking for a file" or wants to
   "find a file", they typically mean locating it within the Unique AI
@@ -50,10 +50,15 @@ unique-cli rmdir scope_abc123 -r
 # Rename a folder
 unique-cli mvdir Q1 "Q1-2025"
 
-# Upload a file (to current scope -- cd first or specify destination)
+# Upload a file with versioning enabled (to current scope -- cd first or specify destination)
 unique-cli upload ./report.pdf
 unique-cli upload ./report.pdf /Reports/Q1/
 unique-cli upload ./data.csv scope_abc123
+
+# List and restore file versions
+unique-cli versions /Reports/Q1/report.pdf
+unique-cli versions cont_abc123 --take 10
+unique-cli restore-version cver_abc123
 
 # Download a file
 unique-cli download report.pdf ./local/
@@ -81,10 +86,11 @@ unique-cli mv report.pdf "Annual Report 2025.pdf"
 | `..` | `..` | Parent directory |
 | `/` | `/` | Root |
 | Content ID | `cont_abc123` | File directly by ID |
+| File path | `/Reports/Q1/report.pdf` | File in a folder |
 
 ## Upload Destination Resolution
 
-The `upload` destination works like Linux `cp`:
+The `upload` command always enables immutable content versioning. It does not expose an unversioned upload mode. Its destination works like Linux `cp`:
 
 | Destination | Behavior |
 |-------------|----------|
@@ -114,6 +120,18 @@ unique-cli ls /Reports/Q1
 # Download specific files
 unique-cli download "annual.pdf" ./downloads/
 unique-cli download cont_abc123 ./downloads/
+```
+
+### Restore a previous file version
+
+```bash
+# List versions for a file path, file name in the current folder, or content ID.
+unique-cli versions /Reports/Q1/annual.pdf
+unique-cli versions "annual.pdf"
+unique-cli versions cont_abc123 --take 20
+
+# Restore using the VERSION_ID shown by `versions`.
+unique-cli restore-version cver_abc123
 ```
 
 ### Create folder hierarchy and upload

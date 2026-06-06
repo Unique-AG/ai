@@ -16,12 +16,35 @@ from unique_sdk.utils.file_io import download_content, upload_file
 def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
     """Resolve a file name or content ID to (content_id, display_name).
 
-    Accepts either a content ID (cont_...) or a file name/path.
+    Accepts a content ID (cont_...), a file name in the current folder,
+    or an absolute/relative Unique file path.
     """
     if name_or_id.startswith("cont_"):
         return name_or_id, name_or_id
 
+    lookup_name = name_or_id
     scope_id = state.scope_id
+    # Preserve support for unusual literal filenames like "../../.bashrc".
+    # Only resolve slash-containing values as Unique paths when they are not
+    # path traversal shaped names.
+    if "/" in name_or_id and ".." not in name_or_id.split("/"):
+        folder_path, lookup_name = name_or_id.rsplit("/", 1)
+        if not lookup_name:
+            raise ValueError(f"File path must include a file name: {name_or_id}")
+        if not folder_path:
+            folder_path = "/"
+        elif not folder_path.startswith("/"):
+            folder_path = f"{state.cwd.rstrip('/')}/{folder_path}"
+
+        info = unique_sdk.Folder.get_info(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            folderPath=folder_path,
+        )
+        scope_id = info.get("id")
+        if not scope_id:
+            raise ValueError(f"folder not found: {folder_path}")
+
     params: dict[str, Any] = {}
     if scope_id:
         params["parentId"] = scope_id
@@ -33,10 +56,36 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
     )
     for info in result.get("contentInfos", []):
         title = info.get("title") or info.get("key") or ""
-        if title == name_or_id:
+        if title == lookup_name:
             return info["id"], title
 
     raise ValueError(f"File not found: {name_or_id}")
+
+
+def _format_version_value(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _format_content_versions(versions: list[dict[str, Any]]) -> str:
+    if not versions:
+        return "No versions found."
+
+    lines = ["VERSION  VERSION_ID  ARCHIVED_AT  REASON  TITLE"]
+    for version in versions:
+        lines.append(
+            "  ".join(
+                [
+                    _format_version_value(version.get("versionNumber")),
+                    _format_version_value(version.get("id")),
+                    _format_version_value(version.get("archivedAt")),
+                    _format_version_value(version.get("reason")),
+                    _format_version_value(version.get("title") or version.get("key")),
+                ]
+            )
+        )
+    return "\n".join(lines)
 
 
 def _resolve_upload_destination(
@@ -144,6 +193,7 @@ def cmd_upload(
             displayed_filename=display_name,
             mime_type=mime_type,
             scope_or_unique_path=scope_id,
+            versioning_enabled=True,
         )
 
         content_id = result.id if hasattr(result, "id") else "?"
@@ -156,6 +206,47 @@ def cmd_upload(
 
     except (ValueError, unique_sdk.APIError, OSError) as e:
         return f"upload: {e}"
+
+
+def cmd_versions(
+    state: ShellState,
+    name_or_id: str,
+    skip: int | None = None,
+    take: int | None = None,
+) -> str:
+    """List archived versions for a file by name or content ID."""
+    try:
+        content_id, display_name = _resolve_content_id(state, name_or_id)
+        params: dict[str, Any] = {"contentId": content_id}
+        if skip is not None:
+            params["skip"] = skip
+        if take is not None:
+            params["take"] = take
+
+        result = unique_sdk.Content.versions(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            **params,
+        )
+        data = result.get("data", [])
+        return f"Versions for {display_name} ({content_id}):\n{_format_content_versions(data)}"
+    except (ValueError, unique_sdk.APIError) as e:
+        return f"versions: {e}"
+
+
+def cmd_restore_version(state: ShellState, content_version_id: str) -> str:
+    """Restore a file from an archived content version ID."""
+    try:
+        result = unique_sdk.Content.restore_version(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            contentVersionId=content_version_id,
+        )
+        title = result.get("title") or result.get("key") or result.get("id", "?")
+        content_id = result.get("id", "?")
+        return f"Restored: {title} ({content_id}) from version {content_version_id}"
+    except (ValueError, unique_sdk.APIError) as e:
+        return f"restore-version: {e}"
 
 
 def cmd_download(

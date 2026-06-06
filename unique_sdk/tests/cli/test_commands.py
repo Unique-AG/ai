@@ -13,8 +13,10 @@ from unique_sdk.cli.commands.files import (
     _resolve_upload_destination,
     cmd_download,
     cmd_mv_file,
+    cmd_restore_version,
     cmd_rm,
     cmd_upload,
+    cmd_versions,
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import _parse_and_validate, _read_payload, cmd_mcp
@@ -329,6 +331,41 @@ class TestFiles:
         assert name == "report.pdf"
 
     @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_resolve_content_id_by_absolute_path(
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+    ) -> None:
+        mock_folder.return_value = {"id": "scope_q1"}
+        mock_content.return_value = {"contentInfos": [_content_info()]}
+        cid, name = _resolve_content_id(
+            _state("/Reports", "scope_r"),
+            "/Reports/Q1/report.pdf",
+        )
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+        assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
+        assert mock_content.call_args.kwargs["parentId"] == "scope_q1"
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_resolve_content_id_by_relative_path(
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+    ) -> None:
+        mock_folder.return_value = {"id": "scope_q1"}
+        mock_content.return_value = {"contentInfos": [_content_info()]}
+        cid, name = _resolve_content_id(
+            _state("/Reports", "scope_r"),
+            "Q1/report.pdf",
+        )
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+        assert mock_folder.call_args.kwargs["folderPath"] == "/Reports/Q1"
+
+    @patch("unique_sdk.Content.get_infos")
     def test_resolve_content_id_not_found(self, mock: MagicMock) -> None:
         mock.return_value = {"contentInfos": []}
         with pytest.raises(ValueError, match="File not found"):
@@ -545,6 +582,56 @@ class TestFiles:
         result = cmd_upload(_state("/Reports", "scope_r"), str(f))
         assert "Uploaded" in result
         assert "cont_new" in result
+        assert mock_upload.call_args.kwargs["versioning_enabled"] is True
+
+    @patch("unique_sdk.Content.versions")
+    @patch("unique_sdk.Content.get_infos")
+    def test_versions_by_name(
+        self,
+        mock_infos: MagicMock,
+        mock_versions: MagicMock,
+    ) -> None:
+        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_versions.return_value = {
+            "data": [
+                {
+                    "id": "cver_1",
+                    "versionNumber": 1,
+                    "archivedAt": "2026-06-06T12:00:00Z",
+                    "reason": "REPLACED",
+                    "title": "report.pdf",
+                }
+            ]
+        }
+        result = cmd_versions(_state("/R", "scope_r"), "report.pdf", take=10)
+        assert "Versions for report.pdf" in result
+        assert "cver_1" in result
+        assert mock_versions.call_args.kwargs["contentId"] == "cont_123"
+        assert mock_versions.call_args.kwargs["take"] == 10
+
+    @patch("unique_sdk.Content.versions")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_versions_by_path(
+        self,
+        mock_folder: MagicMock,
+        mock_infos: MagicMock,
+        mock_versions: MagicMock,
+    ) -> None:
+        mock_folder.return_value = {"id": "scope_q1"}
+        mock_infos.return_value = {"contentInfos": [_content_info()]}
+        mock_versions.return_value = {"data": []}
+        result = cmd_versions(_state("/Reports", "scope_r"), "/Reports/Q1/report.pdf")
+        assert "Versions for report.pdf" in result
+        assert mock_versions.call_args.kwargs["contentId"] == "cont_123"
+
+    @patch("unique_sdk.Content.restore_version")
+    def test_restore_version(self, mock_restore: MagicMock) -> None:
+        mock_restore.return_value = _content_info(title="report.pdf")
+        result = cmd_restore_version(_state(), "cver_1")
+        assert "Restored" in result
+        assert "cver_1" in result
+        assert mock_restore.call_args.kwargs["contentVersionId"] == "cver_1"
 
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
