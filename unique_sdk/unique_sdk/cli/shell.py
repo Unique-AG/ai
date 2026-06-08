@@ -68,7 +68,11 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --folder <path|id>        Restrict to a folder
         --metadata <key=value>    Filter by metadata (repeatable)
         --limit <N>               Max results (default: 200)
-      read <cont_id>            Read all indexed text chunks for a content ID
+      read <cont_id> [options]  Read indexed text chunks for a content ID
+        --page / -p <N>           Read a single page
+        --from-page <N>           First page (inclusive)
+        --to-page <N>             Last page (inclusive)
+        --max-chars <N>           Truncate output to N characters
 
     MCP:
       mcp [options] <json>      Call an MCP server tool
@@ -470,27 +474,95 @@ class UniqueShell(cmd.Cmd):
             return
         self._print(cmd_cite_file(self.state, positional[0], pages))
 
-    def do_read(self, arg: str) -> None:
-        """Read all indexed text chunks for a known content ID.
+    def _parse_int(self, raw: str, flag: str) -> tuple[int | None, bool]:
+        """Parse an int option value, returning (value, ok). Prints on failure."""
+        try:
+            return int(raw), True
+        except ValueError:
+            self._print(f"Invalid {flag}: {raw} (expected an integer)")
+            return None, False
 
-        Usage: read <cont_id>
+    def do_read(self, arg: str) -> None:
+        """Read indexed text chunks for a known content ID (optionally by page).
+
+        Usage: read <cont_id> [--page N | --from-page N --to-page M] [--max-chars N]
 
         Retrieves every indexed chunk for the document directly from the
-        database — no vector search, no query string needed.
+        database — no vector search, no query string needed. Use --page for a
+        single page or --from-page/--to-page for a range; a chunk spanning
+        pages 2-4 is returned for any overlapping request.
 
         Use `search` to find documents by topic; use `read` once you have
         the content ID and want the full text.
 
         Examples:
           /Reports> read cont_abc123
+          /Reports> read cont_abc123 --page 12
+          /Reports> read cont_abc123 --from-page 5 --to-page 9
         """
         from unique_sdk.cli.commands.read import cmd_read
 
         parts = shlex.split(arg)
+        usage = (
+            "Usage: read <cont_id> "
+            "[--page N | --from-page N --to-page M] [--max-chars N]"
+        )
         if not parts:
-            self._print("Usage: read <cont_id>")
+            self._print(usage)
             return
-        self._print(cmd_read(self.state, parts[0]))
+
+        cont_id: str | None = None
+        page: int | None = None
+        from_page: int | None = None
+        to_page: int | None = None
+        max_chars: int | None = None
+
+        int_flags = ("--page", "-p", "--from-page", "--to-page", "--max-chars")
+        i = 0
+        while i < len(parts):
+            tok = parts[i]
+            if tok in int_flags:
+                if i + 1 >= len(parts):
+                    self._print(f"Missing value for {tok}")
+                    return
+                value, ok = self._parse_int(parts[i + 1], tok)
+                if not ok:
+                    return
+                if tok in ("--page", "-p"):
+                    page = value
+                elif tok == "--from-page":
+                    from_page = value
+                elif tok == "--to-page":
+                    to_page = value
+                else:  # --max-chars
+                    max_chars = value
+                i += 2
+            elif cont_id is None:
+                cont_id = tok
+                i += 1
+            else:
+                self._print(f"Unknown argument: {tok}")
+                return
+
+        if cont_id is None:
+            self._print(usage)
+            return
+        if page is not None and (from_page is not None or to_page is not None):
+            self._print("read: use either --page or --from-page/--to-page, not both")
+            return
+        if page is not None:
+            from_page = page
+            to_page = page
+
+        self._print(
+            cmd_read(
+                self.state,
+                cont_id,
+                from_page=from_page,
+                to_page=to_page,
+                max_chars=max_chars,
+            )
+        )
 
     def do_rm(self, arg: str) -> None:
         """Delete a file.

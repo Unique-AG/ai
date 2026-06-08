@@ -323,6 +323,70 @@ class TestShellSearch:
         assert "Usage:" in out
 
 
+class TestShellRead:
+    def test_read_empty(self) -> None:
+        out = _capture(_shell(), "read")
+        assert "Usage:" in out
+
+    @patch("unique_sdk.cli.commands.read.cmd_read")
+    def test_read_basic(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "OUT"
+        out = _capture(_shell(), "read cont_abc")
+        assert "OUT" in out
+        assert mock_read.call_args.args[1] == "cont_abc"
+        _, kwargs = mock_read.call_args
+        assert kwargs == {"from_page": None, "to_page": None, "max_chars": None}
+
+    @patch("unique_sdk.cli.commands.read.cmd_read")
+    def test_read_single_page(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "OUT"
+        _capture(_shell(), "read cont_abc --page 12")
+        _, kwargs = mock_read.call_args
+        assert kwargs["from_page"] == 12
+        assert kwargs["to_page"] == 12
+
+    @patch("unique_sdk.cli.commands.read.cmd_read")
+    def test_read_short_page(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "OUT"
+        _capture(_shell(), "read cont_abc -p 5")
+        _, kwargs = mock_read.call_args
+        assert kwargs["from_page"] == 5
+        assert kwargs["to_page"] == 5
+
+    @patch("unique_sdk.cli.commands.read.cmd_read")
+    def test_read_range_and_max_chars(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "OUT"
+        _capture(_shell(), "read cont_abc --from-page 5 --to-page 9 --max-chars 100")
+        _, kwargs = mock_read.call_args
+        assert kwargs["from_page"] == 5
+        assert kwargs["to_page"] == 9
+        assert kwargs["max_chars"] == 100
+
+    def test_read_invalid_int(self) -> None:
+        out = _capture(_shell(), "read cont_abc --page abc")
+        assert "Invalid" in out
+
+    def test_read_bare_flag_missing_value(self) -> None:
+        out = _capture(_shell(), "read cont_abc --page")
+        assert "Missing value for --page" in out
+
+    def test_read_bare_flag_without_id(self) -> None:
+        out = _capture(_shell(), "read --from-page")
+        assert "Missing value for --from-page" in out
+
+    def test_read_page_range_conflict(self) -> None:
+        out = _capture(_shell(), "read cont_abc --page 3 --from-page 1")
+        assert "use either" in out
+
+    def test_read_unknown_arg(self) -> None:
+        out = _capture(_shell(), "read cont_abc extra")
+        assert "Unknown argument" in out
+
+    def test_read_only_flags_no_id(self) -> None:
+        out = _capture(_shell(), "read --page 3")
+        assert "Usage:" in out
+
+
 def _mcp_response() -> MagicMock:
     resp = MagicMock()
     resp.name = "tool"

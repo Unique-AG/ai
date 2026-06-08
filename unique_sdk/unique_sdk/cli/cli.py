@@ -398,9 +398,41 @@ def cite(
 
 @main.command(name="read")
 @click.argument("cont_id")
+@click.option(
+    "--page",
+    "-p",
+    type=int,
+    default=None,
+    help="Read a single page (shorthand for --from-page N --to-page N).",
+)
+@click.option(
+    "--from-page",
+    type=int,
+    default=None,
+    help="First page to include (inclusive).",
+)
+@click.option(
+    "--to-page",
+    type=int,
+    default=None,
+    help="Last page to include (inclusive).",
+)
+@click.option(
+    "--max-chars",
+    type=int,
+    default=None,
+    help="Truncate the printed text to at most N characters.",
+)
 @click.pass_context
-def read_cmd(ctx: click.Context, cont_id: str) -> None:
-    """Read all indexed text chunks for a known content ID.
+def read_cmd(
+    ctx: click.Context,
+    cont_id: str,
+    page: int | None,
+    from_page: int | None,
+    to_page: int | None,
+    max_chars: int | None,
+) -> None:
+    """Read indexed text chunks for a known content ID.
 
     \b
     CONT_ID must be a content ID (cont_...) obtained from a prior `ls` or
@@ -412,10 +444,33 @@ def read_cmd(ctx: click.Context, cont_id: str) -> None:
     Use `read` when you already know the content ID and want the full text.
 
     \b
+    Restrict to a page range with --page (single page) or --from-page/--to-page.
+    A chunk spanning pages 2-4 is returned for any overlapping request; files
+    without page numbers (e.g. plain text/markdown) are returned only without a
+    page range.
+
+    \b
     Examples:
       unique-cli read cont_abc123
+      unique-cli read cont_abc123 --page 12
+      unique-cli read cont_abc123 --from-page 5 --to-page 9
+      unique-cli read cont_abc123 --to-page 3 --max-chars 8000
     """
-    output = cmd_read(LazyState.get(ctx), cont_id)
+    if page is not None and (from_page is not None or to_page is not None):
+        click.echo(
+            "read: use either --page or --from-page/--to-page, not both", err=True
+        )
+        raise SystemExit(1)
+    if page is not None:
+        from_page = page
+        to_page = page
+    output = cmd_read(
+        LazyState.get(ctx),
+        cont_id,
+        from_page=from_page,
+        to_page=to_page,
+        max_chars=max_chars,
+    )
     if _is_read_error_output(output):
         click.echo(output, err=True)
         raise SystemExit(1)

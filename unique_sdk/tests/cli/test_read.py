@@ -6,7 +6,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from unique_sdk.cli.commands.read import READ_ERROR_PREFIX, cmd_read, is_error_output
+from unique_sdk.cli.commands.read import (
+    READ_ERROR_PREFIX,
+    _chunk_in_page_range,
+    _format_requested_range,
+    cmd_read,
+    is_error_output,
+)
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
 
@@ -253,6 +259,146 @@ class TestCmdRead:
         output = cmd_read(state, "cont_inside")
         assert "permission denied" not in output
         assert "Allowed text." in output
+
+
+class TestChunkInPageRange:
+    def test_single_page_overlap(self) -> None:
+        spanning = {"startPage": 2, "endPage": 4}
+        assert _chunk_in_page_range(spanning, 3, 3)
+        assert _chunk_in_page_range(spanning, 2, 2)
+        assert _chunk_in_page_range(spanning, 4, 4)
+        assert not _chunk_in_page_range(spanning, 5, 5)
+        assert not _chunk_in_page_range(spanning, 1, 1)
+
+    def test_open_ended_ranges(self) -> None:
+        chunk = {"startPage": 5, "endPage": 5}
+        assert _chunk_in_page_range(chunk, 5, None)
+        assert _chunk_in_page_range(chunk, None, 5)
+        assert not _chunk_in_page_range(chunk, 6, None)
+        assert not _chunk_in_page_range(chunk, None, 4)
+
+    def test_chunk_without_pages_excluded(self) -> None:
+        assert not _chunk_in_page_range({"startPage": None, "endPage": None}, 1, 3)
+
+    def test_start_only_chunk(self) -> None:
+        assert _chunk_in_page_range({"startPage": 4, "endPage": None}, 4, 4)
+        assert not _chunk_in_page_range({"startPage": 4, "endPage": None}, 5, 5)
+
+
+class TestFormatRequestedRange:
+    def test_both_bounds(self) -> None:
+        assert _format_requested_range(2, 5) == "2-5"
+
+    def test_single_page(self) -> None:
+        assert _format_requested_range(3, 3) == "3"
+
+    def test_from_only(self) -> None:
+        assert _format_requested_range(4, None) == "4+"
+
+    def test_to_only(self) -> None:
+        assert _format_requested_range(None, 7) == "up to 7"
+
+
+def _read(state: ShellState, content: MagicMock, *args, **kwargs) -> str:
+    with patch(
+        "unique_sdk.cli.commands.read.unique_sdk.Content.search",
+        return_value=[content],
+    ):
+        return cmd_read(state, "cont_abc123", *args, **kwargs)
+
+
+class TestCmdReadPageRange:
+    def _content(self) -> MagicMock:
+        return _make_content(
+            chunks=[
+                {"id": "c1", "text": "first", "order": 0, "startPage": 1, "endPage": 1},
+                {
+                    "id": "c2",
+                    "text": "second",
+                    "order": 1,
+                    "startPage": 5,
+                    "endPage": 5,
+                },
+                {"id": "c3", "text": "third", "order": 2, "startPage": 9, "endPage": 9},
+            ]
+        )
+
+    def test_filters_to_range(self, state: ShellState) -> None:
+        output = _read(state, self._content(), from_page=4, to_page=6)
+        assert "second" in output
+        assert "first" not in output
+        assert "third" not in output
+
+    def test_single_page(self, state: ShellState) -> None:
+        output = _read(state, self._content(), from_page=1, to_page=1)
+        assert "first" in output
+        assert "second" not in output
+
+    def test_no_match_in_range(self, state: ShellState) -> None:
+        output = _read(state, self._content(), from_page=50, to_page=60)
+        assert not is_error_output(output)
+        assert "No indexed chunks found in page range" in output
+
+    def test_invalid_range(self, state: ShellState) -> None:
+        output = cmd_read(state, "cont_abc123", from_page=9, to_page=3)
+        assert is_error_output(output)
+        assert "invalid page range" in output
+
+    def test_negative_max_chars_rejected(self, state: ShellState) -> None:
+        output = cmd_read(state, "cont_abc123", max_chars=-5)
+        assert is_error_output(output)
+        assert "invalid --max-chars" in output
+
+    def test_excludes_unpaged_chunks_when_filtering(self, state: ShellState) -> None:
+        content = _make_content(
+            chunks=[
+                {"id": "c1", "text": "paged", "order": 0, "startPage": 2, "endPage": 2},
+                {
+                    "id": "c2",
+                    "text": "unpaged",
+                    "order": 1,
+                    "startPage": None,
+                    "endPage": None,
+                },
+            ]
+        )
+        output = _read(state, content, from_page=2, to_page=2)
+        assert "paged" in output
+        assert "unpaged" not in output
+
+    def test_max_chars_truncates_without_range(self, state: ShellState) -> None:
+        content = _make_content(
+            chunks=[
+                {
+                    "id": "c1",
+                    "text": "x" * 500,
+                    "order": 0,
+                    "startPage": 1,
+                    "endPage": 1,
+                }
+            ]
+        )
+        output = _read(state, content, max_chars=50)
+        assert "truncated at 50 chars" in output
+        # No page range was given, so the hint must not say to narrow one.
+        assert "use a page range" in output
+        assert "narrow the page range" not in output
+
+    def test_max_chars_truncates_with_range(self, state: ShellState) -> None:
+        content = _make_content(
+            chunks=[
+                {
+                    "id": "c1",
+                    "text": "x" * 500,
+                    "order": 0,
+                    "startPage": 2,
+                    "endPage": 2,
+                }
+            ]
+        )
+        output = _read(state, content, from_page=2, to_page=2, max_chars=50)
+        assert "truncated at 50 chars" in output
+        assert "narrow the page range" in output
 
 
 class TestIsErrorOutput:

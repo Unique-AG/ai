@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 from click.testing import CliRunner
 
@@ -149,6 +149,65 @@ class TestClickCLI:
         result = runner.invoke(main, ["search", "query"])
         assert result.exit_code == 1
         assert "search:" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_read")
+    def test_read(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "Content: doc (cont_abc) — 1 chunk(s)\n\ntext"
+        runner = CliRunner()
+        result = runner.invoke(main, ["read", "cont_abc"])
+        assert result.exit_code == 0
+        mock_read.assert_called_once_with(
+            ANY, "cont_abc", from_page=None, to_page=None, max_chars=None
+        )
+
+    @patch("unique_sdk.cli.cli.cmd_read")
+    def test_read_single_page(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(main, ["read", "cont_abc", "--page", "12"])
+        assert result.exit_code == 0
+        _, kwargs = mock_read.call_args
+        assert kwargs["from_page"] == 12
+        assert kwargs["to_page"] == 12
+
+    @patch("unique_sdk.cli.cli.cmd_read")
+    def test_read_range_and_max_chars(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "read",
+                "cont_abc",
+                "--from-page",
+                "5",
+                "--to-page",
+                "9",
+                "--max-chars",
+                "100",
+            ],
+        )
+        assert result.exit_code == 0
+        _, kwargs = mock_read.call_args
+        assert kwargs["from_page"] == 5
+        assert kwargs["to_page"] == 9
+        assert kwargs["max_chars"] == 100
+
+    def test_read_page_conflict_exits_nonzero(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["read", "cont_abc", "--page", "3", "--from-page", "1"]
+        )
+        assert result.exit_code == 1
+        assert "use either" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_read")
+    def test_read_error_exits_nonzero(self, mock_read: MagicMock) -> None:
+        mock_read.return_value = "read: no content found for ID: cont_abc"
+        runner = CliRunner()
+        result = runner.invoke(main, ["read", "cont_abc"])
+        assert result.exit_code == 1
+        assert "read:" in result.output
 
     def test_upload_nonexistent(self) -> None:
         runner = CliRunner()
