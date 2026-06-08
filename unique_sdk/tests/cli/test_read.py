@@ -344,6 +344,11 @@ class TestCmdReadPageRange:
         assert is_error_output(output)
         assert "invalid page range" in output
 
+    def test_negative_max_chars_rejected(self, state: ShellState) -> None:
+        output = cmd_read(state, "cont_abc123", max_chars=-5)
+        assert is_error_output(output)
+        assert "invalid --max-chars" in output
+
     def test_excludes_unpaged_chunks_when_filtering(self, state: ShellState) -> None:
         content = _make_content(
             chunks=[

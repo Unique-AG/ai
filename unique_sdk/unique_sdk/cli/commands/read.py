@@ -91,6 +91,9 @@ def cmd_read(
     if from_page is not None and to_page is not None and from_page > to_page:
         return f"{READ_ERROR_PREFIX} invalid page range ({from_page} > {to_page})"
 
+    if max_chars is not None and max_chars < 1:
+        return f"{READ_ERROR_PREFIX} invalid --max-chars ({max_chars}); must be >= 1"
+
     # Enforce the same .unique-search.json workspace boundary as search/ls/rm.
     # Content.search has no scopeIds param, so we guard by owner scope before
     # the point-lookup — matching rm/mv, not search's API-level scopeIds filter.
