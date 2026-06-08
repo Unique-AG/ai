@@ -366,6 +366,14 @@ class TestShellRead:
         out = _capture(_shell(), "read cont_abc --page abc")
         assert "Invalid" in out
 
+    def test_read_bare_flag_missing_value(self) -> None:
+        out = _capture(_shell(), "read cont_abc --page")
+        assert "Missing value for --page" in out
+
+    def test_read_bare_flag_without_id(self) -> None:
+        out = _capture(_shell(), "read --from-page")
+        assert "Missing value for --from-page" in out
+
     def test_read_page_range_conflict(self) -> None:
         out = _capture(_shell(), "read cont_abc --page 3 --from-page 1")
         assert "use either" in out

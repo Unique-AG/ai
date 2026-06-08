@@ -517,32 +517,25 @@ class UniqueShell(cmd.Cmd):
         to_page: int | None = None
         max_chars: int | None = None
 
+        int_flags = ("--page", "-p", "--from-page", "--to-page", "--max-chars")
         i = 0
         while i < len(parts):
             tok = parts[i]
-            if tok in ("--page", "-p") and i + 1 < len(parts):
+            if tok in int_flags:
+                if i + 1 >= len(parts):
+                    self._print(f"Missing value for {tok}")
+                    return
                 value, ok = self._parse_int(parts[i + 1], tok)
                 if not ok:
                     return
-                page = value
-                i += 2
-            elif tok == "--from-page" and i + 1 < len(parts):
-                value, ok = self._parse_int(parts[i + 1], tok)
-                if not ok:
-                    return
-                from_page = value
-                i += 2
-            elif tok == "--to-page" and i + 1 < len(parts):
-                value, ok = self._parse_int(parts[i + 1], tok)
-                if not ok:
-                    return
-                to_page = value
-                i += 2
-            elif tok == "--max-chars" and i + 1 < len(parts):
-                value, ok = self._parse_int(parts[i + 1], tok)
-                if not ok:
-                    return
-                max_chars = value
+                if tok in ("--page", "-p"):
+                    page = value
+                elif tok == "--from-page":
+                    from_page = value
+                elif tok == "--to-page":
+                    to_page = value
+                else:  # --max-chars
+                    max_chars = value
                 i += 2
             elif cont_id is None:
                 cont_id = tok
