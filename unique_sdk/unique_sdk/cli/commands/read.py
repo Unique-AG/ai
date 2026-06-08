@@ -37,14 +37,14 @@ def _chunk_in_page_range(
     excluded, since they cannot be placed on a page. ``from_page``/``to_page``
     that are ``None`` act as open bounds.
     """
-    start = chunk.get("startPage")
-    end = chunk.get("endPage")
-    if start is None and end is None:
-        return False
+    start: int | None = chunk.get("startPage")
+    end: int | None = chunk.get("endPage")
     if start is None:
         start = end
     if end is None:
         end = start
+    if start is None or end is None:
+        return False
 
     low = from_page if from_page is not None else start
     high = to_page if to_page is not None else end
