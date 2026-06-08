@@ -361,7 +361,7 @@ class TestCmdReadPageRange:
         assert "paged" in output
         assert "unpaged" not in output
 
-    def test_max_chars_truncates(self, state: ShellState) -> None:
+    def test_max_chars_truncates_without_range(self, state: ShellState) -> None:
         content = _make_content(
             chunks=[
                 {
@@ -375,6 +375,25 @@ class TestCmdReadPageRange:
         )
         output = _read(state, content, max_chars=50)
         assert "truncated at 50 chars" in output
+        # No page range was given, so the hint must not say to narrow one.
+        assert "use a page range" in output
+        assert "narrow the page range" not in output
+
+    def test_max_chars_truncates_with_range(self, state: ShellState) -> None:
+        content = _make_content(
+            chunks=[
+                {
+                    "id": "c1",
+                    "text": "x" * 500,
+                    "order": 0,
+                    "startPage": 2,
+                    "endPage": 2,
+                }
+            ]
+        )
+        output = _read(state, content, from_page=2, to_page=2, max_chars=50)
+        assert "truncated at 50 chars" in output
+        assert "narrow the page range" in output
 
 
 class TestIsErrorOutput:

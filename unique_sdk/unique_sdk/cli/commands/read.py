@@ -160,10 +160,11 @@ def cmd_read(
 
     output = "\n\n".join(lines)
     if max_chars is not None and len(output) > max_chars:
-        output = (
-            f"{output[:max_chars]}\n"
-            f"... [truncated at {max_chars} chars; narrow the page range to see more]"
-        )
+        if from_page is not None or to_page is not None:
+            hint = "narrow the page range or raise --max-chars to see more"
+        else:
+            hint = "use a page range (--page/--from-page/--to-page) or raise --max-chars to see more"
+        output = f"{output[:max_chars]}\n... [truncated at {max_chars} chars; {hint}]"
     return output
 
 
