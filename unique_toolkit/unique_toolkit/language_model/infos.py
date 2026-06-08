@@ -88,6 +88,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
     ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
     ANTHROPIC_CLAUDE_OPUS_4_7 = "litellm:anthropic-claude-opus-4-7"
+    ANTHROPIC_CLAUDE_OPUS_4_8 = "litellm:anthropic-claude-opus-4-8"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
@@ -1700,7 +1701,10 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 4, 16),
                     supported_reasoning_efforts=[],
                 )
-            case LanguageModelName.VERTEX_CLAUDE_OPUS_4_8:
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_8
+                | LanguageModelName.VERTEX_CLAUDE_OPUS_4_8
+            ):
                 return cls(
                     name=model_name,
                     capabilities=[
