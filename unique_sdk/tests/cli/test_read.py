@@ -9,6 +9,7 @@ import pytest
 from unique_sdk.cli.commands.read import (
     READ_ERROR_PREFIX,
     _chunk_in_page_range,
+    _format_requested_range,
     cmd_read,
     is_error_output,
 )
@@ -282,6 +283,20 @@ class TestChunkInPageRange:
     def test_start_only_chunk(self) -> None:
         assert _chunk_in_page_range({"startPage": 4, "endPage": None}, 4, 4)
         assert not _chunk_in_page_range({"startPage": 4, "endPage": None}, 5, 5)
+
+
+class TestFormatRequestedRange:
+    def test_both_bounds(self) -> None:
+        assert _format_requested_range(2, 5) == "2-5"
+
+    def test_single_page(self) -> None:
+        assert _format_requested_range(3, 3) == "3"
+
+    def test_from_only(self) -> None:
+        assert _format_requested_range(4, None) == "4+"
+
+    def test_to_only(self) -> None:
+        assert _format_requested_range(None, 7) == "up to 7"
 
 
 def _read(state: ShellState, content: MagicMock, *args, **kwargs) -> str:
