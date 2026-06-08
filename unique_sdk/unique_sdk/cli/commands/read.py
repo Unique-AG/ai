@@ -15,6 +15,8 @@ platform already returns, so no ingestion changes are required.
 
 from __future__ import annotations
 
+from typing import Any
+
 import unique_sdk
 from unique_sdk.cli.state import ShellState
 
@@ -22,7 +24,7 @@ READ_ERROR_PREFIX = "read:"
 
 
 def _chunk_in_page_range(
-    chunk: dict,
+    chunk: dict[str, Any],
     from_page: int | None,
     to_page: int | None,
 ) -> bool:
