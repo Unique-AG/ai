@@ -476,12 +476,14 @@ For full details on search features, see the [Search Guide](search.md).
 
 ### read
 
-Read all indexed text chunks for a known content ID. Use this when you already have a `cont_*` ID from a prior `ls` or `search` result and want the full document text. For discovery by topic or keyword, use `search` instead.
+Read indexed text chunks for a known content ID. Use this when you already have a `cont_*` ID from a prior `ls` or `search` result and want the full document text. For discovery by topic or keyword, use `search` instead.
+
+Restrict the output to specific pages with `--page` (single page) or `--from-page`/`--to-page` (inclusive range). Page filtering is applied to the `startPage`/`endPage` the platform already returns for each chunk, so a chunk spanning pages 2-4 is returned for any request that overlaps those pages. Content without page numbers (e.g. plain text/markdown) is only returned when no page range is given.
 
 **Synopsis:**
 
 ```
-read <cont_id>
+read <cont_id> [--page N | --from-page N --to-page M] [--max-chars N]
 ```
 
 **Arguments:**
@@ -489,6 +491,17 @@ read <cont_id>
 | Argument | Description |
 |----------|-------------|
 | `cont_id` | Content ID (`cont_...`) |
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--page`, `-p` | Read a single page (shorthand for `--from-page N --to-page N`) | None |
+| `--from-page` | First page to include (inclusive) | None |
+| `--to-page` | Last page to include (inclusive) | None |
+| `--max-chars` | Truncate the printed text to at most N characters | None |
+
+`--page` cannot be combined with `--from-page`/`--to-page`.
 
 **Examples:**
 
@@ -501,12 +514,21 @@ Content: annual.pdf (cont_mno345) — 42 chunk(s)
 [p.2-3] Revenue grew 15% year over year, driven by...
 ```
 
-If the document exists but has no indexed chunks yet, the command reports that ingestion may still be in progress.
+```
+/Reports> read cont_mno345 --from-page 2 --to-page 3
+Content: annual.pdf (cont_mno345) — 1 chunk(s)
+
+[p.2-3] Revenue grew 15% year over year, driven by...
+```
+
+If the document exists but has no indexed chunks yet, the command reports that ingestion may still be in progress. If a page range matches no chunks, the command says so and suggests reading without a range.
 
 **One-shot:**
 
 ```bash
 unique-cli read cont_abc123
+unique-cli read cont_abc123 --page 12
+unique-cli read cont_abc123 --from-page 5 --to-page 9 --max-chars 8000
 ```
 
 ---
