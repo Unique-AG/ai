@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Annotated, Any, Generic, Literal, TypeVar
+from typing import Annotated, Any, Generic, Literal, TypeVar, override
 
 from pydantic import (
     AliasChoices,
@@ -20,6 +20,7 @@ from unique_sdk.api_resources._agentic_table import (
     SheetType,
 )
 
+from unique_toolkit._common.exception import ConfigurationException
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.app.schemas import (
     AssistantWebhookEvent,
@@ -272,6 +273,36 @@ class MagicTableEvent(
     """
 
     event: MagicTableEventTypes  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    @override
+    def filter_event(
+        self, *, filter_options: UniqueChatEventFilterOptions | None = None
+    ) -> bool:
+        if filter_options is None:
+            return False
+
+        if not filter_options.assistant_ids and not filter_options.references_in_code:
+            raise ConfigurationException(
+                "No filter options provided, all events will be filtered! \n"
+                "Please define: \n"
+                " - 'UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS' \n"
+                " - 'UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE' \n"
+                "in your environment variables."
+            )
+
+        if (
+            filter_options.assistant_ids
+            and self.payload.assistant_id not in filter_options.assistant_ids
+        ):
+            return True
+
+        if (
+            filter_options.references_in_code
+            and self.payload.name not in filter_options.references_in_code
+        ):
+            return True
+
+        return super().filter_event(filter_options=filter_options)
 
 
 class LogDetail(BaseModel):
