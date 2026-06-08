@@ -89,7 +89,6 @@ uv run deptry
 ```
 
 
-
 - **Min deps**:
 
 ```bash

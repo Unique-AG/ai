@@ -81,6 +81,5 @@ Unique platform.
 ## Short Term Memory 
 
 The `unique_toolkit.short_term_memory` module encompasses all short term memory related functionality.
-
 - `functions.py` comprises the functions to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message.
 - `schemas.py` comprises all relevant schemas, e.g., ShortTermMemory, used in the ShortTermMemoryService.
