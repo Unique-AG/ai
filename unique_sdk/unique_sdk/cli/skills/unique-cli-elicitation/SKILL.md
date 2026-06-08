@@ -134,7 +134,7 @@ unique-cli elicit ask "Please provide report settings" \
 | `--tool-name` | `-t` | `agent_question` | Short snake_case label shown to the user (e.g. `clarify`, `confirm_delete`, `choose_report`). |
 | `--schema` | | single `answer` string | JSON Schema for the form body. |
 | `--expires-in` | | none | Seconds before the request auto-expires on the platform. |
-| `--timeout` | | `300` | Max seconds to block locally before giving up. |
+| `--timeout` | | `7200` | Max seconds to block locally before giving up. |
 | `--poll-interval` | | `2.0` | Seconds between status polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
 | `--assistant-id` | | `$UNIQUE_ASSISTANT_ID`, else latest assistant in chat | Assistant id for the placeholder message created by the visibility workaround. Set this (or export `UNIQUE_ASSISTANT_ID`) only if the chat is brand-new with no prior assistant messages. |
@@ -205,7 +205,7 @@ esac
 7. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
 8. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
 9. **Don't spam elicitations.** One well-designed form with several fields is better than five sequential yes/no questions.
-10. **Respect timeouts.** The default `--timeout` is 5 minutes -- raise it only if you genuinely expect the user to take longer.
+10. **Respect timeouts.** The default `--timeout` is 2 hours -- override it only when the task needs a shorter or longer wait.
 
 ## Prerequisites
 

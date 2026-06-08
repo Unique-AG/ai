@@ -26,7 +26,7 @@ from unique_sdk.cli.formatting import (
 from unique_sdk.cli.state import ShellState
 
 DEFAULT_POLL_INTERVAL_SECONDS = 2.0
-DEFAULT_WAIT_TIMEOUT_SECONDS = 300
+DEFAULT_WAIT_TIMEOUT_SECONDS = 7200
 TERMINAL_STATUSES = {
     "RESPONDED",
     "ACCEPTED",

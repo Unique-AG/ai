@@ -13,6 +13,7 @@ from unique_sdk.cli.commands.dynamic_frontend import (
     cmd_dynamic_frontend_list,
 )
 from unique_sdk.cli.commands.elicitation import (
+    DEFAULT_WAIT_TIMEOUT_SECONDS,
     cmd_elicit_ask,
     cmd_elicit_create,
     cmd_elicit_get,
@@ -1069,7 +1070,7 @@ def elicit() -> None:
 @click.option(
     "--timeout",
     type=int,
-    default=300,
+    default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
     help="Max seconds to block waiting for the user's response.",
 )
@@ -1351,7 +1352,7 @@ def elicit_get(ctx: click.Context, elicitation_id: str) -> None:
 @click.option(
     "--timeout",
     type=int,
-    default=300,
+    default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
     help="Max seconds to wait for a terminal state.",
 )

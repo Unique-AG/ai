@@ -9,6 +9,7 @@ from typing import Any
 
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.elicitation import (
+    DEFAULT_WAIT_TIMEOUT_SECONDS,
     cmd_elicit_ask,
     cmd_elicit_create,
     cmd_elicit_get,
@@ -88,7 +89,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --chat-id / -c <id>            Associated chat ID
         --message-id / -m <id>         Associated message ID
         --expires-in <seconds>         Auto-expire the request
-        --timeout <seconds>            Max wait time (default: 300)
+        --timeout <seconds>            Max wait time (default: 7200)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
         --metadata key=value           Metadata (repeatable)
         --no-visible                   Skip the UN-19815 visibility workaround
@@ -112,7 +113,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
       elicit pending                 List pending elicitations
       elicit get <id>                Show one elicitation
       elicit wait <id> [opts]        Poll until answered / expired
-        --timeout <seconds>            Max wait (default: 300)
+        --timeout <seconds>            Max wait (default: 7200)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
       elicit respond <id> [opts]     Respond on behalf of the user
         --action ACCEPT|DECLINE|CANCEL|REJECT Response action (required)
@@ -789,7 +790,7 @@ class UniqueShell(cmd.Cmd):
           --chat-id / -c <id>          Associated chat ID
           --message-id / -m <id>       Associated message ID
           --expires-in <seconds>       Auto-expire the request
-          --timeout <seconds>          (ask / wait) max wait time, default 300
+          --timeout <seconds>          (ask / wait) max wait time, default 7200
           --poll-interval <seconds>    (ask / wait) poll frequency, default 2
           --external-id <id>           External identifier (create only)
           --metadata key=value         Metadata (repeatable)
@@ -863,7 +864,7 @@ class UniqueShell(cmd.Cmd):
             "message_id": None,
             "expires_in_seconds": None,
             "external_elicitation_id": None,
-            "timeout": 300,
+            "timeout": DEFAULT_WAIT_TIMEOUT_SECONDS,
             "poll_interval": 2.0,
             "action": None,
             "content": None,
