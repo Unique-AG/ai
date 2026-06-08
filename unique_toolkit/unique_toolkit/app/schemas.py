@@ -378,7 +378,8 @@ class AssistantWebhookEvent(
 
     model_config = model_config
 
-    payload: PayloadT_co
+    # Covariant payload must stay read-only; reassignment through a widened type is unsound.
+    payload: PayloadT_co = Field(frozen=True)
     created_at: Optional[int] = None
     version: Optional[str] = None
 
