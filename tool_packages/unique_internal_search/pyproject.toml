@@ -1,6 +1,6 @@
 [project]
 name = "unique_internal_search"
-version = "2026.24.1"
+version = "2026.24.2"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
