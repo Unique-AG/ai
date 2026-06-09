@@ -44,6 +44,7 @@ uv run python -m unique_toolkit._common.config_checker check \
 
 - **PR title**: semantic PR title format validation (GitHub Action).
 - **No-manual-release**: `bash .github/scripts/check-no-manual-release.sh <base_sha> <head_sha>`
+- **Release-lineage** (PRs targeting `release/*` only): `git fetch origin main && bash .github/scripts/check-release-lineage.sh <base_sha> <head_sha> origin/main`
 - **Gatekeeper**: aggregates all job statuses; posts commit status via `gh api`.
 
 These are governance checks; they have no local Poe equivalent.

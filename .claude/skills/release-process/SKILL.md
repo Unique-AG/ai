@@ -57,11 +57,25 @@ CalVer scheme: `YYYY.WW.PATCH` — see `docs/contributing/release-process.md`.
 2. Ensure their work is committed with the right conventional commit type/scope.
 3. Point them to merge the Release PR or read `docs/contributing/release-process.md` for hotfixes/RC/dev cuts.
 
+## Hotfixes on `release/*`
+
+Backport fixes from `main` with **cherry-pick**, not direct edits on the release branch.
+
+| Rule | Why |
+|------|-----|
+| Cherry-pick from `main` | CI checks patch equivalence (`git cherry` vs `main`), not identical SHAs |
+| **Rebase and merge** only | Squash collapses N commits → 1; release-please loses per-commit changelog entries |
+| Conventional commit subjects | release-please attributes each merged commit to changelog sections |
+| Skip release-please bot PRs | `chore: hotfix release/...` PRs are automation — approve and rebase-merge |
+
+Script: `.github/scripts/check-release-lineage.sh` (runs in CI for PRs targeting `release/*`).
+
 ## Monorepo consumers (different repo)
 
 Bumping a **published** `unique_toolkit` / `unique_sdk` version inside the **monorepo** (e.g. `assistants-core` `pyproject.toml`) is a separate step after a stable AI release — not a manual ai-repo changelog edit. See `model-deployment` LESSONS-LEARNED for cherry-pick checklists.
 
 ## Related skills
 
+- `hotfix-backport` — cherry-pick workflow and rebase-merge rules for `release/*`
 - `git-conventional-commits` — commit/PR title format
 - `security-maintenance` — same no-manual-release rules for CVE/CodeQL PRs
