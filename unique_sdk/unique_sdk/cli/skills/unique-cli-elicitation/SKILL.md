@@ -192,7 +192,7 @@ esac
 - Use `enum` for closed choices so the UI can render a selector.
 - Use `"type": "boolean"` for confirmations; treat `true` as "go ahead", everything else as "stop".
 - Add short `description` strings -- they are shown as help text next to each field.
-- Keep schemas small. Break long flows into several sequential `elicit ask` calls instead of one giant form.
+- Keep schemas small. Ask at most 5 questions in a single elicitation; if you need more, split the flow so the user is not confused by an oversized form.
 
 ## Agent workflow rules
 
@@ -204,8 +204,9 @@ esac
 6. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
 7. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
 8. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
-9. **Don't spam elicitations.** One well-designed form with several fields is better than five sequential yes/no questions.
-10. **Respect timeouts.** The default `--timeout` is 2 hours -- override it only when the task needs a shorter or longer wait.
+9. **Don't spam elicitations.** One well-designed form with a few related fields is better than five sequential yes/no questions.
+10. **Cap each elicitation at 5 questions.** If you need more than 5 answers, split them into multiple focused elicitations so the user can respond confidently.
+11. **Respect timeouts.** The default `--timeout` is 2 hours -- override it only when the task needs a shorter or longer wait.
 
 ## Prerequisites
 
