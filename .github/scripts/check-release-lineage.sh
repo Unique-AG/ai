@@ -5,6 +5,7 @@ set -euo pipefail
 #
 # Cherry-picks create new SHAs, so we compare patch equivalence via `git cherry`
 # rather than requiring identical commit hashes on main.
+# Sign convention: `-` = patch exists on upstream (backport), `+` = release-only.
 #
 # Usage: check-release-lineage.sh <base-sha> <head-sha> [upstream-ref]
 #   upstream-ref defaults to origin/main
@@ -86,7 +87,7 @@ for sha in "${COMMITS[@]}"; do
     continue
   fi
 
-  if [[ "$cherry_line" == +* ]]; then
+  if [[ "$cherry_line" == -* ]]; then
     echo "backport: $short_sha $subject"
     continue
   fi
