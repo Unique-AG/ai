@@ -242,6 +242,7 @@ async def get_active_language_models_async(
             - ``unique_ai``: ``module=UNIQUE_AI`` allowlisted models
             - ``general``: unfiltered cluster + custom models
     """
+    company_id = ensure_company_id(company_id)
     enum_type, _from_cache = await _async_active_model_cache.get_or_fetch(
         _active_model_cache_key(company_id, model_source, user_id),
         lambda: _fetch_active_language_model_enum_async(
@@ -260,6 +261,7 @@ def get_active_language_models(
     user_id: str | None = None,
 ) -> type[StrEnum]:
     """Use only outside async contexts."""
+    company_id = ensure_company_id(company_id)
     cache_key = _active_model_cache_key(company_id, model_source, user_id)
     cached = _active_model_cache.get(cache_key)
     if cached is not None:
