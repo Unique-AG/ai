@@ -413,6 +413,27 @@ class TestElicitWait:
         result = cmd_elicit_wait(_state(), "elicit_abc", timeout=10)
         assert "timed out after 10s" in result
 
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.cli.commands.elicitation.time.monotonic")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_deadline_final_fetch_reports_expired(
+        self,
+        mock_get: MagicMock,
+        mock_monotonic: MagicMock,
+        mock_sleep: MagicMock,
+    ) -> None:
+        """On the deadline, a final read catches a record that just expired."""
+        # First in-loop poll still PENDING; the deadline fetch sees EXPIRED
+        # (the backend lazily expired it once expiresAt passed).
+        mock_get.side_effect = [
+            _elicitation(status="PENDING"),
+            _elicitation(status="EXPIRED"),
+        ]
+        mock_monotonic.side_effect = [0.0, 100.0, 200.0]
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=10)
+        assert "EXPIRED" in result
+        assert "timed out" not in result
+
     @patch("unique_sdk.Elicitation.get_elicitation")
     def test_api_error(self, mock: MagicMock) -> None:
         mock.side_effect = unique_sdk.APIError("fail")
@@ -465,6 +486,32 @@ class TestElicitAsk:
         mock_create.side_effect = unique_sdk.APIError("fail")
         result = cmd_elicit_ask(_state(), message="x")
         assert "elicit:" in result
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.create_elicitation")
+    def test_defaults_expiry_to_wait_timeout(
+        self, mock_create: MagicMock, mock_get: MagicMock
+    ) -> None:
+        """Without --expires-in, the record expires exactly when we stop waiting."""
+        mock_create.return_value = _elicitation()
+        mock_get.return_value = _elicitation(
+            status="RESPONDED", response_content={"answer": "hi"}
+        )
+        cmd_elicit_ask(_state(), message="What?", timeout=10)
+        assert mock_create.call_args[1]["expiresInSeconds"] == 10
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.create_elicitation")
+    def test_explicit_expiry_overrides_timeout(
+        self, mock_create: MagicMock, mock_get: MagicMock
+    ) -> None:
+        """An explicit --expires-in is respected and not overwritten by --timeout."""
+        mock_create.return_value = _elicitation()
+        mock_get.return_value = _elicitation(
+            status="RESPONDED", response_content={"answer": "hi"}
+        )
+        cmd_elicit_ask(_state(), message="What?", timeout=10, expires_in_seconds=120)
+        assert mock_create.call_args[1]["expiresInSeconds"] == 120
 
 
 # --- Visibility workaround (UN-19815) -----------------------------------

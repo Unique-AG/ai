@@ -1065,7 +1065,11 @@ def elicit() -> None:
     "expires_in_seconds",
     type=int,
     default=None,
-    help="Expire the elicitation after N seconds if not answered.",
+    help=(
+        "Expire the elicitation after N seconds if not answered. Defaults to "
+        "--timeout, so the request expires exactly when we stop waiting and "
+        "the chat UI can offer the user a way to continue."
+    ),
 )
 @click.option(
     "--timeout",

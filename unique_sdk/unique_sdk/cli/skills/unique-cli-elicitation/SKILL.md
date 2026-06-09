@@ -133,7 +133,7 @@ unique-cli elicit ask "Please provide report settings" \
 | `--message-id` | `-m` | none | **MANDATORY.** The current assistant message ID. Always pass `"$UNIQUE_MESSAGE_ID"`. Anchors the elicitation to the correct message in the conversation thread. |
 | `--tool-name` | `-t` | `agent_question` | Short snake_case label shown to the user (e.g. `clarify`, `confirm_delete`, `choose_report`). |
 | `--schema` | | single `answer` string | JSON Schema for the form body. |
-| `--expires-in` | | none | Seconds before the request auto-expires on the platform. |
+| `--expires-in` | | matches `--timeout` | Seconds before the request auto-expires on the platform. Defaults to `--timeout`, so the prompt expires exactly when you stop waiting and the chat UI can offer the user a way to continue. |
 | `--timeout` | | `7200` | Max seconds to block locally before giving up. |
 | `--poll-interval` | | `2.0` | Seconds between status polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
@@ -159,9 +159,9 @@ Terminal statuses:
 | `RESPONDED` / `COMPLETED` | User answered | Parse `Response:` JSON and proceed. |
 | `DECLINED` | User explicitly declined | Do not proceed. Acknowledge and stop. |
 | `CANCELLED` | Cancelled (by user or system) | Do not proceed. |
-| `EXPIRED` | Timed out on the platform (via `--expires-in`) | Ask again only if the task still needs it. |
+| `EXPIRED` | Timed out on the platform — the user did not answer within `--expires-in` (which defaults to `--timeout`) | Ask again only if the task still needs it; do not treat the expiry as approval. |
 
-If the CLI itself times out locally (`elicit: timed out after Ns ...`), raise `--timeout` and try again. If this happens repeatedly, double-check that you passed `--chat-id` and did not pass `--no-visible` — an invisible elicitation is the most common cause of a local timeout.
+Because `--expires-in` defaults to `--timeout`, when the user does not answer in time the platform expires the request and `elicit ask` returns a clean `EXPIRED` status (rather than a local-only timeout). If you instead see `elicit: timed out after Ns ...`, raise `--timeout` and try again. If this happens repeatedly, double-check that you passed `--chat-id` and did not pass `--no-visible` — an invisible elicitation is the most common cause of a local timeout.
 
 ### Repeat the answer back in chat
 

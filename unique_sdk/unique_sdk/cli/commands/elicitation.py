@@ -669,9 +669,27 @@ def cmd_elicit_wait(
                 terminal_status = status
                 return format_elicitation(elicitation)
             if time.monotonic() >= deadline:
+                # One last read on the deadline. When the caller coupled
+                # ``--expires-in`` to ``--timeout`` (the default for
+                # ``elicit ask``), the record's ``expiresAt`` lands at this
+                # same instant; this fetch forces the backend's lazy expiry to
+                # run so we report a clean EXPIRED — and publish it to the chat
+                # subscription — instead of a stale PENDING.
+                final = dict(
+                    unique_sdk.Elicitation.get_elicitation(
+                        user_id=state.config.user_id,
+                        company_id=state.config.company_id,
+                        elicitation_id=elicitation_id,
+                    )
+                )
+                last = final
+                final_status = str(final.get("status", "")).upper()
+                if final_status in TERMINAL_STATUSES:
+                    terminal_status = final_status
+                    return format_elicitation(final)
                 return (
                     f"elicit: timed out after {timeout}s waiting for "
-                    f"{elicitation_id} (last status: {status or 'UNKNOWN'})\n\n"
+                    f"{elicitation_id} (last status: {final_status or 'UNKNOWN'})\n\n"
                     f"{format_elicitation(last)}"
                 )
             time.sleep(poll_interval)
@@ -750,6 +768,19 @@ def cmd_elicit_ask(
                 },
                 "required": ["answer"],
             }
+
+        # Couple the record's server-side expiry to how long we are willing to
+        # wait. Without an explicit ``--expires-in`` the backend would apply
+        # its own default (5 minutes), so the elicitation stays PENDING long
+        # after this command has stopped waiting at ``--timeout``. During that
+        # window the agent has already moved on, yet the chat UI cannot flip
+        # the prompt to EXPIRED (nor show the "Continue" affordance) because
+        # the record is still pending. Expiring exactly when we give up keeps
+        # the backend, the agent, and the UI in agreement: the poll loop below
+        # reads the freshly EXPIRED record and the elicitation subscription
+        # delivers the terminal status to the chat.
+        if expires_in_seconds is None:
+            expires_in_seconds = timeout
 
         user_metadata = _parse_metadata_pairs(metadata)
         effective_message_id = message_id
