@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from enum import StrEnum
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 import unique_sdk
 from cachetools import TTLCache
@@ -345,13 +345,10 @@ def _adapt_model_with_available_language_models(
         cache[model] = model
         return model
 
-    adapted_model = cast(
-        type[BaseModel],
-        create_model(
-            f"{model.__name__}AvailableLanguageModels",
-            __base__=model,
-            **adapted_fields,
-        ),
+    adapted_model = create_model(
+        f"{model.__name__}AvailableLanguageModels",
+        __base__=model,
+        **adapted_fields,
     )
     cache[model] = adapted_model
     return adapted_model
