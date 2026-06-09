@@ -118,9 +118,29 @@ jobs:
             "${{ github.event.pull_request.base.sha }}" \
             "${{ github.event.pull_request.head.sha }}"
 
+  release-lineage:
+    name: Release Branch Lineage
+    if: >-
+      github.event_name == 'pull_request'
+      && startsWith(github.event.pull_request.base.ref, 'release/')
+      && github.actor != 'release-please[bot]'
+      && !startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Verify backports match main
+        run: |
+          git fetch origin main
+          bash .github/scripts/check-release-lineage.sh \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            origin/main
+
   status:
     name: Gatekeeper
-    needs: [detect-changes, lint, test, types, coverage, deps, containerize, helm-lint, config, pr-title, no-manual-release]
+    needs: [detect-changes, lint, test, types, coverage, deps, containerize, helm-lint, config, pr-title, no-manual-release, release-lineage]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -140,6 +160,7 @@ jobs:
           CONFIG: ${{ needs.config.result }}
           PR_TITLE: ${{ needs.pr-title.result }}
           NO_MANUAL_RELEASE: ${{ needs.no-manual-release.result }}
+          RELEASE_LINEAGE: ${{ needs.release-lineage.result }}
         run: |
           echo "=== CI Status Summary ==="
           echo "detect-changes: $DETECT_CHANGES"
@@ -153,13 +174,14 @@ jobs:
           echo "config: $CONFIG"
           echo "pr-title: $PR_TITLE"
           echo "no-manual-release: $NO_MANUAL_RELEASE"
+          echo "release-lineage: $RELEASE_LINEAGE"
           echo "========================="
 
           failed=false
 
           # Required checks (skipped is OK for when no packages changed or merge_group).
           # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "containerize:$CONTAINERIZE" "helm-lint:$HELM_LINT" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE"; do
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "containerize:$CONTAINERIZE" "helm-lint:$HELM_LINT" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE" "release-lineage:$RELEASE_LINEAGE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
