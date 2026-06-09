@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import logging
+import types
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
 import unique_sdk
 from cachetools import TTLCache
@@ -24,6 +25,8 @@ from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModel
 logger = logging.getLogger(__name__)
 
 ModelSource = Literal["unique_ai", "general"]
+
+_UNION_ORIGINS = frozenset({Union, types.UnionType})
 
 _DUMMY_SDK_VALUES = frozenset(
     {
@@ -312,6 +315,54 @@ def _as_base_model_type(annotation: Any) -> type[BaseModel] | None:
     return None
 
 
+def _unwrap_annotated(annotation: Any) -> tuple[Any, tuple[Any, ...]]:
+    if get_origin(annotation) is Annotated:
+        args = get_args(annotation)
+        return args[0], args[1:]
+    return annotation, ()
+
+
+def _rebuild_annotated(original: Any, inner: Any) -> Any:
+    if get_origin(original) is Annotated:
+        metadata = get_args(original)[1:]
+        return Annotated[(inner, *metadata)]
+    return inner
+
+
+def _adapt_type_annotation(
+    annotation: Any,
+    available_models: list[str],
+    *,
+    cache: dict[type[BaseModel], type[BaseModel]],
+) -> Any:
+    inner, _metadata = _unwrap_annotated(annotation)
+
+    nested_model = _as_base_model_type(inner)
+    if nested_model is not None:
+        adapted = _adapt_model_with_available_language_models(
+            nested_model,
+            available_models,
+            cache=cache,
+        )
+        return _rebuild_annotated(annotation, adapted)
+
+    origin = get_origin(inner)
+    if origin in _UNION_ORIGINS:
+        members = get_args(inner)
+        adapted_members = tuple(
+            _adapt_type_annotation(member, available_models, cache=cache)
+            for member in members
+        )
+        if adapted_members == members:
+            return annotation
+        rebuilt = adapted_members[0]
+        for member in adapted_members[1:]:
+            rebuilt = rebuilt | member
+        return _rebuild_annotated(annotation, rebuilt)
+
+    return annotation
+
+
 def _adapt_model_with_available_language_models(
     model: type[BaseModel],
     available_models: list[str],
@@ -332,16 +383,13 @@ def _adapt_model_with_available_language_models(
             adapted_fields[field_name] = (narrowed_lmi, field)
             continue
 
-        nested_model = _as_base_model_type(field.annotation)
-        if nested_model is not None:
-            adapted_fields[field_name] = (
-                _adapt_model_with_available_language_models(
-                    nested_model,
-                    available_models,
-                    cache=cache,
-                ),
-                field,
-            )
+        adapted_annotation = _adapt_type_annotation(
+            field.annotation,
+            available_models,
+            cache=cache,
+        )
+        if adapted_annotation is not field.annotation:
+            adapted_fields[field_name] = (adapted_annotation, field)
 
     if not adapted_fields:
         cache[model] = model
