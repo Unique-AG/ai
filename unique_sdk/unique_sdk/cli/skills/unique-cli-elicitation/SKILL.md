@@ -163,6 +163,31 @@ Terminal statuses:
 
 If the CLI itself times out locally (`elicit: timed out after Ns ...`), raise `--timeout` and try again. If this happens repeatedly, double-check that you passed `--chat-id` and did not pass `--no-visible` — an invisible elicitation is the most common cause of a local timeout.
 
+### Repeat the answer back in chat
+
+After a `RESPONDED` / `COMPLETED` elicitation, always repeat the user's answer back in the normal chat before you continue. This keeps the decision in the chat history and makes it clear what the user said.
+
+Write this as a user-readable summary, not as raw JSON. Use the field descriptions and option labels from the schema to translate the response into plain language:
+
+```markdown
+Got it — you chose Markdown for the report format and asked me to include the appendix.
+```
+
+If the exact structured response is useful for auditing or debugging, put it behind a collapsed details block after the readable summary instead of leading with it:
+
+````markdown
+<details>
+<summary>Structured elicitation response</summary>
+
+```json
+{"format":"Markdown","include_appendix":true}
+```
+
+</details>
+````
+
+Do not expose raw JSON by default when a natural-language confirmation would be clearer.
+
 ## Scripting pattern
 
 In a shell script or agent tool wrapper, capture the output and pull out the `Response:` line:
@@ -203,10 +228,11 @@ esac
 5. **Never run destructive CLI commands without a confirmation elicitation.** This includes `rm`, `rmdir -r`, bulk renames, large uploads, schedule deletion, etc.
 6. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
 7. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
-8. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
-9. **Don't spam elicitations.** One well-designed form with a few related fields is better than five sequential yes/no questions.
-10. **Cap each elicitation at 5 questions.** If you need more than 5 answers, split them into multiple focused elicitations so the user can respond confidently.
-11. **Respect timeouts.** The default `--timeout` is 2 hours -- override it only when the task needs a shorter or longer wait.
+8. **Repeat answered elicitations back in chat.** Summarize what the user chose in natural language before acting on it; hide raw JSON in a collapsible details block only when it adds value.
+9. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
+10. **Don't spam elicitations.** One well-designed form with a few related fields is better than five sequential yes/no questions.
+11. **Cap each elicitation at 5 questions.** If you need more than 5 answers, split them into multiple focused elicitations so the user can respond confidently.
+12. **Respect timeouts.** The default `--timeout` is 2 hours -- override it only when the task needs a shorter or longer wait.
 
 ## Prerequisites
 
