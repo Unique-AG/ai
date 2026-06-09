@@ -297,6 +297,36 @@ def test_get_active_language_models__cache_hit__skips_second_api_call_sync(
 
 
 @pytest.mark.ai
+async def test_get_active_language_models_async__cache_hit__normalizes_company_id_whitespace(
+    mocker: MockerFixture,
+) -> None:
+    get_models_async = _patch_llm_models_async(
+        mocker,
+        unique_ai_models=["AZURE_GPT_4o_2024_1120"],
+    )
+
+    await get_active_language_models_async(" company-7 ", model_source="unique_ai")
+    await get_active_language_models_async("company-7", model_source="unique_ai")
+
+    assert get_models_async.call_count == 1
+
+
+@pytest.mark.ai
+def test_get_active_language_models__cache_hit__normalizes_company_id_whitespace_sync(
+    mocker: MockerFixture,
+) -> None:
+    get_models = _patch_llm_models_sync(
+        mocker,
+        unique_ai_models=["AZURE_GPT_4o_2024_1120"],
+    )
+
+    get_active_language_models(" company-8 ", model_source="unique_ai")
+    get_active_language_models("company-8", model_source="unique_ai")
+
+    assert get_models.call_count == 1
+
+
+@pytest.mark.ai
 def test_build_lmi_annotation__empty_list__uses_full_enum() -> None:
     TestModel = _build_lmi_test_model([])
 
