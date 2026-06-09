@@ -40,12 +40,19 @@ Exception: release-please's own standing Release PR (opened by the Release Workf
 3. Let release-please accumulate notes on the standing Release PR (title: `chore: stable release main` per `group-pull-request-title-pattern` in `release-please-config.json`; target CalVer is in the PR diff, not the title).
 4. Merge the Release PR when ready to ship — release-please rewrites versions, changelogs, tags, and triggers PyPI publish.
 
-| Intent | Commit type | Notes |
-|--------|-------------|-------|
-| New feature | `feat(scope): ...` | Appears under release notes |
-| Bug fix | `fix(scope): ...` | Bug Fixes section |
-| Breaking change | `feat(scope)!: ...` + `BREAKING CHANGE:` footer | Major bump per package |
-| Internal deps only | `chore(deps): ...` | Hidden from user-facing changelog |
+### Commit types (`changelog-sections` in `release-please-config.json`)
+
+release-please classifies **merged commit subjects** on `main` / `release/*`. Hidden types do not appear in published changelogs and do not trigger a release on their own.
+
+| Type | Changelog section | Published? | Drives release? |
+|------|-------------------|------------|-----------------|
+| `feat` | Features | yes | yes |
+| `fix` | Bug Fixes | yes | yes |
+| `perf` | Performance | yes | yes |
+| `revert` | Reverts | yes | yes |
+| `docs`, `chore`, `refactor`, `test`, `ci`, `build` | (various) | no (`hidden: true`) | no |
+
+`feat(scope)!:` or `BREAKING CHANGE:` footer still signals breaking changes on `main`. On `release/*`, `release-please-config.release.json` sets `always-bump-patch`.
 
 CalVer scheme: `YYYY.WW.PATCH` — see `docs/contributing/release-process.md`.
 
@@ -66,7 +73,7 @@ Backport fixes from `main` with **cherry-pick**, not direct edits on the release
 | Cherry-pick from `main` | CI checks patch equivalence (`git cherry` vs `main`), not identical SHAs |
 | **Rebase and merge** only | Squash collapses N commits → 1; release-please loses per-commit changelog entries |
 | Conventional commit subjects | release-please attributes each merged commit to changelog sections |
-| Skip release-please bot PRs | `chore: hotfix release/...` PRs are automation — CI skips lineage for `release-please--*` branches |
+| Skip release-please bot PRs | `chore: hotfix release/YYYY.WW` PRs are automation — CI skips lineage for `release-please--*` branches |
 
 Script: `.github/scripts/check-release-lineage.sh` (runs in CI for human PRs targeting `release/*`; patch-equivalence only, no commit-metadata allowlist).
 

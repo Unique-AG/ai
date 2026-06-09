@@ -25,6 +25,48 @@ Pre-release suffixes follow PEP 440 ordering (`dev < rc < final`):
 
 ---
 
+## Conventional commits and changelogs
+
+release-please builds changelogs and decides whether to open or update a Release PR from **merged commit subjects** on `main` or `release/*` (the first line of each commit message, parsed as [Conventional Commits](https://www.conventionalcommits.org/)). It does not inspect individual commits inside a squash-merged PR — only the single commit that lands on the branch.
+
+Configuration lives in:
+
+| Branch target | Config file | Notable options |
+|---------------|-------------|-----------------|
+| `main` | `release-please-config.json` | Standing Release PR title: `chore: stable release main` |
+| `release/*` | `release-please-config.release.json` | `versioning: always-bump-patch`; hotfix Release PR title: `chore: hotfix release/YYYY.WW` |
+
+Both configs share the same `changelog-sections` (see table below). All publishable packages are **linked** (`linked-versions` plugin): one standing Release PR bumps every package version and changelog together.
+
+### Commit types and release-please behaviour
+
+| Type | Changelog section | In published changelog? | Drives a release? |
+|------|-------------------|-------------------------|-------------------|
+| `feat` | Features | yes | yes |
+| `fix` | Bug Fixes | yes | yes |
+| `perf` | Performance | yes | yes |
+| `revert` | Reverts | yes | yes |
+| `docs` | Documentation | no (`hidden`) | no |
+| `chore` | Miscellaneous | no (`hidden`) | no |
+| `refactor` | Miscellaneous | no (`hidden`) | no |
+| `test` | Tests | no (`hidden`) | no |
+| `ci` | CI | no (`hidden`) | no |
+| `build` | Build | no (`hidden`) | no |
+
+**Drives a release** means release-please will include the commit in pending changelog work and, once enough such commits have landed, open or refresh the standing Release PR (stable on `main`, hotfix on `release/*`). Hidden types are intentionally omitted from user-facing notes and do not trigger a release on their own.
+
+Use scopes that match the package when helpful (`feat(toolkit): …`, `fix(sdk): …`). A `feat(scope)!:` subject or `BREAKING CHANGE:` footer is still interpreted by release-please for semver-style bumps on `main`; on `release/*`, `always-bump-patch` limits hotfixes to patch increments regardless.
+
+### Why squash merge broke hotfix changelogs
+
+Historically, `release/*` allowed squash merge. A hotfix PR that cherry-picked several commits from `main` (e.g. one `feat`, one `fix`, and one `chore`) was squashed into **one** commit on the release branch. GitHub uses the **PR title** as that commit subject. If the title was `chore: …`, release-please saw only a hidden `chore` commit: no changelog entries for the feature or fix, no hotfix Release PR, and no version bump — even though the squashed diff contained release-worthy changes.
+
+**Going forward:** `release/*` requires **Rebase and merge** so each cherry-picked commit keeps its original subject. CI (`.github/scripts/check-release-lineage.sh`) additionally requires every commit in a release PR to already exist on `main` or be patch-equivalent to a commit on `main` (`git cherry`), so release history stays a subset of `main` and changelogs stay cross-checkable.
+
+`main` continues to use **squash merge** (one commit per feature PR is fine there because the squashed subject should match the PR title, which you control when merging to `main`).
+
+---
+
 ## Automation identity
 
 All write operations performed by release workflows (creating/updating release-please PRs, pushing lockfile updates, tagging commits, creating GitHub Releases, opening dev-bump PRs, cutting `release/*` branches, arming the next cycle) authenticate as the **Release Workflow App**, a GitHub App provisioned in the [`infrastructure`](https://github.com/Unique-AG/infrastructure) repo and shared with the monorepo.
@@ -200,15 +242,17 @@ flowchart TD
 
 **Use case:** a critical fix that must ship on a release branch without waiting for the next biweekly cycle.
 
+A hotfix is a PR merged into `release/YYYY.WW` that backports one or more commits already on `main` (usually via `git cherry-pick`). Each merged commit must use a [release-worthy conventional type](#commit-types-and-release-please-behaviour) (`feat`, `fix`, `perf`, or `revert`) so release-please can attribute changelog entries and bump `YYYY.WW.PATCH`.
+
 **Workflow:** `.github/workflows/cd-release.yaml` (running on a `release/*` branch) + `cd-publish.yaml`
 
-1. Create a branch off `release/YYYY.WW`, cherry-pick the fix(es) from `main`, and open a PR targeting `release/YYYY.WW`.
-2. Get the PR reviewed and merge with **Rebase and merge** only. Squash merge is disabled on `release/*` because it collapses multiple cherry-picks into one commit and breaks release-please changelogs. CI (`check-release-lineage.sh`) verifies each PR commit is patch-equivalent to a commit on `main`.
-3. release-please opens a second PR on the release branch with title:
+1. Create a branch off `release/YYYY.WW`, cherry-pick the fix(es) from `main` (oldest first), and open a PR targeting `release/YYYY.WW`. Preserve each commit's conventional subject; do not squash the cherry-picks locally into one commit.
+2. Get the PR reviewed and merge with **Rebase and merge** only. Squash merge is disabled on `release/*` — see [Why squash merge broke hotfix changelogs](#why-squash-merge-broke-hotfix-changelogs). CI (`check-release-lineage.sh`) verifies each PR commit is on `main` or patch-equivalent to a commit on `main`.
+3. After release-worthy commits land, release-please opens a second PR on the release branch with title:
    ```
-   chore: hotfix release/YYYY.WW to <version>
+   chore: hotfix release/YYYY.WW
    ```
-   where `<version>` is `YYYY.WW.1` (or `.2`, etc.). Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
+   The target patch version (`YYYY.WW.1`, `.2`, …) appears in the PR diff (manifest, `pyproject.toml`, changelogs), not in the title. Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer. Merge it with **Rebase and merge** as well.
 4. release-please tags the commit and creates a GitHub Release. The release event (authored by the Release Workflow App) natively triggers `cd-publish.yaml`.
 5. `cd-publish.yaml` publishes the patched packages to PyPI.
 6. Propagating the patch versions to the matching monorepo release branch is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).
@@ -218,7 +262,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     F[Fix PR on release/YYYY.WW] -->|merge| RB[release/YYYY.WW]
-    RB -->|release-please opens| HPR[Hotfix Release PR<br/>chore: hotfix release/YYYY.WW to X]
+    RB -->|release-please opens| HPR[Hotfix Release PR<br/>chore: hotfix release/YYYY.WW]
     HPR -->|merge| TAG[release-please tags<br/>+ creates GitHub Release<br/>YYYY.WW.P]
     TAG -->|release: published| PUB[cd-publish.yaml<br/>hotfix publish]
     TAG -.manual.-> SYNC[uniqueai-sync-ai-versions.yaml<br/>target=release<br/>Sync == versions]

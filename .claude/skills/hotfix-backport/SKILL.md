@@ -35,7 +35,9 @@ metadata:
 
 ## After the fix PR merges
 
-release-please opens `chore: hotfix release/YYYY.WW to YYYY.WW.N`. Approve and **rebase-merge** that PR too. PyPI publish follows the GitHub Release event.
+release-please opens `chore: hotfix release/YYYY.WW` (patch version `YYYY.WW.N` is in the PR diff). Approve and **rebase-merge** that PR too. PyPI publish follows the GitHub Release event.
+
+Cherry-picked commits must keep release-worthy subjects (`feat`, `fix`, `perf`, `revert`). Hidden types (`chore`, `ci`, …) do not drive hotfix releases — see `release-process` skill and `docs/contributing/release-process.md`.
 
 ## Related
 
