@@ -13,6 +13,7 @@ from unique_sdk.cli.commands.dynamic_frontend import (
     cmd_dynamic_frontend_list,
 )
 from unique_sdk.cli.commands.elicitation import (
+    DEFAULT_WAIT_TIMEOUT_SECONDS,
     cmd_elicit_ask,
     cmd_elicit_create,
     cmd_elicit_get,
@@ -1060,18 +1061,15 @@ def elicit() -> None:
 @click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
 @click.option("--message-id", "-m", default=None, help="Associated message ID.")
 @click.option(
-    "--expires-in",
-    "expires_in_seconds",
-    type=int,
-    default=None,
-    help="Expire the elicitation after N seconds if not answered.",
-)
-@click.option(
     "--timeout",
     type=int,
-    default=300,
+    default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
-    help="Max seconds to block waiting for the user's response.",
+    help=(
+        "Max seconds to block waiting for the user's response. This also "
+        "sets when the elicitation expires, so the request expires exactly "
+        "when we stop waiting and the chat UI can offer a way to continue."
+    ),
 )
 @click.option(
     "--poll-interval",
@@ -1130,7 +1128,6 @@ def elicit_ask(
     schema: str | None,
     chat_id: str | None,
     message_id: str | None,
-    expires_in_seconds: int | None,
     timeout: int,
     poll_interval: float,
     metadata: tuple[str, ...],
@@ -1167,7 +1164,6 @@ def elicit_ask(
         "schema": schema,
         "chat_id": chat_id,
         "message_id": message_id,
-        "expires_in_seconds": expires_in_seconds,
         "timeout": timeout,
         "poll_interval": poll_interval,
         "metadata": parsed_metadata or None,
@@ -1351,7 +1347,7 @@ def elicit_get(ctx: click.Context, elicitation_id: str) -> None:
 @click.option(
     "--timeout",
     type=int,
-    default=300,
+    default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
     help="Max seconds to wait for a terminal state.",
 )

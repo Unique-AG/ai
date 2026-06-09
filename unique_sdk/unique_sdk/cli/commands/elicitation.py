@@ -26,7 +26,7 @@ from unique_sdk.cli.formatting import (
 from unique_sdk.cli.state import ShellState
 
 DEFAULT_POLL_INTERVAL_SECONDS = 2.0
-DEFAULT_WAIT_TIMEOUT_SECONDS = 300
+DEFAULT_WAIT_TIMEOUT_SECONDS = 7200
 TERMINAL_STATUSES = {
     "RESPONDED",
     "ACCEPTED",
@@ -669,9 +669,27 @@ def cmd_elicit_wait(
                 terminal_status = status
                 return format_elicitation(elicitation)
             if time.monotonic() >= deadline:
+                # One last read on the deadline. When the caller coupled
+                # ``--expires-in`` to ``--timeout`` (the default for
+                # ``elicit ask``), the record's ``expiresAt`` lands at this
+                # same instant; this fetch forces the backend's lazy expiry to
+                # run so we report a clean EXPIRED — and publish it to the chat
+                # subscription — instead of a stale PENDING.
+                final = dict(
+                    unique_sdk.Elicitation.get_elicitation(
+                        user_id=state.config.user_id,
+                        company_id=state.config.company_id,
+                        elicitation_id=elicitation_id,
+                    )
+                )
+                last = final
+                final_status = str(final.get("status", "")).upper()
+                if final_status in TERMINAL_STATUSES:
+                    terminal_status = final_status
+                    return format_elicitation(final)
                 return (
                     f"elicit: timed out after {timeout}s waiting for "
-                    f"{elicitation_id} (last status: {status or 'UNKNOWN'})\n\n"
+                    f"{elicitation_id} (last status: {final_status or 'UNKNOWN'})\n\n"
                     f"{format_elicitation(last)}"
                 )
             time.sleep(poll_interval)
@@ -715,7 +733,6 @@ def cmd_elicit_ask(
     schema: str | None = None,
     chat_id: str | None = None,
     message_id: str | None = None,
-    expires_in_seconds: int | None = None,
     timeout: int = DEFAULT_WAIT_TIMEOUT_SECONDS,
     poll_interval: float = DEFAULT_POLL_INTERVAL_SECONDS,
     metadata: list[tuple[str, str]] | None = None,
@@ -750,6 +767,17 @@ def cmd_elicit_ask(
                 },
                 "required": ["answer"],
             }
+
+        # `ask` exposes a single knob: `--timeout` is both how long we wait and
+        # when the record expires. The two are always the same here, so the
+        # backend's default (5 minutes) never leaves the record PENDING after
+        # we have stopped waiting — which would otherwise prevent the chat UI
+        # from flipping the prompt to EXPIRED and offering the user a way to
+        # continue. The poll loop below reads the freshly EXPIRED record and the
+        # elicitation subscription delivers the terminal status to the chat.
+        # (Use `elicit create --expires-in` if you need expiry decoupled from a
+        # local wait.)
+        expires_in_seconds = timeout
 
         user_metadata = _parse_metadata_pairs(metadata)
         effective_message_id = message_id
