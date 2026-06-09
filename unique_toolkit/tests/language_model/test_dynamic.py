@@ -65,6 +65,18 @@ class _AssistantStyleConfig(BaseModel):
     nested: _NestedLLMConfig = _NestedLLMConfig()
 
 
+class _EngineWithLMI(BaseModel):
+    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+
+
+class _EnginePlain(BaseModel):
+    label: str = "plain"
+
+
+class _UnionEngineConfig(BaseModel):
+    engine: _EngineWithLMI | _EnginePlain
+
+
 def _build_lmi_test_model(available_models: list[str]) -> type[BaseModel]:
     narrowed_lmi = build_lmi_annotation(available_models)
     return create_model(
@@ -433,6 +445,34 @@ def test_get_schema_with_available_language_models__rewrites_invalid_defaults() 
     assert schema["properties"]["nested"]["default"]["small_model"] == (
         "AZURE_GPT_35_TURBO_0125"
     )
+
+
+@pytest.mark.ai
+def test_get_schema_with_available_language_models__narrows_lmi_in_union_members() -> (
+    None
+):
+    schema = get_schema_with_available_language_models(
+        _UnionEngineConfig,
+        ["AZURE_GPT_4o_2024_1120"],
+    )
+
+    engine_schema = schema["properties"]["engine"]
+    variants = engine_schema.get("anyOf", [engine_schema])
+    lmi_enums: list[list[str]] = []
+    for variant in variants:
+        ref = variant.get("$ref")
+        if not isinstance(ref, str):
+            continue
+        ref_name = ref.rsplit("/", 1)[-1]
+        ref_def = schema["$defs"][ref_name]
+        language_model = ref_def.get("properties", {}).get("language_model")
+        if not isinstance(language_model, dict):
+            continue
+        lmi_enums.append(
+            _schema_enum_values_for_property(schema, language_model),
+        )
+
+    assert lmi_enums == [["AZURE_GPT_4o_2024_1120"]]
 
 
 @pytest.mark.ai
