@@ -7,6 +7,9 @@ set -euo pipefail
 # rather than requiring identical commit hashes on main.
 # Sign convention: `-` = patch exists on upstream (backport), `+` = release-only.
 #
+# Release-please and other automation PRs are skipped in ci.yaml (workflow `if`),
+# not here — commit author/subject are forgeable and must not bypass this check.
+#
 # Usage: check-release-lineage.sh <base-sha> <head-sha> [upstream-ref]
 #   upstream-ref defaults to origin/main
 
@@ -29,51 +32,11 @@ fi
 
 CHERRY_LINES=$(git cherry -v "$UPSTREAM" "$HEAD")
 
-is_allowlisted() {
-  local sha="$1"
-  local subject author email
-
-  subject=$(git log -1 --format=%s "$sha")
-  author=$(git log -1 --format=%an "$sha")
-  email=$(git log -1 --format=%ae "$sha")
-
-  if [[ "$author" == "release-please[bot]" ]]; then
-    return 0
-  fi
-
-  if [[ "$email" == *"github-actions"* || "$email" == *"release-workflow"* ]]; then
-    return 0
-  fi
-
-  if [[ "$subject" == chore:\ hotfix\ release/* ]]; then
-    return 0
-  fi
-  if [[ "$subject" == chore:\ stable\ release\ * ]]; then
-    return 0
-  fi
-  if [[ "$subject" == chore:\ arm\ release\ * ]]; then
-    return 0
-  fi
-  if [[ "$subject" == chore\(release-please\):* ]]; then
-    return 0
-  fi
-  if [[ "$subject" == chore\(release\):* ]]; then
-    return 0
-  fi
-
-  return 1
-}
-
 ERRORS=()
 
 for sha in "${COMMITS[@]}"; do
   short_sha=${sha:0:7}
   subject=$(git log -1 --format=%s "$sha")
-
-  if is_allowlisted "$sha"; then
-    echo "allowlisted: $short_sha $subject"
-    continue
-  fi
 
   if git merge-base --is-ancestor "$sha" "$UPSTREAM" 2>/dev/null; then
     echo "on-main: $short_sha $subject"
@@ -92,7 +55,7 @@ for sha in "${COMMITS[@]}"; do
     continue
   fi
 
-  ERRORS+=("$short_sha $subject (patch not found on $UPSTREAM — cherry-pick from main or use release automation)")
+  ERRORS+=("$short_sha $subject (patch not found on $UPSTREAM — cherry-pick from main)")
 done
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then

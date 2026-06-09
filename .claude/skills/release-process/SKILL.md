@@ -66,9 +66,9 @@ Backport fixes from `main` with **cherry-pick**, not direct edits on the release
 | Cherry-pick from `main` | CI checks patch equivalence (`git cherry` vs `main`), not identical SHAs |
 | **Rebase and merge** only | Squash collapses N commits → 1; release-please loses per-commit changelog entries |
 | Conventional commit subjects | release-please attributes each merged commit to changelog sections |
-| Skip release-please bot PRs | `chore: hotfix release/...` PRs are automation — approve and rebase-merge |
+| Skip release-please bot PRs | `chore: hotfix release/...` PRs are automation — CI skips lineage for `release-please--*` branches |
 
-Script: `.github/scripts/check-release-lineage.sh` (runs in CI for PRs targeting `release/*`).
+Script: `.github/scripts/check-release-lineage.sh` (runs in CI for human PRs targeting `release/*`; patch-equivalence only, no commit-metadata allowlist).
 
 ## Monorepo consumers (different repo)
 

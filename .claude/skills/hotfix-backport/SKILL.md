@@ -29,7 +29,8 @@ metadata:
 
 ## CI guardrails
 
-- `.github/scripts/check-release-lineage.sh` — each PR commit must be on `main` or patch-equivalent (`git cherry -` prefix). Cherry-picks get new SHAs; identical hashes are not required.
+- `.github/scripts/check-release-lineage.sh` — each PR commit must be on `main` or patch-equivalent (`git cherry -` prefix). Cherry-picks get new SHAs; identical hashes are not required. No commit-metadata bypass (author/subject are forgeable).
+- `release-please--*` PRs skip lineage in `ci.yaml` (automation-owned version/changelog bumps).
 - Do not squash-merge: one squashed commit breaks release-please changelog generation.
 
 ## After the fix PR merges
