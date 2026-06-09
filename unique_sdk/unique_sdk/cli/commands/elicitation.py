@@ -733,7 +733,6 @@ def cmd_elicit_ask(
     schema: str | None = None,
     chat_id: str | None = None,
     message_id: str | None = None,
-    expires_in_seconds: int | None = None,
     timeout: int = DEFAULT_WAIT_TIMEOUT_SECONDS,
     poll_interval: float = DEFAULT_POLL_INTERVAL_SECONDS,
     metadata: list[tuple[str, str]] | None = None,
@@ -769,18 +768,16 @@ def cmd_elicit_ask(
                 "required": ["answer"],
             }
 
-        # Couple the record's server-side expiry to how long we are willing to
-        # wait. Without an explicit ``--expires-in`` the backend would apply
-        # its own default (5 minutes), so the elicitation stays PENDING long
-        # after this command has stopped waiting at ``--timeout``. During that
-        # window the agent has already moved on, yet the chat UI cannot flip
-        # the prompt to EXPIRED (nor show the "Continue" affordance) because
-        # the record is still pending. Expiring exactly when we give up keeps
-        # the backend, the agent, and the UI in agreement: the poll loop below
-        # reads the freshly EXPIRED record and the elicitation subscription
-        # delivers the terminal status to the chat.
-        if expires_in_seconds is None:
-            expires_in_seconds = timeout
+        # `ask` exposes a single knob: `--timeout` is both how long we wait and
+        # when the record expires. The two are always the same here, so the
+        # backend's default (5 minutes) never leaves the record PENDING after
+        # we have stopped waiting — which would otherwise prevent the chat UI
+        # from flipping the prompt to EXPIRED and offering the user a way to
+        # continue. The poll loop below reads the freshly EXPIRED record and the
+        # elicitation subscription delivers the terminal status to the chat.
+        # (Use `elicit create --expires-in` if you need expiry decoupled from a
+        # local wait.)
+        expires_in_seconds = timeout
 
         user_metadata = _parse_metadata_pairs(metadata)
         effective_message_id = message_id

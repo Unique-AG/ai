@@ -133,8 +133,7 @@ unique-cli elicit ask "Please provide report settings" \
 | `--message-id` | `-m` | none | **MANDATORY.** The current assistant message ID. Always pass `"$UNIQUE_MESSAGE_ID"`. Anchors the elicitation to the correct message in the conversation thread. |
 | `--tool-name` | `-t` | `agent_question` | Short snake_case label shown to the user (e.g. `clarify`, `confirm_delete`, `choose_report`). |
 | `--schema` | | single `answer` string | JSON Schema for the form body. |
-| `--expires-in` | | matches `--timeout` | Seconds before the request auto-expires on the platform. Defaults to `--timeout`, so the prompt expires exactly when you stop waiting and the chat UI can offer the user a way to continue. |
-| `--timeout` | | `7200` | Max seconds to block locally before giving up. |
+| `--timeout` | | `7200` | Max seconds to block locally before giving up. This is the single knob for `ask`: it also sets when the request expires on the platform, so the prompt expires exactly when you stop waiting and the chat UI can offer the user a way to continue. |
 | `--poll-interval` | | `2.0` | Seconds between status polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
 | `--assistant-id` | | `$UNIQUE_ASSISTANT_ID`, else latest assistant in chat | Assistant id for the placeholder message created by the visibility workaround. Set this (or export `UNIQUE_ASSISTANT_ID`) only if the chat is brand-new with no prior assistant messages. |
@@ -159,9 +158,9 @@ Terminal statuses:
 | `RESPONDED` / `COMPLETED` | User answered | Parse `Response:` JSON and proceed. |
 | `DECLINED` | User explicitly declined | Do not proceed. Acknowledge and stop. |
 | `CANCELLED` | Cancelled (by user or system) | Do not proceed. |
-| `EXPIRED` | Timed out on the platform — the user did not answer within `--expires-in` (which defaults to `--timeout`) | Ask again only if the task still needs it; do not treat the expiry as approval. |
+| `EXPIRED` | Timed out on the platform — the user did not answer within `--timeout` | Ask again only if the task still needs it; do not treat the expiry as approval. |
 
-Because `--expires-in` defaults to `--timeout`, when the user does not answer in time the platform expires the request and `elicit ask` returns a clean `EXPIRED` status (rather than a local-only timeout). If you instead see `elicit: timed out after Ns ...`, raise `--timeout` and try again. If this happens repeatedly, double-check that you passed `--chat-id` and did not pass `--no-visible` — an invisible elicitation is the most common cause of a local timeout.
+Because `ask` derives the request's expiry from `--timeout`, when the user does not answer in time the platform expires the request and `elicit ask` returns a clean `EXPIRED` status (rather than a local-only timeout). If you instead see `elicit: timed out after Ns ...`, raise `--timeout` and try again. If this happens repeatedly, double-check that you passed `--chat-id` and did not pass `--no-visible` — an invisible elicitation is the most common cause of a local timeout.
 
 ### Repeat the answer back in chat
 

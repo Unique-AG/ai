@@ -489,29 +489,16 @@ class TestElicitAsk:
 
     @patch("unique_sdk.Elicitation.get_elicitation")
     @patch("unique_sdk.Elicitation.create_elicitation")
-    def test_defaults_expiry_to_wait_timeout(
+    def test_expiry_always_matches_wait_timeout(
         self, mock_create: MagicMock, mock_get: MagicMock
     ) -> None:
-        """Without --expires-in, the record expires exactly when we stop waiting."""
+        """`ask` has a single knob: the record expires exactly when we stop waiting."""
         mock_create.return_value = _elicitation()
         mock_get.return_value = _elicitation(
             status="RESPONDED", response_content={"answer": "hi"}
         )
         cmd_elicit_ask(_state(), message="What?", timeout=10)
         assert mock_create.call_args[1]["expiresInSeconds"] == 10
-
-    @patch("unique_sdk.Elicitation.get_elicitation")
-    @patch("unique_sdk.Elicitation.create_elicitation")
-    def test_explicit_expiry_overrides_timeout(
-        self, mock_create: MagicMock, mock_get: MagicMock
-    ) -> None:
-        """An explicit --expires-in is respected and not overwritten by --timeout."""
-        mock_create.return_value = _elicitation()
-        mock_get.return_value = _elicitation(
-            status="RESPONDED", response_content={"answer": "hi"}
-        )
-        cmd_elicit_ask(_state(), message="What?", timeout=10, expires_in_seconds=120)
-        assert mock_create.call_args[1]["expiresInSeconds"] == 120
 
 
 # --- Visibility workaround (UN-19815) -----------------------------------
@@ -1179,9 +1166,10 @@ class TestShellElicit:
         out = _capture(_shell(), 'elicit ask "x" --poll-interval abc')
         assert "Invalid --poll-interval" in out
 
-    def test_ask_invalid_expires_in(self) -> None:
-        out = _capture(_shell(), 'elicit ask "x" --expires-in abc')
-        assert "Invalid --expires-in" in out
+    def test_ask_rejects_expires_in_option(self) -> None:
+        """`ask` exposes only --timeout; --expires-in lives on `create`."""
+        out = _capture(_shell(), 'elicit ask "x" --expires-in 60')
+        assert "No such option" in out
 
     def test_ask_invalid_metadata(self) -> None:
         out = _capture(_shell(), 'elicit ask "x" --metadata badformat')

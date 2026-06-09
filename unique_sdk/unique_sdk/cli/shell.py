@@ -88,8 +88,8 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --schema <json>                JSON schema (default: single 'answer' field)
         --chat-id / -c <id>            Associated chat ID
         --message-id / -m <id>         Associated message ID
-        --expires-in <seconds>         Auto-expire the request
-        --timeout <seconds>            Max wait time (default: 7200)
+        --timeout <seconds>            Max wait time, also sets when the
+                                       request expires (default: 7200)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
         --metadata key=value           Metadata (repeatable)
         --no-visible                   Skip the UN-19815 visibility workaround
@@ -789,8 +789,9 @@ class UniqueShell(cmd.Cmd):
           --mode FORM|URL              Display mode (create only, required)
           --chat-id / -c <id>          Associated chat ID
           --message-id / -m <id>       Associated message ID
-          --expires-in <seconds>       Auto-expire the request
-          --timeout <seconds>          (ask / wait) max wait time, default 7200
+          --expires-in <seconds>       Auto-expire the request (create only)
+          --timeout <seconds>          (ask / wait) max wait time, default 7200;
+                                       for ask this also sets when it expires
           --poll-interval <seconds>    (ask / wait) poll frequency, default 2
           --external-id <id>           External identifier (create only)
           --metadata key=value         Metadata (repeatable)
@@ -973,6 +974,13 @@ class UniqueShell(cmd.Cmd):
         if not message:
             self._print("Usage: elicit ask <message> [options]")
             return
+        if opts["expires_in_seconds"] is not None:
+            self._print(
+                "No such option: --expires-in for 'elicit ask'. Use --timeout "
+                "(it also sets when the request expires). For expiry decoupled "
+                "from a local wait, use 'elicit create --expires-in'."
+            )
+            return
 
         ask_kwargs: dict[str, Any] = {
             "message": message,
@@ -980,7 +988,6 @@ class UniqueShell(cmd.Cmd):
             "schema": opts["schema"],
             "chat_id": opts["chat_id"],
             "message_id": opts["message_id"],
-            "expires_in_seconds": opts["expires_in_seconds"],
             "timeout": opts["timeout"],
             "poll_interval": opts["poll_interval"],
             "metadata": opts["metadata"] or None,
