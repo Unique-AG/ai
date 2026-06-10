@@ -63,3 +63,9 @@ class AsyncTTLCache:
         if value is _MISSING:
             return None, False
         return value, True
+
+    def clear(self) -> None:
+        """Drop all cached values and per-key locks."""
+        self._cache.clear()
+        self._stale.clear()
+        self._locks.clear()

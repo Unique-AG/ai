@@ -42,23 +42,10 @@ def _build_restricted_lmi_validator(
     allowed_model_names: set[str],
 ) -> Callable[[Any], LanguageModelInfo]:
     def _validate(v: Any) -> LanguageModelInfo:
-        if isinstance(v, LanguageModelName | str):
-            model_name = v.value if isinstance(v, LanguageModelName) else v
-            if model_name not in allowed_model_names:
-                raise ValueError(
-                    f"Language model {model_name!r} is not available for this tenant."
-                )
-            return LanguageModelInfo.from_name(model_name)
-
-        info = (
-            v
-            if isinstance(v, LanguageModelInfo)
-            else LanguageModelInfo.model_validate(v)
-        )
-        model_name = str(info.name)
-        if model_name not in allowed_model_names:
+        info = validate_and_init_language_model_info(v)
+        if str(info.name) not in allowed_model_names:
             raise ValueError(
-                f"Language model {model_name!r} is not available for this tenant."
+                f"Language model {info.name!r} is not available for this tenant."
             )
         return info
 
