@@ -13,13 +13,6 @@ from unique_toolkit._common.validators import (
     build_lmi_annotation,
     get_LMI_default_field,
 )
-from unique_toolkit.language_model._enum_narrowing import (
-    NoModelIntersectionError,
-    build_language_model_enum_from_names,
-    build_narrowed_language_model_enum,
-    intersect_with_language_model_name,
-    resolve_default_active_language_model,
-)
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.dynamic import (
     ActiveLanguageModelConfigurationError,
@@ -28,6 +21,13 @@ from unique_toolkit.language_model.dynamic import (
     get_active_language_models_async,
     get_default_active_language_model_async,
     get_schema_with_available_language_models,
+)
+from unique_toolkit.language_model.enum_narrowing import (
+    NoModelIntersectionError,
+    build_language_model_enum_from_names,
+    build_narrowed_language_model_enum,
+    intersect_with_language_model_name,
+    resolve_default_active_language_model,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 
@@ -73,6 +73,14 @@ class _EnginePlain(BaseModel):
 
 class _UnionEngineConfig(BaseModel):
     engine: _EngineWithLMI | _EnginePlain
+
+
+class _BareLanguageModelConfig(BaseModel):
+    picked: LanguageModelName = DEFAULT_GPT_4o
+
+
+class _ListLMIConfig(BaseModel):
+    models: list[LMI] = []
 
 
 def _build_lmi_test_model(available_models: list[str]) -> type[BaseModel]:
@@ -371,6 +379,39 @@ def test_get_schema_with_available_language_models__narrows_lmi_in_union_members
         )
 
     assert lmi_enums == [["AZURE_GPT_4o_2024_1120"]]
+
+
+@pytest.mark.ai
+def test_get_schema_with_available_language_models__narrows_bare_language_model_field() -> (
+    None
+):
+    # A field typed as the bare ``LanguageModelName`` enum (not the ``LMI``
+    # alias) shares the same ``$defs`` entry, so def-level narrowing reaches it
+    # — the previous per-field model rebuild did not.
+    schema = get_schema_with_available_language_models(
+        _BareLanguageModelConfig,
+        ["AZURE_GPT_35_TURBO_0125"],
+    )
+
+    assert _schema_enum_values(schema, "picked") == ["AZURE_GPT_35_TURBO_0125"]
+    # Its now-unavailable default is rewritten to an in-set model.
+    assert schema["properties"]["picked"]["default"] == "AZURE_GPT_35_TURBO_0125"
+
+
+@pytest.mark.ai
+def test_get_schema_with_available_language_models__narrows_lmi_inside_list() -> None:
+    # LMI nested in a container references the shared enum def too, so it is
+    # narrowed without the rebuild walking generic args.
+    schema = get_schema_with_available_language_models(
+        _ListLMIConfig,
+        ["AZURE_GPT_35_TURBO_0125"],
+    )
+
+    assert schema["$defs"]["LanguageModelName"]["enum"] == ["AZURE_GPT_35_TURBO_0125"]
+    item_schema = schema["properties"]["models"]["items"]
+    assert _schema_enum_values_for_property(schema, item_schema) == [
+        "AZURE_GPT_35_TURBO_0125"
+    ]
 
 
 @pytest.mark.ai
