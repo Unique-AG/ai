@@ -100,13 +100,12 @@ If the API returns model keys the toolkit enum does not yet include, add the mod
 
 Frontend configuration forms (RJSF) consume Pydantic `model_json_schema()` output.
 
-**Without narrowing**, an `LMI` field exposes `anyOf`: narrowed enum ref **or** free-text string — users can type arbitrary model names.
+**Without narrowing**, an `LMI` field exposes `anyOf`: full enum ref **or** free-text string — users can type arbitrary model names.
 
-**With narrowing** via `get_schema_with_available_language_models` or `build_lmi_annotation`:
+Two helpers narrow this, at different layers:
 
-- The schema lists only tenant-available models.
-- The free-string branch is removed from `json_schema_input_type`.
-- Stored defaults outside the active set are rewritten to `get_default_active_language_model_async` for that tenant.
+- **`get_schema_with_available_language_models(model, available_models)`** operates on the generated JSON schema. It filters the shared `LanguageModelName` enum in `$defs` — narrowing **every** referencing field at once, including bare-enum and `list[LMI]` fields — and rewrites stored defaults outside the active set to the tenant default. The free-string `anyOf` branch is **left intact** (the schema lists the available models but does not forbid a free-form string); enforce the tenant set at runtime with the validator below.
+- **`build_lmi_annotation(available_models)`** is a drop-in `LMI` annotation for **runtime validation**. Its `json_schema_input_type` is the narrowed enum, so a field built with it rejects out-of-tenant models on validation **and** drops the free-string branch from that field's schema.
 
 Wire these helpers at your service boundary when you have tenant context (for example, a configuration endpoint that receives `company_id`).
 
