@@ -8,7 +8,6 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal, Union, get_args, get_origin
 
 import unique_sdk
-from cachetools import TTLCache
 from pydantic import BaseModel, create_model
 from pydantic.fields import FieldInfo
 from unique_sdk.api_resources._llm_models import LLMModels
@@ -44,10 +43,6 @@ _UNIQUE_AI_LLM_MODULE = "UNIQUE_AI"
 _ACTIVE_MODEL_CACHE_TTL_MS = 5 * 60 * 1000
 _async_active_model_cache = AsyncTTLCache(
     maxsize=1024, ttl_ms=_ACTIVE_MODEL_CACHE_TTL_MS
-)
-_active_model_cache = TTLCache(
-    maxsize=1024,
-    ttl=_ACTIVE_MODEL_CACHE_TTL_MS / 1000,
 )
 
 
@@ -132,35 +127,6 @@ async def _fetch_tenant_model_names_async(
     return _dedupe_model_names(general_response.get("models", []))
 
 
-def _fetch_tenant_model_names(
-    company_id: str,
-    *,
-    model_source: ModelSource,
-    user_id: str | None = None,
-) -> list[str]:
-    if model_source == "general":
-        response = LLMModels.get_models(
-            user_id=user_id or "*",
-            company_id=company_id,
-        )
-        return _dedupe_model_names(response.get("models", []))
-
-    unique_ai_response = LLMModels.get_models(
-        user_id=user_id or "*",
-        company_id=company_id,
-        module=_UNIQUE_AI_LLM_MODULE,
-    )
-    unique_ai_models = _dedupe_model_names(unique_ai_response.get("models", []))
-    if unique_ai_models:
-        return unique_ai_models
-
-    _log_unique_ai_fallback()
-    general_response = LLMModels.get_models(
-        user_id=user_id or "*", company_id=company_id
-    )
-    return _dedupe_model_names(general_response.get("models", []))
-
-
 def _build_active_language_model_enum(
     company_id: str,
     api_models: list[str],
@@ -204,32 +170,6 @@ async def _fetch_active_language_model_enum_async(
     )
 
 
-def _fetch_active_language_model_enum(
-    company_id: str,
-    *,
-    model_source: ModelSource,
-    user_id: str | None = None,
-) -> type[StrEnum]:
-    company_id = ensure_company_id(company_id)
-    ensure_sdk_initialized()
-    try:
-        api_models = _fetch_tenant_model_names(
-            company_id,
-            model_source=model_source,
-            user_id=user_id,
-        )
-    except Exception as exc:
-        msg = f"Failed to fetch active language models for company {company_id}"
-        logger.exception(msg)
-        raise ActiveLanguageModelConfigurationError(msg) from exc
-
-    return _build_active_language_model_enum(
-        company_id,
-        api_models,
-        model_source=model_source,
-    )
-
-
 async def get_active_language_models_async(
     company_id: str,
     *,
@@ -257,28 +197,6 @@ async def get_active_language_models_async(
     return enum_type
 
 
-def get_active_language_models(
-    company_id: str,
-    *,
-    model_source: ModelSource,
-    user_id: str | None = None,
-) -> type[StrEnum]:
-    """Use only outside async contexts."""
-    company_id = ensure_company_id(company_id)
-    cache_key = _active_model_cache_key(company_id, model_source, user_id)
-    cached = _active_model_cache.get(cache_key)
-    if cached is not None:
-        return cached
-
-    enum_type = _fetch_active_language_model_enum(
-        company_id,
-        model_source=model_source,
-        user_id=user_id,
-    )
-    _active_model_cache[cache_key] = enum_type
-    return enum_type
-
-
 async def get_default_active_language_model_async(
     company_id: str,
     *,
@@ -286,18 +204,6 @@ async def get_default_active_language_model_async(
 ) -> LanguageModelName:
     """Return the preferred default model for *company_id*'s active set."""
     active_models = await get_active_language_models_async(
-        company_id,
-        model_source="unique_ai",
-        user_id=user_id,
-    )
-    return resolve_default_active_language_model(active_models)
-
-
-def get_default_active_language_model(
-    company_id: str, *, user_id: str | None = None
-) -> LanguageModelName:
-    """Return the preferred default model for *company_id*'s active set."""
-    active_models = get_active_language_models(
         company_id,
         model_source="unique_ai",
         user_id=user_id,
@@ -529,4 +435,3 @@ def clear_active_language_model_caches() -> None:
     """Clear in-process caches — intended for tests."""
     _async_active_model_cache._cache.clear()
     _async_active_model_cache._stale.clear()
-    _active_model_cache.clear()
