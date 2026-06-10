@@ -25,9 +25,7 @@ from unique_toolkit.language_model.dynamic import (
     ActiveLanguageModelConfigurationError,
     clear_active_language_model_caches,
     ensure_sdk_initialized,
-    get_active_language_models,
     get_active_language_models_async,
-    get_default_active_language_model,
     get_default_active_language_model_async,
     get_schema_with_available_language_models,
 )
@@ -137,33 +135,6 @@ def _patch_llm_models_async(
     )
 
 
-def _patch_llm_models_sync(
-    mocker: MockerFixture,
-    *,
-    unique_ai_models: list[str] | None = None,
-    general_models: list[str] | None = None,
-) -> Any:
-    if general_models is None:
-        general_models = unique_ai_models or []
-    if unique_ai_models is None:
-        unique_ai_models = general_models
-
-    def _side_effect(
-        *,
-        user_id: str,
-        company_id: str,
-        module: str | None = None,
-    ) -> dict[str, list[str]]:
-        if module == "UNIQUE_AI":
-            return {"models": unique_ai_models}
-        return {"models": general_models}
-
-    return mocker.patch(
-        "unique_toolkit.language_model.dynamic.LLMModels.get_models",
-        side_effect=_side_effect,
-    )
-
-
 @pytest.mark.ai
 async def test_get_active_language_models_async__intersection__returns_narrowed_enum(
     mocker: MockerFixture,
@@ -236,49 +207,6 @@ async def test_get_active_language_models_async__missing_company_id__raises() ->
 
 
 @pytest.mark.ai
-def test_get_active_language_models__intersection__returns_narrowed_enum_sync(
-    mocker: MockerFixture,
-) -> None:
-    _patch_llm_models_sync(
-        mocker,
-        unique_ai_models=["AZURE_GPT_4o_2024_1120"],
-    )
-
-    active_models = get_active_language_models("company-4", model_source="unique_ai")
-
-    assert set(active_models.__members__) == {"AZURE_GPT_4o_2024_1120"}
-
-
-@pytest.mark.ai
-def test_get_active_language_models__empty_intersection__raises(
-    mocker: MockerFixture,
-) -> None:
-    _patch_llm_models_sync(
-        mocker,
-        unique_ai_models=[],
-        general_models=["UNKNOWN_MODEL"],
-    )
-
-    with pytest.raises(
-        ActiveLanguageModelConfigurationError, match="No active language models"
-    ):
-        get_active_language_models("company-5", model_source="unique_ai")
-
-
-@pytest.mark.ai
-def test_get_active_language_models__api_error__raises(
-    mocker: MockerFixture,
-) -> None:
-    mocker.patch(
-        "unique_toolkit.language_model.dynamic.LLMModels.get_models",
-        side_effect=RuntimeError("API unavailable"),
-    )
-
-    with pytest.raises(ActiveLanguageModelConfigurationError, match="Failed to fetch"):
-        get_active_language_models("company-6", model_source="unique_ai")
-
-
-@pytest.mark.ai
 async def test_get_active_language_models_async__cache_hit__skips_second_api_call(
     mocker: MockerFixture,
 ) -> None:
@@ -294,21 +222,6 @@ async def test_get_active_language_models_async__cache_hit__skips_second_api_cal
 
 
 @pytest.mark.ai
-def test_get_active_language_models__cache_hit__skips_second_api_call_sync(
-    mocker: MockerFixture,
-) -> None:
-    get_models = _patch_llm_models_sync(
-        mocker,
-        unique_ai_models=["AZURE_GPT_4o_2024_1120"],
-    )
-
-    get_active_language_models("company-8", model_source="unique_ai")
-    get_active_language_models("company-8", model_source="unique_ai")
-
-    assert get_models.call_count == 1
-
-
-@pytest.mark.ai
 async def test_get_active_language_models_async__cache_hit__normalizes_company_id_whitespace(
     mocker: MockerFixture,
 ) -> None:
@@ -321,21 +234,6 @@ async def test_get_active_language_models_async__cache_hit__normalizes_company_i
     await get_active_language_models_async("company-7", model_source="unique_ai")
 
     assert get_models_async.call_count == 1
-
-
-@pytest.mark.ai
-def test_get_active_language_models__cache_hit__normalizes_company_id_whitespace_sync(
-    mocker: MockerFixture,
-) -> None:
-    get_models = _patch_llm_models_sync(
-        mocker,
-        unique_ai_models=["AZURE_GPT_4o_2024_1120"],
-    )
-
-    get_active_language_models(" company-8 ", model_source="unique_ai")
-    get_active_language_models("company-8", model_source="unique_ai")
-
-    assert get_models.call_count == 1
 
 
 @pytest.mark.ai
@@ -601,17 +499,3 @@ async def test_get_default_active_language_model_async__uses_tenant_active_set(
     default_model = await get_default_active_language_model_async("company-9")
 
     assert default_model == LanguageModelName.AZURE_GPT_35_TURBO_0125
-
-
-@pytest.mark.ai
-def test_get_default_active_language_model__uses_tenant_active_set(
-    mocker: MockerFixture,
-) -> None:
-    _patch_llm_models_sync(
-        mocker,
-        unique_ai_models=[DEFAULT_GPT_4o.name],
-    )
-
-    default_model = get_default_active_language_model("company-10")
-
-    assert default_model == DEFAULT_GPT_4o
