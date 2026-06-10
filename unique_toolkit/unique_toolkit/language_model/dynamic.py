@@ -39,6 +39,7 @@ _DUMMY_SDK_VALUES = frozenset(
 )
 
 _UNIQUE_AI_LLM_MODULE = "UNIQUE_AI"
+_DYNAMIC_ENUM_RETRIEVAL_USER_ID = "dynamical_enum_retrieval"
 
 _ACTIVE_MODEL_CACHE_TTL_MS = 5 * 60 * 1000
 _async_active_model_cache = AsyncTTLCache(
@@ -92,26 +93,26 @@ def _log_unique_ai_fallback() -> None:
 
 
 def _active_model_cache_key(
-    company_id: str, model_source: ModelSource, user_id: str | None = None
+    company_id: str, model_source: ModelSource, user_id: str
 ) -> str:
-    return f"{company_id}:{model_source}" + (f":{user_id}" if user_id else "")
+    return f"{company_id}:{model_source}:{user_id}"
 
 
 async def _fetch_tenant_model_names_async(
     company_id: str,
     *,
     model_source: ModelSource,
-    user_id: str | None = None,
+    user_id: str = _DYNAMIC_ENUM_RETRIEVAL_USER_ID,
 ) -> list[str]:
     if model_source == "general":
         response = await LLMModels.get_models_async(
-            user_id=user_id or "*",
+            user_id=user_id,
             company_id=company_id,
         )
         return _dedupe_model_names(response.get("models", []))
 
     unique_ai_response = await LLMModels.get_models_async(
-        user_id=user_id or "*",
+        user_id=user_id,
         company_id=company_id,
         module=_UNIQUE_AI_LLM_MODULE,
     )
@@ -121,7 +122,7 @@ async def _fetch_tenant_model_names_async(
 
     _log_unique_ai_fallback()
     general_response = await LLMModels.get_models_async(
-        user_id=user_id or "*",
+        user_id=user_id,
         company_id=company_id,
     )
     return _dedupe_model_names(general_response.get("models", []))
@@ -148,7 +149,7 @@ async def _fetch_active_language_model_enum_async(
     company_id: str,
     *,
     model_source: ModelSource,
-    user_id: str | None = None,
+    user_id: str = _DYNAMIC_ENUM_RETRIEVAL_USER_ID,
 ) -> type[StrEnum]:
     company_id = ensure_company_id(company_id)
     ensure_sdk_initialized()
@@ -174,7 +175,7 @@ async def get_active_language_models_async(
     company_id: str,
     *,
     model_source: ModelSource,
-    user_id: str | None = None,
+    user_id: str = _DYNAMIC_ENUM_RETRIEVAL_USER_ID,
 ) -> type[StrEnum]:
     """Return a StrEnum subclass narrowed to models available for the tenant.
 
@@ -184,6 +185,8 @@ async def get_active_language_models_async(
 
             - ``unique_ai``: ``module=UNIQUE_AI`` allowlisted models
             - ``general``: unfiltered cluster + custom models
+        user_id: Passed to the models API; defaults to a fixed sentinel for
+            dynamic enum retrieval (not a real end-user id).
     """
     company_id = ensure_company_id(company_id)
     enum_type, _from_cache = await _async_active_model_cache.get_or_fetch(
@@ -200,7 +203,7 @@ async def get_active_language_models_async(
 async def get_default_active_language_model_async(
     company_id: str,
     *,
-    user_id: str | None = None,
+    user_id: str = _DYNAMIC_ENUM_RETRIEVAL_USER_ID,
 ) -> LanguageModelName:
     """Return the preferred default model for *company_id*'s active set."""
     active_models = await get_active_language_models_async(
