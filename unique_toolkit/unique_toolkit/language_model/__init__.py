@@ -55,13 +55,7 @@ if TYPE_CHECKING:
         ensure_sdk_initialized as ensure_sdk_initialized,
     )
     from .dynamic import (
-        get_active_language_models as get_active_language_models,
-    )
-    from .dynamic import (
         get_active_language_models_async as get_active_language_models_async,
-    )
-    from .dynamic import (
-        get_default_active_language_model as get_default_active_language_model,
     )
     from .dynamic import (
         get_default_active_language_model_async as get_default_active_language_model_async,
@@ -74,9 +68,7 @@ _DYNAMIC_EXPORTS = {
     "ActiveLanguageModelConfigurationError",
     "ensure_company_id",
     "ensure_sdk_initialized",
-    "get_active_language_models",
     "get_active_language_models_async",
-    "get_default_active_language_model",
     "get_default_active_language_model_async",
     "get_schema_with_available_language_models",
 }
@@ -102,9 +94,7 @@ __all__ = [
     "ActiveLanguageModelConfigurationError",
     "ensure_company_id",
     "ensure_sdk_initialized",
-    "get_active_language_models",
     "get_active_language_models_async",
-    "get_default_active_language_model",
     "get_default_active_language_model_async",
     "get_schema_with_available_language_models",
     "Prompt",
