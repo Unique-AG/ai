@@ -151,7 +151,6 @@ async def _fetch_active_language_model_enum_async(
     model_source: ModelSource,
     user_id: str = _DYNAMIC_ENUM_RETRIEVAL_USER_ID,
 ) -> type[StrEnum]:
-    company_id = ensure_company_id(company_id)
     ensure_sdk_initialized()
     try:
         api_models = await _fetch_tenant_model_names_async(
@@ -329,84 +328,126 @@ def _schema_references_active_language_model(prop_schema: dict[str, Any]) -> boo
     )
 
 
+def _referenced_schema(
+    defs: Any,
+    prop_schema: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not isinstance(defs, dict):
+        return None
+
+    ref = prop_schema.get("$ref")
+    if isinstance(ref, str) and ref.startswith("#/$defs/"):
+        ref_schema = defs.get(ref.rsplit("/", 1)[-1])
+        return ref_schema if isinstance(ref_schema, dict) else None
+
+    any_of = prop_schema.get("anyOf")
+    if not isinstance(any_of, list):
+        return None
+    for branch in any_of:
+        if not isinstance(branch, dict):
+            continue
+        ref = branch.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            ref_schema = defs.get(ref.rsplit("/", 1)[-1])
+            return ref_schema if isinstance(ref_schema, dict) else None
+    return None
+
+
+def _rewrite_language_model_default_value(
+    defs: Any,
+    prop_schema: dict[str, Any],
+    value: Any,
+    *,
+    active_model_names: set[str],
+    replacement_default: str,
+) -> Any:
+    if (
+        isinstance(value, str)
+        and value not in active_model_names
+        and _schema_references_active_language_model(prop_schema)
+    ):
+        return replacement_default
+
+    if not isinstance(value, dict):
+        return value
+
+    ref_schema = _referenced_schema(defs, prop_schema)
+    if ref_schema is None:
+        return value
+
+    ref_properties = ref_schema.get("properties")
+    if not isinstance(ref_properties, dict):
+        return value
+
+    for child_name, child_schema in ref_properties.items():
+        if child_name not in value or not isinstance(child_schema, dict):
+            continue
+        value[child_name] = _rewrite_language_model_default_value(
+            defs,
+            child_schema,
+            value[child_name],
+            active_model_names=active_model_names,
+            replacement_default=replacement_default,
+        )
+    return value
+
+
+def _rewrite_language_model_property_defaults(
+    defs: Any,
+    properties: Any,
+    *,
+    active_model_names: set[str],
+    replacement_default: str,
+) -> None:
+    if not isinstance(properties, dict):
+        return
+    for prop_schema in properties.values():
+        if not isinstance(prop_schema, dict):
+            continue
+        if "default" not in prop_schema:
+            continue
+        prop_schema["default"] = _rewrite_language_model_default_value(
+            defs,
+            prop_schema,
+            prop_schema.get("default"),
+            active_model_names=active_model_names,
+            replacement_default=replacement_default,
+        )
+
+
 def _rewrite_invalid_language_model_defaults(
     schema: dict[str, Any],
     *,
     active_model_names: set[str],
     replacement_default: str,
 ) -> None:
+    """Rewrite stale LMI defaults in a narrowed JSON schema.
+
+    Field defaults are preserved verbatim when models are adapted, so a
+    narrowed enum can leave a default pointing at a model no longer in the
+    active set (including inside nested model instance defaults).
+    """
     defs = schema.get("$defs")
+    rewrite_kwargs = {
+        "active_model_names": active_model_names,
+        "replacement_default": replacement_default,
+    }
 
-    def _referenced_schema(prop_schema: dict[str, Any]) -> dict[str, Any] | None:
-        if not isinstance(defs, dict):
-            return None
-
-        ref = prop_schema.get("$ref")
-        if isinstance(ref, str) and ref.startswith("#/$defs/"):
-            ref_schema = defs.get(ref.rsplit("/", 1)[-1])
-            return ref_schema if isinstance(ref_schema, dict) else None
-
-        any_of = prop_schema.get("anyOf")
-        if not isinstance(any_of, list):
-            return None
-        for branch in any_of:
-            if not isinstance(branch, dict):
-                continue
-            ref = branch.get("$ref")
-            if isinstance(ref, str) and ref.startswith("#/$defs/"):
-                ref_schema = defs.get(ref.rsplit("/", 1)[-1])
-                return ref_schema if isinstance(ref_schema, dict) else None
-        return None
-
-    def _rewrite_default_value(prop_schema: dict[str, Any], value: Any) -> Any:
-        if (
-            isinstance(value, str)
-            and value not in active_model_names
-            and _schema_references_active_language_model(prop_schema)
-        ):
-            return replacement_default
-
-        if not isinstance(value, dict):
-            return value
-
-        ref_schema = _referenced_schema(prop_schema)
-        if ref_schema is None:
-            return value
-
-        ref_properties = ref_schema.get("properties")
-        if not isinstance(ref_properties, dict):
-            return value
-
-        for child_name, child_schema in ref_properties.items():
-            if child_name not in value or not isinstance(child_schema, dict):
-                continue
-            value[child_name] = _rewrite_default_value(
-                child_schema,
-                value[child_name],
-            )
-        return value
-
-    def _rewrite_properties(properties: Any) -> None:
-        if not isinstance(properties, dict):
-            return
-        for prop_schema in properties.values():
-            if not isinstance(prop_schema, dict):
-                continue
-            if "default" not in prop_schema:
-                continue
-            current_default = prop_schema.get("default")
-            prop_schema["default"] = _rewrite_default_value(
-                prop_schema,
-                current_default,
-            )
-
-    _rewrite_properties(schema.get("properties"))
+    _rewrite_language_model_property_defaults(
+        defs,
+        schema.get("properties"),
+        **rewrite_kwargs,
+    )
 
     if not isinstance(defs, dict):
         return
     for def_schema in defs.values():
         if isinstance(def_schema, dict):
-            _rewrite_properties(def_schema.get("properties"))
+            _rewrite_language_model_property_defaults(
+                defs,
+                def_schema.get("properties"),
+                **rewrite_kwargs,
+            )
 
 
 def get_schema_with_available_language_models(
@@ -436,5 +477,4 @@ def get_schema_with_available_language_models(
 
 def clear_active_language_model_caches() -> None:
     """Clear in-process caches — intended for tests."""
-    _async_active_model_cache._cache.clear()
-    _async_active_model_cache._stale.clear()
+    _async_active_model_cache.clear()
