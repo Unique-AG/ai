@@ -3,29 +3,24 @@
 from __future__ import annotations
 
 import logging
-import types
 from enum import StrEnum
-from typing import Annotated, Any, Literal, Union, get_args, get_origin
+from typing import Any, Literal
 
 import unique_sdk
-from pydantic import BaseModel, create_model
-from pydantic.fields import FieldInfo
+from pydantic import BaseModel
 from unique_sdk.api_resources._llm_models import LLMModels
 
 from unique_toolkit._common.async_ttl_cache import AsyncTTLCache
-from unique_toolkit._common.validators import build_lmi_annotation
-from unique_toolkit.language_model._enum_narrowing import (
+from unique_toolkit.language_model.enum_narrowing import (
     NoModelIntersectionError,
     build_language_model_enum_from_names,
     resolve_default_active_language_model,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
+from unique_toolkit.language_model.infos import LanguageModelName
 
 logger = logging.getLogger(__name__)
 
 ModelSource = Literal["unique_ai", "general"]
-
-_UNION_ORIGINS = frozenset({Union, types.UnionType})
 
 _DUMMY_SDK_VALUES = frozenset(
     {
@@ -213,108 +208,38 @@ async def get_default_active_language_model_async(
     return resolve_default_active_language_model(active_models)
 
 
-def _is_lmi_field(field: FieldInfo) -> bool:
-    return field.annotation is LanguageModelInfo
+_LANGUAGE_MODEL_NAME_REF = "#/$defs/LanguageModelName"
 
 
-def _as_base_model_type(annotation: Any) -> type[BaseModel] | None:
-    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-        return annotation
-    return None
+def _narrow_language_model_enums(
+    schema: dict[str, Any],
+    active_model_names: set[str],
+) -> None:
+    """Filter the shared ``LanguageModelName`` enum def to the active set.
+
+    JSON-schema ``$defs`` are shared by ``$ref``, so narrowing the single
+    ``LanguageModelName`` enum narrows every field that references it at once
+    — including bare-enum fields and models nested inside containers, which a
+    field-by-field model rebuild would miss. The original enum order is
+    preserved (stable, not API response order).
+    """
+    defs = schema.get("$defs")
+    if not isinstance(defs, dict):
+        return
+    language_model_def = defs.get("LanguageModelName")
+    if not isinstance(language_model_def, dict):
+        return
+    enum_values = language_model_def.get("enum")
+    if not isinstance(enum_values, list):
+        return
+    language_model_def["enum"] = [
+        value for value in enum_values if value in active_model_names
+    ]
 
 
-def _unwrap_annotated(annotation: Any) -> tuple[Any, tuple[Any, ...]]:
-    if get_origin(annotation) is Annotated:
-        args = get_args(annotation)
-        return args[0], args[1:]
-    return annotation, ()
-
-
-def _rebuild_annotated(original: Any, inner: Any) -> Any:
-    if get_origin(original) is Annotated:
-        metadata = get_args(original)[1:]
-        return Annotated[(inner, *metadata)]
-    return inner
-
-
-def _adapt_type_annotation(
-    annotation: Any,
-    available_models: list[str],
-    *,
-    cache: dict[type[BaseModel], type[BaseModel]],
-) -> Any:
-    inner, _metadata = _unwrap_annotated(annotation)
-
-    nested_model = _as_base_model_type(inner)
-    if nested_model is not None:
-        adapted = _adapt_model_with_available_language_models(
-            nested_model,
-            available_models,
-            cache=cache,
-        )
-        return _rebuild_annotated(annotation, adapted)
-
-    origin = get_origin(inner)
-    if origin in _UNION_ORIGINS:
-        members = get_args(inner)
-        adapted_members = tuple(
-            _adapt_type_annotation(member, available_models, cache=cache)
-            for member in members
-        )
-        if adapted_members == members:
-            return annotation
-        rebuilt = adapted_members[0]
-        for member in adapted_members[1:]:
-            rebuilt = rebuilt | member
-        return _rebuild_annotated(annotation, rebuilt)
-
-    return annotation
-
-
-def _adapt_model_with_available_language_models(
-    model: type[BaseModel],
-    available_models: list[str],
-    *,
-    cache: dict[type[BaseModel], type[BaseModel]] | None = None,
-) -> type[BaseModel]:
-    if cache is None:
-        cache = {}
-    cached = cache.get(model)
-    if cached is not None:
-        return cached
-
-    narrowed_lmi = build_lmi_annotation(available_models)
-    adapted_fields: dict[str, Any] = {}
-
-    for field_name, field in model.model_fields.items():
-        if _is_lmi_field(field):
-            adapted_fields[field_name] = (narrowed_lmi, field)
-            continue
-
-        adapted_annotation = _adapt_type_annotation(
-            field.annotation,
-            available_models,
-            cache=cache,
-        )
-        if adapted_annotation is not field.annotation:
-            adapted_fields[field_name] = (adapted_annotation, field)
-
-    if not adapted_fields:
-        cache[model] = model
-        return model
-
-    adapted_model = create_model(
-        f"{model.__name__}AvailableLanguageModels",
-        __base__=model,
-        **adapted_fields,
-    )
-    cache[model] = adapted_model
-    return adapted_model
-
-
-def _schema_references_active_language_model(prop_schema: dict[str, Any]) -> bool:
+def _schema_references_language_model(prop_schema: dict[str, Any]) -> bool:
     ref = prop_schema.get("$ref")
-    if ref == "#/$defs/ActiveLanguageModelName":
+    if ref == _LANGUAGE_MODEL_NAME_REF:
         return True
 
     any_of = prop_schema.get("anyOf")
@@ -322,8 +247,7 @@ def _schema_references_active_language_model(prop_schema: dict[str, Any]) -> boo
         return False
 
     return any(
-        isinstance(branch, dict)
-        and branch.get("$ref") == "#/$defs/ActiveLanguageModelName"
+        isinstance(branch, dict) and branch.get("$ref") == _LANGUAGE_MODEL_NAME_REF
         for branch in any_of
     )
 
@@ -364,7 +288,7 @@ def _rewrite_language_model_default_value(
     if (
         isinstance(value, str)
         and value not in active_model_names
-        and _schema_references_active_language_model(prop_schema)
+        and _schema_references_language_model(prop_schema)
     ):
         return replacement_default
 
@@ -421,11 +345,11 @@ def _rewrite_invalid_language_model_defaults(
     active_model_names: set[str],
     replacement_default: str,
 ) -> None:
-    """Rewrite stale LMI defaults in a narrowed JSON schema.
+    """Rewrite stale language-model defaults in a narrowed JSON schema.
 
-    Field defaults are preserved verbatim when models are adapted, so a
-    narrowed enum can leave a default pointing at a model no longer in the
-    active set (including inside nested model instance defaults).
+    Narrowing the enum leaves field defaults untouched, so a default can still
+    point at a model no longer in the active set (including inside nested model
+    instance defaults). Replace those with a deterministic in-set default.
     """
     defs = schema.get("$defs")
     rewrite_kwargs = {
@@ -454,17 +378,25 @@ def get_schema_with_available_language_models(
     model: type[BaseModel],
     available_models: list[str],
 ) -> dict[str, Any]:
-    """Return a JSON schema whose LMI fields are narrowed to available models."""
+    """Return a JSON schema whose language-model fields are narrowed to *available_models*.
+
+    Operates directly on the generated JSON schema (the schema is the only
+    deliverable): the shared ``LanguageModelName`` enum is filtered in place —
+    narrowing every referencing field at once — and stale defaults are
+    rewritten to a deterministic in-set default.
+
+    Note: the ``LMI`` input type also carries a free-form "Language Model
+    String" branch that is left unconstrained here (matching prior behavior);
+    runtime enforcement of the tenant set belongs to ``build_lmi_annotation``.
+    """
     if not available_models:
         return model.model_json_schema()
 
     active_model_enum = build_language_model_enum_from_names(available_models)
     active_model_names = {member.value for member in active_model_enum}
-    adapted_model = _adapt_model_with_available_language_models(
-        model,
-        available_models,
-    )
-    schema = adapted_model.model_json_schema()
+
+    schema = model.model_json_schema()
+    _narrow_language_model_enums(schema, active_model_names)
     _rewrite_invalid_language_model_defaults(
         schema,
         active_model_names=active_model_names,

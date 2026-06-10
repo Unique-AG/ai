@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from pydantic import BeforeValidator, Field, PlainSerializer, ValidationInfo
 from pydantic.fields import FieldInfo
 
-from unique_toolkit.language_model._enum_narrowing import (
+from unique_toolkit.language_model.enum_narrowing import (
     build_language_model_enum_from_names,
 )
 from unique_toolkit.language_model.infos import (
