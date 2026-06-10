@@ -352,15 +352,12 @@ def _rewrite_invalid_language_model_defaults(
     instance defaults). Replace those with a deterministic in-set default.
     """
     defs = schema.get("$defs")
-    rewrite_kwargs = {
-        "active_model_names": active_model_names,
-        "replacement_default": replacement_default,
-    }
 
     _rewrite_language_model_property_defaults(
         defs,
         schema.get("properties"),
-        **rewrite_kwargs,
+        active_model_names=active_model_names,
+        replacement_default=replacement_default,
     )
 
     if not isinstance(defs, dict):
@@ -370,7 +367,8 @@ def _rewrite_invalid_language_model_defaults(
             _rewrite_language_model_property_defaults(
                 defs,
                 def_schema.get("properties"),
-                **rewrite_kwargs,
+                active_model_names=active_model_names,
+                replacement_default=replacement_default,
             )
 
 
