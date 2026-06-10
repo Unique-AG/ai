@@ -58,14 +58,22 @@ class CrawlTargetValidationError(ValueError):
     def __init__(self, blocked_targets: list[BlockedCrawlTarget]):
         self.blocked_targets: list[BlockedCrawlTarget] = blocked_targets
 
-        for target in blocked_targets:
-            crawl_blocked.labels(reason_category=target.category).inc()
-
         details = "; ".join(
             f"{target.display_target} ({target.reason})"
             for target in self.blocked_targets
         )
         super().__init__(f"Blocked crawl target(s) due to URL safety policy: {details}")
+
+
+def record_blocked_crawl_targets(targets: list[BlockedCrawlTarget]) -> None:
+    """Increment the ``crawl_blocked`` counter once per newly-detected target.
+
+    Must be called at first-detection sites only. Aggregating call sites that
+    re-raise targets already recorded by an upstream caller must not invoke
+    this helper, otherwise the counter would double-count the same targets.
+    """
+    for target in targets:
+        crawl_blocked.labels(reason_category=target.category).inc()
 
 
 def bypass_crawl_target(url: str) -> ResolvedCrawlTarget:

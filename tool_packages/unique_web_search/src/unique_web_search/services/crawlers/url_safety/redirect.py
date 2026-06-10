@@ -9,6 +9,7 @@ import httpx
 from unique_web_search.services.crawlers.url_safety.models import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
+    record_blocked_crawl_targets,
 )
 from unique_web_search.services.crawlers.url_safety.netloc import extract_hostname
 from unique_web_search.services.crawlers.url_safety.settings import url_safety_settings
@@ -36,15 +37,15 @@ async def resolve_redirect_chain(
             error = await validate_url(current)
             if error is not None:
                 category, reason = error
-                raise CrawlTargetValidationError(
-                    [
-                        BlockedCrawlTarget(
-                            hostname=extract_hostname(current),
-                            category=category,
-                            reason=reason,
-                        )
-                    ]
-                )
+                blocked = [
+                    BlockedCrawlTarget(
+                        hostname=extract_hostname(current),
+                        category=category,
+                        reason=reason,
+                    )
+                ]
+                record_blocked_crawl_targets(blocked)
+                raise CrawlTargetValidationError(blocked)
 
             try:
                 resp = await client.head(current)
@@ -68,14 +69,14 @@ async def resolve_redirect_chain(
     error = await validate_url(current)
     if error is not None:
         category, reason = error
-        raise CrawlTargetValidationError(
-            [
-                BlockedCrawlTarget(
-                    hostname=extract_hostname(current),
-                    category=category,
-                    reason=reason,
-                )
-            ]
-        )
+        blocked = [
+            BlockedCrawlTarget(
+                hostname=extract_hostname(current),
+                category=category,
+                reason=reason,
+            )
+        ]
+        record_blocked_crawl_targets(blocked)
+        raise CrawlTargetValidationError(blocked)
 
     return current

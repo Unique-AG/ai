@@ -9,6 +9,7 @@ from unique_web_search.services.crawlers.url_safety.models import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
+    record_blocked_crawl_targets,
 )
 from unique_web_search.services.crawlers.url_safety.netloc import extract_hostname
 from unique_web_search.services.crawlers.url_safety.policy import validate_target_cheap
@@ -21,28 +22,28 @@ async def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
     validation_error = validate_target_cheap(normalized_url)
     if validation_error is not None:
         category, reason = validation_error
-        raise CrawlTargetValidationError(
-            [
-                BlockedCrawlTarget(
-                    hostname=extract_hostname(normalized_url),
-                    category=category,
-                    reason=reason,
-                )
-            ]
-        )
+        blocked = [
+            BlockedCrawlTarget(
+                hostname=extract_hostname(normalized_url),
+                category=category,
+                reason=reason,
+            )
+        ]
+        record_blocked_crawl_targets(blocked)
+        raise CrawlTargetValidationError(blocked)
 
     parsed_url = urlsplit(normalized_url)
     hostname = parsed_url.hostname
     if hostname is None:
-        raise CrawlTargetValidationError(
-            [
-                BlockedCrawlTarget(
-                    hostname=None,
-                    category="host",
-                    reason="URL host is missing or malformed",
-                )
-            ]
-        )
+        blocked = [
+            BlockedCrawlTarget(
+                hostname=None,
+                category="host",
+                reason="URL host is missing or malformed",
+            )
+        ]
+        record_blocked_crawl_targets(blocked)
+        raise CrawlTargetValidationError(blocked)
 
     normalized_host = hostname.rstrip(".").lower()
 
@@ -54,15 +55,15 @@ async def resolve_crawl_target(url: str) -> ResolvedCrawlTarget:
         )
         if validation_error is not None:
             category, reason = validation_error
-            raise CrawlTargetValidationError(
-                [
-                    BlockedCrawlTarget(
-                        hostname=normalized_host,
-                        category=category,
-                        reason=reason,
-                    )
-                ]
-            )
+            blocked = [
+                BlockedCrawlTarget(
+                    hostname=normalized_host,
+                    category=category,
+                    reason=reason,
+                )
+            ]
+            record_blocked_crawl_targets(blocked)
+            raise CrawlTargetValidationError(blocked)
         return ResolvedCrawlTarget(
             normalized_url=normalized_url,
             hostname=normalized_host,
