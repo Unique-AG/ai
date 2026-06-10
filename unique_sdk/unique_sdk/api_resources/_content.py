@@ -2,7 +2,6 @@ from enum import Enum
 from typing import (
     Any,
     Literal,
-    Optional,
     TypedDict,
     cast,
 )
@@ -220,7 +219,7 @@ class Content(APIResource["Content"]):
         contentId: NotRequired[str]
         filePath: NotRequired[str]
         ownerId: NotRequired[str]
-        chatId: NotRequired[Optional[str]]
+        chatId: NotRequired[str | None]
         parentFolderPath: NotRequired[str]
         title: NotRequired[str]
         metadata: NotRequired[dict[str, str | None]]
