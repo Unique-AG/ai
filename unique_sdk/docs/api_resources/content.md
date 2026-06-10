@@ -361,6 +361,7 @@ The Content resource provides methods to:
     - `ownerId` (str, optional) - Move file to different folder using folder ID
     - `parentFolderPath` (str, optional) - Move file to different folder using folder path
     - `metadata` (Dict[str, str | None], optional) - Update file metadata (available in release >.40)
+    - `chatId` (str, optional) - Chat ID that owns this file. Required when updating files that were uploaded in a chat context.
 
     **Returns:**
 
@@ -413,6 +414,21 @@ The Content resource provides methods to:
         company_id=company_id,
         contentId="cont_ok2343q5owbce80w78hudawu5",
         parentFolderPath="/Company/Revisions"
+    )
+    ```
+
+    Update metadata for a chat-bound file:
+
+    ```python
+    unique_sdk.Content.update(
+        user_id=user_id,
+        company_id=company_id,
+        contentId="cont_ok2343q5owbce80w78hudawu5",
+        chatId="chat_v3xfa7liv876h89vuiibus1",
+        metadata={
+            "processed": "true",
+            "extractedEntities": "acme_corp",
+        }
     )
     ```
 

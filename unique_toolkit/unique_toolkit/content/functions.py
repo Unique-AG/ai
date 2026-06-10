@@ -983,7 +983,23 @@ def update_content(
     title: str | None = None,
     chat_id: str | None = None,
 ) -> ContentInfo:
-    """Updates the metadata of a content."""
+    """Updates the metadata or title of a content item.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content_id (str): The content ID to update.
+        metadata (dict[str, Any]): The metadata to set on the content.
+        file_path (str | None): Absolute file path (alternative to content_id). Defaults to None.
+        owner_id (str | None): Move the file to a different folder by folder ID. Defaults to None.
+        parent_folder_path (str | None): Move the file to a different folder by path. Defaults to None.
+        title (str | None): New title for the content. Defaults to None.
+        chat_id (str | None): Chat ID that owns this file. Required when updating
+            files that were uploaded in a chat context. Defaults to None.
+
+    Returns:
+        ContentInfo: The updated content info.
+    """
 
     update_params = unique_sdk.Content.UpdateParams(
         contentId=content_id, metadata=metadata
