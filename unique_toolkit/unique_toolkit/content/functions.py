@@ -981,7 +981,6 @@ def update_content(
     owner_id: str | None = None,
     parent_folder_path: str | None = None,
     title: str | None = None,
-    chat_id: str | None = None,
 ) -> ContentInfo:
     """Updates the metadata of a content."""
 
@@ -997,8 +996,6 @@ def update_content(
         update_params["parentFolderPath"] = parent_folder_path
     if title:
         update_params["title"] = title
-    if chat_id:
-        update_params["chatId"] = chat_id
 
     content_info = unique_sdk.Content.update(
         user_id=user_id, company_id=company_id, **update_params
