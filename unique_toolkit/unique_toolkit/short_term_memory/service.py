@@ -56,7 +56,7 @@ class ShortTermMemoryService:
         if event:
             self._company_id: str = event.company_id
             self._user_id: str = event.user_id
-            if isinstance(event, (ChatEvent, Event)):
+            if isinstance(event, ChatEvent):
                 self._chat_id = event.payload.chat_id
                 self._message_id = event.payload.user_message.id
         else:

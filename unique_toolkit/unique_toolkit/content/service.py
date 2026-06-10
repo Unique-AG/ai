@@ -8,7 +8,7 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Correlation, Event
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Correlation
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
@@ -46,7 +46,7 @@ class ContentService:
         "Use __init__ with company_id, user_id and chat_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
+    def __init__(self, event: BaseEvent[Any]): ...
 
     """
         Initialize the ContentService with an event (deprecated)
@@ -68,7 +68,7 @@ class ContentService:
 
     def __init__(
         self,
-        event: Event | BaseEvent[Any] | None = None,
+        event: BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
@@ -83,7 +83,7 @@ class ContentService:
         if event:
             self._company_id: str = event.company_id
             self._user_id: str = event.user_id
-            if isinstance(event, (ChatEvent, Event)):
+            if isinstance(event, ChatEvent):
                 self._metadata_filter = event.payload.metadata_filter
                 self._chat_id: str | None = event.payload.chat_id
         else:
@@ -94,7 +94,7 @@ class ContentService:
             self._metadata_filter = metadata_filter
 
     @classmethod
-    def from_event(cls, event: Event | ChatEvent | BaseEvent[Any]):
+    def from_event(cls, event: BaseEvent[Any]):
         """Initialize the ContentService with an event.
 
         When the event has a correlation (e.g. subagent run), delegates to
@@ -109,24 +109,17 @@ class ContentService:
             ContentService: Instance scoped to the event's chat or, when
                 correlation is present, the parent chat.
         """
-        if (
-            isinstance(event, (ChatEvent, Event))
-            and getattr(event.payload, "correlation", None) is not None
-        ):
-            if event.payload.correlation is None:
-                raise ValueError(
-                    "correlation attribute is not defined in the event payload"
-                )
+        if isinstance(event, ChatEvent) and event.payload.correlation is not None:
             return cls.from_correlation(
                 event.company_id,
                 event.user_id,
                 event.payload.correlation,
-                metadata_filter=getattr(event.payload, "metadata_filter", None),
+                metadata_filter=event.payload.metadata_filter,
             )
         chat_id = None
         metadata_filter = None
 
-        if isinstance(event, (ChatEvent | Event)):
+        if isinstance(event, ChatEvent):
             chat_id = event.payload.chat_id
             metadata_filter = event.payload.metadata_filter
 
@@ -192,7 +185,7 @@ class ContentService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent[Any] | None:
+    def event(self) -> BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 
