@@ -321,13 +321,13 @@
             "type": "boolean",
             "title": "Extra snippets",
             "description": "Request up to five additional alternative excerpts per result (Brave `extra_snippets`).",
-            "default": false
+            "default": true
           },
           "spellcheck": {
             "type": "boolean",
             "title": "Spellcheck",
             "description": "Whether Brave spell-checks the query and uses the corrected form.",
-            "default": true
+            "default": false
           },
           "textDecorations": {
             "type": "boolean",

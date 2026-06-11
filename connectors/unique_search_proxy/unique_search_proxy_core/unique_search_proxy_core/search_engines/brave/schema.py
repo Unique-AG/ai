@@ -46,14 +46,14 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
     )
 
     extra_snippets: bool = Field(
-        default=False,
+        default=True,
         title="Extra snippets",
         description=(
             "Request up to five additional alternative excerpts per result (Brave `extra_snippets`)."
         ),
     )
     spellcheck: bool = Field(
-        default=True,
+        default=False,
         title="Spellcheck",
         description="Whether Brave spell-checks the query and uses the corrected form.",
     )

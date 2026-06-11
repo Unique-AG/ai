@@ -27,8 +27,8 @@ class BraveRequest:
         fetch_size (int | Unset): Default result count merged into each search request Default: 10.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         extra_snippets (bool | Unset): Request up to five additional alternative excerpts per result (Brave
-            `extra_snippets`). Default: False.
-        spellcheck (bool | Unset): Whether Brave spell-checks the query and uses the corrected form. Default: True.
+            `extra_snippets`). Default: True.
+        spellcheck (bool | Unset): Whether Brave spell-checks the query and uses the corrected form. Default: False.
         text_decorations (bool | Unset): Whether result snippets include decoration markers (e.g. highlighting).
             Default: True.
         operators (bool | Unset): Whether Brave applies search operators in the query. Default: True.
@@ -56,8 +56,8 @@ class BraveRequest:
     engine: Literal["brave"] | Unset = "brave"
     fetch_size: int | Unset = 10
     timeout: int | Unset = 30
-    extra_snippets: bool | Unset = False
-    spellcheck: bool | Unset = True
+    extra_snippets: bool | Unset = True
+    spellcheck: bool | Unset = False
     text_decorations: bool | Unset = True
     operators: bool | Unset = True
     ui_lang: str | Unset = "en-US"
