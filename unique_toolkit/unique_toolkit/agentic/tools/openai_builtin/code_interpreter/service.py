@@ -7,7 +7,6 @@ from typing import Any, override
 from openai import (
     AsyncOpenAI,
     BaseModel,
-    NotFoundError,
 )
 from openai.types.responses import ResponseCodeInterpreterToolCall, ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
@@ -102,7 +101,8 @@ async def _check_container_exists(
 ) -> bool:
     try:
         container = await client.containers.retrieve(memory.container_id)
-    except NotFoundError:
+    # The error here is sometimes InternalServerError, and sometimes a NotFoundError. We catch everything and re-create on exception
+    except Exception:
         logger.info("Container %s not found", memory.container_id)
         return False
 
