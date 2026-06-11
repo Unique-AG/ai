@@ -103,7 +103,7 @@ async def _check_container_exists(
         container = await client.containers.retrieve(memory.container_id)
     # The error here is sometimes InternalServerError, and sometimes a NotFoundError. We catch everything and re-create on exception
     except Exception:
-        logger.info("Container %s not found", memory.container_id)
+        logger.exception("Container %s not found", memory.container_id)
         return False
 
     if container.status not in ["active", "running"]:
