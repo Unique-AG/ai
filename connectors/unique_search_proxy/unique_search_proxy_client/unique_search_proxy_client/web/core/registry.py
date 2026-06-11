@@ -72,14 +72,14 @@ def registered_crawlers() -> frozenset[str]:
 def get_search_engine(engine_id: str) -> type[SearchEngine[Any]]:
     engine_cls = _SEARCH_ENGINE_REGISTRY.get(engine_id)
     if engine_cls is None:
-        raise EngineNotConfiguredError(engine_id, kind="engine")
+        raise EngineNotConfiguredError()
     return engine_cls
 
 
 def get_crawler(crawler_id: str) -> type[BaseCrawler[Any]]:
     crawler_cls = _CRAWLER_REGISTRY.get(crawler_id)
     if crawler_cls is None:
-        raise EngineNotConfiguredError(crawler_id, kind="crawler")
+        raise EngineNotConfiguredError()
     return crawler_cls
 
 

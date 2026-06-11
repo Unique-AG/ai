@@ -1,15 +1,15 @@
 import pytest
 
-from unique_search_proxy_client.web.core.client.settings import (
-    HttpClientSettingsForTests,
+from unique_search_proxy_client.web.settings.client import (
     ProxyAuthMode,
+    get_http_client_settings,
 )
 
 
 class TestHttpClientSettings:
     @pytest.mark.ai
     def test_defaults(self) -> None:
-        settings = HttpClientSettingsForTests()
+        settings = get_http_client_settings()
         assert settings.proxy_auth_mode == "none"
         assert settings.pool_timeout_seconds == 30.0
         assert settings.max_connections == 100
@@ -17,7 +17,8 @@ class TestHttpClientSettings:
     @pytest.mark.ai
     def test_proxy_auth_mode_literal(self) -> None:
         mode: ProxyAuthMode = "username_password"
-        settings = HttpClientSettingsForTests(proxy_auth_mode=mode)
+        settings = get_http_client_settings()
+        settings = type(settings)(proxy_auth_mode=mode)
         assert settings.proxy_auth_mode == "username_password"
 
     @pytest.mark.ai
@@ -25,6 +26,6 @@ class TestHttpClientSettings:
         monkeypatch.setenv("HTTP_CLIENT_PROXY_AUTH_MODE", "none")
         monkeypatch.setenv("HTTP_CLIENT_POOL_TIMEOUT_SECONDS", "45")
         monkeypatch.setenv("HTTP_CLIENT_MAX_CONNECTIONS", "50")
-        settings = HttpClientSettingsForTests()
+        settings = get_http_client_settings()
         assert settings.pool_timeout_seconds == 45.0
         assert settings.max_connections == 50

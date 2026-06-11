@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import httpx
 from httpx import AsyncClient
 
-from unique_search_proxy_client.web.core.client.settings import (
+from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     ProxyAuthMode,
     ProxyConfig,

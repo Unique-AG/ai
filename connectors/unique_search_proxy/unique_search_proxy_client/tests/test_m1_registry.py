@@ -46,10 +46,6 @@ class TestRegistry:
             engine_id = "stub"
 
             @property
-            def snippet_only(self) -> bool:
-                return True
-
-            @property
             def mode(self) -> str:
                 return "stub"
 

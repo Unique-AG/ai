@@ -30,10 +30,16 @@ from unique_search_proxy_client.web.error_handlers import proxy_error_response
             ProxyErrorCode.RATE_LIMITED,
         ),
         (UpstreamError("upstream"), 502, ProxyErrorCode.UPSTREAM_ERROR),
-        (EngineNotConfiguredError("google"), 503, ProxyErrorCode.ENGINE_NOT_CONFIGURED),
+        (
+            EngineNotConfiguredError(
+                missing_env_vars=["GOOGLE_SEARCH_API_KEY"],
+            ),
+            503,
+            ProxyErrorCode.ENGINE_NOT_CONFIGURED,
+        ),
         (UpstreamTimeoutError("timeout"), 504, ProxyErrorCode.UPSTREAM_TIMEOUT),
         (
-            EmptySearchResultsError("none", engine="google"),
+            EmptySearchResultsError("none"),
             404,
             ProxyErrorCode.EMPTY_SEARCH_RESULTS,
         ),
@@ -92,7 +98,11 @@ class TestV1StructuredErrors:
                 },
             )
             assert resp.status_code == 503
-            assert resp.json()["error"]["crawler"] == CrawlerType.BASIC.value
+            error = resp.json()["error"]
+            assert error["request"] == "crawl"
+            assert error["provider"] == CrawlerType.BASIC.value
+            assert "engine" not in error
+            assert "crawler" not in error
         finally:
             _CRAWLER_REGISTRY.clear()
             _CRAWLER_REGISTRY.update(saved)

@@ -86,7 +86,15 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GoogleRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GoogleRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BraveRequest"
+                  }
+                ],
+                "title": "Body"
               },
               "examples": {
                 "google_search": {
@@ -268,6 +276,181 @@
           "urls"
         ],
         "title": "Basic Proxy Crawler "
+      },
+      "BraveRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "brave",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `brave` for this config.",
+            "default": "brave"
+          },
+          "fetchSize": {
+            "type": "integer",
+            "title": "Fetch Size",
+            "description": "Default result count merged into each search request",
+            "default": 10
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "extraSnippets": {
+            "type": "boolean",
+            "title": "Extra snippets",
+            "description": "Request up to five additional alternative excerpts per result (Brave `extra_snippets`).",
+            "default": true
+          },
+          "spellcheck": {
+            "type": "boolean",
+            "title": "Spellcheck",
+            "description": "Whether Brave spell-checks the query and uses the corrected form.",
+            "default": true
+          },
+          "textDecorations": {
+            "type": "boolean",
+            "title": "Text decorations",
+            "description": "Whether result snippets include decoration markers (e.g. highlighting).",
+            "default": true
+          },
+          "operators": {
+            "type": "boolean",
+            "title": "Search operators",
+            "description": "Whether Brave applies search operators in the query.",
+            "default": true
+          },
+          "uiLang": {
+            "type": "string",
+            "title": "UI language",
+            "description": "User interface language for response strings (Brave `ui_lang`), e.g. `en-US`. Distinct from `search_lang`.",
+            "default": "en-US"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "metric",
+                  "imperial"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement units",
+            "description": "Measurement units for location-rich results: `metric` or `imperial`."
+          },
+          "summary": {
+            "type": "boolean",
+            "title": "Summary",
+            "description": "Enable summary key generation in web search results (Brave summarizer).",
+            "default": false
+          },
+          "includeFetchMetadata": {
+            "type": "boolean",
+            "title": "Include fetch metadata",
+            "description": "Include fetch metadata in the Brave response.",
+            "default": false
+          },
+          "goggles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Goggles",
+            "description": "Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles per request."
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country",
+            "description": "Two-letter ISO 3166-1 alpha-2 country code for result origin (Brave `country`). Set `value` for a fixed default; set `expose` so the LLM may override per query."
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness",
+            "description": "Recency filter: `pd`, `pw`, `pm`, `py`, or `YYYY-MM-DDtoYYYY-MM-DD`. `value` + `expose` behave like `country`."
+          },
+          "searchLang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search language",
+            "description": "Language code for result documents (Brave `search_lang`). `value` + `expose` behave like `country`."
+          },
+          "safesearch": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "moderate",
+                  "strict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safe search",
+            "description": "Adult content filter: `off`, `moderate` (API default), or `strict`. Usually set via admin `value`; enable `expose` only if the LLM may tune per query."
+          },
+          "resultFilter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result filter",
+            "description": "Result types to include, e.g. `web`, `news`, `videos`. Omit (`null`) for all subscribed types. `value` + `expose` behave like `country`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Brave Request"
       },
       "ContentTypeToggles": {
         "properties": {

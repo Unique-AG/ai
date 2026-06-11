@@ -5,6 +5,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.brave_request import BraveRequest
 from ...models.google_request import GoogleRequest
 from ...models.http_validation_error import HTTPValidationError
 from ...models.search_response import SearchResponse
@@ -13,7 +14,7 @@ from ...types import Response
 
 def _get_kwargs(
     *,
-    body: GoogleRequest,
+    body: BraveRequest | GoogleRequest,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -22,7 +23,10 @@ def _get_kwargs(
         "url": "/v1/search",
     }
 
-    _kwargs["json"] = body.to_dict()
+    if isinstance(body, GoogleRequest):
+        _kwargs["json"] = body.to_dict()
+    else:
+        _kwargs["json"] = body.to_dict()
 
     headers["Content-Type"] = "application/json"
 
@@ -63,12 +67,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: GoogleRequest,
+    body: BraveRequest | GoogleRequest,
 ) -> Response[HTTPValidationError | SearchResponse]:
     """Run a search engine with a typed call payload
 
     Args:
-        body (GoogleRequest):
+        body (BraveRequest | GoogleRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,12 +96,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    body: GoogleRequest,
+    body: BraveRequest | GoogleRequest,
 ) -> HTTPValidationError | SearchResponse | None:
     """Run a search engine with a typed call payload
 
     Args:
-        body (GoogleRequest):
+        body (BraveRequest | GoogleRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -116,12 +120,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: GoogleRequest,
+    body: BraveRequest | GoogleRequest,
 ) -> Response[HTTPValidationError | SearchResponse]:
     """Run a search engine with a typed call payload
 
     Args:
-        body (GoogleRequest):
+        body (BraveRequest | GoogleRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,12 +147,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    body: GoogleRequest,
+    body: BraveRequest | GoogleRequest,
 ) -> HTTPValidationError | SearchResponse | None:
     """Run a search engine with a typed call payload
 
     Args:
-        body (GoogleRequest):
+        body (BraveRequest | GoogleRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

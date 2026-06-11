@@ -55,7 +55,7 @@ proxy_errors_total = m.counter(
 
 
 def _metrics_enabled() -> bool:
-    from unique_search_proxy_client.web.monitoring.settings import prometheus_settings
+    from unique_search_proxy_client.web.settings.monitoring import prometheus_settings
 
     return prometheus_settings.enabled
 

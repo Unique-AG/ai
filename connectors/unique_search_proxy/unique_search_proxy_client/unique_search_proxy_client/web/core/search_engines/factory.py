@@ -7,6 +7,9 @@ from unique_search_proxy_core.search_engines.base import SearchEngine, SearchEng
 from unique_search_proxy_core.search_engines.config_types import SearchEngineConfigTypes
 from unique_search_proxy_core.search_engines.params import merge_config_and_invocation
 
+from unique_search_proxy_client.web.core.search_engines.brave.service import (
+    BraveSearchService,
+)
 from unique_search_proxy_client.web.core.search_engines.google.service import (
     GoogleSearchService,
 )
@@ -24,6 +27,8 @@ def get_search_engine_service(
     match engine:
         case SearchEngineType.GOOGLE:
             return GoogleSearchService(http_client=http_client)
+        case SearchEngineType.BRAVE:
+            return BraveSearchService(http_client=http_client)
         case _:
             raise ValueError(f"Unsupported search engine: {engine}")
 
@@ -39,6 +44,12 @@ def resolve_engine_request(
                 config,
                 dict(invocation),
                 engine=SearchEngineType.GOOGLE,
+            )
+        case SearchEngineType.BRAVE:
+            return merge_config_and_invocation(
+                config,
+                dict(invocation),
+                engine=SearchEngineType.BRAVE,
             )
         case _:
             raise ValueError(f"Unsupported search engine: {config.engine}")

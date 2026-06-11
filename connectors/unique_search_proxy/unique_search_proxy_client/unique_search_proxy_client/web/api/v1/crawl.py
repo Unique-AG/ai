@@ -6,7 +6,11 @@ import time
 
 from fastapi import APIRouter, Body, Request
 from unique_search_proxy_core.crawlers.config_types import CrawlRequest
-from unique_search_proxy_core.errors import ProxyError, UpstreamTimeoutError
+from unique_search_proxy_core.errors import (
+    ProxyError,
+    UpstreamTimeoutError,
+    attach_request_context,
+)
 from unique_search_proxy_core.schema import CrawlResponse, ProxyErrorCode
 
 from unique_search_proxy_client.web.api.v1.openapi_examples import (
@@ -21,6 +25,14 @@ from unique_search_proxy_client.web.monitoring.metrics import (
 
 router = APIRouter(tags=["crawl"])
 _LOGGER = logging.getLogger(__name__)
+
+
+def _crawl_request_context(exc: ProxyError, *, crawler_id: str) -> ProxyError:
+    return attach_request_context(
+        exc,
+        request="crawl",
+        provider=crawler_id,
+    )
 
 
 @router.post(
@@ -47,12 +59,14 @@ async def crawl(
             ProxyErrorCode.UPSTREAM_TIMEOUT.value,
             time.perf_counter() - started,
         )
-        raise UpstreamTimeoutError(
-            f"Crawler '{crawler_id}' timed out after {timeout}s",
-            crawler=crawler_id,
+        raise _crawl_request_context(
+            UpstreamTimeoutError(
+                f"Crawler '{crawler_id}' timed out after {timeout}s",
+            ),
+            crawler_id=crawler_id,
         ) from exc
-    except ProxyError:
-        raise
+    except ProxyError as exc:
+        raise _crawl_request_context(exc, crawler_id=crawler_id) from exc
     except Exception:
         record_crawl_error(
             crawler_id,

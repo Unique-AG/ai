@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -14,6 +15,19 @@ from unique_search_proxy_client.web.error_handlers import register_exception_han
 from unique_search_proxy_client.web.monitoring import setup_prometheus
 
 load_dotenv()
+
+
+def _configure_logging() -> None:
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
+
+
+_configure_logging()
 
 _LOGGER = logging.getLogger(__name__)
 

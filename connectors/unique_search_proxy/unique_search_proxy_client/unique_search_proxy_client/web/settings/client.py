@@ -3,10 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 
-from unique_search_proxy_client.web.settings.base import (
-    is_test_runtime,
-    settings_config,
-)
+from unique_search_proxy_client.web.settings.base import get_settings
 
 HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
 
@@ -29,8 +26,6 @@ class HttpClientSettings(BaseSettings):
     ``HTTP_CLIENT_PROXY_HOST``, ``HTTP_CLIENT_POOL_TIMEOUT_SECONDS``.
     """
 
-    model_config = settings_config(env_prefix=HTTP_CLIENT_ENV_PREFIX)
-
     proxy_auth_mode: ProxyAuthMode = "none"
     proxy_protocol: ProxyProtocol = "http"
     proxy_host: str | None = None
@@ -47,14 +42,8 @@ class HttpClientSettings(BaseSettings):
     max_keepalive_connections: int = 20
 
 
-class HttpClientSettingsForTests(HttpClientSettings):
-    model_config = settings_config(env_prefix=HTTP_CLIENT_ENV_PREFIX, test=True)
-
-
 def get_http_client_settings() -> HttpClientSettings:
-    if is_test_runtime():
-        return HttpClientSettingsForTests()
-    return HttpClientSettings()
+    return get_settings(HttpClientSettings, env_prefix=HTTP_CLIENT_ENV_PREFIX)
 
 
 http_client_settings: HttpClientSettings = get_http_client_settings()

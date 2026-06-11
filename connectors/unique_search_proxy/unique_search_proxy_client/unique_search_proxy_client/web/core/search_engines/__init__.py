@@ -1,6 +1,10 @@
 from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
+from unique_search_proxy_client.web.core.search_engines.brave.service import (
+    BraveSearchService,
+)
 from unique_search_proxy_client.web.core.search_engines.descriptor import (
     SearchEngineDescriptor,
 )
@@ -26,9 +30,19 @@ def register_builtin_search_engines() -> None:
             service_cls=GoogleSearchService,
         ),
     )
+    register_search_engine(
+        SearchEngineType.BRAVE.value,
+        BraveSearchService,
+        descriptor=SearchEngineDescriptor(
+            config_model=BraveConfig,
+            service_cls=BraveSearchService,
+        ),
+    )
 
 
 __all__ = [
+    "BraveConfig",
+    "BraveSearchService",
     "GoogleConfig",
     "GoogleSearchService",
     "SearchEngineDescriptor",

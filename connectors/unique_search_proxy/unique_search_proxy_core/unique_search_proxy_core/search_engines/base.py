@@ -31,10 +31,12 @@ class SearchEngineType(StrEnum):
     """Registered search engine ids (JSON discriminator values)."""
 
     GOOGLE = "google"
+    BRAVE = "brave"
 
 
 _SEARCH_ENGINE_MODE_MAP: dict[SearchEngineType, SearchEngineMode] = {
     SearchEngineType.GOOGLE: SearchEngineMode.STANDARD,
+    SearchEngineType.BRAVE: SearchEngineMode.STANDARD,
 }
 
 
@@ -72,13 +74,13 @@ class BaseSearchEngineConfig(BaseModel, Generic[T]):
         """Merge exposable knobs with field ``default_factory`` when JSON omits ``value``."""
         return merge_exposable_params_with_factory_defaults(cls, data)
 
-    def provider_query_params_from(self, request: BaseModel) -> dict[str, Any]:
+    def provider_query_params_from(self, request: BaseModel, by_alias: bool = True) -> dict[str, Any]:
         """Provider query string params from a derived ``*ConfigRequest`` model."""
         from unique_search_proxy_core.search_engines.params import (
             provider_query_params_from_request,
         )
 
-        return provider_query_params_from_request(request, type(self))
+        return provider_query_params_from_request(request, type(self), by_alias=by_alias)
 
 
 class SearchEngine(ABC, Generic[SearchRequestT]):
@@ -92,11 +94,6 @@ class SearchEngine(ABC, Generic[SearchRequestT]):
         http_client: AsyncClient | None = None,
     ) -> None:
         self._http_client = http_client
-
-    @property
-    @abstractmethod
-    def snippet_only(self) -> bool:
-        """When true, search returns snippets only; use ``POST /v1/crawl`` for page bodies."""
 
     @property
     @abstractmethod

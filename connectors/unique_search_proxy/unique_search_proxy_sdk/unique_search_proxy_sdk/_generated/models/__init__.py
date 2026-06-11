@@ -1,6 +1,9 @@
 """Contains all the data models used in inputs/outputs"""
 
 from .basic_proxy_crawler import BasicProxyCrawler
+from .brave_request import BraveRequest
+from .brave_request_safesearch_type_0 import BraveRequestSafesearchType0
+from .brave_request_units_type_0 import BraveRequestUnitsType0
 from .content_types import ContentTypes
 from .crawl_response import CrawlResponse
 from .crawl_url_result import CrawlUrlResult
@@ -20,6 +23,9 @@ from .web_search_result import WebSearchResult
 
 __all__ = (
     "BasicProxyCrawler",
+    "BraveRequest",
+    "BraveRequestSafesearchType0",
+    "BraveRequestUnitsType0",
     "ContentTypes",
     "CrawlResponse",
     "CrawlUrlResult",

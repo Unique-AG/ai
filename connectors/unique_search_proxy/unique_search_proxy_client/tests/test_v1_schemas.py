@@ -6,14 +6,14 @@ from unique_search_proxy_core.schema import (
     SearchResponse,
     WebSearchResult,
 )
-from unique_search_proxy_core.search_engines.config_types import SearchRequest
+from unique_search_proxy_core.search_engines.config_types import parse_search_request
 from unique_search_proxy_core.search_engines.google.schema import GoogleRequest
 
 
 class TestV1SearchSchemas:
     @pytest.mark.ai
     def test_search_request_camel_case(self) -> None:
-        req = SearchRequest.model_validate(
+        req = parse_search_request(
             {
                 "engine": "google",
                 "query": "test",

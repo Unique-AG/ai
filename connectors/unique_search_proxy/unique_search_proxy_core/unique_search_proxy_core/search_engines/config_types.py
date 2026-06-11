@@ -11,12 +11,14 @@ from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
     SearchEngineType,
 )
+from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
-SearchEngineConfigTypes: TypeAlias = GoogleConfig
+SearchEngineConfigTypes: TypeAlias = GoogleConfig | BraveConfig
 
 ENGINE_NAME_TO_CONFIG: dict[str, type[BaseSearchEngineConfig]] = {
     SearchEngineType.GOOGLE.value: GoogleConfig,
+    SearchEngineType.BRAVE.value: BraveConfig,
 }
 
 _search_engine_config_adapter: TypeAdapter[SearchEngineConfigTypes] = TypeAdapter(

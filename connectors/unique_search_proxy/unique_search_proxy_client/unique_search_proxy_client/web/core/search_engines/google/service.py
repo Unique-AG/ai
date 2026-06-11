@@ -17,7 +17,6 @@ from unique_search_proxy_core.schema import (
     WebSearchResults,
 )
 from unique_search_proxy_core.search_engines.base import (
-    SearchEngine,
     SearchEngineType,
     get_search_engine_mode,
 )
@@ -25,28 +24,28 @@ from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
     GoogleRequest,
 )
-from unique_search_proxy_core.search_engines.pagination import (
-    DEFAULT_MAX_PAGE_SIZE,
-    PageRequest,
-    iter_page_requests,
-)
 
-from unique_search_proxy_client.web.core.search_engines.google.credentials import (
-    GoogleCredentials,
+from unique_search_proxy_client.web.core.search_engines.google.pagination import (
+    iter_google_page_requests,
+)
+from unique_search_proxy_client.web.core.search_engines.google.query_params import (
     build_google_query_params,
+)
+from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
+from unique_search_proxy_client.web.core.search_engines.service_base import (
+    SearchEngineService,
+)
+from unique_search_proxy_client.web.settings.providers import (
+    google_search_credentials as credentials,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class GoogleSearchService(SearchEngine[GoogleRequest]):
+class GoogleSearchService(SearchEngineService[GoogleRequest]):
     """Google Custom Search JSON API provider."""
 
     engine_id = SearchEngineType.GOOGLE.value
-
-    @property
-    def snippet_only(self) -> bool:
-        return True
 
     @property
     def mode(self) -> str:
@@ -56,22 +55,21 @@ class GoogleSearchService(SearchEngine[GoogleRequest]):
         self,
         request: GoogleRequest,  # type: ignore
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
-        credentials = GoogleCredentials.from_env(
-            search_engine_id=request.search_engine_id,
-        )
+        credentials.check_credentials()
+        search_engine_id = credentials.engine_id
+
         fetch_size = request.fetch_size
         timeout = request.timeout
 
         raw_pages = SearchEngineRaw(pages=[])
         curated = WebSearchResults(results=[])
 
-        for page_request in iter_page_requests(
-            fetch_size,
-            max_page_size=DEFAULT_MAX_PAGE_SIZE,
-        ):
+        for page_request in iter_google_page_requests(fetch_size):
             page = await self._fetch_page(
                 request=request,
-                credentials=credentials,
+                api_key=credentials.api_key,
+                search_engine_id=search_engine_id,
+                api_endpoint=credentials.api_endpoint,
                 page=page_request,
                 timeout=timeout,
             )
@@ -81,7 +79,6 @@ class GoogleSearchService(SearchEngine[GoogleRequest]):
                 if not len(curated.results):
                     raise EmptySearchResultsError(
                         f"Google search returned no results for query {request.query!r}",
-                        engine=SearchEngineType.GOOGLE.value,
                     )
                 break
             curated = curated.extend(page_results)
@@ -95,13 +92,16 @@ class GoogleSearchService(SearchEngine[GoogleRequest]):
         self,
         *,
         request: GoogleRequest,  # type: ignore
-        credentials: GoogleCredentials,
+        api_key: str,
+        search_engine_id: str,
+        api_endpoint: str,
         page: PageRequest,
         timeout: int,
     ) -> dict[str, Any]:
         params = build_google_query_params(
             query=request.query,
-            credentials=credentials,
+            api_key=api_key,
+            search_engine_id=search_engine_id,
             request=request,
             page=page,
         )
@@ -112,19 +112,17 @@ class GoogleSearchService(SearchEngine[GoogleRequest]):
 
         try:
             response = await client.get(
-                credentials.api_endpoint,
+                api_endpoint,
                 params=params,
                 timeout=timeout,
             )
         except httpx.TimeoutException as exc:
             raise UpstreamTimeoutError(
                 f"Google search timed out after {timeout}s",
-                engine=SearchEngineType.GOOGLE.value,
             ) from exc
         except httpx.HTTPError as exc:
             raise UpstreamError(
                 f"Google search request failed: {exc}",
-                engine=SearchEngineType.GOOGLE.value,
             ) from exc
 
         self._raise_for_response(response)
@@ -144,7 +142,6 @@ class GoogleSearchService(SearchEngine[GoogleRequest]):
                     retry_after = None
             raise RateLimitedError(
                 "Google Custom Search API rate limit exceeded",
-                engine=SearchEngineType.GOOGLE.value,
                 retry_after_seconds=retry_after,
             )
 
@@ -157,7 +154,7 @@ class GoogleSearchService(SearchEngine[GoogleRequest]):
         except Exception:
             pass
 
-        raise UpstreamError(message, engine=SearchEngineType.GOOGLE.value)
+        raise UpstreamError(message)
 
     def _extract_results(self, payload: dict[str, Any]) -> list[WebSearchResult]:
         items = payload.get("items") or []

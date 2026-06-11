@@ -134,7 +134,6 @@ class TestCoreCallSchema:
     def test_resolve_search_call_schema_in_core(self) -> None:
         descriptor = resolve_search_call_schema("google")
         assert descriptor.engine == "google"
-        assert descriptor.snippet_only is True
         assert "query" in descriptor.call_schema["properties"]
         assert "fetchSize" not in descriptor.call_schema["properties"]
 

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Any, overload
+from typing import Annotated, Any, Literal, overload
 
 import humps
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
+ProxyRequestType = Literal["search", "crawl"]
 
 def field_title_generator(
     title: str,
@@ -57,8 +58,8 @@ class ErrorDetail(BaseModel):
 
     code: str
     message: str
-    engine: str | None = None
-    crawler: str | None = None
+    request: ProxyRequestType | None = None
+    provider: str | None = None
     retryable: bool = False
     details: list[dict[str, Any]] | None = None
 

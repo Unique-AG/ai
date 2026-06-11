@@ -126,11 +126,14 @@ Settings are colocated with each component and use env prefixes:
 | Component | Prefix / vars | Example |
 |-----------|----------------|---------|
 | Google search | (no prefix) | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
+| Brave search | (no prefix) | `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_API_ENDPOINT` |
+
+Unset secrets default to the sentinel `NOT_PROVIDED`. Search calls against an unconfigured provider return **503** `ENGINE_NOT_CONFIGURED` with the missing env var names in the error message (for operators and LLM tool consumers).
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
 | Container entrypoint | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL`, `PROMETHEUS_MULTIPROC_DIR` |
 
-Copy `.example.env` to `.env` for a annotated template of all settings. Shared helpers live in `web/settings/`.
+Copy `.env.example` to `.env` for an annotated template of all settings. Outbound HTTP/proxy pool settings live in `web/settings/client.py`; provider credentials in `web/settings/providers/`; shared helpers in `web/settings/base.py`.
 
 ### Runtime discovery (`GET /v1/configuration/providers`)
 

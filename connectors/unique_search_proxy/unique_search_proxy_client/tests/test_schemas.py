@@ -8,6 +8,7 @@ from unique_search_proxy_core.search_engines import (
     SearchEngineType,
     parse_search_engine_config,
 )
+from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
 
@@ -39,6 +40,23 @@ class TestProviderConfig:
         assert config.date_restrict.value == "d7"
         assert config.gl is not None
         assert config.gl.value == "ch"
+
+    @pytest.mark.ai
+    def test_brave_config_discriminator(self) -> None:
+        config = parse_search_engine_config(
+            {
+                "engine": "brave",
+                "country": {"expose": True, "value": "CH"},
+                "freshness": "pw",
+            },
+        )
+        assert isinstance(config, BraveConfig)
+        assert config.engine == SearchEngineType.BRAVE
+        assert config.country is not None
+        assert config.country.value == "CH"
+        assert config.freshness is not None
+        assert config.freshness.expose is False
+        assert config.freshness.value == "pw"
 
     @pytest.mark.ai
     def test_unknown_engine_id_rejected(self) -> None:
