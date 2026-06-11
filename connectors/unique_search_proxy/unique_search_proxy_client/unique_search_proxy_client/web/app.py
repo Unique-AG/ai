@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from unique_search_proxy_core.logging import suppress_httpx_request_logs
 
 # Application entrypoint only. HTTP SDK lives in unique_search_proxy_sdk.
 from unique_search_proxy_client.web.api import health_router, v1_router
@@ -28,6 +29,7 @@ def _configure_logging() -> None:
 
 
 _configure_logging()
+suppress_httpx_request_logs()
 
 _LOGGER = logging.getLogger(__name__)
 

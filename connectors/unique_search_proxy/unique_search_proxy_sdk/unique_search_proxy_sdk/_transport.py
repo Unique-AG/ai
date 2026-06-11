@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+from unique_search_proxy_core.logging import suppress_httpx_request_logs
 
 from unique_search_proxy_sdk._generated.api.health import (
     health_health_get,
@@ -26,6 +27,7 @@ class OpenapiTransport:
         http_client: httpx.AsyncClient | None = None,
         timeout: float = _DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
+        suppress_httpx_request_logs()
         self._base_url = base_url.rstrip("/")
         self._owns_client = http_client is None
         self._openapi = OpenAPIClient(
