@@ -15,6 +15,13 @@ from .health_health_get_response_health_health_get import (
 )
 from .http_validation_error import HTTPValidationError
 from .per_url_error import PerUrlError
+from .perplexity_request import PerplexityRequest
+from .perplexity_request_search_context_size_type_0 import (
+    PerplexityRequestSearchContextSizeType0,
+)
+from .perplexity_request_search_recency_filter_type_0 import (
+    PerplexityRequestSearchRecencyFilterType0,
+)
 from .providers_list_response import ProvidersListResponse
 from .ready_ready_get_response_ready_ready_get import ReadyReadyGetResponseReadyReadyGet
 from .search_response import SearchResponse
@@ -34,6 +41,9 @@ __all__ = (
     "GoogleRequestSiteSearchFilterType0",
     "HealthHealthGetResponseHealthHealthGet",
     "HTTPValidationError",
+    "PerplexityRequest",
+    "PerplexityRequestSearchContextSizeType0",
+    "PerplexityRequestSearchRecencyFilterType0",
     "PerUrlError",
     "ProvidersListResponse",
     "ReadyReadyGetResponseReadyReadyGet",

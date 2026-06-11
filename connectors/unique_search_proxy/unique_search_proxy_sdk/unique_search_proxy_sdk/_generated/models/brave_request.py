@@ -27,7 +27,7 @@ class BraveRequest:
         fetch_size (int | Unset): Default result count merged into each search request Default: 10.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         extra_snippets (bool | Unset): Request up to five additional alternative excerpts per result (Brave
-            `extra_snippets`). Default: True.
+            `extra_snippets`). Default: False.
         spellcheck (bool | Unset): Whether Brave spell-checks the query and uses the corrected form. Default: True.
         text_decorations (bool | Unset): Whether result snippets include decoration markers (e.g. highlighting).
             Default: True.
@@ -36,7 +36,7 @@ class BraveRequest:
             from `search_lang`. Default: 'en-US'.
         units (BraveRequestUnitsType0 | None | Unset): Measurement units for location-rich results: `metric` or
             `imperial`.
-        summary (bool | Unset): Enable summary key generation in web search results (Brave summarizer). Default: False.
+        summary (bool | Unset): Enable summary key generation in web search results (Brave summarizer). Default: True.
         include_fetch_metadata (bool | Unset): Include fetch metadata in the Brave response. Default: False.
         goggles (list[str] | str | Unset): Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles per
             request.
@@ -56,13 +56,13 @@ class BraveRequest:
     engine: Literal["brave"] | Unset = "brave"
     fetch_size: int | Unset = 10
     timeout: int | Unset = 30
-    extra_snippets: bool | Unset = True
+    extra_snippets: bool | Unset = False
     spellcheck: bool | Unset = True
     text_decorations: bool | Unset = True
     operators: bool | Unset = True
     ui_lang: str | Unset = "en-US"
     units: BraveRequestUnitsType0 | None | Unset = UNSET
-    summary: bool | Unset = False
+    summary: bool | Unset = True
     include_fetch_metadata: bool | Unset = False
     goggles: list[str] | str | Unset = UNSET
     country: None | str | Unset = UNSET

@@ -92,6 +92,9 @@
                   },
                   {
                     "$ref": "#/components/schemas/BraveRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PerplexityRequest"
                   }
                 ],
                 "title": "Body"
@@ -118,6 +121,16 @@
                     "gl": "ch",
                     "dateRestrict": "d7",
                     "safe": "active",
+                    "timeout": 30
+                  }
+                },
+                "perplexity_search": {
+                  "summary": "Perplexity search",
+                  "description": "Flat search request; requires PERPLEXITY_SEARCH_API_KEY in .env.",
+                  "value": {
+                    "engine": "perplexity",
+                    "query": "unique ag",
+                    "fetchSize": 10,
                     "timeout": 30
                   }
                 }
@@ -308,7 +321,7 @@
             "type": "boolean",
             "title": "Extra snippets",
             "description": "Request up to five additional alternative excerpts per result (Brave `extra_snippets`).",
-            "default": true
+            "default": false
           },
           "spellcheck": {
             "type": "boolean",
@@ -354,7 +367,7 @@
             "type": "boolean",
             "title": "Summary",
             "description": "Enable summary key generation in web search results (Brave summarizer).",
-            "default": false
+            "default": true
           },
           "includeFetchMetadata": {
             "type": "boolean",
@@ -778,6 +791,190 @@
           "message"
         ],
         "title": "Per Url Error"
+      },
+      "PerplexityRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "perplexity",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `perplexity` for this config.",
+            "default": "perplexity"
+          },
+          "fetchSize": {
+            "type": "integer",
+            "title": "Fetch Size",
+            "description": "Default result count merged into each search request",
+            "default": 10
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "maxTokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max tokens",
+            "description": "Maximum total webpage content tokens across all results (Perplexity `max_tokens`). Omitted when unset. Omit `search_context_size` when using this or `max_tokens_per_page`."
+          },
+          "maxTokensPerPage": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max tokens per page",
+            "description": "Maximum webpage content tokens extracted from each result page (Perplexity `max_tokens_per_page`). Omitted when unset. Omit `search_context_size` when using this or `max_tokens`."
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country",
+            "description": "ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters). Set `value` for a fixed default; set `expose` so the LLM may override per query."
+          },
+          "searchContextSize": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search context size",
+            "description": "Controls how much content is extracted from result pages: `low`, `medium`, or `high` (API default). Omit when using `max_tokens` or `max_tokens_per_page`. `value` + `expose` behave like `country`."
+          },
+          "searchLanguageFilter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search language filter",
+            "description": "ISO 639-1 language codes (two characters each, up to 20). `value` + `expose` behave like `country`."
+          },
+          "searchDomainFilter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search domain filter",
+            "description": "Limit results to specific domains (up to 20). `value` + `expose` behave like `country`."
+          },
+          "searchRecencyFilter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                  "month",
+                  "year"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search recency filter",
+            "description": "Filter by publication recency: `hour`, `day`, `week`, `month`, or `year`. `value` + `expose` behave like `country`."
+          },
+          "lastUpdatedAfterFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last updated after",
+            "description": "Return results updated after this date (Perplexity `last_updated_after_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          },
+          "lastUpdatedBeforeFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last updated before",
+            "description": "Return results updated before this date (Perplexity `last_updated_before_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          },
+          "searchAfterDateFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search after date",
+            "description": "Return results published after this date (Perplexity `search_after_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          },
+          "searchBeforeDateFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search before date",
+            "description": "Return results published before this date (Perplexity `search_before_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Perplexity Request"
       },
       "ProvidersListResponse": {
         "properties": {
