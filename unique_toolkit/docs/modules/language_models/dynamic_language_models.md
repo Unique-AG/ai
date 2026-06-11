@@ -145,11 +145,8 @@ schema = get_schema_with_available_language_models(
 )
 ```
 
-For a step-by-step exploration (SDK setup, intersection edge cases, schema diff), see the [dynamic LLM names notebook](https://github.com/Unique-AG/ai/blob/main/unique_toolkit/notebooks/dynamic_llm_names.ipynb) in the repository.
-
 ## Related Resources
 
 - [Language Models Overview](language_model_overview.md) — static model catalog and properties
 - [Getting Started](../../setup/getting_started.md) — credentials and environment setup
 - [LLM Models API](https://unique-ag.github.io/ai/unique-sdk/latest/api_resources/llm_models/) — SDK `LLMModels.get_models_async`
-- [dynamic_llm_names.ipynb](https://github.com/Unique-AG/ai/blob/main/unique_toolkit/notebooks/dynamic_llm_names.ipynb) — exploratory walkthrough

@@ -34,7 +34,7 @@ _DUMMY_SDK_VALUES = frozenset(
 )
 
 _UNIQUE_AI_LLM_MODULE = "UNIQUE_AI"
-_DYNAMIC_ENUM_RETRIEVAL_USER_ID = "dynamical_enum_retrieval"
+_DYNAMIC_ENUM_RETRIEVAL_USER_ID = "dynamic_enum_retrieval"
 
 _ACTIVE_MODEL_CACHE_TTL_MS = 5 * 60 * 1000
 _async_active_model_cache = AsyncTTLCache(
