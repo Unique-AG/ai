@@ -25,7 +25,7 @@ class BasicCrawlerConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
 
     model_config = get_model_config(title="Basic Proxy Crawler ")
 
-    crawler_type: Literal[CrawlerType.BASIC] = CrawlerType.BASIC
+    crawler: Literal[CrawlerType.BASIC] = CrawlerType.BASIC
 
     content_types: ContentTypeToggles = Field(
         default_factory=ContentTypeToggles,

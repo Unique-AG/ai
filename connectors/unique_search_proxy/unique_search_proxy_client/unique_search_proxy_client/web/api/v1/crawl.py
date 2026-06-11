@@ -32,7 +32,7 @@ async def crawl(
     request: Request,
     body: CrawlRequest = Body(openapi_examples=CRAWL_OPENAPI_EXAMPLES),  # type: ignore[valid-type]
 ) -> CrawlResponse:
-    crawler_id = body.crawler_type
+    crawler_id = body.crawler
     timeout = body.timeout
     started = time.perf_counter()
 
@@ -62,4 +62,4 @@ async def crawl(
         raise
 
     record_crawl_success(crawler_id, len(body.urls), time.perf_counter() - started)
-    return CrawlResponse(crawler_type=crawler_id, results=results)
+    return CrawlResponse(crawler=crawler_id, results=results)

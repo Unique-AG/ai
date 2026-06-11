@@ -179,13 +179,11 @@ class ProvidersListResponse(BaseModel):
 class CrawlResponse(BaseModel):
     model_config = camelized_model_config
 
-    crawler_type: str
+    crawler: str
     results: list[CrawlUrlResult]
 
 
 class CrawlerConfig(BaseModel):
     model_config = camelized_model_config
 
-    crawler_type: str = Field(
-        ..., title="Crawler type", description="Crawler identifier"
-    )
+    crawler: str = Field(..., title="Crawler", description="Crawler identifier")

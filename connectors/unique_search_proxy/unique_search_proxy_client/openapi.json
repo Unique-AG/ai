@@ -163,7 +163,7 @@
                     "urls": [
                       "https://example.com"
                     ],
-                    "crawlerType": "BasicProxyCrawler",
+                    "crawler": "BasicCrawler",
                     "contentTypes": {
                       "html": false,
                       "xhtml": false,
@@ -181,7 +181,7 @@
                     "urls": [
                       "https://example.com"
                     ],
-                    "crawlerType": "BasicProxyCrawler",
+                    "crawler": "BasicCrawler",
                     "contentTypes": {
                       "html": true,
                       "xhtml": true
@@ -232,11 +232,11 @@
             "title": "Urls",
             "description": "URLs to crawl"
           },
-          "crawlerType": {
+          "crawler": {
             "type": "string",
-            "const": "BasicProxyCrawler",
-            "title": "Crawler Type",
-            "default": "BasicProxyCrawler"
+            "const": "BasicCrawler",
+            "title": "Crawler",
+            "default": "BasicCrawler"
           },
           "timeout": {
             "type": "integer",
@@ -308,9 +308,9 @@
       },
       "CrawlResponse": {
         "properties": {
-          "crawlerType": {
+          "crawler": {
             "type": "string",
-            "title": "Crawler Type"
+            "title": "Crawler"
           },
           "results": {
             "items": {
@@ -322,7 +322,7 @@
         },
         "type": "object",
         "required": [
-          "crawlerType",
+          "crawler",
           "results"
         ],
         "title": "Crawl Response"

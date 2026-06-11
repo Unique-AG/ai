@@ -18,15 +18,15 @@ CrawlerRequestT = TypeVar("CrawlerRequestT", bound=BaseModel)
 class CrawlerType(StrEnum):
     """Registered crawler ids (JSON discriminator values)."""
 
-    BASIC = "BasicProxyCrawler"
+    BASIC = "BasicCrawler"
 
 
 class BaseCrawlerConfig(BaseModel, Generic[CrawlerTypeT]):
-    """Shared crawler config; each crawler narrows ``crawler_type`` with a Literal."""
+    """Shared crawler config; each crawler narrows ``crawler`` with a Literal."""
 
     model_config = camelized_model_config
 
-    crawler_type: CrawlerTypeT
+    crawler: CrawlerTypeT
     timeout: int = Field(
         default=30,
         ge=1,

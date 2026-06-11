@@ -26,14 +26,14 @@ class BasicProxyCrawler:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        crawler_type (Literal['BasicProxyCrawler'] | Unset):  Default: 'BasicProxyCrawler'.
+        crawler (Literal['BasicCrawler'] | Unset):  Default: 'BasicCrawler'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         content_types (ContentTypes | Unset): Per-type activation flags for basic-crawler content processing.
         max_concurrent_requests (int | Unset): Maximum concurrent HTTP fetches Default: 10.
     """
 
     urls: list[str]
-    crawler_type: Literal["BasicProxyCrawler"] | Unset = "BasicProxyCrawler"
+    crawler: Literal["BasicCrawler"] | Unset = "BasicCrawler"
     timeout: int | Unset = 30
     content_types: ContentTypes | Unset = UNSET
     max_concurrent_requests: int | Unset = 10
@@ -42,7 +42,7 @@ class BasicProxyCrawler:
     def to_dict(self) -> dict[str, Any]:
         urls = self.urls
 
-        crawler_type = self.crawler_type
+        crawler = self.crawler
 
         timeout = self.timeout
 
@@ -59,8 +59,8 @@ class BasicProxyCrawler:
                 "urls": urls,
             }
         )
-        if crawler_type is not UNSET:
-            field_dict["crawlerType"] = crawler_type
+        if crawler is not UNSET:
+            field_dict["crawler"] = crawler
         if timeout is not UNSET:
             field_dict["timeout"] = timeout
         if content_types is not UNSET:
@@ -77,12 +77,10 @@ class BasicProxyCrawler:
         d = dict(src_dict)
         urls = cast(list[str], d.pop("urls"))
 
-        crawler_type = cast(
-            Literal["BasicProxyCrawler"] | Unset, d.pop("crawlerType", UNSET)
-        )
-        if crawler_type != "BasicProxyCrawler" and not isinstance(crawler_type, Unset):
+        crawler = cast(Literal["BasicCrawler"] | Unset, d.pop("crawler", UNSET))
+        if crawler != "BasicCrawler" and not isinstance(crawler, Unset):
             raise ValueError(
-                f"crawlerType must match const 'BasicProxyCrawler', got '{crawler_type}'"
+                f"crawler must match const 'BasicCrawler', got '{crawler}'"
             )
 
         timeout = d.pop("timeout", UNSET)
@@ -98,7 +96,7 @@ class BasicProxyCrawler:
 
         basic_proxy_crawler = cls(
             urls=urls,
-            crawler_type=crawler_type,
+            crawler=crawler,
             timeout=timeout,
             content_types=content_types,
             max_concurrent_requests=max_concurrent_requests,

@@ -42,12 +42,12 @@ class TestV1CrawlSchemas:
         req = CrawlRequest.model_validate(
             {
                 "urls": ["https://example.com"],
-                "crawlerType": CrawlerType.BASIC.value,
+                "crawler": CrawlerType.BASIC.value,
             },
         )
         assert req.urls == ["https://example.com"]
 
     @pytest.mark.ai
     def test_crawl_response_empty_results(self) -> None:
-        resp = CrawlResponse(crawler_type=CrawlerType.BASIC.value, results=[])
-        assert resp.crawler_type == CrawlerType.BASIC
+        resp = CrawlResponse(crawler=CrawlerType.BASIC.value, results=[])
+        assert resp.crawler == CrawlerType.BASIC

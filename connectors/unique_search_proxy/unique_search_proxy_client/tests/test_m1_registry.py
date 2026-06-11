@@ -74,6 +74,6 @@ class TestDiscriminatedConfig:
 
     @pytest.mark.ai
     def test_crawler_config_parses_crawler_field(self) -> None:
-        config = parse_crawler_config({"crawlerType": CrawlerType.BASIC.value})
+        config = parse_crawler_config({"crawler": CrawlerType.BASIC.value})
         assert isinstance(config, BasicCrawlerConfig)
-        assert config.crawler_type == CrawlerType.BASIC
+        assert config.crawler == CrawlerType.BASIC

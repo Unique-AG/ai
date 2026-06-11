@@ -26,7 +26,7 @@ def parse_crawler_config(data: object) -> CrawlerConfigTypes:
 
 
 def build_crawl_request_union() -> Any:
-    """Discriminated union of flat ``POST /v1/crawl`` bodies (``crawler_type`` discriminator)."""
+    """Discriminated union of flat ``POST /v1/crawl`` bodies (``crawler`` discriminator)."""
     members = tuple(CRAWLER_NAME_TO_CONFIG.values())
     request_models = tuple(
         build_crawl_request_model(config_cls) for config_cls in members
@@ -35,7 +35,7 @@ def build_crawl_request_union() -> Any:
         return request_models[0]
     return Annotated[
         Union[request_models],  # type: ignore[valid-type]
-        Field(discriminator="crawler_type"),
+        Field(discriminator="crawler"),
     ]
 
 
@@ -51,9 +51,9 @@ def parse_crawl_request(data: object) -> BaseModel:
 
 def crawler_config_from_request(request: BaseModel) -> CrawlerConfigTypes:
     """Rebuild deployment config from a flat crawl request (excludes ``urls`` only)."""
-    crawler_id = getattr(request, "crawler_type", None)
+    crawler_id = getattr(request, "crawler", None)
     if not isinstance(crawler_id, str):
-        raise ValueError("Flat crawl request is missing crawler_type discriminator")
+        raise ValueError("Flat crawl request is missing crawler discriminator")
 
     config_cls = CRAWLER_NAME_TO_CONFIG.get(crawler_id.lower())
     if config_cls is None:

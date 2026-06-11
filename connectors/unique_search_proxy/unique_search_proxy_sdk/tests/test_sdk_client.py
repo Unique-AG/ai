@@ -124,7 +124,7 @@ class TestCrawlClient:
             ["https://example.com"],
             content_types=ContentTypeToggles(html=True),
         )
-        assert response.crawler_type == CrawlerType.BASIC.value
+        assert response.crawler == CrawlerType.BASIC.value
         assert len(response.results) == 1
         assert response.results[0].url == "https://example.com"
 

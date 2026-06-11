@@ -88,7 +88,7 @@ class TestV1StructuredErrors:
                 "/v1/crawl",
                 json={
                     "urls": ["https://example.com"],
-                    "crawlerType": CrawlerType.BASIC.value,
+                    "crawler": CrawlerType.BASIC.value,
                 },
             )
             assert resp.status_code == 503

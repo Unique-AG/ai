@@ -27,7 +27,7 @@ SEARCH_GOOGLE_WITH_GL: dict[str, Any] = {
 
 CRAWL_BASIC_RAW: dict[str, Any] = {
     "urls": ["https://example.com"],
-    "crawlerType": CrawlerType.BASIC.value,
+    "crawler": CrawlerType.BASIC.value,
     "contentTypes": {
         "html": False,
         "xhtml": False,
@@ -40,7 +40,7 @@ CRAWL_BASIC_RAW: dict[str, Any] = {
 
 CRAWL_BASIC_HTML_MARKDOWN: dict[str, Any] = {
     "urls": ["https://example.com"],
-    "crawlerType": CrawlerType.BASIC.value,
+    "crawler": CrawlerType.BASIC.value,
     "contentTypes": {
         "html": True,
         "xhtml": True,

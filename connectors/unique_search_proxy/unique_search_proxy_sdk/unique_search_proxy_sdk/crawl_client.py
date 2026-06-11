@@ -26,7 +26,7 @@ class CrawlClient:
         self,
         urls: list[str],
         *,
-        crawler_type: Literal[CrawlerType.BASIC] = CrawlerType.BASIC,
+        crawler: Literal[CrawlerType.BASIC] = CrawlerType.BASIC,
         timeout: int = ...,
         content_types: ContentTypeToggles | None = ...,
         max_concurrent_requests: int = ...,
@@ -38,7 +38,7 @@ class CrawlClient:
         self,
         urls: list[str],
         *,
-        crawler_type: CrawlerType | str,
+        crawler: CrawlerType | str,
         **params: Any,
     ) -> CrawlResponse: ...
 
@@ -46,17 +46,15 @@ class CrawlClient:
         self,
         urls: list[str],
         *,
-        crawler_type: CrawlerType | str = CrawlerType.BASIC,
+        crawler: CrawlerType | str = CrawlerType.BASIC,
         content_types: ContentTypeToggles | None = None,
         **params: Any,
     ) -> CrawlResponse:
         """Crawl URLs with a flat body validated by core request models."""
         crawler_value = (
-            crawler_type.value
-            if isinstance(crawler_type, CrawlerType)
-            else crawler_type
+            crawler.value if isinstance(crawler, CrawlerType) else crawler
         )
-        payload: dict[str, Any] = {"urls": urls, "crawlerType": crawler_value, **params}
+        payload: dict[str, Any] = {"urls": urls, "crawler": crawler_value, **params}
         if content_types is not None:
             payload["contentTypes"] = content_types.model_dump(
                 mode="json",
