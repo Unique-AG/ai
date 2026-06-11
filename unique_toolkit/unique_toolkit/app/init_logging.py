@@ -10,6 +10,7 @@ class UTCFormatter(Formatter):
 
 unique_log_config = {
     "version": 1,
+    "disable_existing_loggers": False,
     "root": {"level": "DEBUG", "handlers": ["console"]},
     "handlers": {
         "console": {
@@ -29,4 +30,5 @@ unique_log_config = {
 
 
 def init_logging(config: dict[str, Any] = unique_log_config):
-    return dictConfig(config)
+    merged_config = {**config, "disable_existing_loggers": False}
+    return dictConfig(merged_config)
