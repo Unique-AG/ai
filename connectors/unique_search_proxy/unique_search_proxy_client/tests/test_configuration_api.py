@@ -43,4 +43,5 @@ class TestConfigurationEndpoints:
         body = resp.json()
         assert "google" in body["searchEngines"]
         assert "brave" in body["searchEngines"]
+        assert "perplexity" in body["searchEngines"]
         assert CrawlerType.BASIC.value in body["crawlers"]

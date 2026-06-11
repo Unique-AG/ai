@@ -15,6 +15,10 @@ from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
     GoogleRequest,
 )
+from unique_search_proxy_core.search_engines.perplexity.schema import (
+    PerplexityConfig,
+    PerplexityRequest,
+)
 
 
 class TestSearchEngineConfigUnion:
@@ -80,6 +84,37 @@ class TestSearchEngineConfigUnion:
         assert req.safesearch == "moderate"
 
     @pytest.mark.ai
+    def test_perplexity_config_accepts_engine_specific_fields(self) -> None:
+        config = parse_search_engine_config(
+            {
+                "engine": "perplexity",
+                "fetchSize": 12,
+                "searchDomainFilter": {"expose": False, "value": ["example.com"]},
+            },
+        )
+        assert isinstance(config, PerplexityConfig)
+        assert config.engine == SearchEngineType.PERPLEXITY
+        assert config.fetch_size == 12
+        assert config.search_domain_filter.value == ["example.com"]
+
+    @pytest.mark.ai
+    def test_search_request_parses_flat_perplexity_payload(self) -> None:
+        req = parse_search_request(
+            {
+                "engine": "perplexity",
+                "query": "hello",
+                "fetchSize": 8,
+                "timeout": 30,
+                "searchContextSize": "low",
+            },
+        )
+        assert req.engine == SearchEngineType.PERPLEXITY
+        assert isinstance(req, PerplexityRequest)
+        assert req.fetch_size == 8
+        assert req.query == "hello"
+        assert req.search_context_size == "low"
+
+    @pytest.mark.ai
     def test_unknown_engine_rejected_by_union(self) -> None:
         with pytest.raises(ValidationError):
             parse_search_engine_config({"engine": "bing"})
@@ -88,5 +123,7 @@ class TestSearchEngineConfigUnion:
     def test_registered_engine_type_enum(self) -> None:
         assert SearchEngineType.GOOGLE.value == "google"
         assert SearchEngineType.BRAVE.value == "brave"
+        assert SearchEngineType.PERPLEXITY.value == "perplexity"
         assert SearchEngineType.GOOGLE in SearchEngineType
         assert SearchEngineType.BRAVE in SearchEngineType
+        assert SearchEngineType.PERPLEXITY in SearchEngineType

@@ -32,11 +32,13 @@ class SearchEngineType(StrEnum):
 
     GOOGLE = "google"
     BRAVE = "brave"
+    PERPLEXITY = "perplexity"
 
 
 _SEARCH_ENGINE_MODE_MAP: dict[SearchEngineType, SearchEngineMode] = {
     SearchEngineType.GOOGLE: SearchEngineMode.STANDARD,
     SearchEngineType.BRAVE: SearchEngineMode.STANDARD,
+    SearchEngineType.PERPLEXITY: SearchEngineMode.STANDARD,
 }
 
 

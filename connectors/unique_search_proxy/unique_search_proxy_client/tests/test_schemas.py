@@ -10,6 +10,7 @@ from unique_search_proxy_core.search_engines import (
 )
 from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
 
 
 class TestWebSearchResult:
@@ -57,6 +58,23 @@ class TestProviderConfig:
         assert config.freshness is not None
         assert config.freshness.expose is False
         assert config.freshness.value == "pw"
+
+    @pytest.mark.ai
+    def test_perplexity_config_discriminator(self) -> None:
+        config = parse_search_engine_config(
+            {
+                "engine": "perplexity",
+                "country": {"expose": True, "value": "US"},
+                "searchContextSize": "high",
+            },
+        )
+        assert isinstance(config, PerplexityConfig)
+        assert config.engine == SearchEngineType.PERPLEXITY
+        assert config.country is not None
+        assert config.country.value == "US"
+        assert config.search_context_size is not None
+        assert config.search_context_size.expose is False
+        assert config.search_context_size.value == "high"
 
     @pytest.mark.ai
     def test_unknown_engine_id_rejected(self) -> None:

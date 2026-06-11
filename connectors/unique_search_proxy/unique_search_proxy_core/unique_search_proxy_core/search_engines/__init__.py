@@ -25,6 +25,11 @@ from unique_search_proxy_core.search_engines.google.schema import (
     GoogleRequest,
     google_request_model,
 )
+from unique_search_proxy_core.search_engines.perplexity.schema import (
+    PerplexityConfig,
+    PerplexityRequest,
+    perplexity_request_model,
+)
 from unique_search_proxy_core.search_engines.params import merge_config_and_invocation
 
 __all__ = [
@@ -33,6 +38,8 @@ __all__ = [
     "BraveRequest",
     "GoogleConfig",
     "GoogleRequest",
+    "PerplexityConfig",
+    "PerplexityRequest",
     "SearchEngine",
     "SearchEngineConfigTypes",
     "SearchEngineMode",
@@ -46,6 +53,7 @@ __all__ = [
     "get_search_engine_mode",
     "google_request_model",
     "merge_config_and_invocation",
+    "perplexity_request_model",
     "parse_search_engine_config",
     "parse_search_request",
 ]

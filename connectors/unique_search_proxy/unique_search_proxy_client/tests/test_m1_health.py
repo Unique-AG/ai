@@ -25,5 +25,5 @@ class TestHealthEndpoints:
         body = resp.json()
         assert body["status"] == "ready"
         assert body["httpClient"] == "ok"
-        assert body["searchEngines"] == ["brave", "google"]
+        assert body["searchEngines"] == ["brave", "google", "perplexity"]
         assert body["crawlers"] == [CrawlerType.BASIC.value]

@@ -127,6 +127,7 @@ Settings are colocated with each component and use env prefixes:
 |-----------|----------------|---------|
 | Google search | (no prefix) | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
 | Brave search | (no prefix) | `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_API_ENDPOINT` |
+| Perplexity search | (no prefix) | `PERPLEXITY_SEARCH_API_KEY`, `PERPLEXITY_SEARCH_API_ENDPOINT` |
 
 Unset secrets default to the sentinel `NOT_PROVIDED`. Search calls against an unconfigured provider return **503** `ENGINE_NOT_CONFIGURED` with the missing env var names in the error message (for operators and LLM tool consumers).
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |

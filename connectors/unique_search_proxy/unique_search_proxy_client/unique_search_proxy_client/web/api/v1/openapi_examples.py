@@ -15,6 +15,13 @@ SEARCH_GOOGLE: dict[str, Any] = {
     "timeout": 30,
 }
 
+SEARCH_PERPLEXITY: dict[str, Any] = {
+    "engine": "perplexity",
+    "query": "unique ag",
+    "fetchSize": 10,
+    "timeout": 30,
+}
+
 SEARCH_GOOGLE_WITH_GL: dict[str, Any] = {
     "engine": "google",
     "query": "unique ag",
@@ -58,6 +65,11 @@ SEARCH_OPENAPI_EXAMPLES: dict[str, Example] = {
         summary="Google search (with gl and dateRestrict)",
         description="Full execution payload including optional provider parameters.",
         value=SEARCH_GOOGLE_WITH_GL,
+    ),
+    "perplexity_search": Example(
+        summary="Perplexity search",
+        description="Flat search request; requires PERPLEXITY_SEARCH_API_KEY in .env.",
+        value=SEARCH_PERPLEXITY,
     ),
 }
 
