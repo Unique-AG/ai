@@ -218,6 +218,67 @@ class TestNavigation:
             user_id="u1", company_id="c1", contentId="cont_1"
         )
 
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_target_outside_metadata_filter_denied(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """A non-root ls target outside the per-message scope is denied."""
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "folderPath": {
+                    "scope_fund_a": "/Funds/Fund A",
+                    "scope_outside": "/Other",
+                }.get(scope, "")
+            }
+
+        mock_path.side_effect = path_for
+        state = _state("/Other", "scope_outside")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_fund_a",
+        }
+        result = cmd_ls(state)
+        assert "permission denied" in result
+        mock_folders.assert_not_called()
+        mock_files.assert_not_called()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_target_inside_metadata_filter_allowed(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_fund_a": {"folderPath": "/Funds/Fund A"},
+                "scope_sub": {"folderPath": "/Funds/Fund A/Sub"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        state = _state("/Funds/Fund A/Sub", "scope_sub")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_fund_a",
+        }
+        result = cmd_ls(state)
+        assert "permission denied" not in result
+        mock_folders.assert_called_once()
+
 
 # --- Folders ---
 
@@ -365,6 +426,38 @@ class TestFiles:
             _state("/Reports", "scope_r"),
             "report.pdf",
         )
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_by_name_gated_by_metadata_filter(self, mock: MagicMock) -> None:
+        """Resolving by file name must not bypass the per-message scope.
+
+        The cont_ fast-path checks is_content_within_workspace; the name/path
+        resolution path must gate the *resolved* id the same way (UN-21780).
+        """
+        mock.return_value = {"contentInfos": [_content_info()]}
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed_only"],
+        }
+        s._chat_file_content_ids_cache = set()
+        with pytest.raises(ValueError, match="permission denied"):
+            _resolve_content_id(s, "report.pdf")
+
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_by_name_allowed_by_metadata_filter(self, mock: MagicMock) -> None:
+        mock.return_value = {"contentInfos": [_content_info()]}
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_123"],
+        }
+        s._chat_file_content_ids_cache = set()
+        cid, name = _resolve_content_id(s, "report.pdf")
         assert cid == "cont_123"
         assert name == "report.pdf"
 

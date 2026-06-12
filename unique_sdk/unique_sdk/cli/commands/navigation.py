@@ -30,6 +30,19 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         else:
             scope_id = state.scope_id
 
+        # A non-root target must lie inside the per-message scope: without
+        # this, `ls <path>` would enumerate out-of-scope folders/files that
+        # read/cite correctly deny. See UN-21780.
+        if (
+            scope_id is not None
+            and state.workspace_metadata_filter is not None
+            and not state.folder_allowed_by_metadata_filter(scope_id)
+        ):
+            return (
+                f"ls: permission denied: target is outside your task scope "
+                f"({state.scope_denial_hint()})."
+            )
+
         # At root with a per-message KB scope (e.g. an Agentic Table column's
         # scope_rules), show only the in-scope folders and explicitly-scoped
         # documents so the agent explores within the boundary rather than the

@@ -453,6 +453,36 @@ class TestMetadataFilterContentGating:
         assert s.content_allowed_by_metadata_filter("cont_b")
         assert not s.content_allowed_by_metadata_filter("cont_z")
 
+    def test_contentid_notin_excludes_members(self) -> None:
+        """A negated leaf is an exclusion — membership must deny, not grant."""
+        s = self._state_with_filter(
+            {
+                "path": ["contentId"],
+                "operator": "notIn",
+                "value": ["cont_excluded"],
+            }
+        )
+        assert not s.content_allowed_by_metadata_filter("cont_excluded")
+        assert s.content_allowed_by_metadata_filter("cont_other")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folderidpath_notcontains_excludes_descendants(
+        self, mock_path, mock_content
+    ) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_banned": "/Banned", "scope_owner": "/Banned/Sub"}
+        )
+        mock_content.side_effect = _content_info_side_effect({"cont_x": "scope_owner"})
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "notContains",
+                "value": "scope_banned",
+            }
+        )
+        assert not s.content_allowed_by_metadata_filter("cont_x")
+
     @patch("unique_sdk.Content.get_info")
     @patch("unique_sdk.Folder.get_folder_path")
     def test_folderidpath_owner_inside_allowed(self, mock_path, mock_content) -> None:  # type: ignore[no-untyped-def]
@@ -639,6 +669,66 @@ class TestMetadataFilterContentGating:
         paths, content_ids = s.metadata_filter_scope()
         assert paths == ["/Funds/Fund A"]
         assert content_ids == ["cont_1", "cont_2"]
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_metadata_filter_scope_skips_negated_leaves(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "notIn",
+                    "value": ["cont_excluded"],
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        paths, content_ids = s.metadata_filter_scope()
+        assert paths == ["/Funds/Fund A"]
+        assert content_ids == []
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folder_allowed_by_metadata_filter(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {
+                "scope_fund_a": "/Funds/Fund A",
+                "scope_sub": "/Funds/Fund A/Sub",
+                "scope_other": "/Other",
+                "scope_parent": "/Funds",
+            }
+        )
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "contains",
+                "value": "scope_fund_a",
+            }
+        )
+        # The scoped folder itself and its descendants are listable.
+        assert s.folder_allowed_by_metadata_filter("scope_fund_a")
+        assert s.folder_allowed_by_metadata_filter("scope_sub")
+        # Unrelated folders and ancestors (sibling leak) are not.
+        assert not s.folder_allowed_by_metadata_filter("scope_other")
+        assert not s.folder_allowed_by_metadata_filter("scope_parent")
+
+    def test_folder_allowed_no_filter_allows_everything(self) -> None:
+        s = ShellState(_config())
+        s.workspace_metadata_filter = None
+        assert s.folder_allowed_by_metadata_filter("scope_any")
+
+    def test_folder_allowed_contentid_only_filter_denies_folders(self) -> None:
+        # A documents-only scope grants no folder listings.
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
+        )
+        assert not s.folder_allowed_by_metadata_filter("scope_any")
 
     @patch("unique_sdk.Folder.get_folder_path")
     def test_scope_denial_hint_with_filter(self, mock_path) -> None:  # type: ignore[no-untyped-def]

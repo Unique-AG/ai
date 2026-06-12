@@ -92,7 +92,18 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
             title = info.get("title") or ""
             key = info.get("key") or ""
             if lookup_name in {title, key}:
-                return info["id"], title or key
+                resolved_id = info["id"]
+                # Gate the *resolved* id too: resolving by file name or path
+                # must not bypass the per-message metadata-filter scope that
+                # the cont_ fast-path above enforces (UN-21780).
+                if not state.is_content_within_workspace(resolved_id):
+                    raise ValueError(
+                        f"permission denied: {name_or_id} is outside your "
+                        f"task scope ({state.scope_denial_hint()}). Use "
+                        "'unique-cli search' or 'ls' within that scope "
+                        "instead."
+                    )
+                return resolved_id, title or key
 
         skip += len(content_infos)
 

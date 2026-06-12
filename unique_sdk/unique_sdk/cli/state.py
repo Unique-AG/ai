@@ -91,6 +91,11 @@ def _extract_target_scope_id(value: Any) -> str | None:
     return matches[-1] if matches else None
 
 
+def _is_negated_operator(operator: Any) -> bool:
+    """True for exclusion operators (notIn, notEquals, notContains, …)."""
+    return isinstance(operator, str) and operator.lower().startswith("not")
+
+
 def _collect_filter_targets(
     node: Any,
     folder_ids: list[str] | None = None,
@@ -116,6 +121,11 @@ def _collect_filter_targets(
     path = node.get("path")
     field = path[0] if isinstance(path, list) and path else path
     value = node.get("value")
+    if _is_negated_operator(node.get("operator")):
+        # Negated leaves (notIn, notEquals, notContains) are *exclusions*;
+        # listing their targets as in-scope would invert their meaning
+        # (e.g. an Agentic Table question_file_ids notIn rule).
+        return folder_ids, content_ids
     if field == "contentId":
         values = value if isinstance(value, list) else [value]
         for v in values:
@@ -406,15 +416,21 @@ class ShellState:
         path = node.get("path")
         field = path[0] if isinstance(path, list) and path else path
         value = node.get("value")
+        negated = _is_negated_operator(node.get("operator"))
         if field == "contentId":
             if isinstance(value, list):
-                return content_id in value
-            return content_id == value
+                matched = content_id in value
+            else:
+                matched = content_id == value
+            # A negated leaf (notIn/notEquals) is an exclusion: membership
+            # must deny, not grant (e.g. Agentic Table question_file_ids).
+            return not matched if negated else matched
         if field == "folderIdPath":
             owner_path = self._resolve_content_owner_path(content_id)
             if owner_path is None:
                 return False
             targets = value if isinstance(value, list) else [value]
+            contained = False
             for target in targets:
                 scope_id = _extract_target_scope_id(target)
                 if not scope_id:
@@ -424,12 +440,33 @@ class ShellState:
                     owner_path == target_path
                     or owner_path.startswith(target_path + "/")
                 ):
-                    return True
-            return False
+                    contained = True
+                    break
+            return not contained if negated else contained
         # Non-boundary leaf (e.g. mimeType, language): not a folder/content
         # access boundary, so not enforced locally. The search server still
         # applies it for KB search.
         return True
+
+    def folder_allowed_by_metadata_filter(self, scope_id: str) -> bool:
+        """True if *scope_id* is inside one of the filter's folder scopes.
+
+        Gates explicit folder targets (e.g. ``ls <path>``) so navigation
+        cannot enumerate folders outside the per-message scope. Documents
+        scoped individually (``contentId in``) don't grant folder listings.
+        Returns True when no per-message filter is configured.
+        """
+        if not self.workspace_metadata_filter:
+            return True
+        folder_paths, _ = self.metadata_filter_scope()
+        if not folder_paths:
+            return False
+        target_path = self._resolve_scope_path(scope_id)
+        if not target_path:
+            return False
+        return any(
+            target_path == p or target_path.startswith(p + "/") for p in folder_paths
+        )
 
     def metadata_filter_scope(self) -> tuple[list[str], list[str]]:
         """Return ``(folder_paths, content_ids)`` referenced by the filter.
