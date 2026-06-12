@@ -171,9 +171,11 @@ def kb_sync(
     """Upload the contents of LOCAL_DIR into a knowledge-base folder.
 
     Files already present (matched by filename) are replaced; new files are
-    created. Requires exactly one of ``--folder-path`` or ``--scope-id`` to name
-    the target scope. Without ``--recursive`` only top-level files are synced;
-    with it, subdirectories are recreated as child folders under the target.
+    created. Files present in the target scope but missing locally are left
+    untouched; ``sync`` never deletes remote files. Requires exactly one of
+    ``--folder-path`` or ``--scope-id`` to name the target scope. Without
+    ``--recursive`` only top-level files are synced; with it, subdirectories are
+    recreated as child folders under the target.
 
     Examples:
 
