@@ -18,12 +18,6 @@ _PAGE_SIZE = 100
 
 
 def _collect_files(folder: Path, recursive: bool) -> list[Path]:
-    """Return files to sync: top-level only, or the whole tree when recursive.
-
-    Uses ``glob`` rather than ``Path.rglob`` for the recursive case because the
-    latter does not descend into symlinked directories, whereas ``glob`` does —
-    skills are wired up as directory symlinks, so their files must be followed.
-    """
     if recursive:
         walker = (Path(p) for p in glob.glob(f"{folder}/**", recursive=True))
     else:
