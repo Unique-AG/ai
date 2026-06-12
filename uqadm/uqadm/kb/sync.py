@@ -27,7 +27,14 @@ def _collect_files(folder: Path, recursive: bool) -> list[Path]:
 
 def _join_folder_paths(left: str, right: str) -> str:
     """Join a relative subdirectory onto the base KB folder path."""
-    return f"{left.rstrip('/')}/{right.lstrip('/')}"
+    left = left.strip()
+    right = right.strip()
+
+    joined = left.rstrip("/")
+    if right != "":
+        joined += f"/{right.lstrip('/')}"
+
+    return joined
 
 
 def _resolve_scope(cfg: Config, folder_path: str, *, create: bool) -> str | None:
