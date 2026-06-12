@@ -153,7 +153,7 @@ class ShellState:
         # Raw ``Content.get_info`` item per content id, shared by the scope
         # gate (owner path) and citation title resolution so a read+cite of
         # the same document costs one info call per turn. See UN-21780.
-        self._content_info_cache: dict[str, dict[str, Any] | None] = {}
+        self._content_info_cache: dict[str, unique_sdk.Content.ContentInfo | None] = {}
 
     @property
     def workspace_restricted(self) -> bool:
@@ -317,7 +317,9 @@ class ShellState:
         self._content_owner_path_cache[content_id] = owner_path
         return owner_path
 
-    def _get_content_info(self, content_id: str) -> dict[str, Any] | None:
+    def _get_content_info(
+        self, content_id: str
+    ) -> unique_sdk.Content.ContentInfo | None:
         """Return the cached ``Content.get_info`` item for *content_id*.
 
         One API call per content id per turn, memoised on this ``ShellState``
@@ -325,7 +327,7 @@ class ShellState:
         """
         if content_id in self._content_info_cache:
             return self._content_info_cache[content_id]
-        info: dict[str, Any] | None = None
+        info: unique_sdk.Content.ContentInfo | None = None
         try:
             result = unique_sdk.Content.get_info(
                 user_id=self.config.user_id,
