@@ -358,9 +358,8 @@ The Content resource provides methods to:
     - `contentId` (str, optional) - ID of the file to update (required if `filePath` not provided)
     - `filePath` (str, optional) - Absolute path of the file (required if `contentId` not provided)
     - `title` (str, optional) - New file title
-    - `ownerId` (str, optional) - Move file to different folder using folder ID
-    - `ownerType` (`"CHAT"` | `"COMPANY"` | `"SCOPE"` | `"USER"`, optional) - Owner type of the file. Required together with `chatId` when updating chat-bound files.
-    - `chatId` (str, optional) - Chat ID that owns this file. Required together with `ownerType="CHAT"` when updating files uploaded in a chat context.
+    - `ownerId` (str, optional) - Move file to different folder using folder ID, or the chat ID when `ownerType` is `"CHAT"`
+    - `ownerType` (`"CHAT"`, optional) - Set to `"CHAT"` when updating files uploaded in a chat context. Must be provided together with `ownerId` set to the chat ID.
     - `parentFolderPath` (str, optional) - Move file to different folder using folder path
     - `metadata` (Dict[str, str | None], optional) - Update file metadata (available in release >.40)
 
@@ -426,7 +425,7 @@ The Content resource provides methods to:
         company_id=company_id,
         contentId="cont_ok2343q5owbce80w78hudawu5",
         ownerType="CHAT",
-        chatId="chat_v3xfa7liv876h89vuiibus1",
+        ownerId="chat_v3xfa7liv876h89vuiibus1",
         metadata={
             "processed": "true",
             "extractedEntities": "acme_corp",
