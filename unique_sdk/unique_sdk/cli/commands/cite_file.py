@@ -63,12 +63,13 @@ def _resolve_content_id_with_manifest(
     """Resolve a filename/content_id checking the chat-files manifest first.
 
     Resolution order:
-    1. If name_or_id starts with "cont_", return it directly.
+    1. If name_or_id starts with "cont_", resolve its title via the API so the
+       citation renders with the document filename, not the opaque id.
     2. Check .unique/chat-files.json for a matching filename (exact or basename).
     3. Fall back to KB resolution via _resolve_content_id.
     """
     if name_or_id.startswith("cont_"):
-        return name_or_id, name_or_id
+        return name_or_id, state.resolve_content_title(name_or_id)
 
     manifest_path = Path.cwd() / _CHAT_FILES_MANIFEST
     if manifest_path.is_file():

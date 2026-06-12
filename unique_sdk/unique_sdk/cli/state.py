@@ -150,6 +150,10 @@ class ShellState:
         self._content_owner_path_cache: dict[str, str | None] = {}
         self._mdf_verdict_cache: dict[str, bool] = {}
         self._chat_file_content_ids_cache: set[str] | None = None
+        # Raw ``Content.get_info`` item per content id, shared by the scope
+        # gate (owner path) and citation title resolution so a read+cite of
+        # the same document costs one info call per turn. See UN-21780.
+        self._content_info_cache: dict[str, dict[str, Any] | None] = {}
 
     @property
     def workspace_restricted(self) -> bool:
@@ -306,6 +310,22 @@ class ShellState:
         if content_id in self._content_owner_path_cache:
             return self._content_owner_path_cache[content_id]
         owner_path: str | None = None
+        info = self._get_content_info(content_id)
+        owner_id = info.get("ownerId", "") if info else ""
+        if owner_id:
+            owner_path = self._resolve_scope_path(owner_id)
+        self._content_owner_path_cache[content_id] = owner_path
+        return owner_path
+
+    def _get_content_info(self, content_id: str) -> dict[str, Any] | None:
+        """Return the cached ``Content.get_info`` item for *content_id*.
+
+        One API call per content id per turn, memoised on this ``ShellState``
+        and shared between owner-path scope checks and citation title lookup.
+        """
+        if content_id in self._content_info_cache:
+            return self._content_info_cache[content_id]
+        info: dict[str, Any] | None = None
         try:
             result = unique_sdk.Content.get_info(
                 user_id=self.config.user_id,
@@ -313,13 +333,23 @@ class ShellState:
                 contentId=content_id,
             )
             items = result.get("contentInfo", [])
-            owner_id = items[0].get("ownerId", "") if items else ""
-            if owner_id:
-                owner_path = self._resolve_scope_path(owner_id)
+            info = items[0] if items else None
         except Exception:
-            owner_path = None
-        self._content_owner_path_cache[content_id] = owner_path
-        return owner_path
+            info = None
+        self._content_info_cache[content_id] = info
+        return info
+
+    def resolve_content_title(self, content_id: str) -> str:
+        """Human-readable title for a content id, falling back to the id.
+
+        Mirrors the ``title or key`` convention used by ``read`` and ``ls`` so
+        citations made by bare ``cont_*`` id still render with the document's
+        filename instead of the opaque id. See UN-21780.
+        """
+        info = self._get_content_info(content_id)
+        if not info:
+            return content_id
+        return info.get("title") or info.get("key") or content_id
 
     def content_allowed_by_metadata_filter(self, content_id: str) -> bool:
         """Return True if *content_id* satisfies the per-message scope filter.

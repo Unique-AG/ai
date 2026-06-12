@@ -143,14 +143,40 @@ class TestCmdCiteFile:
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert lines[0]["contentId"] == "cont_abc123"
 
-    def test_content_id_passthrough(self, state: ShellState, workspace: Path):
-        """Content IDs starting with cont_ are used directly."""
+    @patch("unique_sdk.Content.get_info")
+    def test_content_id_resolves_title(
+        self, mock_info, state: ShellState, workspace: Path
+    ):
+        """A bare cont_ id is cited with its resolved document title.
+
+        Citing directly by id (the recommended path after `read`) must still
+        render the filename, not the opaque id — the manifest stores the
+        resolved title. See UN-21780.
+        """
+        mock_info.return_value = {
+            "contentInfo": [{"id": "cont_direct999", "title": "Q3 Report.pdf"}]
+        }
+        result = cmd_cite_file(state, "cont_direct999", "1")
+
+        assert "[filesource1] -> Q3 Report.pdf page 1" in result
+        manifest = workspace / ".unique" / "file-refs.jsonl"
+        lines = [json.loads(line) for line in manifest.read_text().splitlines()]
+        assert lines[0]["contentId"] == "cont_direct999"
+        assert lines[0]["filename"] == "Q3 Report.pdf"
+
+    @patch("unique_sdk.Content.get_info")
+    def test_content_id_falls_back_to_id_when_title_unresolved(
+        self, mock_info, state: ShellState, workspace: Path
+    ):
+        """If the title can't be resolved, the id is used as the filename."""
+        mock_info.side_effect = Exception("boom")
         result = cmd_cite_file(state, "cont_direct999", "1")
 
         assert "[filesource1] -> cont_direct999 page 1" in result
         manifest = workspace / ".unique" / "file-refs.jsonl"
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert lines[0]["contentId"] == "cont_direct999"
+        assert lines[0]["filename"] == "cont_direct999"
 
     def test_whole_file_no_pages(
         self, state: ShellState, workspace_with_manifest: Path
