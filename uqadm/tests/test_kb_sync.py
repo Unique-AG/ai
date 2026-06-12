@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from unique_sdk import InvalidRequestError
 
 from uqadm.kb.sync import cmd_sync
 
@@ -381,10 +382,12 @@ def test_dry_run_missing_folder_treats_files_as_new(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     # On a dry run the target folder may not exist yet; the SDK raises
-    # ValueError, which is swallowed so files show as "new" and no remote
-    # listing happens.
+    # InvalidRequestError, which is swallowed so files show as "new" and no
+    # remote listing happens.
     (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
-    folder.resolve_scope_id_from_folder_path.side_effect = ValueError("not found")
+    folder.resolve_scope_id_from_folder_path.side_effect = InvalidRequestError(
+        "not found", params=None
+    )
 
     cmd_sync(
         _cfg(),
