@@ -1,13 +1,16 @@
 import pytest
 from unique_search_proxy_core.crawlers.base import CrawlerType
-from unique_search_proxy_core.crawlers.config_types import CrawlRequest
+from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
+from unique_search_proxy_core.crawlers.config_types import parse_crawl_request
 from unique_search_proxy_core.schema import (
     CrawlResponse,
     SearchResponse,
     WebSearchResult,
 )
 from unique_search_proxy_core.search_engines.config_types import parse_search_request
-from unique_search_proxy_core.search_engines.google.schema import GoogleRequest
+from unique_search_proxy_core.search_engines.google.schema import (
+    GoogleSearchRequest,
+)
 
 
 class TestV1SearchSchemas:
@@ -21,7 +24,7 @@ class TestV1SearchSchemas:
                 "timeout": 60,
             },
         )
-        assert isinstance(req, GoogleRequest)
+        assert isinstance(req, GoogleSearchRequest)
         assert req.timeout == 60
 
     @pytest.mark.ai
@@ -39,12 +42,13 @@ class TestV1SearchSchemas:
 class TestV1CrawlSchemas:
     @pytest.mark.ai
     def test_crawl_request(self) -> None:
-        req = CrawlRequest.model_validate(
+        req = parse_crawl_request(
             {
                 "urls": ["https://example.com"],
                 "crawler": CrawlerType.BASIC.value,
             },
         )
+        assert isinstance(req, BasicCrawlRequest)
         assert req.urls == ["https://example.com"]
 
     @pytest.mark.ai

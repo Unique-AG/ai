@@ -11,12 +11,8 @@ from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import (
     ExposableStrOrNone,
     GoogleConfig,
-    GoogleRequest,
+    GoogleSearchRequest,
 )
-from unique_search_proxy_client.web.core.search_engines.google.pagination import (
-    iter_google_page_requests,
-)
-from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
 from unique_search_proxy_core.search_engines.params import (
     config_defaults,
     llm_exposed_field_names,
@@ -24,9 +20,13 @@ from unique_search_proxy_core.search_engines.params import (
 )
 
 from unique_search_proxy_client.web.core.search_engines import resolve_engine_call
+from unique_search_proxy_client.web.core.search_engines.google.pagination import (
+    iter_google_page_requests,
+)
 from unique_search_proxy_client.web.core.search_engines.google.query_params import (
     build_google_query_params,
 )
+from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
 from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
 from unique_search_proxy_client.web.settings.providers.google import (
     _get_google_search_credentials,
@@ -71,7 +71,7 @@ class TestMergeConfigAndInvocation:
             config,
             {"query": "news", "gl": "ch"},
         )
-        assert isinstance(request, GoogleRequest)
+        assert isinstance(request, GoogleSearchRequest)
         assert request.date_restrict == "m1"
         assert request.gl == "ch"
 

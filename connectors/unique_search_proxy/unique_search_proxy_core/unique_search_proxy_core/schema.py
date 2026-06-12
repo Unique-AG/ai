@@ -10,6 +10,7 @@ from pydantic.fields import ComputedFieldInfo, FieldInfo
 
 ProxyRequestType = Literal["search", "crawl"]
 
+
 def field_title_generator(
     title: str,
     info: FieldInfo | ComputedFieldInfo,

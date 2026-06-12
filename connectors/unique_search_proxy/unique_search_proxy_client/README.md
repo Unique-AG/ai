@@ -128,8 +128,11 @@ Settings are colocated with each component and use env prefixes:
 | Google search | (no prefix) | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
 | Brave search | (no prefix) | `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_API_ENDPOINT` |
 | Perplexity search | (no prefix) | `PERPLEXITY_SEARCH_API_KEY`, `PERPLEXITY_SEARCH_API_ENDPOINT` |
+| Tavily | `TAVILY_` | `TAVILY_API_KEY`, `TAVILY_API_ENDPOINT` |
+| Jina | `JINA_` | `JINA_API_KEY`, `JINA_DEPLOYMENT` (`global` or `eu-beta`) |
+| Firecrawl | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_ENDPOINT`, `FIRECRAWL_API_VERSION` |
 
-Unset secrets default to the sentinel `NOT_PROVIDED`. Search calls against an unconfigured provider return **503** `ENGINE_NOT_CONFIGURED` with the missing env var names in the error message (for operators and LLM tool consumers).
+Unset secrets default to the sentinel `NOT_PROVIDED`. Search or crawl calls against an unconfigured provider return **503** `ENGINE_NOT_CONFIGURED` with the missing env var names in the error message (for operators and LLM tool consumers).
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
 | Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
 | Container entrypoint | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL`, `PROMETHEUS_MULTIPROC_DIR` |
@@ -140,7 +143,7 @@ Copy `.env.example` to `.env` for an annotated template of all settings. Outboun
 
 Lists search engine and crawler ids registered in the proxy pod (depends on env/secrets). Use this for health checks and capability discovery at runtime.
 
-Deployment config JSON Schema, defaults, and LLM call-schema projection are **core library** concerns — import from `unique_search_proxy_core.providers.schema` and `unique_search_proxy_core.search_engines.call_schema` (or the crawl equivalents). Assistants-core embeds those shapes in tool manifests rather than calling extra HTTP routes on the proxy.
+Deployment config JSON Schema and defaults are **core library** concerns — import from `unique_search_proxy_core.providers.schema`. Search LLM call-schema projection lives in `unique_search_proxy_core.search_engines.call_schema`. Crawlers use flat `POST /v1/crawl` bodies only (no per-crawler call-schema). Assistants-core embeds those shapes in tool manifests rather than calling extra HTTP routes on the proxy.
 
 ### Search (`POST /v1/search`)
 
@@ -194,10 +197,12 @@ Response:
 ```json
 {
   "urls": ["https://example.com"],
-  "crawler": "basic",
+  "crawler": "Basic",
   "timeout": 30
 }
 ```
+
+Registered crawler discriminators: `Basic`, `Tavily`, `Jina`, `Firecrawl`. Provider-specific fields (e.g. `extractDepth` for Tavily) are flat on the request body.
 
 ### Errors
 
@@ -245,6 +250,32 @@ connectors/unique_search_proxy/
 ```
 
 Engines and crawlers register via `web/core/registry.py` at application startup.
+
+## Dev testing (payloads and responses)
+
+Verify config payloads by sending curated presets to a running local proxy and inspecting request/response JSON.
+
+1. Start the server and configure `.env` (see [Quick Start](#quick-start)).
+2. **Swagger** — open `/docs`, use **Try it out** on `POST /v1/search` or `POST /v1/crawl`, pick a preset from the **Examples** dropdown, execute, and read the response.
+3. **CLI** — same presets from the terminal:
+
+```bash
+# List presets
+uv run python scripts/try_presets.py list
+
+# Run one preset (prints request + response JSON)
+uv run python scripts/try_presets.py run tavily_rerank
+
+# Run all crawl presets
+uv run python scripts/try_presets.py run-all --kind crawl
+
+# Against a port-forwarded cluster pod
+uv run python scripts/try_presets.py run google_minimal --base-url http://127.0.0.1:8080
+```
+
+Presets live in `unique_search_proxy_client/web/presets/` (single source of truth for Swagger examples and the CLI). Unconfigured providers return **503** `ENGINE_NOT_CONFIGURED` with `missingEnvVars` in the error body — same as production calls.
+
+Add `--strict` to exit non-zero when any response is not 2xx.
 
 ## Development
 

@@ -3,18 +3,16 @@ from unique_search_proxy_core.projection import build_llm_call_model
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import (
     BraveConfig,
-    BraveRequest,
+    BraveSearchRequest,
     ExposableSafesearch,
     ExposableStrOrNone,
 )
-from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
+from unique_search_proxy_core.search_engines.config_types import parse_search_request
 from unique_search_proxy_core.search_engines.params import (
     config_defaults,
     llm_exposed_field_names,
     merge_config_and_invocation,
 )
-
-from unique_search_proxy_core.search_engines.config_types import parse_search_request
 
 from unique_search_proxy_client.web.core.search_engines.brave.pagination import (
     iter_brave_page_requests,
@@ -22,6 +20,7 @@ from unique_search_proxy_client.web.core.search_engines.brave.pagination import 
 from unique_search_proxy_client.web.core.search_engines.brave.query_params import (
     build_brave_query_params,
 )
+from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
 
 
 class TestBraveMergeConfigAndInvocation:
@@ -37,7 +36,7 @@ class TestBraveMergeConfigAndInvocation:
             {"query": "hello", "freshness": "pd"},
             engine=SearchEngineType.BRAVE,
         )
-        assert isinstance(request, BraveRequest)
+        assert isinstance(request, BraveSearchRequest)
         assert request.query == "hello"
         assert request.country == "CH"
         assert request.freshness == "pd"
@@ -130,7 +129,7 @@ class TestBraveProviderParams:
 
     @pytest.mark.ai
     def test_count_and_offset_not_on_request_model(self) -> None:
-        request_fields = BraveRequest.model_fields
+        request_fields = BraveSearchRequest.model_fields
         assert "count" not in request_fields
         assert "offset" not in request_fields
 

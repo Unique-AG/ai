@@ -14,13 +14,15 @@ from unique_search_proxy_core.errors import (
 )
 from unique_search_proxy_core.schema import ProxyErrorCode
 from unique_search_proxy_core.search_engines.google.schema import (
-    GoogleRequest,
+    GoogleSearchRequest,
 )
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.search_engines.google.service import (
     GoogleSearchService,
 )
+
+
 def _minimal_google_item() -> dict[str, Any]:
     return {
         "link": "https://example.com/page",
@@ -78,8 +80,8 @@ def google_client(google_env: None) -> TestClient:
         yield test_client
 
 
-def _google_request(**fields: Any) -> GoogleRequest:
-    return GoogleRequest.model_validate(
+def _google_request(**fields: Any) -> GoogleSearchRequest:
+    return GoogleSearchRequest.model_validate(
         {
             "query": "hello",
             "fetch_size": 10,
@@ -367,7 +369,7 @@ class TestGoogleSearchEndpoint:
     ) -> None:
         async def mock_search(
             self: GoogleSearchService,
-            call: GoogleRequest,
+            call: GoogleSearchRequest,
         ) -> tuple[dict[str, Any], list]:
             from unique_search_proxy_core.schema import WebSearchResult
 
@@ -433,7 +435,7 @@ class TestGoogleSearchEndpoint:
     ) -> None:
         async def mock_search(
             self: GoogleSearchService,
-            call: GoogleRequest,
+            call: GoogleSearchRequest,
         ) -> tuple[Any, list]:
             raise UpstreamError("Google failed")
 
@@ -449,7 +451,7 @@ class TestGoogleSearchEndpoint:
     ) -> None:
         async def mock_search(
             self: GoogleSearchService,
-            call: GoogleRequest,
+            call: GoogleSearchRequest,
         ) -> tuple[Any, list]:
             raise UpstreamTimeoutError("timed out")
 

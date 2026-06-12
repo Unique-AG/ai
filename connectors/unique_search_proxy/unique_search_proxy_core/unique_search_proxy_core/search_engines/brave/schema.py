@@ -147,12 +147,12 @@ def brave_request_model() -> type[BaseModel]:
     return build_request_model(BraveConfig)
 
 
-BraveRequest = brave_request_model()
+BraveSearchRequest = brave_request_model()
 
 
 __all__ = [
     "BraveConfig",
-    "BraveRequest",
+    "BraveSearchRequest",
     "BraveSafesearch",
     "BraveUnits",
     "ExposableResultFilter",

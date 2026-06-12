@@ -22,7 +22,7 @@ from unique_search_proxy_core.search_engines.base import (
 )
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
-    GoogleRequest,
+    GoogleSearchRequest,
 )
 
 from unique_search_proxy_client.web.core.search_engines.google.pagination import (
@@ -42,7 +42,7 @@ from unique_search_proxy_client.web.settings.providers import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class GoogleSearchService(SearchEngineService[GoogleRequest]):
+class GoogleSearchService(SearchEngineService[GoogleSearchRequest]):
     """Google Custom Search JSON API provider."""
 
     engine_id = SearchEngineType.GOOGLE.value
@@ -53,7 +53,7 @@ class GoogleSearchService(SearchEngineService[GoogleRequest]):
 
     async def search(
         self,
-        request: GoogleRequest,  # type: ignore
+        request: GoogleSearchRequest,  # type: ignore
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
         credentials.check_credentials()
         search_engine_id = credentials.engine_id
@@ -91,7 +91,7 @@ class GoogleSearchService(SearchEngineService[GoogleRequest]):
     async def _fetch_page(
         self,
         *,
-        request: GoogleRequest,  # type: ignore
+        request: GoogleSearchRequest,  # type: ignore
         api_key: str,
         search_engine_id: str,
         api_endpoint: str,

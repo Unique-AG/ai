@@ -4,7 +4,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
-from unique_search_proxy_core.crawlers.config_types import CrawlRequest
+from unique_search_proxy_core.crawlers.config_types import parse_crawl_request
 from unique_search_proxy_core.schema import ProxyErrorCode
 
 from unique_search_proxy_client.web.app import create_app
@@ -61,7 +61,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 @pytest.mark.ai
 def test_basic_crawler_service_returns_markdown() -> None:
     async def run() -> None:
-        request = CrawlRequest.model_validate(
+        request = parse_crawl_request(
             {
                 "urls": ["https://example.com/article"],
                 "crawler": CrawlerType.BASIC.value,

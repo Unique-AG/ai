@@ -15,11 +15,10 @@ ProviderKind = Literal["search_engine", "crawler"]
 
 
 def _config_model(kind: ProviderKind, provider_id: str) -> type[BaseModel]:
-    normalized = provider_id.lower()
     if kind == "search_engine":
-        model = ENGINE_NAME_TO_CONFIG.get(normalized)
+        model = ENGINE_NAME_TO_CONFIG.get(provider_id.lower())
     else:
-        model = CRAWLER_NAME_TO_CONFIG.get(normalized)
+        model = CRAWLER_NAME_TO_CONFIG.get(provider_id)
     if model is None:
         raise ValueError(f"No {kind} config registered for {provider_id!r}")
     return model
@@ -32,7 +31,10 @@ def provider_config_json_schema(kind: ProviderKind, provider_id: str) -> dict[st
 
 def provider_default_config(kind: ProviderKind, provider_id: str) -> dict[str, Any]:
     """Default deployment config instance serialized with camelCase aliases."""
-    return _config_model(kind, provider_id)().model_dump(mode="json", by_alias=True)
+    data = _config_model(kind, provider_id)().model_dump(mode="json", by_alias=True)
+    if kind == "crawler":
+        data.pop("urls", None)
+    return data
 
 
 def union_config_json_schema(models: list[type[BaseModel]]) -> dict[str, Any]:

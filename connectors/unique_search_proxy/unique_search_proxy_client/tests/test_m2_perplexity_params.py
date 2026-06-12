@@ -13,7 +13,7 @@ from unique_search_proxy_core.search_engines.perplexity.schema import (
     ExposableSearchContextSize,
     ExposableStrOrNone,
     PerplexityConfig,
-    PerplexityRequest,
+    PerplexitySearchRequest,
 )
 
 from unique_search_proxy_client.web.core.search_engines.perplexity.request_body import (
@@ -34,7 +34,7 @@ class TestPerplexityMergeConfigAndInvocation:
             {"query": "hello", "search_context_size": "low"},
             engine=SearchEngineType.PERPLEXITY,
         )
-        assert isinstance(request, PerplexityRequest)
+        assert isinstance(request, PerplexitySearchRequest)
         assert request.query == "hello"
         assert request.country == "US"
         assert request.search_context_size == "low"
@@ -96,7 +96,9 @@ class TestPerplexityConfigExposure:
     def test_exposed_country_appears_on_llm_schema(self) -> None:
         config = PerplexityConfig(
             country=ExposableStrOrNone(expose=True, value="US"),
-            search_domain_filter=ExposableDomainFilter(expose=False, value=["example.com"]),
+            search_domain_filter=ExposableDomainFilter(
+                expose=False, value=["example.com"]
+            ),
         )
         exposed = llm_exposed_field_names(config)
         assert "country" in exposed
@@ -109,7 +111,9 @@ class TestPerplexityConfigExposure:
     def test_config_defaults_collects_plain_and_exposable_values(self) -> None:
         config = PerplexityConfig(
             country=ExposableStrOrNone(expose=False, value="CH"),
-            search_context_size=ExposableSearchContextSize(expose=False, value="medium"),
+            search_context_size=ExposableSearchContextSize(
+                expose=False, value="medium"
+            ),
             max_tokens=256,
             max_tokens_per_page=64,
             fetch_size=8,

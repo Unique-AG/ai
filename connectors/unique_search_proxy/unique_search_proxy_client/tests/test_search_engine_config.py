@@ -6,18 +6,18 @@ from unique_search_proxy_core.search_engines import (
 )
 from unique_search_proxy_core.search_engines.brave.schema import (
     BraveConfig,
-    BraveRequest,
+    BraveSearchRequest,
 )
 from unique_search_proxy_core.search_engines.config_types import (
     parse_search_request,
 )
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
-    GoogleRequest,
+    GoogleSearchRequest,
 )
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexityConfig,
-    PerplexityRequest,
+    PerplexitySearchRequest,
 )
 
 
@@ -48,7 +48,7 @@ class TestSearchEngineConfigUnion:
             },
         )
         assert req.engine == SearchEngineType.GOOGLE
-        assert isinstance(req, GoogleRequest)
+        assert isinstance(req, GoogleSearchRequest)
         assert req.fetch_size == 8
         assert req.query == "hello"
 
@@ -78,7 +78,7 @@ class TestSearchEngineConfigUnion:
             },
         )
         assert req.engine == SearchEngineType.BRAVE
-        assert isinstance(req, BraveRequest)
+        assert isinstance(req, BraveSearchRequest)
         assert req.fetch_size == 8
         assert req.query == "hello"
         assert req.safesearch == "moderate"
@@ -109,7 +109,7 @@ class TestSearchEngineConfigUnion:
             },
         )
         assert req.engine == SearchEngineType.PERPLEXITY
-        assert isinstance(req, PerplexityRequest)
+        assert isinstance(req, PerplexitySearchRequest)
         assert req.fetch_size == 8
         assert req.query == "hello"
         assert req.search_context_size == "low"

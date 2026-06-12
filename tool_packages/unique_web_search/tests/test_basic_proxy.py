@@ -151,7 +151,7 @@ class TestBasicProxyCrawler:
                         content="other body",
                     ),
                 ],
-                crawler_type="BasicCrawler",
+                crawler="Basic",
             )
         )
         mock_client_cls = MagicMock()

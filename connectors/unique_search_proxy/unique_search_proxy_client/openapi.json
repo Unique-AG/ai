@@ -88,44 +88,54 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "#/components/schemas/GoogleRequest"
+                    "$ref": "#/components/schemas/GoogleSearchRequest"
                   },
                   {
-                    "$ref": "#/components/schemas/BraveRequest"
+                    "$ref": "#/components/schemas/BraveSearchRequest"
                   },
                   {
-                    "$ref": "#/components/schemas/PerplexityRequest"
+                    "$ref": "#/components/schemas/PerplexitySearchRequest"
                   }
                 ],
                 "title": "Body"
               },
               "examples": {
-                "google_search": {
-                  "summary": "Google search",
+                "google_minimal": {
+                  "summary": "Google search (minimal)",
                   "description": "Flat search request; requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID in .env.",
                   "value": {
                     "engine": "google",
                     "query": "unique ag",
                     "fetchSize": 10,
-                    "safe": "active",
-                    "timeout": 30
+                    "timeout": 30,
+                    "safe": "active"
                   }
                 },
-                "google_search_with_gl": {
+                "google_with_gl": {
                   "summary": "Google search (with gl and dateRestrict)",
-                  "description": "Full execution payload including optional provider parameters.",
+                  "description": "Google search with geolocation and recency filters. Requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID in .env.",
                   "value": {
                     "engine": "google",
                     "query": "unique ag",
                     "fetchSize": 10,
-                    "gl": "ch",
-                    "dateRestrict": "d7",
+                    "timeout": 30,
                     "safe": "active",
+                    "gl": "ch",
+                    "dateRestrict": "d7"
+                  }
+                },
+                "brave_minimal": {
+                  "summary": "Brave search (minimal)",
+                  "description": "Flat search request; requires BRAVE_SEARCH_API_KEY in .env.",
+                  "value": {
+                    "engine": "brave",
+                    "query": "unique ag",
+                    "fetchSize": 10,
                     "timeout": 30
                   }
                 },
-                "perplexity_search": {
-                  "summary": "Perplexity search",
+                "perplexity_minimal": {
+                  "summary": "Perplexity search (minimal)",
                   "description": "Flat search request; requires PERPLEXITY_SEARCH_API_KEY in .env.",
                   "value": {
                     "engine": "perplexity",
@@ -174,17 +184,29 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BasicCrawlerRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BasicCrawlRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TavilyCrawlRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JinaCrawlRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FirecrawlCrawlRequest"
+                  }
+                ],
+                "title": "Body"
               },
               "examples": {
                 "basic_raw": {
                   "summary": "Basic crawl (raw body only)",
                   "description": "Returns raw response text and contentType; content stays null.",
                   "value": {
-                    "urls": [
-                      "https://example.com"
-                    ],
-                    "crawler": "BasicCrawler",
+                    "crawler": "Basic",
+                    "timeout": 30,
                     "contentTypes": {
                       "html": false,
                       "xhtml": false,
@@ -192,22 +214,170 @@
                       "markdown": false,
                       "pdf": false
                     },
-                    "timeout": 30
+                    "maxConcurrentRequests": 10,
+                    "urls": [
+                      "https://example.com"
+                    ]
                   }
                 },
                 "basic_html_markdown": {
                   "summary": "Basic crawl (HTML to markdown)",
                   "description": "Processes allowed content types into the content field.",
                   "value": {
-                    "urls": [
-                      "https://example.com"
-                    ],
-                    "crawler": "BasicCrawler",
+                    "crawler": "Basic",
+                    "timeout": 30,
                     "contentTypes": {
                       "html": true,
-                      "xhtml": true
+                      "xhtml": true,
+                      "plainText": false,
+                      "markdown": false,
+                      "pdf": false
                     },
-                    "timeout": 30
+                    "maxConcurrentRequests": 10,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "basic_multi_url": {
+                  "summary": "Basic crawl (multi-URL batch)",
+                  "description": "Fetches multiple URLs in one request with default content processing.",
+                  "value": {
+                    "crawler": "Basic",
+                    "timeout": 30,
+                    "contentTypes": {
+                      "html": true,
+                      "xhtml": true,
+                      "plainText": true,
+                      "markdown": true,
+                      "pdf": false
+                    },
+                    "maxConcurrentRequests": 10,
+                    "urls": [
+                      "https://example.com",
+                      "https://www.example.org"
+                    ]
+                  }
+                },
+                "tavily_minimal": {
+                  "summary": "Tavily extract (minimal)",
+                  "description": "Tavily Extract API; requires TAVILY_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Tavily",
+                    "timeout": 30,
+                    "extractDepth": "advanced",
+                    "format": "markdown",
+                    "includeImages": false,
+                    "includeFavicon": false,
+                    "includeUsage": false,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "tavily_rerank": {
+                  "summary": "Tavily extract (query rerank)",
+                  "description": "Tavily extract with query reranking and chunks per source. Requires TAVILY_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Tavily",
+                    "timeout": 30,
+                    "extractDepth": "advanced",
+                    "format": "markdown",
+                    "query": "main product features",
+                    "chunksPerSource": 3,
+                    "includeImages": true,
+                    "includeFavicon": false,
+                    "includeUsage": false,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "jina_minimal": {
+                  "summary": "Jina reader (minimal)",
+                  "description": "Jina Reader API; requires JINA_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Jina",
+                    "timeout": 30,
+                    "returnFormat": "markdown",
+                    "engine": "browser",
+                    "maxConcurrentRequests": 10,
+                    "noCache": false,
+                    "withGeneratedAlt": false,
+                    "withLinksSummary": false,
+                    "withImagesSummary": false,
+                    "withIframe": false,
+                    "doNotTrack": true,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "jina_selectors": {
+                  "summary": "Jina reader (selectors + no cache)",
+                  "description": "Jina Reader with CSS selectors and cache bypass. Requires JINA_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Jina",
+                    "timeout": 30,
+                    "returnFormat": "markdown",
+                    "engine": "browser",
+                    "maxConcurrentRequests": 10,
+                    "noCache": true,
+                    "waitForSelector": [
+                      "main",
+                      "article"
+                    ],
+                    "removeSelector": [
+                      "header",
+                      "footer",
+                      "nav"
+                    ],
+                    "withGeneratedAlt": false,
+                    "withLinksSummary": false,
+                    "withImagesSummary": false,
+                    "withIframe": false,
+                    "doNotTrack": true,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "firecrawl_minimal": {
+                  "summary": "Firecrawl batch scrape (minimal)",
+                  "description": "Firecrawl v2 batch scrape; requires FIRECRAWL_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Firecrawl",
+                    "timeout": 60,
+                    "onlyMainContent": true,
+                    "onlyCleanContent": false,
+                    "ignoreInvalidUrls": true,
+                    "waitFor": 0,
+                    "mobile": false,
+                    "blockAds": true,
+                    "removeBase64Images": true,
+                    "proxy": "auto",
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "firecrawl_enhanced": {
+                  "summary": "Firecrawl batch scrape (enhanced proxy)",
+                  "description": "Firecrawl with enhanced proxy, mobile emulation, and wait. Requires FIRECRAWL_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Firecrawl",
+                    "timeout": 90,
+                    "onlyMainContent": true,
+                    "onlyCleanContent": false,
+                    "ignoreInvalidUrls": true,
+                    "waitFor": 1000,
+                    "mobile": true,
+                    "blockAds": true,
+                    "removeBase64Images": true,
+                    "proxy": "enhanced",
+                    "urls": [
+                      "https://example.com"
+                    ]
                   }
                 }
               }
@@ -242,55 +412,49 @@
   },
   "components": {
     "schemas": {
-      "BasicCrawlerRequest": {
+      "BasicCrawlRequest": {
         "properties": {
+          "crawler": {
+            "type": "string",
+            "const": "Basic",
+            "title": "Crawler",
+            "default": "Basic"
+          },
+          "timeout": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
           "urls": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "minItems": 1,
             "title": "Urls",
-            "description": "URLs to crawl"
-          },
-          "crawler": {
-            "type": "string",
-            "const": "BasicCrawler",
-            "title": "Crawler",
-            "default": "BasicCrawler"
-          },
-          "timeout": {
-            "type": "integer",
-            "title": "Timeout",
-            "description": "Request timeout in seconds",
-            "default": 30
+            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
           },
           "contentTypes": {
             "$ref": "#/components/schemas/ContentTypeToggles",
             "title": "Content types",
-            "description": "Enable built-in processing per media type. Unchecked types return raw body only.",
-            "default": {
-              "html": true,
-              "xhtml": true,
-              "plainText": true,
-              "markdown": true,
-              "pdf": false
-            }
+            "description": "Enable built-in processing per media type. Unchecked types return raw body only."
           },
           "maxConcurrentRequests": {
             "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
             "title": "Maximum concurrent HTTP fetches",
             "description": "Maximum concurrent HTTP fetches",
             "default": 10
           }
         },
         "type": "object",
-        "required": [
-          "urls"
-        ],
-        "title": "Basic Proxy Crawler "
+        "title": "Basic Crawl Request",
+        "description": "Flat ``POST /v1/crawl`` body for the HTTP basic crawler."
       },
-      "BraveRequest": {
+      "BraveSearchRequest": {
         "properties": {
           "query": {
             "type": "string",
@@ -463,7 +627,7 @@
         "required": [
           "query"
         ],
-        "title": "Brave Request"
+        "title": "Brave Search Request"
       },
       "ContentTypeToggles": {
         "properties": {
@@ -581,7 +745,161 @@
         ],
         "title": "Crawl Url Result"
       },
-      "GoogleRequest": {
+      "FirecrawlCrawlRequest": {
+        "properties": {
+          "crawler": {
+            "type": "string",
+            "const": "Firecrawl",
+            "title": "Crawler",
+            "default": "Firecrawl"
+          },
+          "timeout": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Urls",
+            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
+          },
+          "onlyMainContent": {
+            "type": "boolean",
+            "title": "Only main content",
+            "description": "Exclude headers, navs, footers before markdown generation.",
+            "default": true
+          },
+          "onlyCleanContent": {
+            "type": "boolean",
+            "title": "Only clean content",
+            "description": "LLM pass to remove residual boilerplate from markdown.",
+            "default": false
+          },
+          "maxConcurrency": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max concurrency",
+            "description": "Maximum concurrent scrapes for this batch job."
+          },
+          "ignoreInvalidUrls": {
+            "type": "boolean",
+            "title": "Ignore invalid URLs",
+            "description": "Skip invalid URLs instead of failing the whole batch.",
+            "default": true
+          },
+          "waitFor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Wait for",
+            "description": "Extra delay in milliseconds before fetching page content.",
+            "default": 0
+          },
+          "mobile": {
+            "type": "boolean",
+            "title": "Mobile emulation",
+            "description": "Emulate a mobile device when scraping.",
+            "default": false
+          },
+          "blockAds": {
+            "type": "boolean",
+            "title": "Block ads",
+            "description": "Enable ad-blocking and cookie-popup blocking.",
+            "default": true
+          },
+          "removeBase64Images": {
+            "type": "boolean",
+            "title": "Remove base64 images",
+            "description": "Strip base64 image data from markdown output.",
+            "default": true
+          },
+          "proxy": {
+            "type": "string",
+            "enum": [
+              "basic",
+              "enhanced",
+              "auto"
+            ],
+            "title": "Proxy mode",
+            "description": "Firecrawl proxy tier: `basic`, `enhanced`, or `auto`.",
+            "default": "auto"
+          },
+          "includeTags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include tags",
+            "description": "HTML tags to include in scrape output."
+          },
+          "excludeTags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude tags",
+            "description": "HTML tags to exclude from scrape output."
+          },
+          "scrapeHeaders": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scrape headers",
+            "description": "Headers sent to the target page (cookies, user-agent, etc.)."
+          },
+          "maxAge": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max age",
+            "description": "Return cached page content younger than this age in milliseconds."
+          }
+        },
+        "type": "object",
+        "title": "Firecrawl Crawl Request",
+        "description": "Flat ``POST /v1/crawl`` body for the Firecrawl batch scrape crawler."
+      },
+      "GoogleSearchRequest": {
         "properties": {
           "query": {
             "type": "string",
@@ -759,7 +1077,7 @@
         "required": [
           "query"
         ],
-        "title": "Google Request"
+        "title": "Google Search Request"
       },
       "HTTPValidationError": {
         "properties": {
@@ -773,6 +1091,218 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "JinaCrawlRequest": {
+        "properties": {
+          "crawler": {
+            "type": "string",
+            "const": "Jina",
+            "title": "Crawler",
+            "default": "Jina"
+          },
+          "timeout": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Urls",
+            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
+          },
+          "returnFormat": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "html",
+              "text",
+              "screenshot",
+              "pageshot"
+            ],
+            "title": "Return format",
+            "description": "Jina Reader output format: `markdown`, `html`, `text`, `screenshot`, or `pageshot`.",
+            "default": "markdown"
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "browser",
+              "direct",
+              "cf-browser-rendering"
+            ],
+            "title": "Engine",
+            "description": "`browser` for best quality, `direct` for speed, `cf-browser-rendering` for JS-heavy sites.",
+            "default": "browser"
+          },
+          "pageTimeout": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 180.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page load timeout",
+            "description": "Max seconds to wait for the page to load (Jina Reader). Defaults to the crawl `timeout` when unset."
+          },
+          "maxConcurrentRequests": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Maximum concurrent reader requests",
+            "description": "Maximum concurrent Jina Reader POST requests.",
+            "default": 10
+          },
+          "noCache": {
+            "type": "boolean",
+            "title": "Bypass cache",
+            "description": "Bypass Jina cache and fetch fresh content.",
+            "default": false
+          },
+          "targetSelector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target selector",
+            "description": "CSS selectors to focus extraction on specific page elements."
+          },
+          "waitForSelector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wait for selector",
+            "description": "CSS selectors to wait for before returning content."
+          },
+          "removeSelector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remove selector",
+            "description": "CSS selectors for page regions to strip (headers, footers, etc.)."
+          },
+          "withGeneratedAlt": {
+            "type": "boolean",
+            "title": "Generated alt text",
+            "description": "Generate alt text for images missing alt tags.",
+            "default": false
+          },
+          "withLinksSummary": {
+            "type": "boolean",
+            "title": "Links summary",
+            "description": "Include a links summary in the reader response.",
+            "default": false
+          },
+          "withImagesSummary": {
+            "type": "boolean",
+            "title": "Images summary",
+            "description": "Include an images summary in the reader response.",
+            "default": false
+          },
+          "withIframe": {
+            "type": "boolean",
+            "title": "Include iframes",
+            "description": "Include iframe content in the reader response.",
+            "default": false
+          },
+          "retainImages": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "all",
+                  "alt",
+                  "all_p",
+                  "alt_p"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retain images",
+            "description": "Control which images are retained in markdown output."
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale",
+            "description": "Browser locale used to render the page (e.g. `en-US`)."
+          },
+          "referer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referer",
+            "description": "Referer header sent when fetching the target URL."
+          },
+          "proxyUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proxy URL",
+            "description": "Proxy URL used by Jina Reader to access the target page."
+          },
+          "doNotTrack": {
+            "type": "boolean",
+            "title": "Do not track",
+            "description": "Send DNT (Do Not Track) to the reader service.",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "Jina Crawl Request",
+        "description": "Flat ``POST /v1/crawl`` body for the Jina Reader crawler."
       },
       "PerUrlError": {
         "properties": {
@@ -792,7 +1322,7 @@
         ],
         "title": "Per Url Error"
       },
-      "PerplexityRequest": {
+      "PerplexitySearchRequest": {
         "properties": {
           "query": {
             "type": "string",
@@ -974,7 +1504,7 @@
         "required": [
           "query"
         ],
-        "title": "Perplexity Request"
+        "title": "Perplexity Search Request"
       },
       "ProvidersListResponse": {
         "properties": {
@@ -1032,6 +1562,99 @@
           "curated"
         ],
         "title": "Search Response"
+      },
+      "TavilyCrawlRequest": {
+        "properties": {
+          "crawler": {
+            "type": "string",
+            "const": "Tavily",
+            "title": "Crawler",
+            "default": "Tavily"
+          },
+          "timeout": {
+            "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Urls",
+            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
+          },
+          "extractDepth": {
+            "type": "string",
+            "enum": [
+              "basic",
+              "advanced"
+            ],
+            "title": "Extract depth",
+            "description": "Tavily extract depth: `basic` or `advanced`. Advanced retrieves more data (tables, embedded content) with higher success.",
+            "default": "advanced"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "text"
+            ],
+            "title": "Output format",
+            "description": "Extracted content format: `markdown` or `text`.",
+            "default": "markdown"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank query",
+            "description": "User intent for reranking extracted content chunks. When set, `chunks_per_source` may be used."
+          },
+          "chunksPerSource": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunks per source",
+            "description": "Max relevant chunks per URL when `query` is set (1\u20135). Chunks appear in `raw_content` separated by `[...]`."
+          },
+          "includeImages": {
+            "type": "boolean",
+            "title": "Include images",
+            "description": "Include extracted image URLs in the Tavily response.",
+            "default": false
+          },
+          "includeFavicon": {
+            "type": "boolean",
+            "title": "Include favicon",
+            "description": "Include the favicon URL for each extracted result.",
+            "default": false
+          },
+          "includeUsage": {
+            "type": "boolean",
+            "title": "Include usage",
+            "description": "Include Tavily credit usage information in the response.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "Tavily Crawl Request",
+        "description": "Flat ``POST /v1/crawl`` body for the Tavily Extract crawler."
       },
       "ValidationError": {
         "properties": {

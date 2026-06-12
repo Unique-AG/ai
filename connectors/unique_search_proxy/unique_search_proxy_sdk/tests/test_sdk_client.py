@@ -54,11 +54,11 @@ class TestSearchClient:
             WebSearchResult,
             WebSearchResults,
         )
-        from unique_search_proxy_core.search_engines.google.schema import GoogleRequest
+        from unique_search_proxy_core.search_engines.google.schema import GoogleSearchRequest
 
         async def fake_search(
             self: object,
-            request: GoogleRequest,
+            request: GoogleSearchRequest,
         ) -> tuple[SearchEngineRaw, WebSearchResults]:
             return SearchEngineRaw(pages=[]), WebSearchResults(
                 results=[
@@ -99,12 +99,12 @@ class TestCrawlClient:
         sdk_client: UniqueSearchProxyClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerRequest
+        from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
         from unique_search_proxy_core.schema import CrawlUrlResult
 
         async def fake_crawl(
             self: object,
-            request: BasicCrawlerRequest,
+            request: BasicCrawlRequest,
         ) -> list[CrawlUrlResult]:
             return [
                 CrawlUrlResult(

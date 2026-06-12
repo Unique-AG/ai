@@ -18,11 +18,14 @@ CrawlerRequestT = TypeVar("CrawlerRequestT", bound=BaseModel)
 class CrawlerType(StrEnum):
     """Registered crawler ids (JSON discriminator values)."""
 
-    BASIC = "BasicCrawler"
+    BASIC = "Basic"
+    TAVILY = "Tavily"
+    JINA = "Jina"
+    FIRECRAWL = "Firecrawl"
 
 
 class BaseCrawlerConfig(BaseModel, Generic[CrawlerTypeT]):
-    """Shared crawler config; each crawler narrows ``crawler`` with a Literal."""
+    """Flat ``POST /v1/crawl`` body and deployment config; each crawler narrows ``crawler``."""
 
     model_config = camelized_model_config
 
@@ -32,6 +35,10 @@ class BaseCrawlerConfig(BaseModel, Generic[CrawlerTypeT]):
         ge=1,
         le=600,
         description="Request timeout in seconds",
+    )
+    urls: list[str] = Field(
+        default_factory=list,
+        description="URLs to crawl (required on ``POST /v1/crawl``)",
     )
 
 
@@ -49,4 +56,4 @@ class BaseCrawler(ABC, Generic[CrawlerRequestT]):
 
     @abstractmethod
     async def crawl(self, request: CrawlerRequestT) -> list[CrawlUrlResult]:
-        """Crawl URLs from a flat request model (``BasicCrawlerRequest``, …)."""
+        """Crawl URLs from a flat config model (``BasicCrawlRequest``, …)."""

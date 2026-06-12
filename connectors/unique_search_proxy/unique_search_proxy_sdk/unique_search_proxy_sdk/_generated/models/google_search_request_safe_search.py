@@ -1,10 +1,9 @@
 from enum import Enum
 
 
-class BraveRequestSafesearchType0(str, Enum):
-    MODERATE = "moderate"
+class GoogleSearchRequestSafeSearch(str, Enum):
+    ACTIVE = "active"
     OFF = "off"
-    STRICT = "strict"
 
     def __str__(self) -> str:
         return str(self.value)

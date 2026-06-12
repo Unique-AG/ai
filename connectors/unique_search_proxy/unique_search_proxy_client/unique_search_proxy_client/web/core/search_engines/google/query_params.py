@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel
 from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+
 from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
 
 

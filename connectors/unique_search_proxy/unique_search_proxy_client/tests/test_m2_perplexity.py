@@ -11,7 +11,9 @@ from unique_search_proxy_core.errors import (
     UpstreamError,
     UpstreamTimeoutError,
 )
-from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityRequest
+from unique_search_proxy_core.search_engines.perplexity.schema import (
+    PerplexitySearchRequest,
+)
 
 from unique_search_proxy_client.web.core.search_engines.perplexity.service import (
     PerplexitySearchService,
@@ -39,8 +41,8 @@ def perplexity_env(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def _perplexity_request(**fields: Any) -> PerplexityRequest:
-    return PerplexityRequest.model_validate(
+def _perplexity_request(**fields: Any) -> PerplexitySearchRequest:
+    return PerplexitySearchRequest.model_validate(
         {
             "query": "hello",
             "fetch_size": 10,

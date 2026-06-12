@@ -19,6 +19,7 @@ from unique_search_proxy_core.search_engines.config_types import (
     parse_search_engine_config,
 )
 
+
 @dataclass(frozen=True)
 class SearchCallSchemaDescriptor:
     """Metadata and JSON Schema for the engine call model on ``POST /v1/search``."""

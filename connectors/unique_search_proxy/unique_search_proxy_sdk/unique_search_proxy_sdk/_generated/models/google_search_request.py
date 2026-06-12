@@ -11,17 +11,17 @@ from typing import (
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.google_request_safe_search import GoogleRequestSafeSearch
-from ..models.google_request_site_search_filter_type_0 import (
-    GoogleRequestSiteSearchFilterType0,
+from ..models.google_search_request_safe_search import GoogleSearchRequestSafeSearch
+from ..models.google_search_request_site_search_filter_type_0 import (
+    GoogleSearchRequestSiteSearchFilterType0,
 )
 from ..types import UNSET, Unset
 
-T = TypeVar("T", bound="GoogleRequest")
+T = TypeVar("T", bound="GoogleSearchRequest")
 
 
 @_attrs_define
-class GoogleRequest:
+class GoogleSearchRequest:
     """
     Attributes:
         query (str): Search query string
@@ -30,8 +30,8 @@ class GoogleRequest:
         timeout (int | Unset): Request timeout in seconds Default: 30.
         search_engine_id (None | str | Unset): Google Programmable Search Engine ID (`cx`). Resolved from deployment env
             at runtime when not set. Not sent as a query parameter.
-        safe (GoogleRequestSafeSearch | Unset): SafeSearch level for every search: `active` (default) or `off`. Applied
-            on all requests unless the call body overrides it. Default: GoogleRequestSafeSearch.ACTIVE.
+        safe (GoogleSearchRequestSafeSearch | Unset): SafeSearch level for every search: `active` (default) or `off`.
+            Applied on all requests unless the call body overrides it. Default: GoogleSearchRequestSafeSearch.ACTIVE.
         gl (None | str | Unset): Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). Set `value` for a fixed
             default; set `expose` so the LLM may override per query.
         hl (None | str | Unset): Language for snippets/UI (Google `hl`). `value` + `expose` behave like `gl`.
@@ -47,8 +47,8 @@ class GoogleRequest:
             like `gl`.
         site_search (None | str | Unset): Site or domain (Google `siteSearch`). Pair with `siteSearchFilter`. `value` +
             `expose` behave like `gl`.
-        site_search_filter (GoogleRequestSiteSearchFilterType0 | None | Unset): With `siteSearch`: `i` = include only
-            that site, `e` = exclude. `value` + `expose` behave like `gl`.
+        site_search_filter (GoogleSearchRequestSiteSearchFilterType0 | None | Unset): With `siteSearch`: `i` = include
+            only that site, `e` = exclude. `value` + `expose` behave like `gl`.
         sort (None | str | Unset): Sort expression (Google `sort`), e.g. `date`. `value` + `expose` behave like `gl`.
     """
 
@@ -57,7 +57,7 @@ class GoogleRequest:
     fetch_size: int | Unset = 10
     timeout: int | Unset = 30
     search_engine_id: None | str | Unset = UNSET
-    safe: GoogleRequestSafeSearch | Unset = GoogleRequestSafeSearch.ACTIVE
+    safe: GoogleSearchRequestSafeSearch | Unset = GoogleSearchRequestSafeSearch.ACTIVE
     gl: None | str | Unset = UNSET
     hl: None | str | Unset = UNSET
     lr: None | str | Unset = UNSET
@@ -66,7 +66,7 @@ class GoogleRequest:
     exclude_terms: None | str | Unset = UNSET
     file_type: None | str | Unset = UNSET
     site_search: None | str | Unset = UNSET
-    site_search_filter: GoogleRequestSiteSearchFilterType0 | None | Unset = UNSET
+    site_search_filter: GoogleSearchRequestSiteSearchFilterType0 | None | Unset = UNSET
     sort: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -140,7 +140,9 @@ class GoogleRequest:
         site_search_filter: None | str | Unset
         if isinstance(self.site_search_filter, Unset):
             site_search_filter = UNSET
-        elif isinstance(self.site_search_filter, GoogleRequestSiteSearchFilterType0):
+        elif isinstance(
+            self.site_search_filter, GoogleSearchRequestSiteSearchFilterType0
+        ):
             site_search_filter = self.site_search_filter.value
         else:
             site_search_filter = self.site_search_filter
@@ -214,11 +216,11 @@ class GoogleRequest:
         search_engine_id = _parse_search_engine_id(d.pop("searchEngineId", UNSET))
 
         _safe = d.pop("safe", UNSET)
-        safe: GoogleRequestSafeSearch | Unset
+        safe: GoogleSearchRequestSafeSearch | Unset
         if isinstance(_safe, Unset):
             safe = UNSET
         else:
-            safe = GoogleRequestSafeSearch(_safe)
+            safe = GoogleSearchRequestSafeSearch(_safe)
 
         def _parse_gl(data: object) -> None | str | Unset:
             if data is None:
@@ -294,7 +296,7 @@ class GoogleRequest:
 
         def _parse_site_search_filter(
             data: object,
-        ) -> GoogleRequestSiteSearchFilterType0 | None | Unset:
+        ) -> GoogleSearchRequestSiteSearchFilterType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -302,12 +304,14 @@ class GoogleRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                site_search_filter_type_0 = GoogleRequestSiteSearchFilterType0(data)
+                site_search_filter_type_0 = GoogleSearchRequestSiteSearchFilterType0(
+                    data
+                )
 
                 return site_search_filter_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(GoogleRequestSiteSearchFilterType0 | None | Unset, data)
+            return cast(GoogleSearchRequestSiteSearchFilterType0 | None | Unset, data)
 
         site_search_filter = _parse_site_search_filter(d.pop("siteSearchFilter", UNSET))
 
@@ -320,7 +324,7 @@ class GoogleRequest:
 
         sort = _parse_sort(d.pop("sort", UNSET))
 
-        google_request = cls(
+        google_search_request = cls(
             query=query,
             engine=engine,
             fetch_size=fetch_size,
@@ -339,8 +343,8 @@ class GoogleRequest:
             sort=sort,
         )
 
-        google_request.additional_properties = d
-        return google_request
+        google_search_request.additional_properties = d
+        return google_search_request
 
     @property
     def additional_keys(self) -> list[str]:

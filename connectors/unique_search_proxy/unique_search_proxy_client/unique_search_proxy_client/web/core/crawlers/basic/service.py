@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 import httpx
 from httpx import AsyncClient, Timeout
@@ -10,7 +9,7 @@ from unique_search_proxy_core.crawlers.base import BaseCrawler, CrawlerType
 from unique_search_proxy_core.crawlers.basic.processing.policy import (
     ContentTypeHandlerPolicy,
 )
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerRequest
+from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
 from unique_search_proxy_core.schema import (
     CrawlUrlResult,
     PerUrlError,
@@ -36,12 +35,12 @@ def _content_type_from_response(response: httpx.Response) -> str | None:
     return str(header).split(";")[0].strip().lower() or None
 
 
-class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
+class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
     """Fetch URLs over HTTP and return the response body plus content type."""
 
     crawler_id = CrawlerType.BASIC.value
 
-    async def crawl(self, request: BasicCrawlerRequest) -> list[CrawlUrlResult]:  # type: ignore
+    async def crawl(self, request: BasicCrawlRequest) -> list[CrawlUrlResult]:  # type: ignore
         client = self._http_client
         if client is None:
             raise RuntimeError("HTTP client is required for Basic crawler")
@@ -195,15 +194,3 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
                     message=str(exc),
                 ),
             )
-
-    @staticmethod
-    def llm_call_schema(config: Any) -> type[Any]:
-        from unique_search_proxy_core.crawlers.basic.schema import (
-            BasicCrawlerCall,
-            BasicCrawlerConfig,
-        )
-        from unique_search_proxy_core.projection import project_call_schema
-
-        if not isinstance(config, BasicCrawlerConfig):
-            config = BasicCrawlerConfig.model_validate(config)
-        return project_call_schema(BasicCrawlerCall, ["urls"])

@@ -45,3 +45,6 @@ class TestConfigurationEndpoints:
         assert "brave" in body["searchEngines"]
         assert "perplexity" in body["searchEngines"]
         assert CrawlerType.BASIC.value in body["crawlers"]
+        assert CrawlerType.TAVILY.value in body["crawlers"]
+        assert CrawlerType.JINA.value in body["crawlers"]
+        assert CrawlerType.FIRECRAWL.value in body["crawlers"]

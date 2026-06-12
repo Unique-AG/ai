@@ -22,7 +22,7 @@ from unique_search_proxy_core.search_engines.base import (
 )
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexityConfig,
-    PerplexityRequest,
+    PerplexitySearchRequest,
 )
 
 from unique_search_proxy_client.web.core.search_engines.perplexity.request_body import (
@@ -38,7 +38,7 @@ from unique_search_proxy_client.web.settings.providers import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class PerplexitySearchService(SearchEngineService[PerplexityRequest]):
+class PerplexitySearchService(SearchEngineService[PerplexitySearchRequest]):
     """Perplexity Search API provider."""
 
     engine_id = SearchEngineType.PERPLEXITY.value
@@ -49,7 +49,7 @@ class PerplexitySearchService(SearchEngineService[PerplexityRequest]):
 
     async def search(
         self,
-        request: PerplexityRequest,  # type: ignore
+        request: PerplexitySearchRequest,  # type: ignore
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
         credentials.check_credentials()
 

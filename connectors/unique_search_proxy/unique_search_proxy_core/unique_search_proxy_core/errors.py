@@ -96,8 +96,7 @@ class EngineNotConfiguredError(ProxyError):
         if missing_env_vars:
             env_list = ", ".join(missing_env_vars)
             message = (
-                f"Provider is not configured. "
-                f"Set environment variable(s): {env_list}"
+                f"Provider is not configured. Set environment variable(s): {env_list}"
             )
             details = [{"envVar": env_var} for env_var in missing_env_vars]
         else:

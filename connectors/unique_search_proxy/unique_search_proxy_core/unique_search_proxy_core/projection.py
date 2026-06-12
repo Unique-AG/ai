@@ -15,15 +15,13 @@ from unique_search_proxy_core.param_policy.exposable_param import (
 )
 from unique_search_proxy_core.schema import camelized_model_config
 
-URLS_FIELD = "urls"
-
 
 def _request_model_name(config_cls: type[BaseModel]) -> str:
-    """``GoogleConfig`` -> ``GoogleRequest``; ``BasicCrawlerConfig`` -> ``BasicCrawlerRequest``."""
+    """``GoogleConfig`` -> ``GoogleSearchRequest``."""
     base = config_cls.__name__
     if base.endswith("Config"):
         base = base[: -len("Config")]
-    return f"{base}Request"
+    return f"{base}SearchRequest"
 
 
 @lru_cache(maxsize=32)
@@ -125,27 +123,6 @@ def build_request_model(config_cls: type[BaseModel]) -> type[BaseModel]:
                         ...,
                         min_length=1,
                         description="Search query string",
-                    ),
-                ),
-            ),
-        ),
-    )
-
-
-@lru_cache(maxsize=32)
-def build_crawl_request_model(config_cls: type[BaseModel]) -> type[BaseModel]:
-    """Derive ``POST /v1/crawl`` body: ``urls`` + flattened crawler config."""
-    return _build_flat_request_model(
-        config_cls,
-        (
-            (
-                URLS_FIELD,
-                (
-                    list[str],
-                    Field(
-                        ...,
-                        min_length=1,
-                        description="URLs to crawl",
                     ),
                 ),
             ),

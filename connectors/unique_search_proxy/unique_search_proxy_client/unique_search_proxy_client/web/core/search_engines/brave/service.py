@@ -22,7 +22,7 @@ from unique_search_proxy_core.search_engines.base import (
 )
 from unique_search_proxy_core.search_engines.brave.schema import (
     BraveConfig,
-    BraveRequest,
+    BraveSearchRequest,
 )
 
 from unique_search_proxy_client.web.core.search_engines.brave.pagination import (
@@ -42,7 +42,7 @@ from unique_search_proxy_client.web.settings.providers.brave import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class BraveSearchService(SearchEngineService[BraveRequest]):
+class BraveSearchService(SearchEngineService[BraveSearchRequest]):
     """Brave Web Search API provider."""
 
     engine_id = SearchEngineType.BRAVE.value
@@ -53,7 +53,7 @@ class BraveSearchService(SearchEngineService[BraveRequest]):
 
     async def search(
         self,
-        request: BraveRequest,  # type: ignore
+        request: BraveSearchRequest,  # type: ignore
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
         credentials.check_credentials()
 
@@ -96,7 +96,7 @@ class BraveSearchService(SearchEngineService[BraveRequest]):
     async def _fetch_page(
         self,
         *,
-        request: BraveRequest,  # type: ignore
+        request: BraveSearchRequest,  # type: ignore
         api_key: str,
         api_endpoint: str,
         page: PageRequest,
@@ -107,7 +107,7 @@ class BraveSearchService(SearchEngineService[BraveRequest]):
             request=request,
             page=page,
         )
-    
+
         client = self._http_client
         if client is None:
             raise RuntimeError("HTTP client is required for Brave search")

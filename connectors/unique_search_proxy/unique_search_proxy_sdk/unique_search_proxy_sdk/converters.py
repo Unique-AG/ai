@@ -8,10 +8,6 @@ from typing import Any
 from pydantic import BaseModel
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 
-from unique_search_proxy_sdk._generated.models.basic_proxy_crawler import (
-    BasicProxyCrawler as SdkBasicCrawlerRequest,
-)
-
 
 @dataclass(frozen=True, slots=True)
 class SdkSearchBody:
@@ -22,6 +18,16 @@ class SdkSearchBody:
     reload). The OpenAPI route only needs ``to_dict()`` for serialization, so we
     pass validated core payloads through this wrapper instead.
     """
+
+    payload: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.payload
+
+
+@dataclass(frozen=True, slots=True)
+class SdkCrawlBody:
+    """JSON body for ``POST /v1/crawl`` without attrs ``from_dict``."""
 
     payload: dict[str, Any]
 
@@ -44,5 +50,6 @@ def to_sdk_search_request(request: BaseModel) -> SdkSearchBody:
     return SdkSearchBody(payload=_model_to_sdk_dict(request))
 
 
-def to_sdk_crawl_request(request: BaseModel) -> SdkBasicCrawlerRequest:
-    return SdkBasicCrawlerRequest.from_dict(_model_to_sdk_dict(request))
+def to_sdk_crawl_request(request: BaseModel) -> SdkCrawlBody:
+    """Build the HTTP JSON body for a validated core crawl request."""
+    return SdkCrawlBody(payload=_model_to_sdk_dict(request))

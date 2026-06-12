@@ -182,7 +182,7 @@ def perplexity_request_model() -> type[BaseModel]:
     return build_request_model(PerplexityConfig)
 
 
-PerplexityRequest = perplexity_request_model()
+PerplexitySearchRequest = perplexity_request_model()
 
 
 __all__ = [
@@ -192,8 +192,8 @@ __all__ = [
     "ExposableSearchContextSize",
     "ExposableStrOrNone",
     "PerplexityConfig",
+    "PerplexitySearchRequest",
     "PerplexityRecencyFilter",
-    "PerplexityRequest",
     "PerplexitySearchContextSize",
     "perplexity_request_model",
 ]

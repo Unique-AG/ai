@@ -11,7 +11,9 @@ from unique_search_proxy_core.errors import (
     UpstreamError,
     UpstreamTimeoutError,
 )
-from unique_search_proxy_core.search_engines.brave.schema import BraveRequest
+from unique_search_proxy_core.search_engines.brave.schema import (
+    BraveSearchRequest,
+)
 
 from unique_search_proxy_client.web.core.search_engines.brave.service import (
     BraveSearchService,
@@ -41,8 +43,8 @@ def brave_env(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def _brave_request(**fields: Any) -> BraveRequest:
-    return BraveRequest.model_validate(
+def _brave_request(**fields: Any) -> BraveSearchRequest:
+    return BraveSearchRequest.model_validate(
         {
             "query": "hello",
             "fetch_size": 10,

@@ -100,7 +100,7 @@ def get_search_engine_config_model(engine_id: str) -> type[BaseModel] | None:
 
 
 def get_crawler_config_model(crawler_id: str) -> type[BaseModel] | None:
-    return _CRAWLER_CONFIG_MODELS.get(crawler_id.lower())
+    return _CRAWLER_CONFIG_MODELS.get(crawler_id)
 
 
 def list_registered_providers() -> dict[str, list[str]]:
