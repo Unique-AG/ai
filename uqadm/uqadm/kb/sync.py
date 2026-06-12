@@ -35,7 +35,7 @@ def _resolve_scope(cfg: Config, folder_path: str, *, create: bool) -> str | None
 
     With ``create`` (a real run) the folder is created if missing; any failure
     propagates so the caller can report it. Without ``create`` (a dry run) a
-    missing folder is expected — the SDK raises ``ValueError`` rather than
+    missing folder is expected — the SDK raises ``InvalidRequestError`` rather than
     returning ``None`` for an unknown path, so we swallow that and return
     ``None`` to mean "no existing scope; treat its files as new". Other errors
     (auth, network) are not caught and still surface.
