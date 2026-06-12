@@ -633,9 +633,10 @@ def test_tool_build_config__validates_config_type__with_wrong_type(
     test_tool_config_class,
 ) -> None:
     """
-    Purpose: Verify validator raises error when config type doesn't match tool.
-    Why this matters: Ensures type safety between tool and configuration.
-    Setup summary: Register tool, provide wrong config type, assert error raised.
+    Purpose: Verify validator demotes the tool when config type doesn't match.
+    Why this matters: Ensures type safety between tool and configuration while
+    keeping invalid tools from crashing the load (graceful degradation).
+    Setup summary: Register tool, provide wrong config type, assert demotion.
     """
     # Arrange
     ToolFactory.register_tool(test_tool_class, test_tool_config_class)
@@ -646,12 +647,12 @@ def test_tool_build_config__validates_config_type__with_wrong_type(
     wrong_config = WrongConfig()
     config_data = {"name": "test_tool", "configuration": wrong_config}
 
-    # Act & Assert
-    # Pydantic v2 raises ValidationError for assertion failures
-    from pydantic import ValidationError
+    # Act
+    config = ToolBuildConfig(**config_data)
 
-    with pytest.raises((AssertionError, ValidationError)):
-        ToolBuildConfig(**config_data)
+    # Assert: invalid config type demotes the tool to disabled
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, BaseToolConfig)
 
     # Cleanup
     ToolFactory.tool_map.pop("test_tool", None)
