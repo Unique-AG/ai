@@ -203,7 +203,7 @@ class _ToolManager(Generic[_ApiMode]):
 
         # Build internal tools from configurations, skipping disabled and failing tools
         self._internal_tools.clear()
-        safe_executor = SafeTaskExecutor(logger=self._logger)
+        safe_executor = SafeTaskExecutor(logger=self._logger, log_exceptions=False)
         for t in tool_configs:
             if t.name in registered_tool_names:
                 continue
@@ -230,9 +230,9 @@ class _ToolManager(Generic[_ApiMode]):
                 self._internal_tools.append(result.unpack())
             else:
                 self._logger.warning(
-                    "Skipping tool '%s' due to initialization failure: %s",
+                    "Skipping tool '%s' due to initialization failure.",
                     t.name,
-                    result.exception,
+                    exc_info=result.exception,
                 )
 
         # Combine all types of tools
