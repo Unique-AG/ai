@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 import typer
-from unique_sdk import Content, Folder
+from unique_sdk import Content, Folder, InvalidRequestError
 from unique_sdk.cli.config import Config
 from unique_sdk.utils.file_io import upload_file
 
@@ -48,7 +48,7 @@ def _resolve_scope(cfg: Config, folder_path: str, *, create: bool) -> str | None
         return Folder.resolve_scope_id_from_folder_path(
             cfg.user_id, cfg.company_id, folder_path=folder_path
         )
-    except ValueError:  # Raised by the sdk if not found
+    except InvalidRequestError:  # Raised by the sdk if not found
         return None
 
 
