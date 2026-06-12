@@ -96,7 +96,9 @@ class _ToolManager(Generic[_ApiMode]):
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
         self._exclusive_tools = [
-            tool.name for tool in self._config.tools if tool.is_exclusive
+            tool.name
+            for tool in self._config.tools
+            if tool.is_exclusive and tool.is_enabled
         ]
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
@@ -132,19 +134,33 @@ class _ToolManager(Generic[_ApiMode]):
 
         registered_tool_names.update(t.name for t in self._mcp_tools)
 
-        # Build internal tools from configurations
-        self._internal_tools = [
-            ToolFactory.build_tool_with_settings(
+        # Build internal tools from configurations, skipping disabled and failing tools
+        self._internal_tools = []
+        safe_executor = SafeTaskExecutor(logger=self._logger)
+        for t in tool_configs:
+            if t.name in registered_tool_names:  # Skip already handled tools
+                continue
+            if t.name in OpenAIBuiltInToolName:  # Safeguard
+                continue
+            if not t.is_enabled:
+                self._logger.info("Skipping disabled tool '%s'", t.name)
+                continue
+            result = safe_executor.execute(
+                ToolFactory.build_tool_with_settings,
                 t.name,
                 t,
                 t.configuration,
                 event,
                 tool_progress_reporter=self._tool_progress_reporter,
             )
-            for t in tool_configs
-            if t.name not in registered_tool_names  # Skip already handled tools
-            and t.name not in OpenAIBuiltInToolName  # Safeguard
-        ]
+            if result.success:
+                self._internal_tools.append(result.unpack())
+            else:
+                self._logger.warning(
+                    "Skipping tool '%s' due to initialization failure: %s",
+                    t.name,
+                    result.exception,
+                )
 
         # Combine all types of tools
         self.available_tools = (
@@ -161,6 +177,8 @@ class _ToolManager(Generic[_ApiMode]):
                 continue
             # if tool choices are given, only include those tools
             if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
+                if t.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
+                    self._tools.append(t)
                 continue
             # is the tool exclusive and has been choosen by the user?
             if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:
