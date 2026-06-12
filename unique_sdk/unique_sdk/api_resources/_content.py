@@ -219,6 +219,7 @@ class Content(APIResource["Content"]):
         contentId: NotRequired[str]
         filePath: NotRequired[str]
         ownerId: NotRequired[str]
+        ownerType: NotRequired[Literal["CHAT", "COMPANY", "SCOPE", "USER"]]
         chatId: NotRequired[str | None]
         parentFolderPath: NotRequired[str]
         title: NotRequired[str]
