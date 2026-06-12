@@ -213,13 +213,17 @@ unique-cli cite cont_abc123 --pages 1-4
 This registers `[filesourceN]` markers. Use them inline in your answer.
 The platform converts `[filesourceN]` into footnotes and clickable reference chips.
 
-**MANDATORY 3-step verification before EVERY `unique-cli cite` call — NO EXCEPTIONS:**
+**Which page number to cite.** `cite` expects **physical page positions** (1-based) — the same positions ingestion assigns and that `unique-cli read` prints as `[p.N]` / `[p.N-M]` prefixes. NEVER cite a printed page number from a header/footer; those often differ from the physical position.
 
-1. `pdfinfo file.pdf | grep Pages` — get total physical page count.
-2. For **each** page you intend to cite, run `pdftotext -f N -l N file.pdf -` and confirm the content you are referencing is actually on that physical page. Do NOT skip this. Do NOT assume page numbers.
-3. Only after step 2 confirms a match, call `unique-cli cite` with the verified physical page numbers.
+**Preferred path — you read the file with `unique-cli read` (no download needed):**
+The `[p.N]` markers in `read` output are already physical positions from ingestion, identical to what `cite` consumes. Cite those page numbers directly. Do **not** download the file or run `pdfinfo` / `pdftotext` just to re-derive pages you can already see in the `read` output — that duplicates work `read` already did and wastes round-trips.
 
-Page numbers are **physical PDF positions** (1-based). NEVER use printed page numbers from headers/footers — they often differ from physical positions.
+**Fallback path — verify against the raw file only when you must:**
+If you obtained the content some other way (you `download`ed the raw bytes and parsed them yourself, or `read` returned text with no `[p.N]` markers), confirm the physical page before citing:
+
+1. `pdfinfo file.pdf | grep Pages` — total physical page count.
+2. For **each** page you intend to cite, run `pdftotext -f N -l N file.pdf -` and confirm the referenced content is actually on that physical page.
+3. Cite only the verified physical page numbers.
 
 - Numbers are **per-turn only**; do not reuse from prior turns.
 - Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search`.

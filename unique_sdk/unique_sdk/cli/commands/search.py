@@ -226,6 +226,30 @@ def cmd_search(
             metadata,
         )
 
+        # A per-message workspace metadata filter (written to
+        # .unique-search.json by the Swappable Intelligence runner from an
+        # Agentic Table column's scope_rules) replaces the static workspace
+        # scope_ids for this call. It can express scopes a flat scopeIds list
+        # cannot (recursive folder CONTAINS, contentId IN, boolean trees).
+        #
+        # It is never *dropped*: an in-session selection (--folder, a cwd
+        # scope, --metadata) only narrows further via AND. Yielding to those
+        # would let a prompt-controlled `--folder`/`--metadata` argument
+        # escape the task boundary entirely. See UN-21780.
+        if state.workspace_metadata_filter:
+            if metadata_filter:
+                metadata_filter = {
+                    "and": [state.workspace_metadata_filter, metadata_filter]
+                }
+            else:
+                metadata_filter = state.workspace_metadata_filter
+            if folder_scope_id is None:
+                # No explicit folder selection: the per-message filter is the
+                # authority; don't reapply the broader static workspace
+                # scope_ids. An explicit folder stays as scopeIds and the
+                # server ANDs it with the metadata filter.
+                scope_ids = None
+
         search_params: dict[str, Any] = {
             "searchString": query,
             "searchType": "COMBINED",

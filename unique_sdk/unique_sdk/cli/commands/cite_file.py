@@ -63,12 +63,13 @@ def _resolve_content_id_with_manifest(
     """Resolve a filename/content_id checking the chat-files manifest first.
 
     Resolution order:
-    1. If name_or_id starts with "cont_", return it directly.
+    1. If name_or_id starts with "cont_", resolve its title via the API so the
+       citation renders with the document filename, not the opaque id.
     2. Check .unique/chat-files.json for a matching filename (exact or basename).
     3. Fall back to KB resolution via _resolve_content_id.
     """
     if name_or_id.startswith("cont_"):
-        return name_or_id, name_or_id
+        return name_or_id, state.resolve_content_title(name_or_id)
 
     manifest_path = Path.cwd() / _CHAT_FILES_MANIFEST
     if manifest_path.is_file():
@@ -101,6 +102,20 @@ def cmd_cite_file(
         content_id, filename = _resolve_content_id_with_manifest(state, name_or_id)
     except Exception as exc:
         return f"{CITE_ERROR_PREFIX} {exc}"
+
+    # When a per-message KB scope filter is active (e.g. an Agentic Table
+    # column's scope_rules), don't let the agent cite documents outside it.
+    # Chat-attached files are exempt — is_content_within_workspace allows them.
+    # Static-scope (no per-message filter) cite behaviour is left unchanged.
+    if (
+        state.workspace_metadata_filter is not None
+        and not state.is_content_within_workspace(content_id)
+    ):
+        return (
+            f"{CITE_ERROR_PREFIX} permission denied: {content_id} is outside your "
+            f"task scope ({state.scope_denial_hint()}). Only cite documents within "
+            "that scope or files attached to this chat."
+        )
 
     page_list = _parse_pages(pages)
     if not page_list:
@@ -148,3 +163,13 @@ def cmd_cite_file(
         return f"{CITE_ERROR_PREFIX} {exc}"
 
     return "\n".join(output_lines)
+
+
+def is_error_output(output: str) -> bool:
+    """Return ``True`` when *output* is an error message from ``cmd_cite_file``.
+
+    Lets the one-shot dispatcher exit non-zero (so shell ``&&`` chains stop) on
+    any cite failure — invalid pages, missing file, or an out-of-scope denial.
+    Mirrors ``read.is_error_output``.
+    """
+    return output.startswith(CITE_ERROR_PREFIX)

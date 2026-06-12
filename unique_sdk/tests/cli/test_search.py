@@ -442,6 +442,91 @@ class TestCmdSearchCallShapes:
         assert mock.call_args[1]["scopeIds"] == ["scope_ws1", "scope_ws2"]
 
     @patch("unique_sdk.Search.create")
+    def test_workspace_metadata_filter_used_when_present(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        s = _state()
+        rule = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        s.workspace_metadata_filter = rule
+        cmd_search(s, "q")
+        assert mock.call_args[1]["metaDataFilter"] == rule
+        assert "scopeIds" not in mock.call_args[1]
+
+    @patch("unique_sdk.Search.create")
+    def test_workspace_metadata_filter_overrides_workspace_scope_ids(
+        self, mock: MagicMock
+    ) -> None:
+        mock.return_value = []
+        s = _state()
+        s.workspace_scope_ids = ["scope_ws_default"]
+        rule = {
+            "or": [
+                {"path": ["folderIdPath"], "operator": "contains", "value": "x"},
+                {"path": ["contentId"], "operator": "in", "value": ["cont_1"]},
+            ]
+        }
+        s.workspace_metadata_filter = rule
+        cmd_search(s, "q")
+        assert mock.call_args[1]["metaDataFilter"] == rule
+        assert "scopeIds" not in mock.call_args[1]
+
+    @patch("unique_sdk.Search.create")
+    def test_explicit_metadata_arg_is_anded_with_workspace_filter(
+        self, mock: MagicMock
+    ) -> None:
+        """--metadata narrows the per-message scope; it must never escape it."""
+        mock.return_value = []
+        s = _state()
+        wmf = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        s.workspace_metadata_filter = wmf
+        cmd_search(s, "q", metadata=[("dept", "Legal")])
+        sent = mock.call_args[1]["metaDataFilter"]
+        assert sent["and"][0] == wmf
+        assert sent["and"][1]["path"] == ["dept"]
+        assert sent["and"][1]["value"] == "Legal"
+
+    @patch("unique_sdk.Search.create")
+    def test_cwd_scope_id_keeps_workspace_filter(self, mock: MagicMock) -> None:
+        """A cwd folder narrows via scopeIds; the per-message filter stays on."""
+        mock.return_value = []
+        s = _state("/R", "scope_r")
+        wmf = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        s.workspace_metadata_filter = wmf
+        cmd_search(s, "q")
+        assert mock.call_args[1]["scopeIds"] == ["scope_r"]
+        assert mock.call_args[1]["metaDataFilter"] == wmf
+
+    @patch("unique_sdk.cli.commands.search._resolve_folder_to_scope_id")
+    @patch("unique_sdk.Search.create")
+    def test_explicit_folder_arg_keeps_workspace_filter(
+        self, mock: MagicMock, mock_resolve: MagicMock
+    ) -> None:
+        """--folder must not drop the per-message scope (escape vector)."""
+        mock.return_value = []
+        mock_resolve.return_value = "scope_other"
+        s = _state()
+        wmf = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        s.workspace_metadata_filter = wmf
+        cmd_search(s, "q", folder="/Other")
+        assert mock.call_args[1]["scopeIds"] == ["scope_other"]
+        assert mock.call_args[1]["metaDataFilter"] == wmf
+
+    @patch("unique_sdk.Search.create")
     def test_api_error_includes_prefix(self, mock: MagicMock) -> None:
         mock.side_effect = unique_sdk.APIError("oops")
         out = cmd_search(_state(), "q")

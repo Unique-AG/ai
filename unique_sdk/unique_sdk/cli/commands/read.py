@@ -98,7 +98,11 @@ def cmd_read(
     # Content.search has no scopeIds param, so we guard by owner scope before
     # the point-lookup — matching rm/mv, not search's API-level scopeIds filter.
     if not state.is_content_within_workspace(cont_id):
-        return f"{READ_ERROR_PREFIX} permission denied (outside workspace scope)"
+        return (
+            f"{READ_ERROR_PREFIX} permission denied: {cont_id} is outside your "
+            f"task scope ({state.scope_denial_hint()}). Use 'unique-cli search' "
+            "or 'ls' within that scope instead."
+        )
 
     try:
         results = unique_sdk.Content.search(

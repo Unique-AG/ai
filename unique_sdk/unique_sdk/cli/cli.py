@@ -8,6 +8,9 @@ import click
 
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.cite_file import cmd_cite_file
+from unique_sdk.cli.commands.cite_file import (
+    is_error_output as _is_cite_error_output,
+)
 from unique_sdk.cli.commands.dynamic_frontend import (
     cmd_dynamic_frontend_deploy,
     cmd_dynamic_frontend_list,
@@ -28,6 +31,9 @@ from unique_sdk.cli.commands.files import (
     cmd_rm,
     cmd_upload,
     cmd_versions,
+)
+from unique_sdk.cli.commands.files import (
+    is_permission_denied_output as _is_permission_denied_output,
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
@@ -297,7 +303,11 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
       unique-cli upload ./report.pdf Q1/
       unique-cli upload ./report.pdf /Archive/2025/
     """
-    click.echo(cmd_upload(LazyState.get(ctx), local_path, destination))
+    output = cmd_upload(LazyState.get(ctx), local_path, destination)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()
@@ -339,7 +349,11 @@ def restore_version(ctx: click.Context, content_version_id: str) -> None:
     Examples:
       unique-cli restore-version cver_abc123
     """
-    click.echo(cmd_restore_version(LazyState.get(ctx), content_version_id))
+    output = cmd_restore_version(LazyState.get(ctx), content_version_id)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()
@@ -364,7 +378,11 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
       unique-cli download annual.pdf ./downloads/
       unique-cli download cont_abc123 ~/Desktop/
     """
-    click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
+    output = cmd_download(LazyState.get(ctx), name_or_id, local_dest)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command(name="cite")
@@ -394,7 +412,11 @@ def cite(
       unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7
       unique-cli cite cont_abc123 --pages 1-4
     """
-    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
+    output = cmd_cite_file(LazyState.get(ctx), name_or_id, pages)
+    if _is_cite_error_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command(name="read")
@@ -566,7 +588,11 @@ def rm(ctx: click.Context, name_or_id: str) -> None:
       unique-cli rm /Reports/Q1/report.pdf
       unique-cli rm cont_abc123
     """
-    click.echo(cmd_rm(LazyState.get(ctx), name_or_id))
+    output = cmd_rm(LazyState.get(ctx), name_or_id)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()
@@ -586,7 +612,11 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
       unique-cli mv /Reports/Q1/annual.pdf annual-2025.pdf
       unique-cli mv cont_abc123 "New Title.pdf"
     """
-    click.echo(cmd_mv_file(LazyState.get(ctx), old_name, new_name))
+    output = cmd_mv_file(LazyState.get(ctx), old_name, new_name)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()

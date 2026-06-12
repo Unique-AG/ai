@@ -170,7 +170,7 @@ Each paragraph is one ingested chunk (OCR, extracted text, image descriptions) p
 
 **When chunks are empty:** if the document was just uploaded and ingestion hasn't finished, `read` returns a message saying so — retry after a short wait. If chunks stay empty after a reasonable wait, download the file (`unique-cli download <cont_id>`) and inspect it yourself; some files are not ingested correctly and must be read directly.
 
-**`read` does not produce `[sourceN]` citations.** It is for reading and understanding document content. If you need to cite specific facts in your answer, run `unique-cli search "<relevant query>"` against the same document's folder to generate proper `[sourceN]` references.
+**`read` does not produce `[sourceN]` citations** — but you do **not** need to re-`search` to cite a document you have already read. When you have the `cont_*` ID, declare citations directly with `unique-cli cite <cont_id> --pages <N>` (documented in the `unique-cli-file-management` skill). `cite` registers `[filesourceN]` markers that render as footnotes and clickable chips on the platform, working straight from the ingested index — no re-search and no file download required, and the page numbers it expects are the same `[p.N]` physical positions `read` already prints. Re-run `unique-cli search` only when you actually need relevance-ranked `[sourceN]` chunks across documents you have not yet identified — not merely to cite something you just read.
 
 ## Prerequisites
 

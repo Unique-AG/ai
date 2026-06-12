@@ -8,7 +8,33 @@ from unittest.mock import patch
 import pytest
 
 from unique_sdk.cli.config import Config
-from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.state import (
+    ShellState,
+    _collect_filter_targets,
+    _extract_target_scope_id,
+)
+
+
+def _folder_path_side_effect(mapping: dict[str, str]):  # type: ignore[no-untyped-def]
+    """Side effect for Folder.get_folder_path mapping scope_id -> folderPath."""
+
+    def _inner(*, user_id, company_id, scope_id):  # type: ignore[no-untyped-def]
+        if scope_id in mapping:
+            return {"folderPath": mapping[scope_id]}
+        raise Exception(f"folder not found: {scope_id}")
+
+    return _inner
+
+
+def _content_info_side_effect(owner_map: dict[str, str]):  # type: ignore[no-untyped-def]
+    """Side effect for Content.get_info mapping content_id -> ownerId scope."""
+
+    def _inner(*, user_id, company_id, contentId):  # type: ignore[no-untyped-def]
+        if contentId in owner_map:
+            return {"contentInfo": [{"id": contentId, "ownerId": owner_map[contentId]}]}
+        return {"contentInfo": []}
+
+    return _inner
 
 
 def _config() -> Config:
@@ -152,6 +178,44 @@ class TestWorkspaceScopes:
             s = ShellState(_config())
         assert s.workspace_scope_ids == ["scope_abc", "scope_def"]
         assert s.workspace_restricted
+
+    def test_loads_metadata_filter_from_config(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
+        rule = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+            json.dumps({"metaDataFilter": rule})
+        )
+        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
+            s = ShellState(_config())
+        assert s.workspace_metadata_filter == rule
+
+    def test_metadata_filter_none_when_absent(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
+        (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+            json.dumps({"scopeIds": ["scope_abc"]})
+        )
+        with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
+            s = ShellState(_config())
+        assert s.workspace_metadata_filter is None
+
+    def test_metadata_filter_ignored_when_not_dict(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
+        for bad in ("not-a-dict", "[]", "{}"):
+            (tmp_path / ".unique-search.json").write_text(  # type: ignore[union-attr]
+                json.dumps({"metaDataFilter": json.loads(bad)})
+                if bad != "not-a-dict"
+                else json.dumps({"metaDataFilter": bad})
+            )
+            with patch("unique_sdk.cli.state.Path.cwd", return_value=tmp_path):
+                s = ShellState(_config())
+            assert s.workspace_metadata_filter is None, f"failed for: {bad}"
 
     def test_invalid_json_returns_empty(self, tmp_path: pytest.TempPathFactory) -> None:
         (tmp_path / ".unique-search.json").write_text("not json")  # type: ignore[union-attr]
@@ -312,3 +376,380 @@ class TestFolderTargetWithinWorkspace:
         s._path = "/"
         s._scope_id = None
         assert not s.is_folder_target_within_workspace("RelativeFolder")
+
+
+class TestFilterTargetHelpers:
+    def test_extract_scope_id_from_uniquepathid(self) -> None:
+        assert (
+            _extract_target_scope_id("uniquepathid://scope_root/scope_leaf")
+            == "scope_leaf"
+        )
+
+    def test_extract_scope_id_from_bare(self) -> None:
+        assert _extract_target_scope_id("scope_fund_a") == "scope_fund_a"
+
+    def test_extract_scope_id_none_when_absent(self) -> None:
+        assert _extract_target_scope_id("no-scope-here") is None
+        assert _extract_target_scope_id(None) is None
+        assert _extract_target_scope_id(123) is None
+
+    def test_collect_targets_from_nested_tree(self) -> None:
+        # Live-shaped filter: AND of (funds folders) and (folder OR contentIds).
+        flt = {
+            "and": [
+                {
+                    "or": [
+                        {
+                            "path": ["folderIdPath"],
+                            "operator": "contains",
+                            "value": "uniquepathid://scope_root/scope_fund_a",
+                        },
+                        {
+                            "path": ["folderIdPath"],
+                            "operator": "contains",
+                            "value": "uniquepathid://scope_root/scope_fund_b",
+                        },
+                    ]
+                },
+                {
+                    "or": [
+                        {
+                            "path": ["folderIdPath"],
+                            "operator": "contains",
+                            "value": "scope_fund_a",
+                        },
+                        {
+                            "path": ["contentId"],
+                            "operator": "in",
+                            "value": ["cont_1", "cont_2"],
+                        },
+                    ]
+                },
+            ]
+        }
+        folder_ids, content_ids = _collect_filter_targets(flt)
+        assert folder_ids == ["scope_fund_a", "scope_fund_b"]
+        assert content_ids == ["cont_1", "cont_2"]
+
+
+class TestMetadataFilterContentGating:
+    def _state_with_filter(self, flt: dict) -> ShellState:  # type: ignore[type-arg]
+        s = ShellState(_config())
+        s.workspace_metadata_filter = flt
+        # Avoid filesystem reads of .unique/chat-files.json in unit tests.
+        s._chat_file_content_ids_cache = set()
+        return s
+
+    def test_no_filter_allows_everything(self) -> None:
+        s = ShellState(_config())
+        s.workspace_metadata_filter = None
+        assert s.content_allowed_by_metadata_filter("cont_anything")
+
+    def test_contentid_in_membership(self) -> None:
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a", "cont_b"]}
+        )
+        assert s.content_allowed_by_metadata_filter("cont_a")
+        assert s.content_allowed_by_metadata_filter("cont_b")
+        assert not s.content_allowed_by_metadata_filter("cont_z")
+
+    def test_contentid_notin_excludes_members(self) -> None:
+        """A negated leaf is an exclusion — membership must deny, not grant."""
+        s = self._state_with_filter(
+            {
+                "path": ["contentId"],
+                "operator": "notIn",
+                "value": ["cont_excluded"],
+            }
+        )
+        assert not s.content_allowed_by_metadata_filter("cont_excluded")
+        assert s.content_allowed_by_metadata_filter("cont_other")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folderidpath_notcontains_excludes_descendants(
+        self, mock_path, mock_content
+    ) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_banned": "/Banned", "scope_owner": "/Banned/Sub"}
+        )
+        mock_content.side_effect = _content_info_side_effect({"cont_x": "scope_owner"})
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "notContains",
+                "value": "scope_banned",
+            }
+        )
+        assert not s.content_allowed_by_metadata_filter("cont_x")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folderidpath_owner_inside_allowed(self, mock_path, mock_content) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_owner": "/Funds/Fund A/Sub"}
+        )
+        mock_content.side_effect = _content_info_side_effect({"cont_x": "scope_owner"})
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "contains",
+                "value": "uniquepathid://scope_root/scope_fund_a",
+            }
+        )
+        assert s.content_allowed_by_metadata_filter("cont_x")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folderidpath_owner_outside_denied(self, mock_path, mock_content) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_owner": "/Other/Folder"}
+        )
+        mock_content.side_effect = _content_info_side_effect({"cont_x": "scope_owner"})
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "contains",
+                "value": "uniquepathid://scope_root/scope_fund_a",
+            }
+        )
+        assert not s.content_allowed_by_metadata_filter("cont_x")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folderidpath_prefix_not_fooled_by_sibling(
+        self, mock_path, mock_content
+    ) -> None:  # type: ignore[no-untyped-def]
+        # "/Funds/Fund A2" must NOT match target "/Funds/Fund A".
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_owner": "/Funds/Fund A2"}
+        )
+        mock_content.side_effect = _content_info_side_effect({"cont_x": "scope_owner"})
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "contains",
+                "value": "scope_fund_a",
+            }
+        )
+        assert not s.content_allowed_by_metadata_filter("cont_x")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_and_or_tree_contentid_branch_with_folder(
+        self, mock_path, mock_content
+    ) -> None:  # type: ignore[no-untyped-def]
+        # AND( funds-folder , (folder OR contentId-in) ). cont_listed is in a
+        # fund AND in the contentId list -> allowed.
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_owner": "/Funds/Fund A"}
+        )
+        mock_content.side_effect = _content_info_side_effect(
+            {"cont_listed": "scope_owner"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "uniquepathid://scope_root/scope_fund_a",
+                },
+                {
+                    "or": [
+                        {
+                            "path": ["folderIdPath"],
+                            "operator": "contains",
+                            "value": "scope_other",
+                        },
+                        {
+                            "path": ["contentId"],
+                            "operator": "in",
+                            "value": ["cont_listed"],
+                        },
+                    ]
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        assert s.content_allowed_by_metadata_filter("cont_listed")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_and_denies_when_one_branch_fails(self, mock_path, mock_content) -> None:  # type: ignore[no-untyped-def]
+        # cont_listed is in the contentId list but NOT under the fund folder ->
+        # AND fails (the leak the gate prevents).
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_owner": "/Other"}
+        )
+        mock_content.side_effect = _content_info_side_effect(
+            {"cont_listed": "scope_owner"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "uniquepathid://scope_root/scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_listed"],
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        assert not s.content_allowed_by_metadata_filter("cont_listed")
+
+    def test_unknown_leaf_is_non_restrictive(self) -> None:
+        # A non-boundary leaf (e.g. mimeType) does not restrict locally.
+        s = self._state_with_filter(
+            {"path": ["mimeType"], "operator": "equals", "value": "application/pdf"}
+        )
+        assert s.content_allowed_by_metadata_filter("cont_anything")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_verdict_cached_no_repeat_api(self, mock_path, mock_content) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_owner": "/Funds/Fund A"}
+        )
+        mock_content.side_effect = _content_info_side_effect({"cont_x": "scope_owner"})
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "contains",
+                "value": "scope_fund_a",
+            }
+        )
+        assert s.content_allowed_by_metadata_filter("cont_x")
+        assert s.content_allowed_by_metadata_filter("cont_x")
+        # Owner lookup happens once; verdict cached thereafter.
+        mock_content.assert_called_once()
+
+    def test_chat_file_exempt_from_filter(self) -> None:
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
+        )
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        # Attached chat file is a turn input -> allowed even though not in filter.
+        assert s.is_content_within_workspace("cont_attached")
+        # A non-attached, non-listed doc is denied.
+        assert not s.is_content_within_workspace("cont_other")
+
+    def test_filter_replaces_static_scope_ids(self) -> None:
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
+        )
+        # Static scope present but must be ignored when a filter is active.
+        s.workspace_scope_ids = ["scope_broad"]
+        assert s.is_content_within_workspace("cont_a")
+        assert not s.is_content_within_workspace("cont_b")
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_metadata_filter_scope_resolves(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "uniquepathid://scope_root/scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_1", "cont_2"],
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        paths, content_ids = s.metadata_filter_scope()
+        assert paths == ["/Funds/Fund A"]
+        assert content_ids == ["cont_1", "cont_2"]
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_metadata_filter_scope_skips_negated_leaves(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "notIn",
+                    "value": ["cont_excluded"],
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        paths, content_ids = s.metadata_filter_scope()
+        assert paths == ["/Funds/Fund A"]
+        assert content_ids == []
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folder_allowed_by_metadata_filter(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {
+                "scope_fund_a": "/Funds/Fund A",
+                "scope_sub": "/Funds/Fund A/Sub",
+                "scope_other": "/Other",
+                "scope_parent": "/Funds",
+            }
+        )
+        s = self._state_with_filter(
+            {
+                "path": ["folderIdPath"],
+                "operator": "contains",
+                "value": "scope_fund_a",
+            }
+        )
+        # The scoped folder itself and its descendants are listable.
+        assert s.folder_allowed_by_metadata_filter("scope_fund_a")
+        assert s.folder_allowed_by_metadata_filter("scope_sub")
+        # Unrelated folders and ancestors (sibling leak) are not.
+        assert not s.folder_allowed_by_metadata_filter("scope_other")
+        assert not s.folder_allowed_by_metadata_filter("scope_parent")
+
+    def test_folder_allowed_no_filter_allows_everything(self) -> None:
+        s = ShellState(_config())
+        s.workspace_metadata_filter = None
+        assert s.folder_allowed_by_metadata_filter("scope_any")
+
+    def test_folder_allowed_contentid_only_filter_denies_folders(self) -> None:
+        # A documents-only scope grants no folder listings.
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
+        )
+        assert not s.folder_allowed_by_metadata_filter("scope_any")
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_scope_denial_hint_with_filter(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_1"],
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        hint = s.scope_denial_hint()
+        assert "/Funds/Fund A" in hint
+        assert "cont_1" in hint

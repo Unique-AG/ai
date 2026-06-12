@@ -6,7 +6,7 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_ls
-from unique_sdk.cli.state import ShellState
+from unique_sdk.cli.state import ShellState, _collect_filter_targets
 
 
 def cmd_pwd(state: ShellState) -> str:
@@ -29,6 +29,59 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             _, scope_id = state.resolve_path(target)
         else:
             scope_id = state.scope_id
+
+        # A non-root target must lie inside the per-message scope: without
+        # this, `ls <path>` would enumerate out-of-scope folders/files that
+        # read/cite correctly deny. See UN-21780.
+        if (
+            scope_id is not None
+            and state.workspace_metadata_filter is not None
+            and not state.folder_allowed_by_metadata_filter(scope_id)
+        ):
+            return (
+                f"ls: permission denied: target is outside your task scope "
+                f"({state.scope_denial_hint()})."
+            )
+
+        # At root with a per-message KB scope (e.g. an Agentic Table column's
+        # scope_rules), show only the in-scope folders and explicitly-scoped
+        # documents so the agent explores within the boundary rather than the
+        # full company tree or the broader static scope. See UN-21780.
+        if scope_id is None and state.workspace_metadata_filter is not None:
+            folder_ids, content_ids = _collect_filter_targets(
+                state.workspace_metadata_filter
+            )
+            scoped_folders: list[Any] = []
+            for sid in folder_ids:
+                try:
+                    scoped_folders.append(
+                        unique_sdk.Folder.get_info(
+                            user_id=state.config.user_id,
+                            company_id=state.config.company_id,
+                            scopeId=sid,
+                        )
+                    )
+                except unique_sdk.APIError:
+                    pass
+            scoped_files: list[Any] = []
+            for cid in content_ids:
+                try:
+                    info = unique_sdk.Content.get_info(
+                        user_id=state.config.user_id,
+                        company_id=state.config.company_id,
+                        contentId=cid,
+                    )
+                    items = info.get("contentInfo", [])
+                    if items:
+                        scoped_files.append(items[0])
+                except unique_sdk.APIError:
+                    pass
+            output = format_ls(scoped_folders, scoped_files)
+            summary = (
+                f"\n{len(scoped_folders)} folder(s), {len(scoped_files)} "
+                "file(s) in task scope"
+            )
+            return output + summary
 
         # When at root with a workspace restriction, show only the allowed scope
         # folders — the agent must not see the full company folder tree.

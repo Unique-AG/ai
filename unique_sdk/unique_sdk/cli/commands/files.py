@@ -40,7 +40,11 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
     """
     if name_or_id.startswith("cont_"):
         if not state.is_content_within_workspace(name_or_id):
-            raise ValueError("permission denied (outside workspace scope)")
+            raise ValueError(
+                f"permission denied: {name_or_id} is outside your task scope "
+                f"({state.scope_denial_hint()}). Use 'unique-cli search' or "
+                "'ls' within that scope instead."
+            )
         return name_or_id, name_or_id
 
     lookup_name = name_or_id
@@ -88,7 +92,18 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
             title = info.get("title") or ""
             key = info.get("key") or ""
             if lookup_name in {title, key}:
-                return info["id"], title or key
+                resolved_id = info["id"]
+                # Gate the *resolved* id too: resolving by file name or path
+                # must not bypass the per-message metadata-filter scope that
+                # the cont_ fast-path above enforces (UN-21780).
+                if not state.is_content_within_workspace(resolved_id):
+                    raise ValueError(
+                        f"permission denied: {name_or_id} is outside your "
+                        f"task scope ({state.scope_denial_hint()}). Use "
+                        "'unique-cli search' or 'ls' within that scope "
+                        "instead."
+                    )
+                return resolved_id, title or key
 
         skip += len(content_infos)
 
@@ -356,3 +371,14 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
         return f"Renamed: {display_name} -> {result.get('title', new_name)}\n{format_content_info(result)}"
     except (ValueError, unique_sdk.APIError) as e:
         return f"mv: {e}"
+
+
+def is_permission_denied_output(output: str) -> bool:
+    """Return ``True`` when a file-op result is a permission/scope denial.
+
+    Covers both the per-message task-scope gate ("outside your task scope")
+    and the workspace-scope gate ("outside workspace scope"). Lets the one-shot
+    dispatcher exit non-zero so shell ``&&`` chains stop on an out-of-scope
+    content access instead of continuing as if it succeeded. See UN-21780.
+    """
+    return "permission denied" in output

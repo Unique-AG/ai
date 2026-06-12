@@ -143,14 +143,40 @@ class TestCmdCiteFile:
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert lines[0]["contentId"] == "cont_abc123"
 
-    def test_content_id_passthrough(self, state: ShellState, workspace: Path):
-        """Content IDs starting with cont_ are used directly."""
+    @patch("unique_sdk.Content.get_info")
+    def test_content_id_resolves_title(
+        self, mock_info, state: ShellState, workspace: Path
+    ):
+        """A bare cont_ id is cited with its resolved document title.
+
+        Citing directly by id (the recommended path after `read`) must still
+        render the filename, not the opaque id — the manifest stores the
+        resolved title. See UN-21780.
+        """
+        mock_info.return_value = {
+            "contentInfo": [{"id": "cont_direct999", "title": "Q3 Report.pdf"}]
+        }
+        result = cmd_cite_file(state, "cont_direct999", "1")
+
+        assert "[filesource1] -> Q3 Report.pdf page 1" in result
+        manifest = workspace / ".unique" / "file-refs.jsonl"
+        lines = [json.loads(line) for line in manifest.read_text().splitlines()]
+        assert lines[0]["contentId"] == "cont_direct999"
+        assert lines[0]["filename"] == "Q3 Report.pdf"
+
+    @patch("unique_sdk.Content.get_info")
+    def test_content_id_falls_back_to_id_when_title_unresolved(
+        self, mock_info, state: ShellState, workspace: Path
+    ):
+        """If the title can't be resolved, the id is used as the filename."""
+        mock_info.side_effect = Exception("boom")
         result = cmd_cite_file(state, "cont_direct999", "1")
 
         assert "[filesource1] -> cont_direct999 page 1" in result
         manifest = workspace / ".unique" / "file-refs.jsonl"
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert lines[0]["contentId"] == "cont_direct999"
+        assert lines[0]["filename"] == "cont_direct999"
 
     def test_whole_file_no_pages(
         self, state: ShellState, workspace_with_manifest: Path
@@ -186,3 +212,32 @@ class TestCmdCiteFile:
     ):
         result = cmd_cite_file(state, "report.pdf", "abc")
         assert CITE_ERROR_PREFIX in result
+
+    def test_metadata_filter_blocks_out_of_scope_cont_id(
+        self, state: ShellState, workspace: Path
+    ):
+        """A per-message filter blocks citing a KB doc outside the scope."""
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed"],
+        }
+        state._chat_file_content_ids_cache = set()
+        result = cmd_cite_file(state, "cont_blocked", "1")
+        assert CITE_ERROR_PREFIX in result
+        assert "task scope" in result
+        # Nothing should be written when denied.
+        assert not (workspace / ".unique" / "file-refs.jsonl").exists()
+
+    def test_metadata_filter_allows_chat_attached_file(
+        self, state: ShellState, workspace_with_manifest: Path
+    ):
+        """Chat-attached files stay citeable even when the filter excludes them."""
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_other"],
+        }
+        result = cmd_cite_file(state, "report.pdf", "1")
+        assert CITE_ERROR_PREFIX not in result
+        assert "[filesource1] -> report.pdf page 1" in result
