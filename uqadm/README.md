@@ -404,6 +404,29 @@ uqadm kb mkdir /Private --no-inherit-access
 | `--inherit-access / --no-inherit-access` | Passed to ``Folder.create_paths`` (default: inherit). |
 | `--slot SLOT` | Credential slot. |
 
+### `kb sync`
+
+Upload the contents of a local folder into a KB folder scope. Files matched by
+filename are **replaced**; new files are **created**. This is an **upsert, not a
+destructive mirror**: files that exist in the upstream KB scope but are missing
+locally are **left untouched — `kb sync` never deletes remote files**. Requires
+exactly one of ``--folder-path`` or ``--scope-id``. Without ``--recursive`` only
+top-level files are synced; with it, subdirectories are recreated as child folders.
+
+```bash
+uqadm kb sync ./docs --folder-path /Dept/HR
+uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
+uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Target KB folder path (mutually exclusive with ``--scope-id``). |
+| `--scope-id` | Target folder scope id (mutually exclusive with ``--folder-path``). |
+| `-r`, `--recursive` | Recurse into subdirectories, mirroring them as child KB folders. |
+| `--dry-run` | Show planned uploads without writing anything. |
+| `--slot SLOT` | Credential slot. |
+
 ### `kb access grant`
 
 Grant **group** ``READ`` or ``WRITE`` on a folder. By default the change **applies to subfolders** (``applyToSubScopes``); pass ``--no-subfolders`` for this folder only.
