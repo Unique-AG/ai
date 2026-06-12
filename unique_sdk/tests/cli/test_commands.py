@@ -180,6 +180,44 @@ class TestNavigation:
         assert "0 folder(s), 0 file(s)" in result
         mock_folders.assert_called_once()
 
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_metadata_filter_scoped(
+        self, mock_folder: MagicMock, mock_content: MagicMock
+    ) -> None:
+        """ls at root with a per-message filter shows only its folders + docs."""
+        mock_folder.return_value = _folder_info("Fund A", "scope_fund_a")
+        mock_content.return_value = {
+            "contentInfo": [_content_info("memo.pdf", "cont_1")]
+        }
+        state = _state()
+        # Static scope present but the per-message filter takes precedence.
+        state.workspace_scope_ids = ["scope_broad"]
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "uniquepathid://scope_root/scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_1"],
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "Fund A/" in result
+        assert "memo.pdf" in result
+        assert "in task scope" in result
+        mock_folder.assert_called_once_with(
+            user_id="u1", company_id="c1", scopeId="scope_fund_a"
+        )
+        mock_content.assert_called_once_with(
+            user_id="u1", company_id="c1", contentId="cont_1"
+        )
+
 
 # --- Folders ---
 

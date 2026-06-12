@@ -186,3 +186,32 @@ class TestCmdCiteFile:
     ):
         result = cmd_cite_file(state, "report.pdf", "abc")
         assert CITE_ERROR_PREFIX in result
+
+    def test_metadata_filter_blocks_out_of_scope_cont_id(
+        self, state: ShellState, workspace: Path
+    ):
+        """A per-message filter blocks citing a KB doc outside the scope."""
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed"],
+        }
+        state._chat_file_content_ids_cache = set()
+        result = cmd_cite_file(state, "cont_blocked", "1")
+        assert CITE_ERROR_PREFIX in result
+        assert "task scope" in result
+        # Nothing should be written when denied.
+        assert not (workspace / ".unique" / "file-refs.jsonl").exists()
+
+    def test_metadata_filter_allows_chat_attached_file(
+        self, state: ShellState, workspace_with_manifest: Path
+    ):
+        """Chat-attached files stay citeable even when the filter excludes them."""
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_other"],
+        }
+        result = cmd_cite_file(state, "report.pdf", "1")
+        assert CITE_ERROR_PREFIX not in result
+        assert "[filesource1] -> report.pdf page 1" in result

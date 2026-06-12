@@ -442,6 +442,67 @@ class TestCmdSearchCallShapes:
         assert mock.call_args[1]["scopeIds"] == ["scope_ws1", "scope_ws2"]
 
     @patch("unique_sdk.Search.create")
+    def test_workspace_metadata_filter_used_when_present(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        s = _state()
+        rule = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        s.workspace_metadata_filter = rule
+        cmd_search(s, "q")
+        assert mock.call_args[1]["metaDataFilter"] == rule
+        assert "scopeIds" not in mock.call_args[1]
+
+    @patch("unique_sdk.Search.create")
+    def test_workspace_metadata_filter_overrides_workspace_scope_ids(
+        self, mock: MagicMock
+    ) -> None:
+        mock.return_value = []
+        s = _state()
+        s.workspace_scope_ids = ["scope_ws_default"]
+        rule = {
+            "or": [
+                {"path": ["folderIdPath"], "operator": "contains", "value": "x"},
+                {"path": ["contentId"], "operator": "in", "value": ["cont_1"]},
+            ]
+        }
+        s.workspace_metadata_filter = rule
+        cmd_search(s, "q")
+        assert mock.call_args[1]["metaDataFilter"] == rule
+        assert "scopeIds" not in mock.call_args[1]
+
+    @patch("unique_sdk.Search.create")
+    def test_explicit_metadata_arg_overrides_workspace_filter(
+        self, mock: MagicMock
+    ) -> None:
+        mock.return_value = []
+        s = _state()
+        s.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        cmd_search(s, "q", metadata=[("dept", "Legal")])
+        sent = mock.call_args[1]["metaDataFilter"]
+        assert sent["path"] == ["dept"]
+        assert sent["value"] == "Legal"
+
+    @patch("unique_sdk.Search.create")
+    def test_cwd_scope_id_overrides_workspace_filter(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        s = _state("/R", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "uniquepathid://scope_fund_a",
+        }
+        cmd_search(s, "q")
+        assert mock.call_args[1]["scopeIds"] == ["scope_r"]
+        assert "metaDataFilter" not in mock.call_args[1]
+
+    @patch("unique_sdk.Search.create")
     def test_api_error_includes_prefix(self, mock: MagicMock) -> None:
         mock.side_effect = unique_sdk.APIError("oops")
         out = cmd_search(_state(), "q")

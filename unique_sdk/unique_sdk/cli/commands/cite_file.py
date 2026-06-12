@@ -102,6 +102,20 @@ def cmd_cite_file(
     except Exception as exc:
         return f"{CITE_ERROR_PREFIX} {exc}"
 
+    # When a per-message KB scope filter is active (e.g. an Agentic Table
+    # column's scope_rules), don't let the agent cite documents outside it.
+    # Chat-attached files are exempt — is_content_within_workspace allows them.
+    # Static-scope (no per-message filter) cite behaviour is left unchanged.
+    if (
+        state.workspace_metadata_filter is not None
+        and not state.is_content_within_workspace(content_id)
+    ):
+        return (
+            f"{CITE_ERROR_PREFIX} permission denied: {content_id} is outside your "
+            f"task scope ({state.scope_denial_hint()}). Only cite documents within "
+            "that scope or files attached to this chat."
+        )
+
     page_list = _parse_pages(pages)
     if not page_list:
         return f"{CITE_ERROR_PREFIX} invalid --pages value"
@@ -148,3 +162,13 @@ def cmd_cite_file(
         return f"{CITE_ERROR_PREFIX} {exc}"
 
     return "\n".join(output_lines)
+
+
+def is_error_output(output: str) -> bool:
+    """Return ``True`` when *output* is an error message from ``cmd_cite_file``.
+
+    Lets the one-shot dispatcher exit non-zero (so shell ``&&`` chains stop) on
+    any cite failure — invalid pages, missing file, or an out-of-scope denial.
+    Mirrors ``read.is_error_output``.
+    """
+    return output.startswith(CITE_ERROR_PREFIX)
