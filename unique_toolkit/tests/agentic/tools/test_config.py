@@ -1309,3 +1309,210 @@ def test_tool_build_config__by_alias_and_exclude_defaults__combined() -> None:
         assert "optionalNote" not in cfg
     finally:
         ToolFactory.tool_config_map.pop("combined_tool", None)
+
+
+# ============================================================================
+# Graceful Degradation Tests (UN-17197)
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_tool_build_config__disables_tool__with_wrong_config_type(
+    test_tool_class,
+    test_tool_config_class,
+) -> None:
+    """
+    Purpose: Verify tool with wrong config type is disabled instead of crashing.
+    Why this matters: Graceful degradation when config type doesn't match tool.
+    Setup summary: Register tool, provide wrong config type, assert tool is disabled.
+    """
+    # Arrange
+    ToolFactory.register_tool(test_tool_class, test_tool_config_class)
+
+    class WrongConfig(BaseToolConfig):
+        wrong_param: str = "wrong"
+
+    wrong_config = WrongConfig()
+    config_data = {"name": "test_tool", "configuration": wrong_config}
+
+    # Act
+    config = ToolBuildConfig(**config_data)
+
+    # Assert
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, BaseToolConfig)
+
+    # Cleanup
+    ToolFactory.tool_map.pop("test_tool", None)
+    ToolFactory.tool_config_map.pop("test_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_build_config__skips_validation__when_disabled() -> None:
+    """
+    Purpose: Verify disabled tools skip config validation entirely.
+    Why this matters: Disabled tools should never crash due to invalid config.
+    Setup summary: Create config with is_enabled=False and unregistered name; assert no error.
+    """
+    # Arrange — tool name is not registered, config is garbage, but tool is disabled
+    config_data = {
+        "name": "nonexistent_tool_xyz",
+        "is_enabled": False,
+        "configuration": {"completely": "invalid", "garbage": 999},
+    }
+
+    # Act
+    config = ToolBuildConfig(**config_data)
+
+    # Assert
+    assert config.is_enabled is False
+    assert config.name == "nonexistent_tool_xyz"
+    assert isinstance(config.configuration, BaseToolConfig)
+
+
+@pytest.mark.ai
+def test_tool_build_config__skips_validation__when_disabled_with_camel_case_key() -> (
+    None
+):
+    """
+    Purpose: Verify disabled tools skip validation when isEnabled uses camelCase.
+    Why this matters: Backend payloads use alias_generator=to_camel keys.
+    Setup summary: Create config with isEnabled=False and invalid config; assert no error.
+    """
+    config_data = {
+        "name": "nonexistent_tool_xyz",
+        "isEnabled": False,
+        "configuration": {"completely": "invalid", "garbage": 999},
+    }
+
+    config = ToolBuildConfig(**config_data)
+
+    assert config.is_enabled is False
+    assert config.name == "nonexistent_tool_xyz"
+    assert isinstance(config.configuration, BaseToolConfig)
+
+
+@pytest.mark.ai
+def test_tool_build_config__skips_validation__when_disabled_with_null_configuration() -> (
+    None
+):
+    """
+    Purpose: Verify disabled tools with null configuration do not crash validation.
+    Why this matters: Disabled tools may carry incomplete backend payloads.
+    Setup summary: Create disabled config with configuration=null; assert BaseToolConfig fallback.
+    """
+    config_data = {
+        "name": "disabled_tool",
+        "isEnabled": False,
+        "configuration": None,
+    }
+
+    config = ToolBuildConfig(**config_data)
+
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, BaseToolConfig)
+
+
+@pytest.mark.ai
+def test_tool_build_config__disables_tool__when_demotion_overrides_camel_case_enabled(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify demotion sets both is_enabled and isEnabled to false.
+    Why this matters: Pydantic prefers alias keys when both snake and camel are present.
+    Setup summary: Pass isEnabled=true with invalid config; assert tool ends disabled.
+    """
+    import logging
+
+    config_data = {
+        "name": "totally_unknown_tool",
+        "isEnabled": True,
+        "configuration": {"some_param": "value"},
+    }
+
+    with caplog.at_level(logging.WARNING):
+        config = ToolBuildConfig(**config_data)
+
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, BaseToolConfig)
+
+
+@pytest.mark.ai
+def test_tool_build_config__handles_mcp_tool__with_camel_case_mcp_source_id() -> None:
+    """
+    Purpose: Verify validator recognizes MCP tools when mcpSourceId uses camelCase.
+    Why this matters: Backend payloads use camelCase alias keys for MCP metadata.
+    Setup summary: Create config with mcpSourceId and assert factory validation is skipped.
+    """
+    config_data = {
+        "name": "mcp_test_tool",
+        "mcpSourceId": "mcp-server-123",
+        "configuration": {
+            "server_id": "server-123",
+            "server_name": "Test Server",
+            "mcpSourceId": "mcp-server-123",
+        },
+    }
+
+    config = ToolBuildConfig(**config_data)
+
+    assert config.name == "mcp_test_tool"
+    assert isinstance(config.configuration, BaseToolConfig)
+
+
+@pytest.mark.ai
+def test_tool_build_config__disables_tool__with_unregistered_name(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify unregistered tool name disables tool instead of crashing.
+    Why this matters: Graceful degradation for unknown tools.
+    Setup summary: Create config with unregistered tool name, assert is_enabled=False and warning logged.
+    """
+    import logging
+
+    config_data = {
+        "name": "totally_unknown_tool",
+        "configuration": {"some_param": "value"},
+    }
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        config = ToolBuildConfig(**config_data)
+
+    # Assert
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, BaseToolConfig)
+    assert "totally_unknown_tool" in caplog.text
+    assert (
+        "invalid configuration" in caplog.text.lower()
+        or "disabled" in caplog.text.lower()
+    )
+
+
+@pytest.mark.ai
+def test_tool_build_config__disables_tool__with_invalid_config_values(
+    register_simple_tool,
+    caplog,
+) -> None:
+    """
+    Purpose: Verify registered tool with bad config values is disabled instead of crashing.
+    Why this matters: Pydantic validation errors in config should not crash the system.
+    Setup summary: Register tool, pass invalid config values, assert is_enabled=False.
+    """
+    import logging
+
+    # SimpleToolConfig expects param_two: int, we pass a non-coercible string
+    config_data = {
+        "name": "test_tool",
+        "configuration": {"param_one": "ok", "param_two": "not_an_integer_at_all"},
+    }
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        config = ToolBuildConfig(**config_data)
+
+    # Assert
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, BaseToolConfig)
+    assert "test_tool" in caplog.text
