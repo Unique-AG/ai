@@ -20,25 +20,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseToolConfig, default=BaseToolConfig)
 
 
-def _dict_get_bool(
-    value: dict[str, Any],
-    snake_key: str,
-    camel_key: str,
-    default: bool = True,
-) -> bool:
-    if camel_key in value:
-        return bool(value[camel_key])
-    if snake_key in value:
-        return bool(value[snake_key])
-    return default
-
-
-def _set_enabled(value: dict[str, Any], enabled: bool) -> None:
-    value["is_enabled"] = enabled
-    value["isEnabled"] = enabled
-
-
-def _normalize_disabled_configuration(value: dict[str, Any]) -> None:
+def _ensure_base_tool_config(value: dict[str, Any]) -> None:
     configuration = value.get("configuration")
     if not isinstance(configuration, BaseToolConfig):
         value["configuration"] = BaseToolConfig()
@@ -129,8 +111,15 @@ class ToolBuildConfig(BaseModel, Generic[T]):
         if not isinstance(value, dict):
             return value
 
-        if not _dict_get_bool(value, "is_enabled", "isEnabled"):
-            _normalize_disabled_configuration(value)
+        if "isEnabled" in value:
+            is_enabled = bool(value["isEnabled"])
+        elif "is_enabled" in value:
+            is_enabled = bool(value["is_enabled"])
+        else:
+            is_enabled = True
+
+        if not is_enabled:
+            _ensure_base_tool_config(value)
             return value
 
         is_mcp_tool = _is_mcp_tool_payload(value)
@@ -184,8 +173,9 @@ class ToolBuildConfig(BaseModel, Generic[T]):
                 tool_name,
                 exc_info=True,
             )
-            _set_enabled(value, False)
-            _normalize_disabled_configuration(value)
+            value["is_enabled"] = False
+            value["isEnabled"] = False
+            _ensure_base_tool_config(value)
             return value
 
         value["configuration"] = config
