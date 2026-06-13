@@ -25,7 +25,7 @@ image:
   pullPolicy: IfNotPresent
   registry: ghcr.io
   repository: unique-ag/ai/search-proxy
-  tag: "2026.24.0" # x-release-please-version
+  tag: "2026.26.0" # x-release-please-version
   useDigest: false # not yet supported for out-of-tree charts
 
 ports:
