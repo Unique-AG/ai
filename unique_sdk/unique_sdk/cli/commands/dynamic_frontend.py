@@ -94,7 +94,9 @@ def cmd_dynamic_frontend_deploy(
         space_id_value = getattr(space, "spaceId", None) or getattr(space, "id", "")
         name_value = getattr(space, "name", name or "")
         url_value = getattr(space, "url", None)
-        url_line = f"\nURL: {url_value}" if isinstance(url_value, str) and url_value else ""
+        url_line = (
+            f"\nURL: {url_value}" if isinstance(url_value, str) and url_value else ""
+        )
         return (
             f'{action} Dynamic Frontend space "{name_value}" ({space_id_value})\n'
             f"Content: {resolved_content_id}"
