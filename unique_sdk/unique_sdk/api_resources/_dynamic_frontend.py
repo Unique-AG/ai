@@ -16,6 +16,7 @@ class DynamicFrontend(APIResource["DynamicFrontend"]):
     spaceId: str
     name: str
     contentId: str
+    url: str | None
     status: dict[str, object] | None
 
     class CreateParams(RequestOptions):

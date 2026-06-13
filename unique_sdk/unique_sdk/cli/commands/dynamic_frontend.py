@@ -36,10 +36,10 @@ def _format_space(space: object) -> str:
     content_id = getattr(space, "contentId", "")
     status = getattr(space, "status", None)
     phase = ""
-    url = ""
+    url = str(getattr(space, "url", "") or "")
     if isinstance(status, dict):
         phase = str(status.get("phase") or "")
-        url = str(status.get("url") or "")
+        url = url or str(status.get("url") or "")
     return "\t".join(
         part for part in [str(space_id), str(name), str(content_id), phase, url] if part
     )
@@ -93,9 +93,14 @@ def cmd_dynamic_frontend_deploy(
 
         space_id_value = getattr(space, "spaceId", None) or getattr(space, "id", "")
         name_value = getattr(space, "name", name or "")
+        url_value = getattr(space, "url", None)
+        url_line = (
+            f"\nURL: {url_value}" if isinstance(url_value, str) and url_value else ""
+        )
         return (
             f'{action} Dynamic Frontend space "{name_value}" ({space_id_value})\n'
             f"Content: {resolved_content_id}"
+            f"{url_line}"
         )
     except (ValueError, unique_sdk.APIError, OSError) as e:
         return f"dynamic-frontend deploy: {e}"
