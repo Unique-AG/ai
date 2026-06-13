@@ -36,13 +36,26 @@ unique-cli dynamic-frontend deploy \
   --name "Revenue Dashboard"
 ```
 
-The command prints the created `spaceId`, `contentId`, and direct `URL` when the
-API returns it:
+The command prints the created `spaceId`, `contentId`, and direct user-facing
+Chat Space `URL` when the API returns it:
 
 ```text
 Created Dynamic Frontend space "Revenue Dashboard" (space_abc123)
 Content: cont_abc123
-URL: https://chat.example.com/space/space_abc123
+URL: https://next.qa.unique.app/chat/space/space_abc123
+```
+
+If the installed SDK/CLI version does not print `URL` yet, construct the
+user-facing Space URL from the Chat frontend base URL and `spaceId`:
+
+```text
+<chat-frontend-url>/space/<spaceId>
+```
+
+On QA, that is:
+
+```text
+https://next.qa.unique.app/chat/space/<spaceId>
 ```
 
 ## Update an Existing Space
@@ -76,8 +89,8 @@ unique-cli dynamic-frontend deploy \
   --name "Revenue Dashboard"
 ```
 
-The update command prints the same `spaceId`, `contentId`, and direct `URL`
-fields as create.
+The update command prints the same `spaceId`, `contentId`, and user-facing
+Chat Space `URL` fields as create.
 
 ## List Spaces
 
@@ -103,3 +116,6 @@ unique-cli dynamic-frontend deploy --space-id space_abc123 --file ./app.zip --js
 - `--file` and `--content-id` are mutually exclusive.
 - After create or update, return the CLI output to the user, especially the
   direct `URL`.
+- Never report the BYOC iframe runtime URL
+  (`https://byoc.../serve/df-assistant-...`) as the Space URL; it is an
+  internal iframe launch URL, not the navigation link users need.
