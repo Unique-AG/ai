@@ -14,8 +14,8 @@ dependencies = [
     "python-dotenv>=1.2.1,<2.0.0",
     "pydantic-settings>=2.12.0,<3.0.0",
     "markdownify>=0.14.1,<1",
-    "unique-toolkit[monitoring]>=2026.22.0",
-    "unique-search-proxy-core>=2026.22.0",
+    "unique-toolkit[monitoring]>=2026.26.0",
+    "unique-search-proxy-core>=2026.26.0",
 ]
 
 [dependency-groups]
