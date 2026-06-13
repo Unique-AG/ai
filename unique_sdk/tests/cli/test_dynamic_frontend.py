@@ -51,6 +51,7 @@ def _space(
     space_id: str = "space_1",
     name: str = "Revenue Dashboard",
     content_id: str = "cont_1",
+    url: str | None = "https://chat.example.com/space/space_1",
     status: dict[str, object] | None = None,
 ) -> _FakeSpace:
     return _FakeSpace(
@@ -59,6 +60,7 @@ def _space(
             "spaceId": space_id,
             "name": name,
             "contentId": content_id,
+            "url": url,
             "status": status,
         }
     )
@@ -185,6 +187,7 @@ def test_cmd_dynamic_frontend_deploy__uploads_file_and_creates_space(
 
     assert 'Created Dynamic Frontend space "Revenue Dashboard" (space_1)' in output
     assert "Content: cont_1" in output
+    assert "URL: https://chat.example.com/space/space_1" in output
     mock_upload_file.assert_called_once_with(
         userId="user_1",
         companyId="company_1",
@@ -219,6 +222,7 @@ def test_cmd_dynamic_frontend_deploy__updates_existing_space(
     )
 
     assert 'Updated Dynamic Frontend space "Revenue Dashboard" (space_1)' in output
+    assert "URL: https://chat.example.com/space/space_1" in output
     mock_modify.assert_called_once_with(
         "space_1",
         user_id="user_1",
@@ -326,12 +330,11 @@ def test_format_space__includes_status_fields() -> None:
     Why this matters: Operators need deployment status and URL from list output.
     Setup summary: Format a fake space with status metadata and assert tabular fields.
     """
-    output = _format_space(
-        _space(status={"phase": "READY", "url": "https://app.example.com"})
-    )
+    output = _format_space(_space(status={"phase": "READY"}))
 
     assert (
-        output == "space_1\tRevenue Dashboard\tcont_1\tREADY\thttps://app.example.com"
+        output
+        == "space_1\tRevenue Dashboard\tcont_1\tREADY\thttps://chat.example.com/space/space_1"
     )
 
 
@@ -345,7 +348,10 @@ def test_cmd_dynamic_frontend_list__formats_spaces(mock_list: MagicMock) -> None
 
     output = cmd_dynamic_frontend_list(_state())
 
-    assert output == "space_1\tRevenue Dashboard\tcont_1"
+    assert (
+        output
+        == "space_1\tRevenue Dashboard\tcont_1\thttps://chat.example.com/space/space_1"
+    )
     mock_list.assert_called_once_with(user_id="user_1", company_id="company_1")
 
 
