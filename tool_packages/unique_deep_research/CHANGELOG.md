@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.24.0...unique-deep-research-v2026.26.0) (2026-06-13)
+
+
+### Miscellaneous
+
+* arm release 2026.26.0 ([d3c79b3](https://github.com/Unique-AG/ai/commit/d3c79b385f2714ab9c6237a545da21dea0cfb34a))
+
 ## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.22.0...unique-deep-research-v2026.24.0) (2026-06-04)
 
 
