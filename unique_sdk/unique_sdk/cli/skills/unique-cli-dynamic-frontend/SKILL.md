@@ -36,13 +36,32 @@ unique-cli dynamic-frontend deploy \
   --name "Revenue Dashboard"
 ```
 
-The command prints the created `spaceId`, `contentId`, and direct `URL` when the
-API returns it:
+The command prints the created `spaceId`, `contentId`, and **two** URLs when the
+API returns them — the user-facing view `URL` (jump into the Space in the chat
+app) and the `Config URL` (configure and share the Space in the admin app):
 
 ```text
 Created Dynamic Frontend space "Revenue Dashboard" (space_abc123)
 Content: cont_abc123
-URL: https://chat.example.com/space/space_abc123
+URL: https://next.qa.unique.app/chat/space/space_abc123
+Config URL: https://next.qa.unique.app/admin/dynamic-frontend-space/space_abc123
+```
+
+If the installed SDK/CLI version does not print one of these URLs yet, construct
+it from the known frontend base URLs and `spaceId`:
+
+```text
+# View URL (chat app)
+<chat-frontend-url>/space/<spaceId>
+# Config/share URL (admin app)
+<admin-frontend-url>/dynamic-frontend-space/<spaceId>
+```
+
+On QA, those are:
+
+```text
+https://next.qa.unique.app/chat/space/<spaceId>
+https://next.qa.unique.app/admin/dynamic-frontend-space/<spaceId>
 ```
 
 ## Update an Existing Space
@@ -76,8 +95,8 @@ unique-cli dynamic-frontend deploy \
   --name "Revenue Dashboard"
 ```
 
-The update command prints the same `spaceId`, `contentId`, and direct `URL`
-fields as create.
+The update command prints the same `spaceId`, `contentId`, view `URL`, and
+`Config URL` fields as create.
 
 ## List Spaces
 
@@ -101,5 +120,8 @@ unique-cli dynamic-frontend deploy --space-id space_abc123 --file ./app.zip --js
 - Use `--space-id` for updates. Without `--space-id`, `deploy` creates a new
   Dynamic Frontend Space and requires `--name`.
 - `--file` and `--content-id` are mutually exclusive.
-- After create or update, return the CLI output to the user, especially the
-  direct `URL`.
+- After create or update, return the CLI output to the user, especially both the
+  view `URL` (jump to the Space) and the `Config URL` (configure/share the Space).
+- Never report the BYOC iframe runtime URL
+  (`https://byoc.../serve/df-assistant-...`) as the Space URL; it is an
+  internal iframe launch URL, not the navigation link users need.
