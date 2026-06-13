@@ -52,7 +52,6 @@ _TOOL_SYSTEM_PROMPT_TEMPLATE = (
     "2. Craft more targeted search queries using the actual file names "
     "(a file name in the query promotes chunks from that file).\n"
     "3. Inform the user about available sources when relevant.\n"
-    "4. Files that come with a content id can be opened with a file opener tool."
 )
 
 DEFAULT_TOOL_SYSTEM_PROMPT = _TOOL_SYSTEM_PROMPT_TEMPLATE.format(
@@ -74,6 +73,24 @@ class RetrieveSearchScopeConfig(BaseToolConfig):
     ] = Field(
         default=False,
         description="Enable the RetrieveSearchScope tool.",
+    )
+
+    show_content_id: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "When enabled, files in the RetrieveSearchScope result "
+                "include their content_id next to the file name "
+                "(e.g. report.pdf (cont_abc123)). When disabled, only file names "
+                "are returned."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description=(
+            "Include content IDs alongside file names for files "
+            "in the search scope listing."
+        ),
     )
 
     display_mode: DisplayMode = Field(
