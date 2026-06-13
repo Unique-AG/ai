@@ -14,8 +14,8 @@ directly to avoid SDK overhead.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `CONFIGURATION_BACKEND_URL` | **Yes** | — | Base URL of your configuration-backend instance. |
-| `FEATURE_FLAG_SERVICE_ID` | **Yes** | — | Service identifier sent as `x-service-id`. Must match a registered value in configuration-backend's `Service` enum. |
+| `CONFIGURATION_BACKEND_URL` | No | — | Base URL of your configuration-backend instance. If unset, `get_feature_flag_client()` returns an env-var-only client (see [Init-time fallback](#init-time-fallback)). |
+| `FEATURE_FLAG_SERVICE_ID` | No | — | Service identifier sent as `x-service-id`. Must match a registered value in configuration-backend's `Service` enum. Required when `CONFIGURATION_BACKEND_URL` is set. |
 | `FEATURE_FLAG_CACHE_TTL_MS` | No | `5000` | In-process cache TTL in milliseconds. |
 
 ---
@@ -43,6 +43,39 @@ class MyServiceFlags:
     ENABLE_MY_FEATURE = "FEATURE_FLAG_ENABLE_MY_FEATURE"
     ENABLE_OTHER_FEATURE = "FEATURE_FLAG_ENABLE_OTHER_FEATURE_UN_12345"
 ```
+
+---
+
+## Init-time fallback
+
+Use `get_feature_flag_client()` instead of `FeatureFlagClient.from_settings()` when
+`CONFIGURATION_BACKEND_URL` / `FEATURE_FLAG_SERVICE_ID` may not be set (e.g. local
+dev, testing, or services that haven't wired up configuration-backend yet).
+
+```python
+from unique_toolkit.experimental.resources.feature_flags import get_feature_flag_client
+
+client = get_feature_flag_client()
+# Returns a full FeatureFlagClient (remote + cache) when the backend is configured,
+# or an env-var-only client when it isn't — no ValueError, no extra error handling needed.
+```
+
+```mermaid
+flowchart TD
+    A(["get_feature_flag_client()"]) --> B{CONFIGURATION_BACKEND_URL\nand FEATURE_FLAG_SERVICE_ID set?}
+
+    B -- yes --> C[FeatureFlagClient.from_settings\nsingleton with TTL cache]
+    C --> D([remote evaluation\nwith env-var fallback on error])
+
+    B -- no --> E[_EnvOnlyFeatureFlagClient\nsingleton]
+    E --> F([env-var evaluation only\nreason=fallback])
+
+    style D fill:#22c55e,color:#fff
+    style F fill:#ef4444,color:#fff
+```
+
+When the env-var-only client is active every `evaluate()` call goes straight to
+the env-var fallback — same logic as step 4 of the full evaluation order below.
 
 ---
 

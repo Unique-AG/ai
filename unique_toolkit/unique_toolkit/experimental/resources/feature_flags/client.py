@@ -5,6 +5,7 @@ import os
 from typing import ClassVar
 
 import httpx
+from pydantic import ValidationError
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
 from unique_toolkit.app.unique_settings import AuthContextProtocol, UniqueSettings
@@ -215,14 +216,63 @@ class BoundFeatureFlagClient:
         return (await self.evaluate(flag)).value
 
 
+class _EnvOnlyFeatureFlagClient(FeatureFlagClient):
+    """Env-var-only flag client used when configuration-backend is not configured.
+
+    Returned by :func:`get_feature_flag_client` when ``CONFIGURATION_BACKEND_URL``
+    / ``FEATURE_FLAG_SERVICE_ID`` are unset, so callers degrade gracefully to
+    environment-variable evaluation instead of hitting the ``ValueError`` raised
+    by :meth:`FeatureFlagClient.from_settings`. Uses the same env-var semantics as
+    :meth:`FeatureFlagClient._env_fallback` (plain booleans or comma-separated
+    company-ID allowlists). Subclasses :class:`FeatureFlagClient` so that
+    ``bind_settings`` / ``is_enabled`` and type checks keep working unchanged.
+    """
+
+    _env_instance: ClassVar[_EnvOnlyFeatureFlagClient | None] = None
+
+    def __init__(self) -> None:  # no URL / HTTP client / cache needed
+        super().__init__(url="", service_id="")
+
+    async def evaluate(
+        self,
+        flag: str,
+        *,
+        company_id: str,
+        user_id: str | None = None,
+    ) -> FlagEvaluation:
+        company_id = company_id.strip()
+        if not company_id:
+            raise ValueError("company_id must be a non-empty string")
+        return FlagEvaluation(
+            value=self._env_fallback(flag, company_id), reason="fallback"
+        )
+
+
 def get_feature_flag_client() -> FeatureFlagClient:
     """Return the process-level :class:`FeatureFlagClient` singleton.
 
     Built lazily via :meth:`FeatureFlagClient.from_settings` which reads
     ``CONFIGURATION_BACKEND_URL`` and ``FEATURE_FLAG_SERVICE_ID`` from env.
-    Falls back to env-var defaults on missing config or transport errors.
+
+    When those settings are absent, configuration-backend cannot be reached, so
+    this returns an env-var-only client instead of raising — callers always get
+    a usable client and flags are read from ``FEATURE_FLAG_*`` env vars. Once the
+    settings are present a real remote-backed client is built and returned.
     """
-    return FeatureFlagClient.from_settings()
+    if _EnvOnlyFeatureFlagClient._env_instance is not None:
+        return _EnvOnlyFeatureFlagClient._env_instance
+    try:
+        return FeatureFlagClient.from_settings()
+    except ValidationError:
+        raise
+    except ValueError:
+        logger.warning(
+            "configuration-backend not configured "
+            "(CONFIGURATION_BACKEND_URL / FEATURE_FLAG_SERVICE_ID unset) — "
+            "feature flags will be evaluated from env vars only."
+        )
+        _EnvOnlyFeatureFlagClient._env_instance = _EnvOnlyFeatureFlagClient()
+        return _EnvOnlyFeatureFlagClient._env_instance
 
 
 async def is_flag_enabled(
