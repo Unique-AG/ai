@@ -133,9 +133,7 @@ def cmd_dynamic_frontend_delete(
         if output_json:
             return json.dumps(dict(result), indent=2, default=str)
         deleted_id = (
-            getattr(result, "spaceId", None)
-            or getattr(result, "id", None)
-            or space_id
+            getattr(result, "spaceId", None) or getattr(result, "id", None) or space_id
         )
         return f"Deleted Dynamic Frontend space {deleted_id}"
     except (ValueError, unique_sdk.APIError) as e:
