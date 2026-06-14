@@ -116,6 +116,30 @@ def cmd_dynamic_frontend_deploy(
         return f"dynamic-frontend deploy: {e}"
 
 
+def cmd_dynamic_frontend_delete(
+    state: ShellState,
+    space_id: str,
+    *,
+    output_json: bool = False,
+) -> str:
+    try:
+        if not space_id:
+            return "dynamic-frontend delete: provide a space id."
+        result = unique_sdk.DynamicFrontend.delete(
+            space_id,
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+        )
+        if output_json:
+            return json.dumps(dict(result), indent=2, default=str)
+        deleted_id = (
+            getattr(result, "spaceId", None) or getattr(result, "id", None) or space_id
+        )
+        return f"Deleted Dynamic Frontend space {deleted_id}"
+    except (ValueError, unique_sdk.APIError) as e:
+        return f"dynamic-frontend delete: {e}"
+
+
 def cmd_dynamic_frontend_list(state: ShellState, *, output_json: bool = False) -> str:
     try:
         spaces = unique_sdk.DynamicFrontend.list(
