@@ -98,6 +98,25 @@ unique-cli dynamic-frontend deploy \
 The update command prints the same `spaceId`, `contentId`, view `URL`, and
 `Config URL` fields as create.
 
+## Delete a Space
+
+Remove a deployed Dynamic Frontend Space by its space id. This deletes the
+backing BYOC app and the owning space (and its access grants):
+
+```bash
+unique-cli dynamic-frontend delete space_abc123
+```
+
+The command prints a confirmation:
+
+```text
+Deleted Dynamic Frontend space space_abc123
+```
+
+Deletion is permanent and requires manage access on the space (or a
+company-wide space-admin role). Always confirm the correct `spaceId` with the
+user before deleting — there is no undo.
+
 ## List Spaces
 
 List Dynamic Frontend Spaces the current user can manage:
@@ -120,6 +139,8 @@ unique-cli dynamic-frontend deploy --space-id space_abc123 --file ./app.zip --js
 - Use `--space-id` for updates. Without `--space-id`, `deploy` creates a new
   Dynamic Frontend Space and requires `--name`.
 - `--file` and `--content-id` are mutually exclusive.
+- `delete` is permanent and has no undo — confirm the `spaceId` with the user
+  first, and never guess which space to delete.
 - After create or update, return the CLI output to the user, especially both the
   view `URL` (jump to the Space) and the `Config URL` (configure/share the Space).
 - Never report the BYOC iframe runtime URL

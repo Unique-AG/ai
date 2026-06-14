@@ -66,6 +66,24 @@ class DynamicFrontend(APIResource["DynamicFrontend"]):
         )
 
     @classmethod
+    def delete(
+        cls,
+        space_id: str,
+        user_id: str,
+        company_id: str,
+    ) -> "DynamicFrontend":
+        """Delete a deployed Dynamic Frontend space."""
+        return cast(
+            DynamicFrontend,
+            cls._static_request(
+                "delete",
+                f"/dynamic-frontend/{space_id}",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
     def list(
         cls,
         user_id: str,
