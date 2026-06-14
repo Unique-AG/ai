@@ -1,17 +1,19 @@
 ---
 name: unique-cli-dynamic-frontend
 description: >-
-  Create, update, and list Unique Dynamic Frontend Spaces using the
+  Create, update, list, and delete Unique Dynamic Frontend Spaces using the
   `unique-cli dynamic-frontend` command. Use when deploying a generated
   Dynamic Frontend ZIP, updating an existing Dynamic Frontend Space bundle,
-  listing manageable Dynamic Frontend Spaces, or when the user mentions
-  Dynamic Frontend Space deployment through the CLI.
+  listing manageable Dynamic Frontend Spaces, deleting a deployed Dynamic
+  Frontend Space, or when the user mentions Dynamic Frontend Space deployment
+  through the CLI.
 ---
 
 # Unique CLI -- Dynamic Frontend Spaces
 
-Use `unique-cli dynamic-frontend` to create or update Dynamic Frontend Spaces
-from upload-ready ZIP bundles or existing Knowledge Base content IDs.
+Use `unique-cli dynamic-frontend` to create, update, list, and delete Dynamic
+Frontend Spaces from upload-ready ZIP bundles or existing Knowledge Base
+content IDs.
 
 The CLI is installed via `pip install unique-sdk` and uses the same
 `UNIQUE_USER_ID`, `UNIQUE_COMPANY_ID`, `UNIQUE_API_KEY`, `UNIQUE_APP_ID`, and
@@ -130,6 +132,7 @@ Use JSON output for scripts:
 ```bash
 unique-cli dynamic-frontend list --json
 unique-cli dynamic-frontend deploy --space-id space_abc123 --file ./app.zip --json
+unique-cli dynamic-frontend delete space_abc123 --json
 ```
 
 ## Rules
