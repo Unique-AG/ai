@@ -124,6 +124,17 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         total_folders = folder_result.get("totalCount", len(folders))
         total_files = content_result.get("totalCount", len(files))
 
+        # With a per-message filter, listing inside an allowed folder must not
+        # reveal files the filter excludes (e.g. a combined folder + contentId
+        # allowlist): read/cite would deny them, so ls must hide them too.
+        # Folder-only filters keep every file (each passes the folderIdPath
+        # leaf); the verdict is cached per content id. See UN-21780.
+        if state.workspace_metadata_filter is not None:
+            files = [
+                f for f in files if state.is_content_within_workspace(f.get("id", ""))
+            ]
+            total_files = len(files)
+
         output = format_ls(folders, files)
         summary = f"\n{total_folders} folder(s), {total_files} file(s)"
         return output + summary

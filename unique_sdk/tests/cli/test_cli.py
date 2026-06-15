@@ -150,6 +150,27 @@ class TestClickCLI:
         assert result.exit_code == 1
         assert "search:" in result.output
 
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_permission_denied_exits_nonzero(self, mock_ls: MagicMock) -> None:
+        """Bugbot regression: an out-of-scope ls denial must exit non-zero so
+        agent ``&&`` chains fail cleanly, like read/cite/download (UN-21780).
+        """
+        mock_ls.return_value = (
+            "ls: permission denied: target is outside your task scope "
+            "(folders: /Funds/Fund A)."
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls", "/Other"])
+        assert result.exit_code == 1
+        assert "permission denied" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_ok_exits_zero(self, mock_ls: MagicMock) -> None:
+        mock_ls.return_value = "(empty)\n0 folder(s), 0 file(s)"
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls"])
+        assert result.exit_code == 0
+
     @patch("unique_sdk.cli.cli.cmd_read")
     def test_read(self, mock_read: MagicMock) -> None:
         mock_read.return_value = "Content: doc (cont_abc) — 1 chunk(s)\n\ntext"

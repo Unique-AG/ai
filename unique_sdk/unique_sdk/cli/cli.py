@@ -208,7 +208,11 @@ def ls(ctx: click.Context, target: str | None) -> None:
       unique-cli ls /Reports     List a specific path
       unique-cli ls scope_abc    List by scope ID
     """
-    click.echo(cmd_ls(LazyState.get(ctx), target))
+    output = cmd_ls(LazyState.get(ctx), target)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()

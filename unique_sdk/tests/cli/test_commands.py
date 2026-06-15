@@ -279,6 +279,61 @@ class TestNavigation:
         assert "permission denied" not in result
         mock_folders.assert_called_once()
 
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_inside_folder_filters_files_to_allowlist(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+        mock_info: MagicMock,
+    ) -> None:
+        """A combined folder + contentId filter must hide non-allowlisted
+        files even when listing inside the allowed folder (UN-21780).
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_fund_a": {"folderPath": "/Funds/Fund A"},
+                "scope_owner": {"folderPath": "/Funds/Fund A"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        # Both files live in the allowed folder; only the allowlisted one
+        # should survive the contentId leaf of the AND filter.
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_owner"}]}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {
+            "contentInfos": [
+                _content_info("allowed.pdf", "cont_allowed"),
+                _content_info("blocked.pdf", "cont_blocked"),
+            ],
+            "totalCount": 2,
+        }
+        state = _state("/Funds/Fund A", "scope_fund_a")
+        state._chat_file_content_ids_cache = set()
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_allowed"],
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "allowed.pdf" in result
+        assert "blocked.pdf" not in result
+        assert "1 file(s)" in result
+
 
 # --- Folders ---
 
