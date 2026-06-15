@@ -230,7 +230,11 @@ def mkdir(ctx: click.Context, name: str) -> None:
       unique-cli mkdir Q2
       unique-cli mkdir "2025/Q1"
     """
-    click.echo(cmd_mkdir(LazyState.get(ctx), name))
+    output = cmd_mkdir(LazyState.get(ctx), name)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()
@@ -255,7 +259,11 @@ def rmdir(ctx: click.Context, target: str, recursive: bool) -> None:
       unique-cli rmdir /Reports/Q1 --recursive
       unique-cli rmdir scope_abc123 -r
     """
-    click.echo(cmd_rmdir(LazyState.get(ctx), target, recursive=recursive))
+    output = cmd_rmdir(LazyState.get(ctx), target, recursive=recursive)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()
@@ -274,7 +282,11 @@ def mvdir(ctx: click.Context, old_name: str, new_name: str) -> None:
       unique-cli mvdir Q1 "Q1-2025"
       unique-cli mvdir scope_abc123 "New Name"
     """
-    click.echo(cmd_mvdir(LazyState.get(ctx), old_name, new_name))
+    output = cmd_mvdir(LazyState.get(ctx), old_name, new_name)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command()

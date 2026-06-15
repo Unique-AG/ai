@@ -945,6 +945,82 @@ class TestFiles:
         assert "Uploaded" in result
         mock_upload.assert_called_once()
 
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_blocked_by_metadata_filter(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        """A per-message filter must gate folder creation, not just static
+        scopeIds — mkdir under an out-of-scope cwd is denied (UN-21780).
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A", "scope_other": "/Other"}
+        )
+        state = _state("/Other", "scope_other")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mkdir(state, "Q2")
+        assert "permission denied" in result
+        mock_create.assert_not_called()
+
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_allowed_by_metadata_filter(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        state = _state("/Funds/Fund A", "scope_allowed")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mkdir(state, "Q2")
+        assert "Created" in result
+        mock_create.assert_called_once()
+
+    @patch("unique_sdk.Folder.delete")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_rmdir_blocked_by_metadata_filter(
+        self, mock_path: MagicMock, mock_delete: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A", "scope_other": "/Other"}
+        )
+        state = _state("/", None)
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_rmdir(state, "scope_other", recursive=True)
+        assert "permission denied" in result
+        mock_delete.assert_not_called()
+
+    @patch("unique_sdk.Folder.update")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mvdir_blocked_by_metadata_filter(
+        self, mock_path: MagicMock, mock_update: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A", "scope_other": "/Other"}
+        )
+        state = _state("/", None)
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mvdir(state, "scope_other", "New Name")
+        assert "permission denied" in result
+        mock_update.assert_not_called()
+
     @patch("unique_sdk.Content.versions")
     @patch("unique_sdk.Content.get_infos")
     def test_versions_by_name(

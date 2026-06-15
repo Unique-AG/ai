@@ -621,6 +621,18 @@ class TestMetadataFilterContentGating:
         s = self._state_with_filter(flt)
         assert not s.content_allowed_by_metadata_filter("cont_listed")
 
+    def test_malformed_filter_nodes_fail_closed(self) -> None:
+        # A non-dict node, an empty `or`, and an empty `and` are malformed
+        # filter trees: they must deny, not allow. See UN-21780.
+        for flt in (
+            ["not", "a", "dict"],
+            {"or": []},
+            {"and": []},
+            {"or": ["not-a-dict"]},
+        ):
+            s = self._state_with_filter(flt)
+            assert not s.content_allowed_by_metadata_filter("cont_x"), flt
+
     def test_unknown_leaf_fails_closed(self) -> None:
         # A non-boundary leaf (e.g. mimeType) cannot be evaluated locally, so
         # it fails closed (deny) rather than open (allow). The search server

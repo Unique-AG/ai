@@ -467,16 +467,26 @@ class ShellState:
         return verdict
 
     def _eval_filter_node(self, node: Any, content_id: str) -> bool:
+        # A malformed (non-dict) node can't be proven to place the document in
+        # scope, so it fails closed (deny) — consistent with unevaluable
+        # leaves. Returning True here would open read/cite/download on a
+        # partial or corrupt filter tree. See UN-21780.
         if not isinstance(node, dict):
-            return True
+            return False
         if "and" in node:
-            return all(
-                self._eval_filter_node(c, content_id) for c in (node.get("and") or [])
-            )
+            children = node.get("and") or []
+            if not children:
+                # An empty `and` is a malformed group, not "no constraint"
+                # (the no-filter case is handled in
+                # content_allowed_by_metadata_filter). Fail closed.
+                return False
+            return all(self._eval_filter_node(c, content_id) for c in children)
         if "or" in node:
             children = node.get("or") or []
             if not children:
-                return True
+                # An `or` with no alternatives is satisfied by nothing. Fail
+                # closed rather than open. See UN-21780.
+                return False
             # Cheap contentId leaves first so an OR can short-circuit to True
             # without a folder-ancestry lookup.
             ordered = sorted(children, key=self._leaf_cost)

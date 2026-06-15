@@ -7,10 +7,48 @@ from unique_sdk.cli.formatting import format_folder_info
 from unique_sdk.cli.state import ShellState
 
 
+def _resolve_folder_scope_id(state: ShellState, target: str) -> str | None:
+    """Resolve a folder target (scope id or path) to its scope id, or None.
+
+    Used to gate folder mutations against a per-message ``metaDataFilter``.
+    Returns None when the target can't be resolved so callers fail closed.
+    """
+    if target.startswith("scope_"):
+        return target
+    try:
+        _, scope_id = state.resolve_path(target)
+    except Exception:
+        return None
+    return scope_id
+
+
+def _metadata_filter_denies_folder(state: ShellState, scope_id: str | None) -> bool:
+    """True if a per-message filter is active and *scope_id* is outside it.
+
+    ``is_folder_target_within_workspace`` only enforces the static
+    ``scopeIds`` (and treats "no scopeIds" as unrestricted), so folder
+    mutations slip past a per-message ``metaDataFilter`` that read/cite/ls/
+    search honour. Gate them against the filter too. Fails closed when the
+    target can't be resolved. See UN-21780.
+    """
+    if state.workspace_metadata_filter is None:
+        return False
+    if not scope_id:
+        return True
+    return not state.folder_allowed_by_metadata_filter(scope_id)
+
+
 def cmd_mkdir(state: ShellState, name: str) -> str:
     """Create a new folder under the current directory."""
     if not state.is_folder_target_within_workspace(name):
         return "mkdir: permission denied (outside workspace scope)"
+    # New folders are created under the current directory; require it to be
+    # inside the per-message task scope so structure can't be added outside it.
+    if _metadata_filter_denies_folder(state, state.scope_id):
+        return (
+            "mkdir: permission denied: destination is outside your task scope "
+            f"({state.scope_denial_hint()})."
+        )
     try:
         full_path = f"{state.cwd.rstrip('/')}/{name}"
         result = unique_sdk.Folder.create_paths(
@@ -31,6 +69,11 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
     """Delete a folder by path or scope ID."""
     if not state.is_folder_target_within_workspace(target):
         return "rmdir: permission denied (outside workspace scope)"
+    if _metadata_filter_denies_folder(state, _resolve_folder_scope_id(state, target)):
+        return (
+            "rmdir: permission denied: target is outside your task scope "
+            f"({state.scope_denial_hint()})."
+        )
     try:
         if target.startswith("scope_"):
             unique_sdk.Folder.delete(
@@ -58,6 +101,11 @@ def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a folder."""
     if not state.is_folder_target_within_workspace(old_name):
         return "mvdir: permission denied (outside workspace scope)"
+    if _metadata_filter_denies_folder(state, _resolve_folder_scope_id(state, old_name)):
+        return (
+            "mvdir: permission denied: target is outside your task scope "
+            f"({state.scope_denial_hint()})."
+        )
     try:
         if old_name.startswith("scope_"):
             result = unique_sdk.Folder.update(
