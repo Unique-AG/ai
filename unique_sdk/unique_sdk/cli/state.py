@@ -4,21 +4,15 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from pathlib import Path
 from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.config import Config
+from unique_sdk.cli.metadata_filter import MetadataFilter
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
 _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
-
-# A Unique folder scope id, e.g. ``scope_ch5tigpwhamry2dqimxl3a7a``. Used to
-# extract the target folder from a ``folderIdPath`` filter value, which is
-# either a bare ``scope_…`` or a ``uniquepathid://scope_root/scope_leaf`` path
-# (segments are ``/``-separated, so matching is bounded by the path separator).
-_SCOPE_ID_RE = re.compile(r"scope_[a-z0-9_]+", re.IGNORECASE)
 
 
 def _load_search_config() -> dict[str, Any]:
@@ -77,142 +71,6 @@ def _load_chat_file_content_ids() -> set[str]:
     return {v for v in data.values() if isinstance(v, str) and v.startswith("cont_")}
 
 
-def _extract_target_scope_id(value: Any) -> str | None:
-    """Deepest folder scope id referenced by a ``folderIdPath`` filter value.
-
-    Values are either a bare ``scope_…`` or a
-    ``uniquepathid://scope_root/scope_leaf`` path. ``folderIdPath contains``
-    means "anywhere under the leaf folder", so the last ``scope_…`` token is
-    the folder being scoped to.
-    """
-    if not isinstance(value, str):
-        return None
-    matches = _SCOPE_ID_RE.findall(value)
-    return matches[-1] if matches else None
-
-
-# UniqueQL exclusion operators whose match must be *inverted* (membership
-# denies rather than grants). Enumerated explicitly rather than matched by a
-# ``startswith("not")`` heuristic: that heuristic would also catch a future
-# ``notEmpty``-style operator and invert it wrongly. Mirrors the Operator enum
-# in unique_toolkit.content.smart_rules. See UN-21780.
-_NEGATED_OPERATORS = frozenset({"notequals", "notin", "notcontains"})
-
-
-def _is_negated_operator(operator: Any) -> bool:
-    """True for exclusion operators (notIn, notEquals, notContains)."""
-    return isinstance(operator, str) and operator.lower() in _NEGATED_OPERATORS
-
-
-def _is_folder_only_subtree(node: Any) -> bool:
-    """True if *node* grants access purely via positive ``folderIdPath`` leaves.
-
-    Used to decide whether the folder branches of an ``or`` are navigable: an
-    OR every branch of which is a folder grant means "under folder X or folder
-    Y", so each folder is fully browsable. If any branch adds a ``contentId``
-    allowlist (or a negated/other constraint), the folder branches are
-    *conditional* and must not be treated as standalone browsable folders.
-    """
-    if not isinstance(node, dict):
-        return False
-    for key in ("and", "or"):
-        if key in node:
-            children = node.get(key) or []
-            return bool(children) and all(_is_folder_only_subtree(c) for c in children)
-    if _is_negated_operator(node.get("operator")):
-        return False
-    path = node.get("path")
-    field = path[0] if isinstance(path, list) and path else path
-    return field == "folderIdPath"
-
-
-def _collect_navigable_folder_ids(
-    node: Any, folder_ids: list[str] | None = None
-) -> list[str]:
-    """Folder scope ids the filter grants for *navigation* (ls/cd into).
-
-    A folder is navigable only when it sits on the filter's conjunctive spine
-    — reached through ``and`` nodes, or inside an ``or`` whose every branch is
-    a folder grant. A folder that appears only as an ``or`` alternative to a
-    ``contentId`` allowlist (e.g. ``and(folderA, or(folderB, contentId in …))``)
-    is *not* navigable on its own: only specific documents under it are in
-    scope, so listing/entering it would leak out-of-scope folder inventory.
-    Negated leaves are exclusions and never grant navigation. See UN-21780.
-    """
-    if folder_ids is None:
-        folder_ids = []
-    if not isinstance(node, dict):
-        return folder_ids
-    if "and" in node:
-        for child in node.get("and") or []:
-            _collect_navigable_folder_ids(child, folder_ids)
-        return folder_ids
-    if "or" in node:
-        children = node.get("or") or []
-        # Only collect the OR's folders when no branch is conditional on a
-        # contentId allowlist (or other non-folder constraint).
-        if children and all(_is_folder_only_subtree(c) for c in children):
-            for child in children:
-                _collect_navigable_folder_ids(child, folder_ids)
-        return folder_ids
-    if _is_negated_operator(node.get("operator")):
-        return folder_ids
-    path = node.get("path")
-    field = path[0] if isinstance(path, list) and path else path
-    if field == "folderIdPath":
-        value = node.get("value")
-        values = value if isinstance(value, list) else [value]
-        for v in values:
-            scope_id = _extract_target_scope_id(v)
-            if scope_id and scope_id not in folder_ids:
-                folder_ids.append(scope_id)
-    return folder_ids
-
-
-def _collect_filter_targets(
-    node: Any,
-    folder_ids: list[str] | None = None,
-    content_ids: list[str] | None = None,
-) -> tuple[list[str], list[str]]:
-    """Collect every folder scope id and content id referenced by a filter tree.
-
-    Order-preserving and de-duplicated. Used to *describe* the active scope
-    (for ``ls`` and denial hints) without enumerating folder contents.
-    """
-    if folder_ids is None:
-        folder_ids = []
-    if content_ids is None:
-        content_ids = []
-    if not isinstance(node, dict):
-        return folder_ids, content_ids
-    for key in ("and", "or"):
-        if key in node:
-            for child in node.get(key) or []:
-                _collect_filter_targets(child, folder_ids, content_ids)
-            return folder_ids, content_ids
-
-    path = node.get("path")
-    field = path[0] if isinstance(path, list) and path else path
-    value = node.get("value")
-    if _is_negated_operator(node.get("operator")):
-        # Negated leaves (notIn, notEquals, notContains) are *exclusions*;
-        # listing their targets as in-scope would invert their meaning
-        # (e.g. an Agentic Table question_file_ids notIn rule).
-        return folder_ids, content_ids
-    if field == "contentId":
-        values = value if isinstance(value, list) else [value]
-        for v in values:
-            if isinstance(v, str) and v.startswith("cont_") and v not in content_ids:
-                content_ids.append(v)
-    elif field == "folderIdPath":
-        values = value if isinstance(value, list) else [value]
-        for v in values:
-            scope_id = _extract_target_scope_id(v)
-            if scope_id and scope_id not in folder_ids:
-                folder_ids.append(scope_id)
-    return folder_ids, content_ids
-
-
 class ShellState:
     """Tracks the virtual working directory within the Unique folder hierarchy."""
 
@@ -220,23 +78,49 @@ class ShellState:
         self.config = config
         self._path = "/"
         self._scope_id: str | None = None
-        _search_config = _load_search_config()
-        self.workspace_scope_ids: list[str] = _load_workspace_scope_ids(_search_config)
-        self.workspace_metadata_filter: dict[str, Any] | None = (
-            _load_workspace_metadata_filter(_search_config)
-        )
         self._workspace_scope_paths: list[str] | None = None
         # Per-turn caches for per-message metadata-filter content gating. Keyed
         # by id; populated lazily so repeated reads/cites of the same document
-        # cost at most one resolution per turn. See UN-21780.
+        # cost at most one resolution per turn. Initialised before the filter
+        # below because the setter wires these cached lookups into it.
+        # See UN-21780.
         self._scope_path_cache: dict[str, str | None] = {}
         self._content_owner_path_cache: dict[str, str | None] = {}
-        self._mdf_verdict_cache: dict[str, bool] = {}
         self._chat_file_content_ids_cache: set[str] | None = None
         # Raw ``Content.get_info`` item per content id, shared by the scope
         # gate (owner path) and citation title resolution so a read+cite of
         # the same document costs one info call per turn. See UN-21780.
         self._content_info_cache: dict[str, unique_sdk.Content.ContentInfo | None] = {}
+        _search_config = _load_search_config()
+        self.workspace_scope_ids: list[str] = _load_workspace_scope_ids(_search_config)
+        # The MetadataFilter (when present) is rebuilt by the property setter,
+        # which injects this state's cached path/owner resolvers. Both backing
+        # attributes are seeded here so the assignment below is a plain setter
+        # call (the property getter never sees an unset attribute).
+        self._workspace_metadata_filter: dict[str, Any] | None = None
+        self._metadata_filter: MetadataFilter | None = None
+        self.workspace_metadata_filter = _load_workspace_metadata_filter(_search_config)
+
+    @property
+    def workspace_metadata_filter(self) -> dict[str, Any] | None:
+        return self._workspace_metadata_filter
+
+    @workspace_metadata_filter.setter
+    def workspace_metadata_filter(self, value: dict[str, Any] | None) -> None:
+        # Keep the raw tree (read by command code) and the compiled evaluator in
+        # lock-step, so tests/callers that reassign the filter after construction
+        # get a matching MetadataFilter. The resolvers are this state's cached,
+        # API-backed lookups, so the evaluator stays free of unique_sdk/caching.
+        self._workspace_metadata_filter = value
+        self._metadata_filter = (
+            MetadataFilter(
+                value,
+                resolve_scope_path=self._resolve_scope_path,
+                resolve_content_owner_path=self._resolve_content_owner_path,
+            )
+            if value
+            else None
+        )
 
     @property
     def workspace_restricted(self) -> bool:
@@ -444,108 +328,14 @@ class ShellState:
     def content_allowed_by_metadata_filter(self, content_id: str) -> bool:
         """Return True if *content_id* satisfies the per-message scope filter.
 
-        Evaluates the UniqueQL ``metaDataFilter`` written to
-        ``.unique-search.json`` against a single document, so file reads/cites
-        honour the same per-turn scope as ``unique-cli search`` (UN-21780).
-
-        The client enforces a *conservative subset* of UniqueQL: the two
-        scope-boundary leaf types ``contentId`` (membership, free) and
-        ``folderIdPath`` (containment, resolves the document's owning folder,
-        cached). It is **not** a full UniqueQL engine — any other leaf
-        (``mimeType``, custom metadata keys, dates, …) cannot be evaluated
-        from the available content metadata and is treated as *not satisfied*
-        (fails closed). This guarantees the local gate is never broader than
-        the intended scope: with an ``or`` containing an unenforceable leaf,
-        the document is allowed only if a boundary leaf already permits it,
-        rather than the unenforceable leaf widening the result to the whole
-        KB. The trade-off is that filters mixing non-boundary leaves may
-        over-deny direct reads (the search server still enforces the full
-        filter); a fully general boundary belongs server-side. Returns True
-        when no filter is configured.
+        Delegates to the compiled :class:`MetadataFilter` so file reads/cites
+        honour the same per-turn scope as ``unique-cli search``. Returns True
+        when no filter is configured. See UN-21780 and ``MetadataFilter`` for
+        the conservative-subset evaluation semantics.
         """
-        if not self.workspace_metadata_filter:
+        if self._metadata_filter is None:
             return True
-        if content_id in self._mdf_verdict_cache:
-            return self._mdf_verdict_cache[content_id]
-        verdict = self._eval_filter_node(self.workspace_metadata_filter, content_id)
-        self._mdf_verdict_cache[content_id] = verdict
-        return verdict
-
-    def _eval_filter_node(self, node: Any, content_id: str) -> bool:
-        # A malformed (non-dict) node can't be proven to place the document in
-        # scope, so it fails closed (deny) — consistent with unevaluable
-        # leaves. Returning True here would open read/cite/download on a
-        # partial or corrupt filter tree. See UN-21780.
-        if not isinstance(node, dict):
-            return False
-        if "and" in node:
-            children = node.get("and") or []
-            if not children:
-                # An empty `and` is a malformed group, not "no constraint"
-                # (the no-filter case is handled in
-                # content_allowed_by_metadata_filter). Fail closed.
-                return False
-            return all(self._eval_filter_node(c, content_id) for c in children)
-        if "or" in node:
-            children = node.get("or") or []
-            if not children:
-                # An `or` with no alternatives is satisfied by nothing. Fail
-                # closed rather than open. See UN-21780.
-                return False
-            # Cheap contentId leaves first so an OR can short-circuit to True
-            # without a folder-ancestry lookup.
-            ordered = sorted(children, key=self._leaf_cost)
-            return any(self._eval_filter_node(c, content_id) for c in ordered)
-        return self._eval_leaf(node, content_id)
-
-    @staticmethod
-    def _leaf_cost(node: Any) -> int:
-        """Sort key: 0 for free (contentId) leaves, 1 otherwise."""
-        if isinstance(node, dict):
-            path = node.get("path")
-            field = path[0] if isinstance(path, list) and path else path
-            if field == "contentId":
-                return 0
-        return 1
-
-    def _eval_leaf(self, node: dict[str, Any], content_id: str) -> bool:
-        path = node.get("path")
-        field = path[0] if isinstance(path, list) and path else path
-        value = node.get("value")
-        negated = _is_negated_operator(node.get("operator"))
-        if field == "contentId":
-            if isinstance(value, list):
-                matched = content_id in value
-            else:
-                matched = content_id == value
-            # A negated leaf (notIn/notEquals) is an exclusion: membership
-            # must deny, not grant (e.g. Agentic Table question_file_ids).
-            return not matched if negated else matched
-        if field == "folderIdPath":
-            owner_path = self._resolve_content_owner_path(content_id)
-            if owner_path is None:
-                return False
-            targets = value if isinstance(value, list) else [value]
-            contained = False
-            for target in targets:
-                scope_id = _extract_target_scope_id(target)
-                if not scope_id:
-                    continue
-                target_path = self._resolve_scope_path(scope_id)
-                if target_path and (
-                    owner_path == target_path
-                    or owner_path.startswith(target_path + "/")
-                ):
-                    contained = True
-                    break
-            return not contained if negated else contained
-        # Non-boundary leaf (e.g. mimeType, custom metadata, dates): the
-        # client cannot evaluate it from the available content metadata, so it
-        # fails closed (not satisfied) rather than fails open (return True).
-        # Returning True here would let such a leaf inside an `or` widen the
-        # result to every document the user can see — a scope leak. The search
-        # server still enforces the full filter for KB search. See UN-21780.
-        return False
+        return self._metadata_filter.allows_content(content_id)
 
     def navigable_folder_ids(self) -> list[str]:
         """Folder scope ids the per-message filter grants for navigation.
@@ -554,35 +344,20 @@ class ShellState:
         only reachable as an ``or`` alternative to a ``contentId`` allowlist,
         which are not standalone-browsable. Empty when no filter is set.
         """
-        if not self.workspace_metadata_filter:
+        if self._metadata_filter is None:
             return []
-        return _collect_navigable_folder_ids(self.workspace_metadata_filter)
+        return self._metadata_filter.navigable_folder_ids()
 
     def folder_allowed_by_metadata_filter(self, scope_id: str) -> bool:
         """True if *scope_id* is inside one of the filter's navigable scopes.
 
         Gates explicit folder targets (e.g. ``ls <path>``) so navigation
-        cannot enumerate folders outside the per-message scope. Documents
-        scoped individually (``contentId in``), and folders that only appear
-        as an ``or`` alternative to such an allowlist, don't grant folder
-        listings. Returns True when no per-message filter is configured.
+        cannot enumerate folders outside the per-message scope. Returns True
+        when no per-message filter is configured.
         """
-        if not self.workspace_metadata_filter:
+        if self._metadata_filter is None:
             return True
-        navigable = self.navigable_folder_ids()
-        if not navigable:
-            return False
-        folder_paths = [
-            p for p in (self._resolve_scope_path(sid) for sid in navigable) if p
-        ]
-        if not folder_paths:
-            return False
-        target_path = self._resolve_scope_path(scope_id)
-        if not target_path:
-            return False
-        return any(
-            target_path == p or target_path.startswith(p + "/") for p in folder_paths
-        )
+        return self._metadata_filter.allows_folder_scope(scope_id)
 
     def folder_path_allowed_by_metadata_filter(self, folder_path: str) -> bool:
         """True if an absolute folder *path* lies within a navigable scope.
@@ -592,16 +367,9 @@ class ShellState:
         so a ``..`` traversal can't create structure outside the per-message
         task scope. Returns True when no per-message filter is configured.
         """
-        if not self.workspace_metadata_filter:
+        if self._metadata_filter is None:
             return True
-        navigable = self.navigable_folder_ids()
-        if not navigable:
-            return False
-        paths = [p for p in (self._resolve_scope_path(s) for s in navigable) if p]
-        if not paths:
-            return False
-        norm = os.path.normpath(folder_path)
-        return any(norm == p or norm.startswith(p + "/") for p in paths)
+        return self._metadata_filter.allows_folder_path(folder_path)
 
     def metadata_filter_scope(self) -> tuple[list[str], list[str]]:
         """Return ``(folder_paths, content_ids)`` referenced by the filter.
@@ -611,17 +379,9 @@ class ShellState:
         (``ls`` at root, denial hints) without enumerating folder contents.
         Returns empty lists when no per-message filter is configured.
         """
-        if not self.workspace_metadata_filter:
+        if self._metadata_filter is None:
             return [], []
-        folder_ids, content_ids = _collect_filter_targets(
-            self.workspace_metadata_filter
-        )
-        paths: list[str] = []
-        for scope_id in folder_ids:
-            resolved = self._resolve_scope_path(scope_id)
-            if resolved:
-                paths.append(resolved)
-        return paths, content_ids
+        return self._metadata_filter.scope()
 
     def scope_denial_hint(self) -> str:
         """One-line description of the active scope, for denial messages.

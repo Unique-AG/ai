@@ -6,7 +6,8 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.formatting import format_ls
-from unique_sdk.cli.state import ShellState, _collect_filter_targets
+from unique_sdk.cli.metadata_filter import _collect_filter_targets
+from unique_sdk.cli.state import ShellState
 
 
 def cmd_pwd(state: ShellState) -> str:

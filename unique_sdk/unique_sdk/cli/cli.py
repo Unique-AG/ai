@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import click
@@ -137,6 +138,25 @@ class LazyState:
         return ctx.obj
 
 
+def emit(
+    output: str,
+    *,
+    is_error: Callable[[str], bool] = _is_permission_denied_output,
+) -> None:
+    """Print a command's *output* and exit non-zero when it is an error.
+
+    Errors (e.g. a scope denial) are written to stderr and raise
+    ``SystemExit(1)`` so agent ``&&`` chains stop cleanly; successful output
+    goes to stdout. The default predicate matches the ``<cmd>: permission
+    denied`` shape shared by the scope-gated commands; pass ``is_error`` for
+    commands with their own error-detection helper (cite/read/search/...).
+    """
+    if is_error(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
+
+
 @click.group(invoke_without_command=True, help=MAIN_HELP)
 @click.version_option(version=__version__, prog_name="unique-cli")
 @click.pass_context
@@ -209,10 +229,7 @@ def ls(ctx: click.Context, target: str | None) -> None:
       unique-cli ls scope_abc    List by scope ID
     """
     output = cmd_ls(LazyState.get(ctx), target)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()
@@ -231,10 +248,7 @@ def mkdir(ctx: click.Context, name: str) -> None:
       unique-cli mkdir "2025/Q1"
     """
     output = cmd_mkdir(LazyState.get(ctx), name)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()
@@ -260,10 +274,7 @@ def rmdir(ctx: click.Context, target: str, recursive: bool) -> None:
       unique-cli rmdir scope_abc123 -r
     """
     output = cmd_rmdir(LazyState.get(ctx), target, recursive=recursive)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()
@@ -283,10 +294,7 @@ def mvdir(ctx: click.Context, old_name: str, new_name: str) -> None:
       unique-cli mvdir scope_abc123 "New Name"
     """
     output = cmd_mvdir(LazyState.get(ctx), old_name, new_name)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()
@@ -320,10 +328,7 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
       unique-cli upload ./report.pdf /Archive/2025/
     """
     output = cmd_upload(LazyState.get(ctx), local_path, destination)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()
@@ -350,10 +355,7 @@ def versions(
       unique-cli versions cont_abc123 --take 10
     """
     output = cmd_versions(LazyState.get(ctx), name_or_id, skip=skip, take=take)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command(name="restore-version")
@@ -370,10 +372,7 @@ def restore_version(ctx: click.Context, content_version_id: str) -> None:
       unique-cli restore-version cver_abc123
     """
     output = cmd_restore_version(LazyState.get(ctx), content_version_id)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()
@@ -399,10 +398,7 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
       unique-cli download cont_abc123 ~/Desktop/
     """
     output = cmd_download(LazyState.get(ctx), name_or_id, local_dest)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command(name="cite")
@@ -433,10 +429,7 @@ def cite(
       unique-cli cite cont_abc123 --pages 1-4
     """
     output = cmd_cite_file(LazyState.get(ctx), name_or_id, pages)
-    if _is_cite_error_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output, is_error=_is_cite_error_output)
 
 
 @main.command(name="read")
@@ -514,10 +507,7 @@ def read_cmd(
         to_page=to_page,
         max_chars=max_chars,
     )
-    if _is_read_error_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output, is_error=_is_read_error_output)
 
 
 @main.group(name="dynamic-frontend")
@@ -609,10 +599,7 @@ def rm(ctx: click.Context, name_or_id: str) -> None:
       unique-cli rm cont_abc123
     """
     output = cmd_rm(LazyState.get(ctx), name_or_id)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()
@@ -633,10 +620,7 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
       unique-cli mv cont_abc123 "New Title.pdf"
     """
     output = cmd_mv_file(LazyState.get(ctx), old_name, new_name)
-    if _is_permission_denied_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output)
 
 
 @main.command()

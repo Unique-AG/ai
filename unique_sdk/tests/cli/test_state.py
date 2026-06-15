@@ -8,12 +8,12 @@ from unittest.mock import patch
 import pytest
 
 from unique_sdk.cli.config import Config
-from unique_sdk.cli.state import (
-    ShellState,
+from unique_sdk.cli.metadata_filter import (
     _collect_filter_targets,
     _extract_target_scope_id,
     _is_negated_operator,
 )
+from unique_sdk.cli.state import ShellState
 
 
 class TestNegatedOperator:
