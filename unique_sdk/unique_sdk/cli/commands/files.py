@@ -381,14 +381,10 @@ def cmd_download(
 
 def cmd_rm(state: ShellState, name_or_id: str) -> str:
     """Delete a file by name or content ID."""
-    # Destructive: don't honour the chat-attachment read exemption, so a chat
-    # file outside the per-message task scope can't be deleted. See UN-21780.
-    if name_or_id.startswith("cont_"):
-        if not state.is_content_within_workspace(name_or_id, allow_chat_files=False):
-            return "rm: permission denied (outside workspace scope)"
-    elif not state.is_within_workspace():
-        return "rm: permission denied (outside workspace scope)"
     try:
+        # Destructive: allow_chat_files=False so the chat-attachment read
+        # exemption can't be used to delete an out-of-scope file. Resolution
+        # also surfaces the task-scope hint on denial. See UN-21780.
         content_id, display_name = _resolve_content_id(
             state, name_or_id, allow_chat_files=False
         )
@@ -404,14 +400,10 @@ def cmd_rm(state: ShellState, name_or_id: str) -> str:
 
 def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a file."""
-    # Destructive: don't honour the chat-attachment read exemption, so a chat
-    # file outside the per-message task scope can't be renamed. See UN-21780.
-    if old_name.startswith("cont_"):
-        if not state.is_content_within_workspace(old_name, allow_chat_files=False):
-            return "mv: permission denied (outside workspace scope)"
-    elif not state.is_within_workspace():
-        return "mv: permission denied (outside workspace scope)"
     try:
+        # Destructive: allow_chat_files=False so the chat-attachment read
+        # exemption can't be used to rename an out-of-scope file. Resolution
+        # also surfaces the task-scope hint on denial. See UN-21780.
         content_id, display_name = _resolve_content_id(
             state, old_name, allow_chat_files=False
         )

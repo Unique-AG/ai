@@ -1094,6 +1094,28 @@ class TestFiles:
         assert "Created" in result
         mock_create.assert_called_once()
 
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_dotdot_escapes_metadata_filter_blocked(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        """Regression: `mkdir ../Other/X` from an in-scope cwd must be denied —
+        the gate checks the normalized destination path, not just cwd's scope
+        id. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        state = _state("/Funds/Fund A", "scope_fund_a")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_fund_a",
+        }
+        result = cmd_mkdir(state, "../Fund B/Secret")
+        assert "permission denied" in result
+        mock_create.assert_not_called()
+
     @patch("unique_sdk.Folder.delete")
     @patch("unique_sdk.Folder.get_folder_path")
     def test_rmdir_blocked_by_metadata_filter(

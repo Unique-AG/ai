@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import unique_sdk
 from unique_sdk.cli.formatting import format_folder_info
 from unique_sdk.cli.state import ShellState
@@ -42,15 +44,16 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
     """Create a new folder under the current directory."""
     if not state.is_folder_target_within_workspace(name):
         return "mkdir: permission denied (outside workspace scope)"
-    # New folders are created under the current directory; require it to be
-    # inside the per-message task scope so structure can't be added outside it.
-    if _metadata_filter_denies_folder(state, state.scope_id):
+    # Resolve the destination (collapsing any `..`) and gate the *path*, not
+    # just the current scope id: `mkdir ../../Other/X` would otherwise pass a
+    # cwd-only check and create structure outside the per-message task scope.
+    full_path = os.path.normpath(f"{state.cwd.rstrip('/')}/{name}")
+    if not state.folder_path_allowed_by_metadata_filter(full_path):
         return (
             "mkdir: permission denied: destination is outside your task scope "
             f"({state.scope_denial_hint()})."
         )
     try:
-        full_path = f"{state.cwd.rstrip('/')}/{name}"
         result = unique_sdk.Folder.create_paths(
             user_id=state.config.user_id,
             company_id=state.config.company_id,

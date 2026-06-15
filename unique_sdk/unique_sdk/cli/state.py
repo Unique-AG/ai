@@ -584,6 +584,25 @@ class ShellState:
             target_path == p or target_path.startswith(p + "/") for p in folder_paths
         )
 
+    def folder_path_allowed_by_metadata_filter(self, folder_path: str) -> bool:
+        """True if an absolute folder *path* lies within a navigable scope.
+
+        Path-based counterpart to ``folder_allowed_by_metadata_filter`` for
+        targets that don't yet have a scope id (e.g. a ``mkdir`` destination),
+        so a ``..`` traversal can't create structure outside the per-message
+        task scope. Returns True when no per-message filter is configured.
+        """
+        if not self.workspace_metadata_filter:
+            return True
+        navigable = self.navigable_folder_ids()
+        if not navigable:
+            return False
+        paths = [p for p in (self._resolve_scope_path(s) for s in navigable) if p]
+        if not paths:
+            return False
+        norm = os.path.normpath(folder_path)
+        return any(norm == p or norm.startswith(p + "/") for p in paths)
+
     def metadata_filter_scope(self) -> tuple[list[str], list[str]]:
         """Return ``(folder_paths, content_ids)`` referenced by the filter.
 
