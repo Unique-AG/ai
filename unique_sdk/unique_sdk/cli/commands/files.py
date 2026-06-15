@@ -230,6 +230,21 @@ def cmd_upload(
             destination,
         )
 
+        # is_folder_target_within_workspace only enforces the static
+        # scopeIds; when the runner supplies a per-message metaDataFilter
+        # without scopeIds it treats every folder as writable. Gate the
+        # resolved destination against the per-message filter too, so uploads
+        # can't escape a task scope that read/download/ls/search honor.
+        # See UN-21780.
+        if (
+            state.workspace_metadata_filter is not None
+            and not state.folder_allowed_by_metadata_filter(scope_id)
+        ):
+            return (
+                "upload: permission denied: destination is outside your "
+                f"task scope ({state.scope_denial_hint()})."
+            )
+
         mime_type, _ = mimetypes.guess_type(str(path))
         if not mime_type:
             mime_type = "application/octet-stream"
@@ -286,6 +301,16 @@ def cmd_restore_version(state: ShellState, content_version_id: str) -> str:
     """Restore a file from an archived content version ID."""
     if not state.is_within_workspace():
         return "restore-version: permission denied (outside workspace scope)"
+    # A per-message metaDataFilter is a hard task boundary, but the restore
+    # API only resolves a contentVersionId to its content *after* mutating,
+    # so an out-of-scope version can't be screened beforehand. Deny while a
+    # filter is active rather than allow an unverifiable mutation; reads stay
+    # gated regardless. See UN-21780.
+    if state.workspace_metadata_filter is not None:
+        return (
+            "restore-version: permission denied: cannot verify the target is "
+            f"within your task scope ({state.scope_denial_hint()})."
+        )
     try:
         result = unique_sdk.Content.restore_version(
             user_id=state.config.user_id,

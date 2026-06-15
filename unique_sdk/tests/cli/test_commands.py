@@ -68,6 +68,17 @@ def _folder_info(
     }
 
 
+def _folder_path_side_effect(mapping: dict[str, str]):  # type: ignore[no-untyped-def]
+    """Side effect for Folder.get_folder_path mapping scope_id -> folderPath."""
+
+    def _inner(*, user_id, company_id, scope_id):  # type: ignore[no-untyped-def]
+        if scope_id in mapping:
+            return {"folderPath": mapping[scope_id]}
+        raise Exception(f"folder not found: {scope_id}")
+
+    return _inner
+
+
 def _content_info(
     title: str = "report.pdf",
     cid: str = "cont_123",
@@ -855,6 +866,59 @@ class TestFiles:
         assert "cont_new" in result
         assert mock_upload.call_args.kwargs["versioning_enabled"] is True
 
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_blocked_by_metadata_filter_without_scope_ids(
+        self,
+        mock_upload: MagicMock,
+        mock_path: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """A per-message metaDataFilter (no static scopeIds) must gate the
+        upload destination, not leave it unrestricted (UN-21780).
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        f = tmp_path / "test.pdf"
+        f.write_text("content")
+        state = _state("/Other", "scope_other")
+        # No static scopeIds, only a per-message folder filter.
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_upload(state, str(f), "scope_other")
+        assert "permission denied" in result
+        mock_upload.assert_not_called()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_allowed_by_metadata_filter(
+        self,
+        mock_upload: MagicMock,
+        mock_path: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        f = tmp_path / "test.pdf"
+        f.write_text("content")
+        mock_result = MagicMock()
+        mock_result.id = "cont_new"
+        mock_upload.return_value = mock_result
+        state = _state("/Funds/Fund A", "scope_allowed")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_upload(state, str(f), "scope_allowed")
+        assert "Uploaded" in result
+        mock_upload.assert_called_once()
+
     @patch("unique_sdk.Content.versions")
     @patch("unique_sdk.Content.get_infos")
     def test_versions_by_name(
@@ -949,6 +1013,24 @@ class TestFiles:
         state = _state("/Outside", "scope_other")
         state.workspace_scope_ids = ["scope_ws"]
         state._workspace_scope_paths = ["/Workspace"]
+        result = cmd_restore_version(state, "cver_1")
+        assert "permission denied" in result
+        mock_restore.assert_not_called()
+
+    @patch("unique_sdk.Content.restore_version")
+    def test_restore_version_blocked_by_metadata_filter(
+        self,
+        mock_restore: MagicMock,
+    ) -> None:
+        """A per-message filter can't be verified before the restore mutates,
+        so restore-version is denied while one is active (UN-21780).
+        """
+        state = _state()
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_x"],
+        }
         result = cmd_restore_version(state, "cver_1")
         assert "permission denied" in result
         mock_restore.assert_not_called()
