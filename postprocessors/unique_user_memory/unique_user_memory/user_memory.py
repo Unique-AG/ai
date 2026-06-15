@@ -141,7 +141,11 @@ async def load_user_memory(
     )
     return UserMemoryState(
         scope_id=scope_id,
-        text=enforce_token_cap(content=text, max_tokens=config.max_tokens, language_model=config.language_model),
+        text=enforce_token_cap(
+            content=text,
+            max_tokens=config.max_tokens,
+            language_model=config.language_model,
+        ),
     )
 
 
@@ -455,7 +459,11 @@ async def consolidate_user_memory(
         )
         return safe_current
 
-    capped = enforce_token_cap(content=candidate, max_tokens=config.max_tokens, language_model=config.language_model)
+    capped = enforce_token_cap(
+        content=candidate,
+        max_tokens=config.max_tokens,
+        language_model=config.language_model,
+    )
     if (
         safe_current
         and _FRONTMATTER_RE.sub("", capped).strip()

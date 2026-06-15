@@ -31,6 +31,7 @@ unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
 unique-stock-ticker = false
+unique-search-proxy-sdk = false
 unique-skill-tool = false
 unique-quartr = false
 pymdown-extensions = "2026-05-14T22:00:00Z"

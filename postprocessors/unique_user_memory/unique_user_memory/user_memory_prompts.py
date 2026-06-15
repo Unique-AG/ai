@@ -176,9 +176,7 @@ def consolidation_user_prompt(
     user_message: str,
     assistant_message: str,
 ) -> str:
-    existing = (
-        existing_memory.strip() or "(empty - this is the user's first turn)"
-    )
+    existing = existing_memory.strip() or "(empty - this is the user's first turn)"
     return Template(_CONSOLIDATION_USER_PROMPT_TEMPLATE).render(
         user_id=user_id,
         existing_memory=existing,
