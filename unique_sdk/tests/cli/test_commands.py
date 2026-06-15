@@ -611,6 +611,28 @@ class TestFiles:
         assert "permission denied" in result
         mock_delete.assert_not_called()
 
+    @patch("unique_sdk.Content.delete")
+    @patch("unique_sdk.Content.get_infos")
+    def test_rm_by_name_denies_out_of_scope_chat_attachment(
+        self, mock_infos: MagicMock, mock_delete: MagicMock
+    ) -> None:
+        """Resolving by file name must honour the same read-only exemption —
+        rm <name> can't reach an out-of-scope chat attachment. See UN-21780.
+        """
+        mock_infos.return_value = {
+            "contentInfos": [_content_info("attached.pdf", "cont_attached")]
+        }
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_in_scope"],
+        }
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        result = cmd_rm(s, "attached.pdf")
+        assert "permission denied" in result
+        mock_delete.assert_not_called()
+
     @patch("unique_sdk.Content.update")
     def test_mv_denies_out_of_scope_chat_attachment(
         self, mock_update: MagicMock

@@ -111,8 +111,12 @@ def _resolve_content_id(
                 resolved_id = info["id"]
                 # Gate the *resolved* id too: resolving by file name or path
                 # must not bypass the per-message metadata-filter scope that
-                # the cont_ fast-path above enforces (UN-21780).
-                if not state.is_content_within_workspace(resolved_id):
+                # the cont_ fast-path above enforces, and must honour the same
+                # read-only chat-file exemption (so rm/mv by name can't reach
+                # an out-of-scope attachment either). See UN-21780.
+                if not state.is_content_within_workspace(
+                    resolved_id, allow_chat_files=allow_chat_files
+                ):
                     raise ValueError(
                         f"permission denied: {name_or_id} is outside your "
                         f"task scope ({state.scope_denial_hint()}). Use "
