@@ -12,16 +12,16 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 from unique_toolkit.content.schemas import Content
+from unique_user_memory.user_memory import UserMemoryState
 
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
 from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai_builder import (
-    _CommonComponents,
     _build_common,
     _build_responses,
+    _CommonComponents,
     _configure_uploaded_search_tool,
 )
-from unique_user_memory.user_memory import UserMemoryState
 
 
 def _make_common_components(uploaded_documents):
