@@ -61,8 +61,11 @@ unique-cli search "growth" -f scope_abc123
 ```
 
 When no `--folder` is given:
-- In interactive mode: searches within the current directory
-- At root `/`: searches the entire knowledge base
+- If the task defines a scope (a per-message scope filter): that scope is the
+  search boundary, regardless of the current directory. `cd`/cwd does **not**
+  narrow further — only an explicit `--folder` ANDs an additional constraint.
+- Otherwise, in interactive mode: searches within the current directory
+- Otherwise, at root `/`: searches the entire knowledge base
 
 ## Metadata Filtering
 
@@ -87,7 +90,7 @@ unique-cli search <query> [--folder <path|scope_id>] [--metadata <key=value>]...
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--folder` | `-f` | Current dir | Folder path, name, or scope ID |
+| `--folder` | `-f` | Task scope, else current dir | Folder path, name, or scope ID |
 | `--metadata` | `-m` | None | Key=value filter (repeatable) |
 | `--limit` | `-l` | 200 | Max results |
 

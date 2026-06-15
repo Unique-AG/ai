@@ -232,7 +232,8 @@ If you obtained the content some other way (you `download`ed the raw bytes and p
 
 - If env vars are missing, the CLI exits with a clear error listing the missing variables.
 - File-not-found and folder-not-found errors are returned as text, not exceptions.
-- All commands print their result to stdout -- parse output as needed.
+- Successful results print to stdout -- parse output as needed.
+- Scope denials (e.g. a file or folder outside the task scope) print to **stderr** and exit with a **non-zero** status, so a denial in an `&&` chain stops the chain instead of being treated as success. Read the stderr message: it names the in-scope folders/documents to redirect you, rather than retrying the same out-of-scope target.
 
 ## Interactive Mode
 
