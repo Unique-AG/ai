@@ -1,4 +1,3 @@
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -7,8 +6,10 @@ from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     _sanitize_for_xml_context,
     consolidate_user_memory,
+    count_tokens,
     download_user_memory,
     enforce_token_cap,
+    ensure_user_memory_folder,
     upload_user_memory,
 )
 from unique_user_memory.user_memory_prompts import empty_profile
@@ -17,10 +18,18 @@ from unique_user_memory.user_memory_prompts import empty_profile
 def test_enforce_token_cap_truncates_long_content() -> None:
     content = "\n\n".join(f"paragraph {index} " + "word " * 40 for index in range(50))
 
-    capped = enforce_token_cap(content, max_tokens=120)
+    capped = enforce_token_cap(content=content, max_tokens=120)
 
     assert "<!-- truncated to fit memory budget -->" in capped
     assert len(capped) < len(content)
+
+
+def test_count_tokens_uses_language_model_encoder() -> None:
+    language_model = MagicMock()
+    language_model.get_encoder.return_value = lambda content: content.split()
+    language_model.get_decoder.return_value = lambda tokens: " ".join(tokens)
+
+    assert count_tokens(content="one two three", language_model=language_model) == 3
 
 
 def test_sanitize_for_xml_context_defuses_closing_tags() -> None:
@@ -97,11 +106,135 @@ async def test_download_user_memory_returns_empty_when_file_missing() -> None:
 
 
 @pytest.mark.asyncio
+async def test_download_user_memory_downloads_existing_file_to_memory() -> None:
+    content = MagicMock()
+    content.id = "content_1"
+    content.key = "memory.md"
+    content_service = MagicMock()
+    content_service.search_contents_async = AsyncMock(return_value=[content])
+    content_service.download_content_to_bytes_async = AsyncMock(
+        return_value=b"# User Memory\n\n## Identity\n- Test"
+    )
+
+    result = await download_user_memory(
+        scope_id="scope_1",
+        chat_id="chat_1",
+        content_service=content_service,
+        logger=MagicMock(),
+    )
+
+    assert result == "# User Memory\n\n## Identity\n- Test"
+    content_service.download_content_to_bytes_async.assert_awaited_once_with(
+        content_id="content_1",
+        chat_id="chat_1",
+    )
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_returns_existing_user_folder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    get_info = AsyncMock(
+        side_effect=[
+            {"id": "scope_root"},
+            {"id": "scope_user"},
+        ]
+    )
+    create_paths = AsyncMock()
+    add_access = AsyncMock()
+    get_groups = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
+        add_access,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Group.get_groups_async",
+        get_groups,
+    )
+
+    result = await ensure_user_memory_folder(
+        user_id="user_1",
+        company_id="company_1",
+        root_folder="user-memory",
+        logger=MagicMock(),
+    )
+
+    assert result == "scope_user"
+    get_info.assert_any_await(
+        user_id="user_1",
+        company_id="company_1",
+        folderPath="/user-memory",
+    )
+    get_info.assert_any_await(
+        user_id="user_1",
+        company_id="company_1",
+        folderPath="/user-memory/user_1",
+    )
+    create_paths.assert_not_awaited()
+    add_access.assert_not_awaited()
+    get_groups.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    get_info = AsyncMock(
+        side_effect=[
+            {"id": "scope_root"},
+            RuntimeError("missing user folder"),
+        ]
+    )
+    create_paths = AsyncMock(return_value={"createdFolders": [{"id": "scope_user"}]})
+    add_access = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
+        add_access,
+    )
+
+    result = await ensure_user_memory_folder(
+        user_id="user_1",
+        company_id="company_1",
+        root_folder="user-memory",
+        logger=MagicMock(),
+    )
+
+    assert result == "scope_user"
+    create_paths.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        parentScopeId="scope_root",
+        relativePaths=["user_1"],
+        inheritAccess=False,
+    )
+    add_access.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_upload_user_memory_writes_hidden_skip_ingestion_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    upload_file = MagicMock()
-    monkeypatch.setattr("unique_user_memory.user_memory.file_io.upload_file", upload_file)
+    upload_content = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.upload_content_from_bytes_async",
+        upload_content,
+    )
 
     result = await upload_user_memory(
         scope_id="scope_1",
@@ -112,13 +245,14 @@ async def test_upload_user_memory_writes_hidden_skip_ingestion_file(
     )
 
     assert result is True
-    upload_file.assert_called_once()
-    _, _, uploaded_path, filename, mime_type = upload_file.call_args.args[:5]
-    assert Path(uploaded_path).exists() is False
-    assert filename == "memory.md"
-    assert mime_type == "text/markdown"
-    assert upload_file.call_args.kwargs["scope_or_unique_path"] == "scope_1"
-    assert upload_file.call_args.kwargs["ingestion_config"] == {
+    upload_content.assert_awaited_once()
+    assert upload_content.call_args.kwargs["content"] == (
+        b"# User Memory\n\n## Identity\n- Test"
+    )
+    assert upload_content.call_args.kwargs["content_name"] == "memory.md"
+    assert upload_content.call_args.kwargs["mime_type"] == "text/markdown"
+    assert upload_content.call_args.kwargs["scope_id"] == "scope_1"
+    assert upload_content.call_args.kwargs["ingestion_config"] == {
         "uniqueIngestionMode": "SKIP_INGESTION",
         "hideInChat": True,
     }

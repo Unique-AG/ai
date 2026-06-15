@@ -1,22 +1,21 @@
-import asyncio
-import os
 import re
-import tempfile
 from dataclasses import dataclass
 from logging import Logger
-from pathlib import Path
 
-import tiktoken
 import unique_sdk
-import unique_sdk.utils.file_io as file_io
 from unique_toolkit.app import ChatEvent
+from unique_toolkit.content.functions import upload_content_from_bytes_async
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import (
+    DEFAULT_GPT_4o,
     LanguageModelMessages,
     LanguageModelService,
     LanguageModelSystemMessage,
     LanguageModelUserMessage,
+    TypeDecoder,
+    TypeEncoder,
 )
+from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory_prompts import (
@@ -28,10 +27,9 @@ from unique_user_memory.user_memory_prompts import (
 
 MEMORY_FILENAME = "memory.md"
 MIME_TYPE = "text/markdown"
-ROOT_GROUP_NAME = "Root Group"
 _LLM_OUTPUT_HEADROOM_TOKENS = 200
 _TRUNCATION_MARKER = "\n\n<!-- truncated to fit memory budget -->"
-_TOKENIZER = tiktoken.get_encoding("cl100k_base")
+_DEFAULT_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 
 
@@ -41,26 +39,54 @@ class UserMemoryState:
     text: str
 
 
-def count_tokens(content: str) -> int:
+def _get_model_tokenizer(
+    *,
+    language_model: LanguageModelInfo,
+) -> tuple[TypeEncoder, TypeDecoder]:
+    model_info = language_model or _DEFAULT_LANGUAGE_MODEL
+    return model_info.get_encoder(), model_info.get_decoder()
+
+
+def _count_tokens(
+    *,
+    content: str,
+    encode: TypeEncoder,
+) -> int:
     if not content:
         return 0
-    return len(_TOKENIZER.encode(content))
+    return len(encode(content))
 
 
-def enforce_token_cap(content: str, max_tokens: int) -> str:
+def count_tokens(
+    *,
+    content: str,
+    language_model: LanguageModelInfo = _DEFAULT_LANGUAGE_MODEL,
+) -> int:
+    encode, _ = _get_model_tokenizer(language_model=language_model)
+    return _count_tokens(content=content, encode=encode)
+
+
+def enforce_token_cap(
+    *,
+    content: str,
+    max_tokens: int,
+    language_model: LanguageModelInfo = _DEFAULT_LANGUAGE_MODEL,
+) -> str:
     if not content:
         return content
 
-    if count_tokens(content) <= max_tokens:
+    encode, decode = _get_model_tokenizer(language_model=language_model)
+
+    if _count_tokens(content=content, encode=encode) <= max_tokens:
         return content
 
-    marker_tokens = count_tokens(_TRUNCATION_MARKER)
+    marker_tokens = _count_tokens(content=_TRUNCATION_MARKER, encode=encode)
     target = max(0, max_tokens - marker_tokens)
     paragraphs = content.split("\n\n")
     accepted: list[str] = []
     running = 0
     for paragraph in paragraphs:
-        paragraph_tokens = count_tokens(paragraph + "\n\n")
+        paragraph_tokens = _count_tokens(content=paragraph + "\n\n", encode=encode)
         if running + paragraph_tokens > target:
             break
         accepted.append(paragraph)
@@ -69,17 +95,17 @@ def enforce_token_cap(content: str, max_tokens: int) -> str:
     if accepted:
         truncated = "\n\n".join(accepted)
     else:
-        truncated = _TOKENIZER.decode(_TOKENIZER.encode(content)[:target])
+        truncated = decode(encode(content)[:target])
 
     result = truncated.rstrip() + _TRUNCATION_MARKER
     shrink = target
-    while count_tokens(result) > max_tokens and shrink > 0:
+    while _count_tokens(content=result, encode=encode) > max_tokens and shrink > 0:
         shrink -= 1
-        body = _TOKENIZER.decode(_TOKENIZER.encode(result)[:shrink]).rstrip()
+        body = decode(encode(result)[:shrink]).rstrip()
         result = body + _TRUNCATION_MARKER
 
-    if count_tokens(result) > max_tokens:
-        result = _TOKENIZER.decode(_TOKENIZER.encode(result)[:max_tokens])
+    if _count_tokens(content=result, encode=encode) > max_tokens:
+        result = decode(encode(result)[:max_tokens])
 
     return result
 
@@ -115,7 +141,7 @@ async def load_user_memory(
     )
     return UserMemoryState(
         scope_id=scope_id,
-        text=enforce_token_cap(text, config.max_tokens),
+        text=enforce_token_cap(content=text, max_tokens=config.max_tokens, language_model=config.language_model),
     )
 
 
@@ -126,7 +152,7 @@ async def ensure_user_memory_folder(
     root_folder: str,
     logger: Logger,
 ) -> str | None:
-    root_scope_id = await _ensure_root_folder_with_company_access(
+    root_scope_id = await _resolve_root_folder(
         user_id=user_id,
         company_id=company_id,
         root_folder=root_folder,
@@ -152,7 +178,8 @@ async def ensure_user_memory_folder(
             created = await unique_sdk.Folder.create_paths_async(
                 user_id=user_id,
                 company_id=company_id,
-                paths=[user_folder_path],
+                parentScopeId=root_scope_id,
+                relativePaths=[user_id],
                 inheritAccess=False,
             )
         except Exception as exc:
@@ -165,7 +192,14 @@ async def ensure_user_memory_folder(
             return None
 
         created_folders = (created or {}).get("createdFolders", []) or []
-        scope_id = created_folders[-1].get("id") if created_folders else None
+        if len(created_folders) > 1:
+            logger.warning(
+                "[user-memory] create_paths returned %d folders for %s, "
+                "expected exactly 1; using the first one",
+                len(created_folders),
+                user_folder_path,
+            )
+        scope_id = created_folders[0].get("id") if created_folders else None
         if not scope_id:
             logger.warning(
                 "[user-memory] create_paths returned no folder id for %s",
@@ -173,34 +207,10 @@ async def ensure_user_memory_folder(
             )
             return None
 
-    try:
-        await unique_sdk.Folder.add_access_async(
-            user_id=user_id,
-            company_id=company_id,
-            scopeId=scope_id,
-            scopeAccesses=[
-                {
-                    "entityId": user_id,
-                    "type": "READ",
-                    "entityType": "USER",
-                }
-            ],
-            applyToSubScopes=True,
-        )
-    except Exception as exc:
-        logger.debug(
-            "[user-memory] redundant per-user add_access did not apply on "
-            "scope %s for user %s: [%s] %s",
-            scope_id,
-            user_id,
-            type(exc).__name__,
-            exc,
-        )
-
     return scope_id
 
 
-async def _ensure_root_folder_with_company_access(
+async def _resolve_root_folder(
     *,
     user_id: str,
     company_id: str,
@@ -209,88 +219,29 @@ async def _ensure_root_folder_with_company_access(
 ) -> str | None:
     root_path = f"/{root_folder.strip('/')}"
     try:
-        root_scope_id = await unique_sdk.Folder.resolve_scope_id_from_folder_path_with_create_async(
+        root_info = await unique_sdk.Folder.get_info_async(
             user_id=user_id,
             company_id=company_id,
-            folder_path=root_path,
-            create_if_not_exists=True,
+            folderPath=root_path,
         )
     except Exception as exc:
         logger.warning(
-            "[user-memory] failed to resolve/create root folder %s: [%s] %s",
+            "[user-memory] failed to resolve pre-provisioned root folder %s: [%s] %s",
             root_path,
             type(exc).__name__,
             exc,
         )
         return None
 
+    root_scope_id = root_info.get("id")
     if not root_scope_id:
         logger.warning(
-            "[user-memory] resolve_scope_id returned no id for root path %s",
+            "[user-memory] root folder lookup returned no id for %s",
             root_path,
         )
         return None
 
-    group_id = await _resolve_root_group_id(user_id, company_id, logger)
-    if group_id is None:
-        return root_scope_id
-
-    try:
-        await unique_sdk.Folder.add_access_async(
-            user_id=user_id,
-            company_id=company_id,
-            scopeId=root_scope_id,
-            scopeAccesses=[
-                {"entityId": group_id, "type": "READ", "entityType": "GROUP"},
-                {"entityId": group_id, "type": "WRITE", "entityType": "GROUP"},
-            ],
-            applyToSubScopes=False,
-        )
-    except Exception as exc:
-        logger.debug(
-            "[user-memory] add_access for group %s on root scope %s did not apply: [%s] %s",
-            group_id,
-            root_scope_id,
-            type(exc).__name__,
-            exc,
-        )
-
     return root_scope_id
-
-
-async def _resolve_root_group_id(
-    user_id: str,
-    company_id: str,
-    logger: Logger,
-) -> str | None:
-    try:
-        response = await unique_sdk.Group.get_groups_async(
-            user_id=user_id,
-            company_id=company_id,
-            name=ROOT_GROUP_NAME,
-        )
-    except Exception as exc:
-        logger.warning(
-            "[user-memory] failed to list groups while looking for %r: [%s] %s",
-            ROOT_GROUP_NAME,
-            type(exc).__name__,
-            exc,
-        )
-        return None
-
-    groups = (response or {}).get("groups", []) or []
-    exact = next(
-        (group for group in groups if (group.get("name") or "") == ROOT_GROUP_NAME),
-        None,
-    )
-    if exact is None:
-        logger.warning(
-            "[user-memory] backend group %r not found in company %s",
-            ROOT_GROUP_NAME,
-            company_id,
-        )
-        return None
-    return exact.get("id")
 
 
 async def download_user_memory(
@@ -326,22 +277,16 @@ async def download_user_memory(
         )
         return ""
 
-    tmp_path: Path | None = None
     try:
-        tmp_path = await asyncio.to_thread(
-            file_io.download_content,
-            content_service._company_id,
-            content_service._user_id,
-            memory_content.id,
-            memory_content.key,
-            chat_id,
+        content_bytes = await content_service.download_content_to_bytes_async(
+            content_id=memory_content.id,
+            chat_id=chat_id,
         )
-        text = tmp_path.read_text(encoding="utf-8", errors="replace")
+        text = content_bytes.decode("utf-8", errors="replace")
         logger.info(
-            "[user-memory] downloaded %s (%d bytes, %d tokens) from scope %s",
+            "[user-memory] downloaded %s (%d bytes) from scope %s",
             MEMORY_FILENAME,
-            len(text.encode("utf-8")),
-            count_tokens(text),
+            len(content_bytes),
             scope_id,
         )
         return text
@@ -354,9 +299,6 @@ async def download_user_memory(
             exc,
         )
         return ""
-    finally:
-        if tmp_path is not None:
-            tmp_path.unlink(missing_ok=True)
 
 
 async def upload_user_memory(
@@ -374,27 +316,23 @@ async def upload_user_memory(
         )
         return False
 
-    tmp_path: Path | None = None
     try:
-        tmp_path = Path(await asyncio.to_thread(_write_tempfile, content, ".md"))
-        await asyncio.to_thread(
-            file_io.upload_file,
-            user_id,
-            company_id,
-            str(tmp_path),
-            MEMORY_FILENAME,
-            MIME_TYPE,
-            scope_or_unique_path=scope_id,
+        await upload_content_from_bytes_async(
+            user_id=user_id,
+            company_id=company_id,
+            content=content.encode("utf-8"),
+            content_name=MEMORY_FILENAME,
+            mime_type=MIME_TYPE,
+            scope_id=scope_id,
             ingestion_config={
                 "uniqueIngestionMode": "SKIP_INGESTION",
                 "hideInChat": True,
             },
         )
         logger.info(
-            "[user-memory] uploaded %s (%d bytes, %d tokens) to scope %s",
+            "[user-memory] uploaded %s (%d bytes) to scope %s",
             MEMORY_FILENAME,
             len(content.encode("utf-8")),
-            count_tokens(content),
             scope_id,
         )
         return True
@@ -407,9 +345,6 @@ async def upload_user_memory(
             exc_info=True,
         )
         return False
-    finally:
-        if tmp_path is not None:
-            tmp_path.unlink(missing_ok=True)
 
 
 async def consolidate_user_memory(
@@ -422,19 +357,25 @@ async def consolidate_user_memory(
     event: ChatEvent,
     logger: Logger,
 ) -> str:
-    safe_current = enforce_token_cap(current_memory, config.max_tokens)
+    safe_current = enforce_token_cap(
+        content=current_memory,
+        max_tokens=config.max_tokens,
+        language_model=config.language_model,
+    )
     logger.info(
         "[user-memory] consolidating turn user_id=%s | existing_memory_tokens=%d | "
         "user_msg_chars=%d | assistant_msg_chars=%d",
         user_id,
-        count_tokens(safe_current),
+        count_tokens(content=safe_current, language_model=config.language_model),
         len(user_message or ""),
         len(assistant_message or ""),
     )
 
     if not (user_message or "").strip() and not (assistant_message or "").strip():
         return safe_current or enforce_token_cap(
-            empty_profile(user_id), config.max_tokens
+            content=empty_profile(user_id),
+            max_tokens=config.max_tokens,
+            language_model=config.language_model,
         )
 
     if not safe_current.strip():
@@ -503,7 +444,7 @@ async def consolidate_user_memory(
         return safe_current
 
     if raw.strip().upper() == "NOOP":
-        logger.debug("[user-memory] consolidation NOOP - keeping existing memory")
+        logger.info("[user-memory] consolidation NOOP - keeping existing memory")
         return safe_current
 
     candidate = _strip_code_fences(raw).strip()
@@ -514,7 +455,7 @@ async def consolidate_user_memory(
         )
         return safe_current
 
-    capped = enforce_token_cap(candidate, config.max_tokens)
+    capped = enforce_token_cap(content=candidate, max_tokens=config.max_tokens, language_model=config.language_model)
     if (
         safe_current
         and _FRONTMATTER_RE.sub("", capped).strip()
@@ -525,21 +466,10 @@ async def consolidate_user_memory(
 
     logger.info(
         "[user-memory] consolidation produced %d tokens (cap=%d)",
-        count_tokens(capped),
+        count_tokens(content=capped, language_model=config.language_model),
         config.max_tokens,
     )
     return capped
-
-
-def _write_tempfile(content: str, suffix: str) -> str:
-    fd, path = tempfile.mkstemp(prefix="user-memory-", suffix=suffix)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as file:
-            file.write(content)
-    except Exception:
-        Path(path).unlink(missing_ok=True)
-        raise
-    return path
 
 
 def _sanitize_for_xml_context(text: str) -> str:
