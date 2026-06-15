@@ -122,11 +122,14 @@ When approaching the budget, drop content in this priority order:
 4. Fold low-signal Skills & Expertise bullets into broader categories.
 5. Identity and Communication Preferences - never drop, only tighten.
 
+# Current date and time
+
+The current UTC date and time is **{{ now_datetime }}**. You do NOT know the date from any other source - always use this supplied value. Never guess or infer the date.
+
 # Frontmatter rules
 
 - Preserve `user_id` and `schema_version` from `<existing_memory>` exactly.
-- Set `last_updated` to the current UTC timestamp in ISO 8601 with
-  seconds precision.
+- Set `last_updated` to the supplied current UTC timestamp ({{ now_datetime }}).
 - Increment `turn_count` by 1.
 - If `<existing_memory>` is empty, initialize with `schema_version: 1`,
   `turn_count: 1`, and the user_id supplied in the user message.
@@ -135,16 +138,19 @@ When approaching the budget, drop content in this priority order:
 
 - Use `-` markdown bullets, no nesting beyond two levels.
 - Keep bullets short.
-- For dated entries in Recent Topics, prefix with `YYYY-MM-DD:`.
+- For dated entries in Recent Topics, prefix with `YYYY-MM-DD HH:MM UTC:`
+  using the supplied current date and time ({{ now_datetime }}).
 - No emojis in section headings.
 """
 
 
 def consolidation_system_prompt(max_tokens: int) -> str:
     section_list = "\n".join(f"- ## {heading}" for heading in SECTION_HEADINGS)
+    now = datetime.now(timezone.utc)
     return Template(_CONSOLIDATION_SYSTEM_PROMPT_TEMPLATE).render(
         max_tokens=max_tokens,
         section_list=section_list,
+        now_datetime=now.strftime("%Y-%m-%d %H:%M UTC"),
     )
 
 

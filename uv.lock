@@ -25,12 +25,13 @@ unique-mcp = false
 litellm = "2026-05-16T22:00:00Z"
 unique-orchestrator = false
 unique-follow-up-questions = false
+unique-user-memory = false
 unique-six = false
-unique-stock-ticker = false
+unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
-unique-search-proxy = false
-unique-search-proxy-sdk = false
+unique-stock-ticker = false
+unique-quartr = false
 unique-skill-tool = false
 unique-quartr = false
 pymdown-extensions = "2026-05-14T22:00:00Z"
@@ -53,6 +54,7 @@ members = [
     "unique-stock-ticker",
     "unique-swot",
     "unique-toolkit",
+    "unique-user-memory",
     "unique-web-search",
     "uqadm",
 ]
@@ -5710,6 +5712,7 @@ dependencies = [
     { name = "unique-stock-ticker" },
     { name = "unique-swot" },
     { name = "unique-toolkit" },
+    { name = "unique-user-memory" },
     { name = "unique-web-search" },
 ]
 
@@ -5727,6 +5730,7 @@ requires-dist = [
     { name = "unique-stock-ticker", editable = "postprocessors/unique_stock_ticker" },
     { name = "unique-swot", editable = "tool_packages/unique_swot" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
+    { name = "unique-user-memory", editable = "postprocessors/unique_user_memory" },
     { name = "unique-web-search", editable = "tool_packages/unique_web_search" },
 ]
 
@@ -6137,6 +6141,28 @@ provides-extras = ["langchain", "fastapi", "monitoring"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "types-cachetools", specifier = ">=5.0,<6" }]
+
+[[package]]
+name = "unique-user-memory"
+version = "2026.22.0"
+source = { editable = "postprocessors/unique_user_memory" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "pydantic" },
+    { name = "unique-sdk" },
+    { name = "unique-toolkit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "pydantic", specifier = ">=2.8.2" },
+    { name = "unique-sdk", editable = "unique_sdk" },
+    { name = "unique-toolkit", editable = "unique_toolkit" },
+]
+
+[package.metadata.requires-dev]
+dev = []
 
 [[package]]
 name = "unique-web-search"
