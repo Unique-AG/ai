@@ -48,9 +48,12 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         # documents so the agent explores within the boundary rather than the
         # full company tree or the broader static scope. See UN-21780.
         if scope_id is None and state.workspace_metadata_filter is not None:
-            folder_ids, content_ids = _collect_filter_targets(
-                state.workspace_metadata_filter
-            )
+            _, content_ids = _collect_filter_targets(state.workspace_metadata_filter)
+            # Only show folders that are actually browsable: a folder reachable
+            # solely as an OR-alternative to a contentId allowlist is not a
+            # standalone scope, so listing it would leak inventory. See
+            # UN-21780.
+            folder_ids = state.navigable_folder_ids()
             scoped_folders: list[Any] = []
             for sid in folder_ids:
                 try:

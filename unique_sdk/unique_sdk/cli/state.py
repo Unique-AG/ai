@@ -96,6 +96,71 @@ def _is_negated_operator(operator: Any) -> bool:
     return isinstance(operator, str) and operator.lower().startswith("not")
 
 
+def _is_folder_only_subtree(node: Any) -> bool:
+    """True if *node* grants access purely via positive ``folderIdPath`` leaves.
+
+    Used to decide whether the folder branches of an ``or`` are navigable: an
+    OR every branch of which is a folder grant means "under folder X or folder
+    Y", so each folder is fully browsable. If any branch adds a ``contentId``
+    allowlist (or a negated/other constraint), the folder branches are
+    *conditional* and must not be treated as standalone browsable folders.
+    """
+    if not isinstance(node, dict):
+        return False
+    for key in ("and", "or"):
+        if key in node:
+            children = node.get(key) or []
+            return bool(children) and all(_is_folder_only_subtree(c) for c in children)
+    if _is_negated_operator(node.get("operator")):
+        return False
+    path = node.get("path")
+    field = path[0] if isinstance(path, list) and path else path
+    return field == "folderIdPath"
+
+
+def _collect_navigable_folder_ids(
+    node: Any, folder_ids: list[str] | None = None
+) -> list[str]:
+    """Folder scope ids the filter grants for *navigation* (ls/cd into).
+
+    A folder is navigable only when it sits on the filter's conjunctive spine
+    — reached through ``and`` nodes, or inside an ``or`` whose every branch is
+    a folder grant. A folder that appears only as an ``or`` alternative to a
+    ``contentId`` allowlist (e.g. ``and(folderA, or(folderB, contentId in …))``)
+    is *not* navigable on its own: only specific documents under it are in
+    scope, so listing/entering it would leak out-of-scope folder inventory.
+    Negated leaves are exclusions and never grant navigation. See UN-21780.
+    """
+    if folder_ids is None:
+        folder_ids = []
+    if not isinstance(node, dict):
+        return folder_ids
+    if "and" in node:
+        for child in node.get("and") or []:
+            _collect_navigable_folder_ids(child, folder_ids)
+        return folder_ids
+    if "or" in node:
+        children = node.get("or") or []
+        # Only collect the OR's folders when no branch is conditional on a
+        # contentId allowlist (or other non-folder constraint).
+        if children and all(_is_folder_only_subtree(c) for c in children):
+            for child in children:
+                _collect_navigable_folder_ids(child, folder_ids)
+        return folder_ids
+    if _is_negated_operator(node.get("operator")):
+        return folder_ids
+    path = node.get("path")
+    field = path[0] if isinstance(path, list) and path else path
+    if field == "folderIdPath":
+        value = node.get("value")
+        values = value if isinstance(value, list) else [value]
+        for v in values:
+            scope_id = _extract_target_scope_id(v)
+            if scope_id and scope_id not in folder_ids:
+                folder_ids.append(scope_id)
+    return folder_ids
+
+
 def _collect_filter_targets(
     node: Any,
     folder_ids: list[str] | None = None,
@@ -448,17 +513,34 @@ class ShellState:
         # applies it for KB search.
         return True
 
+    def navigable_folder_ids(self) -> list[str]:
+        """Folder scope ids the per-message filter grants for navigation.
+
+        Narrower than ``metadata_filter_scope()``: excludes folders that are
+        only reachable as an ``or`` alternative to a ``contentId`` allowlist,
+        which are not standalone-browsable. Empty when no filter is set.
+        """
+        if not self.workspace_metadata_filter:
+            return []
+        return _collect_navigable_folder_ids(self.workspace_metadata_filter)
+
     def folder_allowed_by_metadata_filter(self, scope_id: str) -> bool:
-        """True if *scope_id* is inside one of the filter's folder scopes.
+        """True if *scope_id* is inside one of the filter's navigable scopes.
 
         Gates explicit folder targets (e.g. ``ls <path>``) so navigation
         cannot enumerate folders outside the per-message scope. Documents
-        scoped individually (``contentId in``) don't grant folder listings.
-        Returns True when no per-message filter is configured.
+        scoped individually (``contentId in``), and folders that only appear
+        as an ``or`` alternative to such an allowlist, don't grant folder
+        listings. Returns True when no per-message filter is configured.
         """
         if not self.workspace_metadata_filter:
             return True
-        folder_paths, _ = self.metadata_filter_scope()
+        navigable = self.navigable_folder_ids()
+        if not navigable:
+            return False
+        folder_paths = [
+            p for p in (self._resolve_scope_path(sid) for sid in navigable) if p
+        ]
         if not folder_paths:
             return False
         target_path = self._resolve_scope_path(scope_id)

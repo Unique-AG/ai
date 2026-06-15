@@ -718,6 +718,68 @@ class TestMetadataFilterContentGating:
         assert not s.folder_allowed_by_metadata_filter("scope_other")
         assert not s.folder_allowed_by_metadata_filter("scope_parent")
 
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_folder_in_or_with_contentid_not_navigable(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        """An OR-alternative folder paired with a contentId allowlist is not
+        standalone-browsable, even though documents under it may be cited.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {
+                "scope_a": "/Funds/Fund A",
+                "scope_b": "/Other/Fund B",
+            }
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_a",
+                },
+                {
+                    "or": [
+                        {
+                            "path": ["folderIdPath"],
+                            "operator": "contains",
+                            "value": "scope_b",
+                        },
+                        {
+                            "path": ["contentId"],
+                            "operator": "in",
+                            "value": ["cont_x"],
+                        },
+                    ]
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        # The conjunctive-spine folder is navigable; the OR-alternative is not.
+        assert s.folder_allowed_by_metadata_filter("scope_a")
+        assert not s.folder_allowed_by_metadata_filter("scope_b")
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_or_of_pure_folders_all_navigable(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_a": "/Funds/Fund A", "scope_b": "/Funds/Fund B"}
+        )
+        flt = {
+            "or": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_a",
+                },
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_b",
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        assert s.folder_allowed_by_metadata_filter("scope_a")
+        assert s.folder_allowed_by_metadata_filter("scope_b")
+
     def test_folder_allowed_no_filter_allows_everything(self) -> None:
         s = ShellState(_config())
         s.workspace_metadata_filter = None
