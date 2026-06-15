@@ -68,6 +68,32 @@ def _folder_info(
     }
 
 
+class TestIsPermissionDeniedOutput:
+    def test_denial_lines_detected(self) -> None:
+        from unique_sdk.cli.commands.files import is_permission_denied_output
+
+        for out in (
+            "upload: permission denied (outside workspace scope)",
+            "upload: permission denied: destination is outside your task scope.",
+            "restore-version: permission denied: cannot verify the target.",
+            "ls: permission denied: target is outside your task scope.",
+            "download: permission denied: cont_x is outside your task scope.",
+        ):
+            assert is_permission_denied_output(out), out
+
+    def test_success_containing_phrase_not_flagged(self) -> None:
+        from unique_sdk.cli.commands.files import is_permission_denied_output
+
+        # A successful result must not exit non-zero just because its text
+        # contains the phrase (e.g. a filename). Successes are capitalised.
+        for out in (
+            'Uploaded: "permission denied.pdf" (cont_1) to /Reports',
+            "Downloaded: permission denied notes.txt -> /tmp/x",
+            "Renamed permission denied.pdf",
+        ):
+            assert not is_permission_denied_output(out), out
+
+
 def _folder_path_side_effect(mapping: dict[str, str]):  # type: ignore[no-untyped-def]
     """Side effect for Folder.get_folder_path mapping scope_id -> folderPath."""
 

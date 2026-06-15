@@ -91,9 +91,17 @@ def _extract_target_scope_id(value: Any) -> str | None:
     return matches[-1] if matches else None
 
 
+# UniqueQL exclusion operators whose match must be *inverted* (membership
+# denies rather than grants). Enumerated explicitly rather than matched by a
+# ``startswith("not")`` heuristic: that heuristic would also catch a future
+# ``notEmpty``-style operator and invert it wrongly. Mirrors the Operator enum
+# in unique_toolkit.content.smart_rules. See UN-21780.
+_NEGATED_OPERATORS = frozenset({"notequals", "notin", "notcontains"})
+
+
 def _is_negated_operator(operator: Any) -> bool:
-    """True for exclusion operators (notIn, notEquals, notContains, …)."""
-    return isinstance(operator, str) and operator.lower().startswith("not")
+    """True for exclusion operators (notIn, notEquals, notContains)."""
+    return isinstance(operator, str) and operator.lower() in _NEGATED_OPERATORS
 
 
 def _is_folder_only_subtree(node: Any) -> bool:
@@ -435,12 +443,20 @@ class ShellState:
         ``.unique-search.json`` against a single document, so file reads/cites
         honour the same per-turn scope as ``unique-cli search`` (UN-21780).
 
-        Only the two *scope-boundary* leaf types are enforced locally:
-        ``contentId`` membership (free) and ``folderIdPath`` containment
-        (resolves the document's owning folder, cached). Non-boundary leaves
-        (e.g. ``mimeType``) are treated as non-restrictive here — the search
-        server still enforces the full filter for KB search. Returns True when
-        no filter is configured.
+        The client enforces a *conservative subset* of UniqueQL: the two
+        scope-boundary leaf types ``contentId`` (membership, free) and
+        ``folderIdPath`` (containment, resolves the document's owning folder,
+        cached). It is **not** a full UniqueQL engine — any other leaf
+        (``mimeType``, custom metadata keys, dates, …) cannot be evaluated
+        from the available content metadata and is treated as *not satisfied*
+        (fails closed). This guarantees the local gate is never broader than
+        the intended scope: with an ``or`` containing an unenforceable leaf,
+        the document is allowed only if a boundary leaf already permits it,
+        rather than the unenforceable leaf widening the result to the whole
+        KB. The trade-off is that filters mixing non-boundary leaves may
+        over-deny direct reads (the search server still enforces the full
+        filter); a fully general boundary belongs server-side. Returns True
+        when no filter is configured.
         """
         if not self.workspace_metadata_filter:
             return True
@@ -508,10 +524,13 @@ class ShellState:
                     contained = True
                     break
             return not contained if negated else contained
-        # Non-boundary leaf (e.g. mimeType, language): not a folder/content
-        # access boundary, so not enforced locally. The search server still
-        # applies it for KB search.
-        return True
+        # Non-boundary leaf (e.g. mimeType, custom metadata, dates): the
+        # client cannot evaluate it from the available content metadata, so it
+        # fails closed (not satisfied) rather than fails open (return True).
+        # Returning True here would let such a leaf inside an `or` widen the
+        # result to every document the user can see — a scope leak. The search
+        # server still enforces the full filter for KB search. See UN-21780.
+        return False
 
     def navigable_folder_ids(self) -> list[str]:
         """Folder scope ids the per-message filter grants for navigation.

@@ -12,7 +12,27 @@ from unique_sdk.cli.state import (
     ShellState,
     _collect_filter_targets,
     _extract_target_scope_id,
+    _is_negated_operator,
 )
+
+
+class TestNegatedOperator:
+    def test_known_exclusion_operators(self) -> None:
+        for op in ("notIn", "notEquals", "notContains", "NOTIN", "notin"):
+            assert _is_negated_operator(op), op
+
+    def test_positive_operators_are_not_negated(self) -> None:
+        for op in ("in", "equals", "contains", "isNull", "isEmpty"):
+            assert not _is_negated_operator(op), op
+
+    def test_not_prefixed_non_exclusion_is_not_negated(self) -> None:
+        # The old startswith("not") heuristic would invert these wrongly.
+        for op in ("notEmpty", "notify", "nota_real_op"):
+            assert not _is_negated_operator(op), op
+
+    def test_non_string_is_not_negated(self) -> None:
+        assert not _is_negated_operator(None)
+        assert not _is_negated_operator(123)
 
 
 def _folder_path_side_effect(mapping: dict[str, str]):  # type: ignore[no-untyped-def]
@@ -601,12 +621,72 @@ class TestMetadataFilterContentGating:
         s = self._state_with_filter(flt)
         assert not s.content_allowed_by_metadata_filter("cont_listed")
 
-    def test_unknown_leaf_is_non_restrictive(self) -> None:
-        # A non-boundary leaf (e.g. mimeType) does not restrict locally.
+    def test_unknown_leaf_fails_closed(self) -> None:
+        # A non-boundary leaf (e.g. mimeType) cannot be evaluated locally, so
+        # it fails closed (deny) rather than open (allow). The search server
+        # still enforces the full filter. See UN-21780.
         s = self._state_with_filter(
             {"path": ["mimeType"], "operator": "equals", "value": "application/pdf"}
         )
-        assert s.content_allowed_by_metadata_filter("cont_anything")
+        assert not s.content_allowed_by_metadata_filter("cont_anything")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_or_with_unknown_leaf_does_not_leak(self, mock_path, mock_content) -> None:  # type: ignore[no-untyped-def]
+        # Regression: OR[folderIdPath A, mimeType pdf]. The unenforceable
+        # mimeType leaf must NOT make the OR true for every document — only
+        # docs actually inside Fund A are allowed; everything else is denied.
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_a": "/Funds/Fund A"}
+        )
+        mock_content.side_effect = _content_info_side_effect(
+            {"cont_in_a": "scope_a", "cont_elsewhere": "scope_other"}
+        )
+        s = self._state_with_filter(
+            {
+                "or": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_fund_a",
+                    },
+                    {
+                        "path": ["mimeType"],
+                        "operator": "equals",
+                        "value": "application/pdf",
+                    },
+                ]
+            }
+        )
+        assert s.content_allowed_by_metadata_filter("cont_in_a")
+        assert not s.content_allowed_by_metadata_filter("cont_elsewhere")
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_and_with_unknown_leaf_fails_closed(self, mock_path, mock_content) -> None:  # type: ignore[no-untyped-def]
+        # AND[folderIdPath A, mimeType pdf]: the unenforceable leaf makes the
+        # whole AND fail closed (safe over-deny) — never a leak.
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_a": "/Funds/Fund A"}
+        )
+        mock_content.side_effect = _content_info_side_effect({"cont_in_a": "scope_a"})
+        s = self._state_with_filter(
+            {
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_fund_a",
+                    },
+                    {
+                        "path": ["mimeType"],
+                        "operator": "equals",
+                        "value": "application/pdf",
+                    },
+                ]
+            }
+        )
+        assert not s.content_allowed_by_metadata_filter("cont_in_a")
 
     @patch("unique_sdk.Content.get_info")
     @patch("unique_sdk.Folder.get_folder_path")

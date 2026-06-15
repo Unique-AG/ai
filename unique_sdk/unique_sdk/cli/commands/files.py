@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import mimetypes
+import re
 import shutil
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -12,6 +13,15 @@ import unique_sdk
 from unique_sdk.cli.formatting import format_content_info
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
+
+# A denial result has the shape ``<command>: permission denied[…]`` (the
+# command token is lowercase, e.g. ``upload``/``ls``/``restore-version``).
+# Successful results start with a capitalised past-tense verb ("Uploaded:",
+# "Downloaded:", "Renamed", "Restored:"), so anchoring on a lowercase command
+# prefix matches every denial without misfiring on a success line that merely
+# contains the phrase (e.g. a filename). MULTILINE so a wrapped multi-line
+# result still matches. See UN-21780.
+_PERMISSION_DENIED_RE = re.compile(r"^[a-z][a-z0-9-]*: permission denied", re.MULTILINE)
 
 
 def _normalize_unique_file_path(cwd: str, path: str) -> str:
@@ -401,9 +411,14 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
 def is_permission_denied_output(output: str) -> bool:
     """Return ``True`` when a file-op result is a permission/scope denial.
 
-    Covers both the per-message task-scope gate ("outside your task scope")
-    and the workspace-scope gate ("outside workspace scope"). Lets the one-shot
-    dispatcher exit non-zero so shell ``&&`` chains stop on an out-of-scope
-    content access instead of continuing as if it succeeded. See UN-21780.
+    Lets the one-shot dispatcher exit non-zero so shell ``&&`` chains stop on
+    an out-of-scope content access instead of continuing as if it succeeded.
+
+    Matches the denial only when it is the *form of the result* — a
+    ``<command>: permission denied`` line — rather than anywhere the substring
+    appears. Denials are emitted as ``"<cmd>: permission denied[ : …]"`` (e.g.
+    ``"upload: permission denied: …"``); anchoring on that shape avoids a
+    false non-zero exit when a successful result happens to contain the phrase
+    (e.g. a filename or document text). See UN-21780.
     """
-    return "permission denied" in output
+    return bool(_PERMISSION_DENIED_RE.search(output))
