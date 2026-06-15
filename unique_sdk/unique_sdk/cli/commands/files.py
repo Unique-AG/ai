@@ -42,14 +42,20 @@ def _normalize_unique_file_path(cwd: str, path: str) -> str:
     return "/" + "/".join(parts)
 
 
-def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
+def _resolve_content_id(
+    state: ShellState, name_or_id: str, *, allow_chat_files: bool = True
+) -> tuple[str, str]:
     """Resolve a file name or content ID to (content_id, display_name).
 
     Accepts a content ID (cont_...), a file name in the current folder,
-    or an absolute/relative Unique file path.
+    or an absolute/relative Unique file path. Pass ``allow_chat_files=False``
+    from destructive ops so the chat-attachment exemption (read-only intent)
+    can't be used to delete/rename out-of-scope content. See UN-21780.
     """
     if name_or_id.startswith("cont_"):
-        if not state.is_content_within_workspace(name_or_id):
+        if not state.is_content_within_workspace(
+            name_or_id, allow_chat_files=allow_chat_files
+        ):
             raise ValueError(
                 f"permission denied: {name_or_id} is outside your task scope "
                 f"({state.scope_denial_hint()}). Use 'unique-cli search' or "
@@ -371,13 +377,17 @@ def cmd_download(
 
 def cmd_rm(state: ShellState, name_or_id: str) -> str:
     """Delete a file by name or content ID."""
+    # Destructive: don't honour the chat-attachment read exemption, so a chat
+    # file outside the per-message task scope can't be deleted. See UN-21780.
     if name_or_id.startswith("cont_"):
-        if not state.is_content_within_workspace(name_or_id):
+        if not state.is_content_within_workspace(name_or_id, allow_chat_files=False):
             return "rm: permission denied (outside workspace scope)"
     elif not state.is_within_workspace():
         return "rm: permission denied (outside workspace scope)"
     try:
-        content_id, display_name = _resolve_content_id(state, name_or_id)
+        content_id, display_name = _resolve_content_id(
+            state, name_or_id, allow_chat_files=False
+        )
         unique_sdk.Content.delete(
             user_id=state.config.user_id,
             company_id=state.config.company_id,
@@ -390,13 +400,17 @@ def cmd_rm(state: ShellState, name_or_id: str) -> str:
 
 def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a file."""
+    # Destructive: don't honour the chat-attachment read exemption, so a chat
+    # file outside the per-message task scope can't be renamed. See UN-21780.
     if old_name.startswith("cont_"):
-        if not state.is_content_within_workspace(old_name):
+        if not state.is_content_within_workspace(old_name, allow_chat_files=False):
             return "mv: permission denied (outside workspace scope)"
     elif not state.is_within_workspace():
         return "mv: permission denied (outside workspace scope)"
     try:
-        content_id, display_name = _resolve_content_id(state, old_name)
+        content_id, display_name = _resolve_content_id(
+            state, old_name, allow_chat_files=False
+        )
         result = unique_sdk.Content.update(
             user_id=state.config.user_id,
             company_id=state.config.company_id,

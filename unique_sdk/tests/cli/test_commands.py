@@ -590,6 +590,42 @@ class TestFiles:
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "report.pdf")
 
+    @patch("unique_sdk.Content.delete")
+    def test_rm_denies_out_of_scope_chat_attachment(
+        self, mock_delete: MagicMock
+    ) -> None:
+        """A chat attachment outside the task scope is read-exempt but must not
+        be deletable via that exemption. See UN-21780.
+        """
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_in_scope"],
+        }
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        # Read-exempt...
+        assert s.is_content_within_workspace("cont_attached")
+        # ...but rm is denied.
+        result = cmd_rm(s, "cont_attached")
+        assert "permission denied" in result
+        mock_delete.assert_not_called()
+
+    @patch("unique_sdk.Content.update")
+    def test_mv_denies_out_of_scope_chat_attachment(
+        self, mock_update: MagicMock
+    ) -> None:
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_in_scope"],
+        }
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        result = cmd_mv_file(s, "cont_attached", "renamed.pdf")
+        assert "permission denied" in result
+        mock_update.assert_not_called()
+
     @patch("unique_sdk.Content.get_infos")
     def test_resolve_by_name_allowed_by_metadata_filter(self, mock: MagicMock) -> None:
         mock.return_value = {"contentInfos": [_content_info()]}

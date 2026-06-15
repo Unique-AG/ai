@@ -729,6 +729,18 @@ class TestMetadataFilterContentGating:
         # A non-attached, non-listed doc is denied.
         assert not s.is_content_within_workspace("cont_other")
 
+    def test_chat_file_exemption_is_read_only(self) -> None:
+        # The exemption is for reads; destructive ops must not use it to reach a
+        # chat file outside the task scope. See UN-21780.
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
+        )
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        assert s.is_content_within_workspace("cont_attached", allow_chat_files=True)
+        assert not s.is_content_within_workspace(
+            "cont_attached", allow_chat_files=False
+        )
+
     def test_filter_replaces_static_scope_ids(self) -> None:
         s = self._state_with_filter(
             {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}

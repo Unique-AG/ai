@@ -277,21 +277,26 @@ class ShellState:
         current = self._path
         return any(current == p or current.startswith(p + "/") for p in paths)
 
-    def is_content_within_workspace(self, content_id: str) -> bool:
-        """Return True if *content_id* is readable in the current workspace scope.
+    def is_content_within_workspace(
+        self, content_id: str, *, allow_chat_files: bool = True
+    ) -> bool:
+        """Return True if *content_id* is in the current workspace scope.
 
         Precedence (UN-21780):
         1. A per-message UniqueQL ``metaDataFilter`` (e.g. an Agentic Table
            column's ``scope_rules``) is the authority for this turn and
            *replaces* the static ``scopeIds`` for content access. Files the
-           caller attached to the chat are turn inputs and stay readable.
+           caller attached to the chat are turn inputs and stay readable —
+           but only for non-destructive access: pass ``allow_chat_files=False``
+           from mutating ops (``rm``/``mv``) so a chat attachment outside the
+           task scope can't be deleted or renamed via the exemption.
         2. Otherwise the static ``scopeIds`` boundary applies (one API call to
            resolve the content's parent scope, then
            ``is_folder_target_within_workspace``).
         3. With neither configured, everything is in scope.
         """
         if self.workspace_metadata_filter is not None:
-            if content_id in self._chat_file_content_ids():
+            if allow_chat_files and content_id in self._chat_file_content_ids():
                 return True
             return self.content_allowed_by_metadata_filter(content_id)
         if not self.workspace_scope_ids:
