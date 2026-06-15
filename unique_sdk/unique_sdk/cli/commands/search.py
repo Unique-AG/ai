@@ -212,7 +212,13 @@ def cmd_search(
         folder_scope_id: str | None = None
         if folder:
             folder_scope_id = _resolve_folder_to_scope_id(state, folder)
-        elif state.scope_id:
+        elif state.scope_id and not state.workspace_metadata_filter:
+            # The incidental cwd narrows search only when there is no
+            # per-message filter. `cd` is not gated by the filter, so an agent
+            # can sit in an out-of-scope folder; ANDing that cwd with the task
+            # filter would silently return no hits and look like an empty KB
+            # rather than a scope mismatch. With a filter active, only an
+            # explicit --folder narrows further. See UN-21780.
             folder_scope_id = state.scope_id
 
         scope_ids: list[str] | None = None

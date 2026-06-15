@@ -493,8 +493,15 @@ class TestCmdSearchCallShapes:
         assert sent["and"][1]["value"] == "Legal"
 
     @patch("unique_sdk.Search.create")
-    def test_cwd_scope_id_keeps_workspace_filter(self, mock: MagicMock) -> None:
-        """A cwd folder narrows via scopeIds; the per-message filter stays on."""
+    def test_cwd_scope_id_ignored_when_workspace_filter_active(
+        self, mock: MagicMock
+    ) -> None:
+        """The incidental cwd must NOT narrow when a per-message filter is
+        active. `cd` isn't gated by the filter, so an out-of-scope cwd ANDed
+        with the task filter would silently zero out results and look like an
+        empty KB. The filter is the sole authority; only an explicit --folder
+        narrows. See UN-21780.
+        """
         mock.return_value = []
         s = _state("/R", "scope_r")
         wmf = {
@@ -504,8 +511,19 @@ class TestCmdSearchCallShapes:
         }
         s.workspace_metadata_filter = wmf
         cmd_search(s, "q")
-        assert mock.call_args[1]["scopeIds"] == ["scope_r"]
+        assert "scopeIds" not in mock.call_args[1]
         assert mock.call_args[1]["metaDataFilter"] == wmf
+
+    @patch("unique_sdk.Search.create")
+    def test_cwd_scope_id_narrows_without_workspace_filter(
+        self, mock: MagicMock
+    ) -> None:
+        """Without a per-message filter, the incidental cwd still narrows via
+        scopeIds (unchanged behaviour)."""
+        mock.return_value = []
+        s = _state("/R", "scope_r")
+        cmd_search(s, "q")
+        assert mock.call_args[1]["scopeIds"] == ["scope_r"]
 
     @patch("unique_sdk.cli.commands.search._resolve_folder_to_scope_id")
     @patch("unique_sdk.Search.create")
