@@ -76,7 +76,13 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
 
 def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
     """Delete a folder by path or scope ID."""
-    if not state.is_folder_target_within_workspace(target):
+    # An active per-message filter replaces the static scopeIds, so skip the
+    # static-scope check (it would over-deny an in-filter target); the filter
+    # gate below is authoritative. See UN-21780.
+    if (
+        state.workspace_metadata_filter is None
+        and not state.is_folder_target_within_workspace(target)
+    ):
         return "rmdir: permission denied (outside workspace scope)"
     if _metadata_filter_denies_folder(state, _resolve_folder_scope_id(state, target)):
         return (
@@ -108,7 +114,13 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
 
 def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
     """Rename a folder."""
-    if not state.is_folder_target_within_workspace(old_name):
+    # An active per-message filter replaces the static scopeIds, so skip the
+    # static-scope check (it would over-deny an in-filter target); the filter
+    # gate below is authoritative. See UN-21780.
+    if (
+        state.workspace_metadata_filter is None
+        and not state.is_folder_target_within_workspace(old_name)
+    ):
         return "mvdir: permission denied (outside workspace scope)"
     if _metadata_filter_denies_folder(state, _resolve_folder_scope_id(state, old_name)):
         return (

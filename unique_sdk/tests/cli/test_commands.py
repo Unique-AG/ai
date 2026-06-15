@@ -649,6 +649,33 @@ class TestFiles:
         mock_update.assert_not_called()
 
     @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_resolve_by_path_in_filter_not_blocked_by_static_scope(
+        self, mock_finfo: MagicMock, mock_cinfos: MagicMock
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds for content
+        access, so a path lookup to an in-filter folder outside the static
+        scope must resolve (the resolved id is gated by the filter). See
+        UN-21780.
+        """
+        mock_finfo.return_value = {"id": "scope_allowed"}
+        mock_cinfos.return_value = {
+            "contentInfos": [_content_info("memo.pdf", "cont_1")]
+        }
+        s = _state("/", None)
+        s.workspace_scope_ids = ["scope_admin"]
+        s._workspace_scope_paths = ["/Admin"]
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_1"],
+        }
+        s._chat_file_content_ids_cache = set()
+        cid, name = _resolve_content_id(s, "/Funds/Fund A/memo.pdf")
+        assert cid == "cont_1"
+        assert name == "memo.pdf"
+
+    @patch("unique_sdk.Content.get_infos")
     def test_resolve_by_name_allowed_by_metadata_filter(self, mock: MagicMock) -> None:
         mock.return_value = {"contentInfos": [_content_info()]}
         s = _state("/Reports", "scope_r")
@@ -1209,6 +1236,51 @@ class TestFiles:
         result = cmd_mvdir(state, "scope_other", "New Name")
         assert "permission denied" in result
         mock_update.assert_not_called()
+
+    @patch("unique_sdk.Folder.delete")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_rmdir_in_filter_not_blocked_by_static_scope(
+        self, mock_path: MagicMock, mock_delete: MagicMock
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds, so an
+        in-filter target outside the static scope must not be over-denied by
+        the static-scope check. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        state = _state("/", None)
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_rmdir(state, "scope_allowed", recursive=True)
+        assert "permission denied" not in result
+        mock_delete.assert_called_once()
+
+    @patch("unique_sdk.Folder.update")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mvdir_in_filter_not_blocked_by_static_scope(
+        self, mock_path: MagicMock, mock_update: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        mock_update.return_value = {"id": "scope_allowed", "name": "New Name"}
+        state = _state("/", None)
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mvdir(state, "scope_allowed", "New Name")
+        assert "permission denied" not in result
+        mock_update.assert_called_once()
 
     @patch("unique_sdk.Content.versions")
     @patch("unique_sdk.Content.get_infos")

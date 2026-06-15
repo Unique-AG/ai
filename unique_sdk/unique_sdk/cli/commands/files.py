@@ -72,7 +72,14 @@ def _resolve_content_id(
             raise ValueError(f"File path must include a file name: {name_or_id}")
         if not folder_path:
             folder_path = "/"
-        if not state.is_folder_target_within_workspace(folder_path):
+        # An active per-message filter replaces the static scopeIds for content
+        # access, so the static folder check must not over-deny an in-filter
+        # path; the resolved content id is gated by is_content_within_workspace
+        # below either way. See UN-21780.
+        if (
+            state.workspace_metadata_filter is None
+            and not state.is_folder_target_within_workspace(folder_path)
+        ):
             raise ValueError("permission denied (outside workspace scope)")
 
         info = unique_sdk.Folder.get_info(
@@ -83,7 +90,9 @@ def _resolve_content_id(
         scope_id = info.get("id")
         if not scope_id:
             raise ValueError(f"folder not found: {folder_path}")
-    elif not state.is_within_workspace():
+    elif state.workspace_metadata_filter is None and not state.is_within_workspace():
+        # See above: defer to the filter (enforced on the resolved id) when one
+        # is active rather than over-denying via static scopeIds. UN-21780.
         raise ValueError("permission denied (outside workspace scope)")
 
     params: dict[str, Any] = {}
