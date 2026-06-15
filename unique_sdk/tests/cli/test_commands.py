@@ -217,16 +217,28 @@ class TestNavigation:
         assert "0 folder(s), 0 file(s)" in result
         mock_folders.assert_called_once()
 
+    @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_info")
     @patch("unique_sdk.Folder.get_info")
     def test_ls_root_metadata_filter_scoped(
-        self, mock_folder: MagicMock, mock_content: MagicMock
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+        mock_path: MagicMock,
     ) -> None:
-        """ls at root with a per-message filter shows only its folders + docs."""
+        """ls at root with a per-message filter shows only its folders + docs.
+
+        The doc is shown only because it satisfies the *full* AND filter (it
+        lives in Fund A); root ls verifies this via is_content_within_workspace.
+        """
         mock_folder.return_value = _folder_info("Fund A", "scope_fund_a")
-        mock_content.return_value = {
-            "contentInfo": [_content_info("memo.pdf", "cont_1")]
-        }
+        # cont_1's owner folder resolves into Fund A, so the AND filter holds.
+        info = _content_info("memo.pdf", "cont_1")
+        info["ownerId"] = "scope_fund_a"
+        mock_content.return_value = {"contentInfo": [info]}
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
         state = _state()
         # Static scope present but the per-message filter takes precedence.
         state.workspace_scope_ids = ["scope_broad"]
@@ -251,9 +263,48 @@ class TestNavigation:
         mock_folder.assert_called_once_with(
             user_id="u1", company_id="c1", scopeId="scope_fund_a"
         )
-        mock_content.assert_called_once_with(
-            user_id="u1", company_id="c1", contentId="cont_1"
+        assert mock_content.call_args.kwargs["contentId"] == "cont_1"
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_hides_contentid_excluded_by_and(
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Regression: a contentId in the filter that the *full* AND filter
+        excludes (its owner folder is outside the required scope) must not have
+        its title listed at root — read/cite and in-folder ls already deny it.
+        See UN-21780.
+        """
+        mock_folder.return_value = _folder_info("Fund A", "scope_fund_a")
+        # cont_x is named by the contentId leaf but lives outside Fund A.
+        info = _content_info("secret.pdf", "cont_x")
+        info["ownerId"] = "scope_other"
+        mock_content.return_value = {"contentInfo": [info]}
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_other": "/Other"}
         )
+        state = _state()
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "uniquepathid://scope_root/scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_x"],
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "secret.pdf" not in result
+        assert "0 file(s)" in result.split("folder(s),")[1]
 
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.Content.get_infos")

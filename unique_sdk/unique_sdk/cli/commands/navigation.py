@@ -68,6 +68,14 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                     pass
             scoped_files: list[Any] = []
             for cid in content_ids:
+                # A contentId mentioned in the filter is not necessarily in
+                # scope on its own: an AND branch (e.g. contentId IN [x] AND
+                # folderIdPath A) can exclude it. Verify against the full
+                # filter so root ls never shows a title that read/cite and
+                # in-folder ls deny. Cached, so no extra API cost. See
+                # UN-21780.
+                if not state.is_content_within_workspace(cid):
+                    continue
                 try:
                     info = unique_sdk.Content.get_info(
                         user_id=state.config.user_id,
