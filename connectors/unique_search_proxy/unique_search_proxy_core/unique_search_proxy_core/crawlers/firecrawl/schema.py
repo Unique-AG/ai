@@ -10,7 +10,7 @@ FirecrawlProxyMode = Literal["basic", "enhanced", "auto"]
 
 
 class FirecrawlCrawlRequest(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
-    """Flat ``POST /v1/crawl`` body for the Firecrawl batch scrape crawler."""
+    """Flat ``POST /v1/crawl`` body for Firecrawl (scrape or batch scrape)."""
 
     crawler: Literal[CrawlerType.FIRECRAWL] = CrawlerType.FIRECRAWL
 

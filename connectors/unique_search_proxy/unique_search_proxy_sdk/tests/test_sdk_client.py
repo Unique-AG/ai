@@ -54,7 +54,9 @@ class TestSearchClient:
             WebSearchResult,
             WebSearchResults,
         )
-        from unique_search_proxy_core.search_engines.google.schema import GoogleSearchRequest
+        from unique_search_proxy_core.search_engines.google.schema import (
+            GoogleSearchRequest,
+        )
 
         async def fake_search(
             self: object,

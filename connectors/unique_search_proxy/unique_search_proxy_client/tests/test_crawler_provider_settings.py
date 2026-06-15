@@ -48,6 +48,7 @@ class TestCrawlerProviderEndpoints:
             credentials.batch_scrape_endpoint
             == "https://api.firecrawl.dev/v2/batch/scrape"
         )
+        assert credentials.scrape_endpoint == "https://api.firecrawl.dev/v2/scrape"
         assert credentials.search_endpoint == "https://api.firecrawl.dev/v2/search"
 
     @pytest.mark.ai
@@ -56,3 +57,4 @@ class TestCrawlerProviderEndpoints:
         assert credentials.batch_scrape_endpoint == (
             "https://api.firecrawl.dev/v2/batch/scrape"
         )
+        assert credentials.scrape_endpoint == "https://api.firecrawl.dev/v2/scrape"

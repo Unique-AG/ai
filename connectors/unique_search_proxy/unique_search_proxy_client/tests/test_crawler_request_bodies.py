@@ -8,6 +8,7 @@ from unique_search_proxy_core.crawlers.tavily.schema import TavilyCrawlRequest
 
 from unique_search_proxy_client.web.core.crawlers.firecrawl.request_body import (
     build_firecrawl_batch_scrape_body,
+    build_firecrawl_scrape_body,
 )
 from unique_search_proxy_client.web.core.crawlers.jina.request_body import (
     build_jina_reader_body,
@@ -93,6 +94,28 @@ class TestJinaRequestBody:
 
 
 class TestFirecrawlRequestBody:
+    @pytest.mark.ai
+    def test_maps_scrape_options(self) -> None:
+        request = parse_crawl_request(
+            {
+                "urls": ["https://example.com"],
+                "crawler": CrawlerType.FIRECRAWL.value,
+                "onlyMainContent": False,
+                "waitFor": 500,
+                "proxy": "enhanced",
+                "timeout": 90,
+            },
+        )
+        body = build_firecrawl_scrape_body("https://example.com", request)
+        assert body["url"] == "https://example.com"
+        assert body["formats"] == [{"type": "markdown"}]
+        assert body["timeout"] == 90_000
+        assert body["onlyMainContent"] is False
+        assert body["waitFor"] == 500
+        assert body["proxy"] == "enhanced"
+        assert "urls" not in body
+        assert "maxConcurrency" not in body
+
     @pytest.mark.ai
     def test_maps_batch_scrape_options(self) -> None:
         request = parse_crawl_request(

@@ -14,7 +14,26 @@ from unique_search_proxy_client.web.core.crawlers.firecrawl.service import (
 )
 
 
-class _FirecrawlSequenceTransport:
+class _FirecrawlSingleScrapeTransport:
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if request.method == "POST" and request.url.path.endswith("/scrape"):
+            if request.url.path.endswith("/batch/scrape"):
+                return httpx.Response(404)
+            return httpx.Response(
+                200,
+                json={
+                    "success": True,
+                    "data": {
+                        "markdown": "# Firecrawl markdown",
+                        "metadata": {"sourceURL": "https://example.com"},
+                    },
+                },
+            )
+
+        return httpx.Response(404)
+
+
+class _FirecrawlBatchSequenceTransport:
     def __init__(self) -> None:
         self._polls = 0
 
@@ -40,11 +59,18 @@ class _FirecrawlSequenceTransport:
                     "data": [
                         {
                             "url": "https://example.com",
-                            "markdown": "# Firecrawl markdown",
+                            "markdown": "# First",
+                        },
+                        {
+                            "url": "https://example.org",
+                            "markdown": "# Second",
                         },
                     ],
                 },
             )
+
+        if request.method == "POST" and request.url.path.endswith("/scrape"):
+            return httpx.Response(404)
 
         return httpx.Response(404)
 
@@ -64,7 +90,7 @@ def firecrawl_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    transport = _FirecrawlSequenceTransport()
+    transport = _FirecrawlSingleScrapeTransport()
     pool_transport = httpx.MockTransport(transport)
 
     from unique_search_proxy_client.web.core.client.service import HttpClientPool
@@ -108,8 +134,8 @@ def test_resolve_batch_scrape_status_url() -> None:
 
 
 @pytest.mark.ai
-def test_firecrawl_service_polls_until_completed() -> None:
-    transport = _FirecrawlSequenceTransport()
+def test_firecrawl_single_url_uses_scrape_endpoint() -> None:
+    transport = _FirecrawlSingleScrapeTransport()
 
     async def run() -> None:
         request = parse_crawl_request(
@@ -125,8 +151,33 @@ def test_firecrawl_service_polls_until_completed() -> None:
             service = FirecrawlCrawlerService(http_client=http_client)
             results = await service.crawl(request)
 
-        assert transport._polls >= 2
         assert results[0].content == "# Firecrawl markdown"
+
+    import asyncio
+
+    asyncio.run(run())
+
+
+@pytest.mark.ai
+def test_firecrawl_multiple_urls_use_batch_scrape_and_poll() -> None:
+    transport = _FirecrawlBatchSequenceTransport()
+
+    async def run() -> None:
+        request = parse_crawl_request(
+            {
+                "urls": ["https://example.com", "https://example.org"],
+                "crawler": CrawlerType.FIRECRAWL.value,
+                "timeout": 30,
+            },
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(transport)
+        ) as http_client:
+            service = FirecrawlCrawlerService(http_client=http_client)
+            results = await service.crawl(request)
+
+        assert transport._polls >= 2
+        assert [result.content for result in results] == ["# First", "# Second"]
 
     import asyncio
 
@@ -149,23 +200,17 @@ def test_firecrawl_crawl_route(client: TestClient) -> None:
 
 
 @pytest.mark.ai
-def test_firecrawl_maps_missing_markdown() -> None:
+def test_firecrawl_maps_missing_markdown_on_scrape() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.method == "POST":
+        if request.method == "POST" and request.url.path.endswith("/scrape"):
             return httpx.Response(
                 200,
                 json={
-                    "id": "job-1",
-                    "url": "https://api.firecrawl.dev/v2/batch/scrape/job-1",
+                    "success": True,
+                    "data": {"metadata": {"sourceURL": "https://example.com"}},
                 },
             )
-        return httpx.Response(
-            200,
-            json={
-                "status": "completed",
-                "data": [{"url": "https://example.com"}],
-            },
-        )
+        return httpx.Response(404)
 
     async def run() -> None:
         request = parse_crawl_request(

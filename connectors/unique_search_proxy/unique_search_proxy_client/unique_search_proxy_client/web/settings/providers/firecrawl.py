@@ -15,9 +15,10 @@ from unique_search_proxy_client.web.utils.url import join_url_path
 _FIRECRAWL_API_BASE = "https://api.firecrawl.dev"
 FirecrawlApiVersion = Literal["v2"]
 _DEFAULT_FIRECRAWL_API_VERSION: FirecrawlApiVersion = "v2"
-FirecrawlOperation = Literal["batch_scrape", "search"]
+FirecrawlOperation = Literal["batch_scrape", "scrape", "search"]
 _FIRECRAWL_OPERATION_PATHS: dict[FirecrawlOperation, tuple[str, ...]] = {
     "batch_scrape": ("batch", "scrape"),
+    "scrape": ("scrape",),
     "search": ("search",),
 }
 _ENV_PREFIX = "FIRECRAWL_"
@@ -42,6 +43,10 @@ class _FirecrawlCredentials(ProviderCredentials):
     @property
     def batch_scrape_endpoint(self) -> str:
         return self._endpoint("batch_scrape")
+
+    @property
+    def scrape_endpoint(self) -> str:
+        return self._endpoint("scrape")
 
     @property
     def search_endpoint(self) -> str:
