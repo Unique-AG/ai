@@ -173,6 +173,142 @@
         }
       }
     },
+    "/v1/agent-search": {
+      "post": {
+        "tags": [
+          "agent-search"
+        ],
+        "summary": "Run an agent-based grounded search",
+        "operationId": "agent_search_v1_agent_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BingAgentSearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VertexAIAgentSearchRequest"
+                  }
+                ],
+                "title": "Body"
+              },
+              "examples": {
+                "bing": {
+                  "summary": "Bing grounding agent",
+                  "value": {
+                    "engine": "bing",
+                    "query": "What changed in the EU AI Act this year?",
+                    "fetchSize": 5,
+                    "timeout": 120
+                  }
+                },
+                "vertexai": {
+                  "summary": "Vertex AI grounding",
+                  "value": {
+                    "engine": "vertexai",
+                    "query": "Latest developments in quantum computing",
+                    "vertexaiModelName": "gemini-3-flash-preview",
+                    "timeout": 120
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-search/stream": {
+      "post": {
+        "tags": [
+          "agent-search"
+        ],
+        "summary": "Stream an agent-based grounded search (SSE)",
+        "operationId": "agent_search_stream_v1_agent_search_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BingAgentSearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VertexAIAgentSearchRequest"
+                  }
+                ],
+                "title": "Body"
+              },
+              "examples": {
+                "bing": {
+                  "summary": "Bing grounding agent",
+                  "value": {
+                    "engine": "bing",
+                    "query": "What changed in the EU AI Act this year?",
+                    "fetchSize": 5,
+                    "timeout": 120
+                  }
+                },
+                "vertexai": {
+                  "summary": "Vertex AI grounding",
+                  "value": {
+                    "engine": "vertexai",
+                    "query": "Latest developments in quantum computing",
+                    "vertexaiModelName": "gemini-3-flash-preview",
+                    "timeout": 120
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/crawl": {
       "post": {
         "tags": [
@@ -412,6 +548,35 @@
   },
   "components": {
     "schemas": {
+      "AgentSearchResponse": {
+        "properties": {
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer",
+            "description": "Agent response text as returned by the provider (opaque to the proxy)",
+            "default": ""
+          },
+          "raw": {
+            "title": "Raw",
+            "description": "Opaque provider payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "engine",
+          "query"
+        ],
+        "title": "Agent Search Response",
+        "description": "Result of an agent-based (grounded) search.\n\nThin egress contract: opaque ``answer`` text from the provider plus ``raw``\nfor debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.)."
+      },
       "BasicCrawlRequest": {
         "properties": {
           "crawler": {
@@ -453,6 +618,58 @@
         "type": "object",
         "title": "Basic Crawl Request",
         "description": "Flat ``POST /v1/crawl`` body for the HTTP basic crawler."
+      },
+      "BingAgentSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "bing",
+            "title": "Agent engine",
+            "description": "Provider discriminator; must be `bing` for this config.",
+            "default": "bing"
+          },
+          "generationInstructions": {
+            "type": "string",
+            "title": "Generation Instructions",
+            "description": "Instructions injected into the grounding agent.",
+            "default": "You are an Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you find.\n\n## Core Directives\n1. **Search broadly** \u2014 issue multiple searches with varied keywords and phrasings to cover every angle of the query.\n2. **Read every source thoroughly** \u2014 do NOT skim. Extract every relevant fact, figure, statistic, date, name, quote, and piece of context.\n3. **One entry per source** \u2014 each source gets its own result object. Never merge information from different sources into a single entry.\n4. **Preserve detail** \u2014 prefer verbosity over brevity. Include specific numbers, full names, exact dates, and direct quotes whenever available. Do NOT paraphrase away precision.\n5. **No omissions** \u2014 if a source contains relevant information, it MUST appear in your output. When in doubt, include it.\n"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds (agent runs can be slow).",
+            "default": 120
+          },
+          "fetchSize": {
+            "type": "integer",
+            "title": "Fetch Size",
+            "description": "Maximum number of Bing grounding results per query",
+            "default": 5
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "Azure AI agent id. Resolved from deployment env when not set. When empty, the service auto-provisions or looks up a grounding agent."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Bing Agent Search Request"
       },
       "BraveSearchRequest": {
         "properties": {
@@ -1516,6 +1733,14 @@
             "title": "Search Engines",
             "description": "Registered search engine ids (config discriminator values)"
           },
+          "agentEngines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agent Engines",
+            "description": "Registered agent search engine ids (config discriminator values)"
+          },
           "crawlers": {
             "items": {
               "type": "string"
@@ -1688,6 +1913,52 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VertexAIAgentSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "vertexai",
+            "title": "Agent engine",
+            "description": "Provider discriminator; must be `vertexai` for this config.",
+            "default": "vertexai"
+          },
+          "generationInstructions": {
+            "type": "string",
+            "title": "Generation Instructions",
+            "description": "Instructions injected into the grounding agent.",
+            "default": "You are an Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you find.\n\n## Core Directives\n1. **Search broadly** \u2014 issue multiple searches with varied keywords and phrasings to cover every angle of the query.\n2. **Read every source thoroughly** \u2014 do NOT skim. Extract every relevant fact, figure, statistic, date, name, quote, and piece of context.\n3. **One entry per source** \u2014 each source gets its own result object. Never merge information from different sources into a single entry.\n4. **Preserve detail** \u2014 prefer verbosity over brevity. Include specific numbers, full names, exact dates, and direct quotes whenever available. Do NOT paraphrase away precision.\n5. **No omissions** \u2014 if a source contains relevant information, it MUST appear in your output. When in doubt, include it.\n"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds (agent runs can be slow).",
+            "default": 120
+          },
+          "vertexaiModelName": {
+            "type": "string",
+            "title": "Vertexai Model Name",
+            "description": "Gemini model name for grounded generation",
+            "default": "gemini-3-flash-preview"
+          },
+          "enableEnterpriseSearch": {
+            "type": "boolean",
+            "title": "Enable Enterprise Search",
+            "description": "Use enterprise web search grounding tool instead of Google Search",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Vertex Ai Agent Search Request"
       },
       "WebSearchResult": {
         "properties": {

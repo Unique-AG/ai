@@ -57,7 +57,7 @@ class TestBraveMergeConfigAndInvocation:
 
 class TestBraveProviderParams:
     @pytest.mark.ai
-    def test_provider_query_params_uses_camel_case(self) -> None:
+    def test_provider_query_params_uses_snake_case(self) -> None:
         config = BraveConfig(
             country=ExposableStrOrNone(expose=False, value="DE"),
             search_lang=ExposableStrOrNone(expose=False, value="de"),
@@ -67,18 +67,18 @@ class TestBraveProviderParams:
             {"query": "hello"},
             engine=SearchEngineType.BRAVE,
         )
-        dumped = config.provider_query_params_from(request)
+        dumped = config.provider_query_params_from(request, by_alias=False)
         assert dumped == {
             "country": "DE",
-            "extraSnippets": True,
-            "includeFetchMetadata": False,
+            "extra_snippets": True,
+            "include_fetch_metadata": False,
             "operators": True,
             "safesearch": "moderate",
-            "searchLang": "de",
-            "spellcheck": True,
-            "summary": False,
-            "textDecorations": True,
-            "uiLang": "en-US",
+            "search_lang": "de",
+            "spellcheck": False,
+            "summary": True,
+            "text_decorations": True,
+            "ui_lang": "en-US",
         }
 
     @pytest.mark.ai
@@ -99,7 +99,7 @@ class TestBraveProviderParams:
             page=PageRequest(page_index=0, offset=0, count=5),
         )
         assert params["summary"] is True
-        assert params["extraSnippets"] is False
+        assert params["extra_snippets"] is False
         assert params["q"] == "unique ag"
         assert params["count"] == 5
 

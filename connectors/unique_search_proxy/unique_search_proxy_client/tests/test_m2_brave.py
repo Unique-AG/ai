@@ -135,7 +135,13 @@ class TestBraveSearchService:
                     request.url.params.get("count", ""),
                 ),
             )
-            return httpx.Response(200, json=_brave_web_payload())
+            return httpx.Response(
+                200,
+                json={
+                    **_brave_web_payload(),
+                    "query": {"more_results_available": True},
+                },
+            )
 
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:

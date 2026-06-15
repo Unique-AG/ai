@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from pydantic import Field
+
+from unique_search_proxy_client.web.settings.base import get_settings
+from unique_search_proxy_client.web.settings.providers.base import (
+    NOT_PROVIDED,
+    ProviderCredentials,
+    provider_credentials,
+)
+
+_ENV_PREFIX = "BING_AGENT_"
+
+
+@provider_credentials(_ENV_PREFIX)
+class _BingAgentCredentials(ProviderCredentials):
+    """Environment-backed credentials for Bing grounding via Azure AI Projects."""
+
+    endpoint: str = Field(default=NOT_PROVIDED)
+    bing_resource_connection_string: str = Field(default=NOT_PROVIDED)
+    agent_id: str | None = Field(default=None)
+    bing_agent_model: str = Field(default="gpt-4o-deployment")
+    azure_identity_credential_type: str = Field(default="default")
+    azure_identity_validate_token_url: str = Field(
+        default="https://management.azure.com/.default",
+    )
+    use_private_endpoint_transport: bool = Field(default=False)
+
+
+def _get_bing_agent_credentials() -> _BingAgentCredentials:
+    return get_settings(_BingAgentCredentials, env_prefix=_ENV_PREFIX)
+
+
+bing_agent_credentials = _get_bing_agent_credentials()
+
+__all__ = ["bing_agent_credentials"]

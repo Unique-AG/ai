@@ -79,6 +79,11 @@ from unique_search_proxy_sdk import UniqueSearchProxyClient
 async with UniqueSearchProxyClient("http://unique-search-proxy:2349") as client:
     await client.health()
     result = await client.search.search("unique ag", engine="google", fetchSize=10)
+    agent = await client.agent_search.search(
+        "EU AI Act timeline",
+        engine="bing",
+        generationInstructions="...",
+    )
     crawl = await client.crawl.crawl(["https://example.com"], crawler="basic")
 
     # Low-level: one generated function per route
@@ -90,6 +95,8 @@ async with UniqueSearchProxyClient("http://unique-search-proxy:2349") as client:
 | `health()` | `GET /health` |
 | `ready()` | `GET /ready` |
 | `search.search(...)` | `POST /v1/search` |
+| `agent_search.search(...)` | `POST /v1/agent-search` |
+| `agent_search.stream(...)` | `POST /v1/agent-search/stream` (SSE) |
 | `crawl.crawl(...)` | `POST /v1/crawl` |
 
 Deployment config JSON Schema, defaults, and LLM call-schema projection live in **`unique_search_proxy_core`** (not HTTP). Assistants-core and tooling import those helpers directly.
@@ -113,8 +120,10 @@ For tests, pass an `httpx.AsyncClient` with `ASGITransport(app=create_app())` an
 |----------|-------------|
 | `GET /health` | Liveness |
 | `GET /ready` | Readiness (httpx pool + registered providers) |
-| `GET /v1/configuration/providers` | Registered search engine and crawler ids |
+| `GET /v1/configuration/providers` | Registered search engine, agent engine, and crawler ids |
 | `POST /v1/search` | Execute search (flat request: `engine`, `query`, provider params, `timeout`) |
+| `POST /v1/agent-search` | Agent-based grounded search — returns opaque `answer` + `raw` (Bing / VertexAI) |
+| `POST /v1/agent-search/stream` | Same as above, streamed as SSE (`delta` + `done` events) |
 | `POST /v1/crawl` | Crawl URLs via configured crawler (flat request: `crawler`, `urls`, `timeout`, …) |
 | `GET /metrics` | Prometheus scrape endpoint (when enabled) |
 | `/docs` | OpenAPI (Swagger UI) — use **Try it out** and the request-body **Examples** dropdown on `/v1/search` and `/v1/crawl` |
@@ -131,6 +140,8 @@ Settings are colocated with each component and use env prefixes:
 | Tavily | `TAVILY_` | `TAVILY_API_KEY`, `TAVILY_API_ENDPOINT` |
 | Jina | `JINA_` | `JINA_API_KEY`, `JINA_DEPLOYMENT` (`global` or `eu-beta`) |
 | Firecrawl | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_ENDPOINT`, `FIRECRAWL_API_VERSION` |
+| Bing agent search | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING`, optional `BING_AGENT_AGENT_ID` |
+| VertexAI agent search | `VERTEXAI_AGENT_` | Optional `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (base64 JSON); ADC otherwise |
 
 Unset secrets default to the sentinel `NOT_PROVIDED`. Search or crawl calls against an unconfigured provider return **503** `ENGINE_NOT_CONFIGURED` with the missing env var names in the error message (for operators and LLM tool consumers).
 | HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
@@ -191,6 +202,33 @@ Response:
   ]
 }
 ```
+
+### Agent search (`POST /v1/agent-search`)
+
+Thin egress for grounding agents (Bing via Azure AI Projects, VertexAI via Google GenAI). The proxy returns **opaque agent text** — consumers own parsing, citation extraction, and `WebSearchResult` mapping.
+
+```json
+{
+  "engine": "bing",
+  "query": "latest EU AI Act timeline",
+  "generationInstructions": "... consumer composes full instructions ...",
+  "fetchSize": 5,
+  "timeout": 120
+}
+```
+
+Response:
+
+```json
+{
+  "engine": "bing",
+  "query": "latest EU AI Act timeline",
+  "answer": "raw assistant text from the provider",
+  "raw": {}
+}
+```
+
+Streaming (`POST /v1/agent-search/stream`) emits SSE `data:` lines with `{ "type": "delta", "text": "..." }` chunks and a terminal `{ "type": "done", "response": { ... } }`.
 
 ### Crawl (`POST /v1/crawl`)
 

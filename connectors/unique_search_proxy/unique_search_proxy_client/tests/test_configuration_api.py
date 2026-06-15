@@ -48,3 +48,5 @@ class TestConfigurationEndpoints:
         assert CrawlerType.TAVILY.value in body["crawlers"]
         assert CrawlerType.JINA.value in body["crawlers"]
         assert CrawlerType.FIRECRAWL.value in body["crawlers"]
+        assert "bing" in body["agentEngines"]
+        assert "vertexai" in body["agentEngines"]

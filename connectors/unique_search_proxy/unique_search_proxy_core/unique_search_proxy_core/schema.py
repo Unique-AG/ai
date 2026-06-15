@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
 
-ProxyRequestType = Literal["search", "crawl"]
+ProxyRequestType = Literal["search", "agent_search", "crawl"]
 
 
 def field_title_generator(
@@ -175,12 +175,58 @@ class SearchResponse(BaseModel):
     curated: list[WebSearchResult]
 
 
+class AgentSearchResponse(BaseModel):
+    """Result of an agent-based (grounded) search.
+
+    Thin egress contract: opaque ``answer`` text from the provider plus ``raw``
+    for debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.).
+    """
+
+    model_config = camelized_model_config
+
+    engine: str
+    query: str
+    answer: str = Field(
+        default="",
+        description="Agent response text as returned by the provider (opaque to the proxy)",
+    )
+    raw: Any = Field(default=None, description="Opaque provider payload")
+
+
+class AgentSearchDelta(BaseModel):
+    """Incremental answer token emitted while streaming an agent search."""
+
+    model_config = camelized_model_config
+
+    type: Literal["delta"] = "delta"
+    text: str
+
+
+class AgentSearchDone(BaseModel):
+    """Terminal streaming event carrying the fully assembled response."""
+
+    model_config = camelized_model_config
+
+    type: Literal["done"] = "done"
+    response: AgentSearchResponse
+
+
+AgentSearchStreamEvent = Annotated[
+    AgentSearchDelta | AgentSearchDone,
+    Field(discriminator="type"),
+]
+
+
 class ProvidersListResponse(BaseModel):
     model_config = camelized_model_config
 
     search_engines: list[str] = Field(
         ...,
         description="Registered search engine ids (config discriminator values)",
+    )
+    agent_engines: list[str] = Field(
+        default_factory=list,
+        description="Registered agent search engine ids (config discriminator values)",
     )
     crawlers: list[str] = Field(
         ...,

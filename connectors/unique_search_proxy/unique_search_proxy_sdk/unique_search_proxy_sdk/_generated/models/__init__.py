@@ -1,6 +1,8 @@
 """Contains all the data models used in inputs/outputs"""
 
+from .agent_search_response import AgentSearchResponse
 from .basic_crawl_request import BasicCrawlRequest
+from .bing_agent_search_request import BingAgentSearchRequest
 from .brave_search_request import BraveSearchRequest
 from .brave_search_request_safesearch_type_0 import BraveSearchRequestSafesearchType0
 from .brave_search_request_units_type_0 import BraveSearchRequestUnitsType0
@@ -40,10 +42,13 @@ from .tavily_crawl_request import TavilyCrawlRequest
 from .tavily_crawl_request_extract_depth import TavilyCrawlRequestExtractDepth
 from .tavily_crawl_request_output_format import TavilyCrawlRequestOutputFormat
 from .validation_error import ValidationError
+from .vertex_ai_agent_search_request import VertexAiAgentSearchRequest
 from .web_search_result import WebSearchResult
 
 __all__ = (
+    "AgentSearchResponse",
     "BasicCrawlRequest",
+    "BingAgentSearchRequest",
     "BraveSearchRequest",
     "BraveSearchRequestSafesearchType0",
     "BraveSearchRequestUnitsType0",
@@ -73,5 +78,6 @@ __all__ = (
     "TavilyCrawlRequestExtractDepth",
     "TavilyCrawlRequestOutputFormat",
     "ValidationError",
+    "VertexAiAgentSearchRequest",
     "WebSearchResult",
 )

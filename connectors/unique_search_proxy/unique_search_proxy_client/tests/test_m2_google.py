@@ -185,7 +185,7 @@ class TestGoogleSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_call_search_engine_id_overrides_env_cx(
+    async def test_provider_uses_env_search_engine_id_not_request_cx(
         self, google_env: None
     ) -> None:
         captured: dict[str, str] = {}
@@ -201,7 +201,7 @@ class TestGoogleSearchService:
                 _google_request(search_engine_id="call-cx"),
             )
 
-        assert captured["cx"] == "call-cx"
+        assert captured["cx"] == "test-cx"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
