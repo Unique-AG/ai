@@ -1054,6 +1054,38 @@ class TestFiles:
         assert "Uploaded" in result
         mock_upload.assert_called_once()
 
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_in_filter_not_blocked_by_static_scope(
+        self,
+        mock_upload: MagicMock,
+        mock_path: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds, so an
+        in-filter upload destination outside the static scope must not be
+        over-denied by the static-scope check. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        f = tmp_path / "test.pdf"
+        f.write_text("content")
+        mock_result = MagicMock()
+        mock_result.id = "cont_new"
+        mock_upload.return_value = mock_result
+        state = _state("/Funds/Fund A", "scope_allowed")
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_upload(state, str(f), "scope_allowed")
+        assert "Uploaded" in result
+        mock_upload.assert_called_once()
+
     @patch("unique_sdk.Folder.create_paths")
     @patch("unique_sdk.Folder.get_folder_path")
     def test_mkdir_blocked_by_metadata_filter(
@@ -1085,6 +1117,32 @@ class TestFiles:
         )
         mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
         state = _state("/Funds/Fund A", "scope_allowed")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mkdir(state, "Q2")
+        assert "Created" in result
+        mock_create.assert_called_once()
+
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_in_filter_not_blocked_by_static_scope(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds, so an
+        in-filter destination outside the static scope must not be over-denied
+        by the static-scope check. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        state = _state("/Funds/Fund A", "scope_allowed")
+        # Static scope covers a different subtree; the filter is authoritative.
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
         state.workspace_metadata_filter = {
             "path": ["folderIdPath"],
             "operator": "contains",

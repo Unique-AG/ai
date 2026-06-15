@@ -171,6 +171,29 @@ class TestClickCLI:
         result = runner.invoke(main, ["ls"])
         assert result.exit_code == 0
 
+    @patch("unique_sdk.cli.cli.cmd_versions")
+    def test_versions_permission_denied_exits_nonzero(
+        self, mock_versions: MagicMock
+    ) -> None:
+        """Bugbot regression: an out-of-scope versions denial must exit
+        non-zero so agent ``&&`` chains fail cleanly (UN-21780).
+        """
+        mock_versions.return_value = (
+            "versions: permission denied: cont_x is outside your task scope "
+            "(folders: /Funds/Fund A)."
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, ["versions", "cont_x"])
+        assert result.exit_code == 1
+        assert "permission denied" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_versions")
+    def test_versions_ok_exits_zero(self, mock_versions: MagicMock) -> None:
+        mock_versions.return_value = "No versions found."
+        runner = CliRunner()
+        result = runner.invoke(main, ["versions", "cont_x"])
+        assert result.exit_code == 0
+
     @patch("unique_sdk.cli.cli.cmd_read")
     def test_read(self, mock_read: MagicMock) -> None:
         mock_read.return_value = "Content: doc (cont_abc) — 1 chunk(s)\n\ntext"

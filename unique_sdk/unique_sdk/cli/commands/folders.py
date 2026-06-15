@@ -42,7 +42,13 @@ def _metadata_filter_denies_folder(state: ShellState, scope_id: str | None) -> b
 
 def cmd_mkdir(state: ShellState, name: str) -> str:
     """Create a new folder under the current directory."""
-    if not state.is_folder_target_within_workspace(name):
+    # A per-message metaDataFilter *replaces* the static scopeIds, so the
+    # static-scope check must not over-deny an in-filter destination; the
+    # normalized path is gated against the filter below. See UN-21780.
+    if (
+        state.workspace_metadata_filter is None
+        and not state.is_folder_target_within_workspace(name)
+    ):
         return "mkdir: permission denied (outside workspace scope)"
     # Resolve the destination (collapsing any `..`) and gate the *path*, not
     # just the current scope id: `mkdir ../../Other/X` would otherwise pass a

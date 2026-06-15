@@ -349,7 +349,11 @@ def versions(
       unique-cli versions /Reports/Q1/report.pdf
       unique-cli versions cont_abc123 --take 10
     """
-    click.echo(cmd_versions(LazyState.get(ctx), name_or_id, skip=skip, take=take))
+    output = cmd_versions(LazyState.get(ctx), name_or_id, skip=skip, take=take)
+    if _is_permission_denied_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
 
 
 @main.command(name="restore-version")

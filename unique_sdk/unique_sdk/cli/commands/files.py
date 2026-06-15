@@ -237,7 +237,14 @@ def cmd_upload(
     upload file.pdf /abs/path/   -> into absolute path folder
     """
     dest = destination or "."
-    if not state.is_folder_target_within_workspace(dest):
+    # A per-message metaDataFilter *replaces* the static scopeIds (read/search/
+    # ls honour the filter, not scopeIds), so the static-scope check must not
+    # over-deny an in-filter destination. When a filter is active the resolved
+    # scope id is gated against it below instead. See UN-21780.
+    if (
+        state.workspace_metadata_filter is None
+        and not state.is_folder_target_within_workspace(dest)
+    ):
         return "upload: permission denied (outside workspace scope)"
     try:
         path = Path(local_path).expanduser().resolve()
