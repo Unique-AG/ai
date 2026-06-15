@@ -105,7 +105,18 @@ jobs:
       - name: Checkout base commit
         run: git checkout ${{ steps.base.outputs.commit }} --quiet
 
+      - name: Check package exists on base
+        id: base_pkg
+        run: |
+          if [ -f "${{ matrix.dir }}/pyproject.toml" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Package '${{ matrix.dir }}' does not exist on base commit (new package); skipping base export."
+          fi
+
       - name: Setup uv (base)
+        if: steps.base_pkg.outputs.exists == 'true'
         uses: ./.github/actions/setup-uv
         with:
           package_dir: ${{ matrix.dir }}
@@ -113,6 +124,7 @@ jobs:
           lock_mode: frozen
 
       - name: Export base defaults
+        if: steps.base_pkg.outputs.exists == 'true'
         working-directory: ${{ matrix.dir }}
         env:
           UV_NO_SOURCES: 1
@@ -127,6 +139,12 @@ jobs:
             mkdir -p "$GITHUB_WORKSPACE/config-artifacts-base/"
             echo '{"exported_count": 0, "skipped_count": 0, "warnings": [], "config_files": {}}' > "$GITHUB_WORKSPACE/config-artifacts-base/manifest.json"
           fi
+
+      - name: Create empty base manifest for new package
+        if: steps.base_pkg.outputs.exists == 'false'
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/config-artifacts-base/"
+          echo '{"exported_count": 0, "skipped_count": 0, "warnings": [], "config_files": {}}' > "$GITHUB_WORKSPACE/config-artifacts-base/manifest.json"
 
       - name: Upload base artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
