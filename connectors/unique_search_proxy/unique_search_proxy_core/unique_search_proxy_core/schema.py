@@ -63,6 +63,13 @@ class ErrorDetail(BaseModel):
     provider: str | None = None
     retryable: bool = False
     details: list[dict[str, Any]] | None = None
+    raw: Any | None = Field(
+        default=None,
+        description=(
+            "Upstream provider response on request-level failure "
+            "(JSON object or text wrapper)"
+        ),
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -152,7 +159,10 @@ class CrawlUrlResult(BaseModel):
     error: PerUrlError | None = None
     raw: Any | None = Field(
         default=None,
-        description="Unmodified response body text, or null when no body was received",
+        description=(
+            "Upstream provider response for this URL (JSON object or text wrapper); "
+            "included on success and on per-URL failures for debugging"
+        ),
     )
 
 

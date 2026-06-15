@@ -60,6 +60,19 @@ def test_rate_limited_sets_retry_after_header() -> None:
     assert response.headers.get("Retry-After") == "42"
 
 
+@pytest.mark.ai
+def test_upstream_error_serializes_raw_payload() -> None:
+    raw = {"error": {"message": "invalid key"}}
+    response = proxy_error_response(
+        UpstreamError("upstream failed", upstream_raw=raw),
+    )
+    assert response.status_code == 502
+    import json
+
+    body = json.loads(response.body.decode())
+    assert body["error"]["raw"] == raw
+
+
 @pytest.fixture
 def client() -> TestClient:
     with TestClient(create_app()) as test_client:

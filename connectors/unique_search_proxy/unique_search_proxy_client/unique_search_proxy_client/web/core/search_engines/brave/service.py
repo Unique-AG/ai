@@ -4,10 +4,8 @@ import logging
 from typing import Any
 
 import httpx
-from httpx import Response
 from unique_search_proxy_core.errors import (
     EmptySearchResultsError,
-    RateLimitedError,
     UpstreamError,
     UpstreamTimeoutError,
 )
@@ -25,6 +23,10 @@ from unique_search_proxy_core.search_engines.brave.schema import (
     BraveSearchRequest,
 )
 
+from unique_search_proxy_client.web.core.provider_response import (
+    raise_for_upstream_response,
+    transport_error_raw,
+)
 from unique_search_proxy_client.web.core.search_engines.brave.pagination import (
     iter_brave_page_requests,
 )
@@ -40,6 +42,7 @@ from unique_search_proxy_client.web.settings.providers.brave import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+_BRAVE_PROVIDER_LABEL = "Brave Web Search API"
 
 
 class BraveSearchService(SearchEngineService[BraveSearchRequest]):
@@ -122,42 +125,21 @@ class BraveSearchService(SearchEngineService[BraveSearchRequest]):
         except httpx.TimeoutException as exc:
             raise UpstreamTimeoutError(
                 f"Brave search timed out after {timeout}s",
+                upstream_raw=transport_error_raw(exc),
             ) from exc
         except httpx.HTTPError as exc:
             raise UpstreamError(
                 f"Brave search request failed: {exc}",
+                upstream_raw=transport_error_raw(exc),
             ) from exc
 
-        self._raise_for_response(response)
+        raise_for_upstream_response(
+            response,
+            provider_label=_BRAVE_PROVIDER_LABEL,
+            detail_keys=("message", "error", "detail"),
+            rate_limited_message=f"{_BRAVE_PROVIDER_LABEL} rate limit exceeded",
+        )
         return response.json()
-
-    def _raise_for_response(self, response: Response) -> None:
-        if response.is_success:
-            return
-
-        if response.status_code == 429:
-            retry_after_raw = response.headers.get("Retry-After")
-            retry_after: int | None = None
-            if retry_after_raw is not None:
-                try:
-                    retry_after = int(retry_after_raw)
-                except ValueError:
-                    retry_after = None
-            raise RateLimitedError(
-                "Brave Web Search API rate limit exceeded",
-                retry_after_seconds=retry_after,
-            )
-
-        message = f"Brave Web Search API returned HTTP {response.status_code}"
-        try:
-            payload = response.json()
-            error_message = payload.get("message")
-            if error_message:
-                message = f"{message}: {error_message}"
-        except Exception:
-            pass
-
-        raise UpstreamError(message)
 
     def _extract_web_results(self, payload: dict[str, Any]) -> list[WebSearchResult]:
         web = payload.get("web")

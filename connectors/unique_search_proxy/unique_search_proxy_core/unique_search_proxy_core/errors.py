@@ -19,6 +19,7 @@ class ProxyError(Exception):
     request: ProxyRequestType | None
     provider: str | None
     details: list[dict[str, Any]] | None
+    upstream_raw: Any | None
 
     def __init__(
         self,
@@ -28,6 +29,7 @@ class ProxyError(Exception):
         provider: str | None = None,
         retryable: bool | None = None,
         details: list[dict[str, Any]] | None = None,
+        upstream_raw: Any | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -36,6 +38,7 @@ class ProxyError(Exception):
         if retryable is not None:
             self.retryable = retryable
         self.details = details
+        self.upstream_raw = upstream_raw
 
     def to_detail(self) -> ErrorDetail:
         return ErrorDetail(
@@ -45,6 +48,7 @@ class ProxyError(Exception):
             provider=self.provider,
             retryable=self.retryable,
             details=self.details,
+            raw=self.upstream_raw,
         )
 
 

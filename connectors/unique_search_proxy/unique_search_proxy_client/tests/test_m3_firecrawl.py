@@ -228,6 +228,7 @@ def test_firecrawl_maps_missing_markdown_on_scrape() -> None:
 
         assert results[0].error is not None
         assert results[0].error.code == ProxyErrorCode.UPSTREAM_ERROR.value
+        assert results[0].raw is not None
 
     import asyncio
 

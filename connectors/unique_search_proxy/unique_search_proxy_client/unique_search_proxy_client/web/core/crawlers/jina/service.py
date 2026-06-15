@@ -5,17 +5,18 @@ import logging
 from typing import Any
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from unique_search_proxy_core.crawlers.base import BaseCrawler, CrawlerType
 from unique_search_proxy_core.crawlers.jina.schema import JinaCrawlRequest
-from unique_search_proxy_core.schema import (
-    CrawlUrlResult,
-    PerUrlError,
-    ProxyErrorCode,
-)
+from unique_search_proxy_core.schema import CrawlUrlResult
 
 from unique_search_proxy_client.web.core.crawlers.jina.request_body import (
     build_jina_reader_body,
+)
+from unique_search_proxy_client.web.core.provider_response import (
+    crawl_upstream_error,
+    transport_error_raw,
+    upstream_response_raw,
 )
 from unique_search_proxy_client.web.settings.providers.jina import (
     jina_crawl_credentials as credentials,
@@ -32,8 +33,11 @@ class _ReaderData(BaseModel):
 
 
 class _ReaderResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     code: int
-    status: int | None = None
+    status: int | str | None = None
+    message: str | None = None
     data: _ReaderData | None = None
 
 
@@ -45,16 +49,11 @@ def _jina_headers(api_key: str) -> dict[str, str]:
     }
 
 
-def _error_result(url: str, message: str) -> CrawlUrlResult:
-    return CrawlUrlResult(
-        url=url,
-        content=None,
-        content_type="text/markdown",
-        error=PerUrlError(
-            code=ProxyErrorCode.UPSTREAM_ERROR.value,
-            message=message,
-        ),
-    )
+def _jina_reader_error_message(payload: dict[str, Any], code: int) -> str:
+    detail = payload.get("message") or payload.get("error")
+    if isinstance(detail, str) and detail.strip():
+        return f"Jina reader error ({code}): {detail}"
+    return f"Jina reader error code {code}"
 
 
 class JinaCrawlerService(BaseCrawler[JinaCrawlRequest]):
@@ -103,27 +102,57 @@ class JinaCrawlerService(BaseCrawler[JinaCrawlRequest]):
                 json=body,
                 timeout=timeout,
             )
-        except httpx.TimeoutException:
-            return _error_result(url, f"Jina reader timed out after {timeout}s")
+        except httpx.TimeoutException as exc:
+            return crawl_upstream_error(
+                url,
+                f"Jina reader timed out after {timeout}s",
+                raw=transport_error_raw(exc),
+            )
         except httpx.HTTPError as exc:
-            return _error_result(url, f"Jina reader request failed: {exc}")
+            return crawl_upstream_error(
+                url,
+                f"Jina reader request failed: {exc}",
+                raw=transport_error_raw(exc),
+            )
 
-        try:
-            payload: Any = response.json()
-        except ValueError as exc:
-            return _error_result(url, f"Jina reader returned invalid JSON: {exc}")
+        raw = upstream_response_raw(response)
+
+        if not isinstance(raw, dict):
+            return crawl_upstream_error(
+                url,
+                "Jina reader returned unexpected response shape",
+                raw=raw,
+            )
+
+        payload: dict[str, Any] = raw
 
         try:
             reader_response = _ReaderResponse.model_validate(payload)
         except ValueError as exc:
-            return _error_result(url, f"Jina reader returned unexpected shape: {exc}")
+            return crawl_upstream_error(
+                url,
+                f"Jina reader returned unexpected shape: {exc}",
+                raw=payload,
+            )
 
         if reader_response.code != 200:
-            return _error_result(url, f"Jina reader error code {reader_response.code}")
+            message = _jina_reader_error_message(payload, reader_response.code)
+            _LOGGER.warning(
+                "Jina reader failure url=%s endpoint=%s http_status=%s code=%s",
+                url,
+                credentials.reader_endpoint,
+                response.status_code,
+                reader_response.code,
+            )
+            return crawl_upstream_error(url, message, raw=payload)
 
         content = reader_response.data.content if reader_response.data else None
         if not content:
-            return _error_result(url, "Jina reader returned empty content")
+            return crawl_upstream_error(
+                url,
+                "Jina reader returned empty content",
+                raw=payload,
+            )
 
         return CrawlUrlResult(
             url=url,

@@ -26,7 +26,7 @@ T = TypeVar("T", bound="FirecrawlCrawlRequest")
 
 @_attrs_define
 class FirecrawlCrawlRequest:
-    """Flat ``POST /v1/crawl`` body for the Firecrawl batch scrape crawler.
+    """Flat ``POST /v1/crawl`` body for Firecrawl (scrape or batch scrape).
 
     Attributes:
         crawler (Literal['Firecrawl'] | Unset):  Default: 'Firecrawl'.

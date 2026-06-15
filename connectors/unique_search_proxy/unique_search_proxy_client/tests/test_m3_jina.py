@@ -117,6 +117,48 @@ def test_jina_maps_non_200_reader_code() -> None:
 
         assert results[0].error is not None
         assert results[0].error.code == ProxyErrorCode.UPSTREAM_ERROR.value
+        assert results[0].raw == {"code": 422, "data": None}
+
+    import asyncio
+
+    asyncio.run(run())
+
+
+@pytest.mark.ai
+def test_jina_includes_upstream_message_and_raw_on_auth_failure() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "code": 401,
+                "status": "error",
+                "message": "Invalid Jina API key",
+            },
+        )
+
+    async def run() -> None:
+        request = parse_crawl_request(
+            {
+                "urls": ["https://example.com"],
+                "crawler": CrawlerType.JINA.value,
+                "timeout": 30,
+            },
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as http_client:
+            service = JinaCrawlerService(http_client=http_client)
+            results = await service.crawl(request)
+
+        assert results[0].error is not None
+        assert (
+            results[0].error.message == "Jina reader error (401): Invalid Jina API key"
+        )
+        assert results[0].raw == {
+            "code": 401,
+            "status": "error",
+            "message": "Invalid Jina API key",
+        }
 
     import asyncio
 

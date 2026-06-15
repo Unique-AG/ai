@@ -69,6 +69,7 @@ def _raise_from_error_detail(detail: dict[str, Any], *, status_code: int) -> Non
         message,
         retryable=bool(detail.get("retryable", False)),
         details=detail.get("details"),
+        upstream_raw=detail.get("raw"),
         **request_context,
     )
     exc.status_code = status_code

@@ -41,6 +41,14 @@ def brave_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "BRAVE_SEARCH_API_ENDPOINT",
         "https://api.search.brave.com/res/v1/web/search",
     )
+    from unique_search_proxy_client.web.settings.providers.brave import (
+        _get_brave_search_credentials,
+    )
+
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.search_engines.brave.service.credentials",
+        _get_brave_search_credentials(),
+    )
 
 
 def _brave_request(**fields: Any) -> BraveSearchRequest:

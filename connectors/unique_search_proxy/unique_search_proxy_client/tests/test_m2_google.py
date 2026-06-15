@@ -66,6 +66,14 @@ def google_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "GOOGLE_SEARCH_API_ENDPOINT",
         "https://customsearch.googleapis.com/customsearch/v1",
     )
+    from unique_search_proxy_client.web.settings.providers.google import (
+        _get_google_search_credentials,
+    )
+
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.search_engines.google.service.credentials",
+        _get_google_search_credentials(),
+    )
 
 
 @pytest.fixture
@@ -309,8 +317,9 @@ class TestGoogleSearchService:
         transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=transport) as client:
             engine = GoogleSearchService(http_client=client)
-            with pytest.raises(UpstreamError, match="500"):
+            with pytest.raises(UpstreamError, match="500") as exc_info:
                 await engine.search(_google_request(query="fail"))
+            assert exc_info.value.upstream_raw == {"error": {"message": "backend"}}
 
     @pytest.mark.ai
     @pytest.mark.asyncio

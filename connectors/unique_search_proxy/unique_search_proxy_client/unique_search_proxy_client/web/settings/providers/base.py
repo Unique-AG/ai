@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from functools import lru_cache
 from typing import ClassVar, TypeVar
 
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ class ProviderCredentials(BaseSettings):
 
     _env_prefix: ClassVar[str]
 
+    @lru_cache
     def check_credentials(self) -> None:
         """Raise ``EngineNotConfiguredError`` when required secrets are missing."""
         _check_required_credentials(self, env_prefix=self._env_prefix)

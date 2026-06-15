@@ -154,6 +154,39 @@ def test_tavily_maps_failed_results() -> None:
         assert results[0].error is not None
         assert results[0].error.code == ProxyErrorCode.UPSTREAM_ERROR.value
         assert results[0].error.message == "blocked"
+        assert results[0].raw == {
+            "url": "https://bad.example",
+            "error": "blocked",
+        }
+
+    import asyncio
+
+    asyncio.run(run())
+
+
+@pytest.mark.ai
+def test_tavily_batch_http_error_raises_upstream() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"detail": "Invalid API key"})
+
+    async def run() -> None:
+        from unique_search_proxy_core.errors import UpstreamError
+
+        request = parse_crawl_request(
+            {
+                "urls": ["https://example.com"],
+                "crawler": CrawlerType.TAVILY.value,
+                "timeout": 30,
+            },
+        )
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler)
+        ) as http_client:
+            service = TavilyCrawlerService(http_client=http_client)
+            with pytest.raises(UpstreamError) as exc_info:
+                await service.crawl(request)
+
+        assert exc_info.value.upstream_raw == {"detail": "Invalid API key"}
 
     import asyncio
 

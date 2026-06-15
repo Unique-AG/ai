@@ -736,7 +736,7 @@
               }
             ],
             "title": "Raw",
-            "description": "Unmodified response body text, or null when no body was received"
+            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging"
           }
         },
         "type": "object",
@@ -897,7 +897,7 @@
         },
         "type": "object",
         "title": "Firecrawl Crawl Request",
-        "description": "Flat ``POST /v1/crawl`` body for the Firecrawl batch scrape crawler."
+        "description": "Flat ``POST /v1/crawl`` body for Firecrawl (scrape or batch scrape)."
       },
       "GoogleSearchRequest": {
         "properties": {

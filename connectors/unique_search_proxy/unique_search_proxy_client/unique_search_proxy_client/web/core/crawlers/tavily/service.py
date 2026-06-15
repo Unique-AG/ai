@@ -7,14 +7,17 @@ from typing import Any
 import httpx
 from unique_search_proxy_core.crawlers.base import BaseCrawler, CrawlerType
 from unique_search_proxy_core.crawlers.tavily.schema import TavilyCrawlRequest
-from unique_search_proxy_core.schema import (
-    CrawlUrlResult,
-    PerUrlError,
-    ProxyErrorCode,
-)
+from unique_search_proxy_core.schema import CrawlUrlResult
 
 from unique_search_proxy_client.web.core.crawlers.tavily.request_body import (
     build_tavily_extract_body,
+)
+from unique_search_proxy_client.web.core.provider_response import (
+    crawl_upstream_error,
+    raise_batch_upstream_failure,
+    transport_error_raw,
+    upstream_error_message,
+    upstream_response_raw,
 )
 from unique_search_proxy_client.web.settings.providers.tavily import (
     tavily_crawl_credentials as credentials,
@@ -23,6 +26,7 @@ from unique_search_proxy_client.web.settings.providers.tavily import (
 _LOGGER = logging.getLogger(__name__)
 
 _TAVILY_BATCH_SIZE = 20
+_TAVILY_PROVIDER_LABEL = "Tavily extract"
 
 
 def _tavily_headers(api_key: str) -> dict[str, str]:
@@ -31,18 +35,6 @@ def _tavily_headers(api_key: str) -> dict[str, str]:
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
-
-
-def _error_result(url: str, message: str) -> CrawlUrlResult:
-    return CrawlUrlResult(
-        url=url,
-        content=None,
-        content_type="text/markdown",
-        error=PerUrlError(
-            code=ProxyErrorCode.UPSTREAM_ERROR.value,
-            message=message,
-        ),
-    )
 
 
 def _map_batch_response(
@@ -71,11 +63,15 @@ def _map_batch_response(
         error_message = item.get("error", "Tavily extract failed")
         if not isinstance(error_message, str):
             error_message = str(error_message)
-        by_url[url] = _error_result(url, error_message)
+        by_url[url] = crawl_upstream_error(url, error_message, raw=item)
 
     for url in batch_urls:
         if url not in by_url:
-            by_url[url] = _error_result(url, "URL not found in Tavily response")
+            by_url[url] = crawl_upstream_error(
+                url,
+                "URL not found in Tavily response",
+                raw=payload,
+            )
 
     return by_url
 
@@ -116,7 +112,10 @@ class TavilyCrawlerService(BaseCrawler[TavilyCrawlRequest]):
             by_url.update(mapped)
             for url in batch:
                 if url not in mapped:
-                    by_url[url] = _error_result(url, "URL not found in Tavily response")
+                    by_url[url] = crawl_upstream_error(
+                        url,
+                        "URL not found in Tavily response",
+                    )
 
         return [by_url[url] for url in urls]
 
@@ -136,39 +135,31 @@ class TavilyCrawlerService(BaseCrawler[TavilyCrawlRequest]):
                 headers=_tavily_headers(credentials.api_key),
                 timeout=timeout,
             )
-        except httpx.TimeoutException:
-            message = f"Tavily extract timed out after {timeout}s"
-            return {url: _error_result(url, message) for url in batch_urls}
+        except httpx.TimeoutException as exc:
+            raise_batch_upstream_failure(
+                f"Tavily extract timed out after {timeout}s",
+                raw=transport_error_raw(exc),
+            )
         except httpx.HTTPError as exc:
-            message = f"Tavily extract request failed: {exc}"
-            return {url: _error_result(url, message) for url in batch_urls}
+            raise_batch_upstream_failure(
+                f"Tavily extract request failed: {exc}",
+                raw=transport_error_raw(exc),
+            )
 
         if response.status_code >= 400:
-            message = _upstream_error_message(response)
-            return {url: _error_result(url, message) for url in batch_urls}
+            raise_batch_upstream_failure(
+                upstream_error_message(
+                    response,
+                    provider_label=_TAVILY_PROVIDER_LABEL,
+                ),
+                raw=upstream_response_raw(response),
+            )
 
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            message = f"Tavily extract returned invalid JSON: {exc}"
-            return {url: _error_result(url, message) for url in batch_urls}
+        raw = upstream_response_raw(response)
+        if not isinstance(raw, dict):
+            raise_batch_upstream_failure(
+                "Tavily extract returned unexpected response shape",
+                raw=raw,
+            )
 
-        if not isinstance(payload, dict):
-            message = "Tavily extract returned unexpected response shape"
-            return {url: _error_result(url, message) for url in batch_urls}
-
-        return _map_batch_response(batch_urls, payload)
-
-
-def _upstream_error_message(response: httpx.Response) -> str:
-    try:
-        payload = response.json()
-    except ValueError:
-        return f"Tavily extract failed with HTTP {response.status_code}"
-
-    if isinstance(payload, dict):
-        detail = payload.get("detail") or payload.get("error") or payload.get("message")
-        if isinstance(detail, str) and detail:
-            return detail
-
-    return f"Tavily extract failed with HTTP {response.status_code}"
+        return _map_batch_response(batch_urls, raw)

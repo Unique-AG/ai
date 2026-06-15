@@ -39,6 +39,14 @@ def perplexity_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "PERPLEXITY_SEARCH_API_ENDPOINT",
         "https://api.perplexity.ai/search",
     )
+    from unique_search_proxy_client.web.settings.providers.perplexity import (
+        _get_perplexity_search_credentials,
+    )
+
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.core.search_engines.perplexity.service.credentials",
+        _get_perplexity_search_credentials(),
+    )
 
 
 def _perplexity_request(**fields: Any) -> PerplexitySearchRequest:
