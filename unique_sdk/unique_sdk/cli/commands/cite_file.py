@@ -23,6 +23,34 @@ _CHAT_FILES_MANIFEST = Path(".unique") / "chat-files.json"
 
 _MAX_PAGES_PER_CALL = 500
 
+# Canonical reading-method values declared via ``--read-method``. They record
+# how the cited page text was obtained so the runner can later ground a
+# hallucination check against the matching source.
+READ_METHODS = ("pdftotext", "pymupdf", "vision", "indexed")
+
+# Convenience aliases accepted from the agent and normalized to canonical values.
+_READ_METHOD_ALIASES = {
+    "fitz": "pymupdf",
+    "mupdf": "pymupdf",
+    "image": "vision",
+    "ocr": "vision",
+    "read": "indexed",
+    "search": "indexed",
+}
+
+
+def _normalize_read_method(read_method: str | None) -> str | None:
+    """Normalize a ``--read-method`` value to a canonical one, or None if invalid.
+
+    Case-insensitive, with a small alias map. Returns None for missing or
+    unrecognized values so callers can fail closed with a clear message.
+    """
+    if not read_method or not read_method.strip():
+        return None
+    candidate = read_method.strip().lower()
+    candidate = _READ_METHOD_ALIASES.get(candidate, candidate)
+    return candidate if candidate in READ_METHODS else None
+
 
 def _parse_pages(pages: str | None) -> list[int]:
     """Parse '3-7' or '1,3,5' into a list of 1-based page numbers.
@@ -91,12 +119,23 @@ def cmd_cite_file(
     state: ShellState,
     name_or_id: str,
     pages: str | None,
+    read_method: str | None,
 ) -> str:
     """Declare citations for a file's pages.
 
     Writes entries to .unique/file-refs.jsonl and returns [filesourceN]
-    markers for the agent to use inline.
+    markers for the agent to use inline. ``read_method`` records how the cited
+    page text was read (one of :data:`READ_METHODS`); it is mandatory and
+    validated here as defense in depth for callers that bypass the CLI layer.
     """
+    canonical_method = _normalize_read_method(read_method)
+    if canonical_method is None:
+        return (
+            f"{CITE_ERROR_PREFIX} --read-method is required and must be one of: "
+            f"{', '.join(READ_METHODS)}. Report the method that produced the "
+            "text you actually used."
+        )
+
     try:
         content_id, filename = _resolve_content_id_with_manifest(state, name_or_id)
     except Exception as exc:
@@ -136,6 +175,7 @@ def cmd_cite_file(
                     "contentId": content_id,
                     "filename": filename,
                     "page": page,
+                    "readMethod": canonical_method,
                 }
                 _append_turn_refs_manifest_entry(refs_log_path, entry)
                 output_lines.append(

@@ -7,7 +7,7 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
-from unique_sdk.cli.commands.cite_file import cmd_cite_file
+from unique_sdk.cli.commands.cite_file import READ_METHODS, cmd_cite_file
 from unique_sdk.cli.commands.dynamic_frontend import (
     cmd_dynamic_frontend_delete,
     cmd_dynamic_frontend_deploy,
@@ -376,11 +376,24 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     default=None,
     help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
 )
+@click.option(
+    "--read-method",
+    "-m",
+    "read_method",
+    required=True,
+    type=click.Choice(READ_METHODS, case_sensitive=False),
+    help=(
+        "How you read the cited page(s). Report the method that actually "
+        "produced the text you used. Use separate cite calls when different "
+        "pages were read by different methods."
+    ),
+)
 @click.pass_context
 def cite(
     ctx: click.Context,
     name_or_id: str,
     pages: str | None,
+    read_method: str,
 ) -> None:
     """Declare page citations for a file.
 
@@ -388,14 +401,15 @@ def cite(
     Registers [filesourceN] markers for pages you referenced in your answer.
     Does NOT read or extract the file — use your own tools for that.
     NAME_OR_ID can be a file path, current-directory file name, or content ID.
+    --read-method is mandatory: it records how you read the page(s).
 
     \b
     Examples:
-      unique-cli cite report.pdf --pages 3,5,7
-      unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7
-      unique-cli cite cont_abc123 --pages 1-4
+      unique-cli cite report.pdf --pages 3,5,7 --read-method pdftotext
+      unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
+      unique-cli cite cont_abc123 --pages 1-4 --read-method indexed
     """
-    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
+    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages, read_method))
 
 
 @main.command(name="read")
