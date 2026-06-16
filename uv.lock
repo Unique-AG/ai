@@ -6314,7 +6314,7 @@ dev = [{ name = "types-cachetools", specifier = ">=5.0,<6" }]
 
 [[package]]
 name = "unique-user-memory"
-version = "2026.22.0"
+version = "2026.24.0"
 source = { editable = "postprocessors/unique_user_memory" }
 dependencies = [
     { name = "jinja2" },
