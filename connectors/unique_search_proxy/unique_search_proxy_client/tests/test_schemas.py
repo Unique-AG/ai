@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 from unique_search_proxy_core.crawlers import parse_crawler_config
 from unique_search_proxy_core.crawlers.base import CrawlerType
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
+from unique_search_proxy_core.crawlers.basic.schema import BasicConfig
 from unique_search_proxy_core.schema import ProxyErrorCode, WebSearchResult
 from unique_search_proxy_core.search_engines import (
     SearchEngineType,
@@ -84,8 +84,18 @@ class TestProviderConfig:
     @pytest.mark.ai
     def test_crawler_config(self) -> None:
         config = parse_crawler_config({"crawler": CrawlerType.BASIC.value})
-        assert isinstance(config, BasicCrawlRequest)
+        assert isinstance(config, BasicConfig)
         assert config.crawler == CrawlerType.BASIC
+
+    @pytest.mark.ai
+    def test_crawler_config_rejects_urls(self) -> None:
+        with pytest.raises(ValidationError):
+            parse_crawler_config(
+                {
+                    "crawler": CrawlerType.BASIC.value,
+                    "urls": ["https://example.com"],
+                },
+            )
 
 
 class TestProxyErrorCode:

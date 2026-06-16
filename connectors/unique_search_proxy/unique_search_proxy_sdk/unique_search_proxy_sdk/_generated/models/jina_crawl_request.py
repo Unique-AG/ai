@@ -9,7 +9,6 @@ from typing import (
 )
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
 from ..models.jina_crawl_request_engine import JinaCrawlRequestEngine
 from ..models.jina_crawl_request_retain_images_type_0 import (
@@ -23,12 +22,11 @@ T = TypeVar("T", bound="JinaCrawlRequest")
 
 @_attrs_define
 class JinaCrawlRequest:
-    """Flat ``POST /v1/crawl`` body for the Jina Reader crawler.
-
+    """
     Attributes:
+        urls (list[str]): URLs to crawl
         crawler (Literal['Jina'] | Unset):  Default: 'Jina'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
-        urls (list[str] | Unset): URLs to crawl (required on ``POST /v1/crawl``)
         return_format (JinaCrawlRequestReturnFormat | Unset): Jina Reader output format: `markdown`, `html`, `text`,
             `screenshot`, or `pageshot`. Default: JinaCrawlRequestReturnFormat.MARKDOWN.
         engine (JinaCrawlRequestEngine | Unset): `browser` for best quality, `direct` for speed, `cf-browser-rendering`
@@ -52,9 +50,9 @@ class JinaCrawlRequest:
         do_not_track (bool | Unset): Send DNT (Do Not Track) to the reader service. Default: True.
     """
 
+    urls: list[str]
     crawler: Literal["Jina"] | Unset = "Jina"
     timeout: int | Unset = 30
-    urls: list[str] | Unset = UNSET
     return_format: JinaCrawlRequestReturnFormat | Unset = (
         JinaCrawlRequestReturnFormat.MARKDOWN
     )
@@ -74,16 +72,13 @@ class JinaCrawlRequest:
     referer: None | str | Unset = UNSET
     proxy_url: None | str | Unset = UNSET
     do_not_track: bool | Unset = True
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        urls = self.urls
+
         crawler = self.crawler
 
         timeout = self.timeout
-
-        urls: list[str] | Unset = UNSET
-        if not isinstance(self.urls, Unset):
-            urls = self.urls
 
         return_format: str | Unset = UNSET
         if not isinstance(self.return_format, Unset):
@@ -167,14 +162,16 @@ class JinaCrawlRequest:
         do_not_track = self.do_not_track
 
         field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update({})
+
+        field_dict.update(
+            {
+                "urls": urls,
+            }
+        )
         if crawler is not UNSET:
             field_dict["crawler"] = crawler
         if timeout is not UNSET:
             field_dict["timeout"] = timeout
-        if urls is not UNSET:
-            field_dict["urls"] = urls
         if return_format is not UNSET:
             field_dict["returnFormat"] = return_format
         if engine is not UNSET:
@@ -215,13 +212,13 @@ class JinaCrawlRequest:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        urls = cast(list[str], d.pop("urls"))
+
         crawler = cast(Literal["Jina"] | Unset, d.pop("crawler", UNSET))
         if crawler != "Jina" and not isinstance(crawler, Unset):
             raise ValueError(f"crawler must match const 'Jina', got '{crawler}'")
 
         timeout = d.pop("timeout", UNSET)
-
-        urls = cast(list[str], d.pop("urls", UNSET))
 
         _return_format = d.pop("returnFormat", UNSET)
         return_format: JinaCrawlRequestReturnFormat | Unset
@@ -358,9 +355,9 @@ class JinaCrawlRequest:
         do_not_track = d.pop("doNotTrack", UNSET)
 
         jina_crawl_request = cls(
+            urls=urls,
             crawler=crawler,
             timeout=timeout,
-            urls=urls,
             return_format=return_format,
             engine=engine,
             page_timeout=page_timeout,
@@ -380,21 +377,4 @@ class JinaCrawlRequest:
             do_not_track=do_not_track,
         )
 
-        jina_crawl_request.additional_properties = d
         return jina_crawl_request
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties

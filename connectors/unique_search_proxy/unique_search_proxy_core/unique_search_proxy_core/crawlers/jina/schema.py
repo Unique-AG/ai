@@ -5,14 +5,15 @@ from typing import Literal
 from pydantic import Field
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
+from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
 
 JinaReturnFormat = Literal["markdown", "html", "text", "screenshot", "pageshot"]
 JinaEngine = Literal["auto", "browser", "direct", "cf-browser-rendering"]
 JinaRetainImages = Literal["none", "all", "alt", "all_p", "alt_p"]
 
 
-class JinaCrawlRequest(BaseCrawlerConfig[CrawlerType.JINA]):
-    """Flat ``POST /v1/crawl`` body for the Jina Reader crawler."""
+class JinaConfig(BaseCrawlerConfig[CrawlerType.JINA]):
+    """Deployment config for the Jina Reader crawler."""
 
     crawler: Literal[CrawlerType.JINA] = CrawlerType.JINA
 
@@ -116,7 +117,11 @@ class JinaCrawlRequest(BaseCrawlerConfig[CrawlerType.JINA]):
     )
 
 
+JinaCrawlRequest = build_crawl_request_model(JinaConfig)
+
+
 __all__ = [
+    "JinaConfig",
     "JinaCrawlRequest",
     "JinaEngine",
     "JinaRetainImages",

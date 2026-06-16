@@ -9,7 +9,6 @@ from typing import (
 )
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
 from ..models.tavily_crawl_request_extract_depth import TavilyCrawlRequestExtractDepth
 from ..models.tavily_crawl_request_output_format import TavilyCrawlRequestOutputFormat
@@ -20,12 +19,11 @@ T = TypeVar("T", bound="TavilyCrawlRequest")
 
 @_attrs_define
 class TavilyCrawlRequest:
-    """Flat ``POST /v1/crawl`` body for the Tavily Extract crawler.
-
+    """
     Attributes:
+        urls (list[str]): URLs to crawl
         crawler (Literal['Tavily'] | Unset):  Default: 'Tavily'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
-        urls (list[str] | Unset): URLs to crawl (required on ``POST /v1/crawl``)
         extract_depth (TavilyCrawlRequestExtractDepth | Unset): Tavily extract depth: `basic` or `advanced`. Advanced
             retrieves more data (tables, embedded content) with higher success. Default:
             TavilyCrawlRequestExtractDepth.ADVANCED.
@@ -40,9 +38,9 @@ class TavilyCrawlRequest:
         include_usage (bool | Unset): Include Tavily credit usage information in the response. Default: False.
     """
 
+    urls: list[str]
     crawler: Literal["Tavily"] | Unset = "Tavily"
     timeout: int | Unset = 30
-    urls: list[str] | Unset = UNSET
     extract_depth: TavilyCrawlRequestExtractDepth | Unset = (
         TavilyCrawlRequestExtractDepth.ADVANCED
     )
@@ -54,16 +52,13 @@ class TavilyCrawlRequest:
     include_images: bool | Unset = False
     include_favicon: bool | Unset = False
     include_usage: bool | Unset = False
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        urls = self.urls
+
         crawler = self.crawler
 
         timeout = self.timeout
-
-        urls: list[str] | Unset = UNSET
-        if not isinstance(self.urls, Unset):
-            urls = self.urls
 
         extract_depth: str | Unset = UNSET
         if not isinstance(self.extract_depth, Unset):
@@ -92,14 +87,16 @@ class TavilyCrawlRequest:
         include_usage = self.include_usage
 
         field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update({})
+
+        field_dict.update(
+            {
+                "urls": urls,
+            }
+        )
         if crawler is not UNSET:
             field_dict["crawler"] = crawler
         if timeout is not UNSET:
             field_dict["timeout"] = timeout
-        if urls is not UNSET:
-            field_dict["urls"] = urls
         if extract_depth is not UNSET:
             field_dict["extractDepth"] = extract_depth
         if format_ is not UNSET:
@@ -120,13 +117,13 @@ class TavilyCrawlRequest:
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
         d = dict(src_dict)
+        urls = cast(list[str], d.pop("urls"))
+
         crawler = cast(Literal["Tavily"] | Unset, d.pop("crawler", UNSET))
         if crawler != "Tavily" and not isinstance(crawler, Unset):
             raise ValueError(f"crawler must match const 'Tavily', got '{crawler}'")
 
         timeout = d.pop("timeout", UNSET)
-
-        urls = cast(list[str], d.pop("urls", UNSET))
 
         _extract_depth = d.pop("extractDepth", UNSET)
         extract_depth: TavilyCrawlRequestExtractDepth | Unset
@@ -167,9 +164,9 @@ class TavilyCrawlRequest:
         include_usage = d.pop("includeUsage", UNSET)
 
         tavily_crawl_request = cls(
+            urls=urls,
             crawler=crawler,
             timeout=timeout,
-            urls=urls,
             extract_depth=extract_depth,
             format_=format_,
             query=query,
@@ -179,21 +176,4 @@ class TavilyCrawlRequest:
             include_usage=include_usage,
         )
 
-        tavily_crawl_request.additional_properties = d
         return tavily_crawl_request
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties

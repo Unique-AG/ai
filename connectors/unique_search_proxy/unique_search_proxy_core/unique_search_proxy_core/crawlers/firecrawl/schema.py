@@ -5,12 +5,13 @@ from typing import Literal
 from pydantic import Field
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
+from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
 
 FirecrawlProxyMode = Literal["basic", "enhanced", "auto"]
 
 
-class FirecrawlCrawlRequest(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
-    """Flat ``POST /v1/crawl`` body for Firecrawl (scrape or batch scrape)."""
+class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
+    """Deployment config for Firecrawl (scrape or batch scrape)."""
 
     crawler: Literal[CrawlerType.FIRECRAWL] = CrawlerType.FIRECRAWL
 
@@ -86,7 +87,11 @@ class FirecrawlCrawlRequest(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
     )
 
 
+FirecrawlCrawlRequest = build_crawl_request_model(FirecrawlConfig)
+
+
 __all__ = [
+    "FirecrawlConfig",
     "FirecrawlCrawlRequest",
     "FirecrawlProxyMode",
 ]

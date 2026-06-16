@@ -51,7 +51,7 @@ class BaseAgentEngineConfig(BaseModel, Generic[T]):
         default=DEFAULT_GENERATION_INSTRUCTIONS,
         description="Instructions injected into the grounding agent.",
     )
-    output_schema: Annotated[type[BaseModel], SkipJsonSchema()] = Field(
+    output_schema: Annotated[type[BaseModel], SkipJsonSchema] = Field(
         default=AgentSearchOutput,
         exclude=True,
         description=(

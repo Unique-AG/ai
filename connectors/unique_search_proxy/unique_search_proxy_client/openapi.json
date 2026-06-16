@@ -579,6 +579,15 @@
       },
       "BasicCrawlRequest": {
         "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
           "crawler": {
             "type": "string",
             "const": "Basic",
@@ -587,37 +596,35 @@
           },
           "timeout": {
             "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
           },
-          "urls": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Urls",
-            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
-          },
           "contentTypes": {
             "$ref": "#/components/schemas/ContentTypeToggles",
             "title": "Content types",
-            "description": "Enable built-in processing per media type. Unchecked types return raw body only."
+            "description": "Enable built-in processing per media type. Unchecked types return raw body only.",
+            "default": {
+              "html": true,
+              "xhtml": true,
+              "plainText": true,
+              "markdown": true,
+              "pdf": false
+            }
           },
           "maxConcurrentRequests": {
             "type": "integer",
-            "maximum": 50.0,
-            "minimum": 1.0,
             "title": "Maximum concurrent HTTP fetches",
             "description": "Maximum concurrent HTTP fetches",
             "default": 10
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "Basic Crawl Request",
-        "description": "Flat ``POST /v1/crawl`` body for the HTTP basic crawler."
+        "required": [
+          "urls"
+        ],
+        "title": "Basic Crawl Request"
       },
       "BingAgentSearchRequest": {
         "properties": {
@@ -964,6 +971,15 @@
       },
       "FirecrawlCrawlRequest": {
         "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
           "crawler": {
             "type": "string",
             "const": "Firecrawl",
@@ -972,19 +988,9 @@
           },
           "timeout": {
             "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
-          },
-          "urls": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Urls",
-            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
           },
           "onlyMainContent": {
             "type": "boolean",
@@ -1001,8 +1007,7 @@
           "maxConcurrency": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 1.0
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -1019,7 +1024,6 @@
           },
           "waitFor": {
             "type": "integer",
-            "minimum": 0.0,
             "title": "Wait for",
             "description": "Extra delay in milliseconds before fetching page content.",
             "default": 0
@@ -1101,8 +1105,7 @@
           "maxAge": {
             "anyOf": [
               {
-                "type": "integer",
-                "minimum": 0.0
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -1112,9 +1115,12 @@
             "description": "Return cached page content younger than this age in milliseconds."
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "Firecrawl Crawl Request",
-        "description": "Flat ``POST /v1/crawl`` body for Firecrawl (scrape or batch scrape)."
+        "required": [
+          "urls"
+        ],
+        "title": "Firecrawl Crawl Request"
       },
       "GoogleSearchRequest": {
         "properties": {
@@ -1311,6 +1317,15 @@
       },
       "JinaCrawlRequest": {
         "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
           "crawler": {
             "type": "string",
             "const": "Jina",
@@ -1319,19 +1334,9 @@
           },
           "timeout": {
             "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
-          },
-          "urls": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Urls",
-            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
           },
           "returnFormat": {
             "type": "string",
@@ -1361,9 +1366,7 @@
           "pageTimeout": {
             "anyOf": [
               {
-                "type": "integer",
-                "maximum": 180.0,
-                "minimum": 1.0
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -1374,8 +1377,6 @@
           },
           "maxConcurrentRequests": {
             "type": "integer",
-            "maximum": 50.0,
-            "minimum": 1.0,
             "title": "Maximum concurrent reader requests",
             "description": "Maximum concurrent Jina Reader POST requests.",
             "default": 10
@@ -1517,9 +1518,12 @@
             "default": true
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "Jina Crawl Request",
-        "description": "Flat ``POST /v1/crawl`` body for the Jina Reader crawler."
+        "required": [
+          "urls"
+        ],
+        "title": "Jina Crawl Request"
       },
       "PerUrlError": {
         "properties": {
@@ -1790,6 +1794,15 @@
       },
       "TavilyCrawlRequest": {
         "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
           "crawler": {
             "type": "string",
             "const": "Tavily",
@@ -1798,19 +1811,9 @@
           },
           "timeout": {
             "type": "integer",
-            "maximum": 600.0,
-            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
-          },
-          "urls": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Urls",
-            "description": "URLs to crawl (required on ``POST /v1/crawl``)"
           },
           "extractDepth": {
             "type": "string",
@@ -1847,9 +1850,7 @@
           "chunksPerSource": {
             "anyOf": [
               {
-                "type": "integer",
-                "maximum": 5.0,
-                "minimum": 1.0
+                "type": "integer"
               },
               {
                 "type": "null"
@@ -1877,9 +1878,12 @@
             "default": false
           }
         },
+        "additionalProperties": false,
         "type": "object",
-        "title": "Tavily Crawl Request",
-        "description": "Flat ``POST /v1/crawl`` body for the Tavily Extract crawler."
+        "required": [
+          "urls"
+        ],
+        "title": "Tavily Crawl Request"
       },
       "ValidationError": {
         "properties": {

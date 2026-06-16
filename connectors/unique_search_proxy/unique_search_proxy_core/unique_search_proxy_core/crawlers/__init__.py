@@ -4,7 +4,10 @@ from unique_search_proxy_core.crawlers.base import (
     CrawlerRequestT,
     CrawlerType,
 )
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
+from unique_search_proxy_core.crawlers.basic.schema import (
+    BasicConfig,
+    BasicCrawlRequest,
+)
 from unique_search_proxy_core.crawlers.config_types import (
     CrawlerConfigTypes,
     CrawlRequest,
@@ -19,6 +22,7 @@ from unique_search_proxy_core.crawlers.params import merge_crawler_config_and_in
 __all__ = [
     "BaseCrawler",
     "BaseCrawlerConfig",
+    "BasicConfig",
     "BasicCrawlRequest",
     "CrawlerConfigTypes",
     "CrawlerRequestT",

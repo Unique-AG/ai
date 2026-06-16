@@ -10,7 +10,6 @@ from typing import (
 )
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
 from ..models.firecrawl_crawl_request_proxy_mode import FirecrawlCrawlRequestProxyMode
 from ..types import UNSET, Unset
@@ -26,12 +25,11 @@ T = TypeVar("T", bound="FirecrawlCrawlRequest")
 
 @_attrs_define
 class FirecrawlCrawlRequest:
-    """Flat ``POST /v1/crawl`` body for Firecrawl (scrape or batch scrape).
-
+    """
     Attributes:
+        urls (list[str]): URLs to crawl
         crawler (Literal['Firecrawl'] | Unset):  Default: 'Firecrawl'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
-        urls (list[str] | Unset): URLs to crawl (required on ``POST /v1/crawl``)
         only_main_content (bool | Unset): Exclude headers, navs, footers before markdown generation. Default: True.
         only_clean_content (bool | Unset): LLM pass to remove residual boilerplate from markdown. Default: False.
         max_concurrency (int | None | Unset): Maximum concurrent scrapes for this batch job.
@@ -49,9 +47,9 @@ class FirecrawlCrawlRequest:
         max_age (int | None | Unset): Return cached page content younger than this age in milliseconds.
     """
 
+    urls: list[str]
     crawler: Literal["Firecrawl"] | Unset = "Firecrawl"
     timeout: int | Unset = 30
-    urls: list[str] | Unset = UNSET
     only_main_content: bool | Unset = True
     only_clean_content: bool | Unset = False
     max_concurrency: int | None | Unset = UNSET
@@ -65,20 +63,17 @@ class FirecrawlCrawlRequest:
     exclude_tags: list[str] | None | Unset = UNSET
     scrape_headers: FirecrawlCrawlRequestScrapeHeadersType0 | None | Unset = UNSET
     max_age: int | None | Unset = UNSET
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
             FirecrawlCrawlRequestScrapeHeadersType0,
         )
 
+        urls = self.urls
+
         crawler = self.crawler
 
         timeout = self.timeout
-
-        urls: list[str] | Unset = UNSET
-        if not isinstance(self.urls, Unset):
-            urls = self.urls
 
         only_main_content = self.only_main_content
 
@@ -137,14 +132,16 @@ class FirecrawlCrawlRequest:
             max_age = self.max_age
 
         field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
-        field_dict.update({})
+
+        field_dict.update(
+            {
+                "urls": urls,
+            }
+        )
         if crawler is not UNSET:
             field_dict["crawler"] = crawler
         if timeout is not UNSET:
             field_dict["timeout"] = timeout
-        if urls is not UNSET:
-            field_dict["urls"] = urls
         if only_main_content is not UNSET:
             field_dict["onlyMainContent"] = only_main_content
         if only_clean_content is not UNSET:
@@ -181,13 +178,13 @@ class FirecrawlCrawlRequest:
         )
 
         d = dict(src_dict)
+        urls = cast(list[str], d.pop("urls"))
+
         crawler = cast(Literal["Firecrawl"] | Unset, d.pop("crawler", UNSET))
         if crawler != "Firecrawl" and not isinstance(crawler, Unset):
             raise ValueError(f"crawler must match const 'Firecrawl', got '{crawler}'")
 
         timeout = d.pop("timeout", UNSET)
-
-        urls = cast(list[str], d.pop("urls", UNSET))
 
         only_main_content = d.pop("onlyMainContent", UNSET)
 
@@ -284,9 +281,9 @@ class FirecrawlCrawlRequest:
         max_age = _parse_max_age(d.pop("maxAge", UNSET))
 
         firecrawl_crawl_request = cls(
+            urls=urls,
             crawler=crawler,
             timeout=timeout,
-            urls=urls,
             only_main_content=only_main_content,
             only_clean_content=only_clean_content,
             max_concurrency=max_concurrency,
@@ -302,21 +299,4 @@ class FirecrawlCrawlRequest:
             max_age=max_age,
         )
 
-        firecrawl_crawl_request.additional_properties = d
         return firecrawl_crawl_request
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties

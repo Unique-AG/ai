@@ -5,13 +5,14 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
+from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
 
 TavilyExtractDepth = Literal["basic", "advanced"]
 TavilyExtractFormat = Literal["markdown", "text"]
 
 
-class TavilyCrawlRequest(BaseCrawlerConfig[CrawlerType.TAVILY]):
-    """Flat ``POST /v1/crawl`` body for the Tavily Extract crawler."""
+class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
+    """Deployment config for the Tavily Extract crawler."""
 
     crawler: Literal[CrawlerType.TAVILY] = CrawlerType.TAVILY
 
@@ -63,13 +64,17 @@ class TavilyCrawlRequest(BaseCrawlerConfig[CrawlerType.TAVILY]):
     )
 
     @model_validator(mode="after")
-    def _chunks_per_source_requires_query(self) -> TavilyCrawlRequest:
+    def _chunks_per_source_requires_query(self) -> TavilyConfig:
         if self.chunks_per_source is not None and not self.query:
             raise ValueError("chunks_per_source requires query to be set")
         return self
 
 
+TavilyCrawlRequest = build_crawl_request_model(TavilyConfig)
+
+
 __all__ = [
+    "TavilyConfig",
     "TavilyCrawlRequest",
     "TavilyExtractDepth",
     "TavilyExtractFormat",

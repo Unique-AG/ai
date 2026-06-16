@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
-from unique_search_proxy_core.schema import CrawlUrlResult, camelized_model_config
+from unique_search_proxy_core.schema import CrawlUrlResult, deployment_model_config
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -25,9 +25,9 @@ class CrawlerType(StrEnum):
 
 
 class BaseCrawlerConfig(BaseModel, Generic[CrawlerTypeT]):
-    """Flat ``POST /v1/crawl`` body and deployment config; each crawler narrows ``crawler``."""
+    """Deployment config for a crawler; each crawler narrows ``crawler`` with a Literal."""
 
-    model_config = camelized_model_config
+    model_config = deployment_model_config
 
     crawler: CrawlerTypeT
     timeout: int = Field(
@@ -35,10 +35,6 @@ class BaseCrawlerConfig(BaseModel, Generic[CrawlerTypeT]):
         ge=1,
         le=600,
         description="Request timeout in seconds",
-    )
-    urls: list[str] = Field(
-        default_factory=list,
-        description="URLs to crawl (required on ``POST /v1/crawl``)",
     )
 
 
@@ -56,4 +52,4 @@ class BaseCrawler(ABC, Generic[CrawlerRequestT]):
 
     @abstractmethod
     async def crawl(self, request: CrawlerRequestT) -> list[CrawlUrlResult]:
-        """Crawl URLs from a flat config model (``BasicCrawlRequest``, …)."""
+        """Crawl URLs from a derived request model (``BasicCrawlRequest``, …)."""

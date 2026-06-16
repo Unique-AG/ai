@@ -6,8 +6,13 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from unique_search_proxy_core.crawlers.config_types import crawler_config_from_request
+from unique_search_proxy_core.crawlers.projection import (
+    URLS_FIELD,
+    build_crawl_request_model,
+)
+
 CRAWLER_FIELD = "crawler"
-URLS_FIELD = "urls"
 TIMEOUT_FIELD = "timeout"
 
 _DEPLOYMENT_DEFAULT_EXCLUDED_FIELDS = frozenset({CRAWLER_FIELD, URLS_FIELD})
@@ -28,10 +33,13 @@ def merge_crawler_config_and_invocation(
     invocation: dict[str, Any],
 ) -> BaseModel:
     """Merge deployment config defaults with caller/LLM args into a flat crawl request."""
+    request_model = build_crawl_request_model(type(config))
     defaults = crawler_config_defaults(config)
     merged: dict[str, Any] = {**defaults, **invocation}
     merged[CRAWLER_FIELD] = getattr(config, CRAWLER_FIELD)
-    return type(config).model_validate(merged)
+    request = request_model.model_validate(merged)
+    crawler_config_from_request(request)
+    return request
 
 
 __all__ = [

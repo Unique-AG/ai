@@ -5,7 +5,7 @@ from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeTog
 from unique_search_proxy_core.crawlers.basic.processing.policy import (
     ContentTypeHandlerPolicy,
 )
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
+from unique_search_proxy_core.crawlers.basic.schema import BasicConfig
 
 from unique_search_proxy_client.web.core.crawlers.basic.processing import (
     CONTENT_TYPE_PROCESSORS,
@@ -130,7 +130,7 @@ def test_content_types_to_handlers() -> None:
 
 @pytest.mark.ai
 def test_content_types_defaults_enable_common_text_types() -> None:
-    toggles = BasicCrawlRequest().content_types
+    toggles = BasicConfig().content_types
     assert toggles == ContentTypeToggles()
     assert toggles.to_handlers() == {
         "text/html": ContentTypeHandlerPolicy.ALLOW,

@@ -31,10 +31,7 @@ def provider_config_json_schema(kind: ProviderKind, provider_id: str) -> dict[st
 
 def provider_default_config(kind: ProviderKind, provider_id: str) -> dict[str, Any]:
     """Default deployment config instance serialized with camelCase aliases."""
-    data = _config_model(kind, provider_id)().model_dump(mode="json", by_alias=True)
-    if kind == "crawler":
-        data.pop("urls", None)
-    return data
+    return _config_model(kind, provider_id)().model_dump(mode="json", by_alias=True)
 
 
 def union_config_json_schema(models: list[type[BaseModel]]) -> dict[str, Any]:

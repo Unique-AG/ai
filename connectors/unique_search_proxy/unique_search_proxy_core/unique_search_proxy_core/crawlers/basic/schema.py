@@ -6,10 +6,11 @@ from pydantic import Field
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
+from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
 
 
-class BasicCrawlRequest(BaseCrawlerConfig[CrawlerType.BASIC]):
-    """Flat ``POST /v1/crawl`` body for the HTTP basic crawler."""
+class BasicConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
+    """Deployment config for the HTTP basic crawler."""
 
     crawler: Literal[CrawlerType.BASIC] = CrawlerType.BASIC
 
@@ -30,6 +31,10 @@ class BasicCrawlRequest(BaseCrawlerConfig[CrawlerType.BASIC]):
     )
 
 
+BasicCrawlRequest = build_crawl_request_model(BasicConfig)
+
+
 __all__ = [
+    "BasicConfig",
     "BasicCrawlRequest",
 ]
