@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, AsyncIterator, Generic, TypeVar
+from typing import TYPE_CHECKING, AsyncIterator, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
@@ -51,7 +51,7 @@ class BaseAgentEngineConfig(BaseModel, Generic[T]):
         default=DEFAULT_GENERATION_INSTRUCTIONS,
         description="Instructions injected into the grounding agent.",
     )
-    output_schema: Annotated[type[BaseModel], SkipJsonSchema] = Field(
+    output_schema: SkipJsonSchema[type[BaseModel]] = Field(
         default=AgentSearchOutput,
         exclude=True,
         description=(
