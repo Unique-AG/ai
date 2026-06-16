@@ -5,11 +5,11 @@ from typing import Any
 
 from azure.ai.agents.models import (
     AgentThreadCreationOptions,
-    BingGroundingTool,
     MessageTextContent,
     RunStatus,
     ThreadMessageOptions,
 )
+from azure.ai.agents.models._patch import BingGroundingTool
 from azure.ai.projects.aio import AIProjectClient
 from pydantic import BaseModel
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing_extensions import reveal_type
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 
 from unique_search_proxy_sdk._typed_endpoints import GoogleSearchEndpoint
@@ -26,7 +25,6 @@ async def _search_provider_kwargs(client: SearchClient) -> None:
 def _search_endpoint_types(client: SearchClient) -> None:
     google = client.google
     _: GoogleSearchEndpoint = google
-    reveal_type(google)
 
 
 async def _agent_provider_kwargs(client: AgentSearchClient) -> None:
