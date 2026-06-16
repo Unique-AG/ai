@@ -366,7 +366,6 @@ async def _build_common(
     ):
         user_memory_state = await load_user_memory(
             event=event,
-            content_service=content_service,
             config=config.agent.services.user_memory_config,
             logger=logger,
         )

@@ -4,8 +4,11 @@ from logging import Logger
 
 import unique_sdk
 from unique_toolkit.app import ChatEvent
-from unique_toolkit.content.functions import upload_content_from_bytes_async
-from unique_toolkit.content.service import ContentService
+from unique_toolkit.content.functions import (
+    download_content_to_bytes_async,
+    search_contents_async,
+    upload_content_from_bytes_async,
+)
 from unique_toolkit.language_model import (
     DEFAULT_GPT_4o,
     LanguageModelMessages,
@@ -113,7 +116,6 @@ def enforce_token_cap(
 async def load_user_memory(
     *,
     event: ChatEvent,
-    content_service: ContentService,
     config: UserMemoryConfig,
     logger: Logger,
 ) -> UserMemoryState | None:
@@ -135,8 +137,8 @@ async def load_user_memory(
 
     text = await download_user_memory(
         scope_id=scope_id,
-        chat_id=event.payload.chat_id or "",
-        content_service=content_service,
+        user_id=user_id,
+        company_id=company_id,
         logger=logger,
     )
     return UserMemoryState(
@@ -281,14 +283,16 @@ async def _resolve_root_folder(
 async def download_user_memory(
     *,
     scope_id: str,
-    chat_id: str,
-    content_service: ContentService,
+    user_id: str,
+    company_id: str,
     logger: Logger,
 ) -> str:
     try:
-        contents = await content_service.search_contents_async(
+        contents = await search_contents_async(
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=None,
             where={"ownerId": {"equals": scope_id}},
-            chat_id=chat_id,
         )
     except Exception as exc:
         logger.warning(
@@ -312,9 +316,11 @@ async def download_user_memory(
         return ""
 
     try:
-        content_bytes = await content_service.download_content_to_bytes_async(
+        content_bytes = await download_content_to_bytes_async(
+            user_id=user_id,
+            company_id=company_id,
             content_id=memory_content.id,
-            chat_id=chat_id,
+            chat_id=None,
         )
         text = content_bytes.decode("utf-8", errors="replace")
         logger.info(

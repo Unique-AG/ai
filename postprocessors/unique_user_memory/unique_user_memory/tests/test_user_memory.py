@@ -93,42 +93,68 @@ async def test_consolidate_user_memory_keeps_existing_on_malformed_output(
 
 
 @pytest.mark.asyncio
-async def test_download_user_memory_returns_empty_when_file_missing() -> None:
-    content_service = MagicMock()
-    content_service.search_contents_async = AsyncMock(return_value=[])
+async def test_download_user_memory_returns_empty_when_file_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    search_contents = AsyncMock(return_value=[])
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.search_contents_async",
+        search_contents,
+    )
 
     result = await download_user_memory(
         scope_id="scope_1",
-        chat_id="chat_1",
-        content_service=content_service,
+        user_id="user_1",
+        company_id="company_1",
         logger=MagicMock(),
     )
 
     assert result == ""
+    search_contents.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        chat_id=None,
+        where={"ownerId": {"equals": "scope_1"}},
+    )
 
 
 @pytest.mark.asyncio
-async def test_download_user_memory_downloads_existing_file_to_memory() -> None:
+async def test_download_user_memory_downloads_existing_file_to_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     content = MagicMock()
     content.id = "content_1"
     content.key = "memory.md"
-    content_service = MagicMock()
-    content_service.search_contents_async = AsyncMock(return_value=[content])
-    content_service.download_content_to_bytes_async = AsyncMock(
-        return_value=b"# User Memory\n\n## Identity\n- Test"
+    search_contents = AsyncMock(return_value=[content])
+    download_content = AsyncMock(return_value=b"# User Memory\n\n## Identity\n- Test")
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.search_contents_async",
+        search_contents,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.download_content_to_bytes_async",
+        download_content,
     )
 
     result = await download_user_memory(
         scope_id="scope_1",
-        chat_id="chat_1",
-        content_service=content_service,
+        user_id="user_1",
+        company_id="company_1",
         logger=MagicMock(),
     )
 
     assert result == "# User Memory\n\n## Identity\n- Test"
-    content_service.download_content_to_bytes_async.assert_awaited_once_with(
+    search_contents.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        chat_id=None,
+        where={"ownerId": {"equals": "scope_1"}},
+    )
+    download_content.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
         content_id="content_1",
-        chat_id="chat_1",
+        chat_id=None,
     )
 
 
