@@ -56,6 +56,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
@@ -108,6 +109,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         description=(
             "Whether chat users may override the language model for a single message"
         ),
+    )
+
+    allow_user_memory: bool = Field(
+        default=False,
+        description=("Whether persistent per-user memory is active for this space."),
     )
 
     switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
@@ -284,6 +290,12 @@ class UniqueAIServices(BaseToolConfig):
 
     tool_progress_reporter_config: SkipJsonSchema[ToolProgressReporterConfig] = (
         ToolProgressReporterConfig()
+    )
+
+    user_memory_config: UserMemoryConfig = Field(
+        title="User Memory",
+        description="Configuration for persistent user memory.",
+        default_factory=UserMemoryConfig,
     )
 
     @field_validator("stock_ticker_config", mode="before")

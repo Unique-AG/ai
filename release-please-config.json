@@ -52,6 +52,9 @@
     "postprocessors/unique_stock_ticker": {
       "component": "unique-stock-ticker"
     },
+    "postprocessors/unique_user_memory": {
+      "component": "unique-user-memory"
+    },
     "connectors/unique_quartr": {
       "component": "unique-quartr"
     },
@@ -91,6 +94,7 @@
         "unique-internal-search",
         "unique-follow-up-questions",
         "unique-stock-ticker",
+        "unique-user-memory",
         "unique-quartr",
         "unique-six",
         "unique-search-proxy",
