@@ -471,14 +471,14 @@ class TestUniqueAIConfigUserMemory:
         config = UniqueAIConfig()
 
         assert isinstance(
-            config.agent.experimental.user_memory_config, UserMemoryConfig
+            config.agent.services.user_memory_config, UserMemoryConfig
         )
-        assert config.agent.experimental.user_memory_config.enabled is False
+        assert config.agent.services.user_memory_config.enabled is False
 
     def test_user_memory_config_parses_enabled_payload(self):
         config = UniqueAIConfig(
             agent={
-                "experimental": {
+                "services": {
                     "user_memory_config": {
                         "enabled": True,
                         "max_tokens": 1500,
@@ -487,6 +487,16 @@ class TestUniqueAIConfigUserMemory:
             }
         )
 
-        memory_config = config.agent.experimental.user_memory_config
+        memory_config = config.agent.services.user_memory_config
         assert memory_config.enabled is True
         assert memory_config.max_tokens == 1500
+
+    def test_allow_user_memory_defaults_to_false(self):
+        config = UniqueAIConfig()
+
+        assert config.space.allow_user_memory is False
+
+    def test_allow_user_memory_parses_camel_case_payload(self):
+        config = UniqueAIConfig(space={"allowUserMemory": True})
+
+        assert config.space.allow_user_memory is True

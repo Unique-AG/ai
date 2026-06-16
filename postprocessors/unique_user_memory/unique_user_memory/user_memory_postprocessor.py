@@ -29,6 +29,7 @@ class UserMemoryPostprocessor(Postprocessor):
         self._new_memory: str | None = None
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+        self._logger.info("[user-memory] running postprocessor")
         user_id = self._event.user_id
         company_id = self._event.company_id
         if not user_id or not company_id:
@@ -55,6 +56,7 @@ class UserMemoryPostprocessor(Postprocessor):
             company_id=company_id,
             logger=self._logger,
         )
+        self._logger.info("[user-memory] memory updated and uploaded")
 
     def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse

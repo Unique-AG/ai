@@ -360,18 +360,21 @@ async def _build_common(
         )
 
     user_memory_text = ""
-    if config.agent.experimental.user_memory_config.enabled:
+    if (
+        config.space.allow_user_memory
+        or config.agent.services.user_memory_config.enabled
+    ):
         user_memory_state = await load_user_memory(
             event=event,
             content_service=content_service,
-            config=config.agent.experimental.user_memory_config,
+            config=config.agent.services.user_memory_config,
             logger=logger,
         )
         if user_memory_state is not None:
             user_memory_text = user_memory_state.text
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
-                    config=config.agent.experimental.user_memory_config,
+                    config=config.agent.services.user_memory_config,
                     event=event,
                     state=user_memory_state,
                     logger=logger,

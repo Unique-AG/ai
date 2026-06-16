@@ -111,6 +111,13 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         ),
     )
 
+    allow_user_memory: bool = Field(
+        default=False,
+        description=(
+            "Whether persistent per-user memory is active for this space."
+        ),
+    )
+
     switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
         default_factory=list,
         description=("Language models selectable by chat users for a single message."),
@@ -287,6 +294,12 @@ class UniqueAIServices(BaseToolConfig):
         ToolProgressReporterConfig()
     )
 
+    user_memory_config: UserMemoryConfig = Field(
+        title="User Memory",
+        description="Configuration for persistent user memory.",
+        default_factory=UserMemoryConfig,
+    )
+
     @field_validator("stock_ticker_config", mode="before")
     @classmethod
     def check_if_stock_ticker_config_is_none(cls, stock_ticker_config):
@@ -416,11 +429,6 @@ class ExperimentalConfig(BaseToolConfig):
         title="Todo Tool",
         description="Configuration for the todo tool",
         default_factory=TodoConfig,
-    )
-    user_memory_config: UserMemoryConfig = Field(
-        title="User Memory",
-        description="Configuration for persistent user memory.",
-        default_factory=UserMemoryConfig,
     )
 
     uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()

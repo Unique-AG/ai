@@ -59,10 +59,9 @@ def _make_event(tool_choices):
     return event
 
 
-@pytest.mark.asyncio
-async def test_build_common_registers_user_memory_postprocessor_when_enabled(
+def _patch_build_common_user_memory(
     monkeypatch: pytest.MonkeyPatch,
-) -> None:
+) -> tuple[MagicMock, AsyncMock]:
     event = _make_event(tool_choices=[])
     event.payload.additional_parameters = None
     event.payload.mcp_servers = []
@@ -120,8 +119,17 @@ async def test_build_common_registers_user_memory_postprocessor_when_enabled(
         load_user_memory,
     )
 
+    return event, load_user_memory
+
+
+@pytest.mark.asyncio
+async def test_build_common_registers_user_memory_postprocessor_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+
     config = UniqueAIConfig(
-        agent={"experimental": {"user_memory_config": {"enabled": True}}}
+        agent={"services": {"user_memory_config": {"enabled": True}}}
     )
 
     common_components = await _build_common(
@@ -131,7 +139,35 @@ async def test_build_common_registers_user_memory_postprocessor_when_enabled(
     )
 
     load_user_memory.assert_awaited_once()
-    assert common_components.user_memory_text == memory_state.text
+    assert common_components.user_memory_text == "remembered"
+    postprocessor_names = [
+        postprocessor.name
+        for postprocessor in common_components.postprocessor_manager.get_postprocessors(
+            "ignored"
+        )
+    ]
+    assert "UserMemoryPostprocessor" in postprocessor_names
+
+
+@pytest.mark.asyncio
+async def test_build_common_registers_user_memory_when_space_allow_user_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+
+    # Space-level allow_user_memory must activate memory even when the
+    # services user_memory_config.enabled fallback is left at its default.
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+    assert config.agent.services.user_memory_config.enabled is False
+
+    common_components = await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    assert common_components.user_memory_text == "remembered"
     postprocessor_names = [
         postprocessor.name
         for postprocessor in common_components.postprocessor_manager.get_postprocessors(

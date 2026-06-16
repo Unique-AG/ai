@@ -367,9 +367,8 @@ async def consolidate_user_memory(
         language_model=config.language_model,
     )
     logger.info(
-        "[user-memory] consolidating turn user_id=%s | existing_memory_tokens=%d | "
+        "[user-memory] consolidating turn - existing_memory_tokens=%d | "
         "user_msg_chars=%d | assistant_msg_chars=%d",
-        user_id,
         count_tokens(content=safe_current, language_model=config.language_model),
         len(user_message or ""),
         len(assistant_message or ""),
