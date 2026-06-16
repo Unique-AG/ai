@@ -84,7 +84,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
 
 
 def _build_response(
-    request: BingAgentSearchRequest, # type: ignore[valid-type]
+    request: BingAgentSearchRequest,  # type: ignore[valid-type]
     *,
     answer: str,
     raw: Any,

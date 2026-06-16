@@ -7,7 +7,7 @@ from unique_search_proxy_core.crawlers.tavily.schema import TavilyCrawlRequest
 
 def build_tavily_extract_body(
     urls: list[str],
-    request: TavilyCrawlRequest, # type: ignore[valid-type]
+    request: TavilyCrawlRequest,  # type: ignore[valid-type]
 ) -> dict[str, Any]:
     """Build Tavily Extract API JSON body for one batch (max 20 URLs)."""
     extract_timeout = min(max(request.timeout, 1), 60)

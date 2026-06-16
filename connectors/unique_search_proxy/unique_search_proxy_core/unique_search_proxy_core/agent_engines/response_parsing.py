@@ -46,7 +46,10 @@ async def convert_response_to_search_results(
             )
             return await strategy(response)
         except Exception:
-            _LOGGER.exception("Error converting response to search results with strategy: %s", strategy.__class__.__name__)
+            _LOGGER.exception(
+                "Error converting response to search results with strategy: %s",
+                strategy.__class__.__name__,
+            )
             continue
     raise ValueError("No conversion strategy found for the response")
 

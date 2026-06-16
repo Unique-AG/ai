@@ -123,7 +123,7 @@ class TavilyCrawlerService(BaseCrawler[TavilyCrawlRequest]):
         self,
         client: httpx.AsyncClient,
         batch_urls: list[str],
-        request: TavilyCrawlRequest, # type: ignore[valid-type]
+        request: TavilyCrawlRequest,  # type: ignore[valid-type]
         *,
         timeout: float,
     ) -> dict[str, CrawlUrlResult]:

@@ -90,7 +90,7 @@ class JinaCrawlerService(BaseCrawler[JinaCrawlRequest]):
         client: httpx.AsyncClient,
         url: str,
         *,
-        request: JinaCrawlRequest, # type: ignore[valid-type]
+        request: JinaCrawlRequest,  # type: ignore[valid-type]
         headers: dict[str, str],
         timeout: float,
     ) -> CrawlUrlResult:

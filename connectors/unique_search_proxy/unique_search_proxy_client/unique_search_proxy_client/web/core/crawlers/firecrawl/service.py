@@ -81,7 +81,7 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
         client: httpx.AsyncClient,
         *,
         url: str,
-        request: FirecrawlCrawlRequest, # type: ignore[valid-type]
+        request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
         timeout: int,
     ) -> CrawlUrlResult:
         body = build_firecrawl_scrape_body(url, request)
@@ -139,7 +139,7 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
         client: httpx.AsyncClient,
         *,
         urls: list[str],
-        request: FirecrawlCrawlRequest, # type: ignore[valid-type]
+        request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
         timeout: int,
         deadline: float,
     ) -> list[CrawlUrlResult]:

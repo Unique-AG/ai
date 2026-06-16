@@ -8,7 +8,7 @@ from unique_search_proxy_core.crawlers.firecrawl.schema import (
 
 
 def _firecrawl_common_scrape_fields(
-    request: FirecrawlCrawlRequest, # type: ignore[valid-type]
+    request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
 ) -> dict[str, Any]:
     scrape_timeout_ms = min(max(request.timeout * 1000, 1000), 300_000)
     body: dict[str, Any] = {
@@ -37,7 +37,7 @@ def _firecrawl_common_scrape_fields(
 
 def build_firecrawl_scrape_body(
     url: str,
-    request: FirecrawlCrawlRequest, # type: ignore[valid-type]
+    request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
 ) -> dict[str, Any]:
     """Build Firecrawl ``POST /v2/scrape`` JSON body for a single URL."""
     body = _firecrawl_common_scrape_fields(request)
@@ -47,7 +47,7 @@ def build_firecrawl_scrape_body(
 
 def build_firecrawl_batch_scrape_body(
     urls: list[str],
-    request: FirecrawlCrawlRequest, # type: ignore[valid-type]
+    request: FirecrawlCrawlRequest,  # type: ignore[valid-type]
 ) -> dict[str, Any]:
     """Build Firecrawl ``POST /v2/batch/scrape`` JSON body."""
     body = _firecrawl_common_scrape_fields(request)
