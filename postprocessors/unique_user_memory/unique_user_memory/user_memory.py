@@ -211,6 +211,35 @@ async def ensure_user_memory_folder(
             )
             return None
 
+    try:
+        await unique_sdk.Folder.add_access_async(
+            user_id=user_id,
+            company_id=company_id,
+            scopeId=scope_id,
+            scopeAccesses=[
+                {
+                    "entityId": user_id,
+                    "type": "READ",
+                    "entityType": "USER",
+                },
+                {
+                    "entityId": user_id,
+                    "type": "WRITE",
+                    "entityType": "USER",
+                },
+            ],
+            applyToSubScopes=True,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] failed to grant read/write access on scope %s "
+            "for user %s: [%s] %s",
+            scope_id,
+            user_id,
+            type(exc).__name__,
+            exc,
+        )
+
     return scope_id
 
 
