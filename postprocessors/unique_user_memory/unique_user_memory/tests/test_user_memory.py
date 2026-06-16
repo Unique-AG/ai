@@ -208,16 +208,7 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
     )
     create_paths.assert_not_awaited()
     get_groups.assert_not_awaited()
-    add_access.assert_awaited_once_with(
-        user_id="user_1",
-        company_id="company_1",
-        scopeId="scope_user",
-        scopeAccesses=[
-            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
-            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
-        ],
-        applyToSubScopes=True,
-    )
+    add_access.assert_not_awaited()
 
 
 @pytest.mark.asyncio

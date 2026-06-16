@@ -175,43 +175,42 @@ async def ensure_user_memory_folder(
             company_id=company_id,
             folderPath=user_folder_path,
         )
-        scope_id = info.get("id")
+        return info.get("id")
     except Exception:
-        scope_id = None
+        logger.warning("[user-memory] user memory folder not found - creating new one")
 
+    try:
+        created = await unique_sdk.Folder.create_paths_async(
+            user_id=user_id,
+            company_id=company_id,
+            parentScopeId=root_scope_id,
+            relativePaths=[user_id],
+            inheritAccess=False,
+        )
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] failed to create user folder %s: [%s] %s",
+            user_folder_path,
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    created_folders = (created or {}).get("createdFolders", []) or []
+    if len(created_folders) > 1:
+        logger.warning(
+            "[user-memory] create_paths returned %d folders for %s, "
+            "expected exactly 1; using the first one",
+            len(created_folders),
+            user_folder_path,
+        )
+    scope_id = created_folders[0].get("id") if created_folders else None
     if not scope_id:
-        try:
-            created = await unique_sdk.Folder.create_paths_async(
-                user_id=user_id,
-                company_id=company_id,
-                parentScopeId=root_scope_id,
-                relativePaths=[user_id],
-                inheritAccess=False,
-            )
-        except Exception as exc:
-            logger.warning(
-                "[user-memory] failed to create user folder %s: [%s] %s",
-                user_folder_path,
-                type(exc).__name__,
-                exc,
-            )
-            return None
-
-        created_folders = (created or {}).get("createdFolders", []) or []
-        if len(created_folders) > 1:
-            logger.warning(
-                "[user-memory] create_paths returned %d folders for %s, "
-                "expected exactly 1; using the first one",
-                len(created_folders),
-                user_folder_path,
-            )
-        scope_id = created_folders[0].get("id") if created_folders else None
-        if not scope_id:
-            logger.warning(
-                "[user-memory] create_paths returned no folder id for %s",
-                user_folder_path,
-            )
-            return None
+        logger.warning(
+            "[user-memory] create_paths returned no folder id for %s",
+            user_folder_path,
+        )
+        return None
 
     try:
         await unique_sdk.Folder.add_access_async(
