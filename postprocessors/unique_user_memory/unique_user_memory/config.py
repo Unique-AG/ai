@@ -11,12 +11,7 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 class UserMemoryConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    enabled: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help="Whether to enable persistent per-user memory.",
-        ),
-    ] = Field(
+    enabled: Annotated[bool, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default=False,
         description="Whether to enable persistent per-user memory.",
     )
