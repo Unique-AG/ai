@@ -2,7 +2,7 @@ import logging
 from typing import Literal
 
 from unique_search_proxy_core.crawlers import (
-    BasicCrawlerConfig as BasicCrawlerProxyCoreConfig,
+    BasicConfig as BasicCrawlerProxyCoreConfig,
 )
 from unique_search_proxy_core.crawlers.base import CrawlerType as ProxyCrawlerType
 from unique_search_proxy_sdk import UniqueSearchProxyClient

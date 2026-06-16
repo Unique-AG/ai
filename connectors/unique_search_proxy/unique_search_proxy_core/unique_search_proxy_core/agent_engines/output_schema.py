@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from unique_search_proxy_core.schema import WebSearchResult
+
 
 class AgentSearchOutputResultItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -44,6 +46,17 @@ class AgentSearchOutput(BaseModel):
             "Do not merge or skip sources."
         ),
     )
+
+    def to_web_search_results(self) -> list[WebSearchResult]:
+        return [
+            WebSearchResult(
+                url=result.source_url,
+                title=result.source_title,
+                snippet="\n".join(result.key_facts),
+                content=result.detailed_answer,
+            )
+            for result in self.results
+        ]
 
 
 __all__ = ["AgentSearchOutput", "AgentSearchOutputResultItem"]
