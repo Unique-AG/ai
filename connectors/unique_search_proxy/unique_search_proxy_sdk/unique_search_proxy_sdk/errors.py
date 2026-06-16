@@ -15,6 +15,7 @@ from unique_search_proxy_core.errors import (
     UpstreamError,
     UpstreamTimeoutError,
     ValidationProxyError,
+    attach_request_context,
 )
 from unique_search_proxy_core.schema import ErrorResponse, ProxyErrorCode
 
@@ -34,24 +35,42 @@ class UniqueSearchProxyClientError(Exception):
     """Transport or unexpected response errors from the HTTP SDK."""
 
 
+def _request_context_fields(detail: dict[str, Any]) -> dict[str, Any]:
+    request = detail.get("request")
+    provider = detail.get("provider")
+    if request is not None:
+        return {
+            "request": request,
+            "provider": provider,
+        }
+    return {}
+
+
 def _raise_from_error_detail(detail: dict[str, Any], *, status_code: int) -> None:
     code = str(detail.get("code", ProxyErrorCode.BAD_REQUEST.value))
     message = str(detail.get("message", ""))
+    request_context = _request_context_fields(detail)
 
     if code == ProxyErrorCode.ENGINE_NOT_CONFIGURED.value:
-        provider = detail.get("engine") or detail.get("crawler") or "unknown"
-        kind = "crawler" if detail.get("crawler") else "engine"
-        exc = EngineNotConfiguredError(provider, kind=kind)
+        details_list = detail.get("details") or []
+        missing_env_vars = [
+            item["envVar"]
+            for item in details_list
+            if isinstance(item, dict) and "envVar" in item
+        ]
+        exc = EngineNotConfiguredError(missing_env_vars=missing_env_vars or None)
+        if request_context:
+            attach_request_context(exc, **request_context)  # type: ignore[arg-type]
         exc.status_code = status_code
         raise exc
 
     exc_type = _CODE_TO_EXCEPTION.get(code, ProxyError)
     exc = exc_type(
         message,
-        engine=detail.get("engine"),
-        crawler=detail.get("crawler"),
         retryable=bool(detail.get("retryable", False)),
         details=detail.get("details"),
+        upstream_raw=detail.get("raw"),
+        **request_context,
     )
     exc.status_code = status_code
     raise exc

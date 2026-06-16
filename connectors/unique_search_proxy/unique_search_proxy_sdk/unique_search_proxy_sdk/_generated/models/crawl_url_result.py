@@ -23,7 +23,8 @@ class CrawlUrlResult:
         content (None | str | Unset): Markdown extracted from HTML responses; null when unprocessed
         content_type (None | str | Unset): Response Content-Type (media type only, parameters stripped)
         error (None | PerUrlError | Unset):
-        raw (Any | None | Unset): Unmodified response body text, or null when no body was received
+        raw (Any | None | Unset): Upstream provider response for this URL (JSON object or text wrapper); included on
+            success and on per-URL failures for debugging
     """
 
     url: str

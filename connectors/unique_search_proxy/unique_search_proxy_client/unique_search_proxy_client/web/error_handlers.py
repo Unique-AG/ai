@@ -25,7 +25,10 @@ def proxy_error_response(exc: ProxyError) -> JSONResponse:
 
     return JSONResponse(
         status_code=exc.status_code,
-        content=ErrorResponse(error=exc.to_detail()).model_dump(by_alias=True),
+        content=ErrorResponse(error=exc.to_detail()).model_dump(
+            by_alias=True,
+            exclude_none=True,
+        ),
         headers=headers or None,
     )
 
@@ -40,10 +43,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
         record_proxy_error(exc.code.value)
-        if exc.engine is not None:
-            record_search_error(exc.engine, exc.code.value, 0.0)
-        if exc.crawler is not None:
-            record_crawl_error(exc.crawler, exc.code.value, 0.0)
+        if exc.request == "search" and exc.provider is not None:
+            record_search_error(exc.provider, exc.code.value, 0.0)
+        if exc.request == "crawl" and exc.provider is not None:
+            record_crawl_error(exc.provider, exc.code.value, 0.0)
         _LOGGER.warning("Proxy error [%s]: %s", exc.code.value, exc.message)
         return proxy_error_response(exc)
 

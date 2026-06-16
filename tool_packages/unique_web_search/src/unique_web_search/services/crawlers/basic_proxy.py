@@ -2,7 +2,7 @@ import logging
 from typing import Literal
 
 from unique_search_proxy_core.crawlers import (
-    BasicCrawlerConfig as BasicCrawlerProxyCoreConfig,
+    BasicConfig as BasicCrawlerProxyCoreConfig,
 )
 from unique_search_proxy_core.crawlers.base import CrawlerType as ProxyCrawlerType
 from unique_search_proxy_sdk import UniqueSearchProxyClient
@@ -47,7 +47,7 @@ class BasicProxyCrawler:
             ) as client:
                 response = await client.crawl.crawl(
                     urls,
-                    crawler_type=ProxyCrawlerType.BASIC,
+                    crawler=ProxyCrawlerType.BASIC,
                     content_types=self.config.content_types,
                     timeout=self.config.timeout,
                     max_concurrent_requests=self.config.max_concurrent_requests,

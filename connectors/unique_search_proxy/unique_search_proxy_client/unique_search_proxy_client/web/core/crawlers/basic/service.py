@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 import httpx
 from httpx import AsyncClient, Timeout
@@ -10,10 +9,9 @@ from unique_search_proxy_core.crawlers.base import BaseCrawler, CrawlerType
 from unique_search_proxy_core.crawlers.basic.processing.policy import (
     ContentTypeHandlerPolicy,
 )
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerRequest
+from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlRequest
 from unique_search_proxy_core.schema import (
     CrawlUrlResult,
-    PerUrlError,
     ProxyErrorCode,
 )
 
@@ -24,6 +22,10 @@ from unique_search_proxy_client.web.core.crawlers.basic.processing import (
 )
 from unique_search_proxy_client.web.core.crawlers.basic.user_agent import (
     random_user_agent,
+)
+from unique_search_proxy_client.web.core.provider_response import (
+    crawl_upstream_error,
+    transport_error_raw,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,12 +38,12 @@ def _content_type_from_response(response: httpx.Response) -> str | None:
     return str(header).split(";")[0].strip().lower() or None
 
 
-class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
+class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
     """Fetch URLs over HTTP and return the response body plus content type."""
 
     crawler_id = CrawlerType.BASIC.value
 
-    async def crawl(self, request: BasicCrawlerRequest) -> list[CrawlUrlResult]:  # type: ignore
+    async def crawl(self, request: BasicCrawlRequest) -> list[CrawlUrlResult]:  # type: ignore
         client = self._http_client
         if client is None:
             raise RuntimeError("HTTP client is required for Basic crawler")
@@ -84,27 +86,20 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
                 )
             except httpx.TimeoutException as exc:
                 _LOGGER.warning("Basic crawl timed out for %s: %s", request_url, exc)
-                return CrawlUrlResult(
-                    url=request_url,
-                    content=None,
-                    raw=None,
+                return crawl_upstream_error(
+                    request_url,
+                    f"Crawl timed out after {timeout}s",
                     content_type=None,
-                    error=PerUrlError(
-                        code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
-                        message=f"Crawl timed out after {timeout}s",
-                    ),
+                    code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
+                    raw=transport_error_raw(exc),
                 )
             except httpx.HTTPError as exc:
                 _LOGGER.warning("Basic crawl failed for %s: %s", request_url, exc)
-                return CrawlUrlResult(
-                    url=request_url,
-                    content=None,
-                    raw=None,
+                return crawl_upstream_error(
+                    request_url,
+                    str(exc),
                     content_type=None,
-                    error=PerUrlError(
-                        code=ProxyErrorCode.UPSTREAM_ERROR.value,
-                        message=str(exc),
-                    ),
+                    raw=transport_error_raw(exc),
                 )
 
             content_type = _content_type_from_response(response)
@@ -115,15 +110,11 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
                     request_url,
                     response.status_code,
                 )
-                return CrawlUrlResult(
-                    url=request_url,
-                    content=None,
-                    raw=raw_body,
+                return crawl_upstream_error(
+                    request_url,
+                    f"HTTP {response.status_code} while fetching URL",
                     content_type=content_type,
-                    error=PerUrlError(
-                        code=ProxyErrorCode.UPSTREAM_ERROR.value,
-                        message=f"HTTP {response.status_code} while fetching URL",
-                    ),
+                    raw=raw_body,
                 )
 
             content = await self._maybe_process_content(
@@ -169,15 +160,12 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
                 request_url,
                 exc,
             )
-            return CrawlUrlResult(
-                url=request_url,
-                content=None,
-                raw=raw_body,
+            return crawl_upstream_error(
+                request_url,
+                str(exc),
                 content_type=content_type,
-                error=PerUrlError(
-                    code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
-                    message=str(exc),
-                ),
+                code=ProxyErrorCode.UPSTREAM_TIMEOUT.value,
+                raw=raw_body,
             )
         except ContentProcessingError as exc:
             _LOGGER.warning(
@@ -185,25 +173,9 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlerRequest]):
                 request_url,
                 exc,
             )
-            return CrawlUrlResult(
-                url=request_url,
-                content=None,
-                raw=raw_body,
+            return crawl_upstream_error(
+                request_url,
+                str(exc),
                 content_type=content_type,
-                error=PerUrlError(
-                    code=ProxyErrorCode.UPSTREAM_ERROR.value,
-                    message=str(exc),
-                ),
+                raw=raw_body,
             )
-
-    @staticmethod
-    def llm_call_schema(config: Any) -> type[Any]:
-        from unique_search_proxy_core.crawlers.basic.schema import (
-            BasicCrawlerCall,
-            BasicCrawlerConfig,
-        )
-        from unique_search_proxy_core.projection import project_call_schema
-
-        if not isinstance(config, BasicCrawlerConfig):
-            config = BasicCrawlerConfig.model_validate(config)
-        return project_call_schema(BasicCrawlerCall, ["urls"])

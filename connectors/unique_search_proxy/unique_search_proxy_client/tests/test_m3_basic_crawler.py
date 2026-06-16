@@ -4,7 +4,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
-from unique_search_proxy_core.crawlers.config_types import CrawlRequest
+from unique_search_proxy_core.crawlers.config_types import parse_crawl_request
 from unique_search_proxy_core.schema import ProxyErrorCode
 
 from unique_search_proxy_client.web.app import create_app
@@ -61,10 +61,10 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 @pytest.mark.ai
 def test_basic_crawler_service_returns_markdown() -> None:
     async def run() -> None:
-        request = CrawlRequest.model_validate(
+        request = parse_crawl_request(
             {
                 "urls": ["https://example.com/article"],
-                "crawlerType": CrawlerType.BASIC.value,
+                "crawler": CrawlerType.BASIC.value,
                 "timeout": 10,
                 "contentTypes": {"html": True},
             },
@@ -99,13 +99,13 @@ def test_crawl_endpoint_returns_per_url_results(client: TestClient) -> None:
         "/v1/crawl",
         json={
             "urls": ["https://example.com/a", "https://blocked.example/x"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {"html": True},
         },
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["crawlerType"] == CrawlerType.BASIC.value
+    assert body["crawler"] == CrawlerType.BASIC.value
     assert len(body["results"]) == 2
 
     success = next(r for r in body["results"] if "example.com/a" in r["url"])
@@ -127,7 +127,7 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
         },
     )
     assert resp.status_code == 200
@@ -155,7 +155,7 @@ def test_crawl_reports_markdown_conversion_error(
         "/v1/crawl",
         json={
             "urls": ["https://example.com/a"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {"html": True},
         },
     )
@@ -174,7 +174,7 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
         "/v1/crawl",
         json={
             "urls": ["https://example.com/a"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {
                 "html": False,
                 "xhtml": False,
@@ -197,7 +197,7 @@ def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
         },
     )
     assert resp.status_code == 200
@@ -213,7 +213,7 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {"pdf": True},
         },
     )

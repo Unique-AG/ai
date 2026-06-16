@@ -4,7 +4,12 @@ import pytest
 from pydantic import BaseModel
 from unique_search_proxy_core.crawlers import parse_crawler_config
 from unique_search_proxy_core.crawlers.base import CrawlerType
-from unique_search_proxy_core.crawlers.basic.schema import BasicCrawlerConfig
+from unique_search_proxy_core.crawlers.basic.schema import BasicConfig
+from unique_search_proxy_core.crawlers.config_types import (
+    crawler_config_from_request,
+    parse_crawl_request,
+)
+from unique_search_proxy_core.crawlers.tavily.schema import TavilyConfig
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 from unique_search_proxy_core.search_engines import (
     SearchEngineType,
@@ -46,10 +51,6 @@ class TestRegistry:
             engine_id = "stub"
 
             @property
-            def snippet_only(self) -> bool:
-                return True
-
-            @property
             def mode(self) -> str:
                 return "stub"
 
@@ -74,6 +75,20 @@ class TestDiscriminatedConfig:
 
     @pytest.mark.ai
     def test_crawler_config_parses_crawler_field(self) -> None:
-        config = parse_crawler_config({"crawlerType": CrawlerType.BASIC.value})
-        assert isinstance(config, BasicCrawlerConfig)
-        assert config.crawler_type == CrawlerType.BASIC
+        config = parse_crawler_config({"crawler": CrawlerType.BASIC.value})
+        assert isinstance(config, BasicConfig)
+        assert config.crawler == CrawlerType.BASIC
+
+    @pytest.mark.ai
+    def test_crawler_config_from_request_uses_crawler_discriminator(self) -> None:
+        request = parse_crawl_request(
+            {
+                "urls": ["https://example.com"],
+                "crawler": CrawlerType.TAVILY.value,
+                "extractDepth": "basic",
+                "timeout": 20,
+            },
+        )
+        config = crawler_config_from_request(request)
+        assert isinstance(config, TavilyConfig)
+        assert config.extract_depth == "basic"

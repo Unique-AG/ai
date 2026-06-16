@@ -19,10 +19,6 @@ from unique_search_proxy_core.search_engines.config_types import (
     parse_search_engine_config,
 )
 
-_SEARCH_ENGINE_SNIPPET_ONLY: dict[SearchEngineType, bool] = {
-    SearchEngineType.GOOGLE: True,
-}
-
 
 @dataclass(frozen=True)
 class SearchCallSchemaDescriptor:
@@ -30,7 +26,6 @@ class SearchCallSchemaDescriptor:
 
     engine: str
     mode: str
-    snippet_only: bool
     call_schema: dict[str, Any]
 
 
@@ -52,7 +47,6 @@ def resolve_search_call_schema_from_config(
     return SearchCallSchemaDescriptor(
         engine=engine_type.value,
         mode=get_search_engine_mode(engine_type).value,
-        snippet_only=_SEARCH_ENGINE_SNIPPET_ONLY.get(engine_type, True),
         call_schema=projected.model_json_schema(),
     )
 

@@ -15,11 +15,10 @@ ProviderKind = Literal["search_engine", "crawler"]
 
 
 def _config_model(kind: ProviderKind, provider_id: str) -> type[BaseModel]:
-    normalized = provider_id.lower()
     if kind == "search_engine":
-        model = ENGINE_NAME_TO_CONFIG.get(normalized)
+        model = ENGINE_NAME_TO_CONFIG.get(provider_id.lower())
     else:
-        model = CRAWLER_NAME_TO_CONFIG.get(normalized)
+        model = CRAWLER_NAME_TO_CONFIG.get(provider_id)
     if model is None:
         raise ValueError(f"No {kind} config registered for {provider_id!r}")
     return model

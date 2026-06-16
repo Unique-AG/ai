@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 
-from unique_search_proxy_core.schema import CrawlUrlResult, camelized_model_config
+from unique_search_proxy_core.schema import CrawlUrlResult, deployment_model_config
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -18,15 +18,18 @@ CrawlerRequestT = TypeVar("CrawlerRequestT", bound=BaseModel)
 class CrawlerType(StrEnum):
     """Registered crawler ids (JSON discriminator values)."""
 
-    BASIC = "BasicProxyCrawler"
+    BASIC = "Basic"
+    TAVILY = "Tavily"
+    JINA = "Jina"
+    FIRECRAWL = "Firecrawl"
 
 
 class BaseCrawlerConfig(BaseModel, Generic[CrawlerTypeT]):
-    """Shared crawler config; each crawler narrows ``crawler_type`` with a Literal."""
+    """Deployment config for a crawler; each crawler narrows ``crawler`` with a Literal."""
 
-    model_config = camelized_model_config
+    model_config = deployment_model_config
 
-    crawler_type: CrawlerTypeT
+    crawler: CrawlerTypeT
     timeout: int = Field(
         default=30,
         ge=1,
@@ -49,4 +52,4 @@ class BaseCrawler(ABC, Generic[CrawlerRequestT]):
 
     @abstractmethod
     async def crawl(self, request: CrawlerRequestT) -> list[CrawlUrlResult]:
-        """Crawl URLs from a flat request model (``BasicCrawlerRequest``, …)."""
+        """Crawl URLs from a derived request model (``BasicCrawlRequest``, …)."""

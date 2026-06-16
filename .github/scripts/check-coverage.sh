@@ -18,6 +18,19 @@
 
 set -e  # Exit on any error
 
+# Patterns excluded from diff-cover (generated code, static typing modules).
+# Override or extend via CHECK_COVERAGE_EXCLUDE (space-separated globs).
+DEFAULT_COVERAGE_EXCLUDE=(
+    "**/_generated/**"
+    "**/typing_checks.py"
+)
+COVERAGE_EXCLUDE=("${DEFAULT_COVERAGE_EXCLUDE[@]}")
+if [ -n "${CHECK_COVERAGE_EXCLUDE:-}" ]; then
+    # shellcheck disable=SC2294
+    eval "EXTRA_COVERAGE_EXCLUDE=( ${CHECK_COVERAGE_EXCLUDE} )"
+    COVERAGE_EXCLUDE+=("${EXTRA_COVERAGE_EXCLUDE[@]}")
+fi
+
 # Script metadata
 SCRIPT_NAME=$(basename "$0")
 VERSION="1.0.0"
@@ -375,7 +388,9 @@ CHANGED_FILES=$(git diff --name-only "$BASE_REF" 2>/dev/null | \
     grep "^${PACKAGE}/" | \
     grep -v '/tests/' | \
     grep -v '/test_' | \
-    grep -v '/docs/' || true)
+    grep -v '/docs/' | \
+    grep -v '/_generated/' | \
+    grep -v '/typing_checks\.py$' || true)
 
 if [ -z "$CHANGED_FILES" ]; then
     print_info "No source Python files changed (excluding tests and docs)"
@@ -393,12 +408,17 @@ set +e  # Don't exit on error immediately
 
 # Run diff-cover from package directory (it handles git operations correctly)
 cd "$PACKAGE" || exit 1
-$RUNNER diff-cover \
-    coverage.xml \
-    --compare-branch="$BASE_REF" \
-    --fail-under="$MIN_COVERAGE" \
-    --diff-range-notation=... \
-    --markdown-report=coverage_report.md 2>&1
+DIFF_COVER_ARGS=(
+    coverage.xml
+    --compare-branch="$BASE_REF"
+    --fail-under="$MIN_COVERAGE"
+    --diff-range-notation=...
+    --markdown-report=coverage_report.md
+)
+for pattern in "${COVERAGE_EXCLUDE[@]}"; do
+    DIFF_COVER_ARGS+=(--exclude "$pattern")
+done
+$RUNNER diff-cover "${DIFF_COVER_ARGS[@]}" 2>&1
 EXIT_CODE=$?
 cd "$REPO_ROOT" || exit 1
 

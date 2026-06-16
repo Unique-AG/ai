@@ -71,3 +71,9 @@ markers = [
     "asyncio: asyncio tests",
     "integration: requires unique-search-proxy (FastAPI app) in the environment",
 ]
+
+[tool.coverage.run]
+omit = [
+    "unique_search_proxy_sdk/_generated/*",
+    "unique_search_proxy_sdk/typing_checks.py",
+]

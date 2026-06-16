@@ -43,6 +43,9 @@ class Base(BaseSettings):
     # Unique Search Proxy service (used by the basic_proxy crawler)
     search_proxy_base_url: str | None = None
 
+    # Unique Search Proxy service (used by the basic_proxy crawler)
+    search_proxy_base_url: str | None = None
+
     # Google Search settings
     google_search_api_key: str | None = None
     google_search_api_endpoint: str | None = None
