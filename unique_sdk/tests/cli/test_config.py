@@ -13,24 +13,31 @@ from unique_sdk.cli.config import Config, load_config
 
 # Stable fake gateway root for UNIQUE_API_BASE tests (not a real hostname).
 _TEST_PUBLIC_CHAT_BASE = "https://test-api-base.example/public/chat-gen2"
+_TEST_LOCAL_CHAT_BASE = "http://localhost:3000/public/chat-gen2"
 
 
 @pytest.fixture(autouse=True)
-def _reset_sdk_ingestion_setting() -> Generator[None, None, None]:
-    """Snapshot/restore ``unique_sdk.ingestion_upload_api_url_internal``
-    around every CLI config test.
+def _reset_sdk_config() -> Generator[None, None, None]:
+    """Snapshot/restore SDK config globals around every CLI config test.
 
-    ``load_config`` writes onto the SDK module global as a side effect
-    (same shape as ``unique_sdk.api_key`` / ``api_base`` /``app_id``).
-    Without a per-test reset, a test that exercises the env-var path
-    would leak its value into sibling tests that expect the global to
-    start at ``None``, producing order-dependent failures.
+    ``load_config`` writes onto SDK module globals as a side effect.
+    Without a per-test reset, one env-var path can leak values into
+    sibling tests and produce order-dependent failures.
     """
+    original_api_key = unique_sdk.api_key
+    original_app_id = unique_sdk.app_id
+    original_api_base = unique_sdk.api_base
     original = unique_sdk.ingestion_upload_api_url_internal
     try:
+        unique_sdk.api_key = None
+        unique_sdk.app_id = None
+        unique_sdk.api_base = "https://gateway.unique.app/public/chat-gen2"
         unique_sdk.ingestion_upload_api_url_internal = None
         yield
     finally:
+        unique_sdk.api_key = original_api_key
+        unique_sdk.app_id = original_app_id
+        unique_sdk.api_base = original_api_base
         unique_sdk.ingestion_upload_api_url_internal = original
 
 
@@ -108,8 +115,8 @@ class TestLoadConfig:
     @patch.dict(
         os.environ,
         {
-            "UNIQUE_APP_ID": "",
-            "UNIQUE_API_KEY": "",
+            "UNIQUE_API_KEY": "ukey_test",
+            "UNIQUE_APP_ID": "app_test",
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
             "UNIQUE_API_BASE": f"'{_TEST_PUBLIC_CHAT_BASE}'",
@@ -132,10 +139,11 @@ class TestLoadConfig:
         {
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_LOCAL_CHAT_BASE,
         },
         clear=True,
     )
-    def test_api_key_and_app_id_optional(self) -> None:
+    def test_api_key_and_app_id_optional_for_local_api_base(self) -> None:
         config = load_config()
         assert config.api_key == ""
         assert config.app_id == ""
@@ -144,12 +152,46 @@ class TestLoadConfig:
 
     @patch.dict(
         os.environ,
+        {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_PUBLIC_CHAT_BASE,
+        },
+        clear=True,
+    )
+    def test_api_key_and_app_id_required_for_public_api_base(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(SystemExit):
+            load_config()
+
+        captured = capsys.readouterr()
+        assert captured.err == (
+            "Error: missing required environment variables for "
+            f"{_TEST_PUBLIC_CHAT_BASE}: UNIQUE_API_KEY, UNIQUE_APP_ID\n"
+            "Set UNIQUE_API_KEY and UNIQUE_APP_ID when connecting to a public "
+            "Unique gateway. They are only optional for localhost or secured "
+            "cluster API bases.\n"
+        )
+
+    @patch.dict(
+        os.environ,
         {"UNIQUE_API_KEY": "ukey_test"},
         clear=True,
     )
-    def test_missing_vars_exits(self) -> None:
+    def test_missing_vars_exits(self, capsys: pytest.CaptureFixture[str]) -> None:
         with pytest.raises(SystemExit):
             load_config()
+
+        captured = capsys.readouterr()
+        assert captured.err == (
+            "Error: missing required environment variables for "
+            "https://gateway.unique.app/public/chat-gen2: UNIQUE_APP_ID, "
+            "UNIQUE_USER_ID, UNIQUE_COMPANY_ID\n"
+            "Set UNIQUE_API_KEY and UNIQUE_APP_ID when connecting to a public "
+            "Unique gateway. They are only optional for localhost or secured "
+            "cluster API bases.\n"
+        )
 
     @patch.dict(os.environ, {}, clear=True)
     def test_all_vars_missing_exits(self) -> None:
@@ -176,6 +218,7 @@ class TestLoadConfigIngestionUpload:
         {
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_LOCAL_CHAT_BASE,
             "INGESTION_UPLOAD_API_URL_INTERNAL": (
                 "http://node-ingestion.test.svc.cluster.local:8091/scoped/upload"
             ),
@@ -193,6 +236,7 @@ class TestLoadConfigIngestionUpload:
         {
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_LOCAL_CHAT_BASE,
         },
         clear=True,
     )
@@ -206,6 +250,7 @@ class TestLoadConfigIngestionUpload:
         {
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_LOCAL_CHAT_BASE,
             "INGESTION_UPLOAD_API_URL_INTERNAL": "",
         },
         clear=True,
@@ -224,6 +269,7 @@ class TestLoadConfigIngestionUpload:
         {
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_LOCAL_CHAT_BASE,
             "INGESTION_UPLOAD_API_URL_INTERNAL": "   ",
         },
         clear=True,
@@ -241,6 +287,7 @@ class TestLoadConfigIngestionUpload:
         {
             "UNIQUE_USER_ID": "user_test",
             "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_LOCAL_CHAT_BASE,
             "INGESTION_UPLOAD_API_URL_INTERNAL": ("  http://node-ingestion/upload  "),
         },
         clear=True,

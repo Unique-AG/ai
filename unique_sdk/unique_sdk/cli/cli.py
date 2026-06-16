@@ -84,12 +84,13 @@ Modes:
 Required environment variables:
   UNIQUE_USER_ID      User ID for API requests
   UNIQUE_COMPANY_ID   Company ID for API requests
+  UNIQUE_API_KEY      API key (required for public Unique gateways)
+  UNIQUE_APP_ID       Application identifier (required for public Unique gateways)
 
 \b
 Optional:
-  UNIQUE_API_KEY      API key (not needed on localhost / secured cluster)
-  UNIQUE_APP_ID       Application identifier (not needed on localhost / secured cluster)
   UNIQUE_API_BASE     API base URL (default: https://gateway.unique.app/public/chat-gen2)
+                     API key and app ID are optional only on localhost / secured cluster
 
 \b
 Path formats accepted by all commands:
