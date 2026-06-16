@@ -4,6 +4,7 @@ import pytest
 
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
+    UserMemoryState,
     _sanitize_for_xml_context,
     consolidate_user_memory,
     count_tokens,
@@ -12,6 +13,7 @@ from unique_user_memory.user_memory import (
     ensure_user_memory_folder,
     upload_user_memory,
 )
+from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 from unique_user_memory.user_memory_prompts import empty_profile
 
 
@@ -245,6 +247,68 @@ async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
 
 
 @pytest.mark.asyncio
+async def test_ensure_user_memory_folder_returns_none_when_access_grant_fails_after_create(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    get_info = AsyncMock(
+        side_effect=[
+            {"id": "scope_root"},
+            RuntimeError("missing user folder"),
+        ]
+    )
+    create_paths = AsyncMock(return_value={"createdFolders": [{"id": "scope_user"}]})
+    grant_error = RuntimeError("grant failed")
+    add_access = AsyncMock(side_effect=grant_error)
+    logger = MagicMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.get_info_async",
+        get_info,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.create_paths_async",
+        create_paths,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.unique_sdk.Folder.add_access_async",
+        add_access,
+    )
+
+    result = await ensure_user_memory_folder(
+        user_id="user_1",
+        company_id="company_1",
+        root_folder="user-memory",
+        logger=logger,
+    )
+
+    assert result is None
+    create_paths.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        parentScopeId="scope_root",
+        relativePaths=["user_1"],
+        inheritAccess=False,
+    )
+    add_access.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        scopeId="scope_user",
+        scopeAccesses=[
+            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
+            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
+        ],
+        applyToSubScopes=True,
+    )
+    logger.warning.assert_called_with(
+        "[user-memory] failed to grant read/write access on scope %s "
+        "for user %s: [%s] %s",
+        "scope_user",
+        "user_1",
+        "RuntimeError",
+        grant_error,
+    )
+
+
+@pytest.mark.asyncio
 async def test_upload_user_memory_writes_hidden_skip_ingestion_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -274,3 +338,80 @@ async def test_upload_user_memory_writes_hidden_skip_ingestion_file(
         "uniqueIngestionMode": "SKIP_INGESTION",
         "hideInChat": True,
     }
+
+
+@pytest.mark.asyncio
+async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    updated_memory = "# User Memory\n\n## Identity\n- Updated"
+    consolidate = AsyncMock(return_value=updated_memory)
+    upload = AsyncMock(return_value=True)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
+        consolidate,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.upload_user_memory",
+        upload,
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    loop_response = MagicMock()
+    loop_response.message.text = "noted"
+    logger = MagicMock()
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(enabled=True),
+        event=event,
+        state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
+        logger=logger,
+    )
+
+    await postprocessor.run(loop_response)
+
+    upload.assert_awaited_once_with(
+        scope_id="scope_1",
+        content=updated_memory,
+        user_id="user_1",
+        company_id="company_1",
+        logger=logger,
+    )
+    logger.info.assert_any_call("[user-memory] memory updated and uploaded")
+
+
+@pytest.mark.asyncio
+async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    updated_memory = "# User Memory\n\n## Identity\n- Updated"
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
+        AsyncMock(return_value=updated_memory),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.upload_user_memory",
+        AsyncMock(return_value=False),
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    loop_response = MagicMock()
+    loop_response.message.text = "noted"
+    logger = MagicMock()
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(enabled=True),
+        event=event,
+        state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
+        logger=logger,
+    )
+
+    await postprocessor.run(loop_response)
+
+    assert all(
+        call.args != ("[user-memory] memory updated and uploaded",)
+        for call in logger.info.call_args_list
+    )
+    logger.warning.assert_any_call("[user-memory] memory update was not uploaded")

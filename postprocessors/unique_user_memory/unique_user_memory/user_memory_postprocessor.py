@@ -49,13 +49,17 @@ class UserMemoryPostprocessor(Postprocessor):
             self._logger.debug("[user-memory] consolidation NOOP - skipping upload")
             return
 
-        await upload_user_memory(
+        uploaded = await upload_user_memory(
             scope_id=self._state.scope_id,
             content=self._new_memory,
             user_id=user_id,
             company_id=company_id,
             logger=self._logger,
         )
+        if not uploaded:
+            self._logger.warning("[user-memory] memory update was not uploaded")
+            return
+
         self._logger.info("[user-memory] memory updated and uploaded")
 
     def apply_postprocessing_to_response(

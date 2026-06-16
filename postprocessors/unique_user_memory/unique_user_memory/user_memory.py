@@ -239,6 +239,7 @@ async def ensure_user_memory_folder(
             type(exc).__name__,
             exc,
         )
+        return None
 
     return scope_id
 

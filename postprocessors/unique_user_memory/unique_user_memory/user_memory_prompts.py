@@ -113,7 +113,7 @@ NEVER extract:
 
 # Token budget - STRICT
 
-The complete file MUST be <= {{ max_tokens }} tokens (cl100k_base encoding).
+The complete file MUST be <= {{ max_tokens }} tokens.
 When approaching the budget, drop content in this priority order:
 
 1. Oldest entries in Recent Topics.
