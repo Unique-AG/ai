@@ -179,8 +179,17 @@ async def test_ensure_user_memory_folder_returns_existing_user_folder(
         folderPath="/user-memory/user_1",
     )
     create_paths.assert_not_awaited()
-    add_access.assert_not_awaited()
     get_groups.assert_not_awaited()
+    add_access.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        scopeId="scope_user",
+        scopeAccesses=[
+            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
+            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
+        ],
+        applyToSubScopes=True,
+    )
 
 
 @pytest.mark.asyncio
@@ -223,7 +232,16 @@ async def test_ensure_user_memory_folder_creates_private_user_folder_under_root(
         relativePaths=["user_1"],
         inheritAccess=False,
     )
-    add_access.assert_not_awaited()
+    add_access.assert_awaited_once_with(
+        user_id="user_1",
+        company_id="company_1",
+        scopeId="scope_user",
+        scopeAccesses=[
+            {"entityId": "user_1", "type": "READ", "entityType": "USER"},
+            {"entityId": "user_1", "type": "WRITE", "entityType": "USER"},
+        ],
+        applyToSubScopes=True,
+    )
 
 
 @pytest.mark.asyncio

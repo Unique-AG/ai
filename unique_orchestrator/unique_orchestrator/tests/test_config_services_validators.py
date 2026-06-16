@@ -470,9 +470,7 @@ class TestUniqueAIConfigUserMemory:
     def test_user_memory_config_defaults_to_disabled(self):
         config = UniqueAIConfig()
 
-        assert isinstance(
-            config.agent.services.user_memory_config, UserMemoryConfig
-        )
+        assert isinstance(config.agent.services.user_memory_config, UserMemoryConfig)
         assert config.agent.services.user_memory_config.enabled is False
 
     def test_user_memory_config_parses_enabled_payload(self):

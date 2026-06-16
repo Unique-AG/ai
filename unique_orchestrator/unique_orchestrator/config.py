@@ -113,9 +113,7 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
 
     allow_user_memory: bool = Field(
         default=False,
-        description=(
-            "Whether persistent per-user memory is active for this space."
-        ),
+        description=("Whether persistent per-user memory is active for this space."),
     )
 
     switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
