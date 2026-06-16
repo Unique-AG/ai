@@ -5,7 +5,7 @@ from typing import Any
 from unique_search_proxy_core.crawlers.jina.schema import JinaCrawlRequest
 
 
-def build_jina_reader_body(url: str, request: JinaCrawlRequest) -> dict[str, Any]:
+def build_jina_reader_body(url: str, request: JinaCrawlRequest) -> dict[str, Any]:  # type: ignore[valid-type]
     """Build Jina Reader POST JSON body for one URL."""
     page_timeout = request.page_timeout
     if page_timeout is None:

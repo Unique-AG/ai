@@ -14,7 +14,7 @@ def json_safe_sdk_object(value: Any) -> Any:
     """
     dump_json = getattr(value, "model_dump_json", None)
     if callable(dump_json):
-        return json.loads(dump_json())
+        return json.loads(dump_json()) # type: ignore[callable]
     if hasattr(value, "model_dump"):
         try:
             return value.model_dump(mode="json")

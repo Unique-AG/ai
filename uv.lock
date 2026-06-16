@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-06-01T13:37:33.972597Z"
+exclude-newer = "2026-06-02T11:14:48.929794Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5834,7 +5834,7 @@ requires-dist = [
     { name = "azure-ai-projects", specifier = ">=1.0.0,<2" },
     { name = "azure-core", specifier = ">=1.36.0,<2" },
     { name = "azure-identity", specifier = ">=1.25.0,<2" },
-    { name = "certifi", specifier = ">=2025.11.12" },
+    { name = "certifi", specifier = ">=2025.11.12,<2027" },
     { name = "fastapi", specifier = ">=0.115.0,<1.0.0" },
     { name = "google-auth", specifier = ">=2.43.0,<3" },
     { name = "google-genai", specifier = ">=1.73.0,<2" },
