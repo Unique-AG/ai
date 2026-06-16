@@ -38,6 +38,10 @@ class OpenapiTransport:
             self._openapi.set_async_httpx_client(http_client)
 
     @property
+    def base_url(self) -> str:
+        return self._base_url
+
+    @property
     def openapi(self) -> OpenAPIClient:
         return self._openapi
 

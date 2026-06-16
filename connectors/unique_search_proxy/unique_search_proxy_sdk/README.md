@@ -69,7 +69,8 @@ flowchart TB
 | Layer | Path | Responsibility |
 |-------|------|----------------|
 | **Facade** | `client.py` | `UniqueSearchProxyClient` — composes sub-clients, `health()`, `ready()` |
-| **Sub-clients** | `search_client.py`, `agent_search_client.py`, `crawl_client.py` | Ergonomic methods per capability |
+| **Sub-clients** | `search_client.py`, `agent_search_client.py`, `crawl_client.py` | Per-provider typed endpoints + compatibility dispatchers |
+| **Endpoint factory** | `_endpoint.py` | `async_post_endpoint` / `async_sse_endpoint` (ParamSpec from core request models) |
 | **Transport** | `_transport.py`, `_http.py` | Shared httpx lifecycle, base URL, timeout |
 | **Generated** | `_generated/` | Route functions + attrs models from OpenAPI (**do not edit**) |
 | **Converters** | `converters.py` | Core Pydantic models → generated SDK models |
@@ -81,27 +82,34 @@ The client package is the **source of truth** for the HTTP contract. When routes
 
 ## 4. Usage
 
+Each provider exposes a typed endpoint whose kwargs mirror the core `*Request` Pydantic model (via `ParamSpec`). Snake_case and camelCase aliases both work (`fetch_size` / `fetchSize`).
+
 ```python
 from unique_search_proxy_sdk import UniqueSearchProxyClient
 
 async with UniqueSearchProxyClient("http://unique-search-proxy:2349") as client:
     await client.health()
 
-    result = await client.search.search("unique ag", engine="google", fetchSize=10)
+    # Typed per-provider endpoints (preferred)
+    result = await client.search.google(query="unique ag", gl="ch", fetch_size=10)
+    brave = await client.search.brave(query="news", country="US", safesearch="strict")
+    agent = await client.agent_search.bing(query="EU AI Act timeline", fetch_size=5)
+    crawl = await client.crawl.basic(urls=["https://example.com"])
 
-    agent = await client.agent_search.search(
-        "EU AI Act timeline",
-        engine="bing",
-        generationInstructions="...",
-    )
-
+    # Compatibility dispatchers (engine/crawler string)
+    result = await client.search.search("unique ag", engine="google", fetch_size=10)
+    agent = await client.agent_search.search("query", engine="bing")
     crawl = await client.crawl.crawl(["https://example.com"], crawler="Basic")
+
+    # Agent SSE streaming
+    async for event in client.agent_search.bing_stream(query="query"):
+        ...
 
     # Low-level: one generated function per route
     raw_client = client.openapi
 ```
 
-Search payloads are validated through core's `parse_search_request()` before serialization. Agent and crawl clients follow the same pattern where applicable.
+Search payloads are validated through core's `parse_search_request()` before serialization. Agent and crawl clients follow the same pattern.
 
 ---
 
@@ -111,10 +119,13 @@ Search payloads are validated through core's `parse_search_request()` before ser
 |---------------|------|
 | `health()` | `GET /health` |
 | `ready()` | `GET /ready` |
-| `search.search(...)` | `POST /v1/search` |
-| `agent_search.search(...)` | `POST /v1/agent-search` |
-| `agent_search.stream(...)` | `POST /v1/agent-search/stream` (SSE) |
-| `crawl.crawl(...)` | `POST /v1/crawl` |
+| `search.google(...)` / `.brave(...)` / `.perplexity(...)` | `POST /v1/search` |
+| `search.search(...)` | `POST /v1/search` (dispatcher) |
+| `agent_search.bing(...)` / `.vertexai(...)` | `POST /v1/agent-search` |
+| `agent_search.bing_stream(...)` / `.vertexai_stream(...)` | `POST /v1/agent-search/stream` (SSE) |
+| `agent_search.search(...)` / `.stream(...)` | same routes (dispatchers) |
+| `crawl.basic(...)` / `.tavily(...)` / `.jina(...)` / `.firecrawl(...)` | `POST /v1/crawl` |
+| `crawl.crawl(...)` | `POST /v1/crawl` (dispatcher) |
 | `openapi` | Low-level generated client (one function per route) |
 
 Endpoint payloads and provider ids → [Client README](../unique_search_proxy_client/README.md).

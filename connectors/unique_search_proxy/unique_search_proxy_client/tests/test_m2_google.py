@@ -185,7 +185,7 @@ class TestGoogleSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_provider_uses_env_search_engine_id_not_request_cx(
+    async def test_provider_uses_request_search_engine_id_over_env(
         self, google_env: None
     ) -> None:
         captured: dict[str, str] = {}
@@ -201,7 +201,7 @@ class TestGoogleSearchService:
                 _google_request(search_engine_id="call-cx"),
             )
 
-        assert captured["cx"] == "test-cx"
+        assert captured["cx"] == "call-cx"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -219,6 +219,24 @@ class TestGoogleSearchService:
         engine = GoogleSearchService()
         with pytest.raises(EngineNotConfiguredError):
             await engine.search(_google_request(search_engine_id="call-only-cx"))
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_provider_falls_back_to_env_search_engine_id(
+        self, google_env: None
+    ) -> None:
+        captured: dict[str, str] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            captured["cx"] = request.url.params.get("cx", "")
+            return httpx.Response(200, json={"items": [_minimal_google_item()]})
+
+        transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=transport) as client:
+            engine = GoogleSearchService(http_client=client)
+            await engine.search(_google_request())
+
+        assert captured["cx"] == "test-cx"
 
     @pytest.mark.ai
     @pytest.mark.asyncio

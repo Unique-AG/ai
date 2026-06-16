@@ -37,7 +37,7 @@ from unique_search_proxy_client.web.core.search_engines.pagination import PageRe
 from unique_search_proxy_client.web.core.search_engines.service_base import (
     SearchEngineService,
 )
-from unique_search_proxy_client.web.settings.providers import (
+from unique_search_proxy_client.web.settings.providers.google import (
     google_search_credentials as credentials,
 )
 
@@ -60,7 +60,7 @@ class GoogleSearchService(SearchEngineService[GoogleSearchRequest]):
         request: GoogleSearchRequest,  # type: ignore
     ) -> tuple[SearchEngineRaw, WebSearchResults]:
         credentials.check_credentials()
-        search_engine_id = credentials.engine_id
+        search_engine_id = request.search_engine_id or credentials.engine_id
 
         fetch_size = request.fetch_size
         timeout = request.timeout
