@@ -18,6 +18,10 @@ from unique_search_proxy_client.web.api.v1.openapi_examples import (
 )
 from unique_search_proxy_client.web.core.client import get_http_client_pool
 from unique_search_proxy_client.web.core.crawlers.factory import get_crawler_service
+from unique_search_proxy_client.web.core.url_safety.gate import (
+    apply_url_safety_gate,
+    merge_crawl_results,
+)
 from unique_search_proxy_client.web.monitoring.metrics import (
     record_crawl_error,
     record_crawl_success,
@@ -48,11 +52,25 @@ async def crawl(
     timeout = body.timeout
     started = time.perf_counter()
 
+    gate = await apply_url_safety_gate(body.urls)
+    if not gate.allowed_urls:
+        record_crawl_success(crawler_id, len(body.urls), time.perf_counter() - started)
+        return CrawlResponse(
+            crawler=crawler_id,
+            results=merge_crawl_results(
+                body.urls,
+                blocked_by_index=gate.blocked_by_index,
+                crawler_results=[],
+            ),
+        )
+
+    crawl_body = body.model_copy(update={"urls": gate.allowed_urls})
+
     try:
         pool = get_http_client_pool(request.app)
         crawler = get_crawler_service(crawler_id, http_client=pool.client)
         async with asyncio.timeout(timeout):
-            results = await crawler.crawl(body)
+            crawler_results = await crawler.crawl(crawl_body)
     except TimeoutError as exc:
         record_crawl_error(
             crawler_id,
@@ -76,4 +94,11 @@ async def crawl(
         raise
 
     record_crawl_success(crawler_id, len(body.urls), time.perf_counter() - started)
-    return CrawlResponse(crawler=crawler_id, results=results)
+    return CrawlResponse(
+        crawler=crawler_id,
+        results=merge_crawl_results(
+            body.urls,
+            blocked_by_index=gate.blocked_by_index,
+            crawler_results=crawler_results,
+        ),
+    )
