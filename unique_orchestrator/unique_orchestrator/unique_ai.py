@@ -628,7 +628,7 @@ class UniqueAI:
             result.is_positive for result in evaluation_results.unpack()
         ):
             self._logger.warning(
-                "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop"
+                "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop."
             )  # TODO: add retry counter and instruction
 
         return True
