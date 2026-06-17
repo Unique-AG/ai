@@ -61,7 +61,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
 
     async def crawl_pinned(
         self,
-        request: BasicCrawlRequest, # type: ignore[valid-type]
+        request: BasicCrawlRequest,  # type: ignore[valid-type]
         allowed_targets: list[AllowedCrawlTarget],
     ) -> list[CrawlUrlResult]:
         client = self._http_client
