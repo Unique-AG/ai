@@ -207,3 +207,7 @@ unique_sdk/examples/briefing_manual_smoke.py
 
 tool_packages/unique_web_search/docs/*
 tool_packages/unique_web_search/ssrf_test_server/*
+
+!unique_sdk/claude-cowork-plugin/build/
+unique_sdk/claude-cowork-plugin/dist/
+unique_sdk/claude-cowork-plugin/bin/

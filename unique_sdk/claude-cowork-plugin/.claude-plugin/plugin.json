@@ -1,0 +1,8 @@
+{
+  "name": "unique-cli",
+  "version": "0.1.0",
+  "description": "The Unique SDK CLI for Claude Cowork.",
+  "author": {
+    "name": "Unique"
+  }
+}
