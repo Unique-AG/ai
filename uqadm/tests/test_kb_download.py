@@ -142,6 +142,7 @@ def test_dry_run_does_not_download(
     )
 
     download.assert_not_called()
+    assert not out_dir.exists()
 
 
 def test_missing_target_selector_exits_2(tmp_path: Path) -> None:

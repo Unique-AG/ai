@@ -16,9 +16,9 @@ from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 _PAGE_SIZE = 100
 
 
-def _list_content_infos(cfg: Config, scope_id: str) -> list[dict[str, object]]:
+def _list_content_infos(cfg: Config, scope_id: str) -> list[Content.ContentInfo]:
     """Return all content infos in a folder scope (paginated)."""
-    infos: list[dict[str, object]] = []
+    infos: list[Content.ContentInfo] = []
     skip = 0
     while True:
         page = Content.get_infos(
@@ -36,9 +36,9 @@ def _list_content_infos(cfg: Config, scope_id: str) -> list[dict[str, object]]:
     return infos
 
 
-def _list_child_folders(cfg: Config, scope_id: str) -> list[dict[str, object]]:
+def _list_child_folders(cfg: Config, scope_id: str) -> list[Folder.FolderInfo]:
     """Return all child folder infos under a scope (paginated)."""
-    folders: list[dict[str, object]] = []
+    folders: list[Folder.FolderInfo] = []
     skip = 0
     while True:
         page = Folder.get_infos(
@@ -86,18 +86,23 @@ def cmd_download(
 
     if folder_path:
         try:
-            base_scope_id = Folder.resolve_scope_id_from_folder_path(
+            resolved_scope_id = Folder.resolve_scope_id_from_folder_path(
                 cfg.user_id, cfg.company_id, folder_path=folder_path
             )
         except Exception as exc:
             typer.echo(f"failed to resolve folder {folder_path!r}: {exc}", err=True)
             echo_credential_debug_if_auth_failure(cfg, exc, label="kb download")
             sys.exit(1)
+        if resolved_scope_id is None:
+            typer.echo(f"failed to resolve folder {folder_path!r}: not found", err=True)
+            sys.exit(1)
+        base_scope_id = resolved_scope_id
     else:
         assert scope_id is not None
         base_scope_id = scope_id
 
-    local_dir.mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        local_dir.mkdir(parents=True, exist_ok=True)
 
     queue: deque[tuple[str, str]] = deque([(base_scope_id, "")])
     counts = {"downloaded": 0, "failed": 0}
@@ -106,8 +111,8 @@ def cmd_download(
         current_scope_id, rel_subdir = queue.popleft()
 
         for info in _list_content_infos(cfg, current_scope_id):
-            key = str(info["key"])
-            content_id = str(info["id"])
+            key = info["key"]
+            content_id = info["id"]
             display = key if rel_subdir == "" else f"{rel_subdir}/{key}"
             local_path = local_dir / rel_subdir / key if rel_subdir else local_dir / key
 
@@ -117,7 +122,7 @@ def cmd_download(
                 continue
 
             try:
-                download_content(
+                _ = download_content(
                     companyId=cfg.company_id,
                     userId=cfg.user_id,
                     content_id=content_id,
@@ -135,8 +140,8 @@ def cmd_download(
 
         if recursive:
             for folder_info in _list_child_folders(cfg, current_scope_id):
-                child_scope_id = str(folder_info["id"])
-                child_name = str(folder_info["name"])
+                child_scope_id = folder_info["id"]
+                child_name = folder_info["name"]
                 queue.append((child_scope_id, _join_rel_subdir(rel_subdir, child_name)))
 
     if counts["downloaded"] == 0 and counts["failed"] == 0:

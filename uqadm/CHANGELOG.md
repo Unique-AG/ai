@@ -1,11 +1,5 @@
 # Changelog
 
-## Unreleased
-
-### Features
-
-* **uqadm:** add `kb download` to export KB scope contents to a local folder ([UN-22079](https://unique-ch.atlassian.net/browse/UN-22079))
-
 ## [2026.24.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.22.0...uqadm-v2026.24.0) (2026-06-04)
 
 
