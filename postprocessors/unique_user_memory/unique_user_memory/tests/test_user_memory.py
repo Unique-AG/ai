@@ -395,7 +395,9 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         company_id="company_1",
         logger=logger,
     )
-    logger.info.assert_any_call("[user-memory] memory updated and uploaded successfully")
+    logger.info.assert_any_call(
+        "[user-memory] memory updated and uploaded successfully"
+    )
 
 
 @pytest.mark.asyncio
