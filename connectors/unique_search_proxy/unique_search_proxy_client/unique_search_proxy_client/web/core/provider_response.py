@@ -80,6 +80,16 @@ def crawl_upstream_error(
     )
 
 
+def crawl_forbidden_target(url: str, message: str) -> CrawlUrlResult:
+    """Build a per-URL crawl failure for a URL safety policy violation."""
+    return crawl_upstream_error(
+        url,
+        message,
+        code=ProxyErrorCode.FORBIDDEN_TARGET.value,
+        content_type=None,
+    )
+
+
 def raise_for_upstream_response(
     response: httpx.Response,
     *,
