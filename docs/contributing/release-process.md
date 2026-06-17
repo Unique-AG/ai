@@ -202,8 +202,8 @@ flowchart TD
 
 **Workflow:** `.github/workflows/cd-release.yaml` (running on a `release/*` branch) + `cd-publish.yaml`
 
-1. Create a branch off `release/YYYY.WW`, commit or cherry-pick the fix, and open a PR targeting `release/YYYY.WW`.
-2. Get the PR reviewed and merged normally (standard review process applies).
+1. Create a branch off `release/YYYY.WW`, cherry-pick the fix(es) from `main`, and open a PR targeting `release/YYYY.WW`.
+2. Get the PR reviewed and merge with **Rebase and merge** only. Squash merge is disabled on `release/*` because it collapses multiple cherry-picks into one commit and breaks release-please changelogs. CI (`check-release-lineage.sh`) verifies each PR commit is patch-equivalent to a commit on `main`.
 3. release-please opens a second PR on the release branch with title:
    ```
    chore: hotfix release/YYYY.WW to <version>

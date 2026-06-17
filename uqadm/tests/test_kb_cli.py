@@ -51,6 +51,30 @@ def test_kb_mkdir_missing_env_exits_2(
     assert "missing env" in (result.output or result.stderr or "")
 
 
+@patch("uqadm.kb.cmd_sync")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_sync_cli_invokes_helper(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_sync: MagicMock,
+    tmp_path: Path,
+) -> None:
+    mock_cfg.return_value = MagicMock(user_id="u1", company_id="c1")
+    result = _runner().invoke(
+        app,
+        ["kb", "sync", str(tmp_path), "--folder-path", "/X", "-r", "--dry-run"],
+    )
+    assert result.exit_code == 0
+    mock_sync.assert_called_once()
+    kw = mock_sync.call_args.kwargs
+    assert kw["local_dir"] == tmp_path
+    assert kw["folder_path"] == "/X"
+    assert kw["scope_id"] is None
+    assert kw["recursive"] is True
+    assert kw["dry_run"] is True
+
+
 @patch("uqadm.kb.cmd_access_grant")
 @patch("uqadm.kb.config_for_slot")
 @patch("uqadm.kb.resolve_slot", return_value="qa")

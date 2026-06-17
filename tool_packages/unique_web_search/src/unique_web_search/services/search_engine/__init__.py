@@ -35,6 +35,10 @@ from unique_web_search.services.search_engine.jina import (
     JinaConfig,
     JinaSearch,
 )
+from unique_web_search.services.search_engine.perplexity import (
+    PerplexitySearch,
+    PerplexitySearchConfig,
+)
 from unique_web_search.services.search_engine.tavily import (
     TavilyConfig,
     TavilySearch,
@@ -51,6 +55,7 @@ SearchEngineTypes = (
     | JinaSearch
     | TavilySearch
     | BraveSearch
+    | PerplexitySearch
     | FireCrawlSearch
     | VertexAI
 )
@@ -61,6 +66,7 @@ SearchEngineConfigTypes = (
     | JinaConfig
     | TavilyConfig
     | BraveSearchConfig
+    | PerplexitySearchConfig
     | FireCrawlConfig
     | VertexAIConfig
 )
@@ -71,6 +77,7 @@ ENGINE_NAME_TO_CONFIG = {
     "tavily": TavilyConfig,
     "bing": BingSearchConfig,
     "brave": BraveSearchConfig,
+    "perplexity": PerplexitySearchConfig,
     "firecrawl": FireCrawlConfig,
     "vertexai": VertexAIConfig,
     "custom_api": CustomAPIConfig,
@@ -94,6 +101,8 @@ def get_search_engine_service(
             return BingSearch(search_engine_config, language_model_service)
         case SearchEngineType.BRAVE:
             return BraveSearch(search_engine_config)
+        case SearchEngineType.PERPLEXITY:
+            return PerplexitySearch(search_engine_config)
         case SearchEngineType.VERTEXAI:
             return VertexAI(search_engine_config, language_model_service)
         case SearchEngineType.CUSTOM_API:
@@ -140,6 +149,8 @@ __all__ = [
     "BingSearch",
     "BraveSearch",
     "BraveSearchConfig",
+    "PerplexitySearch",
+    "PerplexitySearchConfig",
     "get_search_engine_service",
     "BaseSearchEngineConfig",
     "SearchEngine",

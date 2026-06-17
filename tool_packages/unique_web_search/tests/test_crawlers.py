@@ -158,7 +158,7 @@ class TestCrawlerTypes:
         assert CrawlerType.JINA == "JinaCrawler"
         assert CrawlerType.TAVILY == "TavilyCrawler"
         assert CrawlerType.NO_CRAWLER == "NoCrawler"
-        assert CrawlerType.NONE == "None"
+        assert CrawlerType.BASIC_PROXY == "BasicProxyCrawler"
 
     def test_crawler_type_membership(self):
         """Test CrawlerType membership."""

@@ -14,6 +14,7 @@ from unique_internal_search.uploaded_search.config import (
 )
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -55,6 +56,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
@@ -107,6 +109,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         description=(
             "Whether chat users may override the language model for a single message"
         ),
+    )
+
+    allow_user_memory: bool = Field(
+        default=False,
+        description=("Whether persistent per-user memory is active for this space."),
     )
 
     switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
@@ -236,14 +243,20 @@ class EvaluationConfig(BaseToolConfig):
 
 
 class UniqueAIPromptConfig(BaseToolConfig):
-    system_prompt_template: str = Field(
+    system_prompt_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=25),
+    ] = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "system_prompt.jinja2"
         ).read_text(),
         description="The system prompt template as a Jinja2 template string.",
     )
 
-    user_message_prompt_template: str = Field(
+    user_message_prompt_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=4),
+    ] = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "user_message_prompt.jinja2"
         ).read_text(),
@@ -277,6 +290,12 @@ class UniqueAIServices(BaseToolConfig):
 
     tool_progress_reporter_config: SkipJsonSchema[ToolProgressReporterConfig] = (
         ToolProgressReporterConfig()
+    )
+
+    user_memory_config: UserMemoryConfig = Field(
+        title="User Memory",
+        description="Configuration for persistent user memory.",
+        default_factory=UserMemoryConfig,
     )
 
     @field_validator("stock_ticker_config", mode="before")

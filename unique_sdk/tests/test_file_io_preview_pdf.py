@@ -313,3 +313,79 @@ class TestUploadFilePreviewPdfPath:
                 chat_id="chat-1",
                 preview_pdf_path="/definitely/not/a/real/file.pdf",
             )
+
+
+class TestUploadFileVersioningEnabled:
+    """Pin the contract that ``versioning_enabled`` is forwarded as a
+    boolean only when the caller opted in.
+
+    The default of ``None`` must NOT reach ``Content.upsert`` as
+    ``versioningEnabled=None``: the HTTP layer would serialize that as
+    JSON ``null``, which node-ingestion rejects because the Prisma
+    ``Content.versioningEnabled`` column is a non-null boolean. Omitting
+    the key lets the backend apply its own default (legacy behavior).
+    """
+
+    def _run_upload(
+        self, sample_pptx: str, **extra_kwargs: Any
+    ) -> list[dict[str, Any]]:
+        created = _fake_created_content()
+        upsert_calls: list[dict[str, Any]] = []
+
+        def upsert(**kwargs: Any) -> Any:
+            upsert_calls.append(kwargs)
+            return created
+
+        with (
+            patch.object(file_io.Content, "upsert", side_effect=upsert),
+            patch.object(file_io.unique_sdk.Content, "upsert", side_effect=upsert),
+            patch.object(
+                file_io.requests,
+                "put",
+                MagicMock(return_value=MagicMock(status_code=200)),
+            ),
+        ):
+            file_io.upload_file(
+                userId="user-1",
+                companyId="company-1",
+                path_to_file=sample_pptx,
+                displayed_filename="deck.pptx",
+                mime_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "presentationml.presentation"
+                ),
+                chat_id="chat-1",
+                **extra_kwargs,
+            )
+
+        return upsert_calls
+
+    def test_default_omits_versioning_enabled(self, sample_pptx: str) -> None:
+        """Not passing ``versioning_enabled`` (the ``None`` default) must
+        leave ``versioningEnabled`` absent from every upsert — never
+        present-as-None, which would serialize as JSON ``null`` and fail
+        Prisma validation in node-ingestion."""
+        upsert_calls = self._run_upload(sample_pptx)
+
+        assert upsert_calls, "expected at least one upsert call"
+        for call in upsert_calls:
+            assert "versioningEnabled" not in call
+
+    def test_explicit_true_forwards_boolean(self, sample_pptx: str) -> None:
+        """``versioning_enabled=True`` is forwarded verbatim on every
+        upsert so the platform archives previous blobs."""
+        upsert_calls = self._run_upload(sample_pptx, versioning_enabled=True)
+
+        assert upsert_calls, "expected at least one upsert call"
+        for call in upsert_calls:
+            assert call["versioningEnabled"] is True
+
+    def test_explicit_false_forwards_boolean(self, sample_pptx: str) -> None:
+        """``versioning_enabled=False`` is a deliberate opt-out and must
+        be forwarded as the boolean ``False`` (distinct from omitting
+        the key, which defers to the backend default)."""
+        upsert_calls = self._run_upload(sample_pptx, versioning_enabled=False)
+
+        assert upsert_calls, "expected at least one upsert call"
+        for call in upsert_calls:
+            assert call["versioningEnabled"] is False

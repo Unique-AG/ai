@@ -413,6 +413,27 @@ class TestElicitWait:
         result = cmd_elicit_wait(_state(), "elicit_abc", timeout=10)
         assert "timed out after 10s" in result
 
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.cli.commands.elicitation.time.monotonic")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_deadline_final_fetch_reports_expired(
+        self,
+        mock_get: MagicMock,
+        mock_monotonic: MagicMock,
+        mock_sleep: MagicMock,
+    ) -> None:
+        """On the deadline, a final read catches a record that just expired."""
+        # First in-loop poll still PENDING; the deadline fetch sees EXPIRED
+        # (the backend lazily expired it once expiresAt passed).
+        mock_get.side_effect = [
+            _elicitation(status="PENDING"),
+            _elicitation(status="EXPIRED"),
+        ]
+        mock_monotonic.side_effect = [0.0, 100.0, 200.0]
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=10)
+        assert "EXPIRED" in result
+        assert "timed out" not in result
+
     @patch("unique_sdk.Elicitation.get_elicitation")
     def test_api_error(self, mock: MagicMock) -> None:
         mock.side_effect = unique_sdk.APIError("fail")
@@ -465,6 +486,19 @@ class TestElicitAsk:
         mock_create.side_effect = unique_sdk.APIError("fail")
         result = cmd_elicit_ask(_state(), message="x")
         assert "elicit:" in result
+
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.create_elicitation")
+    def test_expiry_always_matches_wait_timeout(
+        self, mock_create: MagicMock, mock_get: MagicMock
+    ) -> None:
+        """`ask` has a single knob: the record expires exactly when we stop waiting."""
+        mock_create.return_value = _elicitation()
+        mock_get.return_value = _elicitation(
+            status="RESPONDED", response_content={"answer": "hi"}
+        )
+        cmd_elicit_ask(_state(), message="What?", timeout=10)
+        assert mock_create.call_args[1]["expiresInSeconds"] == 10
 
 
 # --- Visibility workaround (UN-19815) -----------------------------------
@@ -1132,9 +1166,10 @@ class TestShellElicit:
         out = _capture(_shell(), 'elicit ask "x" --poll-interval abc')
         assert "Invalid --poll-interval" in out
 
-    def test_ask_invalid_expires_in(self) -> None:
-        out = _capture(_shell(), 'elicit ask "x" --expires-in abc')
-        assert "Invalid --expires-in" in out
+    def test_ask_rejects_expires_in_option(self) -> None:
+        """`ask` exposes only --timeout; --expires-in lives on `create`."""
+        out = _capture(_shell(), 'elicit ask "x" --expires-in 60')
+        assert "No such option" in out
 
     def test_ask_invalid_metadata(self) -> None:
         out = _capture(_shell(), 'elicit ask "x" --metadata badformat')

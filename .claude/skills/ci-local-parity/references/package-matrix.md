@@ -53,12 +53,15 @@ All packages: `min_coverage: 60` (diff-based, new/changed lines only in CI)
 | swot | `tool_packages/unique_swot` |
 | follow_up_questions | `postprocessors/unique_follow_up_questions` |
 | stock_ticker | `postprocessors/unique_stock_ticker` |
+| user_memory | `postprocessors/unique_user_memory` |
 | deep_research | `tool_packages/unique_deep_research` |
 | internal_search | `tool_packages/unique_internal_search` |
 | skill_tool | `tool_packages/unique_skill_tool` |
 | quartr | `connectors/unique_quartr` |
 | six | `connectors/unique_six` |
-| search_proxy | `connectors/unique_search_proxy` |
+| search_proxy | `connectors/unique_search_proxy/unique_search_proxy_client` |
+| search_proxy_core | `connectors/unique_search_proxy/unique_search_proxy_core` |
+| search_proxy_sdk | `connectors/unique_search_proxy/unique_search_proxy_sdk` |
 
 **Notes:**
 - `unique_six` has no `[tool.poe.tasks]` block — call `uv run ruff check .`, `uv run pytest`, `uv run deptry .` directly.

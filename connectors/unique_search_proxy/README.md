@@ -1,297 +1,186 @@
 # Unique Search Proxy
 
-A unified web search proxy API that provides a consistent interface for multiple search backends. Built with FastAPI and designed for seamless integration with AI applications.
+Platform services need web search, grounded agent research, and URL crawling — but should not embed provider SDKs, manage API keys, or configure corporate egress in every pod. **Unique Search Proxy** centralises that: one deployable service, one HTTP contract, three Python packages with a strict separation of concerns.
 
-## Overview
+---
 
-This service acts as an abstraction layer over different search providers, allowing clients to switch between search engines without changing their integration code. Currently supports:
+## 1. The problem and the solution
 
-| Engine | Description |
-|--------|-------------|
-| **Google Custom Search** | Direct integration with Google's Custom Search JSON API |
-| **Vertex AI (Gemini)** | AI-powered search using Google's Gemini models with grounding capabilities |
+| Without the proxy | With the proxy |
+|-------------------|----------------|
+| Each service integrates Google, Brave, Tavily, … separately | Callers use one HTTP API |
+| Secrets scattered across pods | Credentials live in the proxy pod only |
+| Egress/proxy config duplicated | Shared `HttpClientPool` handles outbound networking |
+| Tool schemas drift from runtime behaviour | **Core** defines contracts once; server and SDK share them |
 
-## Quick Start
+The proxy exposes three **capabilities**:
 
-### Prerequisites
+1. **Standard search** — query a search engine, get normalised results (`google`, `brave`, `perplexity`)
+2. **Agent search** — grounded research via LLM agents (`bing`, `vertexai`); returns opaque text for the caller to parse
+3. **URL crawl** — fetch and extract page content (`Basic`, `Tavily`, `Jina`, `Firecrawl`)
 
-- Python 3.12+
-- uv for dependency management
-- Google Cloud credentials (for Vertex AI)
-- Google Custom Search API key and Engine ID (for Google Search)
+---
 
-### Installation
+## 2. Three packages, three responsibilities
 
-```bash
-# Install dependencies
-uv sync
+```mermaid
+flowchart LR
+    subgraph callers["Caller pods"]
+        AC["assistants-core, …"]
+    end
 
-# Copy and configure environment variables
-cp .env.example .env
+    subgraph packages["connectors/unique_search_proxy/"]
+        Core["core\ncontracts & schemas"]
+        SDK["sdk\nHTTP client"]
+        Client["client\nFastAPI server"]
+    end
+
+    subgraph external["External providers"]
+        APIs["Search / agent / crawl APIs"]
+    end
+
+    AC -->|"import for tool manifests"| Core
+    AC -->|"runtime calls"| SDK
+    SDK --> Client
+    Client --> Core
+    Client --> APIs
+    SDK --> Core
 ```
 
-### Environment Variables
+| Package | PyPI name | One-line role |
+|---------|-----------|---------------|
+| [`unique_search_proxy_core/`](unique_search_proxy_core/README.md) | `unique-search-proxy-core` | **Contracts** — Pydantic models, deployment config, LLM schema projection. No HTTP. |
+| [`unique_search_proxy_client/`](unique_search_proxy_client/README.md) | `unique-search-proxy` | **Execution** — FastAPI server, secrets, egress, provider adapters, Prometheus. |
+| [`unique_search_proxy_sdk/`](unique_search_proxy_sdk/README.md) | `unique-search-proxy-sdk` | **Transport** — async HTTP client generated from the server's OpenAPI spec. |
 
-```bash
-# Google Custom Search
-GOOGLE_SEARCH_API_KEY=your-api-key
-GOOGLE_SEARCH_API_ENDPOINT=https://www.googleapis.com/customsearch/v1
-GOOGLE_SEARCH_ENGINE_ID=your-engine-id
+**Dependency rule:** core and SDK never import the client. Callers may import core alone (for tool manifests) without installing the server.
 
-# Vertex AI
-VERTEXAI_SERVICE_ACCOUNT_CREDENTIALS=path/to/credentials.json
+→ Deeper treatment: [Core README](unique_search_proxy_core/README.md) · [Client README](unique_search_proxy_client/README.md) · [SDK README](unique_search_proxy_sdk/README.md)
+
+---
+
+## 3. How the system fits together
+
+Two paths connect the packages. Most confusion comes from treating them as one — they serve different lifecycle stages.
+
+```mermaid
+flowchart TB
+    subgraph path_a["Path A — Schema & config (no HTTP)"]
+        Admin["Admin / deployment UI"]
+        CoreA["unique_search_proxy_core"]
+        Admin -->|"deployment config"| CoreA
+        CoreA -->|"JSON Schema for UI"| Admin
+        CoreA -->|"LLM call schema for tools"| CallerA["Caller service"]
+    end
+
+    subgraph path_b["Path B — Runtime execution (HTTP)"]
+        CallerB["Caller service"]
+        SDK["unique_search_proxy_sdk"]
+        Client["unique_search_proxy_client"]
+        Upstream["Provider APIs"]
+        CallerB --> SDK
+        SDK -->|"POST /v1/*"| Client
+        Client --> Upstream
+    end
+
+    CallerA -.->|"same process"| CallerB
 ```
 
-### Running the Service
+| Path | When | What moves |
+|------|------|------------|
+| **A — Schema & config** | Deploy time, tool registration | Deployment config → JSON Schema; LLM call schema; `merge_config_and_invocation()` builds the flat request body |
+| **B — Runtime HTTP** | Each search / crawl / agent call | SDK → proxy route → provider service → upstream API |
 
-**Development:**
-```bash
-uv run python -m unique_search_proxy.web.app
-```
+Path A never hits the network. Path B never re-derives schemas — it consumes the flat JSON body that Path A (or manual construction) already produced.
 
-**Docker (from published package — hash-verified):**
+---
 
-CI generates a hash-pinned `requirements.txt` from `uv.lock` and passes it into the
-Docker build. Dependencies are installed with `--require-hashes`, then the package
-itself is installed with `--no-deps`. To reproduce locally:
+## 4. Capabilities at a glance
 
-```bash
-uv export --locked --package unique-search-proxy --no-dev --no-emit-project \
-  -o deploy/requirements.txt
-docker build --build-arg PACKAGE_VERSION=0.2.0 -t search-proxy deploy/
-```
+| Capability | Endpoint | Providers |
+|------------|----------|-----------|
+| Standard search | `POST /v1/search` | `google`, `brave`, `perplexity` |
+| Agent search | `POST /v1/agent-search` | `bing`, `vertexai` |
+| Agent search (stream) | `POST /v1/agent-search/stream` | `bing`, `vertexai` |
+| URL crawl | `POST /v1/crawl` | `Basic`, `Tavily`, `Jina`, `Firecrawl` |
+| Provider discovery | `GET /v1/configuration/providers` | — |
+| Health / metrics | `GET /health`, `/ready`, `/metrics` | — |
 
-Every transitive dependency is verified against its sha256 hash from the lockfile.
+Endpoint details, payloads, and env vars → [Client README](unique_search_proxy_client/README.md).
 
-**Docker (from local source — no registry required):**
+---
 
-Build a wheel first, copy it into `deploy/`, then reference it:
+## 5. End-to-end flow (search)
 
-```bash
-uv build --wheel --out-dir deploy/
-docker build \
-  --build-arg LOCAL_WHEEL=unique_search_proxy-0.2.0-py3-none-any.whl \
-  -t search-proxy deploy/
-```
+```mermaid
+sequenceDiagram
+    participant AC as Caller (e.g. assistants-core)
+    participant Core as core
+    participant SDK as sdk
+    participant Proxy as client (proxy pod)
+    participant Google as Google API
 
-**Running the container:**
+    Note over AC,Core: Path A — before any HTTP call
+    AC->>Core: resolve_search_call_schema(config)
+    AC->>Core: merge_config_and_invocation(config, llm_args)
 
-```bash
-docker run --rm -p 8080:8080 search-proxy
-
-# With custom environment variables
-docker run --rm -p 8080:8080 -e WORKERS=8 -e LOG_LEVEL=debug search-proxy
-```
-
-## API Documentation
-
-FastAPI provides automatic interactive API documentation:
-
-| URL | Description |
-|-----|-------------|
-| `/docs` | Swagger UI - interactive API explorer |
-| `/redoc` | ReDoc - alternative documentation |
-| `/openapi.json` | OpenAPI schema |
-
-## API Reference
-
-### Health Check
-
-```http
-GET /health
-```
-
-**Response:**
-```json
-{
-  "status": "healthy"
-}
+    Note over AC,Google: Path B — runtime
+    AC->>SDK: search.search(...)
+    SDK->>Proxy: POST /v1/search
+    Proxy->>Google: via HttpClientPool
+    Google-->>Proxy: raw JSON
+    Proxy-->>SDK: SearchResponse (curated + raw)
+    SDK-->>AC: SearchResponse
 ```
 
 ---
 
-### Search
+## 6. Design principles
 
-```http
-POST /search
-Content-Type: application/json
-```
-
-**Request Body:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `search_engine` | string | No | `"google"` or `"vertexai"` (default: `"google"`) |
-| `query` | string | Yes | The search query |
-| `kwargs` | object | No | Engine-specific parameters |
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "url": "https://example.com/article",
-      "title": "Article Title",
-      "snippet": "A brief description of the content...",
-      "content": ""
-    }
-  ]
-}
-```
+1. **Core owns contracts** — one source of truth for request/response shapes and config models.
+2. **Client owns execution** — secrets, egress, and provider SDKs stay in the proxy pod.
+3. **SDK owns transport** — thin OpenAPI wrapper; no duplicated business logic.
+4. **Flat HTTP bodies** — no nested `config` + `invocation` on the wire; merge happens in core before the call.
+5. **Thin agent egress** — agent search returns opaque `answer`; parsing is a caller concern.
+6. **Fail closed** — missing credentials → `503 ENGINE_NOT_CONFIGURED` with env var names.
 
 ---
 
-## Search Engine Configuration
-
-### Google Custom Search
-
-Uses Google's Custom Search JSON API for traditional web search results.
-
-**Parameters (`kwargs`):**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `cx` | string | env default | Custom Search Engine ID (overrides env) |
-| `fetchSize` | int | 10 | Number of results to fetch |
-| `timeout` | int | 10 | Request timeout in seconds |
-
-**Example:**
-```json
-{
-  "search_engine": "google",
-  "query": "latest AI developments",
-  "kwargs": {
-    "fetchSize": 20,
-    "timeout": 15
-  }
-}
-```
-
----
-
-### Vertex AI (Gemini)
-
-Leverages Google's Gemini models with web grounding for AI-enhanced search results. This engine:
-
-1. Uses Gemini to search and synthesize information from the web
-2. Generates structured results with citations
-3. Optionally resolves shortened/redirect URLs to final destinations
-
-**Parameters (`kwargs`):**
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `modelName` | string | `"gemini-2.5-flash"` | Gemini model to use |
-| `entrepriseSearch` | bool | `false` | Use Enterprise Web Search |
-| `systemInstruction` | string | (built-in) | Custom system prompt |
-| `resolveUrls` | bool | `true` | Resolve redirect URLs |
-
-**Example:**
-```json
-{
-  "search_engine": "vertexai",
-  "query": "Compare the top 3 cloud providers for ML workloads",
-  "kwargs": {
-    "modelName": "gemini-2.5-flash",
-    "resolveUrls": true
-  }
-}
-```
-
----
-
-## Project Structure
+## 7. Repository layout
 
 ```
 connectors/unique_search_proxy/
-├── unique_search_proxy/          # Python package (published to PyPI)
-│   ├── __init__.py
-│   └── web/                      # Web search API sub-module
-│       ├── __init__.py
-│       ├── app.py                # FastAPI application
-│       ├── settings.py           # Global settings
-│       └── core/                 # Search engine implementations
-│           ├── schema.py         # Shared schemas
-│           ├── google_search/    # Google Custom Search backend
-│           └── vertexai/         # Vertex AI (Gemini) backend
-├── tests/                        # Test suite
-├── deploy/                       # Container build artifacts
-│   ├── Dockerfile                # Hash-verified install or local wheel
-│   └── entrypoint.sh
-└── pyproject.toml
+├── README.md                     ← you are here (system overview)
+├── unique_search_proxy_core/     ← contracts & schema helpers
+├── unique_search_proxy_client/   ← FastAPI server, Docker, Helm
+└── unique_search_proxy_sdk/      ← HTTP client for callers
 ```
 
-The package uses a sub-module hierarchy (`web/`) to support future extensions (e.g. `internal/` search) that can be deployed as separate containers from the same package.
+---
 
-## Architecture
+## 8. Quick start
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       FastAPI App                           │
-│                      /search endpoint                       │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-                    ┌─────▼─────┐
-                    │  Factory  │
-                    └─────┬─────┘
-                          │
-          ┌───────────────┼───────────────┐
-          │                               │
-    ┌─────▼─────┐                   ┌─────▼─────┐
-    │  Google   │                   │ Vertex AI │
-    │  Search   │                   │  (Gemini) │
-    └───────────┘                   └───────────┘
-```
-
-The service uses a **factory pattern** to register and resolve search engines, making it easy to add new backends.
-
-## Error Handling
-
-All errors return a consistent format:
-
-```json
-{
-  "status": "failed",
-  "error": "Error description"
-}
-```
-
-| Status Code | Description |
-|-------------|-------------|
-| 400 | Validation error (invalid request) |
-| 500 | Internal server error |
-
-## Production Deployment
-
-The service includes a production-ready `deploy/entrypoint.sh` that uses Uvicorn:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST` | `0.0.0.0` | Bind address |
-| `PORT` | `8080` | Listen port |
-| `WORKERS` | `4` | Uvicorn workers |
-| `TIMEOUT` | `120` | Keep-alive timeout |
-| `LOG_LEVEL` | `info` | Logging verbosity |
-
-## Development
+Run the proxy locally:
 
 ```bash
-# Run with hot reload
-uv run uvicorn unique_search_proxy.web.app:app --reload --port 2349
-
-# Format code
-uv run ruff format .
-
-# Lint
-uv run ruff check .
-
-# Run tests
-uv run pytest
-
-# Type check
-uv run basedpyright
+cd unique_search_proxy_client
+uv sync && cp .env.example .env   # set provider keys
+uv run uvicorn unique_search_proxy_client.web.app:app --reload --port 2349
 ```
+
+Call it from Python:
+
+```python
+from unique_search_proxy_sdk import UniqueSearchProxyClient
+
+async with UniqueSearchProxyClient("http://localhost:2349") as client:
+    result = await client.search.search("EU AI Act", engine="google", fetchSize=10)
+```
+
+Package-specific install, configuration, and development → see the [Client](unique_search_proxy_client/README.md), [Core](unique_search_proxy_core/README.md), and [SDK](unique_search_proxy_sdk/README.md) READMEs.
+
+---
 
 ## License
 
-Proprietary - Unique AG
+Proprietary — Unique AG

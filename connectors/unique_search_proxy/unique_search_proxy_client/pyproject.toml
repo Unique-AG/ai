@@ -1,0 +1,117 @@
+[project]
+name = "unique-search-proxy"
+version = "2026.24.0"
+description = "Web Search Proxy implementation"
+authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0,<1.0.0",
+    "starlette>=0.41.0,<1.0.0",
+    "uvicorn[standard]>=0.32.0,<1.0.0",
+    "pydantic>=2.12.5,<3.0.0",
+    "httpx>=0.28.0,<0.29.0",
+    "python-dotenv>=1.2.1,<2.0.0",
+    "pydantic-settings>=2.12.0,<3.0.0",
+    "markdownify>=0.14.1,<1",
+    "azure-ai-projects>=1.0.0,<2",
+    "azure-identity>=1.25.0,<2",
+    "azure-core>=1.36.0,<2",
+    "certifi>=2025.11.12,<2027",
+    "google-genai>=1.73.0,<2",
+    "google-auth>=2.43.0,<3",
+    "unique-toolkit[monitoring]>=2026.22.0",
+    "unique-search-proxy-core>=2026.22.0",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.1",
+    "openapi-python-client>=0.28.4",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.15.10",
+    "unique-search-proxy-sdk>=2026.22.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.7.19,<0.8"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "."
+module-name = "unique_search_proxy_client"
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
+unique-search-proxy-core = { workspace = true }
+unique-search-proxy-sdk = { workspace = true }
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_search_proxy_client"]
+
+[tool.deptry]
+known_first_party = [
+    "unique_search_proxy_client",
+    "unique_search_proxy_core",
+    "unique_search_proxy_sdk",
+    "unique_toolkit",
+]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["unique-toolkit", "unique-search-proxy-core"]
+DEP003 = ["unique_toolkit", "unique_search_proxy_core"]
+
+[tool.poe.tasks]
+generate-sdk = "python scripts/generate_sdk.py"
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+check-imports = "lint-imports --config pyproject.toml"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.importlinter]
+root_packages = [
+    "unique_search_proxy_core",
+    "unique_search_proxy_sdk",
+]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core and sdk never import the FastAPI server"
+type = "forbidden"
+source_modules = [
+    "unique_search_proxy_core",
+    "unique_search_proxy_sdk",
+]
+forbidden_modules = ["unique_search_proxy_client"]

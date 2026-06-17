@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "2026.22.0"
+version = "2026.24.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
@@ -28,7 +28,7 @@ dependencies = [
     "openai>=1.105.0,<3",
     "platformdirs>=4.0.0,<5",
     "pillow>=12.1.1",
-    "unique-sdk>=2026.22.0",
+    "unique-sdk>=2026.24.0",
     "jambo>=0.1.2,<0.2",
     "jinja2>=3.1.6,<4",
     "docxtpl>=0.20.1,<0.21",
@@ -43,6 +43,7 @@ dependencies = [
     "pypandoc>=1.16.2,<2",
     "tenacity>=9.1.4",
     "pydantic-core>=2.41.5",
+    "cachetools>=5.0,<6",
 ]
 
 [project.optional-dependencies]
@@ -60,7 +61,6 @@ fastapi = [
 monitoring = [
     "prometheus_client>=0.24.1,<1",
 ]
-
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
@@ -69,7 +69,9 @@ build-backend = "uv_build"
 module-root = ""
 
 [dependency-groups]
-dev = []
+dev = [
+    "types-cachetools>=5.0,<6",
+]
 
 [tool.uv]
 exclude-newer = "2 weeks"

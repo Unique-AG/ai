@@ -20,6 +20,20 @@ class _PreviewKwargs(TypedDict, total=False):
     previewPdfFileName: str
 
 
+class _VersioningKwargs(TypedDict, total=False):
+    """Subset of ``Content.UpsertParams`` carrying ``versioningEnabled``,
+    forwarded conditionally for the same reason as ``_PreviewKwargs``.
+
+    Forwarding ``versioningEnabled=None`` would serialize as JSON
+    ``null``, which node-ingestion rejects (the Prisma
+    ``Content.versioningEnabled`` column is a non-null boolean). Omitting
+    the key entirely lets the backend apply its own default, preserving
+    the legacy upload behavior for callers that never opt into
+    versioning."""
+
+    versioningEnabled: bool
+
+
 # download readUrl a random directory in /tmp
 def download_file(url: str, filename: str):
     # Guard for callers without a type checker: fail fast with a clear error before reaching requests.
@@ -106,6 +120,7 @@ def upload_file(
     ingestion_config: Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
     preview_pdf_path: str | None = None,
+    versioning_enabled: bool | None = None,
 ):
     """Upload *path_to_file* as a Unique :class:`Content`.
 
@@ -148,6 +163,9 @@ def upload_file(
             responsibility — there is no override kwarg, by design,
             so all callers land on the same ``${content.id}_pdfPreview``
             convention as the ingestion worker.
+        versioning_enabled: When ``True``, ask the platform to archive
+            previous blobs for the same content so they can be listed
+            and restored through the content version endpoints.
     """
     if not chat_id and not scope_or_unique_path:
         raise ValueError("chat_id or scope_or_unique_path must be provided")
@@ -158,6 +176,17 @@ def upload_file(
         )
 
     size = os.path.getsize(path_to_file)
+
+    # Forward ``versioningEnabled`` only when the caller opted in. A
+    # default of ``None`` would otherwise serialize as JSON ``null``,
+    # which node-ingestion rejects on the non-null Prisma column; an
+    # omitted key lets the backend apply its own default (legacy
+    # behavior).
+    versioning_kwargs: _VersioningKwargs = (
+        {"versioningEnabled": versioning_enabled}
+        if versioning_enabled is not None
+        else {}
+    )
 
     # Step 1 — first upsert WITHOUT ``previewPdfFileName``. The id we
     # need to derive a collision-free preview blob name does not exist
@@ -177,6 +206,7 @@ def upload_file(
         },
         scopeId=scope_or_unique_path,
         chatId=chat_id,
+        **versioning_kwargs,
     )
 
     # Step 2 — PUT the original bytes to the SAS URL minted by Step 1.
@@ -229,6 +259,7 @@ def upload_file(
             },
             fileUrl=createdContent.readUrl,
             chatId=chat_id,
+            **versioning_kwargs,
             **preview_kwargs,
         )
     else:
@@ -246,6 +277,7 @@ def upload_file(
             },
             fileUrl=createdContent.readUrl,
             scopeId=scope_or_unique_path,
+            **versioning_kwargs,
             **preview_kwargs,
         )
 

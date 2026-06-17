@@ -60,7 +60,7 @@ async def search(
         Field(description="The query to search for in the knowledge base."),
     ],
     # ── INJECTED: framework provides these, not part of the tool schema ───────
-    config: SearchToolConfig = get_tool_config(SearchToolConfig),
+    config: SearchToolConfig = Depends(get_tool_config(SearchToolConfig)),
     settings: UniqueSettings = Depends(get_unique_settings),
 ) -> CallToolResult:
     """Search the knowledge base.

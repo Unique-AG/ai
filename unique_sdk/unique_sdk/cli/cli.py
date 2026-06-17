@@ -7,7 +7,14 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.cite_file import cmd_cite_file
+from unique_sdk.cli.commands.dynamic_frontend import (
+    cmd_dynamic_frontend_delete,
+    cmd_dynamic_frontend_deploy,
+    cmd_dynamic_frontend_list,
+)
 from unique_sdk.cli.commands.elicitation import (
+    DEFAULT_WAIT_TIMEOUT_SECONDS,
     cmd_elicit_ask,
     cmd_elicit_create,
     cmd_elicit_get,
@@ -15,10 +22,21 @@ from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_respond,
     cmd_elicit_wait,
 )
-from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
+from unique_sdk.cli.commands.files import (
+    cmd_download,
+    cmd_mv_file,
+    cmd_restore_version,
+    cmd_rm,
+    cmd_upload,
+    cmd_versions,
+)
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.read import cmd_read
+from unique_sdk.cli.commands.read import (
+    is_error_output as _is_read_error_output,
+)
 from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_create,
     cmd_schedule_delete,
@@ -26,7 +44,12 @@ from unique_sdk.cli.commands.scheduled_tasks import (
     cmd_schedule_list,
     cmd_schedule_update,
 )
-from unique_sdk.cli.commands.search import cmd_search
+from unique_sdk.cli.commands.search import (
+    cmd_search,
+)
+from unique_sdk.cli.commands.search import (
+    is_error_output as _is_search_error_output,
+)
 from unique_sdk.cli.commands.subagent import cmd_subagent
 from unique_sdk.cli.commands.subagent import (
     is_error_output as _is_subagent_error_output,
@@ -42,6 +65,8 @@ from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
 from unique_sdk.cli.config import load_config
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
+
+_DYNAMIC_FRONTEND_ERROR_PREFIX = "dynamic-frontend "
 
 MAIN_HELP = """\
 Unique CLI -- Linux-like file explorer for the Unique AI Platform.
@@ -75,6 +100,7 @@ Path formats accepted by all commands:
 \b
 File identifiers:
   report.pdf          File name (matched in current directory)
+  /Reports/report.pdf File path (absolute or relative)
   cont_abc123         Content ID (used directly)
 
 \b
@@ -83,12 +109,15 @@ Examples:
   unique-cli ls                     List root folders
   unique-cli ls /Reports            List a specific folder
   unique-cli search "revenue" -l 50 Search with custom limit
-  unique-cli upload ./file.pdf      Upload to current folder
+  unique-cli upload ./file.pdf      Upload versioned to current folder
   unique-cli download cont_abc123   Download by content ID
+  unique-cli versions cont_abc123   List archived file versions
+  unique-cli restore-version cver_1 Restore a file from a version
   unique-cli elicit ask "Which?"    Ask the user a question synchronously
   unique-cli subagent Legal "Review" Invoke a connected space/subagent
   unique-cli web-search search "x"  Search the web via the public API
   unique-cli web-search crawl URL   Crawl a URL via the public API
+  unique-cli dynamic-frontend list  List manageable Dynamic Frontend spaces
 """
 
 
@@ -244,12 +273,13 @@ def mvdir(ctx: click.Context, old_name: str, new_name: str) -> None:
 @click.argument("destination", required=False, default=None)
 @click.pass_context
 def upload(ctx: click.Context, local_path: str, destination: str | None) -> None:
-    """Upload a local file (works like Linux cp).
+    """Upload a local file with versioning enabled (works like Linux cp).
 
     \b
-    Uploads LOCAL_PATH to the Unique platform. DESTINATION works like
-    the target in cp -- it can be a folder path, a new filename, or
-    a combination of both. MIME type is auto-detected.
+    Uploads LOCAL_PATH to the Unique platform with immutable versioning
+    enabled. DESTINATION works like the target in cp -- it can be a
+    folder path, a new filename, or a combination of both. MIME type is
+    auto-detected.
 
     \b
     Destination formats:
@@ -273,14 +303,56 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
 
 @main.command()
 @click.argument("name_or_id")
+@click.option("--skip", type=int, default=None, help="Number of versions to skip.")
+@click.option("--take", type=int, default=None, help="Number of versions to return.")
+@click.pass_context
+def versions(
+    ctx: click.Context,
+    name_or_id: str,
+    skip: int | None,
+    take: int | None,
+) -> None:
+    """List archived versions for a file.
+
+    \b
+    NAME_OR_ID is a file path, a file name matched in the current
+    directory, or a content ID (cont_...) which is resolved directly.
+
+    \b
+    Examples:
+      unique-cli versions report.pdf
+      unique-cli versions /Reports/Q1/report.pdf
+      unique-cli versions cont_abc123 --take 10
+    """
+    click.echo(cmd_versions(LazyState.get(ctx), name_or_id, skip=skip, take=take))
+
+
+@main.command(name="restore-version")
+@click.argument("content_version_id")
+@click.pass_context
+def restore_version(ctx: click.Context, content_version_id: str) -> None:
+    """Restore a file from a content version ID.
+
+    \b
+    CONTENT_VERSION_ID is returned by `unique-cli versions`.
+
+    \b
+    Examples:
+      unique-cli restore-version cver_abc123
+    """
+    click.echo(cmd_restore_version(LazyState.get(ctx), content_version_id))
+
+
+@main.command()
+@click.argument("name_or_id")
 @click.argument("local_dest", required=False, default=None)
 @click.pass_context
 def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> None:
     """Download a file to your local machine.
 
     \b
-    NAME_OR_ID is a file name (matched in the current directory) or
-    a content ID (cont_...) which is resolved directly.
+    NAME_OR_ID is a file path, a file name matched in the current
+    directory, or a content ID (cont_...) which is resolved directly.
 
     \b
     LOCAL_DEST is an optional path (directory or file) to save to.
@@ -289,25 +361,233 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     \b
     Examples:
       unique-cli download annual.pdf
+      unique-cli download /Reports/Q1/annual.pdf
       unique-cli download annual.pdf ./downloads/
       unique-cli download cont_abc123 ~/Desktop/
     """
     click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
 
 
+@main.command(name="cite")
+@click.argument("name_or_id")
+@click.option(
+    "--pages",
+    "-p",
+    default=None,
+    help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
+)
+@click.pass_context
+def cite(
+    ctx: click.Context,
+    name_or_id: str,
+    pages: str | None,
+) -> None:
+    """Declare page citations for a file.
+
+    \b
+    Registers [filesourceN] markers for pages you referenced in your answer.
+    Does NOT read or extract the file — use your own tools for that.
+    NAME_OR_ID can be a file path, current-directory file name, or content ID.
+
+    \b
+    Examples:
+      unique-cli cite report.pdf --pages 3,5,7
+      unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7
+      unique-cli cite cont_abc123 --pages 1-4
+    """
+    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
+
+
+@main.command(name="read")
+@click.argument("cont_id")
+@click.option(
+    "--page",
+    "-p",
+    type=int,
+    default=None,
+    help="Read a single page (shorthand for --from-page N --to-page N).",
+)
+@click.option(
+    "--from-page",
+    type=int,
+    default=None,
+    help="First page to include (inclusive).",
+)
+@click.option(
+    "--to-page",
+    type=int,
+    default=None,
+    help="Last page to include (inclusive).",
+)
+@click.option(
+    "--max-chars",
+    type=int,
+    default=None,
+    help="Truncate the printed text to at most N characters.",
+)
+@click.pass_context
+def read_cmd(
+    ctx: click.Context,
+    cont_id: str,
+    page: int | None,
+    from_page: int | None,
+    to_page: int | None,
+    max_chars: int | None,
+) -> None:
+    """Read indexed text chunks for a known content ID.
+
+    \b
+    CONT_ID must be a content ID (cont_...) obtained from a prior `ls` or
+    `search` result. Retrieves every indexed chunk directly from the database
+    — no vector search, no query string needed.
+
+    \b
+    Use `search` when you need to find documents by topic or keyword.
+    Use `read` when you already know the content ID and want the full text.
+
+    \b
+    Restrict to a page range with --page (single page) or --from-page/--to-page.
+    A chunk spanning pages 2-4 is returned for any overlapping request; files
+    without page numbers (e.g. plain text/markdown) are returned only without a
+    page range.
+
+    \b
+    Examples:
+      unique-cli read cont_abc123
+      unique-cli read cont_abc123 --page 12
+      unique-cli read cont_abc123 --from-page 5 --to-page 9
+      unique-cli read cont_abc123 --to-page 3 --max-chars 8000
+    """
+    if page is not None and (from_page is not None or to_page is not None):
+        click.echo(
+            "read: use either --page or --from-page/--to-page, not both", err=True
+        )
+        raise SystemExit(1)
+    if page is not None:
+        from_page = page
+        to_page = page
+    output = cmd_read(
+        LazyState.get(ctx),
+        cont_id,
+        from_page=from_page,
+        to_page=to_page,
+        max_chars=max_chars,
+    )
+    if _is_read_error_output(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
+
+
+@main.group(name="dynamic-frontend")
+def dynamic_frontend() -> None:
+    """Deploy, list, and delete Dynamic Frontend spaces."""
+
+
+@dynamic_frontend.command(name="deploy")
+@click.option(
+    "--file",
+    "file_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Path to an upload-ready Dynamic Frontend ZIP bundle.",
+)
+@click.option(
+    "--content-id",
+    default=None,
+    help="Existing Knowledge Base content id for the ZIP bundle.",
+)
+@click.option(
+    "--name",
+    default=None,
+    help="Space display name. Required when creating; optional rename when updating.",
+)
+@click.option(
+    "--space-id", default=None, help="Existing Dynamic Frontend space id to update."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_deploy(
+    ctx: click.Context,
+    file_path: str | None,
+    content_id: str | None,
+    name: str | None,
+    space_id: str | None,
+    output_json: bool,
+) -> None:
+    """Create or update a Dynamic Frontend space.
+
+    \b
+    Examples:
+      unique-cli dynamic-frontend deploy --file ./app.zip --name "Revenue Dashboard"
+      unique-cli dynamic-frontend deploy --content-id content_123 --name "Revenue Dashboard"
+      unique-cli dynamic-frontend deploy --space-id assistant_123 --file ./app.zip
+    """
+    output = cmd_dynamic_frontend_deploy(
+        LazyState.get(ctx),
+        file=file_path,
+        content_id=content_id,
+        name=name,
+        space_id=space_id,
+        output_json=output_json,
+    )
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
+
+
+@dynamic_frontend.command(name="list")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
+    """List Dynamic Frontend spaces the current user can manage."""
+    output = cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json)
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
+
+
+@dynamic_frontend.command(name="delete")
+@click.argument("space_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_delete(
+    ctx: click.Context, space_id: str, output_json: bool
+) -> None:
+    """Delete a deployed Dynamic Frontend space by its space id.
+
+    \b
+    Example:
+      unique-cli dynamic-frontend delete assistant_123
+    """
+    output = cmd_dynamic_frontend_delete(
+        LazyState.get(ctx), space_id, output_json=output_json
+    )
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
+
+
 @main.command()
 @click.argument("name_or_id")
 @click.pass_context
 def rm(ctx: click.Context, name_or_id: str) -> None:
-    """Delete a file by name or content ID.
+    """Delete a file by path, name, or content ID.
 
     \b
-    NAME_OR_ID is a file name (matched in the current directory) or
-    a content ID (cont_...).
+    NAME_OR_ID is a file path, a file name matched in the current
+    directory, or a content ID (cont_...).
 
     \b
     Examples:
       unique-cli rm report.pdf
+      unique-cli rm /Reports/Q1/report.pdf
       unique-cli rm cont_abc123
     """
     click.echo(cmd_rm(LazyState.get(ctx), name_or_id))
@@ -322,11 +602,12 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 
     \b
     Changes the file's display title without changing its content ID
-    or location. OLD_NAME can be a file name or content ID.
+    or location. OLD_NAME can be a file path, file name, or content ID.
 
     \b
     Examples:
       unique-cli mv annual.pdf annual-2025.pdf
+      unique-cli mv /Reports/Q1/annual.pdf annual-2025.pdf
       unique-cli mv cont_abc123 "New Title.pdf"
     """
     click.echo(cmd_mv_file(LazyState.get(ctx), old_name, new_name))
@@ -390,9 +671,12 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    click.echo(
-        cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit)
+    output = cmd_search(
+        state, query, folder=folder, metadata=parsed_metadata, limit=limit
     )
+    click.echo(output)
+    if _is_search_error_output(output):
+        ctx.exit(1)
 
 
 @main.command()
@@ -801,18 +1085,15 @@ def elicit() -> None:
 @click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
 @click.option("--message-id", "-m", default=None, help="Associated message ID.")
 @click.option(
-    "--expires-in",
-    "expires_in_seconds",
-    type=int,
-    default=None,
-    help="Expire the elicitation after N seconds if not answered.",
-)
-@click.option(
     "--timeout",
     type=int,
-    default=300,
+    default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
-    help="Max seconds to block waiting for the user's response.",
+    help=(
+        "Max seconds to block waiting for the user's response. This also "
+        "sets when the elicitation expires, so the request expires exactly "
+        "when we stop waiting and the chat UI can offer a way to continue."
+    ),
 )
 @click.option(
     "--poll-interval",
@@ -871,7 +1152,6 @@ def elicit_ask(
     schema: str | None,
     chat_id: str | None,
     message_id: str | None,
-    expires_in_seconds: int | None,
     timeout: int,
     poll_interval: float,
     metadata: tuple[str, ...],
@@ -908,7 +1188,6 @@ def elicit_ask(
         "schema": schema,
         "chat_id": chat_id,
         "message_id": message_id,
-        "expires_in_seconds": expires_in_seconds,
         "timeout": timeout,
         "poll_interval": poll_interval,
         "metadata": parsed_metadata or None,
@@ -1092,7 +1371,7 @@ def elicit_get(ctx: click.Context, elicitation_id: str) -> None:
 @click.option(
     "--timeout",
     type=int,
-    default=300,
+    default=DEFAULT_WAIT_TIMEOUT_SECONDS,
     show_default=True,
     help="Max seconds to wait for a terminal state.",
 )

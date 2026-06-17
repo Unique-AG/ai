@@ -45,7 +45,19 @@ runs:
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet
 
+    - name: Check package exists on base branch
+      id: check
+      shell: bash
+      run: |
+        if [ -f "${{ inputs.package_dir }}/pyproject.toml" ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::Package '${{ inputs.package_dir }}' does not exist on '${{ inputs.branch }}' (new package); creating empty baseline."
+        fi
+
     - name: Install dependencies on base branch
+      if: steps.check.outputs.exists == 'true'
       shell: bash
       run: |
         PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
@@ -53,12 +65,14 @@ runs:
         uv sync --locked --inexact --only-dev
 
     - name: Discard lock file changes
+      if: steps.check.outputs.exists == 'true'
       shell: bash
       run: |
         git restore uv.lock 2>/dev/null || true
         git clean -f -- uv.lock 2>/dev/null || true
 
     - name: Create baseline
+      if: steps.check.outputs.exists == 'true'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
@@ -68,3 +82,10 @@ runs:
           -o "${{ inputs.output_file }}" \
           ${{ github.workspace }}/${{ inputs.package_dir }} \
           ${{ inputs.branch }}
+
+    - name: Create empty baseline for new package
+      if: steps.check.outputs.exists == 'false'
+      shell: bash
+      run: |
+        : > "${{ inputs.output_file }}"
+        git checkout - --quiet

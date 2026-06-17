@@ -9,6 +9,7 @@ from typing import Any
 
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.elicitation import (
+    DEFAULT_WAIT_TIMEOUT_SECONDS,
     cmd_elicit_ask,
     cmd_elicit_create,
     cmd_elicit_get,
@@ -16,7 +17,14 @@ from unique_sdk.cli.commands.elicitation import (
     cmd_elicit_respond,
     cmd_elicit_wait,
 )
-from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
+from unique_sdk.cli.commands.files import (
+    cmd_download,
+    cmd_mv_file,
+    cmd_restore_version,
+    cmd_rm,
+    cmd_upload,
+    cmd_versions,
+)
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
@@ -35,7 +43,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
 
     Navigate the knowledge base like a Linux filesystem. Folders are
     identified by name, path, or scope ID. Files are identified by
-    name or content ID.
+    name, path, or content ID.
 
     Navigation:
       pwd                       Print current working directory
@@ -48,16 +56,24 @@ OVERVIEW_HELP = textwrap.dedent("""\
       mvdir <old> <new>         Rename a folder
 
     File operations:
-      upload <local> [name]     Upload a local file
-      download <name|id> [dest] Download a file to local machine
-      rm <name|id>              Delete a file
-      mv <old> <new>            Rename a file
+      upload <local> [name]     Upload a local file with versioning
+      versions <name|path|id>   List archived file versions
+      restore-version <ver_id>  Restore a file from a version
+      download <name|path|id> [dest] Download a file to local machine
+      rm <name|path|id>         Delete a file
+      mv <old|path|id> <new>    Rename a file
+      cite <name|path|id> [--pages] Declare page citations for a file
 
     Search:
       search <query> [options]  Combined search (vector + full-text)
         --folder <path|id>        Restrict to a folder
         --metadata <key=value>    Filter by metadata (repeatable)
         --limit <N>               Max results (default: 200)
+      read <cont_id> [options]  Read indexed text chunks for a content ID
+        --page / -p <N>           Read a single page
+        --from-page <N>           First page (inclusive)
+        --to-page <N>             Last page (inclusive)
+        --max-chars <N>           Truncate output to N characters
 
     MCP:
       mcp [options] <json>      Call an MCP server tool
@@ -72,8 +88,8 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --schema <json>                JSON schema (default: single 'answer' field)
         --chat-id / -c <id>            Associated chat ID
         --message-id / -m <id>         Associated message ID
-        --expires-in <seconds>         Auto-expire the request
-        --timeout <seconds>            Max wait time (default: 300)
+        --timeout <seconds>            Max wait time, also sets when the
+                                       request expires (default: 7200)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
         --metadata key=value           Metadata (repeatable)
         --no-visible                   Skip the UN-19815 visibility workaround
@@ -97,7 +113,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
       elicit pending                 List pending elicitations
       elicit get <id>                Show one elicitation
       elicit wait <id> [opts]        Poll until answered / expired
-        --timeout <seconds>            Max wait (default: 300)
+        --timeout <seconds>            Max wait (default: 7200)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
       elicit respond <id> [opts]     Respond on behalf of the user
         --action ACCEPT|DECLINE|CANCEL|REJECT Response action (required)
@@ -290,13 +306,14 @@ class UniqueShell(cmd.Cmd):
     # -- File operations --
 
     def do_upload(self, arg: str) -> None:
-        """Upload a local file (works like Linux cp).
+        """Upload a local file with versioning enabled (works like Linux cp).
 
         Usage: upload <local_path> [destination]
 
-        Uploads a file from your local machine. The destination argument
-        works like cp -- it can be a folder, a new filename, or both.
-        MIME type is auto-detected from the file extension.
+        Uploads a file from your local machine with immutable versioning
+        enabled. The destination argument works like cp -- it can be a
+        folder, a new filename, or both. MIME type is auto-detected from
+        the file extension.
 
         Destination formats:
           (omitted)       Upload to current dir, keep original name
@@ -328,17 +345,78 @@ class UniqueShell(cmd.Cmd):
         destination = parts[1] if len(parts) > 1 else None
         self._print(cmd_upload(self.state, local_path, destination))
 
+    def do_versions(self, arg: str) -> None:
+        """List archived versions for a file.
+
+        Usage: versions <name|path|content_id> [--skip N] [--take N]
+
+        Lists immutable versions for a file identified by its Unique
+        path, name (matched in the current directory), or content ID
+        (cont_...). Use the VERSION_ID column with restore-version.
+
+        Examples:
+          /Reports> versions annual.pdf
+          /Reports> versions /Reports/Q1/annual.pdf
+          /Reports> versions cont_mno345 --take 10
+        """
+        parts = shlex.split(arg)
+        if not parts:
+            self._print("Usage: versions <name|path|content_id> [--skip N] [--take N]")
+            return
+
+        name_or_id = parts[0]
+        skip: int | None = None
+        take: int | None = None
+        i = 1
+        while i < len(parts):
+            if parts[i] == "--skip" and i + 1 < len(parts):
+                try:
+                    skip = int(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid --skip: {parts[i + 1]}")
+                    return
+                i += 2
+            elif parts[i] == "--take" and i + 1 < len(parts):
+                try:
+                    take = int(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid --take: {parts[i + 1]}")
+                    return
+                i += 2
+            else:
+                self._print(f"Unknown option: {parts[i]}")
+                return
+
+        self._print(cmd_versions(self.state, name_or_id, skip=skip, take=take))
+
+    def do_restore_version(self, arg: str) -> None:
+        """Restore a file from a content version ID.
+
+        Usage: restore-version <content_version_id>
+
+        The content version ID is shown by the versions command.
+
+        Example:
+          /Reports> restore-version cver_abc123
+          Restored: annual.pdf (cont_mno345) from version cver_abc123
+        """
+        content_version_id = arg.strip()
+        if not content_version_id:
+            self._print("Usage: restore-version <content_version_id>")
+            return
+        self._print(cmd_restore_version(self.state, content_version_id))
+
     def do_download(self, arg: str) -> None:
         """Download a file from the platform to your local machine.
 
-        Usage: download <name|content_id> [local_path]
+        Usage: download <name|path|content_id> [local_path]
 
-        Downloads a file identified by its name (matched in the current
-        directory) or content ID (cont_...). Saves to the specified local
-        path, or the current working directory if omitted.
+        Downloads a file identified by its Unique path, name (matched in
+        the current directory), or content ID (cont_...). Saves to the
+        specified local path, or the current working directory if omitted.
 
         Arguments:
-          name_or_id    File name or content ID (cont_...)
+          name_or_id    File path, file name, or content ID (cont_...)
           local_path    Optional local directory or file path
 
         Examples:
@@ -348,27 +426,158 @@ class UniqueShell(cmd.Cmd):
           /Reports> download annual.pdf ./downloads/
           Downloaded: annual.pdf -> ./downloads/annual.pdf
 
+          /Reports> download /Reports/Q1/annual.pdf ./downloads/
+          Downloaded: annual.pdf -> ./downloads/annual.pdf
+
           /Reports> download cont_mno345 ~/Desktop/
           Downloaded: cont_mno345 -> ~/Desktop/cont_mno345
         """
         parts = shlex.split(arg)
         if not parts:
-            self._print("Usage: download <name|content_id> [local_path]")
+            self._print("Usage: download <name|path|content_id> [local_path]")
             return
         name_or_id = parts[0]
         local_dest = parts[1] if len(parts) > 1 else None
         self._print(cmd_download(self.state, name_or_id, local_dest))
 
+    def do_cite(self, arg: str) -> None:
+        """Declare page citations for a file.
+
+        Usage: cite <name|path|content_id> [--pages RANGE]
+
+        Examples:
+          /Reports> cite report.pdf --pages 3,5,7
+          /Reports> cite /Reports/Q1/report.pdf --pages 3,5,7
+          /Reports> cite cont_abc123 --pages 1-4
+        """
+        from unique_sdk.cli.commands.cite_file import cmd_cite_file
+
+        parts = shlex.split(arg)
+        if not parts:
+            self._print("Usage: cite <name|path|content_id> [--pages RANGE]")
+            return
+        pages: str | None = None
+        positional: list[str] = []
+        index = 0
+        while index < len(parts):
+            token = parts[index]
+            if token in ("--pages", "-p"):
+                if index + 1 >= len(parts):
+                    self._print("cite: --pages requires a value")
+                    return
+                pages = parts[index + 1]
+                index += 2
+            else:
+                positional.append(token)
+                index += 1
+        if not positional:
+            self._print("Usage: cite <name|path|content_id> [--pages RANGE]")
+            return
+        self._print(cmd_cite_file(self.state, positional[0], pages))
+
+    def _parse_int(self, raw: str, flag: str) -> tuple[int | None, bool]:
+        """Parse an int option value, returning (value, ok). Prints on failure."""
+        try:
+            return int(raw), True
+        except ValueError:
+            self._print(f"Invalid {flag}: {raw} (expected an integer)")
+            return None, False
+
+    def do_read(self, arg: str) -> None:
+        """Read indexed text chunks for a known content ID (optionally by page).
+
+        Usage: read <cont_id> [--page N | --from-page N --to-page M] [--max-chars N]
+
+        Retrieves every indexed chunk for the document directly from the
+        database — no vector search, no query string needed. Use --page for a
+        single page or --from-page/--to-page for a range; a chunk spanning
+        pages 2-4 is returned for any overlapping request.
+
+        Use `search` to find documents by topic; use `read` once you have
+        the content ID and want the full text.
+
+        Examples:
+          /Reports> read cont_abc123
+          /Reports> read cont_abc123 --page 12
+          /Reports> read cont_abc123 --from-page 5 --to-page 9
+        """
+        from unique_sdk.cli.commands.read import cmd_read
+
+        parts = shlex.split(arg)
+        usage = (
+            "Usage: read <cont_id> "
+            "[--page N | --from-page N --to-page M] [--max-chars N]"
+        )
+        if not parts:
+            self._print(usage)
+            return
+
+        cont_id: str | None = None
+        page: int | None = None
+        from_page: int | None = None
+        to_page: int | None = None
+        max_chars: int | None = None
+
+        int_flags = ("--page", "-p", "--from-page", "--to-page", "--max-chars")
+        i = 0
+        while i < len(parts):
+            tok = parts[i]
+            if tok in int_flags:
+                if i + 1 >= len(parts):
+                    self._print(f"Missing value for {tok}")
+                    return
+                value, ok = self._parse_int(parts[i + 1], tok)
+                if not ok:
+                    return
+                if tok in ("--page", "-p"):
+                    page = value
+                elif tok == "--from-page":
+                    from_page = value
+                elif tok == "--to-page":
+                    to_page = value
+                else:  # --max-chars
+                    max_chars = value
+                i += 2
+            elif cont_id is None:
+                cont_id = tok
+                i += 1
+            else:
+                self._print(f"Unknown argument: {tok}")
+                return
+
+        if cont_id is None:
+            self._print(usage)
+            return
+        if page is not None and (from_page is not None or to_page is not None):
+            self._print("read: use either --page or --from-page/--to-page, not both")
+            return
+        if page is not None:
+            from_page = page
+            to_page = page
+
+        self._print(
+            cmd_read(
+                self.state,
+                cont_id,
+                from_page=from_page,
+                to_page=to_page,
+                max_chars=max_chars,
+            )
+        )
+
     def do_rm(self, arg: str) -> None:
         """Delete a file.
 
-        Usage: rm <name|content_id>
+        Usage: rm <name|path|content_id>
 
-        Permanently deletes a file by its name (matched in the current
-        directory) or content ID.
+        Permanently deletes a file by its Unique path, name (matched in
+        the current directory), or content ID.
 
         Examples:
           /Reports> rm annual.pdf
+          Deleted: annual.pdf (cont_mno345)
+
+          /Reports> rm /Reports/Q1/annual.pdf
           Deleted: annual.pdf (cont_mno345)
 
           /Reports> rm cont_xyz789
@@ -376,14 +585,14 @@ class UniqueShell(cmd.Cmd):
         """
         name_or_id = arg.strip()
         if not name_or_id:
-            self._print("Usage: rm <name|content_id>")
+            self._print("Usage: rm <name|path|content_id>")
             return
         self._print(cmd_rm(self.state, name_or_id))
 
     def do_mv(self, arg: str) -> None:
         """Rename a file.
 
-        Usage: mv <old_name|content_id> <new_name>
+        Usage: mv <old_name|path|content_id> <new_name>
 
         Changes the file's display title. The content ID and location
         remain the same.
@@ -392,12 +601,15 @@ class UniqueShell(cmd.Cmd):
           /Reports> mv annual.pdf annual-2025.pdf
           Renamed: annual.pdf -> annual-2025.pdf
 
+          /Reports> mv /Reports/Q1/annual.pdf annual-2025.pdf
+          Renamed: annual.pdf -> annual-2025.pdf
+
           /Reports> mv cont_abc123 "New Title.pdf"
           Renamed: cont_abc123 -> New Title.pdf
         """
         parts = shlex.split(arg)
         if len(parts) != 2:
-            self._print("Usage: mv <old_name|content_id> <new_name>")
+            self._print("Usage: mv <old_name|path|content_id> <new_name>")
             return
         self._print(cmd_mv_file(self.state, parts[0], parts[1]))
 
@@ -577,8 +789,9 @@ class UniqueShell(cmd.Cmd):
           --mode FORM|URL              Display mode (create only, required)
           --chat-id / -c <id>          Associated chat ID
           --message-id / -m <id>       Associated message ID
-          --expires-in <seconds>       Auto-expire the request
-          --timeout <seconds>          (ask / wait) max wait time, default 300
+          --expires-in <seconds>       Auto-expire the request (create only)
+          --timeout <seconds>          (ask / wait) max wait time, default 7200;
+                                       for ask this also sets when it expires
           --poll-interval <seconds>    (ask / wait) poll frequency, default 2
           --external-id <id>           External identifier (create only)
           --metadata key=value         Metadata (repeatable)
@@ -652,7 +865,7 @@ class UniqueShell(cmd.Cmd):
             "message_id": None,
             "expires_in_seconds": None,
             "external_elicitation_id": None,
-            "timeout": 300,
+            "timeout": DEFAULT_WAIT_TIMEOUT_SECONDS,
             "poll_interval": 2.0,
             "action": None,
             "content": None,
@@ -761,6 +974,13 @@ class UniqueShell(cmd.Cmd):
         if not message:
             self._print("Usage: elicit ask <message> [options]")
             return
+        if opts["expires_in_seconds"] is not None:
+            self._print(
+                "No such option: --expires-in for 'elicit ask'. Use --timeout "
+                "(it also sets when the request expires). For expiry decoupled "
+                "from a local wait, use 'elicit create --expires-in'."
+            )
+            return
 
         ask_kwargs: dict[str, Any] = {
             "message": message,
@@ -768,7 +988,6 @@ class UniqueShell(cmd.Cmd):
             "schema": opts["schema"],
             "chat_id": opts["chat_id"],
             "message_id": opts["message_id"],
-            "expires_in_seconds": opts["expires_in_seconds"],
             "timeout": opts["timeout"],
             "poll_interval": opts["poll_interval"],
             "metadata": opts["metadata"] or None,
@@ -1045,6 +1264,9 @@ class UniqueShell(cmd.Cmd):
         return False
 
     def default(self, line: str) -> None:
+        if line.startswith("restore-version"):
+            self.do_restore_version(line[len("restore-version") :].strip())
+            return
         self._print(
             f"Unknown command: {line.split()[0]}. Type 'help' for available commands."
         )

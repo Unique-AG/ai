@@ -53,7 +53,7 @@ elicit ask <message> [options]
 | `--chat-id` | `-c` | none | Attach the elicitation to a chat. |
 | `--message-id` | `-m` | none | Attach to a specific message. |
 | `--expires-in` | | none | Seconds before the platform auto-expires the request. |
-| `--timeout` | | `300` | Max seconds to block locally while polling. |
+| `--timeout` | | `7200` | Max seconds to block locally while polling. |
 | `--poll-interval` | | `2.0` | Seconds between polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
 | `--visible` / `--no-visible` | | `--visible` | Wrap the elicitation in a synthetic "thinking" timeline so the chat UI renders it (UN-19815 workaround). |
@@ -257,7 +257,7 @@ elicit wait <elicitation_id> [--timeout <seconds>] [--poll-interval <seconds>]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--timeout` | `300` | Max seconds to wait for a terminal state |
+| `--timeout` | `7200` | Max seconds to wait for a terminal state |
 | `--poll-interval` | `2.0` | Seconds between polls |
 
 **Example:**
@@ -311,7 +311,7 @@ ID=$(unique-cli elicit create "Which quarter?" \
      | awk '/^ID:/{print $2}')
 
 # 2. Block until answered (could be a different terminal or process)
-unique-cli elicit wait "$ID" --timeout 300
+unique-cli elicit wait "$ID" --timeout 7200
 ```
 
 For the common case of "ask and immediately use the answer", `elicit ask` collapses steps 1 and 2 into a single command.

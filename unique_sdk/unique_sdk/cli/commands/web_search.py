@@ -18,9 +18,17 @@ Override precedence (highest first):
 from __future__ import annotations
 
 import json
+import logging
+from pathlib import Path
 from typing import Any, cast
 
 import unique_sdk
+from unique_sdk.cli.commands._citation_manifest import (
+    UnsafeRefsLogPathError,
+    _append_turn_refs_manifest_entry,
+    _locked_turn_refs_manifest,
+    _read_turn_refs_manifest,
+)
 from unique_sdk.cli.commands.web_search_config import (
     ConfigOverrides,
     WebSearchCLIConfigError,
@@ -28,12 +36,122 @@ from unique_sdk.cli.commands.web_search_config import (
 )
 from unique_sdk.cli.state import ShellState
 
+_LOGGER = logging.getLogger(__name__)
+
 DEFAULT_PARALLEL = 10
 _SNIPPET_PREVIEW_LIMIT = 200
 _CONTENT_PREVIEW_LIMIT = 500
+_WEB_REFS_LOG_RELATIVE_PATH = Path(".unique") / "web-refs.jsonl"
+_WEB_REFS_LOCK_FILENAME = "web-refs.lock"
 
 WEB_SEARCH_ERROR_PREFIX = "web-search:"
 WEB_CRAWL_ERROR_PREFIX = "web-crawl:"
+
+
+def _source_numbers_by_url(entries: list[dict[str, Any]]) -> dict[str, int]:
+    by_url: dict[str, int] = {}
+    for entry in entries:
+        url = entry.get("url")
+        source_number = entry.get("sourceNumber")
+        if isinstance(url, str) and isinstance(source_number, int):
+            by_url.setdefault(url.strip(), source_number)
+    return by_url
+
+
+def _next_source_number(entries: list[dict[str, Any]]) -> int:
+    source_numbers = [
+        entry["sourceNumber"]
+        for entry in entries
+        if isinstance(entry.get("sourceNumber"), int)
+    ]
+    return max(source_numbers, default=0) + 1
+
+
+def _annotate_web_results_for_citations(
+    payload: dict[str, Any],
+    *,
+    refs_log_path: Path | None = None,
+) -> dict[str, Any]:
+    """Add per-turn web citation numbers and append the refs manifest.
+
+    Web results are deduped by URL: the same URL keeps the same
+    ``sourceNumber`` across consecutive ``search`` / ``crawl`` calls in
+    the same turn, so the crawled-content row carries the same citation
+    marker the search-snippet row already advertised.
+    """
+    refs_log_path = refs_log_path or (Path.cwd() / _WEB_REFS_LOG_RELATIVE_PATH)
+    with _locked_turn_refs_manifest(
+        refs_log_path, lock_filename=_WEB_REFS_LOCK_FILENAME
+    ):
+        entries = _read_turn_refs_manifest(refs_log_path)
+        source_numbers_by_url = _source_numbers_by_url(entries)
+        annotated = dict(payload)
+        annotated_results: list[dict[str, Any]] = []
+
+        for raw_result in payload.get("results") or []:
+            if not isinstance(raw_result, dict):
+                _LOGGER.warning(
+                    "skipping non-dict web result while annotating citations: %r",
+                    raw_result,
+                )
+                continue
+            result = dict(raw_result)
+            url = str(result.get("url") or "").strip()
+            if not url:
+                annotated_results.append(result)
+                continue
+
+            source_number = source_numbers_by_url.get(url)
+            if source_number is None:
+                source_number = _next_source_number(entries)
+                source_numbers_by_url[url] = source_number
+                entries.append({"sourceNumber": source_number, "url": url})
+
+            result["sourceNumber"] = source_number
+            result["citation"] = f"websource{source_number}"
+            manifest_entry = {
+                "sourceNumber": source_number,
+                "url": url,
+                "title": result.get("title"),
+                "snippet": result.get("snippet"),
+                "content": result.get("content"),
+                "error": result.get("error"),
+            }
+            _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
+            annotated_results.append(result)
+
+        annotated["results"] = annotated_results
+        return annotated
+
+
+def _row_label_for_result(result: dict[str, Any], fallback_index: int) -> int:
+    """Return the human row label for a single result.
+
+    In the happy path ``_annotate_web_results_for_citations`` runs before
+    the formatter and stamps every dict result with an ``int``
+    ``sourceNumber`` that matches the ``[websourceN]`` marker the LLM is
+    told to emit; the formatter then surfaces that same number as the row
+    label so the on-screen list and the citation namespace agree.
+
+    The ``fallback_index`` branch only fires when ``sourceNumber`` is
+    missing or non-int — i.e. a contract violation from the annotator
+    (or annotation was skipped). We never want the formatter to crash,
+    but the fallback row label deliberately *will not* match a
+    ``[websourceN]`` marker, so the agent would cite a number that is
+    not in the manifest. Warn loudly so the bug is observable instead of
+    silently degrading citations.
+    """
+    source_number = result.get("sourceNumber")
+    if isinstance(source_number, int):
+        return source_number
+    _LOGGER.warning(
+        "web result is missing a numeric `sourceNumber` after citation "
+        "annotation; falling back to row index %d. URL=%r — this row will "
+        "not be citable as [websourceN].",
+        fallback_index,
+        result.get("url"),
+    )
+    return fallback_index
 
 
 def _format_search_results(payload: dict[str, Any]) -> str:
@@ -54,7 +172,10 @@ def _format_search_results(payload: dict[str, Any]) -> str:
         snippet = (result.get("snippet") or "").replace("\n", " ").strip()
         content = result.get("content") or ""
 
-        lines.append(f"  {i}. {title}")
+        citation = result.get("citation")
+        citation_suffix = f" [{citation}]" if citation else ""
+        row_label = _row_label_for_result(result, i)
+        lines.append(f"  {row_label}. {title}{citation_suffix}")
         lines.append(f"     {url}")
 
         if snippet:
@@ -99,7 +220,10 @@ def _format_crawl_results(payload: dict[str, Any]) -> str:
         content = entry.get("content") or ""
         error = entry.get("error")
 
-        lines.append(f"  {i}. {url}")
+        citation = entry.get("citation")
+        citation_suffix = f" [{citation}]" if citation else ""
+        row_label = _row_label_for_result(entry, i)
+        lines.append(f"  {row_label}. {url}{citation_suffix}")
         if error:
             lines.append(f"     ERROR: {error}")
         elif content.strip():
@@ -254,7 +378,10 @@ def cmd_web_search(
     except (ValueError, unique_sdk.APIError) as exc:
         return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
 
-    payload = _payload_from_resource(resource)
+    try:
+        payload = _annotate_web_results_for_citations(_payload_from_resource(resource))
+    except UnsafeRefsLogPathError as exc:
+        return f"{WEB_SEARCH_ERROR_PREFIX} {exc}"
     if output_json:
         return _format_search_results_json(payload)
     return _format_search_results(payload)
@@ -315,7 +442,10 @@ def cmd_web_crawl(
     except (ValueError, unique_sdk.APIError) as exc:
         return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
 
-    payload = _payload_from_resource(resource)
+    try:
+        payload = _annotate_web_results_for_citations(_payload_from_resource(resource))
+    except UnsafeRefsLogPathError as exc:
+        return f"{WEB_CRAWL_ERROR_PREFIX} {exc}"
     if output_json:
         return _format_crawl_results_json(payload)
     return _format_crawl_results(payload)

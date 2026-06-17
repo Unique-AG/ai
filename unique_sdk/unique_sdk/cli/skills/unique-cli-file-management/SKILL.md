@@ -3,7 +3,9 @@ name: unique-cli-file-management
 description: >-
   Manage files and folders on the Unique AI Platform using the unique-cli
   command-line tool. Use when the user asks to upload, download, delete,
-  rename, list, find, look for, or organize files and folders on Unique,
+  rename, list, find, restore versions, list versions, look for, or organize files and folders on Unique,
+  or to read / view / quote the text contents of a known file (optionally by
+  page or page range, e.g. "what's on page 5?", "read pages 10-12"),
   or when working with scope IDs (scope_*) or content IDs (cont_*).
   IMPORTANT: When a user says they are "looking for a file" or wants to
   "find a file", they typically mean locating it within the Unique AI
@@ -50,14 +52,30 @@ unique-cli rmdir scope_abc123 -r
 # Rename a folder
 unique-cli mvdir Q1 "Q1-2025"
 
-# Upload a file (to current scope -- cd first or specify destination)
+# Upload a file with versioning enabled (to current scope -- cd first or specify destination)
 unique-cli upload ./report.pdf
 unique-cli upload ./report.pdf /Reports/Q1/
 unique-cli upload ./data.csv scope_abc123
 
+# List and restore file versions
+unique-cli versions /Reports/Q1/report.pdf
+unique-cli versions cont_abc123 --take 10
+unique-cli restore-version cver_abc123
+
 # Download a file
 unique-cli download report.pdf ./local/
 unique-cli download cont_abc123 ~/Desktop/
+
+# Read a file's extracted text by content ID (whole file)
+unique-cli read cont_abc123
+
+# Read a single page or a page range
+unique-cli read cont_abc123 --page 12
+unique-cli read cont_abc123 --from-page 5 --to-page 9
+
+# Declare page citations after reading a file
+unique-cli cite report.pdf --pages 3,5,7
+unique-cli cite cont_abc123 --pages 1-4
 
 # Delete a file
 unique-cli rm report.pdf
@@ -77,10 +95,11 @@ unique-cli mv report.pdf "Annual Report 2025.pdf"
 | `..` | `..` | Parent directory |
 | `/` | `/` | Root |
 | Content ID | `cont_abc123` | File directly by ID |
+| File path | `/Reports/Q1/report.pdf` | File in a folder |
 
 ## Upload Destination Resolution
 
-The `upload` destination works like Linux `cp`:
+The `upload` command always enables immutable content versioning. It does not expose an unversioned upload mode. Its destination works like Linux `cp`:
 
 | Destination | Behavior |
 |-------------|----------|
@@ -112,12 +131,98 @@ unique-cli download "annual.pdf" ./downloads/
 unique-cli download cont_abc123 ./downloads/
 ```
 
+### Restore a previous file version
+
+```bash
+# List versions for a file path, file name in the current folder, or content ID.
+unique-cli versions /Reports/Q1/annual.pdf
+unique-cli versions "annual.pdf"
+unique-cli versions cont_abc123 --take 20
+
+# Restore using the VERSION_ID shown by `versions`.
+unique-cli restore-version cver_abc123
+```
+
 ### Create folder hierarchy and upload
 
 ```bash
 unique-cli mkdir "2025/Q1/Financials"
 unique-cli upload ./budget.xlsx /2025/Q1/Financials/
 ```
+
+## Reading File Contents (by page range)
+
+Use `read` to retrieve the **extracted text** of a single, known file — for
+example to answer "what does page 5 say?", to quote an exact passage, or to
+read a long document a few pages at a time. This differs from `search`:
+`search` ranks chunks across many files by relevance; `read` returns the text
+of one file in document order.
+
+`read` takes a **content ID** (`cont_...`), not a file name. Get the ID first
+from `ls` or `search`, then pass it to `read`.
+
+```bash
+# Whole file
+unique-cli read cont_abc123
+
+# A single page
+unique-cli read cont_abc123 --page 12
+
+# A page range (inclusive)
+unique-cli read cont_abc123 --from-page 5 --to-page 9
+
+# Cap the output size (protects your context window on huge files)
+unique-cli read cont_abc123 --to-page 3 --max-chars 8000
+```
+
+| Option | Description |
+|--------|-------------|
+| `--page` / `-p N` | Read only page N (shorthand for `--from-page N --to-page N`) |
+| `--from-page N` | First page to include (inclusive) |
+| `--to-page N` | Last page to include (inclusive) |
+| `--max-chars N` | Truncate the printed text to N characters |
+
+Each chunk is prefixed with its source page(s) as `[p.N]` or `[p.N-M]`, so you
+can attribute text to pages.
+
+### How page filtering behaves (important)
+
+- **Page numbers come from ingestion.** Each chunk carries a `startPage` and
+  `endPage`; the page filter is applied to those values. Nothing in the
+  ingestion pipeline needs to change.
+- **Ranges overlap, they don't slice.** A chunk that spans pages 2-4 is
+  returned for `--page 3` (or any range touching 2-4). The returned text is the
+  whole chunk, so it may include a little from neighbouring pages. Treat the
+  result as "the chunks covering these pages", not a pixel-perfect page cut.
+- **Some files have no page numbers.** Plain text, markdown, and similar
+  content has no page numbers; those chunks are returned only when you read
+  **without** a page range. A page-filtered read of such a file returns nothing.
+- **Empty / not indexed?** If `read` reports the file is still ingesting or has
+  no indexed chunks, there is no extracted text to return — use `download` to
+  fetch the original bytes instead.
+
+## Citing File Pages
+
+After reading **any** file and using its content in your answer, declare citations:
+
+```bash
+unique-cli cite report.pdf --pages 3,5
+unique-cli cite cont_abc123 --pages 1-4
+```
+
+This registers `[filesourceN]` markers. Use them inline in your answer.
+The platform converts `[filesourceN]` into footnotes and clickable reference chips.
+
+**MANDATORY 3-step verification before EVERY `unique-cli cite` call — NO EXCEPTIONS:**
+
+1. `pdfinfo file.pdf | grep Pages` — get total physical page count.
+2. For **each** page you intend to cite, run `pdftotext -f N -l N file.pdf -` and confirm the content you are referencing is actually on that physical page. Do NOT skip this. Do NOT assume page numbers.
+3. Only after step 2 confirms a match, call `unique-cli cite` with the verified physical page numbers.
+
+Page numbers are **physical PDF positions** (1-based). NEVER use printed page numbers from headers/footers — they often differ from physical positions.
+
+- Numbers are **per-turn only**; do not reuse from prior turns.
+- Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search`.
 
 ## Error Handling
 

@@ -48,6 +48,7 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7,
+            LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_8,
             LanguageModelName.GEMINI_2_0_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH_LITE,
@@ -105,6 +106,7 @@ class TestLanguageModelInfos:
             LanguageModelName.VERTEX_CLAUDE_SONNET_4_6,
             LanguageModelName.VERTEX_CLAUDE_OPUS_4_6,
             LanguageModelName.VERTEX_CLAUDE_OPUS_4_7,
+            LanguageModelName.VERTEX_CLAUDE_OPUS_4_8,
         ]
         assert len(models) == len(expected_models)
         assert all(isinstance(model, LanguageModelInfo) for model in models)

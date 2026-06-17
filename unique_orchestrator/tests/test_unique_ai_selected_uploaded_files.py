@@ -105,6 +105,21 @@ class TestUniqueAIUploadedDocumentsInit:
         assert ua._uploaded_documents == []
 
 
+class TestRenderSystemPromptUserMemory:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_loaded_user_memory_is_available_to_system_prompt(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        ua = _make_unique_ai(monkeypatch)
+        ua._config.agent.prompt_config.system_prompt_template = "{{ user_memory }}"
+        ua._user_memory_text = "# User Memory\n\n## Identity\n- Prefers concise answers"
+
+        result = await ua._render_system_prompt()
+
+        assert "Prefers concise answers" in result
+
+
 class TestRenderSystemPromptUploadedDocumentsExpired:
     """Tests for expired-document detection in _render_system_prompt."""
 

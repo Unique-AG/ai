@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, TypeVar
@@ -308,6 +309,11 @@ class UniqueApp(BaseSettings):
 
 # Api
 # Settings only as only obtained from the environment.
+class ApiType(StrEnum):
+    INTERNAL = "internal"
+    EXTERNAL = "external"
+    NEXT = "next"
+    LEGACY = "legacy"
 
 
 @register_config()
@@ -323,6 +329,9 @@ class UniqueApi(BaseSettings):
             "API_BASE",
         ),
     )
+
+    api_type: ApiType = Field(default=ApiType.LEGACY)
+
     version: str = Field(
         default="2023-12-06",
         validation_alias=AliasChoices(
@@ -353,23 +362,38 @@ class UniqueApi(BaseSettings):
             )
         )
 
-    def base_path(self) -> tuple[ParseResult, str]:
-        parsed = urlparse(self.base_url)
+    @staticmethod
+    def _legacy_base_path(hostname: str | None) -> str:
         base_path = "/public/chat"
-
-        if parsed.hostname and (
-            "gateway.qa.unique" in parsed.hostname
-            or "gateway.unique" in parsed.hostname
+        if hostname and (
+            "gateway.qa.unique" in hostname or "gateway.unique" in hostname
         ):
             base_path = "/public/chat-gen2"
 
-        if parsed.hostname and (
-            "localhost" in parsed.hostname
-            or "svc.cluster.local" in parsed.hostname
-            or ".svc." in parsed.hostname
-            or parsed.hostname.endswith(".svc")
+        # Typical internal single tenants
+        if hostname and (
+            "localhost" in hostname
+            or "svc.cluster.local" in hostname
+            or ".svc." in hostname
+            or hostname.endswith(".svc")
         ):
             base_path = "/public"
+
+        return base_path
+
+    def base_path(self) -> tuple[ParseResult, str]:
+        parsed = urlparse(self.base_url)
+
+        # Case of next qa only
+        match self.api_type:
+            case ApiType.NEXT:
+                base_path = "public/chat-gen2"
+            case ApiType.EXTERNAL:
+                base_path = "public/chat"
+            case ApiType.INTERNAL:
+                base_path = "public"
+            case ApiType.LEGACY:
+                base_path = self._legacy_base_path(parsed.hostname)
 
         return parsed, base_path
 

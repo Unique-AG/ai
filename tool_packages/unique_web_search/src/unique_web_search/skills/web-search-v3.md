@@ -1,11 +1,10 @@
 ---
-name: web-search
+name: web-search-v3
 description: >-
   Use this skill when the WebSearch tool is being used and the task is
-  non-trivial. Explains how to balance the `search` capability (SERP
-  snippets, cheap exploration) against the `read_urls` capability
-  (full-page fetch, deeper but slower) based on snippet hedging,
-  canonical-source topics, and sub-question coverage.
+  non-trivial. Explains how to balance `search` vs `read_urls`, decompose
+  complex diligence tasks, handle partial or missing public evidence,
+  and synthesize findings before answering.
 ---
 
 # WebSearch — Explore → Exploit Playbook
@@ -42,15 +41,13 @@ flowchart TD
 ## Tool fields
 
 - **`command`** (string, per call) — `"search"` or `"read_urls"`.
-- **`objective`** (string, per call) — One concise sentence: what this call
-  is meant to accomplish.
+- **`phase`** (string, per call) — `exploratory` | `target` | `redirect` (see
+  system prompt). Replaces legacy `objective`.
 - **`payload`** (object, per call) — Shape depends on `command`:
   - For `"search"`:
-    - **`gap`** — A brief description of what this query is meant to fill
-      (the specific missing fact / facet / sub-question).
-    - **`query`** — One focused search query (3-8 keywords; query operators
-      allowed). For time-sensitive topics you may incorporate the current
-      year or month to improve recall.
+    - **`gap`** — One atomic, verifiable facet (not the whole user question).
+    - **`query`** — Short keyword line (~3-8 words). One facet per call—use
+      parallel `search` calls instead of one long query.
   - For `"read_urls"`:
     - **`urls`** — HTTP(S) URLs to crawl for full-page text. Use only URLs
       returned by a prior `search` call or pasted by the user — **never
@@ -72,9 +69,10 @@ Read the user task and silently classify it:
   - Composite reasoning that needs sub-answers chained together.
   - Vague / multi-faceted topics the user expects you to cover broadly.
 
-For complex tasks, decompose into 2-5 self-contained sub-questions and run
-**one `command: "search"` per sub-question** (and follow-up
-`command: "read_urls"` calls as needed). Each sub-question should:
+For complex tasks (including Source of Wealth / KYC-style profiles),
+decompose into **5–10 atomic gaps** (one verifiable facet each) and run
+**one `command: "search"` per gap** (and follow-up `command: "read_urls"`
+calls as needed). Each gap should:
 
 - Be answerable on its own by one focused search (and possibly one fetch
   follow-up).
@@ -100,10 +98,10 @@ user already supplied.
 ## Step 3 — Sufficiency check after every search
 
 Before deciding the next call, judge the snippets you just received against
-the current `objective` and `gap`:
+the current `phase`, `gap`, and `query`:
 
 - Do they contain the **specific** number, quote, date, or name the
-  `objective` requires? (Snippets often paraphrase or truncate.)
+  the `gap` requires? (Snippets often paraphrase or truncate.)
 - Are there **≥2 corroborating domains** for fact-style claims, when
   accuracy matters?
 - Is the **freshness** consistent with the question?
@@ -112,11 +110,16 @@ the current `objective` and `gap`:
 
 Decide:
 
-- **Snippets sufficient** + still uncovered sub-questions ⇒ next call is
-  another `command: "search"` for the next sub-question.
-- **Snippets sufficient** + all sub-questions covered (or task was simple)
-  ⇒ stop calling and answer.
+- **Snippets sufficient** + still uncovered gaps ⇒ next call is another
+  `command: "search"` for the next gap.
+- **Snippets sufficient** + all gaps covered (or task was simple) ⇒ stop
+  calling and go to Step 5 (synthesize), then answer.
 - **Snippets insufficient** ⇒ go to Step 4.
+- **Gap not filled but snippets are adjacent** (sector context, related
+  company, news mentioning the entity without the exact fact) ⇒ record the
+  facet as **Related** in your evidence ledger, refine once if worthwhile,
+  then continue with the next gap—do not treat "no exact hit" as "nothing
+  useful."
 
 ### Triggers that mean snippets are not sufficient
 
@@ -145,15 +148,14 @@ just to "be thorough" when a snippet already answers cleanly.
 Issue a follow-up call with:
 
 - `command: "read_urls"`.
-- An `objective` like "Read full article X to extract <missing detail> for
-  <sub-question Y>".
+- `phase: "target"` and a `gap` naming the missing detail you need from the page.
 - `payload.urls` set to a **small, high-signal** subset (typically 1-3
   URLs; pick complementary domains) of URLs from the `url` fields of the
   SERP JSON you already received.
 
 Once the page text comes back, do another sufficiency check. If the task is
-complex and more sub-questions remain, continue with the next
-`command: "search"`; otherwise, answer.
+complex and more gaps remain, continue with the next `command: "search"`;
+otherwise, go to Step 5.
 
 ### URL-selection rules
 
@@ -166,6 +168,29 @@ complex and more sub-questions remain, continue with the next
   independent corroborator) over multiple URLs from the same domain.
 - For canonical-source topics, prioritize the **issuer's own page** (the
   regulator, the company, the standards body) over secondary coverage.
+
+## Step 5 — Synthesize, then answer
+
+Merge your **evidence ledger** across all gaps before writing to the user.
+
+**Confidence labels:** **Confirmed** (cited exact fact), **Partial** (cited
+fragment), **Not found** (reasonable search/refinement tried), **Related**
+(cited but does not answer the exact ask—say so explicitly).
+
+**Answer structure for complex tasks:**
+
+1. Direct answer (what citations support).
+2. Evidence by facet (facet → finding → confidence → [sourceX]).
+3. Gaps and limitations (what public web did not reveal; what you tried).
+4. Related leads (indirect but useful, all cited).
+5. Suggested next steps (optional: registry, paid DB, user documents).
+
+**Partial / missing evidence:**
+
+- Never answer with only "I couldn't find X" when tool results contain
+  related material—surface **Related leads** with citations.
+- Never invent figures, ownership, or UBO claims.
+- For simple single-fact tasks, a short cited answer is enough.
 
 ## Anti-patterns (do not do these)
 
@@ -180,6 +205,9 @@ complex and more sub-questions remain, continue with the next
   plan stable for the whole task.
 - Setting a `payload` shape that doesn't match `command` (e.g. `urls` under
   a `"search"` command, or `query` under a `"read_urls"` command).
+- Stopping research after one weak SERP on a diligence facet without
+  refinement or recording **Related** context.
+- Dumping raw tool output without synthesis on multi-facet tasks.
 
 ## Worked examples
 
@@ -190,7 +218,7 @@ User: "What is the current US Fed funds target rate?"
 ```json
 {
   "command": "search",
-  "objective": "Look up the current Fed funds target rate range.",
+  "phase": "target",
   "payload": {
     "gap": "Current Fed funds target rate range and effective date.",
     "query": "current Fed funds target rate"
@@ -209,7 +237,7 @@ User: "Read https://example.com/policy.pdf and summarize."
 ```json
 {
   "command": "read_urls",
-  "objective": "Read the user-provided policy document and summarize it.",
+  "phase": "target",
   "payload": {
     "urls": ["https://example.com/policy.pdf"]
   }
@@ -234,7 +262,7 @@ First call (cover sub-question 1):
 ```json
 {
   "command": "search",
-  "objective": "Cover sub-question 1: Stripe cross-border fees and pricing.",
+  "phase": "target",
   "payload": {
     "gap": "Stripe cross-border / international card transaction fee percentages.",
     "query": "Stripe cross-border international card transaction fees pricing"
@@ -250,7 +278,7 @@ giving exact percentages. Follow up:
 ```json
 {
   "command": "read_urls",
-  "objective": "Read Stripe's official pricing page to extract exact cross-border fee percentages.",
+  "phase": "target",
   "payload": {
     "urls": ["https://stripe.com/pricing"]
   }
@@ -259,3 +287,74 @@ giving exact percentages. Follow up:
 
 Then resume with the next sub-question (`command: "search"` for Adyen
 cross-border fees), and so on.
+
+### Complex — Source of Wealth / private company profile
+
+User: "I need a Source of Wealth picture for Acme Holding AG (Switzerland)—
+revenues, ownership, and who runs it. It's not a listed company."
+
+**Decomposed gaps (in reasoning):**
+
+1. Legal identity and jurisdiction (Acme Holding AG, CH)
+2. Revenue scale or turnover signals (public estimates, filings, press)
+3. Ownership structure / shareholders / UBO signals
+4. Key executives and board
+5. Recent registry or filing references (if any public)
+6. Adverse media or sanctions mentions
+7. Industry / peer context if direct financials are sparse
+
+**Call 1 — identity:**
+
+```json
+{
+  "command": "search",
+  "phase": "exploratory",
+  "payload": {
+    "gap": "Legal name, registered office, and jurisdiction for Acme Holding AG Switzerland.",
+    "query": "Acme Holding AG Switzerland company"
+  }
+}
+```
+
+**Call 2 — revenue (after identity gap partially filled):**
+
+```json
+{
+  "command": "search",
+  "phase": "target",
+  "payload": {
+    "gap": "Revenue scale or turnover band for Acme Holding AG (latest available).",
+    "query": "Acme Holding AG Umsatz revenue turnover"
+  }
+}
+```
+
+If snippets hedge or omit figures, follow with `read_urls` on the best SERP
+(registry excerpt, annual report PDF, credible press).
+
+**Call 3 — ownership:**
+
+```json
+{
+  "command": "search",
+  "phase": "target",
+  "payload": {
+    "gap": "Ownership structure or named shareholders for Acme Holding AG.",
+    "query": "Acme Holding AG shareholders ownership"
+  }
+}
+```
+
+Continue gaps 4–7 similarly. After each round, update the ledger
+(Confirmed / Partial / Not found / Related).
+
+**Final answer outline (Step 5):**
+
+- **Direct answer:** Summarize only **Confirmed** items with [sourceX].
+- **Evidence by facet:** Table or bullets per gap above.
+- **Gaps and limitations:** e.g. "No public UBO disclosure found after …
+  searches."
+- **Related leads:** e.g. parent group mentioned in press [source3]—labeled
+  **related, not confirmed** as UBO.
+- **Next steps (optional):** Swiss commercial register extract, user-provided
+  financials.

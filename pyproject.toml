@@ -7,7 +7,7 @@ readme = "README.md"
 license = "Proprietary"
 requires-python = ">=3.11"
 dependencies = [
-    "unique-toolkit>=2026.22.0",
+    "unique-toolkit>=2026.24.0",
     "griffe-pydantic>=1.1.8",
 ]
 
@@ -23,6 +23,7 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "pytest-cov>=7.0.0,<8",
     "pytest-mock>=3.14.0,<4",
+    "respx>=0.22,<0.23",
     "deptry>=0.24.0,<0.25",
     "import-linter>=2.0,<3",
     "poethepoet>=0.32.0,<0.33",
@@ -100,8 +101,11 @@ override-dependencies = [
 "unique-deep-research" = false
 "unique-stock-ticker" = false
 "unique-follow-up-questions" = false
+"unique-user-memory" = false
 "unique-six" = false
 "unique-search-proxy" = false
+"unique-search-proxy-core" = false
+"unique-search-proxy-sdk" = false
 "unique-quartr" = false
 # pymdown-extensions 10.21.3 uploaded 2026-05-13; remove after 2026-05-27.
 "pymdown-extensions" = "2026-05-14"
@@ -111,6 +115,8 @@ override-dependencies = [
 [tool.uv.sources]
 unique-sdk = { workspace = true }
 unique-toolkit = { workspace = true }
+unique-search-proxy-core = { workspace = true }
+unique-search-proxy-sdk = { workspace = true }
 
 [tool.uv.workspace]
 members = [
@@ -121,7 +127,11 @@ members = [
     "unique_orchestrator",
     "tool_packages/*",
     "postprocessors/*",
-    "connectors/*",
+    "connectors/unique_quartr",
+    "connectors/unique_six",
+    "connectors/unique_search_proxy/unique_search_proxy_client",
+    "connectors/unique_search_proxy/unique_search_proxy_core",
+    "connectors/unique_search_proxy/unique_search_proxy_sdk",
     "tutorials/mcp/mcp_test",
 ]
 
@@ -131,3 +141,14 @@ members = [
 # package directory.
 [tool.poe.tasks]
 check-imports = "lint-imports --config unique_toolkit/pyproject.toml"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]

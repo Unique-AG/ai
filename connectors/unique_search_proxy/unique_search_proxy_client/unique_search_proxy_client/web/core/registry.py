@@ -1,0 +1,151 @@
+from __future__ import annotations
+
+from typing import Any, TypeVar
+
+from pydantic import BaseModel
+from unique_search_proxy_core.agent_engines.base import AgentSearchEngine
+from unique_search_proxy_core.crawlers.base import BaseCrawler
+from unique_search_proxy_core.errors import EngineNotConfiguredError
+from unique_search_proxy_core.search_engines.base import SearchEngine
+from unique_search_proxy_core.search_engines.config_types import (
+    ENGINE_NAME_TO_CONFIG,
+)
+
+from unique_search_proxy_client.web.core.search_engines.descriptor import (
+    SearchEngineDescriptor,
+)
+
+SearchEngineT = TypeVar("SearchEngineT", bound=SearchEngine[Any])
+AgentSearchEngineT = TypeVar("AgentSearchEngineT", bound="AgentSearchEngine[Any]")
+CrawlerT = TypeVar("CrawlerT", bound=BaseCrawler[Any])
+
+_SEARCH_ENGINE_REGISTRY: dict[str, type[SearchEngine[Any]]] = {}
+_SEARCH_ENGINE_DESCRIPTORS: dict[str, SearchEngineDescriptor] = {}
+_AGENT_ENGINE_REGISTRY: dict[str, type[Any]] = {}
+_AGENT_ENGINE_DESCRIPTORS: dict[str, Any] = {}
+_CRAWLER_REGISTRY: dict[str, type[BaseCrawler[Any]]] = {}
+
+_SEARCH_ENGINE_CONFIG_MODELS: dict[str, type[BaseModel]] = {}
+_AGENT_ENGINE_CONFIG_MODELS: dict[str, type[BaseModel]] = {}
+_CRAWLER_CONFIG_MODELS: dict[str, type[BaseModel]] = {}
+
+
+def register_search_engine(
+    engine_id: str,
+    engine_cls: type[SearchEngineT],
+    *,
+    config_model: type[BaseModel] | None = None,
+    descriptor: SearchEngineDescriptor | None = None,
+) -> type[SearchEngineT]:
+    _SEARCH_ENGINE_REGISTRY[engine_id] = engine_cls
+    if descriptor is not None:
+        _SEARCH_ENGINE_DESCRIPTORS[engine_id] = descriptor
+        _SEARCH_ENGINE_CONFIG_MODELS[engine_id] = descriptor.config_model
+    elif config_model is not None:
+        _SEARCH_ENGINE_CONFIG_MODELS[engine_id] = config_model
+        _SEARCH_ENGINE_DESCRIPTORS[engine_id] = SearchEngineDescriptor(
+            config_model=config_model,
+            service_cls=engine_cls,
+        )
+    return engine_cls
+
+
+def get_search_engine_descriptor(engine_id: str) -> SearchEngineDescriptor | None:
+    return _SEARCH_ENGINE_DESCRIPTORS.get(engine_id.lower())
+
+
+def register_agent_engine(
+    engine_id: str,
+    engine_cls: type[AgentSearchEngineT],
+    *,
+    config_model: type[BaseModel] | None = None,
+    descriptor: Any | None = None,
+) -> type[AgentSearchEngineT]:
+    _AGENT_ENGINE_REGISTRY[engine_id] = engine_cls
+    if descriptor is not None:
+        _AGENT_ENGINE_DESCRIPTORS[engine_id] = descriptor
+        _AGENT_ENGINE_CONFIG_MODELS[engine_id] = descriptor.config_model
+    elif config_model is not None:
+        _AGENT_ENGINE_CONFIG_MODELS[engine_id] = config_model
+    return engine_cls
+
+
+def get_agent_engine_descriptor(engine_id: str) -> Any | None:
+    return _AGENT_ENGINE_DESCRIPTORS.get(engine_id.lower())
+
+
+def registered_agent_engines() -> frozenset[str]:
+    return frozenset(_AGENT_ENGINE_REGISTRY)
+
+
+def register_crawler(
+    crawler_id: str,
+    crawler_cls: type[CrawlerT],
+    *,
+    config_model: type[BaseModel] | None = None,
+) -> type[CrawlerT]:
+    _CRAWLER_REGISTRY[crawler_id] = crawler_cls
+    if config_model is not None:
+        _CRAWLER_CONFIG_MODELS[crawler_id] = config_model
+    return crawler_cls
+
+
+def registered_search_engines() -> frozenset[str]:
+    return frozenset(_SEARCH_ENGINE_REGISTRY)
+
+
+def registered_crawlers() -> frozenset[str]:
+    return frozenset(_CRAWLER_REGISTRY)
+
+
+def get_search_engine(engine_id: str) -> type[SearchEngine[Any]]:
+    engine_cls = _SEARCH_ENGINE_REGISTRY.get(engine_id)
+    if engine_cls is None:
+        raise EngineNotConfiguredError()
+    return engine_cls
+
+
+def get_crawler(crawler_id: str) -> type[BaseCrawler[Any]]:
+    crawler_cls = _CRAWLER_REGISTRY.get(crawler_id)
+    if crawler_cls is None:
+        raise EngineNotConfiguredError()
+    return crawler_cls
+
+
+def build_search_engine_config_union() -> list[type[BaseModel]]:
+    """Registered per-engine config models for discriminated-union assembly."""
+    registered = list(_SEARCH_ENGINE_CONFIG_MODELS.values())
+    if registered:
+        return registered
+    return list(ENGINE_NAME_TO_CONFIG.values())
+
+
+def build_crawler_config_union() -> list[type[BaseModel]]:
+    return list(_CRAWLER_CONFIG_MODELS.values())
+
+
+def get_search_engine_config_model(engine_id: str) -> type[BaseModel] | None:
+    return _SEARCH_ENGINE_CONFIG_MODELS.get(engine_id.lower())
+
+
+def get_crawler_config_model(crawler_id: str) -> type[BaseModel] | None:
+    return _CRAWLER_CONFIG_MODELS.get(crawler_id)
+
+
+def list_registered_providers() -> dict[str, list[str]]:
+    return {
+        "search_engines": sorted(registered_search_engines()),
+        "agent_engines": sorted(registered_agent_engines()),
+        "crawlers": sorted(registered_crawlers()),
+    }
+
+
+def clear_registries_for_tests() -> None:
+    _SEARCH_ENGINE_REGISTRY.clear()
+    _SEARCH_ENGINE_DESCRIPTORS.clear()
+    _AGENT_ENGINE_REGISTRY.clear()
+    _AGENT_ENGINE_DESCRIPTORS.clear()
+    _CRAWLER_REGISTRY.clear()
+    _SEARCH_ENGINE_CONFIG_MODELS.clear()
+    _AGENT_ENGINE_CONFIG_MODELS.clear()
+    _CRAWLER_CONFIG_MODELS.clear()

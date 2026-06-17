@@ -37,6 +37,7 @@ When cherry-picking model support into a release branch, **all cross-repo depend
 This is **not** a manual ai-repo `CHANGELOG.md` / `version` edit — after the toolkit ships from the ai repo, bump the **dependency constraint** in the monorepo (e.g. `assistants-core` `pyproject.toml` or the monorepo's AI version sync workflow).
 
 Checklist for cherry-picks:
+- [ ] AI repo: cherry-pick from `main` onto `release/YYYY.WW` and **rebase-merge** the PR (squash breaks release-please changelogs; see `hotfix-backport` skill)
 - [ ] Node-chat TypeScript changes (language-model enum, factory, service)
 - [ ] Monorepo: `assistants-core` (or equivalent) pins the new published `unique_toolkit` version
 - [ ] LiteLLM overlay changes (if applicable)

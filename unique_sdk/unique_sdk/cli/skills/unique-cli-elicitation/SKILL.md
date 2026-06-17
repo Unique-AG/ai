@@ -133,8 +133,7 @@ unique-cli elicit ask "Please provide report settings" \
 | `--message-id` | `-m` | none | **MANDATORY.** The current assistant message ID. Always pass `"$UNIQUE_MESSAGE_ID"`. Anchors the elicitation to the correct message in the conversation thread. |
 | `--tool-name` | `-t` | `agent_question` | Short snake_case label shown to the user (e.g. `clarify`, `confirm_delete`, `choose_report`). |
 | `--schema` | | single `answer` string | JSON Schema for the form body. |
-| `--expires-in` | | none | Seconds before the request auto-expires on the platform. |
-| `--timeout` | | `300` | Max seconds to block locally before giving up. |
+| `--timeout` | | `7200` | Max seconds to block locally before giving up. This is the single knob for `ask`: it also sets when the request expires on the platform, so the prompt expires exactly when you stop waiting and the chat UI can offer the user a way to continue. |
 | `--poll-interval` | | `2.0` | Seconds between status polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
 | `--assistant-id` | | `$UNIQUE_ASSISTANT_ID`, else latest assistant in chat | Assistant id for the placeholder message created by the visibility workaround. Set this (or export `UNIQUE_ASSISTANT_ID`) only if the chat is brand-new with no prior assistant messages. |
@@ -159,9 +158,34 @@ Terminal statuses:
 | `RESPONDED` / `COMPLETED` | User answered | Parse `Response:` JSON and proceed. |
 | `DECLINED` | User explicitly declined | Do not proceed. Acknowledge and stop. |
 | `CANCELLED` | Cancelled (by user or system) | Do not proceed. |
-| `EXPIRED` | Timed out on the platform (via `--expires-in`) | Ask again only if the task still needs it. |
+| `EXPIRED` | Timed out on the platform — the user did not answer within `--timeout` | Ask again only if the task still needs it; do not treat the expiry as approval. |
 
-If the CLI itself times out locally (`elicit: timed out after Ns ...`), raise `--timeout` and try again. If this happens repeatedly, double-check that you passed `--chat-id` and did not pass `--no-visible` — an invisible elicitation is the most common cause of a local timeout.
+Because `ask` derives the request's expiry from `--timeout`, when the user does not answer in time the platform expires the request and `elicit ask` returns a clean `EXPIRED` status (rather than a local-only timeout). If you instead see `elicit: timed out after Ns ...`, raise `--timeout` and try again. If this happens repeatedly, double-check that you passed `--chat-id` and did not pass `--no-visible` — an invisible elicitation is the most common cause of a local timeout.
+
+### Repeat the answer back in chat
+
+After a `RESPONDED` / `COMPLETED` elicitation, always repeat the user's answer back in the normal chat before you continue. This keeps the decision in the chat history and makes it clear what the user said.
+
+Write this as a user-readable summary, not as raw JSON. Use the field descriptions and option labels from the schema to translate the response into plain language:
+
+```markdown
+Got it — you chose Markdown for the report format and asked me to include the appendix.
+```
+
+If the exact structured response is useful for auditing or debugging, put it behind a collapsed details block after the readable summary instead of leading with it:
+
+````markdown
+<details>
+<summary>Structured elicitation response</summary>
+
+```json
+{"format":"Markdown","include_appendix":true}
+```
+
+</details>
+````
+
+Do not expose raw JSON by default when a natural-language confirmation would be clearer.
 
 ## Scripting pattern
 
@@ -192,7 +216,7 @@ esac
 - Use `enum` for closed choices so the UI can render a selector.
 - Use `"type": "boolean"` for confirmations; treat `true` as "go ahead", everything else as "stop".
 - Add short `description` strings -- they are shown as help text next to each field.
-- Keep schemas small. Break long flows into several sequential `elicit ask` calls instead of one giant form.
+- Keep schemas small. Ask at most 5 questions in a single elicitation; if you need more, split the flow so the user is not confused by an oversized form.
 
 ## Agent workflow rules
 
@@ -203,9 +227,11 @@ esac
 5. **Never run destructive CLI commands without a confirmation elicitation.** This includes `rm`, `rmdir -r`, bulk renames, large uploads, schedule deletion, etc.
 6. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
 7. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
-8. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
-9. **Don't spam elicitations.** One well-designed form with several fields is better than five sequential yes/no questions.
-10. **Respect timeouts.** The default `--timeout` is 5 minutes -- raise it only if you genuinely expect the user to take longer.
+8. **Repeat answered elicitations back in chat.** Summarize what the user chose in natural language before acting on it; hide raw JSON in a collapsible details block only when it adds value.
+9. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
+10. **Don't spam elicitations.** One well-designed form with a few related fields is better than five sequential yes/no questions.
+11. **Cap each elicitation at 5 questions.** If you need more than 5 answers, split them into multiple focused elicitations so the user can respond confidently.
+12. **Respect timeouts.** The default `--timeout` is 2 hours -- override it only when the task needs a shorter or longer wait.
 
 ## Prerequisites
 

@@ -12,6 +12,7 @@ from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 from uqadm.kb.access import cmd_access_grant
 from uqadm.kb.ingestion import cmd_ingestion_set
 from uqadm.kb.mkdir import cmd_mkdir
+from uqadm.kb.sync import cmd_sync
 
 kb_app = typer.Typer(
     name="kb",
@@ -121,6 +122,76 @@ def kb_mkdir(
         paths_file=paths_file,
         parent_scope_id=parent_scope_id,
         inherit_access=inherit_access,
+    )
+
+
+@kb_app.command("sync", short_help="Sync a local folder into a KB scope.")
+def kb_sync(
+    ctx: typer.Context,
+    local_dir: Annotated[
+        Path,
+        typer.Argument(
+            exists=True,
+            file_okay=False,
+            readable=True,
+            help="Local folder whose contents are synced into the KB scope.",
+        ),
+    ],
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    folder_path: Annotated[
+        Optional[str],
+        typer.Option(
+            "--folder-path",
+            help="Target KB folder path (mutually exclusive with --scope-id).",
+        ),
+    ] = None,
+    scope_id: Annotated[
+        Optional[str],
+        typer.Option(
+            "--scope-id",
+            help="Target folder scope id (mutually exclusive with --folder-path).",
+        ),
+    ] = None,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            "-r",
+            help="Recurse into subdirectories, mirroring them as child KB folders.",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show planned uploads without writing anything.",
+        ),
+    ] = False,
+) -> None:
+    """Upload the contents of LOCAL_DIR into a knowledge-base folder.
+
+    Files already present (matched by filename) are replaced; new files are
+    created. Files present in the target scope but missing locally are left
+    untouched; ``sync`` never deletes remote files. Requires exactly one of
+    ``--folder-path`` or ``--scope-id`` to name the target scope. Without
+    ``--recursive`` only top-level files are synced; with it, subdirectories are
+    recreated as child folders under the target.
+
+    Examples:
+
+      uqadm kb sync ./docs --folder-path /Dept/HR
+      uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
+      uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
+    """
+    resolved_slot = _resolve(slot)
+    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    cmd_sync(
+        cfg,
+        local_dir=local_dir,
+        folder_path=folder_path,
+        scope_id=scope_id,
+        recursive=recursive,
+        dry_run=dry_run,
     )
 
 

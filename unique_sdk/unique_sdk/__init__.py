@@ -77,6 +77,9 @@ from unique_sdk.api_resources._message import Message as Message
 from unique_sdk.api_resources._integrated import Integrated as Integrated
 from unique_sdk.api_resources._search import Search as Search
 from unique_sdk.api_resources._content import Content as Content
+from unique_sdk.api_resources._dynamic_frontend import (
+    DynamicFrontend as DynamicFrontend,
+)
 from unique_sdk.api_resources._search_string import SearchString as SearchString
 from unique_sdk.api_resources._short_term_memory import (
     ShortTermMemory as ShortTermMemory,

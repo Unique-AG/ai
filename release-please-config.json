@@ -52,11 +52,27 @@
     "postprocessors/unique_stock_ticker": {
       "component": "unique-stock-ticker"
     },
+    "postprocessors/unique_user_memory": {
+      "component": "unique-user-memory"
+    },
     "connectors/unique_quartr": {
       "component": "unique-quartr"
     },
     "connectors/unique_six": {
       "component": "unique-six"
+    },
+    "connectors/unique_search_proxy/unique_search_proxy_client": {
+      "component": "unique-search-proxy",
+      "extra-files": [
+        { "type": "generic", "path": "deploy/helm-chart/Chart.yaml" },
+        { "type": "generic", "path": "deploy/helm-chart/values.yaml" }
+      ]
+    },
+    "connectors/unique_search_proxy/unique_search_proxy_core": {
+      "component": "unique-search-proxy-core"
+    },
+    "connectors/unique_search_proxy/unique_search_proxy_sdk": {
+      "component": "unique-search-proxy-sdk"
     },
     "tool_packages/unique_skill_tool": {
       "component": "unique-skill-tool"
@@ -78,8 +94,12 @@
         "unique-internal-search",
         "unique-follow-up-questions",
         "unique-stock-ticker",
+        "unique-user-memory",
         "unique-quartr",
         "unique-six",
+        "unique-search-proxy",
+        "unique-search-proxy-core",
+        "unique-search-proxy-sdk",
         "unique-skill-tool"
       ]
     }
