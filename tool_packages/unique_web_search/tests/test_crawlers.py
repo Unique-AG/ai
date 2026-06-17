@@ -158,7 +158,6 @@ class TestCrawlerTypes:
         assert CrawlerType.JINA == "JinaCrawler"
         assert CrawlerType.TAVILY == "TavilyCrawler"
         assert CrawlerType.NO_CRAWLER == "NoCrawler"
-        assert CrawlerType.BASIC_PROXY == "BasicProxyCrawler"
 
     def test_crawler_type_membership(self):
         """Test CrawlerType membership."""
@@ -307,8 +306,8 @@ class TestBasicCrawlerCrawlUrl:
         Why this matters: BasicCrawler must use targets from validate_urls only; bypass must not require a second resolve.
         Setup summary: Disable url_safety_enabled on env_settings and assert request_url equals normalized_url.
         """
-        import unique_web_search.services.crawlers.url_safety.service as service_module
-        from unique_web_search.services.crawlers.url_safety import UrlSafetyService
+        import unique_search_proxy_core.url_safety.service as service_module
+        from unique_search_proxy_core.url_safety import UrlSafetyService
 
         monkeypatch.setattr(
             service_module,
