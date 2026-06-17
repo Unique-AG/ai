@@ -60,7 +60,7 @@ class UserMemoryPostprocessor(Postprocessor):
             self._logger.warning("[user-memory] memory update was not uploaded")
             return
 
-        self._logger.info("[user-memory] memory updated and uploaded")
+        self._logger.info("[user-memory] memory updated and uploaded successfully")
 
     def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse
