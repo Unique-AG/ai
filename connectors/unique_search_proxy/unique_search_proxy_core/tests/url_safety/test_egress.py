@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import pytest
-from unique_search_proxy_core.url_safety import ResolvedCrawlTarget, pinned_httpx_get_args
+
+from unique_search_proxy_core.url_safety import (
+    ResolvedCrawlTarget,
+    pinned_httpx_get_args,
+)
 
 
 @pytest.mark.ai

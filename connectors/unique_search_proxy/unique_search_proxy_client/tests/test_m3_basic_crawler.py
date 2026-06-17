@@ -161,7 +161,9 @@ async def test_crawl_pinned__fetches_resolved_ip_with_host_and_sni() -> None:
     call_headers = http_client.get.call_args.kwargs["headers"]
     assert call_headers["Host"] == "example.com"
     assert call_headers["User-Agent"]
-    assert http_client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
+    assert (
+        http_client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
+    )
 
 
 @pytest.mark.ai
