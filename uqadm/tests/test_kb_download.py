@@ -215,5 +215,116 @@ def test_scope_id_entry_point(
     )
 
     folder.resolve_scope_id_from_folder_path.assert_not_called()
+    folder.get_folder_path.assert_called_once()
     download.assert_called_once()
     assert download.call_args.kwargs["content_id"] == "cont_1"
+
+
+@patch("uqadm.kb.download.download_content")
+@patch("uqadm.kb.download.Folder")
+@patch("uqadm.kb.download.Content")
+def test_invalid_scope_id_exits_1(
+    content: MagicMock,
+    folder: MagicMock,
+    download: MagicMock,
+    tmp_path: Path,
+) -> None:
+    folder.get_folder_path.side_effect = Exception("not found")
+    out_dir = tmp_path / "out"
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_download(
+            _cfg(),
+            local_dir=out_dir,
+            folder_path=None,
+            scope_id="scope_missing",
+            recursive=False,
+            dry_run=False,
+        )
+    assert exc.value.code == 1
+    content.get_infos.assert_not_called()
+    download.assert_not_called()
+
+
+@patch("uqadm.kb.download.download_content")
+@patch("uqadm.kb.download.Folder")
+@patch("uqadm.kb.download.Content")
+def test_path_traversal_key_is_rejected(
+    content: MagicMock,
+    folder: MagicMock,
+    download: MagicMock,
+    tmp_path: Path,
+) -> None:
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+    content.get_infos.return_value = {
+        "contentInfos": [{"id": "cont_evil", "key": "../../escape.txt"}],
+        "totalCount": 1,
+    }
+    out_dir = tmp_path / "out"
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_download(
+            _cfg(),
+            local_dir=out_dir,
+            folder_path="/X",
+            scope_id=None,
+            recursive=False,
+            dry_run=False,
+        )
+    assert exc.value.code == 1
+    download.assert_not_called()
+    assert not (tmp_path / "escape.txt").exists()
+
+
+@patch("uqadm.kb.download.download_content")
+@patch("uqadm.kb.download.Folder")
+@patch("uqadm.kb.download.Content")
+def test_path_traversal_via_subfolder_is_rejected(
+    content: MagicMock,
+    folder: MagicMock,
+    download: MagicMock,
+    tmp_path: Path,
+) -> None:
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+
+    def content_side_effect(
+        user_id: str,
+        company_id: str,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if kwargs.get("parentId") == "scope_evil":
+            return {
+                "contentInfos": [{"id": "cont_x", "key": "loot.txt"}],
+                "totalCount": 1,
+            }
+        return _no_content()
+
+    content.get_infos.side_effect = content_side_effect
+
+    def folder_side_effect(
+        user_id: str,
+        company_id: str,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if kwargs.get("parentId") == "scope1":
+            return {
+                "folderInfos": [{"id": "scope_evil", "name": "../.."}],
+                "totalCount": 1,
+            }
+        return _no_folders()
+
+    folder.get_infos.side_effect = folder_side_effect
+    out_dir = tmp_path / "out"
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_download(
+            _cfg(),
+            local_dir=out_dir,
+            folder_path="/X",
+            scope_id=None,
+            recursive=True,
+            dry_run=False,
+        )
+    assert exc.value.code == 1
+    download.assert_not_called()
+    assert not (tmp_path / "loot.txt").exists()

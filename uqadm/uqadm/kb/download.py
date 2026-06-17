@@ -64,6 +64,24 @@ def _join_rel_subdir(parent: str, child_name: str) -> str:
     return f"{parent}/{child_name}"
 
 
+def _safe_local_path(local_dir: Path, *parts: str) -> Path | None:
+    """Join ``parts`` under ``local_dir``, guarding against path traversal.
+
+    ``key`` and recursive folder names come from remote KB metadata and are not
+    trusted. A crafted value containing ``..`` segments or a leading ``/`` could
+    otherwise escape the destination. Returns the resolved path when it stays
+    inside ``local_dir``, or ``None`` when it would escape.
+    """
+    base = local_dir.resolve()
+    candidate = base
+    for part in parts:
+        candidate = candidate / part
+    candidate = candidate.resolve()
+    if candidate == base or base in candidate.parents:
+        return candidate
+    return None
+
+
 def cmd_download(
     cfg: Config,
     *,
@@ -99,6 +117,12 @@ def cmd_download(
         base_scope_id = resolved_scope_id
     else:
         assert scope_id is not None
+        try:
+            _ = Folder.get_folder_path(cfg.user_id, cfg.company_id, scope_id)
+        except Exception as exc:
+            typer.echo(f"failed to resolve scope {scope_id!r}: {exc}", err=True)
+            echo_credential_debug_if_auth_failure(cfg, exc, label="kb download")
+            sys.exit(1)
         base_scope_id = scope_id
 
     if not dry_run:
@@ -114,7 +138,15 @@ def cmd_download(
             key = info["key"]
             content_id = info["id"]
             display = key if rel_subdir == "" else f"{rel_subdir}/{key}"
-            local_path = local_dir / rel_subdir / key if rel_subdir else local_dir / key
+            parts = (rel_subdir, key) if rel_subdir else (key,)
+            local_path = _safe_local_path(local_dir, *parts)
+            if local_path is None:
+                typer.echo(
+                    f"failed: {display}: refusing to write outside {local_dir}",
+                    err=True,
+                )
+                counts["failed"] += 1
+                continue
 
             if dry_run:
                 typer.echo(f"[dry-run] downloaded: {display}")
