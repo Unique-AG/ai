@@ -90,7 +90,7 @@ class TestResolveRedirectChain:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_resolve_redirect_chain__network_error_on_hop__stops_and_returns_last_valid_url(
+    async def test_resolve_redirect_chain__network_error_on_hop__raises_instead_of_failing_open(
         self,
     ) -> None:
         mock_client = AsyncMock()
@@ -101,9 +101,34 @@ class TestResolveRedirectChain:
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
         with patch(_REDIRECT_HTTPX, return_value=mock_client):
-            result = await self._resolve_redirect_chain("https://example.com/page")
+            with pytest.raises(CrawlTargetValidationError) as exc_info:
+                await self._resolve_redirect_chain("https://example.com/page")
 
-        assert result == "https://example.com/page"
+        blocked = exc_info.value.blocked_targets[0]
+        assert blocked.hostname == "example.com"
+        assert blocked.category == "redirect"
+        assert "Unable to verify redirect chain" in blocked.reason
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_resolve_redirect_chain__head_error_before_hidden_redirect__blocks_url(
+        self,
+    ) -> None:
+        """HEAD failure must not allow crawl GET to discover an unvalidated redirect."""
+        mock_client = AsyncMock()
+        mock_client.head = AsyncMock(
+            side_effect=httpx.ConnectError("connection refused")
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch(_REDIRECT_HTTPX, return_value=mock_client):
+            with pytest.raises(CrawlTargetValidationError) as exc_info:
+                await self._resolve_redirect_chain("https://evil.example.com/article")
+
+        blocked = exc_info.value.blocked_targets[0]
+        assert blocked.hostname == "evil.example.com"
+        assert blocked.category == "redirect"
 
     @pytest.mark.ai
     @pytest.mark.asyncio

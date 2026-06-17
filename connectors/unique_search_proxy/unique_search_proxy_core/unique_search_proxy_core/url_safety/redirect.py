@@ -27,7 +27,8 @@ async def resolve_redirect_chain(
     """Follow HTTP 3xx redirects hop-by-hop, validating each destination.
 
     Returns the final validated URL.
-    Raises CrawlTargetValidationError if any hop is blocked.
+    Raises CrawlTargetValidationError if any hop is blocked or redirect probing
+    cannot be completed (fail-closed to prevent GET-time redirect SSRF bypass).
     """
     current = url
     timeout = url_safety_settings.redirect_timeout_seconds
@@ -50,11 +51,22 @@ async def resolve_redirect_chain(
                 resp = await client.head(current)
             except Exception as exc:
                 _LOGGER.debug(
-                    "Redirect resolution stopped at %s due to network error: %s",
+                    "Redirect resolution blocked at %s due to network error: %s",
                     current,
                     exc,
                 )
-                break
+                raise CrawlTargetValidationError(
+                    [
+                        BlockedCrawlTarget(
+                            hostname=extract_hostname(current),
+                            category="redirect",
+                            reason=(
+                                "Unable to verify redirect chain before crawl; "
+                                "blocking to prevent redirect-based SSRF"
+                            ),
+                        )
+                    ]
+                ) from exc
 
             if resp.status_code not in _REDIRECT_STATUS_CODES:
                 break
