@@ -10,6 +10,7 @@ import typer
 from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 from uqadm.kb.access import cmd_access_grant
+from uqadm.kb.download import cmd_download
 from uqadm.kb.ingestion import cmd_ingestion_set
 from uqadm.kb.mkdir import cmd_mkdir
 from uqadm.kb.sync import cmd_sync
@@ -18,7 +19,8 @@ kb_app = typer.Typer(
     name="kb",
     help=(
         "Knowledge-base folder administration: create paths (Folder.create_paths), "
-        "grant group access (Folder.add_access), set ingestion (Folder.update_ingestion_config)."
+        "sync/download files, grant group access (Folder.add_access), set ingestion "
+        "(Folder.update_ingestion_config)."
     ),
     no_args_is_help=True,
 )
@@ -186,6 +188,72 @@ def kb_sync(
     resolved_slot = _resolve(slot)
     cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
     cmd_sync(
+        cfg,
+        local_dir=local_dir,
+        folder_path=folder_path,
+        scope_id=scope_id,
+        recursive=recursive,
+        dry_run=dry_run,
+    )
+
+
+@kb_app.command(
+    "download", short_help="Download KB scope contents into a local folder."
+)
+def kb_download(
+    ctx: typer.Context,
+    local_dir: Annotated[
+        Path,
+        typer.Argument(
+            help="Local folder where KB files are written.",
+        ),
+    ],
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    folder_path: Annotated[
+        Optional[str],
+        typer.Option(
+            "--folder-path",
+            help="Source KB folder path (mutually exclusive with --scope-id).",
+        ),
+    ] = None,
+    scope_id: Annotated[
+        Optional[str],
+        typer.Option(
+            "--scope-id",
+            help="Source folder scope id (mutually exclusive with --folder-path).",
+        ),
+    ] = None,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            "-r",
+            help="Recurse into subfolders, mirroring them as local subdirectories.",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show planned downloads without writing anything.",
+        ),
+    ] = False,
+) -> None:
+    """Download files from a knowledge-base folder into LOCAL_DIR.
+
+    Requires exactly one of ``--folder-path`` or ``--scope-id`` to name the
+    source scope. Without ``--recursive`` only top-level files are downloaded;
+    with it, subfolders are recreated as child directories under LOCAL_DIR.
+
+    Examples:
+
+      uqadm kb download ./out --folder-path /Dept/HR
+      uqadm kb download ./out --folder-path /Dept/HR -r --dry-run
+      uqadm kb download ./out --scope-id scope_abc -r --slot qa
+    """
+    resolved_slot = _resolve(slot)
+    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    cmd_download(
         cfg,
         local_dir=local_dir,
         folder_path=folder_path,
