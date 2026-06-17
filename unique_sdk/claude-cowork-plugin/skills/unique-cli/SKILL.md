@@ -8,13 +8,14 @@ allowed-tools: Bash
 
 Use the `unique-cli` command for Unique knowledge-base operations inside Claude Cowork.
 
-Required environment variables:
+The plugin option `skillFolder` can point to either a Unique folder name or a
+scope ID containing Claude skills in the Unique knowledge base. When skills are
+needed, read them from that folder with the existing file commands:
 
 ```bash
-export UNIQUE_API_KEY="ukey_..."
-export UNIQUE_APP_ID="app_..."
-export UNIQUE_USER_ID="user_..."
-export UNIQUE_COMPANY_ID="company_..."
+unique-cli ls "$UNIQUE_SKILL_FOLDER"
+unique-cli search "SKILL.md" --folder "$UNIQUE_SKILL_FOLDER"
+unique-cli read cont_abc123
 ```
 
 Examples:
