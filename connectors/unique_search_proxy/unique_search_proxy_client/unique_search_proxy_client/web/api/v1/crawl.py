@@ -55,28 +55,32 @@ async def crawl(
     timeout = body.timeout
     started = time.perf_counter()
 
-    gate = await apply_url_safety_gate(body.urls)
-    if not gate.allowed_targets:
-        record_crawl_success(crawler_id, len(body.urls), time.perf_counter() - started)
-        return CrawlResponse(
-            crawler=crawler_id,
-            results=merge_crawl_results(
-                body.urls,
-                blocked_by_index=gate.blocked_by_index,
-                crawler_results=[],
-            ),
-        )
-
-    crawl_body = body.model_copy(
-        update={
-            "urls": [target.display_url for target in gate.allowed_targets],
-        },
-    )
-
     try:
-        pool = get_http_client_pool(request.app)
-        crawler = get_crawler_service(crawler_id, http_client=pool.client)
         async with asyncio.timeout(timeout):
+            gate = await apply_url_safety_gate(body.urls)
+            if not gate.allowed_targets:
+                record_crawl_success(
+                    crawler_id,
+                    len(body.urls),
+                    time.perf_counter() - started,
+                )
+                return CrawlResponse(
+                    crawler=crawler_id,
+                    results=merge_crawl_results(
+                        body.urls,
+                        blocked_by_index=gate.blocked_by_index,
+                        crawler_results=[],
+                    ),
+                )
+
+            crawl_body = body.model_copy(
+                update={
+                    "urls": [target.display_url for target in gate.allowed_targets],
+                },
+            )
+
+            pool = get_http_client_pool(request.app)
+            crawler = get_crawler_service(crawler_id, http_client=pool.client)
             if isinstance(crawler, PinnedEgressCrawler):
                 crawler_results = await crawler.crawl_pinned(
                     crawl_body,

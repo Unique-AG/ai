@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Generator
 
 import httpx
@@ -9,6 +10,7 @@ from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.schema import ProxyErrorCode
 
 from unique_search_proxy_client.web.app import create_app
+from unique_search_proxy_client.web.core.url_safety.gate import UrlSafetyGateResult
 
 _HTML_PAGE = """
 <html><head><title>Test</title></head>
@@ -125,6 +127,35 @@ def test_crawl_url_safety__pins_basic_fetch_to_resolved_ip(
     assert str(request.url).startswith("https://93.184.216.34/")
     assert request.headers["Host"] == "example.com"
     assert request.extensions["sni_hostname"] == "example.com"
+
+
+@pytest.mark.ai
+def test_crawl_url_safety__gate_respects_request_timeout(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def slow_gate(_urls: list[str]) -> UrlSafetyGateResult:
+        await asyncio.sleep(2)
+        return UrlSafetyGateResult(allowed_targets=[], blocked_by_index={})
+
+    monkeypatch.setattr(
+        "unique_search_proxy_client.web.api.v1.crawl.apply_url_safety_gate",
+        slow_gate,
+    )
+
+    response = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/article"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 1,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    assert response.status_code == 504
+    payload = response.json()
+    assert payload["error"]["code"] == ProxyErrorCode.UPSTREAM_TIMEOUT.value
 
 
 @pytest.mark.ai
