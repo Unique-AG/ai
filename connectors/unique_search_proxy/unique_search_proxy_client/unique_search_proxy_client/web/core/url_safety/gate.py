@@ -3,22 +3,30 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from unique_search_proxy_core.schema import CrawlUrlResult
-from unique_search_proxy_core.url_safety import UrlSafetyService
+from unique_search_proxy_core.url_safety import ResolvedCrawlTarget, UrlSafetyService
 
 from unique_search_proxy_client.web.core.provider_response import crawl_forbidden_target
 from unique_search_proxy_client.web.monitoring.metrics import record_crawl_blocked
 
 
 @dataclass(frozen=True)
+class AllowedCrawlTarget:
+    """User-facing URL paired with the validated resolution for pinned egress."""
+
+    display_url: str
+    resolved: ResolvedCrawlTarget
+
+
+@dataclass(frozen=True)
 class UrlSafetyGateResult:
-    allowed_urls: list[str]
+    allowed_targets: list[AllowedCrawlTarget]
     blocked_by_index: dict[int, CrawlUrlResult]
 
 
 async def apply_url_safety_gate(urls: list[str]) -> UrlSafetyGateResult:
     """Validate crawl URLs and partition them into allowed vs blocked targets."""
     outcomes = await UrlSafetyService.validate_urls_individually(urls)
-    allowed_urls: list[str] = []
+    allowed_targets: list[AllowedCrawlTarget] = []
     blocked_by_index: dict[int, CrawlUrlResult] = {}
 
     for index, outcome in enumerate(outcomes):
@@ -30,10 +38,19 @@ async def apply_url_safety_gate(urls: list[str]) -> UrlSafetyGateResult:
             )
             continue
 
-        allowed_urls.append(outcome.url.strip())
+        if outcome.resolved is None:
+            msg = "URL safety allowed a crawl target without resolved metadata"
+            raise RuntimeError(msg)
+
+        allowed_targets.append(
+            AllowedCrawlTarget(
+                display_url=outcome.url.strip(),
+                resolved=outcome.resolved,
+            ),
+        )
 
     return UrlSafetyGateResult(
-        allowed_urls=allowed_urls,
+        allowed_targets=allowed_targets,
         blocked_by_index=blocked_by_index,
     )
 

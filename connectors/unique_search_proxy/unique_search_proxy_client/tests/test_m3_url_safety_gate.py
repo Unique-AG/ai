@@ -16,14 +16,21 @@ _HTML_PAGE = """
 """
 
 
+def _is_example_com_request(request: httpx.Request) -> bool:
+    host_header = request.headers.get("host", "")
+    if isinstance(host_header, bytes):
+        host_header = host_header.decode()
+    url = str(request.url)
+    return "example.com" in host_header or "example.com" in url
+
+
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, Any, None]:
-    head_calls: list[str] = []
+    get_calls: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        url = str(request.url)
-        head_calls.append(url)
-        if "example.com" in url:
+        get_calls.append(request)
+        if _is_example_com_request(request):
             return httpx.Response(
                 200,
                 text=_HTML_PAGE,
@@ -45,7 +52,7 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Generator[TestClient, Any, None]:
     )
 
     with TestClient(create_app()) as test_client:
-        test_client.head_calls = head_calls  # type: ignore[attr-defined]
+        test_client.get_calls = get_calls  # type: ignore[attr-defined]
         yield test_client
 
 
@@ -69,7 +76,7 @@ def test_crawl_url_safety__blocks_localhost_without_upstream_fetch(
     result = payload["results"][0]
     assert result["error"]["code"] == ProxyErrorCode.FORBIDDEN_TARGET.value
     assert "private" in result["error"]["message"].lower()
-    assert client.head_calls == []  # type: ignore[attr-defined]
+    assert client.get_calls == []  # type: ignore[attr-defined]
 
 
 @pytest.mark.ai
@@ -95,6 +102,29 @@ def test_crawl_url_safety__mixed_batch_preserves_order(
     assert results[0]["error"]["code"] == ProxyErrorCode.FORBIDDEN_TARGET.value
     assert results[1]["error"] is None
     assert "Hello" in results[1]["content"]
+
+
+@pytest.mark.ai
+def test_crawl_url_safety__pins_basic_fetch_to_resolved_ip(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/v1/crawl",
+        json={
+            "urls": ["https://example.com/article"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+
+    assert response.status_code == 200
+    get_calls: list[httpx.Request] = client.get_calls  # type: ignore[attr-defined]
+    assert len(get_calls) == 1
+    request = get_calls[0]
+    assert str(request.url).startswith("https://93.184.216.34/")
+    assert request.headers["Host"] == "example.com"
+    assert request.extensions["sni_hostname"] == "example.com"
 
 
 @pytest.mark.ai
@@ -126,4 +156,4 @@ def test_crawl_url_safety__disabled_bypasses_gate(
         result["error"] is None
         or result["error"]["code"] != ProxyErrorCode.FORBIDDEN_TARGET.value
     )
-    assert client.head_calls  # type: ignore[attr-defined]
+    assert client.get_calls  # type: ignore[attr-defined]
