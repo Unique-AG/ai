@@ -34,7 +34,9 @@ _LOGGER = logging.getLogger(__name__)
 def build_argument_screening_guidelines(config: ArgumentScreeningConfig) -> str:
     """Render the effective screening guidelines including configured keywords."""
     keyword_bullets = (
-        "\n".join(f"- {keyword}" for keyword in config.organization_specific_blocked_keywords)
+        "\n".join(
+            f"- {keyword}" for keyword in config.organization_specific_blocked_keywords
+        )
         if config.organization_specific_blocked_keywords
         else "- [none configured]"
     )
