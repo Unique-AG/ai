@@ -37,6 +37,7 @@ from unique_search_proxy_client.web.core.search_engines.pagination import PageRe
 from unique_search_proxy_client.web.core.search_engines.service_base import (
     SearchEngineService,
 )
+from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.brave import (
     brave_search_credentials as credentials,
 )
@@ -71,7 +72,7 @@ class BraveSearchService(SearchEngineService[BraveSearchRequest]):
                 break
             page = await self._fetch_page(
                 request=request,
-                api_key=credentials.api_key,
+                api_key=read_secret(credentials.api_key),
                 api_endpoint=credentials.api_endpoint,
                 page=page_request,
                 timeout=timeout,

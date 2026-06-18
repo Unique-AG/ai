@@ -45,7 +45,7 @@ class TestBraveCredentials:
     ) -> None:
         _unconfigured_brave_env(monkeypatch)
         credentials = _get_brave_search_credentials()
-        assert credentials.api_key == NOT_PROVIDED
+        assert credentials.api_key.get_secret_value() == NOT_PROVIDED
 
     @pytest.mark.ai
     def test_check_credentials_lists_env_vars(
@@ -74,7 +74,7 @@ class TestBraveCredentials:
             "https://api.search.brave.com/res/v1/web/search",
         )
         credentials = _get_brave_search_credentials()
-        assert credentials.api_key == "test-key"
+        assert credentials.api_key.get_secret_value() == "test-key"
 
 
 class TestGoogleCredentials:
@@ -85,7 +85,7 @@ class TestGoogleCredentials:
     ) -> None:
         _unconfigured_google_env(monkeypatch)
         credentials = _get_google_search_credentials()
-        assert credentials.api_key == NOT_PROVIDED
+        assert credentials.api_key.get_secret_value() == NOT_PROVIDED
         assert credentials.engine_id == NOT_PROVIDED
 
     @pytest.mark.ai
@@ -110,7 +110,7 @@ class TestGoogleCredentials:
         )
         credentials = _get_google_search_credentials()
         assert isinstance(credentials, _GoogleCredentials)
-        assert credentials.api_key == "key"
+        assert credentials.api_key.get_secret_value() == "key"
         assert credentials.engine_id == "cx"
 
 
@@ -122,7 +122,7 @@ class TestPerplexityCredentials:
     ) -> None:
         _unconfigured_perplexity_env(monkeypatch)
         credentials = _get_perplexity_search_credentials()
-        assert credentials.api_key == NOT_PROVIDED
+        assert credentials.api_key.get_secret_value() == NOT_PROVIDED
 
     @pytest.mark.ai
     def test_check_credentials_lists_env_vars(
@@ -151,4 +151,4 @@ class TestPerplexityCredentials:
             "https://api.perplexity.ai/search",
         )
         credentials = _get_perplexity_search_credentials()
-        assert credentials.api_key == "test-key"
+        assert credentials.api_key.get_secret_value() == "test-key"

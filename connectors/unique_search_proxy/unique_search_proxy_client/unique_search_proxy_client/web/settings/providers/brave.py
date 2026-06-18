@@ -8,6 +8,7 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
 _DEFAULT_BRAVE_API_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
 _ENV_PREFIX = "BRAVE_SEARCH_"
@@ -17,7 +18,7 @@ _ENV_PREFIX = "BRAVE_SEARCH_"
 class _BraveCredentials(ProviderCredentials):
     """Environment-backed credentials for Brave Web Search."""
 
-    api_key: str = Field(default=NOT_PROVIDED)
+    api_key: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
     api_endpoint: str = Field(default=_DEFAULT_BRAVE_API_ENDPOINT)
 
 

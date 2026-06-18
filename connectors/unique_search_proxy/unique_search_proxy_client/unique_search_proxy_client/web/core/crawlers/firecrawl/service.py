@@ -25,6 +25,7 @@ from unique_search_proxy_client.web.core.provider_response import (
     upstream_error_message,
     upstream_response_raw,
 )
+from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.firecrawl import (
     firecrawl_crawl_credentials as credentials,
 )
@@ -90,7 +91,7 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
             response = await client.post(
                 credentials.scrape_endpoint,
                 json=body,
-                headers=_firecrawl_headers(credentials.api_key),
+                headers=_firecrawl_headers(read_secret(credentials.api_key)),
                 timeout=timeout,
             )
         except httpx.TimeoutException as exc:
@@ -149,7 +150,7 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
             start_response = await client.post(
                 credentials.batch_scrape_endpoint,
                 json=body,
-                headers=_firecrawl_headers(credentials.api_key),
+                headers=_firecrawl_headers(read_secret(credentials.api_key)),
                 timeout=timeout,
             )
         except httpx.TimeoutException as exc:
@@ -200,7 +201,7 @@ class FirecrawlCrawlerService(BaseCrawler[FirecrawlCrawlRequest]):
             final_payload = await poll_batch_scrape(
                 client,
                 status_url=status_url,
-                api_key=credentials.api_key,
+                api_key=read_secret(credentials.api_key),
                 deadline=deadline,
             )
         except TimeoutError as exc:

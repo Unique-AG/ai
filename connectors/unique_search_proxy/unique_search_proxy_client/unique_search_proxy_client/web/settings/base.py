@@ -36,9 +36,8 @@ def _is_test_runtime() -> bool:
 
 def get_settings(cls: type[T], *, env_prefix: str) -> T:
     """Load a settings model from env; uses ``tests/test.env`` under pytest."""
-    config = _settings_config(env_prefix=env_prefix)
-    if _is_test_runtime():
-        config = _settings_config(env_prefix=env_prefix, test=True)
+    use_test_env = _is_test_runtime()
+    config = _settings_config(env_prefix=env_prefix, test=use_test_env)
 
     class Settings(cls):
         model_config = config

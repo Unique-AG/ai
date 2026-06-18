@@ -8,6 +8,7 @@ from google.auth import load_credentials_from_dict
 from google.genai._api_client import BaseApiClient
 from google.genai.client import AsyncClient
 
+from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.vertexai_agent import (
     vertexai_agent_credentials,
 )
@@ -22,9 +23,9 @@ def _get_base_api_client_from_service_account() -> BaseApiClient:
         "https://www.googleapis.com/auth/cloud-platform",
     ]
     service_account_info = json.loads(
-        b64decode(vertexai_agent_credentials.service_account_credentials).decode(
-            "utf-8"
-        ),
+        b64decode(
+            read_secret(vertexai_agent_credentials.service_account_credentials)
+        ).decode("utf-8"),
     )
     credentials, project_id = load_credentials_from_dict(
         service_account_info,

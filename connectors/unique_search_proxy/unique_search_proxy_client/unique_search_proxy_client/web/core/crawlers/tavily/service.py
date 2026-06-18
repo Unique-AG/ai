@@ -19,6 +19,7 @@ from unique_search_proxy_client.web.core.provider_response import (
     upstream_error_message,
     upstream_response_raw,
 )
+from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.tavily import (
     tavily_crawl_credentials as credentials,
 )
@@ -132,7 +133,7 @@ class TavilyCrawlerService(BaseCrawler[TavilyCrawlRequest]):
             response = await client.post(
                 credentials.extract_endpoint,
                 json=body,
-                headers=_tavily_headers(credentials.api_key),
+                headers=_tavily_headers(read_secret(credentials.api_key)),
                 timeout=timeout,
             )
         except httpx.TimeoutException as exc:

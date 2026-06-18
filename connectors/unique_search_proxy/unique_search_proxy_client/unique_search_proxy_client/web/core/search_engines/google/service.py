@@ -37,6 +37,7 @@ from unique_search_proxy_client.web.core.search_engines.pagination import PageRe
 from unique_search_proxy_client.web.core.search_engines.service_base import (
     SearchEngineService,
 )
+from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.google import (
     google_search_credentials as credentials,
 )
@@ -71,7 +72,7 @@ class GoogleSearchService(SearchEngineService[GoogleSearchRequest]):
         for page_request in iter_google_page_requests(fetch_size):
             page = await self._fetch_page(
                 request=request,
-                api_key=credentials.api_key,
+                api_key=read_secret(credentials.api_key),
                 search_engine_id=search_engine_id,
                 api_endpoint=credentials.api_endpoint,
                 page=page_request,

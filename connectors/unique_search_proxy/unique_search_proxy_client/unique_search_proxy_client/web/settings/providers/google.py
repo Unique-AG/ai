@@ -8,6 +8,7 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
 _DEFAULT_GOOGLE_API_ENDPOINT = "https://www.googleapis.com/customsearch/v1"
 _ENV_PREFIX = "GOOGLE_SEARCH_"
@@ -17,7 +18,7 @@ _ENV_PREFIX = "GOOGLE_SEARCH_"
 class _GoogleCredentials(ProviderCredentials):
     """Environment-backed credentials for Google Custom Search."""
 
-    api_key: str = Field(default=NOT_PROVIDED)
+    api_key: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
     api_endpoint: str = Field(default=_DEFAULT_GOOGLE_API_ENDPOINT)
     engine_id: str = Field(default=NOT_PROVIDED)
 
