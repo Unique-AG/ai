@@ -17,6 +17,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -169,12 +170,25 @@ def _compose_msgs(
         output_text=input.output_text,
     )
 
-    # When images are provided, build a multimodal user message (rendered user
-    # text + one image part per data URL) so a vision-capable model can ground
-    # the check against the rendered pages. Without images the message stays the
-    # exact text-only form, so existing callers are unaffected.
+    # When images are provided AND the configured model is vision-capable, build
+    # a multimodal user message (rendered user text + one image part per data
+    # URL) so the model can ground the check against the rendered pages. If the
+    # model lacks VISION we drop the images and fall back to the text-only
+    # message: attaching images to a non-vision model would make the LLM call
+    # fail. Without images the message stays the exact text-only form, so
+    # existing callers are unaffected.
     context_images = input.context_images or []
-    if context_images:
+    model_supports_vision = (
+        ModelCapabilities.VISION in config.language_model.capabilities
+    )
+    if context_images and not model_supports_vision:
+        _LOGGER.warning(
+            "Hallucination model %s lacks VISION capability; ignoring "
+            "%d context image(s) and grounding on text only.",
+            config.language_model.name,
+            len(context_images),
+        )
+    if context_images and model_supports_vision:
         return (
             MessagesBuilder()
             .append(system_msg)

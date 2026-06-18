@@ -20,6 +20,10 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricInput
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.infos import (
+    LanguageModelName,
+    ModelCapabilities,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -1070,6 +1074,38 @@ def test_compose_msgs__stays_text_only__without_context_images(
     # Act
     result: LanguageModelMessages = _compose_msgs(
         input_data, hallucination_config, has_context=True
+    )
+
+    # Assert
+    assert isinstance(result.root[1].content, str)
+
+
+@pytest.mark.ai
+def test_compose_msgs__drops_images__when_model_lacks_vision() -> None:
+    """
+    Purpose: Verify images are dropped when the configured model is not vision-capable.
+    Why this matters: Attaching images to a non-vision model makes the LLM call fail;
+    we must degrade gracefully to a text-only message instead.
+    Setup summary: Configure a text-only model (no VISION capability) with
+    context_images, assert the user message content stays a plain string.
+    """
+    # Arrange
+    text_only_config = HallucinationConfig(
+        enabled=True,
+        language_model=LanguageModelName.AZURE_GPT_4_0613,
+    )
+    assert ModelCapabilities.VISION not in (
+        text_only_config.language_model.capabilities
+    )
+    input_data: EvaluationMetricInput = EvaluationMetricInput(
+        input_text="Question",
+        output_text="Output",
+        context_images=[_IMAGE_DATA_URL],
+    )
+
+    # Act
+    result: LanguageModelMessages = _compose_msgs(
+        input_data, text_only_config, has_context=True
     )
 
     # Assert
