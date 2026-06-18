@@ -3,14 +3,16 @@ from enum import StrEnum
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
+from unique_search_proxy_core.url_safety import (
+    CrawlTargetValidationError,
+    ResolvedCrawlTarget,
+    UrlSafetyService,
+)
 from unique_toolkit.agentic.tools.config import (
     get_configuration_dict,
 )
 
-from unique_web_search.services.crawlers.url_safety import (
-    ResolvedCrawlTarget,
-    UrlSafetyService,
-)
+from unique_web_search.metrics import crawl_blocked
 from unique_web_search.services.helpers import (
     clean_model_title_generator,
     experimental_model_title_generator,
@@ -20,7 +22,6 @@ from unique_web_search.services.helpers import (
 class CrawlerType(StrEnum):
     CRAWL4AI = "Crawl4AiCrawler"
     BASIC = "BasicCrawler"
-    BASIC_PROXY = "BasicProxyCrawler"
     NO_CRAWLER = "NoCrawler"
     TAVILY = "TavilyCrawler"
     FIRECRAWL = "FirecrawlCrawler"
@@ -55,7 +56,12 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
         self.config = config
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        targets = await UrlSafetyService.validate_batch_urls(urls)
+        try:
+            targets = await UrlSafetyService.validate_batch_urls(urls)
+        except CrawlTargetValidationError as exc:
+            for target in exc.blocked_targets:
+                crawl_blocked.labels(reason_category=target.category).inc()
+            raise
         return await self._crawl(targets)
 
     @abstractmethod

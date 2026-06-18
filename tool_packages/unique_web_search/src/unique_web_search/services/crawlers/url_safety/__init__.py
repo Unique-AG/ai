@@ -1,15 +1,21 @@
-from unique_web_search.services.crawlers.url_safety.models import (
+"""Deprecated re-exports — use ``unique_search_proxy_core.url_safety`` directly."""
+
+from unique_search_proxy_core.url_safety import (
     BlockedCrawlTarget,
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
+    UrlSafetyOutcome,
+    UrlSafetyService,
+    UrlSafetySettings,
+    url_safety_settings,
 )
-from unique_web_search.services.crawlers.url_safety.service import UrlSafetyService
-from unique_web_search.services.crawlers.url_safety.settings import url_safety_settings
 
 __all__ = [
     "BlockedCrawlTarget",
-    "url_safety_settings",
     "CrawlTargetValidationError",
     "ResolvedCrawlTarget",
+    "UrlSafetyOutcome",
     "UrlSafetyService",
+    "UrlSafetySettings",
+    "url_safety_settings",
 ]
