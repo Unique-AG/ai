@@ -179,6 +179,23 @@ class TestCmdCiteFile:
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
         assert len(lines) == 1
 
+    def test_recite_same_page_different_method_keeps_first_and_flags(
+        self, state: ShellState, workspace_with_manifest: Path
+    ):
+        # Bugbot #2: re-citing a page with a different --read-method must not
+        # silently keep the old method; it surfaces the conflict and keeps first.
+        cmd_cite_file(state, "report.pdf", "3", "text")
+        result = cmd_cite_file(state, "report.pdf", "3", "vision")
+
+        assert "already declared with --read-method text" in result
+        assert "[filesource1]" in result
+
+        manifest = workspace_with_manifest / ".unique" / "file-refs.jsonl"
+        lines = [json.loads(line) for line in manifest.read_text().splitlines()]
+        page3 = [entry for entry in lines if entry["page"] == 3]
+        assert len(page3) == 1
+        assert page3[0]["readMethod"] == "text"
+
     def test_continues_numbering_across_calls(
         self, state: ShellState, workspace_with_manifest: Path
     ):
@@ -197,8 +214,18 @@ class TestCmdCiteFile:
 class TestNonPaginated:
     @pytest.mark.parametrize(
         "filename",
-        ["data.xlsx", "data.xls", "rows.csv", "notes.txt", "page.html",
-         "page.htm", "readme.md", "chart.PNG", "scan.jpeg", "logo.webp"],
+        [
+            "data.xlsx",
+            "data.xls",
+            "rows.csv",
+            "notes.txt",
+            "page.html",
+            "page.htm",
+            "readme.md",
+            "chart.PNG",
+            "scan.jpeg",
+            "logo.webp",
+        ],
     )
     def test_known_non_paginated_suffixes(self, filename: str):
         assert _is_non_paginated(filename) is True

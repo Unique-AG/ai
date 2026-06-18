@@ -1137,9 +1137,7 @@ def test_get_msgs__treats_context_images_as_context(
 
     # Act
     result: LanguageModelMessages = _get_msgs(image_only, hallucination_config)
-    grounded_result: LanguageModelMessages = _get_msgs(
-        grounded, hallucination_config
-    )
+    grounded_result: LanguageModelMessages = _get_msgs(grounded, hallucination_config)
 
     # Assert
     assert result.root[0].content == grounded_result.root[0].content

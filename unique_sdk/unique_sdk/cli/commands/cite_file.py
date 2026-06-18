@@ -52,6 +52,7 @@ def _is_non_paginated(filename: str) -> bool:
     """True when ``filename`` has a known extension that carries no page numbers."""
     return Path(filename).suffix.lower() in _NON_PAGINATED_SUFFIXES
 
+
 # Canonical reading-method values declared via ``--read-method``. They record
 # the *representation* of the source the agent actually read so the runner can
 # reconstruct the matching ground truth for a hallucination check:
@@ -199,20 +200,38 @@ def cmd_cite_file(
         ):
             existing = _read_turn_refs_manifest(refs_log_path)
 
-            existing_keys: dict[tuple[str, int], int] = {}
+            # Track the source number and the read method already recorded for
+            # each (contentId, page) so we can dedup and flag method conflicts.
+            existing_keys: dict[tuple[str, int], tuple[int, str]] = {}
             for entry in existing:
                 key = (entry.get("contentId", ""), entry.get("page", 0))
-                existing_keys[key] = entry.get("sourceNumber", 0)
+                existing_keys[key] = (
+                    entry.get("sourceNumber", 0),
+                    entry.get("readMethod", ""),
+                )
 
-            next_source_number = max(existing_keys.values()) + 1 if existing_keys else 1
+            next_source_number = (
+                max(sn for sn, _ in existing_keys.values()) + 1 if existing_keys else 1
+            )
 
             output_lines: list[str] = []
             for page in page_list:
                 key = (content_id, page)
                 if key in existing_keys:
-                    sn = existing_keys[key]
+                    sn, prior_method = existing_keys[key]
+                    # A page is grounded by a single representation. If the agent
+                    # re-cites it with a different method, keep the first and say
+                    # so explicitly rather than silently dropping the new method.
+                    if prior_method and prior_method != canonical_method:
+                        note = (
+                            f"already declared with --read-method "
+                            f"{prior_method}; keeping it (one read-method per "
+                            "page — issue a separate cite for a different page)"
+                        )
+                    else:
+                        note = "already declared"
                     output_lines.append(
-                        f"[filesource{sn}] -> {filename} page {page} (already declared)"
+                        f"[filesource{sn}] -> {filename} page {page} ({note})"
                     )
                     continue
 
@@ -227,7 +246,7 @@ def cmd_cite_file(
                 output_lines.append(
                     f"[filesource{next_source_number}] -> {filename} page {page}"
                 )
-                existing_keys[key] = next_source_number
+                existing_keys[key] = (next_source_number, canonical_method)
                 next_source_number += 1
 
     except UnsafeRefsLogPathError as exc:

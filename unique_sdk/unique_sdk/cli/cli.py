@@ -7,7 +7,7 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
-from unique_sdk.cli.commands.cite_file import READ_METHODS, cmd_cite_file
+from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.dynamic_frontend import (
     cmd_dynamic_frontend_delete,
     cmd_dynamic_frontend_deploy,
@@ -381,12 +381,12 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     "-m",
     "read_method",
     required=True,
-    type=click.Choice(READ_METHODS, case_sensitive=False),
     help=(
         "How you read the cited source: 'text' (page/document text, e.g. "
         "pdftotext, PyMuPDF, MarkItDown), 'vision' (page rendered as an image "
         "and read visually), or 'indexed' (read via the platform index with "
-        "unique-cli read). Use separate cite calls when different pages "
+        "unique-cli read). Common tool names (pdftotext, fitz, ocr, ...) are "
+        "accepted and normalized. Use separate cite calls when different pages "
         "were read by different methods."
     ),
 )

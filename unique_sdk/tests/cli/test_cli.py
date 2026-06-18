@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 from unittest.mock import ANY, MagicMock, patch
 
 from click.testing import CliRunner
@@ -442,3 +444,49 @@ class TestClickCLI:
         result = runner.invoke(main, ["schedule", "delete", "task_1"])
         assert result.exit_code == 0
         assert "Deleted scheduled task task_1" in result.output
+
+    @staticmethod
+    def _write_chat_files_manifest() -> None:
+        unique_dir = Path(".unique")
+        unique_dir.mkdir(parents=True, exist_ok=True)
+        (unique_dir / "chat-files.json").write_text(
+            json.dumps({"report.pdf": "cont_x"}), encoding="utf-8"
+        )
+
+    def test_cite_with_canonical_method(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            self._write_chat_files_manifest()
+            result = runner.invoke(
+                main, ["cite", "report.pdf", "--pages", "3", "--read-method", "text"]
+            )
+            assert result.exit_code == 0
+            assert "[filesource1] -> report.pdf page 3" in result.output
+
+    def test_cite_accepts_tool_alias(self) -> None:
+        # Bugbot #1: aliases like pymupdf must be accepted by the one-shot CLI
+        # (previously rejected by click.Choice before normalization ran).
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            self._write_chat_files_manifest()
+            result = runner.invoke(
+                main,
+                ["cite", "report.pdf", "--pages", "3", "--read-method", "pymupdf"],
+            )
+            assert result.exit_code == 0
+            assert "[filesource1] -> report.pdf page 3" in result.output
+
+    def test_cite_rejects_unknown_method(self) -> None:
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            self._write_chat_files_manifest()
+            result = runner.invoke(
+                main,
+                ["cite", "report.pdf", "--pages", "3", "--read-method", "bogus"],
+            )
+            assert "--read-method is required and must be one of" in result.output
+
+    def test_cite_requires_read_method(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(main, ["cite", "report.pdf", "--pages", "3"])
+        assert result.exit_code != 0
