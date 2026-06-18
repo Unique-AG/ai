@@ -32,27 +32,28 @@ def map_search_response(response: SearchResponse) -> list[WebSearchResult]:
     ]
 
 
-def result_to_markdown(result: CrawlUrlResult) -> str:
+_CRAWL_RESULT_TEMPLATE = "URL: {url}\n\n{body}"
+
+
+def _crawl_result_body(result: CrawlUrlResult) -> str:
     if isinstance(result.content, str):
         return result.content
 
     if isinstance(result.error, PerUrlError):
         return f"Error: {result.error.message}"
 
-    if isinstance(result.raw, str):
-        return result.raw
-
     return "Error: No content returned by search proxy"
 
 
+def result_to_markdown(result: CrawlUrlResult) -> str:
+    return _CRAWL_RESULT_TEMPLATE.format(
+        url=result.url,
+        body=_crawl_result_body(result),
+    )
+
+
 def map_crawl_response(response: CrawlResponse, urls: list[str]) -> list[str]:
-    url_to_markdown = {
-        result.url: result_to_markdown(result) for result in response.results
-    }
-    return [
-        url_to_markdown.get(url, "Error: URL not found in search proxy response")
-        for url in urls
-    ]
+    return [result_to_markdown(result) for result in response.results]
 
 
 async def map_agent_answer(
