@@ -445,12 +445,14 @@ class UniqueShell(cmd.Cmd):
 
         Usage: cite <name|path|content_id> [--pages RANGE] --read-method METHOD
 
-        --read-method is mandatory (one of: pdftotext, pymupdf, vision, indexed).
+        --read-method is mandatory (one of: text, vision, indexed). --pages is
+        optional; omit it to cite the whole file.
 
         Examples:
-          /Reports> cite report.pdf --pages 3,5,7 --read-method pdftotext
+          /Reports> cite report.pdf --pages 3,5,7 --read-method text
           /Reports> cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
           /Reports> cite cont_abc123 --pages 1-4 --read-method indexed
+          /Reports> cite notes.docx --read-method text
         """
         from unique_sdk.cli.commands.cite_file import (
             READ_METHODS,

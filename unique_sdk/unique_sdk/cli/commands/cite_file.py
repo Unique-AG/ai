@@ -23,17 +23,56 @@ _CHAT_FILES_MANIFEST = Path(".unique") / "chat-files.json"
 
 _MAX_PAGES_PER_CALL = 500
 
+# File extensions with no inherent pagination. Passing ``--pages`` for these is
+# meaningless — the whole file is the citeable unit. PDFs and PPTX (slides) are
+# paginated; unknown/other extensions (and bare content IDs) are left untouched
+# so we only emit the targeted error when we can detect the format confidently.
+_NON_PAGINATED_SUFFIXES = frozenset(
+    {
+        ".xlsx",
+        ".xls",
+        ".csv",
+        ".txt",
+        ".md",
+        ".html",
+        ".htm",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".bmp",
+        ".tiff",
+        ".tif",
+    }
+)
+
+
+def _is_non_paginated(filename: str) -> bool:
+    """True when ``filename`` has a known extension that carries no page numbers."""
+    return Path(filename).suffix.lower() in _NON_PAGINATED_SUFFIXES
+
 # Canonical reading-method values declared via ``--read-method``. They record
-# how the cited page text was obtained so the runner can later ground a
-# hallucination check against the matching source.
-READ_METHODS = ("pdftotext", "pymupdf", "vision", "indexed")
+# the *representation* of the source the agent actually read so the runner can
+# reconstruct the matching ground truth for a hallucination check:
+# - ``text``    — page/document text (e.g. pdftotext, PyMuPDF get_text,
+#                 MarkItDown conversion).
+# - ``vision``  — the page/slide rendered as an image and read with vision.
+# - ``indexed`` — content read through the platform index (unique-cli
+#                 read/search), i.e. existing chunks.
+READ_METHODS = ("text", "vision", "indexed")
 
 # Convenience aliases accepted from the agent and normalized to canonical values.
 _READ_METHOD_ALIASES = {
-    "fitz": "pymupdf",
-    "mupdf": "pymupdf",
+    "pdftotext": "text",
+    "pymupdf": "text",
+    "fitz": "text",
+    "mupdf": "text",
+    "pdfminer": "text",
+    "markitdown": "text",
     "image": "vision",
     "ocr": "vision",
+    "render": "vision",
     "read": "indexed",
     "search": "indexed",
 }
@@ -140,6 +179,13 @@ def cmd_cite_file(
         content_id, filename = _resolve_content_id_with_manifest(state, name_or_id)
     except Exception as exc:
         return f"{CITE_ERROR_PREFIX} {exc}"
+
+    if pages and pages.strip() and _is_non_paginated(filename):
+        suffix = Path(filename).suffix.lower()
+        return (
+            f"{CITE_ERROR_PREFIX} {filename} is non-paginated ({suffix} files "
+            "have no pages) — omit --pages to cite the whole file."
+        )
 
     page_list = _parse_pages(pages)
     if not page_list:

@@ -11,6 +11,7 @@ import pytest
 from unique_sdk.cli.commands.cite_file import (
     CITE_ERROR_PREFIX,
     READ_METHODS,
+    _is_non_paginated,
     _normalize_read_method,
     _parse_pages,
     cmd_cite_file,
@@ -93,7 +94,7 @@ class TestCmdCiteFile:
     def test_manifest_resolves_chat_file(
         self, state: ShellState, workspace_with_manifest: Path
     ):
-        result = cmd_cite_file(state, "report.pdf", "3,5", "pdftotext")
+        result = cmd_cite_file(state, "report.pdf", "3,5", "text")
 
         assert "[filesource1] -> report.pdf page 3" in result
         assert "[filesource2] -> report.pdf page 5" in result
@@ -105,16 +106,16 @@ class TestCmdCiteFile:
         assert lines[0]["contentId"] == "cont_chat123"
         assert lines[0]["filename"] == "report.pdf"
         assert lines[0]["page"] == 3
-        assert lines[0]["readMethod"] == "pdftotext"
+        assert lines[0]["readMethod"] == "text"
         assert lines[1]["contentId"] == "cont_chat123"
         assert lines[1]["page"] == 5
-        assert lines[1]["readMethod"] == "pdftotext"
+        assert lines[1]["readMethod"] == "text"
 
     def test_manifest_basename_lookup(
         self, state: ShellState, workspace_with_manifest: Path
     ):
         """Passing a path resolves via basename against the manifest."""
-        result = cmd_cite_file(state, "./downloads/report.pdf", "1", "pdftotext")
+        result = cmd_cite_file(state, "./downloads/report.pdf", "1", "text")
 
         assert "[filesource1] -> report.pdf page 1" in result
         manifest = workspace_with_manifest / ".unique" / "file-refs.jsonl"
@@ -127,7 +128,7 @@ class TestCmdCiteFile:
     ):
         """File not in manifest falls through to KB resolution."""
         mock_resolve.return_value = ("cont_kb789", "unknown.pdf")
-        result = cmd_cite_file(state, "unknown.pdf", "2", "pdftotext")
+        result = cmd_cite_file(state, "unknown.pdf", "2", "text")
 
         assert "[filesource1] -> unknown.pdf page 2" in result
         manifest = workspace_with_manifest / ".unique" / "file-refs.jsonl"
@@ -140,7 +141,7 @@ class TestCmdCiteFile:
     ):
         """Without manifest, resolves via KB API."""
         mock_resolve.return_value = ("cont_abc123", "report.pdf")
-        result = cmd_cite_file(state, "report.pdf", "3", "pdftotext")
+        result = cmd_cite_file(state, "report.pdf", "3", "text")
 
         assert "[filesource1] -> report.pdf page 3" in result
         manifest = workspace / ".unique" / "file-refs.jsonl"
@@ -160,7 +161,7 @@ class TestCmdCiteFile:
     def test_whole_file_no_pages(
         self, state: ShellState, workspace_with_manifest: Path
     ):
-        result = cmd_cite_file(state, "report.pdf", None, "pdftotext")
+        result = cmd_cite_file(state, "report.pdf", None, "text")
 
         assert "[filesource1] -> report.pdf page 0" in result
         manifest = workspace_with_manifest / ".unique" / "file-refs.jsonl"
@@ -168,8 +169,8 @@ class TestCmdCiteFile:
         assert lines[0]["page"] == 0
 
     def test_dedup_same_page(self, state: ShellState, workspace_with_manifest: Path):
-        cmd_cite_file(state, "report.pdf", "3", "pdftotext")
-        result = cmd_cite_file(state, "report.pdf", "3", "pdftotext")
+        cmd_cite_file(state, "report.pdf", "3", "text")
+        result = cmd_cite_file(state, "report.pdf", "3", "text")
 
         assert "already declared" in result
         assert "[filesource1]" in result
@@ -181,16 +182,60 @@ class TestCmdCiteFile:
     def test_continues_numbering_across_calls(
         self, state: ShellState, workspace_with_manifest: Path
     ):
-        cmd_cite_file(state, "report.pdf", "1,2", "pdftotext")
-        result = cmd_cite_file(state, "data.xlsx", "1", "indexed")
+        cmd_cite_file(state, "report.pdf", "1,2", "text")
+        result = cmd_cite_file(state, "data.xlsx", None, "indexed")
 
-        assert "[filesource3] -> data.xlsx page 1" in result
+        assert "[filesource3] -> data.xlsx page 0" in result
 
     def test_invalid_pages_returns_error(
         self, state: ShellState, workspace_with_manifest: Path
     ):
-        result = cmd_cite_file(state, "report.pdf", "abc", "pdftotext")
+        result = cmd_cite_file(state, "report.pdf", "abc", "text")
         assert CITE_ERROR_PREFIX in result
+
+
+class TestNonPaginated:
+    @pytest.mark.parametrize(
+        "filename",
+        ["data.xlsx", "data.xls", "rows.csv", "notes.txt", "page.html",
+         "page.htm", "readme.md", "chart.PNG", "scan.jpeg", "logo.webp"],
+    )
+    def test_known_non_paginated_suffixes(self, filename: str):
+        assert _is_non_paginated(filename) is True
+
+    @pytest.mark.parametrize(
+        "filename", ["report.pdf", "deck.pptx", "cont_abc123", "notes.docx"]
+    )
+    def test_paginated_or_unknown_suffixes(self, filename: str):
+        assert _is_non_paginated(filename) is False
+
+    def test_pages_on_non_paginated_returns_error_and_writes_nothing(
+        self, state: ShellState, workspace_with_manifest: Path
+    ):
+        result = cmd_cite_file(state, "data.xlsx", "2", "text")
+
+        assert CITE_ERROR_PREFIX in result
+        assert "non-paginated" in result
+        assert "omit --pages" in result
+        manifest = workspace_with_manifest / ".unique" / "file-refs.jsonl"
+        assert not manifest.exists()
+
+    def test_whole_file_non_paginated_is_allowed(
+        self, state: ShellState, workspace_with_manifest: Path
+    ):
+        result = cmd_cite_file(state, "data.xlsx", None, "text")
+
+        assert "[filesource1] -> data.xlsx page 0" in result
+        manifest = workspace_with_manifest / ".unique" / "file-refs.jsonl"
+        lines = [json.loads(line) for line in manifest.read_text().splitlines()]
+        assert lines[0]["page"] == 0
+
+    def test_pages_on_paginated_pdf_still_works(
+        self, state: ShellState, workspace_with_manifest: Path
+    ):
+        result = cmd_cite_file(state, "report.pdf", "2", "text")
+
+        assert "[filesource1] -> report.pdf page 2" in result
 
 
 class TestNormalizeReadMethod:
@@ -199,16 +244,21 @@ class TestNormalizeReadMethod:
         assert _normalize_read_method(method) == method
 
     def test_case_insensitive(self):
-        assert _normalize_read_method("PyMuPDF") == "pymupdf"
+        assert _normalize_read_method("Text") == "text"
         assert _normalize_read_method("  Vision ") == "vision"
 
     @pytest.mark.parametrize(
         ("alias", "expected"),
         [
-            ("fitz", "pymupdf"),
-            ("mupdf", "pymupdf"),
+            ("pdftotext", "text"),
+            ("pymupdf", "text"),
+            ("fitz", "text"),
+            ("mupdf", "text"),
+            ("pdfminer", "text"),
+            ("markitdown", "text"),
             ("image", "vision"),
             ("ocr", "vision"),
+            ("render", "vision"),
             ("read", "indexed"),
             ("search", "indexed"),
         ],
@@ -254,4 +304,4 @@ class TestReadMethodEnforcement:
         assert "[filesource1] -> report.pdf page 3" in result
         manifest = workspace_with_manifest / ".unique" / "file-refs.jsonl"
         lines = [json.loads(line) for line in manifest.read_text().splitlines()]
-        assert lines[0]["readMethod"] == "pymupdf"
+        assert lines[0]["readMethod"] == "text"

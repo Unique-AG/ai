@@ -383,9 +383,11 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     required=True,
     type=click.Choice(READ_METHODS, case_sensitive=False),
     help=(
-        "How you read the cited page(s). Report the method that actually "
-        "produced the text you used. Use separate cite calls when different "
-        "pages were read by different methods."
+        "How you read the cited source: 'text' (page/document text, e.g. "
+        "pdftotext, PyMuPDF, MarkItDown), 'vision' (page rendered as an image "
+        "and read visually), or 'indexed' (read via the platform index with "
+        "unique-cli read). Use separate cite calls when different pages "
+        "were read by different methods."
     ),
 )
 @click.pass_context
@@ -402,12 +404,15 @@ def cite(
     Does NOT read or extract the file — use your own tools for that.
     NAME_OR_ID can be a file path, current-directory file name, or content ID.
     --read-method is mandatory: it records how you read the page(s).
+    --pages is optional; omit it to cite the whole file (e.g. non-paginated
+    formats).
 
     \b
     Examples:
-      unique-cli cite report.pdf --pages 3,5,7 --read-method pdftotext
+      unique-cli cite report.pdf --pages 3,5,7 --read-method text
       unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
       unique-cli cite cont_abc123 --pages 1-4 --read-method indexed
+      unique-cli cite notes.docx --read-method text
     """
     click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages, read_method))
 
