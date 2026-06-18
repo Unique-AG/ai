@@ -1,13 +1,21 @@
 import logging
-from typing import Annotated, Literal, TypeVar
+from typing import Annotated, Literal, TypeVar, cast, override
 
 from perplexity import AsyncPerplexity, Omit
 from perplexity.types.search_create_response import Result
 from pydantic import Field
+from unique_search_proxy_core.search_engines.perplexity.schema import (
+    PerplexityRecencyFilter,
+)
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 
 from unique_web_search.client_settings import get_perplexity_search_settings
 from unique_web_search.services.client.proxy_config import async_client
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+    search_proxy_client_enabled,
+)
+from unique_web_search.services.proxy.mappers import map_search_response
 from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
@@ -62,15 +70,36 @@ class PerplexitySearchConfig(BaseSearchEngineConfig[SearchEngineType.PERPLEXITY]
 
 
 class PerplexitySearch(SearchEngine[PerplexitySearchConfig]):
+    supports_proxy_search = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.is_configured = get_perplexity_search_settings().is_configured
+        self.is_configured = (
+            search_proxy_client_enabled
+            or get_perplexity_search_settings().is_configured
+        )
 
     @property
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        async with open_search_proxy_client(timeout=30.0) as client:
+            response = await client.search.perplexity(
+                query=query,
+                fetch_size=min(self.config.fetch_size, MAX_RESULTS_PER_REQUEST),
+                country=self.config.country,
+                max_tokens=self.config.max_tokens,
+                search_recency_filter=cast(
+                    PerplexityRecencyFilter | None,
+                    self.config.search_recency_filter,
+                ),
+            )
+            return map_search_response(response)
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         settings = get_perplexity_search_settings()
         assert settings.is_configured
 

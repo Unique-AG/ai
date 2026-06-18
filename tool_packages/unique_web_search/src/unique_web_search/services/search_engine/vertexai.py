@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Annotated, Literal
+from typing import Annotated, Literal, override
 
 from httpx import AsyncClient as HttpxAsyncClient
 from httpx import HTTPError
@@ -10,6 +10,14 @@ from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import LanguageModelService
 
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+    search_proxy_client_enabled,
+)
+from unique_web_search.services.proxy.mappers import (
+    agent_answer_text,
+    map_agent_answer,
+)
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
@@ -77,6 +85,8 @@ class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
 
 
 class VertexAI(SearchEngine[VertexAIConfig]):
+    supports_proxy_search = True
+
     def __init__(
         self,
         config: VertexAIConfig,
@@ -84,7 +94,7 @@ class VertexAI(SearchEngine[VertexAIConfig]):
     ):
         super().__init__(config=config)
         self._client = get_vertex_client()
-        self.is_configured = self._client is not None
+        self.is_configured = search_proxy_client_enabled or self._client is not None
 
         self.response_parsers = [
             JsonConversionStrategy(),
@@ -98,7 +108,26 @@ class VertexAI(SearchEngine[VertexAIConfig]):
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        async with open_search_proxy_client(timeout=120.0) as client:
+            response = await client.agent_search.vertexai(
+                query=query,
+                vertexai_model_name=self.config.vertexai_model_name,
+                generation_instructions=self.config.generation_instructions,
+                enable_enterprise_search=self.config.enable_entreprise_search,
+            )
+            results = await map_agent_answer(
+                agent_answer_text(response),
+                self.response_parsers,
+            )
+            if self.config.enable_redirect_resolution:
+                resolved = await resolve_all(WebSearchResults(results=results))
+                return resolved.results
+            return results
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         assert self._client is not None, "VertexAI client is not configured"
 
         response = await generate_vertexai_response(

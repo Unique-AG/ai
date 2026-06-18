@@ -1,8 +1,9 @@
 import asyncio
-from typing import Any, Literal
+from typing import Any, Literal, cast, override
 
 from httpx import AsyncClient
 from pydantic import BaseModel, Field, HttpUrl
+from unique_search_proxy_core.crawlers.jina.schema import JinaEngine, JinaReturnFormat
 
 from unique_web_search.client_settings import get_jina_search_settings
 from unique_web_search.services.crawlers.base import (
@@ -11,6 +12,10 @@ from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
 from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+)
+from unique_web_search.services.proxy.mappers import map_crawl_response
 
 
 class ReaderBody(BaseModel):
@@ -46,6 +51,8 @@ class JinaCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.JINA]):
 
 
 class JinaCrawler(BaseCrawler[JinaCrawlerConfig]):
+    supports_proxy_crawl = True
+
     def __init__(self, config: JinaCrawlerConfig):
         super().__init__(config)
 
@@ -53,8 +60,28 @@ class JinaCrawler(BaseCrawler[JinaCrawlerConfig]):
     # @track(
     #     tags=["jina", "scrape"],
     # )
-    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+    @override
+    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
+        headers = self.config.headers
+        async with open_search_proxy_client(
+            timeout=float(self.config.timeout),
+        ) as client:
+            response = await client.crawl.jina(
+                urls=urls,
+                timeout=int(self.config.timeout),
+                return_format=cast(
+                    JinaReturnFormat,
+                    headers.get("X-Return-Format", "markdown"),
+                ),
+                engine=cast(JinaEngine, headers.get("X-Engine", "browser")),
+                do_not_track=headers.get("DNT") == "1",
+            )
+            return map_crawl_response(response, urls)
+
+    @override
+    async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         urls = [target.normalized_url for target in targets]
+
         jina_settings = get_jina_search_settings()
         api_key = jina_settings.api_key
         assert api_key is not None, "Jina API key is not configured"
