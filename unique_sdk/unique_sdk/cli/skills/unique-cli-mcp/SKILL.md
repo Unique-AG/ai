@@ -130,6 +130,22 @@ unique-cli mcp -c chat_123 -m msg_456 "$payload"
 python generate_payload.py | unique-cli mcp -c chat_123 -m msg_456 --stdin
 ```
 
+## Citation Rules
+
+Cite a fact retrieved from an MCP tool with `[mcpsourceN]`, where `N` matches the `sourceNumber` the command printed in the `Sources` footer beneath the tool output. Each footer line names one retrieved item; cite a fact with the marker of the specific item it came from. The Unique platform's Swappable Intelligence runner converts each `[mcpsourceN]` marker in your final answer into a `<sup>N</sup>` footnote and a display-only reference chip labelled with the retrieved item and the MCP tool name (e.g. "RAG Retrieval Baseline — Retrieve Confluence page (MCP)"). Without `[mcpsourceN]` markers, MCP-retrieved facts in your answer appear as plain text only, with no footnote and no chip.
+
+```
+ACME's Q3 revenue was 1.2M [mcpsource1], up from 0.9M a year earlier [mcpsource2].
+```
+
+**Rules** (enforced by the platform's reference post-processor, which reads `.unique/mcp-refs.jsonl` rather than your prose):
+
+1. **`[mcpsourceN]` is for MCP tool results only.** Knowledge-base results from `unique-cli search` use `[sourceN]`, and public web results from `unique-cli web-search` use `[websourceN]` — never mix the namespaces.
+2. Only cite numbers you saw in the **current** turn's MCP `Sources` footer. Numbers from previous turns are stale and will be silently dropped.
+3. Write `mcpsource` in singular form with the number in digits: `[mcpsource1]`, `[mcpsource2]` — not `[McpSource 1]` or `[mcpsource one]`.
+4. The same retrieved item keeps one stable `[mcpsourceN]` for the whole turn, so every fact from that item uses the same marker.
+5. Do not invent source numbers for remembered or inferred facts.
+
 ## Prerequisites
 
 Requires these environment variables:

@@ -269,6 +269,27 @@ class TestContentIsExpired:
 # ---------------------------------------------------------------------------
 
 
+class TestContentReferenceUrlOptional:
+    def test_url_can_be_omitted(self):
+        ref = ContentReference(
+            name="crm · get_account",
+            sequence_number=1,
+            source="mcp:crm",
+            source_id="mcp_abc_mcp_abc",
+        )
+        assert ref.url is None
+
+    def test_url_still_accepted_when_present(self):
+        ref = ContentReference(
+            name="Example",
+            sequence_number=1,
+            source="mcp:kb",
+            source_id="mcp_def_mcp_def",
+            url="https://example.com",
+        )
+        assert ref.url == "https://example.com"
+
+
 class TestContentChunkToReference:
     def test_basic_reference_with_pages(self):
         chunk = ContentChunk(
