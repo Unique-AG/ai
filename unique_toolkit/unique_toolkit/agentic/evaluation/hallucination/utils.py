@@ -16,6 +16,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -116,7 +117,9 @@ def _get_msgs(
     Returns:
         The composed messages as per the provided input and configuration.
     """
-    has_context = bool(input.context_texts or input.history_messages)
+    has_context = bool(
+        input.context_texts or input.history_messages or input.context_images
+    )
 
     if has_context:
         _LOGGER.debug("Using context / history for hallucination evaluation.")
@@ -165,6 +168,20 @@ def _compose_msgs(
         else None,
         output_text=input.output_text,
     )
+
+    # When images are provided, build a multimodal user message (rendered user
+    # text + one image part per data URL) so a vision-capable model can ground
+    # the check against the rendered pages. Without images the message stays the
+    # exact text-only form, so existing callers are unaffected.
+    context_images = input.context_images or []
+    if context_images:
+        return (
+            MessagesBuilder()
+            .append(system_msg)
+            .image_message_append(content=user_msg_content, images=context_images)
+            .build()
+        )
+
     user_msg = LanguageModelUserMessage(content=user_msg_content)
 
     return LanguageModelMessages([system_msg, user_msg])

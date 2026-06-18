@@ -1013,3 +1013,98 @@ def test_compose_msgs__generates_non_empty_messages__from_config_prompts(
     # Assert
     assert len(result.root[0].content) > 0
     assert len(result.root[1].content) > 0
+
+
+_IMAGE_DATA_URL = "data:image/png;base64,QQ=="
+
+
+@pytest.mark.ai
+def test_compose_msgs__builds_multimodal_user_message__with_context_images(
+    hallucination_config: HallucinationConfig,
+) -> None:
+    """
+    Purpose: Verify that context_images produce a multimodal user message.
+    Why this matters: Vision faithfulness needs the rendered pages as image parts.
+    Setup summary: Provide context_images, assert the user message carries text +
+    one image part per data URL.
+    """
+    # Arrange
+    input_data: EvaluationMetricInput = EvaluationMetricInput(
+        input_text="Question",
+        output_text="Output",
+        context_images=[_IMAGE_DATA_URL],
+    )
+
+    # Act
+    result: LanguageModelMessages = _compose_msgs(
+        input_data, hallucination_config, has_context=True
+    )
+
+    # Assert
+    assert len(result.root) == 2
+    user_content = result.root[1].content
+    assert isinstance(user_content, list)
+    text_parts = [p for p in user_content if p.get("type") == "text"]
+    image_parts = [p for p in user_content if p.get("type") == "image_url"]
+    assert len(text_parts) == 1
+    assert len(image_parts) == 1
+    assert image_parts[0]["imageUrl"]["url"] == _IMAGE_DATA_URL
+
+
+@pytest.mark.ai
+def test_compose_msgs__stays_text_only__without_context_images(
+    hallucination_config: HallucinationConfig,
+) -> None:
+    """
+    Purpose: Verify that omitting context_images keeps the exact text-only message.
+    Why this matters: Backward compatibility for all existing (non-vision) callers.
+    Setup summary: No context_images -> user message content is a plain string.
+    """
+    # Arrange
+    input_data: EvaluationMetricInput = EvaluationMetricInput(
+        input_text="Question",
+        context_texts=["Context 1"],
+        output_text="Output",
+    )
+
+    # Act
+    result: LanguageModelMessages = _compose_msgs(
+        input_data, hallucination_config, has_context=True
+    )
+
+    # Assert
+    assert isinstance(result.root[1].content, str)
+
+
+@pytest.mark.ai
+def test_get_msgs__treats_context_images_as_context(
+    hallucination_config: HallucinationConfig,
+) -> None:
+    """
+    Purpose: Verify that context_images alone count as context in _get_msgs.
+    Why this matters: A vision-only turn must use the grounded (has_context) prompt
+    and build the multimodal message.
+    Setup summary: Provide only context_images; assert the system prompt matches the
+    has_context variant and the user message is multimodal.
+    """
+    # Arrange
+    image_only: EvaluationMetricInput = EvaluationMetricInput(
+        input_text="Question",
+        output_text="Output",
+        context_images=[_IMAGE_DATA_URL],
+    )
+    grounded: EvaluationMetricInput = EvaluationMetricInput(
+        input_text="Question",
+        context_texts=["Context 1"],
+        output_text="Output",
+    )
+
+    # Act
+    result: LanguageModelMessages = _get_msgs(image_only, hallucination_config)
+    grounded_result: LanguageModelMessages = _get_msgs(
+        grounded, hallucination_config
+    )
+
+    # Assert
+    assert result.root[0].content == grounded_result.root[0].content
+    assert isinstance(result.root[1].content, list)

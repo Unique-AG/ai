@@ -34,6 +34,16 @@ class EvaluationMetricInput(BaseModel):
     context_texts: Optional[list[str]] = None
     history_messages: Optional[list[ChatMessage]] = None
     output_text: Optional[str] = None
+    context_images: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Optional base64 data URLs (e.g. 'data:image/png;base64,...') of "
+            "context the metric should evaluate against visually, in addition "
+            "to context_texts. Used by metrics that support a multimodal "
+            "(vision) check; ignored by metrics that do not. Defaults to None "
+            "so existing text-only callers are unaffected."
+        ),
+    )
 
     def get_joined_context_texts(self, tag_name: str = "reference") -> str:
         """
