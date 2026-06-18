@@ -10,6 +10,7 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
 _JINA_DOMAIN = "jina.ai"
 _JINA_SUBDOMAINS: dict[str, dict[str, str]] = {
@@ -25,7 +26,7 @@ _ENV_PREFIX = "JINA_"
 class _JinaCredentials(ProviderCredentials):
     """Environment-backed credentials for Jina Reader and Search."""
 
-    api_key: str = Field(default=NOT_PROVIDED)
+    api_key: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
     deployment: JinaDeployment = Field(default=_DEFAULT_JINA_DEPLOYMENT)
     api_domain: str = Field(default=_JINA_DOMAIN)
 

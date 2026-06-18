@@ -1,9 +1,10 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
 from unique_search_proxy_client.web.settings.base import get_settings
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
 HTTP_CLIENT_ENV_PREFIX = "HTTP_CLIENT_"
 
@@ -30,10 +31,10 @@ class HttpClientSettings(BaseSettings):
     proxy_protocol: ProxyProtocol = "http"
     proxy_host: str | None = None
     proxy_port: int | None = None
-    proxy_headers: dict[str, str] = {}
+    proxy_headers: dict[str, LogSecretStr] = Field(default_factory=dict)
     proxy_ssl_ca_bundle_path: str | None = None
-    proxy_username: str | None = None
-    proxy_password: str | None = None
+    proxy_username: LogSecretStr | None = None
+    proxy_password: LogSecretStr | None = None
     proxy_ssl_cert_path: str | None = None
     proxy_ssl_key_path: str | None = None
 

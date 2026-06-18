@@ -10,6 +10,7 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 from unique_search_proxy_client.web.utils.url import join_url_path
 
 _FIRECRAWL_API_BASE = "https://api.firecrawl.dev"
@@ -28,7 +29,7 @@ _ENV_PREFIX = "FIRECRAWL_"
 class _FirecrawlCredentials(ProviderCredentials):
     """Environment-backed credentials for Firecrawl v2 APIs."""
 
-    api_key: str = Field(default=NOT_PROVIDED)
+    api_key: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
     api_endpoint: str = Field(default=_FIRECRAWL_API_BASE)
     api_version: FirecrawlApiVersion = Field(default=_DEFAULT_FIRECRAWL_API_VERSION)
 

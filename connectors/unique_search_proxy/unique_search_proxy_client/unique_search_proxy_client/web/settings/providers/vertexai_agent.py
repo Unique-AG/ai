@@ -7,6 +7,7 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
 _ENV_PREFIX = "VERTEXAI_AGENT_"
 
@@ -15,7 +16,7 @@ _ENV_PREFIX = "VERTEXAI_AGENT_"
 class _VertexAIAgentCredentials(ProviderCredentials):
     """Environment-backed credentials for Vertex AI grounding (Google GenAI)."""
 
-    service_account_credentials: str | None = Field(default=None)
+    service_account_credentials: LogSecretStr | None = Field(default=None)
     service_account_scopes: list[str] | None = Field(default=None)
 
 

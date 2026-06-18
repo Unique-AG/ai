@@ -10,6 +10,7 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 from unique_search_proxy_client.web.utils.url import join_url_path
 
 _TAVILY_API_BASE = "https://api.tavily.com"
@@ -25,7 +26,7 @@ _ENV_PREFIX = "TAVILY_"
 class _TavilyCredentials(ProviderCredentials):
     """Environment-backed credentials for Tavily APIs."""
 
-    api_key: str = Field(default=NOT_PROVIDED)
+    api_key: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
     api_endpoint: str = Field(default=_TAVILY_API_BASE)
 
     def _endpoint(self, operation: TavilyOperation) -> str:

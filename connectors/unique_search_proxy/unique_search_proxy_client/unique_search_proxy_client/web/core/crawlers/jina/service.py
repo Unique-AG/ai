@@ -18,6 +18,7 @@ from unique_search_proxy_client.web.core.provider_response import (
     transport_error_raw,
     upstream_response_raw,
 )
+from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.jina import (
     jina_crawl_credentials as credentials,
 )
@@ -70,7 +71,7 @@ class JinaCrawlerService(BaseCrawler[JinaCrawlRequest]):
 
         urls = list(request.urls)
         timeout = request.timeout
-        headers = _jina_headers(credentials.api_key)
+        headers = _jina_headers(read_secret(credentials.api_key))
         semaphore = asyncio.Semaphore(request.max_concurrent_requests)
 
         async def crawl_one(url: str) -> CrawlUrlResult:

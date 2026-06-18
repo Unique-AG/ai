@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from logging import getLogger
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_LOGGER = getLogger(__name__)
 
 
 class UrlSafetySettings(BaseSettings):
@@ -32,3 +36,4 @@ class UrlSafetySettings(BaseSettings):
 
 
 url_safety_settings = UrlSafetySettings()
+_LOGGER.info("URL Safety is enabled: %s", url_safety_settings.enabled)

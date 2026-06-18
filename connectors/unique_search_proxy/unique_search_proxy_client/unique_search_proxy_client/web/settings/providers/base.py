@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from functools import lru_cache
 from typing import ClassVar, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 
@@ -36,10 +36,25 @@ def provider_credentials(env_prefix: str) -> Callable[[T], T]:
     return decorate
 
 
-def _is_secret_configured(value: str | None) -> bool:
+def read_secret(value: str | SecretStr | None) -> str:
     if value is None:
-        return False
-    normalized = value.strip()
+        return ""
+    if isinstance(value, SecretStr):
+        return value.get_secret_value()
+    return value
+
+
+def _field_has_not_provided_default(field_info: object) -> bool:
+    default = getattr(field_info, "default", None)
+    if default is NOT_PROVIDED:
+        return True
+    if isinstance(default, SecretStr):
+        return default.get_secret_value() == NOT_PROVIDED
+    return False
+
+
+def _is_secret_configured(value: str | SecretStr | None) -> bool:
+    normalized = read_secret(value).strip()
     if not normalized:
         return False
     return normalized != NOT_PROVIDED
@@ -53,7 +68,7 @@ def _iter_not_provided_credential_fields(model_cls: type[BaseModel]) -> tuple[st
     return tuple(
         name
         for name, field_info in model_cls.model_fields.items()
-        if field_info.default is NOT_PROVIDED
+        if _field_has_not_provided_default(field_info)
     )
 
 
