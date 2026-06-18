@@ -84,9 +84,8 @@ class TestBuildArgumentScreeningGuidelines:
         guidelines = build_argument_screening_guidelines(config)
 
         assert guidelines.endswith("- [none configured]")
-        assert (
-            "If no organization-specific terms are configured, ignore this section."
-            in (DEFAULT_GUIDELINES)
+        assert "If no organization-specific terms are configured, ignore this section." in (
+            DEFAULT_GUIDELINES
         )
 
 
