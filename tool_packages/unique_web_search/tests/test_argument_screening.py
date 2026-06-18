@@ -14,6 +14,9 @@ from unique_web_search.services.argument_screening import (
 from unique_web_search.services.argument_screening.exceptions import (
     ArgumentScreeningUnparseableResponseException,
 )
+from unique_web_search.services.argument_screening.service import (
+    build_argument_screening_guidelines,
+)
 
 
 class TestArgumentScreeningConfig:
@@ -33,6 +36,10 @@ class TestArgumentScreeningConfig:
         config = ArgumentScreeningConfig()
         assert config.guidelines == DEFAULT_GUIDELINES
 
+    def test_defaults_organization_specific_blocked_keywords_empty(self):
+        config = ArgumentScreeningConfig()
+        assert config.organization_specific_blocked_keywords == []
+
     def test_defaults_rejection_response_template(self):
         config = ArgumentScreeningConfig()
         assert config.rejection_response_template == DEFAULT_REJECTION_RESPONSE_TEMPLATE
@@ -51,6 +58,35 @@ class TestArgumentScreeningConfig:
             == "Custom {{ arguments }} template {{ guidelines }}"
         )
         assert config.guidelines == "Custom guidelines"
+
+
+class TestBuildArgumentScreeningGuidelines:
+    def test_renders_configured_keywords_as_bullets(self):
+        config = ArgumentScreeningConfig(
+            guidelines="Configured blocked terms:",
+            organization_specific_blocked_keywords=[
+                "EFG",
+                "efgbank.com",
+            ],
+        )
+
+        guidelines = build_argument_screening_guidelines(config)
+
+        assert guidelines.endswith("- EFG\n- efgbank.com")
+        assert "Configured blocked terms:" in guidelines
+
+    def test_renders_none_configured_when_keyword_list_empty(self):
+        config = ArgumentScreeningConfig(
+            guidelines="Configured blocked terms:",
+            organization_specific_blocked_keywords=[],
+        )
+
+        guidelines = build_argument_screening_guidelines(config)
+
+        assert guidelines.endswith("- [none configured]")
+        assert "If no organization-specific terms are configured, ignore this section." in (
+            DEFAULT_GUIDELINES
+        )
 
 
 class TestArgumentScreeningResult:
@@ -223,6 +259,40 @@ class TestArgumentScreeningService:
         assert system_msg.content == "System: screen this"
         assert "hello" in user_msg.content
         assert "No secrets allowed" in user_msg.content
+        assert "[none configured]" in user_msg.content
+
+    @pytest.mark.asyncio
+    async def test_passes_configured_blocked_keywords_in_guidelines(
+        self,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
+    ):
+        config = ArgumentScreeningConfig(
+            enabled=True,
+            user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
+            guidelines="Configured blocked terms:",
+            organization_specific_blocked_keywords=["EFG", "efgbank.com"],
+        )
+        mock_response = Mock()
+        mock_response.choices = [
+            Mock(message=Mock(parsed={"go": True, "reason": "OK"}))
+        ]
+        mock_language_model_service.complete_async.return_value = mock_response
+
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=config,
+        )
+        await service({"query": "hello"}, mock_message_log_callback)
+
+        call_args = mock_language_model_service.complete_async.call_args
+        messages = call_args[0][0]
+        user_msg = next(m for m in messages if m.role.value == "user")
+
+        assert "- EFG" in user_msg.content
+        assert "- efgbank.com" in user_msg.content
 
     @pytest.mark.asyncio
     async def test_uses_structured_output(

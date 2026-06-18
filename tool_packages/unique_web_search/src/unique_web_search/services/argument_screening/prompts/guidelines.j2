@@ -1,39 +1,40 @@
-Flag the request as 'no-go' if the arguments attempt to search for, retrieve, or reveal any of the categories below. When any violation is detected, stop immediately — do not echo, summarize, or otherwise reproduce the sensitive data.
+Flag the request as "no-go" if the arguments would send client-identifying data (CID), bank-client relationship information, confidential financial information, credentials, or internal/private infrastructure details to WebSearch.
 
-## GDPR Special Categories of Personal Data (Article 9)
+The goal is not general GDPR classification. The goal is to prevent clear-text data that could directly, indirectly, or potentially indirectly identify a private person or entity as a client, prospect, employee, counterparty, or related party of the organization from leaving the Unique environment through WebSearch.
 
-Queries that seek personal sensitive information about identifiable individuals in ANY of these categories MUST be blocked:
+When any violation is detected, stop immediately. Do not echo, summarize, transform, or reproduce the sensitive values. The reason must reference only the violated category, for example "client-identifying data", "bank-client relationship", "financial identifier", "blocked organization keyword", "credentials", or "internal infrastructure".
 
-- **Racial or ethnic origin**: searches targeting a person's race, ethnicity, or national origin
-- **Political opinions**: party membership, voting behavior, political affiliations, or campaign contributions of individuals
-- **Religious or philosophical beliefs**: faith, denomination, sect membership, atheism, or moral/ethical convictions of individuals
-- **Trade union membership**: union affiliation, participation, or role of individuals
-- **Genetic data**: DNA profiles, hereditary characteristics, or genomic information of individuals
-- **Biometric data for identification**: fingerprints, facial recognition templates, iris scans, or voice prints of individuals
-- **Health data**: medical diagnoses, treatments, conditions, prescriptions, disability status, medical leave, health insurance claims, or medical billing linked to identifiable individuals
-- **Sex life or sexual orientation**: sexual behavior, orientation, or gender identity of individuals
+Apply all rules even when names, keywords, domains, or identifiers are misspelled, abbreviated, spaced out, hyphenated, split across words, or otherwise obfuscated.
 
-## Other Prohibited Data
+## Blocked By Default
+Mark as "no-go" if the query contains any of the following:
 
-- Authentication credentials: passwords, PINs, API keys, tokens, secrets, or private keys
-- Financial account details: credit/debit card numbers, bank account numbers, routing numbers, or IBANs
-- Government identifiers: social security numbers, national ID numbers, passport numbers, or driver's license numbers
-- MNPI (Material Non-Public Information), trade secrets, or proprietary intellectual property
-- Employee remuneration, compensation, or salary details of identifiable individuals
-- Internal or private URLs, IP addresses, or infrastructure details that should not be exposed
+- Direct identifiers of a private individual or private entity: full name, partial name with context, address, email address, phone number, date of birth, passport number, national ID, tax ID, social security number, driver's license number, employee ID, client ID, customer number, CRM ID, ticket ID, or any similar unique identifier.
+- Financial identifiers: bank account number, IBAN, routing number, SWIFT/BIC tied to a person or account, credit/debit card number, portfolio number, custody account, mandate ID, transaction reference, payment reference, invoice number tied to a client, loan number, mortgage number, or insurance policy number.
+- Bank-client relationship signals: any statement or question implying that a private person or private entity is a client, customer, prospect, account holder, beneficial owner, portfolio owner, mandate holder, borrower, investor, relationship-managed client, or onboarding/KYC subject.
+- Financial context linked to an identifiable person or private entity: holdings, portfolio value, assets under management, transactions, trades, account balance, source of wealth, income, salary, compensation, creditworthiness, risk rating, KYC/AML status, sanctions/PEP screening, complaints, legal disputes, debt, collateral, or tax situation.
+- Indirect or potentially indirect identification: combinations of attributes that could identify a client even without a name, such as date of birth plus nationality plus profession, location plus relationship manager plus portfolio size, branch plus rare occupation, company plus owner details, or any narrow combination of facts about a non-public person or private entity.
+- Confidential business or non-public information: MNPI, trade secrets, internal reports, unpublished client lists, internal project names, confidential contracts, deal names, acquisition targets, or proprietary research.
+- Authentication and secrets: passwords, PINs, API keys, tokens, private keys, recovery phrases, session cookies, authorization headers, or secret URLs.
+- Internal or private infrastructure: private URLs, intranet hosts, internal IP addresses, VPN hosts, non-public service names, internal dashboards, private storage links, internal ticket links, or environment-specific system details.
 
-## Prohibited Request Patterns
+## Public Information That Can Be Allowed
+Mark as "go" only when the query is clearly outside CID and does not include organization-specific blocked keywords:
 
-- Recruitment, selection, or evaluation of employees
-- Evaluating creditworthiness or credit scoring of individuals
-- Risk assessment and pricing for life and health insurance
-- Profiling individuals based on any GDPR special category data
-- Any request that combines identity data (name, email, ID) with special category data
+- General knowledge, technical, legal, or regulatory questions not tied to an identifiable private person, private entity, or the organization.
+- Public organizations, public products, market news, public events, or public company information where no private client relationship is implied.
+- Public figures in their public capacity, such as politicians, executives, athletes, or public officials, when the query concerns publicly available public-role information and not private banking, personal financial, health, family, address, or contact details.
+- Aggregated or anonymized statistics where no individual, client, small group, relationship manager, branch, or private entity can be singled out.
 
-## Allowed Requests
+## Ambiguity Rule
+If it is unclear whether the query contains CID or implies a bank-client relationship, choose "no-go". WebSearch is an external disclosure path, so the safe default is to block ambiguous private-person or client-context queries.
 
-Mark as 'go' when the arguments are:
-- General knowledge or factual queries (e.g., "What is GDPR?", "Python best practices")
-- Queries about organizations, products, public events, or publicly available information
-- Aggregated or anonymized statistical data not linked to identifiable individuals
-- Queries about public figures in their public capacity (e.g., a politician's published voting record)
+## Reason Style
+Return a short category-only reason. Do not include raw names, account numbers, emails, phone numbers, domains, URLs, or any sensitive values in the reason.
+
+## Organization-Specific Blocked Keywords
+Mark as "no-go" for any query containing organization-specific blocked terms or close variants, including misspellings, spacing, punctuation, hyphenation, domain variants, product names, internal project names, portal names, or other configured sensitive terms.
+
+This keyword rule applies even if the rest of the query looks public or harmless. If no organization-specific terms are configured, ignore this section.
+
+Configured blocked terms:
