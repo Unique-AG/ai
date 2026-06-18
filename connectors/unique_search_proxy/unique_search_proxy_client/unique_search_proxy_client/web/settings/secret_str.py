@@ -22,9 +22,10 @@ def _mask_secret_for_display(value: str) -> str:
         return _NOT_PROVIDED
     suffix_len = _secret_log_suffix_len()
     if suffix_len <= 0:
-        return "*" * len(value)
-    if len(value) <= suffix_len:
-        return "*" * len(value)
+        return "*" * 10
+    # 20% of the value length is the max suffix length
+    if len(value) * 0.10 <= suffix_len:
+        return "*" * 10
     return f"**********{value[-suffix_len:]}"
 
 

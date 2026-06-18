@@ -16,14 +16,31 @@ from unique_search_proxy_client.web.settings.startup_report import (
 
 class TestStartupSettingsReport:
     @pytest.mark.ai
-    def test_log_secret_str_masks_suffix_in_str(self) -> None:
-        assert str(LogSecretStr("abcdefghijklmnop")) == "**********nop"
-        assert str(LogSecretStr("test-key")) == "**********key"
-        assert str(LogSecretStr("ab")) == "**"
-        assert str(LogSecretStr(NOT_PROVIDED)) == NOT_PROVIDED
-        assert repr(LogSecretStr("abcdefghijklmnop")) == (
-            "LogSecretStr('**********nop')"
+    def test_log_secret_str_masks_suffix_in_str(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import unique_search_proxy_client.web.settings.startup_log as startup_log_module
+        from unique_search_proxy_client.web.settings.startup_log import (
+            StartupLogSettings,
         )
+
+        monkeypatch.setattr(
+            startup_log_module,
+            "startup_log_settings",
+            StartupLogSettings(secret_suffix_len=3),
+        )
+
+        # Values shorter than suffix_len / 0.10 are fully masked (10 asterisks).
+        assert str(LogSecretStr("ab")) == "**********"
+        assert str(LogSecretStr("test-key")) == "**********"
+        assert str(LogSecretStr("abcdefghijklmnop")) == "**********"
+        assert str(LogSecretStr(NOT_PROVIDED)) == NOT_PROVIDED
+
+        # Long values reveal the configured suffix.
+        long_secret = "abcdefghijklmnopqrstuvwxyz1234nop"
+        assert str(LogSecretStr(long_secret)) == "**********nop"
+        assert repr(LogSecretStr(long_secret)) == ("LogSecretStr('**********nop')")
 
     @pytest.mark.ai
     def test_startup_log_secret_suffix_len_from_env(

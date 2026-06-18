@@ -76,11 +76,24 @@ class TestHttpClientSettings:
 
 class TestHttpClientSecretFormatting:
     @pytest.mark.ai
-    def test_format_settings_value_masks_secret_headers(self) -> None:
+    def test_format_settings_value_masks_secret_headers(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import unique_search_proxy_client.web.settings.startup_log as startup_log_module
+        from unique_search_proxy_client.web.settings.startup_log import (
+            StartupLogSettings,
+        )
+
+        monkeypatch.setattr(
+            startup_log_module,
+            "startup_log_settings",
+            StartupLogSettings(secret_suffix_len=3),
+        )
         rendered = _format_settings_value(
             {"Proxy-Authorization": LogSecretStr("Bearer secret-token")},
         )
-        assert rendered == "{'Proxy-Authorization': **********ken}"
+        assert rendered == "{'Proxy-Authorization': **********}"
 
     @pytest.mark.ai
     def test_read_secret_headers(self) -> None:

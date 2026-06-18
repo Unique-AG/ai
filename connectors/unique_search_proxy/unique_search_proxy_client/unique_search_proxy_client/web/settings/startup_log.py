@@ -12,7 +12,7 @@ class StartupLogSettings(BaseSettings):
     """Startup log formatting options."""
 
     secret_suffix_len: int = Field(
-        default=3,
+        default=0,
         ge=0,
         le=32,
         description=(
