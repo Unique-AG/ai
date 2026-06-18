@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-06-04T08:12:06.387208Z"
+exclude-newer = "2026-06-04T12:33:10.103091Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -6367,6 +6367,7 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unidecode" },
     { name = "unique-search-proxy-core" },
+    { name = "unique-search-proxy-sdk" },
     { name = "unique-toolkit", extra = ["monitoring"] },
 ]
 
@@ -6395,6 +6396,7 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
     { name = "unique-search-proxy-core", editable = "connectors/unique_search_proxy/unique_search_proxy_core" },
+    { name = "unique-search-proxy-sdk", editable = "connectors/unique_search_proxy/unique_search_proxy_sdk" },
     { name = "unique-toolkit", extras = ["monitoring"], editable = "unique_toolkit" },
 ]
 
