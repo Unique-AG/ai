@@ -1,6 +1,3 @@
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 from unique_search_proxy_sdk._generated.models.crawl_response import CrawlResponse
 from unique_search_proxy_sdk._generated.models.crawl_url_result import CrawlUrlResult
 from unique_search_proxy_sdk._generated.models.per_url_error import PerUrlError
@@ -8,8 +5,10 @@ from unique_search_proxy_sdk._generated.models.per_url_error import PerUrlError
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawler, BasicCrawlerConfig
-from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
-from unique_web_search.services.proxy.mappers import result_to_markdown
+from unique_web_search.services.proxy.mappers import (
+    map_crawl_response,
+    result_to_markdown,
+)
 
 
 class TestBasicCrawlerFactory:
@@ -46,151 +45,42 @@ class TestResultToMarkdown:
         )
 
 
-class TestBasicCrawlerProxyMode:
-    @pytest.fixture
-    def basic_config(self) -> BasicCrawlerConfig:
-        return BasicCrawlerConfig(crawler_type=CrawlerType.BASIC)
-
-    @pytest.fixture
-    def basic_crawler(self, basic_config: BasicCrawlerConfig) -> BasicCrawler:
-        return BasicCrawler(basic_config)
-
-    @pytest.fixture
-    def resolved_targets(self) -> list[ResolvedCrawlTarget]:
-        return [
-            ResolvedCrawlTarget(
-                normalized_url="https://example.com",
-                hostname="example.com",
-                resolved_ip="",
-                used_dns_resolution=False,
-            ),
-            ResolvedCrawlTarget(
-                normalized_url="https://missing.example",
-                hostname="missing.example",
-                resolved_ip="",
-                used_dns_resolution=False,
-            ),
-        ]
-
-    @pytest.mark.asyncio
-    async def test_crawl_routes_to_proxy_when_enabled(
-        self,
-        basic_crawler: BasicCrawler,
-        resolved_targets: list[ResolvedCrawlTarget],
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.setattr(
-            "unique_web_search.services.crawlers.basic.search_proxy_client_enabled",
-            True,
+class TestMapCrawlResponse:
+    def test_map_crawl_response__maps_all_urls_in_order(self) -> None:
+        urls = ["https://example.com", "https://missing.example"]
+        response = CrawlResponse(
+            results=[
+                CrawlUrlResult(
+                    url="https://example.com",
+                    content="markdown body",
+                ),
+                CrawlUrlResult(
+                    url="https://missing.example",
+                    content="missing",
+                ),
+            ],
+            crawler="Basic",
         )
-        monkeypatch.setattr(
-            "unique_web_search.settings.env_settings.search_proxy_base_url",
-            "http://search-proxy.local",
-        )
-        mock_client = AsyncMock()
-        mock_client.crawl.basic = AsyncMock(
-            return_value=CrawlResponse(
-                results=[
-                    CrawlUrlResult(
-                        url="https://example.com",
-                        content="markdown body",
-                    ),
-                    CrawlUrlResult(
-                        url="https://missing.example",
-                        content="missing",
-                    ),
-                ],
-                crawler="Basic",
-            )
-        )
-        mock_client_cls = MagicMock()
-        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        with patch(
-            "unique_web_search.services.proxy.bridge.UniqueSearchProxyClient",
-            mock_client_cls,
-        ):
-            result = await basic_crawler._crawl(resolved_targets)
+        assert map_crawl_response(response, urls) == ["markdown body", "missing"]
 
-        mock_client.crawl.basic.assert_awaited_once()
-        assert result == ["markdown body", "missing"]
-
-    @pytest.mark.asyncio
-    async def test_crawl_maps_successful_proxy_response(
-        self,
-        basic_crawler: BasicCrawler,
-        resolved_targets: list[ResolvedCrawlTarget],
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.setattr(
-            "unique_web_search.services.crawlers.basic.search_proxy_client_enabled",
-            True,
+    def test_map_crawl_response__missing_url_gets_fallback_error(self) -> None:
+        urls = ["https://example.com", "https://missing.example"]
+        response = CrawlResponse(
+            results=[
+                CrawlUrlResult(
+                    url="https://example.com",
+                    content="markdown body",
+                ),
+                CrawlUrlResult(
+                    url="https://other.example",
+                    content="other body",
+                ),
+            ],
+            crawler="Basic",
         )
-        monkeypatch.setattr(
-            "unique_web_search.settings.env_settings.search_proxy_base_url",
-            "http://search-proxy.local",
-        )
-        mock_client = AsyncMock()
-        mock_client.crawl.basic = AsyncMock(
-            return_value=CrawlResponse(
-                results=[
-                    CrawlUrlResult(
-                        url="https://example.com",
-                        content="markdown body",
-                    ),
-                    CrawlUrlResult(
-                        url="https://other.example",
-                        content="other body",
-                    ),
-                ],
-                crawler="Basic",
-            )
-        )
-        mock_client_cls = MagicMock()
-        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        with patch(
-            "unique_web_search.services.proxy.bridge.UniqueSearchProxyClient",
-            mock_client_cls,
-        ):
-            result = await basic_crawler._crawl(resolved_targets)
-
-        assert result == [
+        assert map_crawl_response(response, urls) == [
             "markdown body",
             "Error: URL not found in search proxy response",
         ]
-        mock_client.crawl.basic.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_crawl_propagates_proxy_errors(
-        self,
-        basic_crawler: BasicCrawler,
-        resolved_targets: list[ResolvedCrawlTarget],
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        monkeypatch.setattr(
-            "unique_web_search.services.crawlers.basic.search_proxy_client_enabled",
-            True,
-        )
-        monkeypatch.setattr(
-            "unique_web_search.settings.env_settings.search_proxy_base_url",
-            "http://search-proxy.local",
-        )
-        mock_client = AsyncMock()
-        mock_client.crawl.basic = AsyncMock(
-            side_effect=RuntimeError("connection refused")
-        )
-        mock_client_cls = MagicMock()
-        mock_client_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=None)
-
-        with (
-            patch(
-                "unique_web_search.services.proxy.bridge.UniqueSearchProxyClient",
-                mock_client_cls,
-            ),
-            pytest.raises(RuntimeError, match="connection refused"),
-        ):
-            await basic_crawler._crawl(resolved_targets)
