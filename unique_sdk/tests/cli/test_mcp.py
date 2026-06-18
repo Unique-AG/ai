@@ -176,6 +176,23 @@ def test_same_title_dedupes_across_calls(tmp_path: Path) -> None:
     assert refs[0]["sourceNumber"] == 1
 
 
+def test_different_tools_same_title_get_distinct_numbers(tmp_path: Path) -> None:
+    # Tool A records "Doc A" as source 1.
+    r = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", r)
+    # Tool B retrieves the same-named doc → different tool → must get source 2,
+    # not reuse source 1 (the bug: prior code used the *current* tool_name when
+    # rebuilding numbers_by_key, making Tool B collide with Tool A's entry).
+    _run("mcp__crm__get", r)
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 2
+    numbers = {row["toolName"]: row["sourceNumber"] for row in refs}
+    assert numbers["mcp__kb__fetch"] == 1
+    assert numbers["mcp__crm__get"] == 2
+
+
 def test_titleless_result_falls_back_to_tool_chip(tmp_path: Path) -> None:
     # No resource blocks, no JSON title → one title-less chip (runner names it
     # after the tool). No URL is recorded.

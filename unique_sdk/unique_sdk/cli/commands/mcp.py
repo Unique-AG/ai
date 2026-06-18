@@ -169,7 +169,8 @@ def _annotate_mcp_results_for_citations(
             numbers_by_key: dict[str, int] = {}
             for entry in entries:
                 if isinstance(entry.get("sourceNumber"), int):
-                    numbers_by_key[_item_dedup_key(tool_name, entry)] = entry[
+                    stored_tool = entry.get("toolName") or tool_name
+                    numbers_by_key[_item_dedup_key(stored_tool, entry)] = entry[
                         "sourceNumber"
                     ]
             for item in items:
