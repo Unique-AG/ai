@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-06-04T08:12:06.387208Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -4983,8 +4983,8 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 dependencies = [
-    { name = "markdown-it-py" },
-    { name = "pygments" },
+    { name = "markdown-it-py", marker = "extra == 'group-11-ai-monorepo-dev' or extra != 'group-11-ai-monorepo-docs'" },
+    { name = "pygments", marker = "extra == 'group-11-ai-monorepo-dev' or extra != 'group-11-ai-monorepo-docs'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c0/8f/0722ca900cc807c13a6a0c696dacf35430f72e0ec571c4275d2371fca3e9/rich-15.0.0.tar.gz", hash = "sha256:edd07a4824c6b40189fb7ac9bc4c52536e9780fbbfbddf6f1e2502c31b068c36", size = 230680, upload-time = "2026-04-12T08:24:00.75Z" }
 wheels = [
@@ -6367,7 +6367,6 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unidecode" },
     { name = "unique-search-proxy-core" },
-    { name = "unique-search-proxy-sdk" },
     { name = "unique-toolkit", extra = ["monitoring"] },
 ]
 
@@ -6396,7 +6395,6 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
     { name = "unique-search-proxy-core", editable = "connectors/unique_search_proxy/unique_search_proxy_core" },
-    { name = "unique-search-proxy-sdk", editable = "connectors/unique_search_proxy/unique_search_proxy_sdk" },
     { name = "unique-toolkit", extras = ["monitoring"], editable = "unique_toolkit" },
 ]
 
