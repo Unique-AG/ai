@@ -25,6 +25,7 @@ async def send_message_and_wait_for_completion(
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
     correlation: "Space.Correlation | None" = None,
     on_message_update: Callable[["Space.Message"], Awaitable[None]] | None = None,
+    auto_approve_elicitation: bool | None = None,
 ) -> "Space.Message":
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
@@ -45,6 +46,8 @@ async def send_message_and_wait_for_completion(
             Should contain: parentMessageId, parentChatId, parentAssistantId.
         on_message_update: Optional async callback called whenever the latest assistant
             message changes while waiting for completion.
+        auto_approve_elicitation: When True, automatically approves any elicitation requests
+            triggered during the assistant run. Use for non-interactive (SDK/automation) contexts.
 
     Returns:
         The completed Space.Message.
@@ -59,6 +62,7 @@ async def send_message_and_wait_for_completion(
         skillChoices=list(skill_choices),
         scopeRules=scope_rules,
         correlation=correlation,
+        **({"autoApproveElicitation": auto_approve_elicitation} if auto_approve_elicitation is not None else {}),
     )
     chat_id = response.get("chatId")
     message_id = response.get("id")
