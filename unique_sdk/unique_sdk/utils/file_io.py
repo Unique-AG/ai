@@ -2,7 +2,7 @@ import asyncio
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 from urllib.parse import urlparse
 
 import requests
@@ -351,7 +351,7 @@ def download_content(
 
     headers = {
         "x-api-version": unique_sdk.api_version,
-        "x-app-id": unique_sdk.app_id,
+        "x-app-id": cast(str, unique_sdk.app_id),
         "x-user-id": userId,
         "x-company-id": companyId,
         "Authorization": "Bearer %s" % (unique_sdk.api_key,),
