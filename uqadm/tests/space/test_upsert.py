@@ -124,7 +124,7 @@ def test_upsert_update_dry_run_no_writes(
     assert "Dry-run: would update_space" in out
 
 
-def test_assistant_prompt_params_from_source_strips_export_fields() -> None:
+def test_assistant_prompt_params_from_source_strips_export_only_fields() -> None:
     prompts = assistant_prompt_params_from_source(
         [
             {
@@ -136,9 +136,10 @@ def test_assistant_prompt_params_from_source_strips_export_fields() -> None:
             }
         ]
     )
+    # The source `id` and `object` must be dropped so prompts are not bound to
+    # the source space's identity; only content + order are forwarded.
     assert prompts == [
         {
-            "id": "prompt_1",
             "order": 0,
             "title": "Summarize",
             "prompt": "Please summarize",

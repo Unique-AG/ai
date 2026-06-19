@@ -56,7 +56,14 @@ def match_modules_by_name(
 def assistant_prompt_params_from_source(
     prompts: list[dict[str, Any]] | None,
 ) -> list[dict[str, Any]]:
-    """Map export snapshot prompts to Space API assistantPrompts payloads."""
+    """Map export snapshot prompts to Space API assistantPrompts payloads.
+
+    Source ``id`` values are intentionally dropped: they identify prompts of the
+    *source* space and are meaningless (and unsafe to forward) when creating a
+    new space or migrating/upserting into a different one. Omitting them makes
+    the operation a clean full replacement on the server (delete-all +
+    create-all), mirroring how module creates omit source module ids.
+    """
     if not prompts:
         return []
     out: list[dict[str, Any]] = []
@@ -65,8 +72,6 @@ def assistant_prompt_params_from_source(
             "title": prompt["title"],
             "prompt": prompt["prompt"],
         }
-        if prompt.get("id") is not None:
-            item["id"] = prompt["id"]
         if prompt.get("order") is not None:
             item["order"] = prompt["order"]
         out.append(item)
