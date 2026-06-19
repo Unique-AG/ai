@@ -40,12 +40,17 @@ no-op because internet egress is not expressible as a pod-selector-based rule.
 {{- define "base.externalService.networkPolicy.cilium.egress.rules.ext" -}}
 {{- if and .Values.googleSearch .Values.googleSearch.enabled -}}
 {{- $endpoint := required "googleSearch.connection.apiEndpoint is required when googleSearch.enabled is true. Set it in your environment overlay." .Values.googleSearch.connection.apiEndpoint -}}
-{{- $host := (urlParse $endpoint).host | splitList ":" | first -}}
+{{- $parsed := urlParse $endpoint -}}
+{{- $hostParts := $parsed.host | splitList ":" -}}
+{{- $host := first $hostParts -}}
+{{- $port := "443" -}}
+{{- if eq $parsed.scheme "http" -}}{{- $port = "80" -}}{{- end -}}
+{{- if gt (len $hostParts) 1 -}}{{- $port = last $hostParts -}}{{- end -}}
 - toFQDNs:
   - matchName: {{ $host | quote }}
   toPorts:
   - ports:
-    - port: "443"
+    - port: {{ $port | quote }}
       protocol: TCP
 {{- end -}}
 {{- end -}}
