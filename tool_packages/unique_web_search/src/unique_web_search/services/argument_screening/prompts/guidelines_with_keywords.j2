@@ -1,0 +1,7 @@
+{{ guidelines.rstrip() }}
+
+{% for keyword in organization_specific_blocked_keywords -%}
+- {{ keyword }}
+{% else -%}
+- [none configured]
+{% endfor %}
