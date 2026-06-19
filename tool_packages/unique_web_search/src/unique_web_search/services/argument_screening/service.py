@@ -97,20 +97,6 @@ class ArgumentScreeningService:
                 self._config.organization_specific_blocked_keywords
             ),
         )
-        blocked_keywords = self._config.organization_specific_blocked_keywords
-        if blocked_keywords:
-            keyword_bullets = "\n".join(f"- {keyword}" for keyword in blocked_keywords)
-            if keyword_bullets not in rendered_guidelines:
-                separator = (
-                    "\n"
-                    if rendered_guidelines.rstrip().endswith(
-                        "Configured blocked terms:"
-                    )
-                    else "\n\nConfigured blocked terms:\n"
-                )
-                rendered_guidelines = (
-                    f"{rendered_guidelines.rstrip()}{separator}{keyword_bullets}"
-                )
 
         user_prompt = Template(self._config.user_prompt_template).render(
             arguments=serialized_args,
