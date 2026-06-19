@@ -115,6 +115,7 @@ tmpfile=$(mktemp)
 
 drift=0
 synced=0
+skipped=0
 
 while IFS= read -r dst; do
   [[ -z "${dst}" ]] && continue
@@ -123,12 +124,14 @@ while IFS= read -r dst; do
   chart_yaml="${dst%values.schema.json}Chart.yaml"
   if [[ ! -f "${chart_yaml}" ]]; then
     echo "  warning: no Chart.yaml found alongside ${dst}, skipping" >&2
+    skipped=$((skipped + 1))
     continue
   fi
 
   version=$(get_base_version "${chart_yaml}")
   if [[ -z "${version}" ]]; then
     echo "  warning: could not determine base dependency version from ${chart_yaml}, skipping" >&2
+    skipped=$((skipped + 1))
     continue
   fi
 
@@ -157,6 +160,12 @@ while IFS= read -r dst; do
 done < <(git ls-files ':(glob)**/deploy/helm-chart/values.schema.json' ':(glob)**/deploy/*/helm-chart/values.schema.json')
 
 if [[ "${CHECK}" == "true" ]]; then
+  if [[ ${skipped} -gt 0 ]]; then
+    echo ""
+    echo "Error: ${skipped} chart(s) were skipped due to missing Chart.yaml or unresolvable base version." >&2
+    echo "Fix the warnings above, then re-run scripts/render-values-schema.sh." >&2
+    exit 1
+  fi
   if [[ ${drift} -gt 0 ]]; then
     echo ""
     echo "Error: ${drift} dedicated chart(s) have a values.schema.json that is out of sync." >&2
