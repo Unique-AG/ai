@@ -334,7 +334,7 @@ class TestBaseCrawlerValidationFlow:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_crawl__passes_validated_urls_to__crawl(
+    async def test_crawl__passes_validated_urls_to__legacy_crawl(
         self,
         basic_crawler: BasicCrawler,
         monkeypatch: pytest.MonkeyPatch,
@@ -342,9 +342,11 @@ class TestBaseCrawlerValidationFlow:
         """
         Purpose: Verify BaseCrawler uses URLs returned by validate_urls.
         Why this matters: URL normalization and redirect resolution happen in validate_urls and must feed the crawl step.
-        Setup summary: Mock validate_urls to return transformed URLs and assert _crawl receives exactly that list.
+        Setup summary: Mock validate_urls to return transformed URLs and assert _legacy_crawl receives exactly that list.
         """
         import unique_web_search.services.crawlers.base as base_module
+
+        monkeypatch.setattr(base_module, "search_proxy_client_enabled", False)
 
         transformed_target = ResolvedCrawlTarget(
             normalized_url="https://example.com/final",
@@ -358,15 +360,44 @@ class TestBaseCrawlerValidationFlow:
             "validate_batch_urls",
             mock_validate_batch_urls,
         )
-        mock_crawl = AsyncMock(return_value=["content"])
-        monkeypatch.setattr(basic_crawler, "_crawl", mock_crawl)
+        mock_legacy_crawl = AsyncMock(return_value=["content"])
+        monkeypatch.setattr(basic_crawler, "_legacy_crawl", mock_legacy_crawl)
 
         await basic_crawler.crawl([" https://example.com/start "])
 
         mock_validate_batch_urls.assert_called_once_with(
             [" https://example.com/start "]
         )
-        mock_crawl.assert_called_once_with([transformed_target])
+        mock_legacy_crawl.assert_called_once_with([transformed_target])
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_crawl__skips_url_validation__when_proxy_enabled(
+        self,
+        basic_crawler: BasicCrawler,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify proxy crawl bypasses client-side URL validation.
+        Why this matters: URL safety is enforced on the proxy side; duplicate validation would be redundant.
+        Setup summary: Enable proxy routing, mock _proxy_crawl, assert validate_batch_urls is not called.
+        """
+        import unique_web_search.services.crawlers.base as base_module
+
+        monkeypatch.setattr(base_module, "search_proxy_client_enabled", True)
+        mock_validate_batch_urls = AsyncMock()
+        monkeypatch.setattr(
+            base_module.UrlSafetyService,
+            "validate_batch_urls",
+            mock_validate_batch_urls,
+        )
+        mock_proxy_crawl = AsyncMock(return_value=["content"])
+        monkeypatch.setattr(basic_crawler, "_proxy_crawl", mock_proxy_crawl)
+
+        await basic_crawler.crawl(["https://example.com"])
+
+        mock_validate_batch_urls.assert_not_called()
+        mock_proxy_crawl.assert_called_once_with(["https://example.com"])
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -378,9 +409,11 @@ class TestBaseCrawlerValidationFlow:
         """
         Purpose: Verify crawl aborts when shared URL validation fails.
         Why this matters: Crawler callers rely on URL policy failures being surfaced directly.
-        Setup summary: Mock validate_urls to raise CrawlTargetValidationError and assert _crawl is never called.
+        Setup summary: Mock validate_urls to raise CrawlTargetValidationError and assert _legacy_crawl is never called.
         """
         import unique_web_search.services.crawlers.base as base_module
+
+        monkeypatch.setattr(base_module, "search_proxy_client_enabled", False)
 
         mock_validate_batch_urls = AsyncMock(
             side_effect=CrawlTargetValidationError(
@@ -398,17 +431,17 @@ class TestBaseCrawlerValidationFlow:
             "validate_batch_urls",
             mock_validate_batch_urls,
         )
-        mock_crawl = AsyncMock(return_value=["content"])
+        mock_legacy_crawl = AsyncMock(return_value=["content"])
         monkeypatch.setattr(
             basic_crawler,
-            "_crawl",
-            mock_crawl,
+            "_legacy_crawl",
+            mock_legacy_crawl,
         )
 
         with pytest.raises(CrawlTargetValidationError):
             await basic_crawler.crawl(["https://example.com"])
 
-        mock_crawl.assert_not_called()
+        mock_legacy_crawl.assert_not_called()
 
 
 class TestSsrfGuardHook:
@@ -566,7 +599,7 @@ class TestSsrfGuardHook:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """
-        Purpose: Verify Crawl4AiCrawler._crawl passes _ssrf_guard_hook to AsyncPlaywrightCrawlerStrategy.
+        Purpose: Verify Crawl4AiCrawler._legacy_crawl passes _ssrf_guard_hook to AsyncPlaywrightCrawlerStrategy.
         Why this matters: Without hook registration the interceptor is never installed and all
         bypass vectors remain open.
         Setup summary: Mock AsyncPlaywrightCrawlerStrategy (top-level import) and AsyncWebCrawler
@@ -588,7 +621,7 @@ class TestSsrfGuardHook:
         mock_crawler_instance.__aexit__ = AsyncMock(return_value=None)
         mock_async_web_crawler = MagicMock(return_value=mock_crawler_instance)
 
-        # Both are lazy-imported inside _crawl, so patch them at their source modules.
+        # Both are lazy-imported inside _legacy_crawl, so patch them at their source modules.
         with (
             patch(
                 "crawl4ai.async_webcrawler.AsyncPlaywrightCrawlerStrategy",
@@ -599,7 +632,7 @@ class TestSsrfGuardHook:
             crawler = Crawl4AiCrawler(
                 Crawl4AiCrawlerConfig(crawler_type=CrawlerType.CRAWL4AI)
             )
-            await crawler._crawl(
+            await crawler._legacy_crawl(
                 [
                     ResolvedCrawlTarget(
                         normalized_url="https://example.com",
@@ -628,7 +661,7 @@ class TestSsrfGuardHook:
         """
         Purpose: Verify no before_goto hook is installed when url_safety_enabled=False.
         Why this matters: When safety is disabled the hook must be absent so Playwright is not restricted.
-        Setup summary: Monkeypatch url_safety_enabled to False on BaseCrawler, run _crawl, and assert
+        Setup summary: Monkeypatch url_safety_enabled to False on BaseCrawler, run _legacy_crawl, and assert
         AsyncPlaywrightCrawlerStrategy receives an empty hooks dict.
         """
         import unique_web_search.services.crawlers.crawl4ai as crawl4ai_module
@@ -663,7 +696,7 @@ class TestSsrfGuardHook:
             crawler = Crawl4AiCrawler(
                 Crawl4AiCrawlerConfig(crawler_type=CrawlerType.CRAWL4AI)
             )
-            await crawler._crawl(
+            await crawler._legacy_crawl(
                 [
                     ResolvedCrawlTarget(
                         normalized_url="https://example.com",

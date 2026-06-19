@@ -1,10 +1,15 @@
 import logging
-from typing import Literal
+from typing import Literal, override
 
 from httpx import AsyncClient, Response
 from pydantic import BaseModel
 
 from unique_web_search.client_settings import get_brave_search_settings
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+    search_proxy_client_enabled,
+)
+from unique_web_search.services.proxy.mappers import map_search_response
 from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
@@ -46,19 +51,33 @@ class BraveSearchConfig(BaseSearchEngineConfig[SearchEngineType.BRAVE]):
 
 
 class BraveSearch(SearchEngine[BraveSearchConfig]):
+    supports_proxy_search = True
+
     def __init__(
         self,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.is_configured = get_brave_search_settings().is_configured
+        self.is_configured = (
+            search_proxy_client_enabled or get_brave_search_settings().is_configured
+        )
 
     @property
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        async with open_search_proxy_client(timeout=30.0) as client:
+            response = await client.search.brave(
+                query=query,
+                fetch_size=self.config.fetch_size,
+            )
+            return map_search_response(response)
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         search_results = []
         fetch_size = self.config.fetch_size
 

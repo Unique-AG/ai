@@ -1,11 +1,16 @@
 import logging
-from typing import Literal
+from typing import Literal, cast, override
 from urllib.parse import urlparse
 
 from httpx import Response
+from unique_search_proxy_core.search_engines.google.schema import GoogleSiteSearchFilter
 
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.client.proxy_config import async_client
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+)
+from unique_web_search.services.proxy.mappers import map_search_response
 from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
@@ -36,10 +41,10 @@ class GoogleConfig(BaseSearchEngineConfig[SearchEngineType.GOOGLE]):
 
 
 class GoogleSearch(SearchEngine[GoogleConfig]):
+    supports_proxy_search = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.is_configured = get_google_search_settings().is_configured
         self._additional_params = self.config.custom_search_config.model_dump(
             mode="json", exclude_none=True, by_alias=True
         )
@@ -47,6 +52,68 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
     @property
     def requires_scraping(self) -> bool:
         return True
+
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        async with open_search_proxy_client(timeout=30.0) as client:
+            response = await client.search.google(
+                query=query,
+                fetch_size=self.config.fetch_size,
+                search_engine_id=self.config.custom_search_config.cx,
+                gl=self.config.custom_search_config.gl,
+                hl=self.config.custom_search_config.hl,
+                lr=self.config.custom_search_config.lr,
+                date_restrict=self.config.custom_search_config.date_restrict,
+                exact_terms=self.config.custom_search_config.exact_terms,
+                exclude_terms=self.config.custom_search_config.exclude_terms,
+                file_type=self.config.custom_search_config.file_type,
+                site_search=self.config.custom_search_config.site_search,
+                site_search_filter=cast(
+                    GoogleSiteSearchFilter | None,
+                    self.config.custom_search_config.site_search_filter,
+                ),
+                sort=self.config.custom_search_config.sort,
+            )
+            return map_search_response(response)
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        """Search the web for the given query."""
+        try:
+            search_results = await self._paginated_url_extraction(query=query, **kwargs)
+            _LOGGER.info(f"Found {len(search_results)} URLs")
+
+        except Exception as e:
+            _LOGGER.exception(f"Failed to extract URLs from search response: {e}")
+            search_results = []
+
+        return search_results
+
+    async def _perform_web_search_request(self, query: str, **kwargs) -> Response:
+        """Send a request to the search engine.
+
+        Args:
+            query: The query.
+            start_index: The start index.
+
+        Returns:
+            list[dict]: The search results.
+
+        """
+        request_params = self._get_request_params(query=query, **kwargs)
+        async with async_client() as client:
+            response = await client.get(**request_params)
+        return response
+
+    def _validate_url(self, url: str) -> bool:
+        """Validate URL structure and permitted domains."""
+        parsed_url = urlparse(url)
+        return all(
+            [
+                parsed_url.scheme in ["http", "https"],
+                parsed_url.netloc,
+            ],
+        )
 
     def _update_pagination_params(self, start_index: int, num_fetch: int):
         self._additional_params = self._additional_params | {
@@ -116,46 +183,3 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             search_results.extend(self._extract_urls(response=response))
 
         return search_results
-
-    # TODO: Find a tracking solution
-    # @track(
-    #     tags=["google_search"],
-    # )
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        """Search the web for the given query."""
-
-        try:
-            search_results = await self._paginated_url_extraction(query=query, **kwargs)
-            _LOGGER.info(f"Found {len(search_results)} URLs")
-
-        except Exception as e:
-            _LOGGER.exception(f"Failed to extract URLs from search response: {e}")
-            search_results = []
-
-        return search_results
-
-    async def _perform_web_search_request(self, query: str, **kwargs) -> Response:
-        """Send a request to the search engine.
-
-        Args:
-            query: The query.
-            start_index: The start index.
-
-        Returns:
-            list[dict]: The search results.
-
-        """
-        request_params = self._get_request_params(query=query, **kwargs)
-        async with async_client() as client:
-            response = await client.get(**request_params)
-        return response
-
-    def _validate_url(self, url: str) -> bool:
-        """Validate URL structure and permitted domains."""
-        parsed_url = urlparse(url)
-        return all(
-            [
-                parsed_url.scheme in ["http", "https"],
-                parsed_url.netloc,
-            ],
-        )

@@ -40,10 +40,7 @@ class Base(BaseSettings):
     # Default Crawlers
     active_inhouse_crawlers: list[str] = ["basic", "crawl4ai"]
 
-    # Unique Search Proxy service (used by the basic_proxy crawler)
-    search_proxy_base_url: str | None = None
-
-    # Unique Search Proxy service (used by the basic_proxy crawler)
+    # Unique Search Proxy service (routes migrated search engines and crawlers)
     search_proxy_base_url: str | None = None
 
     # Google Search settings
