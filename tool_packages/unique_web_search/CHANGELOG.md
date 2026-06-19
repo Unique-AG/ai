@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.24.0...unique-web-search-v2026.26.0) (2026-06-19)
+
+
+### Features
+
+* Enable calling search proxy from websearch tool ([#1892](https://github.com/Unique-AG/ai/issues/1892)) ([ca67b3b](https://github.com/Unique-AG/ai/commit/ca67b3b539f5ca9a7117fe28a62cd631b70863ad))
+* Import URL safety from Search Proxy Core ([#1887](https://github.com/Unique-AG/ai/issues/1887)) ([d08853e](https://github.com/Unique-AG/ai/commit/d08853e6978531ed0d5ef6dbf8c97f8768d982fc))
+* Migrate all search engines and all crawlers to search proxy ([#1876](https://github.com/Unique-AG/ai/issues/1876)) ([0602244](https://github.com/Unique-AG/ai/commit/06022440fb64b50a42bbfb4d9440a3406884237c))
+* Migrating Web Interaction responsibilities to web search proxy ([#1793](https://github.com/Unique-AG/ai/issues/1793)) ([8288f79](https://github.com/Unique-AG/ai/commit/8288f794fb9dad1985af7023e8e25183a13cde9a))
+* **websearch:** add CID-focused argument screening defaults [UN-18090] ([#1894](https://github.com/Unique-AG/ai/issues/1894)) ([4b23020](https://github.com/Unique-AG/ai/commit/4b23020220fc37d0363f11b930239fd105aa2839))
+
+
+### Bug Fixes
+
+* Remove proxy basic crawler from default list ([#1842](https://github.com/Unique-AG/ai/issues/1842)) ([1f75034](https://github.com/Unique-AG/ai/commit/1f75034da8f8f9c43dfe3714a916c671239c5fe0))
+
+
+### Miscellaneous
+
+* arm release 2026.26.0 ([d3c79b3](https://github.com/Unique-AG/ai/commit/d3c79b385f2714ab9c6237a545da21dea0cfb34a))
+
 ## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.22.0...unique-web-search-v2026.24.0) (2026-06-04)
 
 

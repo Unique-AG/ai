@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.24.0...unique-sdk-v2026.26.0) (2026-06-19)
+
+
+### Features
+
+* **cli:** add page-range filtering to unique-cli read ([#1847](https://github.com/Unique-AG/ai/issues/1847)) ([aba3d50](https://github.com/Unique-AG/ai/commit/aba3d50a4486e91892ef1de7253e78fef516ce4a))
+* **cli:** add unique-cli read command for indexed chunk retrieval ([#1833](https://github.com/Unique-AG/ai/issues/1833)) ([43d4367](https://github.com/Unique-AG/ai/commit/43d4367a43eaaf9bb580d7a0e33028dd386b4bd4))
+* **sdk:** add chat_id parameter to update_content function ([#1861](https://github.com/Unique-AG/ai/issues/1861)) ([66f537b](https://github.com/Unique-AG/ai/commit/66f537b112024a86c90ca4fb8ab21fbb0957dbc8))
+* **sdk:** add scopeToAssignedRows for magic table sheet reads ([#1808](https://github.com/Unique-AG/ai/issues/1808)) ([c7c4bc9](https://github.com/Unique-AG/ai/commit/c7c4bc9ef32ae210becdce71d150ce2e30699eb0))
+* **unique_sdk:** add dynamic frontend CLI support ([#1837](https://github.com/Unique-AG/ai/issues/1837)) ([5624ccb](https://github.com/Unique-AG/ai/commit/5624ccb3badc1637a6f54a60012e17a11878be75))
+* **unique-sdk-cli:** add dynamic frontend delete ([#1873](https://github.com/Unique-AG/ai/issues/1873)) ([3db8e8a](https://github.com/Unique-AG/ai/commit/3db8e8aa91c57c342454b360b862ff9e15671e38))
+* **unique-sdk-cli:** support versioned file uploads ([#1840](https://github.com/Unique-AG/ai/issues/1840)) ([9adc16c](https://github.com/Unique-AG/ai/commit/9adc16cff70bf3a52dd06b65d8ac08486eb25163))
+* **unique-sdk-cli:** surface dynamic frontend view and config/share urls ([#1871](https://github.com/Unique-AG/ai/issues/1871)) ([0cc434c](https://github.com/Unique-AG/ai/commit/0cc434c93c7183765e11f2d2fe64fb22cbb86935))
+
+
+### Bug Fixes
+
+* **sdk:** omit versioningEnabled when None on file upload ([#1857](https://github.com/Unique-AG/ai/issues/1857)) ([a2203a5](https://github.com/Unique-AG/ai/commit/a2203a56b19201809f0d932ed726fea622752594))
+* **unique-sdk-cli:** extend elicitation wait timeout ([#1853](https://github.com/Unique-AG/ai/issues/1853)) ([e1d3b30](https://github.com/Unique-AG/ai/commit/e1d3b3044b39f3da49a59e98b9acd5596a4998a6))
+* **unique-sdk-cli:** include dynamic frontend space urls ([#1869](https://github.com/Unique-AG/ai/issues/1869)) ([6cb86b1](https://github.com/Unique-AG/ai/commit/6cb86b1a1ded8a552dd9f264eb4bc028196d8b5a))
+
+
+### Miscellaneous
+
+* arm release 2026.26.0 ([d3c79b3](https://github.com/Unique-AG/ai/commit/d3c79b385f2714ab9c6237a545da21dea0cfb34a))
+
 ## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.22.0...unique-sdk-v2026.24.0) (2026-06-04)
 
 
