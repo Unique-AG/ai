@@ -22,6 +22,9 @@ from unique_web_search.services.argument_screening.config import (
 from unique_web_search.services.argument_screening.exceptions import (
     ArgumentScreeningUnparseableResponseException,
 )
+from unique_web_search.services.argument_screening.prompts import (
+    DEFAULT_GUIDELINES_WITH_KEYWORDS_TEMPLATE,
+)
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.structured_llm import (
     StructuredLlmUnparseableResponseError,
@@ -92,7 +95,10 @@ class ArgumentScreeningService:
         _LOGGER.info("Running argument screening agent...")
 
         serialized_args = json.dumps(arguments, indent=2, default=str)
-        rendered_guidelines = Template(self._config.guidelines).render(
+        rendered_guidelines = Template(
+            DEFAULT_GUIDELINES_WITH_KEYWORDS_TEMPLATE
+        ).render(
+            guidelines=self._config.guidelines,
             organization_specific_blocked_keywords=(
                 self._config.organization_specific_blocked_keywords
             ),
