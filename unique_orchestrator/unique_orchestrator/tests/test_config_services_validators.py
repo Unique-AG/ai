@@ -1,9 +1,8 @@
 import pytest
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_stock_ticker.config import StockTickerConfig
-from unique_toolkit.agentic.tools.experimental.elicit_user_tool import (
-    ElicitUserTool,
-    ElicitUserToolConfig,
+from unique_toolkit.agentic.tools.experimental.ask_user_tool import (
+    AskUserTool,
 )
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
@@ -27,6 +26,7 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 from unique_user_memory.config import UserMemoryConfig
 
 from unique_orchestrator.config import (
+    AskUserToolConfig,
     EvaluationConfig,
     UniqueAIConfig,
     UniqueAIServices,
@@ -504,11 +504,11 @@ class TestUniqueAIConfigUserMemory:
         assert config.space.allow_user_memory is True
 
 
-class TestUniqueAIConfigInjectElicitUserToolValidator:
-    """Tests for UniqueAIConfig.inject_elicit_user_tool (AskUser)."""
+class TestUniqueAIConfigInjectAskUserToolValidator:
+    """Tests for UniqueAIConfig.inject_ask_user_tool (AskUser)."""
 
     def _entries(self, config: UniqueAIConfig) -> list[ToolBuildConfig]:
-        return [t for t in config.space.tools if t.name == ElicitUserTool.name]
+        return [t for t in config.space.tools if t.name == AskUserTool.name]
 
     def test_appends_when_enabled(self) -> None:
         config = UniqueAIConfig(
@@ -518,15 +518,15 @@ class TestUniqueAIConfigInjectElicitUserToolValidator:
             ),
             agent={
                 "experimental": {
-                    "elicit_user_tool_config": ElicitUserToolConfig(enabled=True)
+                    "ask_user_tool_config": AskUserToolConfig(enabled=True)
                 }
             },
         )
 
         entries = self._entries(config)
         assert len(entries) == 1
-        assert entries[0].name == ElicitUserTool.name
-        assert isinstance(entries[0].configuration, ElicitUserToolConfig)
+        assert entries[0].name == AskUserTool.name
+        assert isinstance(entries[0].configuration, AskUserToolConfig)
         assert entries[0].configuration.enabled is True
 
     def test_removes_when_disabled(self) -> None:
@@ -535,14 +535,14 @@ class TestUniqueAIConfigInjectElicitUserToolValidator:
                 language_model=_make_model(supports_responses_api=True),
                 tools=[
                     ToolBuildConfig(
-                        name=ElicitUserTool.name,
-                        configuration=ElicitUserToolConfig(enabled=False),
+                        name=AskUserTool.name,
+                        configuration=AskUserToolConfig(enabled=False),
                     )
                 ],
             ),
             agent={
                 "experimental": {
-                    "elicit_user_tool_config": ElicitUserToolConfig(enabled=False)
+                    "ask_user_tool_config": AskUserToolConfig(enabled=False)
                 }
             },
         )
@@ -551,8 +551,8 @@ class TestUniqueAIConfigInjectElicitUserToolValidator:
 
     def test_idempotent_when_already_present(self) -> None:
         existing = ToolBuildConfig(
-            name=ElicitUserTool.name,
-            configuration=ElicitUserToolConfig(enabled=True),
+            name=AskUserTool.name,
+            configuration=AskUserToolConfig(enabled=True),
         )
         config = UniqueAIConfig(
             space=UniqueAISpaceConfig(
@@ -561,7 +561,7 @@ class TestUniqueAIConfigInjectElicitUserToolValidator:
             ),
             agent={
                 "experimental": {
-                    "elicit_user_tool_config": ElicitUserToolConfig(enabled=True)
+                    "ask_user_tool_config": AskUserToolConfig(enabled=True)
                 }
             },
         )

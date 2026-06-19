@@ -37,9 +37,11 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
-from unique_toolkit.agentic.tools.experimental.elicit_user_tool import (
-    ElicitUserTool,
-    ElicitUserToolConfig,
+from unique_toolkit.agentic.tools.experimental.ask_user_tool import (
+    AskUserTool,
+)
+from unique_toolkit.agentic.tools.experimental.ask_user_tool import (
+    AskUserToolConfig as BaseAskUserToolConfig,
 )
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
@@ -395,6 +397,13 @@ class UploadedSearchToolConfig(BaseToolConfig):
         return self
 
 
+class AskUserToolConfig(BaseAskUserToolConfig):
+    enabled: bool = Field(
+        default=False,
+        description="Enable the AskUser elicitation tool.",
+    )
+
+
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -435,10 +444,10 @@ class ExperimentalConfig(BaseToolConfig):
 
     uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()
 
-    elicit_user_tool_config: ElicitUserToolConfig = Field(
-        title="Ask user (elicitation)",
-        description="Configuration for the AskUser structured elicitation tool",
-        default_factory=ElicitUserToolConfig,
+    ask_user_tool_config: AskUserToolConfig = Field(
+        title="Ask User Tool (Elicitation)",
+        description="Configuration for the AskUser tool",
+        default_factory=AskUserToolConfig,
     )
 
     use_responses_api: bool = Field(
@@ -604,22 +613,22 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
-    def inject_elicit_user_tool(self) -> "UniqueAIConfig":
+    def inject_ask_user_tool(self) -> "UniqueAIConfig":
         tool_names = [t.name for t in self.space.tools]
-        has_tool = ElicitUserTool.name in tool_names
-        config = self.agent.experimental.elicit_user_tool_config
+        has_tool = AskUserTool.name in tool_names
+        config = self.agent.experimental.ask_user_tool_config
 
         if config.enabled and not has_tool:
             self.space.tools.append(
                 ToolBuildConfig(
-                    name=ElicitUserTool.name,
-                    display_name=config.display_name,
+                    name=AskUserTool.name,
+                    display_name=AskUserTool.DISPLAY_NAME,
                     configuration=config,
                 )
             )
         elif not config.enabled and has_tool:
             self.space.tools = [
-                t for t in self.space.tools if t.name != ElicitUserTool.name
+                t for t in self.space.tools if t.name != AskUserTool.name
             ]
 
         return self
