@@ -14,6 +14,7 @@ def error_to_str(error: ErrorDetail) -> str:
 class SixApiException(Exception):
     def __init__(self, errors: list[ErrorDetail]) -> None:
         self.errors = errors
+        super().__init__(str(self))
 
     def __str__(self) -> str:
         if len(self.errors) == 1:

@@ -50,6 +50,7 @@ def resolve_other_options(
         or config.agent.experimental.use_responses_api
     )
 
+    reasoning_dict: dict = {}
     if use_responses_api:
         reasoning_raw = options.get("reasoning")
         if isinstance(reasoning_raw, str):

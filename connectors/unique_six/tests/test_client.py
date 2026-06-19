@@ -104,7 +104,7 @@ def test_client_request_builds_url_and_parses_json(six_cert_and_key):
     out = client.request(path, params)
     assert out == {"data": {"listings": []}}
     assert len(responses.calls) == 1
-    assert path in responses.calls[0].request.url
+    assert path in (responses.calls[0].request.url or "")
 
 
 @pytest.mark.ai

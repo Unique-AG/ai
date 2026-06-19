@@ -38,7 +38,7 @@ class InMemoryCertAdapter(HTTPAdapter):
                 context._ctx.add_extra_chain_cert(load_pem_x509_certificate(c))
 
         context._ctx.use_privatekey(
-            load_pem_private_key(self._key, password=None)  # type: ignore
+            load_pem_private_key(self._key, password=None)  # pyright: ignore[reportArgumentType]
         )
 
         # Throw an exception if the private key is not valid

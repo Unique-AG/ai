@@ -33,7 +33,7 @@ class StockTickerPostprocessor(Postprocessor):
             user_id=self._user_id,
             chat_id=self._chat_id,
             stock_ticker_config=self._config,
-            assistant_message=loop_response.message.text,
+            assistant_message=loop_response.message.text or "",
             user_message=self._user_message,
         )
 
@@ -43,7 +43,7 @@ class StockTickerPostprocessor(Postprocessor):
         if not self._text or len(self._text) == 0:
             return False
         # Append the follow-up question suggestions to the loop response
-        loop_response.message.text += "\n" + self._text
+        loop_response.message.text = (loop_response.message.text or "") + "\n" + self._text
         return True
 
     async def remove_from_text(self, text: str) -> str:

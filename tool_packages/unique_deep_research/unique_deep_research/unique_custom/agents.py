@@ -192,13 +192,13 @@ async def research_supervisor(
     else:
         model_with_tools = model.bind_tools(supervisor_tools)
 
-    research_model = model_with_tools.with_config(model_config)
+    research_model = model_with_tools.with_config(model_config)  # type: ignore[arg-type]
 
     # Generate supervisor response with comprehensive token limit handling
     supervisor_messages = state.get("supervisor_messages", [])
 
     response = await ainvoke_with_token_handling(
-        research_model, supervisor_messages, model_info=engine_config.research_model
+        research_model, supervisor_messages, model_info=engine_config.research_model  # type: ignore[arg-type]
     )
     if should_force_complete and not response.tool_calls:
         _LOGGER.error("Failed to force research_complete tool call")
@@ -347,7 +347,7 @@ async def researcher(
     researcher_messages = state.get("researcher_messages", [])
     messages = [SystemMessage(content=researcher_prompt)] + researcher_messages
     response = await ainvoke_with_token_handling(
-        research_model, messages, model_info=engine_config.research_model
+        research_model, messages, model_info=engine_config.research_model  # type: ignore[arg-type]
     )
 
     return Command(
@@ -496,7 +496,7 @@ async def compress_research(
 
     # Use proactive token handling instead of retry logic
     response = await ainvoke_with_token_handling(
-        compression_model, compression_messages, model_info=custom_config.large_model
+        compression_model, compression_messages, model_info=custom_config.large_model  # type: ignore[arg-type]
     )
 
     compressed_research = (
@@ -538,7 +538,7 @@ async def final_report_generation(
     }
     # Get model with additional headers from config
     model = get_configurable_model(config)
-    llm = model.with_config(model_config)
+    llm = model.with_config(model_config)  # type: ignore[arg-type]
     report_writer_prompt = TEMPLATE_ENV.get_template(
         "unique/report_writer_system_open_deep_research.j2"
     ).render(

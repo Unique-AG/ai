@@ -45,7 +45,7 @@ def split_cert_chain(cert: str) -> list[str]:
 class SixApiClient:
     def __init__(self, cert: str, key: str) -> None:
         self._session = requests.Session()
-        self._session.headers = {"accept": "application/json"}
+        self._session.headers.update({"accept": "application/json"})
         self._url = API_URL
 
         certs = [c.encode("utf-8") for c in split_cert_chain(cert)]
