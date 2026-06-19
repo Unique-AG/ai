@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, Mock
 
+from jinja2 import Template
 import pytest
 
 from unique_web_search.services.argument_screening import (
@@ -13,9 +14,6 @@ from unique_web_search.services.argument_screening import (
 )
 from unique_web_search.services.argument_screening.exceptions import (
     ArgumentScreeningUnparseableResponseException,
-)
-from unique_web_search.services.argument_screening.service import (
-    build_argument_screening_guidelines,
 )
 
 
@@ -60,30 +58,34 @@ class TestArgumentScreeningConfig:
         assert config.guidelines == "Custom guidelines"
 
 
-class TestBuildArgumentScreeningGuidelines:
+class TestArgumentScreeningGuidelinesTemplate:
     def test_renders_configured_keywords_as_bullets(self):
         config = ArgumentScreeningConfig(
-            guidelines="Configured blocked terms:",
             organization_specific_blocked_keywords=[
                 "EFG",
                 "efgbank.com",
             ],
         )
 
-        guidelines = build_argument_screening_guidelines(config)
+        guidelines = Template(config.guidelines).render(
+            organization_specific_blocked_keywords=(
+                config.organization_specific_blocked_keywords
+            ),
+        )
 
-        assert guidelines.endswith("- EFG\n- efgbank.com")
+        assert guidelines.rstrip().endswith("- EFG\n- efgbank.com")
         assert "Configured blocked terms:" in guidelines
 
     def test_renders_none_configured_when_keyword_list_empty(self):
-        config = ArgumentScreeningConfig(
-            guidelines="Configured blocked terms:",
-            organization_specific_blocked_keywords=[],
+        config = ArgumentScreeningConfig(organization_specific_blocked_keywords=[])
+
+        guidelines = Template(config.guidelines).render(
+            organization_specific_blocked_keywords=(
+                config.organization_specific_blocked_keywords
+            ),
         )
 
-        guidelines = build_argument_screening_guidelines(config)
-
-        assert guidelines.endswith("- [none configured]")
+        assert guidelines.rstrip().endswith("- [none configured]")
         assert (
             "If no organization-specific terms are configured, ignore this section."
             in (DEFAULT_GUIDELINES)
@@ -236,7 +238,6 @@ class TestArgumentScreeningService:
             enabled=True,
             system_prompt="System: screen this",
             user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
-            guidelines="No secrets allowed",
         )
         mock_response = Mock()
         mock_response.choices = [
@@ -259,7 +260,7 @@ class TestArgumentScreeningService:
 
         assert system_msg.content == "System: screen this"
         assert "hello" in user_msg.content
-        assert "No secrets allowed" in user_msg.content
+        assert "Configured blocked terms:" in user_msg.content
         assert "[none configured]" in user_msg.content
 
     @pytest.mark.asyncio
@@ -272,7 +273,6 @@ class TestArgumentScreeningService:
         config = ArgumentScreeningConfig(
             enabled=True,
             user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
-            guidelines="Configured blocked terms:",
             organization_specific_blocked_keywords=["EFG", "efgbank.com"],
         )
         mock_response = Mock()

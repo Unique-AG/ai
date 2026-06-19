@@ -31,18 +31,6 @@ from unique_web_search.services.structured_llm import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def build_argument_screening_guidelines(config: ArgumentScreeningConfig) -> str:
-    """Render the effective screening guidelines including configured keywords."""
-    keyword_bullets = (
-        "\n".join(
-            f"- {keyword}" for keyword in config.organization_specific_blocked_keywords
-        )
-        if config.organization_specific_blocked_keywords
-        else "- [none configured]"
-    )
-    return f"{config.guidelines.rstrip()}\n{keyword_bullets}"
-
-
 class ArgumentScreeningResult(StructuredOutputModel):
     """Structured LLM output for the screening verdict."""
 
@@ -106,7 +94,11 @@ class ArgumentScreeningService:
         serialized_args = json.dumps(arguments, indent=2, default=str)
         user_prompt = Template(self._config.user_prompt_template).render(
             arguments=serialized_args,
-            guidelines=build_argument_screening_guidelines(self._config),
+            guidelines=Template(self._config.guidelines).render(
+                organization_specific_blocked_keywords=(
+                    self._config.organization_specific_blocked_keywords
+                ),
+            ),
         )
 
         try:

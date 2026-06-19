@@ -38,3 +38,8 @@ Mark as "no-go" for any query containing organization-specific blocked terms or 
 This keyword rule applies even if the rest of the query looks public or harmless. If no organization-specific terms are configured, ignore this section.
 
 Configured blocked terms:
+{% for keyword in organization_specific_blocked_keywords -%}
+- {{ keyword }}
+{% else -%}
+- [none configured]
+{% endfor %}
