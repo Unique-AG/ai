@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, Mock
 
-from jinja2 import Template
 import pytest
+from jinja2 import Template
 
 from unique_web_search.services.argument_screening import (
     DEFAULT_GUIDELINES,
