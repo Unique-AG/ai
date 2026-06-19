@@ -294,6 +294,76 @@ class TestArgumentScreeningService:
 
         assert "- EFG" in user_msg.content
         assert "- efgbank.com" in user_msg.content
+        assert user_msg.content.count("- EFG") == 1
+
+    @pytest.mark.asyncio
+    async def test_appends_configured_blocked_keywords_for_stale_guidelines(
+        self,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
+    ):
+        config = ArgumentScreeningConfig(
+            enabled=True,
+            user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
+            guidelines="Custom rules\n\nConfigured blocked terms:",
+            organization_specific_blocked_keywords=["EFG", "efgbank.com"],
+        )
+        mock_response = Mock()
+        mock_response.choices = [
+            Mock(message=Mock(parsed={"go": True, "reason": "OK"}))
+        ]
+        mock_language_model_service.complete_async.return_value = mock_response
+
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=config,
+        )
+        await service({"query": "hello"}, mock_message_log_callback)
+
+        call_args = mock_language_model_service.complete_async.call_args
+        messages = call_args[0][0]
+        user_msg = next(m for m in messages if m.role.value == "user")
+
+        assert "Custom rules" in user_msg.content
+        assert user_msg.content.count("Configured blocked terms:") == 1
+        assert "- EFG" in user_msg.content
+        assert "- efgbank.com" in user_msg.content
+
+    @pytest.mark.asyncio
+    async def test_appends_configured_blocked_keywords_for_plain_custom_guidelines(
+        self,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
+    ):
+        config = ArgumentScreeningConfig(
+            enabled=True,
+            user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
+            guidelines="Custom rules",
+            organization_specific_blocked_keywords=["EFG"],
+        )
+        mock_response = Mock()
+        mock_response.choices = [
+            Mock(message=Mock(parsed={"go": True, "reason": "OK"}))
+        ]
+        mock_language_model_service.complete_async.return_value = mock_response
+
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=config,
+        )
+        await service({"query": "hello"}, mock_message_log_callback)
+
+        call_args = mock_language_model_service.complete_async.call_args
+        messages = call_args[0][0]
+        user_msg = next(m for m in messages if m.role.value == "user")
+
+        assert "Custom rules" in user_msg.content
+        assert "Configured blocked terms:" in user_msg.content
+        assert "- EFG" in user_msg.content
 
     @pytest.mark.asyncio
     async def test_uses_structured_output(
