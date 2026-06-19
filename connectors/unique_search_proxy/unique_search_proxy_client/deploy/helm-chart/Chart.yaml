@@ -6,5 +6,5 @@ version: "2026.24.0" # x-release-please-version
 appVersion: "2026.24.0" # x-release-please-version
 dependencies:
   - name: base
-    version: "0.1.0-2b6638"
+    version: "0.1.0-eeb8aa"
     repository: "oci://ghcr.io/unique-ag/helm"
