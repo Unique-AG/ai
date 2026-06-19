@@ -23,7 +23,7 @@
           "then": {
             "required": ["connection"],
             "properties": {
-              "connection": { "required": ["engineId", "apiKey"] }
+              "connection": { "required": ["apiEndpoint", "engineId", "apiKey"] }
             }
           }
         }

@@ -1835,6 +1835,7 @@
             "properties": {
               "connection": {
                 "required": [
+                  "apiEndpoint",
                   "engineId",
                   "apiKey"
                 ]
