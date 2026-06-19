@@ -47,7 +47,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             config, event, None, *args, **kwargs
         )
         self._internal_search_tool._display_name = self._display_name
-        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
+        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event) if isinstance(event, ChatEvent) else []
         if isinstance(event, ChatEvent):
             self._user_query = event.payload.user_message.text
         else:

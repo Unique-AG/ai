@@ -365,7 +365,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         *args,
         **kwargs,
     ):
-        Tool.__init__(self, configuration, event, *args, **kwargs)
+        Tool.__init__(self, configuration, event, *args, **kwargs)  # type: ignore[reportArgumentType]
 
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
