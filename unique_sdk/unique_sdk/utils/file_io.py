@@ -349,13 +349,14 @@ def download_content(
     if chat_id:
         url = f"{url}?chatId={chat_id}"
 
-    headers = {
+    raw_headers: dict[str, str | None] = {
         "x-api-version": unique_sdk.api_version,
         "x-app-id": unique_sdk.app_id,
         "x-user-id": userId,
         "x-company-id": companyId,
         "Authorization": "Bearer %s" % (unique_sdk.api_key,),
     }
+    headers: dict[str, str] = {k: v for k, v in raw_headers.items() if v is not None}
 
     # Issue the request before resolving the destination. A non-200
     # response should never leave a half-created directory or empty
