@@ -427,11 +427,6 @@ uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 | `--dry-run` | Show planned uploads without writing anything. |
 | `--slot SLOT` | Credential slot. |
 
-Extensions that the OS `mimetypes` database cannot resolve (common on macOS for
-``.md``, ``.xsd``, etc.) are mapped to curated text/doc MIME types; anything
-still unknown is uploaded as ``application/octet-stream`` with a stderr warning
-instead of failing the sync.
-
 ### `kb access grant`
 
 Grant **group** ``READ`` or ``WRITE`` on a folder. By default the change **applies to subfolders** (``applyToSubScopes``); pass ``--no-subfolders`` for this folder only.
