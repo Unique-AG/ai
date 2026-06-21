@@ -32,3 +32,12 @@ SAVE_COUNTERPARTY_EMAIL_CASHFLOW_DESCRIPTION = (
     "inserted row plus the match outcome (matched customer cash flow id and "
     "amount difference, or the reason why no match was found)."
 )
+
+RESET_DEMO_DATA_DESCRIPTION = (
+    "Reset the trade reconciliation demo to its baseline. This is a "
+    "DESTRUCTIVE operation: it drops and recreates both cash-flow tables and "
+    "re-inserts the original seed rows. All counterparty (email) cash flows go "
+    "back to UNMATCHED status and any rows added during the demo are removed, "
+    "so the reconciliation can be demonstrated from scratch. Use this between "
+    "demo runs to get a clean, predictable starting state."
+)

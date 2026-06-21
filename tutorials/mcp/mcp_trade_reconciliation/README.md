@@ -16,6 +16,7 @@ The server exposes four tools:
 | `Get_Counterparty_Email_Cashflows` | Read counterparty (email) cash flows, with optional filters. |
 | `Match_Cashflows` | Reconcile UNMATCHED email rows against the book; returns a reason per row. |
 | `Save_Counterparty_Email_Cashflow` | Insert a new email cash flow and immediately attempt to match it. |
+| `Reset_Demo_Data` | Restore both tables to the seed baseline (all email rows back to UNMATCHED). Destructive; intended for demos. |
 
 ### Matching rules
 
@@ -150,6 +151,11 @@ Once connected with an MCP client you can ask, for example:
 - "Show me the unmatched counterparty cash flows."
 - "Reconcile all open email cash flows against the book."
 - "Save a Goldman Sachs BUY of 12,948,000 USD for value date 2026-05-23 and try to match it."
+- "Reset the demo data." — restores the baseline so you can run the reconciliation from scratch.
+
+### Resetting the demo
+
+`Reset_Demo_Data` re-runs `create_table_postgres.sql` server-side, so it returns the database to a clean, predictable baseline (10 book rows, 6 email rows, all UNMATCHED) between demo runs. This is the same effect as re-running the seed SQL by hand (see *Re-seed / reset the demo data* below), but available as a tool the assistant can call.
 
 ## Deploy to Azure
 

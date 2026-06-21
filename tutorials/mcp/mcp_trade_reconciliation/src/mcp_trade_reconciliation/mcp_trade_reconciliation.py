@@ -19,6 +19,7 @@ from db_tool_reconciliation.prompts import (
     GET_COUNTERPARTY_EMAIL_CASHFLOWS_DESCRIPTION,
     GET_CUSTOMER_BOOK_CASHFLOWS_DESCRIPTION,
     MATCH_CASHFLOWS_DESCRIPTION,
+    RESET_DEMO_DATA_DESCRIPTION,
     SAVE_COUNTERPARTY_EMAIL_CASHFLOW_DESCRIPTION,
 )
 
@@ -263,6 +264,20 @@ async def save_counterparty_email_cashflow(
         value_date=value_date,
         email_ref=email_ref,
     )
+    return json.dumps(result, default=str)
+
+
+@mcp.tool(
+    name="Reset_Demo_Data",
+    title="Reset demo data",
+    description=RESET_DEMO_DATA_DESCRIPTION,
+    meta={
+        "unique.app/icon": "rotate-ccw",
+        "unique.app/system-prompt": RESET_DEMO_DATA_DESCRIPTION,
+    },
+)
+async def reset_demo_data() -> str:
+    result = reconciliation_service.reset_demo_data()
     return json.dumps(result, default=str)
 
 

@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Iterator
 
 import psycopg2
@@ -36,6 +37,10 @@ DB_PASSWORD = os.getenv("PGPASSWORD", "postgres")
 
 CUSTOMER_TABLE = "customer_book_cashflows"
 COUNTERPARTY_TABLE = "counterparty_email_cashflows"
+
+# Bundled schema + seed used to restore the demo to a known baseline. Lives at
+# src/mcp_trade_reconciliation/sql/create_table_postgres.sql (two levels up).
+_SEED_SQL_PATH = Path(__file__).resolve().parent.parent / "sql" / "create_table_postgres.sql"
 
 ALLOWED_SIDES = {"BUY", "SELL", "SHORT SELL", "BUY TO COVER"}
 
@@ -489,4 +494,43 @@ def save_counterparty_email_cashflow(
     return {
         "inserted": _row_to_jsonable(inserted),
         "match": match_result,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Demo reset
+# ---------------------------------------------------------------------------
+
+
+def reset_demo_data() -> dict[str, Any]:
+    """Restore both cash-flow tables to the demo baseline.
+
+    Executes the bundled ``create_table_postgres.sql`` script in a single
+    transaction: it drops and recreates ``customer_book_cashflows`` and
+    ``counterparty_email_cashflows`` and re-inserts the seed rows. After a reset
+    every counterparty (email) cash flow is back in ``UNMATCHED`` status (and any
+    rows added during the demo via ``Save_Counterparty_Email_Cashflow`` are
+    removed), so a demo can show the reconciliation happening live again.
+
+    Returns:
+        A dict with the row counts of both tables after the reset.
+    """
+    if not _SEED_SQL_PATH.is_file():
+        raise FileNotFoundError(f"Seed SQL not found at {_SEED_SQL_PATH}")
+    sql_text = _SEED_SQL_PATH.read_text(encoding="utf-8")
+
+    with _readwrite_connection() as conn, conn.cursor() as cur:
+        # psycopg2 sends the whole script in one go; PostgreSQL DDL is
+        # transactional, so the drop/create/insert is atomic.
+        cur.execute(sql_text)
+        cur.execute(f"SELECT COUNT(*) FROM {CUSTOMER_TABLE}")
+        customer_count = cur.fetchone()[0]
+        cur.execute(f"SELECT COUNT(*) FROM {COUNTERPARTY_TABLE}")
+        counterparty_count = cur.fetchone()[0]
+
+    return {
+        "reset": True,
+        "customer_book_cashflows": customer_count,
+        "counterparty_email_cashflows": counterparty_count,
+        "note": "Demo restored to baseline; all counterparty (email) cash flows are UNMATCHED.",
     }
