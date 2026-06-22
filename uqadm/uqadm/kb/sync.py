@@ -17,7 +17,8 @@ from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 _PAGE_SIZE = 100
 
 # Extensions that mimetypes commonly fails to resolve on macOS/minimal systems.
-_EXTRA_MIME_TYPES: dict[str, str] = {
+# Registered with the stdlib registry so mimetypes.guess_type resolves them.
+for _ext, _type in {
     ".md": "text/markdown",
     ".markdown": "text/markdown",
     ".xsd": "application/xml",
@@ -26,20 +27,8 @@ _EXTRA_MIME_TYPES: dict[str, str] = {
     ".yml": "application/yaml",
     ".toml": "application/toml",
     ".jsonl": "application/jsonl",
-}
-_DEFAULT_MIME_TYPE = "application/octet-stream"
-
-
-def _guess_mime(path: Path) -> tuple[str, bool]:
-    """Return (mime, used_fallback). Tries stdlib, then the curated map,
-    then the octet-stream default."""
-    mime, _ = mimetypes.guess_type(path.name)
-    if mime:
-        return mime, False
-    mime = _EXTRA_MIME_TYPES.get(path.suffix.lower())
-    if mime:
-        return mime, False
-    return _DEFAULT_MIME_TYPE, True
+}.items():
+    mimetypes.add_type(_type, _ext)
 
 
 def _collect_files(folder: Path, recursive: bool) -> list[Path]:
@@ -166,12 +155,13 @@ def cmd_sync(
 
         for path in paths:
             display = path.relative_to(local_dir).as_posix()
-            mime, used_fallback = _guess_mime(path)
-            if used_fallback:
+            mime, _ = mimetypes.guess_type(path.name)
+            if mime is None:
                 typer.echo(
-                    f"warning: {display}: unknown extension, uploading as {mime}",
-                    err=True,
+                    f"failed: {display}: could not determine MIME type", err=True
                 )
+                counts["failed"] += 1
+                continue
             action = "replaced" if path.name in existing else "new"
             if dry_run:
                 typer.echo(f"[dry-run] {action}: {display}")
