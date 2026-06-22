@@ -1142,3 +1142,37 @@ def test_get_msgs__treats_context_images_as_context(
     # Assert
     assert result.root[0].content == grounded_result.root[0].content
     assert isinstance(result.root[1].content, list)
+
+
+@pytest.mark.ai
+def test_get_msgs__ignores_context_images__when_model_lacks_vision() -> None:
+    """
+    Purpose: Verify image-only input is not treated as context for a non-vision model.
+    Why this matters: _compose_msgs drops the images for a non-vision model, so the
+    grounded prompt would otherwise claim references that are never sent. has_context
+    must reflect the message actually delivered.
+    Setup summary: Configure a text-only model with only context_images; assert the
+    system prompt matches the ungrounded variant and the user message is text-only.
+    """
+    # Arrange
+    text_only_config = HallucinationConfig(
+        enabled=True,
+        language_model=LanguageModelName.AZURE_GPT_4_0613,
+    )
+    image_only: EvaluationMetricInput = EvaluationMetricInput(
+        input_text="Question",
+        output_text="Output",
+        context_images=[_IMAGE_DATA_URL],
+    )
+    no_context: EvaluationMetricInput = EvaluationMetricInput(
+        input_text="Question",
+        output_text="Output",
+    )
+
+    # Act
+    result: LanguageModelMessages = _get_msgs(image_only, text_only_config)
+    no_context_result: LanguageModelMessages = _get_msgs(no_context, text_only_config)
+
+    # Assert
+    assert result.root[0].content == no_context_result.root[0].content
+    assert isinstance(result.root[1].content, str)
