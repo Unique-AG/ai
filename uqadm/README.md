@@ -3,7 +3,7 @@
 Admin CLI for the Unique platform. It groups these command families:
 
 - **`space`** — list, export, diff, migrate, upsert, access grants, ingestion settings, and delete assistant spaces.
-- **`kb`** — knowledge-base folders: create paths, grant group access, set folder ingestion config.
+- **`kb`** — knowledge-base folders: create paths, sync/download files, grant group access, set folder ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -428,9 +428,30 @@ uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 | `--slot SLOT` | Credential slot. |
 
 Extensions that the OS `mimetypes` database cannot resolve (common on macOS for
-``.md``, ``.xsd``, etc.) are mapped to curated text/doc MIME types; anything
-still unknown is uploaded as ``application/octet-stream`` with a stderr warning
-instead of failing the sync.
+``.md``, ``.xsd``, etc.) are registered with curated text/doc MIME types so they
+sync correctly. Any file whose MIME type still cannot be determined is reported
+as failed and skipped (it is never uploaded), and the command exits non-zero.
+
+### `kb download`
+
+Download files from a KB folder scope into a local directory. Requires exactly
+one of ``--folder-path`` or ``--scope-id``. Without ``--recursive`` only
+top-level files are downloaded; with it, subfolders are recreated as child
+directories under ``LOCAL_DIR``.
+
+```bash
+uqadm kb download ./out --folder-path /Dept/HR
+uqadm kb download ./out --folder-path /Dept/HR -r --dry-run
+uqadm kb download ./out --scope-id scope_abc -r --slot qa
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Source KB folder path (mutually exclusive with ``--scope-id``). |
+| `--scope-id` | Source folder scope id (mutually exclusive with ``--folder-path``). |
+| `-r`, `--recursive` | Recurse into subfolders, mirroring them as local subdirectories. |
+| `--dry-run` | Show planned downloads without writing anything. |
+| `--slot SLOT` | Credential slot. |
 
 ### `kb access grant`
 

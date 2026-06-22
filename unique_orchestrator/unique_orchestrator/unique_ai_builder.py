@@ -360,10 +360,7 @@ async def _build_common(
         )
 
     user_memory_text = ""
-    if (
-        config.space.allow_user_memory
-        or config.agent.services.user_memory_config.enabled
-    ):
+    if config.space.allow_user_memory:
         user_memory_state = await load_user_memory(
             event=event,
             config=config.agent.services.user_memory_config,

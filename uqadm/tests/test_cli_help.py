@@ -171,6 +171,17 @@ def test_kb_ingestion_set_help() -> None:
     assert "uqadm kb ingestion set" in result_output
 
 
+def test_kb_download_help() -> None:
+    invoke_help = _make_help_invoker()
+    result_output = invoke_help(["kb", "download", "--help"])
+    assert "--folder-path" in result_output
+    assert "--scope-id" in result_output
+    assert "--recursive" in result_output or "-r" in result_output
+    assert "--dry-run" in result_output
+    assert "Examples:" in result_output
+    assert "uqadm kb download" in result_output
+
+
 def test_space_access_grant_help() -> None:
     invoke_help = _make_help_invoker()
     result_output = invoke_help(["space", "access-grant", "--help"])

@@ -13,6 +13,7 @@ from unique_sdk.cli.config import Config
 from unique_sdk.utils.file_io import upload_file
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.kb._paths import join_path_segments
 
 _PAGE_SIZE = 100
 
@@ -37,18 +38,6 @@ def _collect_files(folder: Path, recursive: bool) -> list[Path]:
     else:
         walker = folder.iterdir()
     return sorted(p for p in walker if p.is_file())
-
-
-def _join_folder_paths(left: str, right: str) -> str:
-    """Join a relative subdirectory onto the base KB folder path."""
-    left = left.strip()
-    right = right.strip()
-
-    joined = left.rstrip("/")
-    if right != "":
-        joined += f"/{right.lstrip('/')}"
-
-    return joined
 
 
 def _resolve_scope(cfg: Config, folder_path: str, *, create: bool) -> str | None:
@@ -142,7 +131,7 @@ def cmd_sync(
 
     counts = {"new": 0, "replaced": 0, "failed": 0}
     for rel_parent, paths in sorted(groups.items()):
-        target_path = _join_folder_paths(base_path, rel_parent)
+        target_path = join_path_segments(base_path, rel_parent)
         try:
             target_scope = _resolve_scope(cfg, target_path, create=not dry_run)
         except Exception as exc:

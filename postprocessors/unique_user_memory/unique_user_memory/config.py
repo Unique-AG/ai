@@ -11,10 +11,6 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 class UserMemoryConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    enabled: Annotated[bool, RJSFMetaTag.SpecialWidget.hidden()] = Field(
-        default=False,
-        description="Whether to enable persistent per-user memory.",
-    )
     language_model: LMI = Field(
         default=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
         description="The language model used for post-turn memory consolidation.",

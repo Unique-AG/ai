@@ -467,18 +467,17 @@ class TestUniqueAIConfigInjectTodoToolValidator:
 
 
 class TestUniqueAIConfigUserMemory:
-    def test_user_memory_config_defaults_to_disabled(self):
+    def test_user_memory_config_defaults(self):
         config = UniqueAIConfig()
 
         assert isinstance(config.agent.services.user_memory_config, UserMemoryConfig)
-        assert config.agent.services.user_memory_config.enabled is False
+        assert config.agent.services.user_memory_config.max_tokens == 2000
 
-    def test_user_memory_config_parses_enabled_payload(self):
+    def test_user_memory_config_parses_payload(self):
         config = UniqueAIConfig(
             agent={
                 "services": {
                     "user_memory_config": {
-                        "enabled": True,
                         "max_tokens": 1500,
                     }
                 }
@@ -486,7 +485,6 @@ class TestUniqueAIConfigUserMemory:
         )
 
         memory_config = config.agent.services.user_memory_config
-        assert memory_config.enabled is True
         assert memory_config.max_tokens == 1500
 
     def test_allow_user_memory_defaults_to_false(self):

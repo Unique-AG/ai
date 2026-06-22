@@ -231,6 +231,32 @@ Organize content into folder structures with:
     )
     ```
 
+??? example "`unique_sdk.Folder.move` - Move folder"
+
+    Move a folder to a new parent folder by ID.
+
+    **Parameters:**
+
+    - `folderId` (str, required) - Folder ID to move
+    - `newParentId` (str, required) - New parent folder ID
+
+    **Returns:**
+
+    Returns a [`MoveResult`](#moveresult) object.
+
+    **Example:**
+
+    ```python
+    result = unique_sdk.Folder.move(
+        user_id=user_id,
+        company_id=company_id,
+        folderId="scope_folder1abc2def3ghi4jkl",
+        newParentId="scope_parent1abc2def3ghi4jkl"
+    )
+
+    print(result["scopeId"])
+    ```
+
 ??? example "`unique_sdk.Folder.delete` - Delete folder"
 
     !!! info "Compatibility"
@@ -651,6 +677,21 @@ Organize content into folder structures with:
     - `folderPath` (str) - Complete folder path
 
     **Returned by:** `Folder.get_folder_path()`
+
+#### Folder.MoveResult {#moveresult}
+
+??? note "The `MoveResult` object contains folder move results"
+
+    **Fields:**
+
+    - `scopeId` (str) - Moved folder ID
+    - `asyncMetadataRebuild` (bool) - Whether metadata rebuild continues asynchronously
+    - `jobId` (str | None, optional) - Async job ID
+    - `affectedFiles` (int | None, optional) - Number of affected files
+    - `message` (str | None, optional) - Operation message
+    - `object` (Literal["folder-move"]) - Object type identifier
+
+    **Returned by:** `Folder.move()`
 
 #### Folder.CreateFolderStructureResponse {#createfolderstructureresponse}
 

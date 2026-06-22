@@ -75,6 +75,50 @@ def test_kb_sync_cli_invokes_helper(
     assert kw["dry_run"] is True
 
 
+@patch("uqadm.kb.cmd_download")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_download_cli_invokes_helper(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_download: MagicMock,
+    tmp_path: Path,
+) -> None:
+    mock_cfg.return_value = MagicMock(user_id="u1", company_id="c1")
+    out_dir = tmp_path / "out"
+    result = _runner().invoke(
+        app,
+        ["kb", "download", str(out_dir), "--scope-id", "scope_x", "-r", "--dry-run"],
+    )
+    assert result.exit_code == 0
+    mock_download.assert_called_once()
+    kw = mock_download.call_args.kwargs
+    assert kw["local_dir"] == out_dir
+    assert kw["folder_path"] is None
+    assert kw["scope_id"] == "scope_x"
+    assert kw["recursive"] is True
+    assert kw["dry_run"] is True
+
+
+@patch("uqadm.kb.cmd_download")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_download_rejects_existing_file_target(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_download: MagicMock,
+    tmp_path: Path,
+) -> None:
+    existing_file = tmp_path / "out.txt"
+    existing_file.write_text("data", encoding="utf-8")
+    result = _runner().invoke(
+        app,
+        ["kb", "download", str(existing_file), "--scope-id", "scope_x"],
+    )
+    assert result.exit_code == 2
+    mock_download.assert_not_called()
+
+
 @patch("uqadm.kb.cmd_access_grant")
 @patch("uqadm.kb.config_for_slot")
 @patch("uqadm.kb.resolve_slot", return_value="qa")

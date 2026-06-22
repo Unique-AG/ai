@@ -8,7 +8,7 @@ Persistent per-user memory for Unique AI agents.
 
 The package provides:
 
-- `UserMemoryConfig` - Pydantic configuration for enabling memory and choosing the consolidation model.
+- `UserMemoryConfig` - Pydantic configuration for the consolidation model, profile token budget, and memory folder.
 - `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget.
 - `UserMemoryPostprocessor` - runs after the assistant response, consolidates the latest turn into the profile, and uploads the updated `memory.md`.
 
@@ -70,11 +70,12 @@ The consolidation prompt preserves the schema, keeps bullets short, and returns 
 
 ## Configuration
 
+Memory is activated by the orchestrator when `space.allow_user_memory` is true. `UserMemoryConfig` only configures how active memory is consolidated and stored.
+
 ```python
 from unique_user_memory import UserMemoryConfig
 
 config = UserMemoryConfig(
-    enabled=True,
     max_tokens=2000,
     root_folder="user-memory",
 )
@@ -82,7 +83,6 @@ config = UserMemoryConfig(
 
 | Field | Default | Description |
 | --- | --- | --- |
-| `enabled` | `False` | Enables persistent per-user memory for agents that do not use the space-level switch. |
 | `language_model` | `DEFAULT_GPT_4o` | Model used to consolidate the latest turn into the profile. |
 | `max_tokens` | `2000` | Maximum profile size. Must be between 500 and 8000 tokens. |
 | `root_folder` | `user-memory` | Root KB folder that contains per-user memory folders. |

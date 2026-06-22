@@ -53,6 +53,31 @@ def match_modules_by_name(
     return pairs, unmatched_names
 
 
+def assistant_prompt_params_from_source(
+    prompts: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Map export snapshot prompts to Space API assistantPrompts payloads.
+
+    Source ``id`` values are intentionally dropped: they identify prompts of the
+    *source* space and are meaningless (and unsafe to forward) when creating a
+    new space or migrating/upserting into a different one. Omitting them makes
+    the operation a clean full replacement on the server (delete-all +
+    create-all), mirroring how module creates omit source module ids.
+    """
+    if not prompts:
+        return []
+    out: list[dict[str, Any]] = []
+    for prompt in prompts:
+        item: dict[str, Any] = {
+            "title": prompt["title"],
+            "prompt": prompt["prompt"],
+        }
+        if prompt.get("order") is not None:
+            item["order"] = prompt["order"]
+        out.append(item)
+    return out
+
+
 def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
     modules = [module_params_from_source(m) for m in src.get("modules") or []]
     params: dict[str, Any] = {
@@ -73,6 +98,10 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
     for key in optional_keys:
         if src.get(key) is not None:
             params[key] = src[key]
+    if src.get("assistantPrompts"):
+        params["assistantPrompts"] = assistant_prompt_params_from_source(
+            src["assistantPrompts"]
+        )
     return params
 
 
@@ -112,6 +141,10 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
     for key in simple:
         if src.get(key) is not None:
             kwargs[key] = src[key]
+    if "assistantPrompts" in src:
+        kwargs["assistantPrompts"] = assistant_prompt_params_from_source(
+            src["assistantPrompts"]
+        )
     return kwargs
 
 

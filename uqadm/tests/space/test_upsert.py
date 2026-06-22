@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from uqadm.core.payload_files import snapshot_format_for_path
+from uqadm.space.migrate import assistant_prompt_params_from_source
 from uqadm.space.upsert import cmd_upsert, load_space_snapshot
 
 
@@ -121,3 +122,52 @@ def test_upsert_update_dry_run_no_writes(
         mock_get.assert_called_once_with("u", "c", "space_dst")
     out = capsys.readouterr().out
     assert "Dry-run: would update_space" in out
+
+
+def test_assistant_prompt_params_from_source_strips_export_only_fields() -> None:
+    prompts = assistant_prompt_params_from_source(
+        [
+            {
+                "id": "prompt_1",
+                "object": "assistant-prompt",
+                "order": 0,
+                "title": "Summarize",
+                "prompt": "Please summarize",
+            }
+        ]
+    )
+    # The source `id` and `object` must be dropped so prompts are not bound to
+    # the source space's identity; only content + order are forwarded.
+    assert prompts == [
+        {
+            "order": 0,
+            "title": "Summarize",
+            "prompt": "Please summarize",
+        }
+    ]
+
+
+def test_build_update_kwargs_includes_empty_assistant_prompts() -> None:
+    from uqadm.space.migrate import build_update_kwargs
+
+    kwargs = build_update_kwargs({"name": "S", "assistantPrompts": []})
+    assert kwargs["assistantPrompts"] == []
+    assert kwargs["name"] == "S"
+
+
+def test_build_create_params_maps_assistant_prompts() -> None:
+    from uqadm.space.migrate import build_create_params
+
+    params = build_create_params(
+        {
+            "name": "S",
+            "fallbackModule": "fm",
+            "modules": [],
+            "assistantPrompts": [
+                {"title": "T", "prompt": "P", "order": 1},
+            ],
+        }
+    )
+    assert params["assistantPrompts"] == [
+        {"title": "T", "prompt": "P", "order": 1},
+    ]

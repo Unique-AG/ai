@@ -38,6 +38,12 @@ class Space(APIResource["Space"]):
         description: NotRequired[str | None]
         weight: NotRequired[int | None]
 
+    class AssistantPromptParams(TypedDict):
+        title: str
+        prompt: str
+        id: NotRequired[str | None]
+        order: NotRequired[int | None]
+
     class CreateSpaceParams(RequestOptions):
         name: str
         fallbackModule: str
@@ -50,6 +56,7 @@ class Space(APIResource["Space"]):
         isPinned: NotRequired[bool | None]
         uiType: NotRequired["Space.UiType | None"]
         settings: NotRequired[dict[str, Any] | None]
+        assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
 
     class UpdateParams(RequestOptions):
         name: NotRequired[str | None]
@@ -63,6 +70,7 @@ class Space(APIResource["Space"]):
         settings: NotRequired[dict[str, Any] | None]
         allowEndUserSpace: NotRequired[bool | None]
         uiType: NotRequired["Space.UiType | None"]
+        assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
 
     class AccessEntry(TypedDict):
         entityId: str
