@@ -10,10 +10,7 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import (
-    NOT_PROVIDED,
-    LogSecretStr,
-)
+from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
 _ENV_PREFIX = "VERTEXAI_AGENT_"
 
@@ -31,9 +28,7 @@ class _VertexAIAgentCredentials(ProviderCredentials):
     """
 
     credential_type: VertexAICredentialType = Field(default="workload_identity")
-    service_account_credentials: LogSecretStr = Field(
-        default=LogSecretStr(NOT_PROVIDED)
-    )
+    service_account_credentials: LogSecretStr | None = Field(default=None)
     service_account_scopes: list[str] = Field(
         default=["https://www.googleapis.com/auth/cloud-platform"],
     )

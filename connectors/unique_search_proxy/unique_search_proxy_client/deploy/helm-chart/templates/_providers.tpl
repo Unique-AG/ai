@@ -53,10 +53,9 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 {{- if and .Values.vertexaiAgent .Values.vertexaiAgent.enabled -}}
 - name: VERTEXAI_AGENT_CREDENTIAL_TYPE
   value: {{ .Values.vertexaiAgent.connection.credentialType | quote }}
-{{- if not .Values.vertexaiAgent.connection.serviceAccountCredentials -}}
-{{- fail "vertexaiAgent.connection.serviceAccountCredentials is required when vertexaiAgent.enabled is true. Set it in your environment overlay." -}}
-{{- end -}}
+{{- if .Values.vertexaiAgent.connection.serviceAccountCredentials -}}
 {{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .) }}
+{{- end -}}
 {{- end -}}
 {{- if and .Values.tavily .Values.tavily.enabled -}}
 {{- if not .Values.tavily.connection.apiKey -}}
@@ -186,10 +185,9 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 {{- if and .ctx.Values.vertexaiAgent .ctx.Values.vertexaiAgent.enabled -}}
 - name: VERTEXAI_AGENT_CREDENTIAL_TYPE
   value: {{ .ctx.Values.vertexaiAgent.connection.credentialType | quote }}
-{{- if not .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials -}}
-{{- fail "vertexaiAgent.connection.serviceAccountCredentials is required when vertexaiAgent.enabled is true. Set it in your environment overlay." -}}
-{{- end -}}
+{{- if .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials -}}
 {{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .ctx) }}
+{{- end -}}
 {{- end -}}
 {{- if and .ctx.Values.tavily .ctx.Values.tavily.enabled -}}
 {{- if not .ctx.Values.tavily.connection.apiKey -}}

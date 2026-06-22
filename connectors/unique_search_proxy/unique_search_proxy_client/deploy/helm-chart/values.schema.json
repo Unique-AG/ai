@@ -2045,33 +2045,7 @@
             }
           }
         }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "enabled": {
-                "const": true
-              }
-            },
-            "required": [
-              "enabled"
-            ]
-          },
-          "then": {
-            "required": [
-              "connection"
-            ],
-            "properties": {
-              "connection": {
-                "required": [
-                  "serviceAccountCredentials"
-                ]
-              }
-            }
-          }
-        }
-      ]
+      }
     },
     "tavily": {
       "type": "object",
