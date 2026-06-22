@@ -13,6 +13,16 @@ from unique_sdk.cli.formatting import format_content_info
 from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
+_SUPPORTED_UPLOAD_MIME_TYPES = {
+    ".pdf": "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".txt": "text/plain",
+    ".html": "text/html",
+    ".md": "text/markdown",
+}
+
 
 def _normalize_unique_file_path(cwd: str, path: str) -> str:
     """Normalize a Unique file path without allowing traversal above root."""
@@ -93,6 +103,15 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
         skip += len(content_infos)
 
     raise ValueError(f"File not found: {name_or_id}")
+
+
+def _detect_upload_mime_type(path: Path) -> str:
+    mime_type = _SUPPORTED_UPLOAD_MIME_TYPES.get(path.suffix.lower())
+    if mime_type:
+        return mime_type
+
+    mime_type, _ = mimetypes.guess_type(str(path))
+    return mime_type or "application/octet-stream"
 
 
 def _format_version_value(value: Any) -> str:
@@ -215,9 +234,7 @@ def cmd_upload(
             destination,
         )
 
-        mime_type, _ = mimetypes.guess_type(str(path))
-        if not mime_type:
-            mime_type = "application/octet-stream"
+        mime_type = _detect_upload_mime_type(path)
 
         result = upload_file(
             userId=state.config.user_id,
