@@ -160,7 +160,7 @@ class Folder(APIResource["Folder"]):
         newParentId: str
 
     class MoveResult(TypedDict):
-        scopeIds: list[str]
+        scopeId: str
         asyncMetadataRebuild: bool
         jobId: NotRequired[str | None]
         affectedFiles: NotRequired[int | None]

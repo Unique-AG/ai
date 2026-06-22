@@ -254,7 +254,7 @@ Organize content into folder structures with:
         newParentId="scope_parent1abc2def3ghi4jkl"
     )
 
-    print(result["scopeIds"])
+    print(result["scopeId"])
     ```
 
 ??? example "`unique_sdk.Folder.delete` - Delete folder"
@@ -684,7 +684,7 @@ Organize content into folder structures with:
 
     **Fields:**
 
-    - `scopeIds` (List[str]) - Moved folder IDs
+    - `scopeId` (str) - Moved folder ID
     - `asyncMetadataRebuild` (bool) - Whether metadata rebuild continues asynchronously
     - `jobId` (str | None, optional) - Async job ID
     - `affectedFiles` (int | None, optional) - Number of affected files
