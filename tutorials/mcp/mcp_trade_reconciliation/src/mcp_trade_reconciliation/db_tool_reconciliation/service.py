@@ -548,9 +548,12 @@ def reset_demo_data() -> dict[str, Any]:
     sql_text = _SEED_SQL_PATH.read_text(encoding="utf-8")
 
     with _readwrite_connection() as conn, conn.cursor() as cur:
-        # psycopg2 sends the whole script in one go; PostgreSQL DDL is
-        # transactional, so the drop/create/insert is atomic.
-        cur.execute(sql_text)
+        # Execute each statement separately; relying on one multi-statement
+        # cursor.execute is driver/version-dependent. The surrounding connection
+        # context still keeps the full reset transactional.
+        for statement in sql_text.split(";"):
+            if any(line.strip() and not line.strip().startswith("--") for line in statement.splitlines()):
+                cur.execute(statement)
         cur.execute(f"SELECT COUNT(*) FROM {CUSTOMER_TABLE}")
         customer_count = cur.fetchone()[0]
         cur.execute(f"SELECT COUNT(*) FROM {COUNTERPARTY_TABLE}")
