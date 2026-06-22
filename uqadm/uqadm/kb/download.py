@@ -12,6 +12,7 @@ from unique_sdk.cli.config import Config
 from unique_sdk.utils.file_io import download_content
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.kb._paths import join_path_segments
 
 _PAGE_SIZE = 100
 
@@ -54,14 +55,6 @@ def _list_child_folders(cfg: Config, scope_id: str) -> list[Folder.FolderInfo]:
         if not batch or skip >= page.get("totalCount", 0):
             break
     return folders
-
-
-def _join_rel_subdir(parent: str, child_name: str) -> str:
-    parent = parent.strip()
-    child_name = child_name.strip()
-    if parent == "":
-        return child_name
-    return f"{parent}/{child_name}"
 
 
 def _safe_local_path(local_dir: Path, *parts: str) -> Path | None:
@@ -174,7 +167,9 @@ def cmd_download(
             for folder_info in _list_child_folders(cfg, current_scope_id):
                 child_scope_id = folder_info["id"]
                 child_name = folder_info["name"]
-                queue.append((child_scope_id, _join_rel_subdir(rel_subdir, child_name)))
+                queue.append(
+                    (child_scope_id, join_path_segments(rel_subdir, child_name))
+                )
 
     if counts["downloaded"] == 0 and counts["failed"] == 0:
         typer.echo("No files to download.")
