@@ -123,14 +123,12 @@ def _patch_build_common_user_memory(
 
 
 @pytest.mark.asyncio
-async def test_build_common_registers_user_memory_postprocessor_when_enabled(
+async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
 
-    config = UniqueAIConfig(
-        agent={"services": {"user_memory_config": {"enabled": True}}}
-    )
+    config = UniqueAIConfig()
 
     common_components = await _build_common(
         event=event,
@@ -138,15 +136,15 @@ async def test_build_common_registers_user_memory_postprocessor_when_enabled(
         config=config,
     )
 
-    load_user_memory.assert_awaited_once()
-    assert common_components.user_memory_text == "remembered"
+    load_user_memory.assert_not_awaited()
+    assert common_components.user_memory_text == ""
     postprocessor_names = [
         postprocessor.name
         for postprocessor in common_components.postprocessor_manager.get_postprocessors(
             "ignored"
         )
     ]
-    assert "UserMemoryPostprocessor" in postprocessor_names
+    assert "UserMemoryPostprocessor" not in postprocessor_names
 
 
 @pytest.mark.asyncio
@@ -155,10 +153,7 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
 ) -> None:
     event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
 
-    # Space-level allow_user_memory must activate memory even when the
-    # services user_memory_config.enabled fallback is left at its default.
     config = UniqueAIConfig(space={"allowUserMemory": True})
-    assert config.agent.services.user_memory_config.enabled is False
 
     common_components = await _build_common(
         event=event,

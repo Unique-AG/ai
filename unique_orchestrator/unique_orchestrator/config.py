@@ -292,11 +292,9 @@ class UniqueAIServices(BaseToolConfig):
         ToolProgressReporterConfig()
     )
 
-    user_memory_config: Annotated[
-        UserMemoryConfig, RJSFMetaTag.SpecialWidget.hidden()
-    ] = Field(
-        title="User Memory",
-        description="Configuration for persistent user memory.",
+    user_memory_config: UserMemoryConfig = Field(
+        title="User Memory (Experimental)",
+        description="Configuration for persistent user memory. Experimental feature - requires activation via feature flag.",
         default_factory=UserMemoryConfig,
     )
 
