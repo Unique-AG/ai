@@ -17,6 +17,8 @@ from unique_search_proxy_client.web.settings.secret_str import (
 
 _URI_DEFAULT_RE = re.compile(r"^https?://", re.IGNORECASE)
 
+DEFAULT_HELM_SECTION = "connection"
+
 
 def snake_to_camel(name: str) -> str:
     parts = name.split("_")
@@ -62,6 +64,17 @@ def _is_scalar_type(annotation: Any) -> bool:
     if isinstance(inner, type) and issubclass(inner, str):
         return True
     return False
+
+
+def _is_list_str_type(annotation: Any) -> bool:
+    origin = get_origin(annotation)
+    if origin is not list:
+        return False
+    args = get_args(annotation)
+    if not args:
+        return False
+    inner = args[0]
+    return inner is str or (isinstance(inner, type) and issubclass(inner, str))
 
 
 def _factory_takes_validated_data(factory: Callable[..., Any]) -> bool:
@@ -110,6 +123,9 @@ class HelmFieldSpec:
     plain_type: str | None
     format_uri: bool
     default: Any
+    section: str
+    block_level: bool
+    container: bool
     emit_in_template: bool
     emit_in_values: bool
 
@@ -155,9 +171,14 @@ def iter_helm_fields(
 
         annotation = field_info.annotation
         origin = get_origin(annotation)
-        if origin in {list, dict}:
+        container = False
+        if origin is dict:
             continue
-        if not _is_scalar_type(annotation) and not _is_secret_type(annotation):
+        if origin is list:
+            if not _is_list_str_type(annotation):
+                continue
+            container = True
+        elif not _is_scalar_type(annotation) and not _is_secret_type(annotation):
             continue
 
         default = _default_value(field_info)
@@ -165,13 +186,16 @@ def iter_helm_fields(
         required_when_enabled = bool(
             helm_extra.get("required_when_enabled")
         ) or field_has_not_provided_default(field_info)
-        schema_ref, plain_type = _schema_ref_for_field(
+        schema_ref, plain_type = _connection_property_types(
             field_info=field_info,
             sensitive=sensitive,
             default=default,
             helm_extra=helm_extra,
+            container=container,
         )
         helm_name = str(helm_extra.get("helm_name", snake_to_camel(field_name)))
+        section = str(helm_extra.get("section", DEFAULT_HELM_SECTION))
+        block_level = bool(helm_extra.get("block_level"))
         spec = HelmFieldSpec(
             python_name=field_name,
             helm_name=helm_name,
@@ -182,6 +206,9 @@ def iter_helm_fields(
             plain_type=plain_type,
             format_uri=_default_is_uri(default),
             default=default,
+            section=section,
+            block_level=block_level,
+            container=container,
             emit_in_template=False,
             emit_in_values=True,
         )
@@ -196,6 +223,9 @@ def iter_helm_fields(
                 plain_type=spec.plain_type,
                 format_uri=spec.format_uri,
                 default=spec.default,
+                section=spec.section,
+                block_level=spec.block_level,
+                container=spec.container,
                 emit_in_template=_should_emit_in_template(spec),
                 emit_in_values=spec.emit_in_values,
             )
@@ -203,7 +233,27 @@ def iter_helm_fields(
     return tuple(specs)
 
 
+def _connection_property_types(
+    *,
+    field_info: FieldInfo,
+    sensitive: bool,
+    default: Any,
+    helm_extra: dict[str, Any],
+    container: bool,
+) -> tuple[str | None, str | None]:
+    if container:
+        return None, None
+    return _schema_ref_for_field(
+        field_info=field_info,
+        sensitive=sensitive,
+        default=default,
+        helm_extra=helm_extra,
+    )
+
+
 def _should_emit_in_template(field: HelmFieldSpec) -> bool:
+    if field.container:
+        return False
     if field.required_when_enabled or field.sensitive:
         return True
     # Optional fields default to ``None`` (no literal in values.yaml) but are
@@ -213,6 +263,8 @@ def _should_emit_in_template(field: HelmFieldSpec) -> bool:
 
 
 def literal_default_for_values(field: HelmFieldSpec) -> str | int | float | bool | None:
+    if field.container:
+        return None
     if field.sensitive or field.required_when_enabled:
         return None
     default = field.default
@@ -225,3 +277,42 @@ def literal_default_for_values(field: HelmFieldSpec) -> str | int | float | bool
     if isinstance(default, (str, int, float, bool)):
         return default
     return str(default)
+
+
+def container_default_items(field: HelmFieldSpec) -> tuple[str, ...] | None:
+    if not field.container:
+        return None
+    default = field.default
+    if not isinstance(default, list):
+        return None
+    return tuple(str(item) for item in default)
+
+
+def group_fields_by_section(
+    fields: tuple[HelmFieldSpec, ...],
+) -> tuple[tuple[str, tuple[HelmFieldSpec, ...]], ...]:
+    """Group fields by section; ``connection`` first, then declaration order."""
+    by_section: dict[str, list[HelmFieldSpec]] = {}
+    section_order: list[str] = []
+    for field in fields:
+        if field.block_level:
+            continue
+        if field.section not in by_section:
+            by_section[field.section] = []
+            section_order.append(field.section)
+        by_section[field.section].append(field)
+
+    ordered_names: list[str] = []
+    if DEFAULT_HELM_SECTION in by_section:
+        ordered_names.append(DEFAULT_HELM_SECTION)
+    for name in section_order:
+        if name != DEFAULT_HELM_SECTION:
+            ordered_names.append(name)
+
+    return tuple((name, tuple(by_section[name])) for name in ordered_names)
+
+
+def block_level_fields(
+    fields: tuple[HelmFieldSpec, ...],
+) -> tuple[HelmFieldSpec, ...]:
+    return tuple(field for field in fields if field.block_level)

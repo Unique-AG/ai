@@ -1,6 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from functools import lru_cache
+from importlib.resources import files
+
+from jinja2 import Environment, StrictUndefined, Template
+
 from unique_search_proxy_client.web.helm.generator.introspect import (
+    block_level_fields,
+    container_default_items,
+    group_fields_by_section,
     iter_helm_fields,
     literal_default_for_values,
 )
@@ -8,6 +17,13 @@ from unique_search_proxy_client.web.helm.registry import HelmSettingsGroup
 
 _VALUES_BEGIN = "# @helm-gen:begin providers"
 _VALUES_END = "# @helm-gen:end providers"
+
+_TEMPLATE_PACKAGE = "unique_search_proxy_client.web.helm.generator"
+_TEMPLATE_NAME = "provider_values_yaml.j2"
+
+_SENSITIVE_PLACEHOLDER = "<fromSecret or fromSecretProvider>"
+_REQUIRED_PLACEHOLDER = "<set in cluster overlay when enabled>"
+_CONTAINER_NOTE = "code default, not env-overridable"
 
 
 def _yaml_scalar(value: str | int | float | bool) -> str:
@@ -27,43 +43,112 @@ def json_quote(value: str) -> str:
     return f'"{escaped}"'
 
 
-def _render_provider_block(group: HelmSettingsGroup) -> list[str]:
-    assert group.helm_key is not None
-    lines = [f"{group.helm_key}:", "  enabled: false"]
-    fields = iter_helm_fields(group.model, env_prefix=group.env_prefix)
-    literal_lines: list[str] = []
-    comment_lines: list[str] = []
+@dataclass(frozen=True)
+class _ValueRow:
+    """One values.yaml line or commented placeholder under a section."""
+
+    helm_name: str
+    literal: str | None = None
+    placeholder: str | None = None
+    container_items: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True)
+class _SectionBlock:
+    name: str
+    rows: tuple[_ValueRow, ...]
+
+
+@dataclass(frozen=True)
+class _ProviderBlock:
+    helm_key: str
+    kind: str
+    enabled_literal: str | None
+    sections: tuple[_SectionBlock, ...]
+
+
+@lru_cache(maxsize=1)
+def _template() -> Template:
+    text = (
+        files(_TEMPLATE_PACKAGE)
+        .joinpath("templates", _TEMPLATE_NAME)
+        .read_text(encoding="utf-8")
+    )
+    env = Environment(
+        trim_blocks=True,
+        lstrip_blocks=True,
+        keep_trailing_newline=True,
+        autoescape=False,
+        undefined=StrictUndefined,
+    )
+    return env.from_string(text)
+
+
+def _rows_for_fields(fields: tuple) -> tuple[_ValueRow, ...]:
+    literal_rows: list[_ValueRow] = []
+    comment_rows: list[_ValueRow] = []
     for field in fields:
+        container_items = container_default_items(field)
+        if container_items is not None:
+            comment_rows.append(
+                _ValueRow(field.helm_name, container_items=container_items)
+            )
+            continue
         default = literal_default_for_values(field)
         if default is not None:
-            literal_lines.append(f"    {field.helm_name}: {_yaml_scalar(default)}")
+            literal_rows.append(
+                _ValueRow(field.helm_name, literal=_yaml_scalar(default))
+            )
         elif field.required_when_enabled or field.sensitive:
-            label = field.helm_name
-            if field.sensitive:
-                comment_lines.append(f"  # {label}: <fromSecret or fromSecretProvider>")
-            else:
-                comment_lines.append(
-                    f"  # {label}: <set in cluster overlay when enabled>"
-                )
-    lines.extend(comment_lines)
-    lines.append("  connection:")
-    if literal_lines:
-        lines.extend(literal_lines)
-    else:
-        lines.append("    {}")
-    return lines
+            placeholder = (
+                _SENSITIVE_PLACEHOLDER if field.sensitive else _REQUIRED_PLACEHOLDER
+            )
+            comment_rows.append(_ValueRow(field.helm_name, placeholder=placeholder))
+    return tuple(literal_rows + comment_rows)
+
+
+def _provider_block(group: HelmSettingsGroup) -> _ProviderBlock:
+    fields = iter_helm_fields(group.model, env_prefix=group.env_prefix)
+    if group.kind == "urlSafety":
+        enabled_literal = None
+        for block_field in block_level_fields(fields):
+            default = literal_default_for_values(block_field)
+            if default is not None:
+                enabled_literal = _yaml_scalar(default)
+        sections = tuple(
+            _SectionBlock(name, _rows_for_fields(section_fields))
+            for name, section_fields in group_fields_by_section(fields)
+        )
+        return _ProviderBlock(
+            helm_key=group.helm_key or "",
+            kind=group.kind,
+            enabled_literal=enabled_literal,
+            sections=sections,
+        )
+
+    sections = tuple(
+        _SectionBlock(name, _rows_for_fields(section_fields))
+        for name, section_fields in group_fields_by_section(fields)
+    )
+    return _ProviderBlock(
+        helm_key=group.helm_key or "",
+        kind=group.kind,
+        enabled_literal=None,
+        sections=sections,
+    )
 
 
 def render_provider_values_section(groups: tuple[HelmSettingsGroup, ...]) -> str:
-    lines = [_VALUES_BEGIN]
-    for index, group in enumerate(groups):
-        if index > 0:
-            lines.append("")
-        lines.extend(_render_provider_block(group))
-    lines.append("")
-    lines.append("# urlSafety: omitted in v1 (lists use code defaults)")
-    lines.append(_VALUES_END)
-    return "\n".join(lines) + "\n"
+    blocks = []
+    for group in groups:
+        assert group.helm_key is not None
+        blocks.append(_provider_block(group))
+    return _template().render(
+        begin_marker=_VALUES_BEGIN,
+        end_marker=_VALUES_END,
+        groups=blocks,
+        container_note=_CONTAINER_NOTE,
+    )
 
 
 def patch_values_yaml(

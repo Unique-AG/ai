@@ -22,13 +22,19 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 
 def _values_path(group: HelmSettingsGroup, field: HelmFieldSpec, *, hooks: bool) -> str:
     root = ".ctx.Values" if hooks else ".Values"
-    return f"{root}.{group.helm_key}.connection.{field.helm_name}"
+    if field.block_level:
+        return f"{root}.{group.helm_key}.{field.helm_name}"
+    return f"{root}.{group.helm_key}.{field.section}.{field.helm_name}"
 
 
 def _fail_message(group: HelmSettingsGroup, field: HelmFieldSpec) -> str:
+    if field.block_level:
+        path = f"{group.helm_key}.{field.helm_name}"
+    else:
+        path = f"{group.helm_key}.{field.section}.{field.helm_name}"
     return (
-        f"{group.helm_key}.connection.{field.helm_name} is required when "
-        f"{group.helm_key}.enabled is true. Set it in your environment overlay."
+        f"{path} is required when {group.helm_key}.enabled is true. "
+        "Set it in your environment overlay."
     )
 
 
@@ -81,6 +87,14 @@ def _emit_env_field(
 
 
 def _emit_group_env_block(group: HelmSettingsGroup, *, hooks: bool) -> list[str]:
+    if group.kind == "urlSafety":
+        lines: list[str] = []
+        for field in iter_helm_fields(group.model, env_prefix=group.env_prefix):
+            if not field.emit_in_template:
+                continue
+            lines.extend(_emit_env_field(group, field, hooks=hooks))
+        return lines
+
     values_root = ".ctx.Values" if hooks else ".Values"
     lines = [
         f"{{{{- if and {values_root}.{group.helm_key} "
@@ -117,10 +131,11 @@ def _emit_endpoint_field_egress(
 
     helm_endpoint = endpoint_field.helm_name
     fail_msg = _fail_message(group, endpoint_field)
+    section = endpoint_field.section
     return [
         f"{{{{- if and .Values.{group.helm_key} .Values.{group.helm_key}.enabled -}}}}",
         f'{{{{- $endpoint := required "{fail_msg}" '
-        f".Values.{group.helm_key}.connection.{helm_endpoint} -}}}}",
+        f".Values.{group.helm_key}.{section}.{helm_endpoint} -}}}}",
         "{{- $parsed := urlParse $endpoint -}}",
         '{{- $hostParts := $parsed.host | splitList ":" -}}',
         "{{- $host := first $hostParts -}}",
@@ -147,10 +162,11 @@ def _emit_domain_wildcard_egress(
 
     helm_domain = domain_field.helm_name
     fail_msg = _fail_message(group, domain_field)
+    section = domain_field.section
     return [
         f"{{{{- if and .Values.{group.helm_key} .Values.{group.helm_key}.enabled -}}}}",
         f'{{{{- $domain := required "{fail_msg}" '
-        f".Values.{group.helm_key}.connection.{helm_domain} -}}}}",
+        f".Values.{group.helm_key}.{section}.{helm_domain} -}}}}",
         "- toFQDNs:",
         '  - matchPattern: {{ printf "*.%s" $domain | quote }}',
         "  toPorts:",
@@ -199,7 +215,9 @@ def _emit_secret_provider_block(groups: tuple[HelmSettingsGroup, ...]) -> list[s
             f".ctx.Values.{group.helm_key}.enabled -}}}}"
         )
         field_refs = " ".join(
-            f".ctx.Values.{group.helm_key}.connection.{field.helm_name}"
+            f".ctx.Values.{group.helm_key}.{field.section}.{field.helm_name}"
+            if not field.block_level
+            else f".ctx.Values.{group.helm_key}.{field.helm_name}"
             for field in sensitive_fields
         )
         lines.append(

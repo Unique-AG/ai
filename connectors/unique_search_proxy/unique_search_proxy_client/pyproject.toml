@@ -20,6 +20,7 @@ dependencies = [
     "certifi>=2025.11.12,<2027",
     "google-genai>=1.73.0,<2",
     "google-auth>=2.43.0,<3",
+    "jinja2>=3.1.6,<4",
     "unique-toolkit[monitoring]>=2026.26.0",
     "unique-search-proxy-core>=2026.26.0",
 ]

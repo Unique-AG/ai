@@ -115,12 +115,24 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end -}}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
-  value: {{ .Values.httpClient.connection.poolTimeoutSeconds | quote }}
+  value: {{ .Values.httpClient.tuning.poolTimeoutSeconds | quote }}
 - name: HTTP_CLIENT_MAX_CONNECTIONS
-  value: {{ .Values.httpClient.connection.maxConnections | quote }}
+  value: {{ .Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
-  value: {{ .Values.httpClient.connection.maxKeepaliveConnections | quote }}
+  value: {{ .Values.httpClient.tuning.maxKeepaliveConnections | quote }}
 {{- end -}}
+- name: URL_SAFETY_ENABLED
+  value: {{ .Values.urlSafety.enabled | quote }}
+- name: URL_SAFETY_RESOLVE_REDIRECTS
+  value: {{ .Values.urlSafety.redirects.resolveRedirects | quote }}
+- name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
+  value: {{ .Values.urlSafety.network.clusterLocalSuffix | quote }}
+- name: URL_SAFETY_SERVICE_SUFFIX
+  value: {{ .Values.urlSafety.network.serviceSuffix | quote }}
+- name: URL_SAFETY_MAX_REDIRECT_HOPS
+  value: {{ .Values.urlSafety.redirects.maxRedirectHops | quote }}
+- name: URL_SAFETY_REDIRECT_TIMEOUT_SECONDS
+  value: {{ .Values.urlSafety.redirects.redirectTimeoutSeconds | quote }}
 {{- end -}}
 
 {{- define "base.externalService.hooks.env.ext" -}}
@@ -233,12 +245,24 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .ctx.Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end -}}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
-  value: {{ .ctx.Values.httpClient.connection.poolTimeoutSeconds | quote }}
+  value: {{ .ctx.Values.httpClient.tuning.poolTimeoutSeconds | quote }}
 - name: HTTP_CLIENT_MAX_CONNECTIONS
-  value: {{ .ctx.Values.httpClient.connection.maxConnections | quote }}
+  value: {{ .ctx.Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
-  value: {{ .ctx.Values.httpClient.connection.maxKeepaliveConnections | quote }}
+  value: {{ .ctx.Values.httpClient.tuning.maxKeepaliveConnections | quote }}
 {{- end -}}
+- name: URL_SAFETY_ENABLED
+  value: {{ .ctx.Values.urlSafety.enabled | quote }}
+- name: URL_SAFETY_RESOLVE_REDIRECTS
+  value: {{ .ctx.Values.urlSafety.redirects.resolveRedirects | quote }}
+- name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
+  value: {{ .ctx.Values.urlSafety.network.clusterLocalSuffix | quote }}
+- name: URL_SAFETY_SERVICE_SUFFIX
+  value: {{ .ctx.Values.urlSafety.network.serviceSuffix | quote }}
+- name: URL_SAFETY_MAX_REDIRECT_HOPS
+  value: {{ .ctx.Values.urlSafety.redirects.maxRedirectHops | quote }}
+- name: URL_SAFETY_REDIRECT_TIMEOUT_SECONDS
+  value: {{ .ctx.Values.urlSafety.redirects.redirectTimeoutSeconds | quote }}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.cilium.egress.rules.ext" -}}

@@ -5,13 +5,19 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
-from unique_search_proxy_core.url_safety.settings import url_safety_settings
 
 from unique_search_proxy_client.web.helm.metadata import (
     EgressRule,
     HelmSettingsKind,
     helm_env_prefix,
     helm_meta,
+)
+from unique_search_proxy_client.web.helm.url_safety_registration import (
+    URL_SAFETY_ENV_PREFIX,
+    URL_SAFETY_HELM_KEY,
+    URL_SAFETY_MODEL,
+    URL_SAFETY_TITLE,
+    url_safety_settings,
 )
 from unique_search_proxy_client.web.settings.client import http_client_settings
 from unique_search_proxy_client.web.settings.monitoring import prometheus_settings
@@ -74,20 +80,22 @@ def _group_from_instance(instance: BaseSettings) -> HelmSettingsGroup:
     )
 
 
+def _url_safety_settings_group() -> HelmSettingsGroup:
+    return HelmSettingsGroup(
+        title=URL_SAFETY_TITLE,
+        model=URL_SAFETY_MODEL,
+        instance=url_safety_settings,
+        env_prefix=URL_SAFETY_ENV_PREFIX,
+        helm_key=URL_SAFETY_HELM_KEY,
+        kind="urlSafety",
+    )
+
+
 def all_settings_groups() -> tuple[HelmSettingsGroup, ...]:
     """All settings groups shown in the startup report."""
     return (
         *(_group_from_instance(instance) for instance in _REGISTERED_INSTANCES),
-        # URL Safety lives in unique_search_proxy_core, so it cannot carry the
-        # @helm_settings decorator; describe it explicitly here.
-        HelmSettingsGroup(
-            title="URL Safety",
-            model=type(url_safety_settings),
-            instance=url_safety_settings,
-            env_prefix="URL_SAFETY_",
-            helm_key=None,
-            kind="urlSafety",
-        ),
+        _url_safety_settings_group(),
     )
 
 

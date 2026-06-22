@@ -10,7 +10,7 @@ pass their ``env_prefix`` here.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal, TypeVar
 
@@ -68,6 +68,43 @@ _ENV_PREFIX_ATTR = "_env_prefix"
 S = TypeVar("S", bound=type[BaseSettings])
 
 
+def assign_field_sections(
+    model: type[BaseSettings],
+    sections: Mapping[str, Sequence[str]],
+) -> None:
+    """Inject ``json_schema_extra['helm']['section']`` onto named model fields.
+
+    Inline field-level ``helm.section`` values win and are never overwritten.
+    """
+    field_to_section: dict[str, str] = {}
+    for section, names in sections.items():
+        for name in names:
+            if name in field_to_section:
+                msg = f"{name!r} assigned to two sections"
+                raise ValueError(msg)
+            field_to_section[name] = section
+
+    unknown = set(field_to_section) - set(model.model_fields)
+    if unknown:
+        msg = f"{model.__name__}: unknown fields {sorted(unknown)}"
+        raise ValueError(msg)
+
+    for name, section in field_to_section.items():
+        info = model.model_fields[name]
+        extra = info.json_schema_extra
+        if extra is None:
+            extra = {}
+            info.json_schema_extra = extra
+        if not isinstance(extra, dict):
+            msg = f"{name!r} has non-dict json_schema_extra; cannot merge"
+            raise TypeError(msg)
+        helm = extra.setdefault("helm", {})
+        if not isinstance(helm, dict):
+            msg = f"{name!r} has non-dict helm json_schema_extra"
+            raise TypeError(msg)
+        helm.setdefault("section", section)
+
+
 def helm_settings(
     *,
     title: str,
@@ -75,12 +112,16 @@ def helm_settings(
     kind: HelmSettingsKind = "provider",
     egress: EgressRule | None = _DEFAULT_EGRESS,
     env_prefix: str | None = None,
+    sections: Mapping[str, Sequence[str]] | None = None,
 ) -> Callable[[S], S]:
     """Attach Helm-registry metadata to a settings class.
 
     Pass ``env_prefix`` for classes that are *not* credential providers (their
     ``_env_prefix`` is otherwise unset); for provider classes leave it out, since
     ``@provider_credentials`` already owns ``_env_prefix``.
+
+    Pass ``sections`` to assign model fields to named Helm value sub-blocks
+    (e.g. ``connection`` vs ``tuning``). Unlisted fields default to ``connection``.
     """
 
     def decorate(cls: S) -> S:
@@ -97,6 +138,8 @@ def helm_settings(
         )
         if env_prefix is not None:
             setattr(cls, _ENV_PREFIX_ATTR, env_prefix)
+        if sections is not None:
+            assign_field_sections(cls, sections)
         return cls
 
     return decorate

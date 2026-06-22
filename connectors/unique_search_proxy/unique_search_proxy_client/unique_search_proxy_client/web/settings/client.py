@@ -27,6 +27,13 @@ class ProxyConfig(BaseModel):
     kind="httpClient",
     egress=None,
     env_prefix=HTTP_CLIENT_ENV_PREFIX,
+    sections={
+        "tuning": [
+            "pool_timeout_seconds",
+            "max_connections",
+            "max_keepalive_connections",
+        ],
+    },
 )
 class HttpClientSettings(BaseSettings):
     """Outbound HTTP client: corporate proxy and connection pool limits.
