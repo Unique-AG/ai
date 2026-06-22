@@ -2254,7 +2254,13 @@
             "proxySslKeyPath": {
               "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_KEY_PATH.",
               "$ref": "#/$defs/valueSourceString"
-            },
+            }
+          }
+        },
+        "tuning": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
             "poolTimeoutSeconds": {
               "description": "Maps to env var HTTP_CLIENT_POOL_TIMEOUT_SECONDS.",
               "type": "number"
@@ -2266,6 +2272,49 @@
             "maxKeepaliveConnections": {
               "description": "Maps to env var HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS.",
               "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
+    },
+    "urlSafety": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "URL Safety configuration. Generated from UrlSafetySettings (URL_SAFETY_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "redirects": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "resolveRedirects": {
+              "description": "Maps to env var URL_SAFETY_RESOLVE_REDIRECTS.",
+              "$ref": "#/$defs/valueSourceBoolean"
+            },
+            "maxRedirectHops": {
+              "description": "Maps to env var URL_SAFETY_MAX_REDIRECT_HOPS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "redirectTimeoutSeconds": {
+              "description": "Maps to env var URL_SAFETY_REDIRECT_TIMEOUT_SECONDS.",
+              "type": "number"
+            }
+          }
+        },
+        "network": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "clusterLocalSuffix": {
+              "description": "Maps to env var URL_SAFETY_CLUSTER_LOCAL_SUFFIX.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "serviceSuffix": {
+              "description": "Maps to env var URL_SAFETY_SERVICE_SUFFIX.",
+              "$ref": "#/$defs/valueSourceString"
             }
           }
         }
