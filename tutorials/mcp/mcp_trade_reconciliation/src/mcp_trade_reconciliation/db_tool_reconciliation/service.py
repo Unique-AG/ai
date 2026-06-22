@@ -403,16 +403,19 @@ def _load_for_matching(
 
 def _persist_match(conn, outcome: MatchOutcome) -> None:
     with conn.cursor() as cur:
+        # Only stamp matched_at when the row actually matched; unmatched rows
+        # must keep a NULL timestamp instead of a misleading "recently matched".
         cur.execute(
             f"UPDATE {COUNTERPARTY_TABLE} SET "
             "status = %s, matched_customer_cf_id = %s, difference = %s, "
-            "match_reason = %s, matched_at = NOW() "
+            "match_reason = %s, matched_at = CASE WHEN %s THEN NOW() ELSE NULL END "
             "WHERE id = %s",
             (
                 "MATCHED" if outcome.matched else "UNMATCHED",
                 outcome.customer_cf_id,
                 outcome.difference,
                 outcome.reason,
+                outcome.matched,
                 outcome.email_id,
             ),
         )
