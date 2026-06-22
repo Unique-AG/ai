@@ -20,6 +20,9 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.service import SkillTool
+from unique_toolkit.app.schemas import SkillReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelUserMessage,
@@ -46,6 +49,7 @@ def mock_unique_ai(monkeypatch: pytest.MonkeyPatch) -> "UniqueAI":
     dummy_event = MagicMock()
     dummy_event.payload.assistant_message.id = "assist_1"
     dummy_event.payload.user_message.text = "query"
+    dummy_event.payload.skill_choices = []
     dummy_event.company_id = "co-1"
 
     mock_config = MagicMock()
@@ -226,3 +230,68 @@ class TestLogToolCallsExcludesSkill:
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
             text="**Triggered Tool Calls:**\n - Search", references=[]
         )
+
+
+def _make_skill(
+    name: str,
+    content_id: str,
+) -> SkillDefinition:
+    return SkillDefinition(
+        name=name,
+        description="desc",
+        content="skill body",
+        content_id=content_id,
+    )
+
+
+def _make_skill_tool(
+    skills: list[SkillDefinition],
+    activated_skills: list[SkillDefinition] | None = None,
+) -> SkillTool:
+    tool = SkillTool.__new__(SkillTool)
+    tool._skill_registry = {skill.name: skill for skill in skills}  # type: ignore[attr-defined]
+    tool._activated_skills = activated_skills or []  # type: ignore[attr-defined]
+    return tool
+
+
+class TestActivatedSkillsDebugInfo:
+    def test_activated_skills_are_listed_with_forced_flag(
+        self, mock_unique_ai: "UniqueAI"
+    ) -> None:
+        summarize = _make_skill("summarize", "cid-1")
+        code_review = _make_skill("code-review", "cid-2")
+        skill_tool = _make_skill_tool(
+            [summarize, code_review],
+            activated_skills=[summarize, code_review],
+        )
+        mock_unique_ai._tool_manager.get_tool_by_name.return_value = skill_tool
+        mock_unique_ai._skill_choices = [
+            SkillReference(name="code-review", content_id="cid-2")
+        ]
+
+        assert mock_unique_ai._get_activated_skills_debug_info() == [
+            {"name": "summarize", "content_id": "cid-1", "is_forced": False},
+            {"name": "code-review", "content_id": "cid-2", "is_forced": True},
+        ]
+
+    def test_loaded_but_inactive_skills_are_omitted(
+        self, mock_unique_ai: "UniqueAI"
+    ) -> None:
+        summarize = _make_skill("summarize", "cid-1")
+        code_review = _make_skill("code-review", "cid-2")
+        skill_tool = _make_skill_tool(
+            [summarize, code_review],
+            activated_skills=[code_review],
+        )
+        mock_unique_ai._tool_manager.get_tool_by_name.return_value = skill_tool
+
+        assert mock_unique_ai._get_activated_skills_debug_info() == [
+            {"name": "code-review", "content_id": "cid-2", "is_forced": False},
+        ]
+
+    def test_activated_skills_debug_info_empty_without_skill_tool(
+        self, mock_unique_ai: "UniqueAI"
+    ) -> None:
+        mock_unique_ai._tool_manager.get_tool_by_name.return_value = None
+
+        assert mock_unique_ai._get_activated_skills_debug_info() == []
