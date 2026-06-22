@@ -205,7 +205,9 @@ def kb_download(
     local_dir: Annotated[
         Path,
         typer.Argument(
-            help="Local folder where KB files are written.",
+            file_okay=False,
+            writable=True,
+            help="Local folder where KB files are written (created if missing).",
         ),
     ],
     slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
