@@ -57,7 +57,7 @@ async def test_consolidate_user_memory_keeps_existing_on_noop(
         user_id="user_1",
         user_message="hello",
         assistant_message="hi",
-        config=UserMemoryConfig(enabled=True),
+        config=UserMemoryConfig(),
         event=MagicMock(),
         logger=MagicMock(),
     )
@@ -84,7 +84,7 @@ async def test_consolidate_user_memory_keeps_existing_on_malformed_output(
         user_id="user_1",
         user_message="remember I like concise answers",
         assistant_message="noted",
-        config=UserMemoryConfig(enabled=True),
+        config=UserMemoryConfig(),
         event=MagicMock(),
         logger=MagicMock(),
     )
@@ -380,7 +380,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     loop_response.message.text = "noted"
     logger = MagicMock()
     postprocessor = UserMemoryPostprocessor(
-        config=UserMemoryConfig(enabled=True),
+        config=UserMemoryConfig(),
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
@@ -421,7 +421,7 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     loop_response.message.text = "noted"
     logger = MagicMock()
     postprocessor = UserMemoryPostprocessor(
-        config=UserMemoryConfig(enabled=True),
+        config=UserMemoryConfig(),
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
