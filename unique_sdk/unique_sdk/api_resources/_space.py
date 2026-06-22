@@ -44,6 +44,15 @@ class Space(APIResource["Space"]):
         id: NotRequired[str | None]
         order: NotRequired[int | None]
 
+    class SubAgentSettings(TypedDict):
+        icon: str
+        name: str
+        displayName: str
+        selectionPolicy: str
+        isUserInitiatedOnly: NotRequired[bool | None]
+        isExclusive: bool
+        configuration: dict[str, Any]
+
     class CreateSpaceParams(RequestOptions):
         name: str
         fallbackModule: str
@@ -57,6 +66,9 @@ class Space(APIResource["Space"]):
         uiType: NotRequired["Space.UiType | None"]
         settings: NotRequired[dict[str, Any] | None]
         assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
+        isSubAgent: NotRequired[bool | None]
+        subAgentSettings: NotRequired["Space.SubAgentSettings | None"]
+        subAgentIds: NotRequired[list[str] | None]
 
     class UpdateParams(RequestOptions):
         name: NotRequired[str | None]
@@ -71,6 +83,9 @@ class Space(APIResource["Space"]):
         allowEndUserSpace: NotRequired[bool | None]
         uiType: NotRequired["Space.UiType | None"]
         assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
+        isSubAgent: NotRequired[bool | None]
+        subAgentSettings: NotRequired["Space.SubAgentSettings | None"]
+        subAgentIds: NotRequired[list[str] | None]
 
     class AccessEntry(TypedDict):
         entityId: str
@@ -255,6 +270,17 @@ class Space(APIResource["Space"]):
         createdAt: str
         updatedAt: str
 
+    SubAgentSettingsOverride: TypeAlias = SubAgentSettings
+
+    class SubAgent(TypedDict):
+        id: str
+        name: str
+        title: NotRequired[str | None]
+        subtitle: NotRequired[str | None]
+        explanation: NotRequired[str | None]
+        isSubAgent: bool
+        settingsOverride: NotRequired["Space.SubAgentSettingsOverride | None"]
+
     class Access(TypedDict):
         id: str
         entityId: str
@@ -286,8 +312,10 @@ class Space(APIResource["Space"]):
     access: list[str]
     isExternal: bool
     isPinned: bool
+    isSubAgent: bool
     uiType: str
     settings: dict[str, Any] | None
+    subAgents: list["Space.SubAgent"]
     assistantMcpServers: list["Space.McpServer"]
     modules: list["Space.Module"]
     scopeRules: list["Space.ScopeRule"]
