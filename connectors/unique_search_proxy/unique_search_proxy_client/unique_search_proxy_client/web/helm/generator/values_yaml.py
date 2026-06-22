@@ -58,6 +58,16 @@ class _SectionBlock:
     name: str
     rows: tuple[_ValueRow, ...]
 
+    @property
+    def has_values(self) -> bool:
+        """True when at least one row renders an actual YAML key.
+
+        Sections whose rows are all commented placeholders (sensitive or
+        container fields) would otherwise serialise to ``null`` and fail
+        schema validation, so the template emits ``{}`` for them.
+        """
+        return any(row.literal is not None for row in self.rows)
+
 
 @dataclass(frozen=True)
 class _ProviderBlock:

@@ -51,9 +51,12 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .Values.bingAgent.connection.usePrivateEndpointTransport | quote }}
 {{- end -}}
 {{- if and .Values.vertexaiAgent .Values.vertexaiAgent.enabled -}}
-{{- if .Values.vertexaiAgent.connection.serviceAccountCredentials -}}
-{{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .) }}
+- name: VERTEXAI_AGENT_CREDENTIAL_TYPE
+  value: {{ .Values.vertexaiAgent.connection.credentialType | quote }}
+{{- if not .Values.vertexaiAgent.connection.serviceAccountCredentials -}}
+{{- fail "vertexaiAgent.connection.serviceAccountCredentials is required when vertexaiAgent.enabled is true. Set it in your environment overlay." -}}
 {{- end -}}
+{{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .) }}
 {{- end -}}
 {{- if and .Values.tavily .Values.tavily.enabled -}}
 {{- if not .Values.tavily.connection.apiKey -}}
@@ -181,9 +184,12 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .ctx.Values.bingAgent.connection.usePrivateEndpointTransport | quote }}
 {{- end -}}
 {{- if and .ctx.Values.vertexaiAgent .ctx.Values.vertexaiAgent.enabled -}}
-{{- if .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials -}}
-{{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .ctx) }}
+- name: VERTEXAI_AGENT_CREDENTIAL_TYPE
+  value: {{ .ctx.Values.vertexaiAgent.connection.credentialType | quote }}
+{{- if not .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials -}}
+{{- fail "vertexaiAgent.connection.serviceAccountCredentials is required when vertexaiAgent.enabled is true. Set it in your environment overlay." -}}
 {{- end -}}
+{{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .ctx) }}
 {{- end -}}
 {{- if and .ctx.Values.tavily .ctx.Values.tavily.enabled -}}
 {{- if not .ctx.Values.tavily.connection.apiKey -}}

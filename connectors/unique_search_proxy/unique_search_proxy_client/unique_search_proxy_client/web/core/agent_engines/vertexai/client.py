@@ -11,13 +11,21 @@ from google.genai.client import AsyncClient
 from unique_search_proxy_client.web.settings.providers.vertexai_agent import (
     vertexai_agent_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import read_secret
+from unique_search_proxy_client.web.settings.secret_str import (
+    is_secret_configured,
+    read_secret,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def _get_base_api_client_from_service_account() -> BaseApiClient:
-    assert vertexai_agent_credentials.service_account_credentials is not None
+    if not is_secret_configured(vertexai_agent_credentials.service_account_credentials):
+        msg = (
+            "VERTEXAI_AGENT_CREDENTIAL_TYPE is 'service_account' but "
+            "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS is not set."
+        )
+        raise ValueError(msg)
 
     scopes = vertexai_agent_credentials.service_account_scopes or [
         "https://www.googleapis.com/auth/cloud-platform",
@@ -43,11 +51,11 @@ def _get_base_api_client_from_adc() -> BaseApiClient:
 
 
 def get_vertex_client() -> AsyncClient:
-    if vertexai_agent_credentials.service_account_credentials is not None:
+    if vertexai_agent_credentials.credential_type == "service_account":
         _LOGGER.info("Using explicit service account credentials for VertexAI agent")
         base_api_client = _get_base_api_client_from_service_account()
     else:
-        _LOGGER.info("Using ADC for VertexAI agent")
+        _LOGGER.info("Using workload identity (ADC) for VertexAI agent")
         base_api_client = _get_base_api_client_from_adc()
     return AsyncClient(api_client=base_api_client)
 

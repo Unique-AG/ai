@@ -248,13 +248,43 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "credentialType": {
+              "description": "Maps to env var VERTEXAI_AGENT_CREDENTIAL_TYPE.",
+              "$ref": "#/$defs/valueSourceString"
+            },
             "serviceAccountCredentials": {
               "description": "Maps to env var VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS.",
               "$ref": "#/$defs/valueSourceSensitive"
             }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "connection"
+            ],
+            "properties": {
+              "connection": {
+                "required": [
+                  "serviceAccountCredentials"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "tavily": {
       "type": "object",

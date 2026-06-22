@@ -11,7 +11,9 @@
 {% endif %}
 {% for section in group.sections %}
   {{ section.name }}:
-{% if section.rows %}
+{% if not section.has_values %}
+    {}
+{% endif %}
 {% for row in section.rows %}
 {% if row.literal is not none %}
     {{ row.helm_name }}: {{ row.literal }}
@@ -24,9 +26,6 @@
     # {{ row.helm_name }}: {{ row.placeholder }}
 {% endif %}
 {% endfor %}
-{% else %}
-    {}
-{% endif %}
 {% endfor %}
 {% endfor %}
 {{ end_marker }}

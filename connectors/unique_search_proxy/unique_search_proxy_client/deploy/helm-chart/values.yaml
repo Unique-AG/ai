@@ -127,7 +127,10 @@ bingAgent:
 vertexaiAgent:
   enabled: false
   connection:
+    credentialType: workload_identity
     # serviceAccountCredentials: <fromSecret or fromSecretProvider>
+    # serviceAccountScopes (code default, not env-overridable):
+    #   - https://www.googleapis.com/auth/cloud-platform
 
 tavily:
   enabled: false
