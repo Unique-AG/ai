@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from pydantic import Field
 
+from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.providers.base import (
-    NOT_PROVIDED,
     ProviderCredentials,
     provider_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED
 
 _ENV_PREFIX = "BING_AGENT_"
 
 
+@helm_settings(title="Bing Agent", helm_key="bingAgent", egress=None)
 @provider_credentials(_ENV_PREFIX)
 class _BingAgentCredentials(ProviderCredentials):
     """Environment-backed credentials for Bing grounding via Azure AI Projects."""

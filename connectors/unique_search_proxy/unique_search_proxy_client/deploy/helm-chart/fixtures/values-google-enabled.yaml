@@ -1,0 +1,13 @@
+# Overlay fixture: enable Google Custom Search (no real secrets).
+googleSearch:
+  enabled: true
+  connection:
+    apiEndpoint: https://www.googleapis.com/customsearch/v1
+    engineId: test-engine-id
+    apiKey:
+      fromSecret:
+        name: search-proxy-secrets
+        key: GOOGLE_SEARCH_API_KEY
+
+networkPolicy:
+  enabled: true

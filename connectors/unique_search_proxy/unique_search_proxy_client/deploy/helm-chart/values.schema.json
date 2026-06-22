@@ -1791,27 +1791,28 @@
     "googleSearch": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Google Custom Search API configuration. Mirrors the app's _GoogleCredentials pydantic model (api_endpoint, engine_id, api_key).",
+      "description": "Google Search configuration. Generated from Settings (GOOGLE_SEARCH_* env vars).",
       "properties": {
         "enabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": false
         },
         "connection": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "apiKey": {
+              "description": "Maps to env var GOOGLE_SEARCH_API_KEY.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
             "apiEndpoint": {
+              "description": "Maps to env var GOOGLE_SEARCH_API_ENDPOINT.",
               "type": "string",
-              "format": "uri",
-              "description": "Google Custom Search API base URL."
+              "format": "uri"
             },
             "engineId": {
-              "type": "string",
-              "description": "Google Programmable Search Engine ID (cx query parameter). Set in your environment overlay."
-            },
-            "apiKey": {
-              "$ref": "#/$defs/valueSourceSensitive",
-              "description": "Google Search API key. Set in your environment overlay."
+              "description": "Maps to env var GOOGLE_SEARCH_ENGINE_ID.",
+              "$ref": "#/$defs/valueSourceString"
             }
           }
         }
@@ -1835,8 +1836,59 @@
             "properties": {
               "connection": {
                 "required": [
-                  "apiEndpoint",
-                  "engineId",
+                  "apiKey",
+                  "engineId"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "braveSearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Brave Search configuration. Generated from Settings (BRAVE_SEARCH_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "apiKey": {
+              "description": "Maps to env var BRAVE_SEARCH_API_KEY.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "apiEndpoint": {
+              "description": "Maps to env var BRAVE_SEARCH_API_ENDPOINT.",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "connection"
+            ],
+            "properties": {
+              "connection": {
+                "required": [
                   "apiKey"
                 ]
               }
@@ -1844,6 +1896,380 @@
           }
         }
       ]
+    },
+    "perplexitySearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Perplexity Search configuration. Generated from Settings (PERPLEXITY_SEARCH_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "apiKey": {
+              "description": "Maps to env var PERPLEXITY_SEARCH_API_KEY.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "apiEndpoint": {
+              "description": "Maps to env var PERPLEXITY_SEARCH_API_ENDPOINT.",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "connection"
+            ],
+            "properties": {
+              "connection": {
+                "required": [
+                  "apiKey"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "bingAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Bing Agent configuration. Generated from Settings (BING_AGENT_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "endpoint": {
+              "description": "Maps to env var BING_AGENT_ENDPOINT.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "bingResourceConnectionString": {
+              "description": "Maps to env var BING_AGENT_BING_RESOURCE_CONNECTION_STRING.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "agentId": {
+              "description": "Maps to env var BING_AGENT_AGENT_ID.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "bingAgentModel": {
+              "description": "Maps to env var BING_AGENT_BING_AGENT_MODEL.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "azureIdentityCredentialType": {
+              "description": "Maps to env var BING_AGENT_AZURE_IDENTITY_CREDENTIAL_TYPE.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "azureIdentityValidateTokenUrl": {
+              "description": "Maps to env var BING_AGENT_AZURE_IDENTITY_VALIDATE_TOKEN_URL.",
+              "type": "string",
+              "format": "uri"
+            },
+            "usePrivateEndpointTransport": {
+              "description": "Maps to env var BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT.",
+              "$ref": "#/$defs/valueSourceBoolean"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "connection"
+            ],
+            "properties": {
+              "connection": {
+                "required": [
+                  "endpoint",
+                  "bingResourceConnectionString"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "vertexaiAgent": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "VertexAI Agent configuration. Generated from Settings (VERTEXAI_AGENT_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "serviceAccountCredentials": {
+              "description": "Maps to env var VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            }
+          }
+        }
+      }
+    },
+    "tavily": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Tavily configuration. Generated from Settings (TAVILY_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "apiKey": {
+              "description": "Maps to env var TAVILY_API_KEY.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "apiEndpoint": {
+              "description": "Maps to env var TAVILY_API_ENDPOINT.",
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "connection"
+            ],
+            "properties": {
+              "connection": {
+                "required": [
+                  "apiKey"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "jina": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Jina configuration. Generated from Settings (JINA_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "apiKey": {
+              "description": "Maps to env var JINA_API_KEY.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "deployment": {
+              "description": "Maps to env var JINA_DEPLOYMENT.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "apiDomain": {
+              "description": "Maps to env var JINA_API_DOMAIN.",
+              "$ref": "#/$defs/valueSourceString"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "connection"
+            ],
+            "properties": {
+              "connection": {
+                "required": [
+                  "apiKey"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "firecrawl": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Firecrawl configuration. Generated from Settings (FIRECRAWL_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "apiKey": {
+              "description": "Maps to env var FIRECRAWL_API_KEY.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "apiEndpoint": {
+              "description": "Maps to env var FIRECRAWL_API_ENDPOINT.",
+              "type": "string",
+              "format": "uri"
+            },
+            "apiVersion": {
+              "description": "Maps to env var FIRECRAWL_API_VERSION.",
+              "$ref": "#/$defs/valueSourceString"
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "then": {
+            "required": [
+              "connection"
+            ],
+            "properties": {
+              "connection": {
+                "required": [
+                  "apiKey"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "httpClient": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "HTTP Client configuration. Generated from HttpClientSettings (HTTP_CLIENT_* env vars).",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "proxyAuthMode": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_AUTH_MODE.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyProtocol": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_PROTOCOL.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyHost": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_HOST.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyPort": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_PORT.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "proxySslCaBundlePath": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_CA_BUNDLE_PATH.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxyUsername": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_USERNAME.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "proxyPassword": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_PASSWORD.",
+              "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "proxySslCertPath": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_CERT_PATH.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "proxySslKeyPath": {
+              "description": "Maps to env var HTTP_CLIENT_PROXY_SSL_KEY_PATH.",
+              "$ref": "#/$defs/valueSourceString"
+            },
+            "poolTimeoutSeconds": {
+              "description": "Maps to env var HTTP_CLIENT_POOL_TIMEOUT_SECONDS.",
+              "type": "number"
+            },
+            "maxConnections": {
+              "description": "Maps to env var HTTP_CLIENT_MAX_CONNECTIONS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            },
+            "maxKeepaliveConnections": {
+              "description": "Maps to env var HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS.",
+              "$ref": "#/$defs/valueSourceInteger"
+            }
+          }
+        }
+      }
     }
   },
   "$defs": {

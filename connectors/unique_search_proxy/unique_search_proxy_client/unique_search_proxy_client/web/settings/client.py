@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 
+from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 
@@ -20,6 +21,13 @@ class ProxyConfig(BaseModel):
     trust_env: bool = False
 
 
+@helm_settings(
+    title="HTTP Client",
+    helm_key="httpClient",
+    kind="httpClient",
+    egress=None,
+    env_prefix=HTTP_CLIENT_ENV_PREFIX,
+)
 class HttpClientSettings(BaseSettings):
     """Outbound HTTP client: corporate proxy and connection pool limits.
 

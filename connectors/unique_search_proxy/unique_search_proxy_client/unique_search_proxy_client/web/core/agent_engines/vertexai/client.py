@@ -8,10 +8,10 @@ from google.auth import load_credentials_from_dict
 from google.genai._api_client import BaseApiClient
 from google.genai.client import AsyncClient
 
-from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.vertexai_agent import (
     vertexai_agent_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import read_secret
 
 _LOGGER = logging.getLogger(__name__)
 

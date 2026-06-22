@@ -94,22 +94,75 @@ workloadIdentity:
 
 # ════ Data ════════════════════════════════════════════════════════════════════
 
-# ── Google Search API ─────────────────────────────────────────────────────────
+# @helm-gen:begin providers
 googleSearch:
   enabled: false
+  # apiKey: <fromSecret or fromSecretProvider>
+  # engineId: <set in cluster overlay when enabled>
   connection:
-    apiEndpoint: https://customsearch.googleapis.com/customsearch/v1
-    # ── Required — set in your per-cluster overlay ───────────────────────────
-    # engineId: <google-programmable-search-engine-id>
-    # apiKey:
-    #   # Use-case A — from an existing Kubernetes Secret:
-    #   fromSecret:
-    #     name: <secret-name>
-    #     key: GOOGLE_SEARCH_API_KEY
-    #   # Use-case B — from Azure Key Vault (SecretProviderClass):
-    #   fromSecretProvider:
-    #     vault: <vault-name>
-    #     secretKey: GOOGLE-SEARCH-API-KEY
+    apiEndpoint: "https://www.googleapis.com/customsearch/v1"
+
+braveSearch:
+  enabled: false
+  # apiKey: <fromSecret or fromSecretProvider>
+  connection:
+    apiEndpoint: "https://api.search.brave.com/res/v1/web/search"
+
+perplexitySearch:
+  enabled: false
+  # apiKey: <fromSecret or fromSecretProvider>
+  connection:
+    apiEndpoint: "https://api.perplexity.ai/search"
+
+bingAgent:
+  enabled: false
+  # endpoint: <set in cluster overlay when enabled>
+  # bingResourceConnectionString: <set in cluster overlay when enabled>
+  connection:
+    bingAgentModel: "gpt-4o-deployment"
+    azureIdentityCredentialType: default
+    azureIdentityValidateTokenUrl: "https://management.azure.com/.default"
+    usePrivateEndpointTransport: false
+
+vertexaiAgent:
+  enabled: false
+  # serviceAccountCredentials: <fromSecret or fromSecretProvider>
+  connection:
+    {}
+
+tavily:
+  enabled: false
+  # apiKey: <fromSecret or fromSecretProvider>
+  connection:
+    apiEndpoint: "https://api.tavily.com"
+
+jina:
+  enabled: false
+  # apiKey: <fromSecret or fromSecretProvider>
+  connection:
+    deployment: global
+    apiDomain: jina.ai
+
+firecrawl:
+  enabled: false
+  # apiKey: <fromSecret or fromSecretProvider>
+  connection:
+    apiEndpoint: "https://api.firecrawl.dev"
+    apiVersion: v2
+
+httpClient:
+  enabled: false
+  # proxyUsername: <fromSecret or fromSecretProvider>
+  # proxyPassword: <fromSecret or fromSecretProvider>
+  connection:
+    proxyAuthMode: none
+    proxyProtocol: http
+    poolTimeoutSeconds: 30.0
+    maxConnections: 100
+    maxKeepaliveConnections: 20
+
+# urlSafety: omitted in v1 (lists use code defaults)
+# @helm-gen:end providers
 
 # ════ Exposure ════════════════════════════════════════════════════════════════
 

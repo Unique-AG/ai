@@ -18,7 +18,7 @@ from unique_search_proxy_client.web.logging_config import (
     configure_logging,
 )
 from unique_search_proxy_client.web.monitoring import setup_prometheus
-from unique_search_proxy_client.web.settings.startup_report import (
+from unique_search_proxy_client.web.startup_report import (
     log_startup_settings_report,
 )
 

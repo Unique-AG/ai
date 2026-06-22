@@ -2,18 +2,22 @@ from __future__ import annotations
 
 from pydantic import Field
 
+from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.providers.base import (
-    NOT_PROVIDED,
     ProviderCredentials,
     provider_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
+from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
+    LogSecretStr,
+)
 
 _DEFAULT_BRAVE_API_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
 _ENV_PREFIX = "BRAVE_SEARCH_"
 
 
+@helm_settings(title="Brave Search", helm_key="braveSearch")
 @provider_credentials(_ENV_PREFIX)
 class _BraveCredentials(ProviderCredentials):
     """Environment-backed credentials for Brave Web Search."""

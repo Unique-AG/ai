@@ -2,12 +2,14 @@ import logging
 
 import pytest
 
-from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
 from unique_search_proxy_client.web.settings.providers.google import (
     _get_google_search_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
-from unique_search_proxy_client.web.settings.startup_report import (
+from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
+    LogSecretStr,
+)
+from unique_search_proxy_client.web.startup_report import (
     _field_status,
     build_startup_settings_report,
     log_startup_settings_report,
@@ -20,13 +22,13 @@ class TestStartupSettingsReport:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        import unique_search_proxy_client.web.settings.startup_log as startup_log_module
-        from unique_search_proxy_client.web.settings.startup_log import (
+        import unique_search_proxy_client.web.settings.secret_str as secret_str_module
+        from unique_search_proxy_client.web.settings.secret_str import (
             StartupLogSettings,
         )
 
         monkeypatch.setattr(
-            startup_log_module,
+            secret_str_module,
             "startup_log_settings",
             StartupLogSettings(secret_suffix_len=3),
         )
@@ -47,7 +49,7 @@ class TestStartupSettingsReport:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from unique_search_proxy_client.web.settings.startup_log import (
+        from unique_search_proxy_client.web.settings.secret_str import (
             _get_startup_log_settings,
         )
 

@@ -77,6 +77,8 @@ DEP003 = ["unique_toolkit", "unique_search_proxy_core"]
 
 [tool.poe.tasks]
 generate-sdk = "python scripts/generate_sdk.py"
+generate-helm-config = "python scripts/generate_helm_config.py"
+render-helm-fixtures = "bash scripts/render_helm_fixtures.sh"
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."

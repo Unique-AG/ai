@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
+from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
@@ -12,6 +13,7 @@ from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
 _ENV_PREFIX = "VERTEXAI_AGENT_"
 
 
+@helm_settings(title="VertexAI Agent", helm_key="vertexaiAgent", egress=None)
 @provider_credentials(_ENV_PREFIX)
 class _VertexAIAgentCredentials(ProviderCredentials):
     """Environment-backed credentials for Vertex AI grounding (Google GenAI)."""

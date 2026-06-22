@@ -8,10 +8,10 @@ from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.pipeline.transport import AsyncioRequestsTransport
 from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
 
-from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
     bing_agent_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED
 
 _LOGGER = logging.getLogger(__name__)
 

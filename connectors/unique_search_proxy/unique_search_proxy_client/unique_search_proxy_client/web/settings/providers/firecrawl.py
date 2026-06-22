@@ -4,13 +4,16 @@ from typing import Literal
 
 from pydantic import Field
 
+from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.providers.base import (
-    NOT_PROVIDED,
     ProviderCredentials,
     provider_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
+from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
+    LogSecretStr,
+)
 from unique_search_proxy_client.web.utils.url import join_url_path
 
 _FIRECRAWL_API_BASE = "https://api.firecrawl.dev"
@@ -25,6 +28,7 @@ _FIRECRAWL_OPERATION_PATHS: dict[FirecrawlOperation, tuple[str, ...]] = {
 _ENV_PREFIX = "FIRECRAWL_"
 
 
+@helm_settings(title="Firecrawl", helm_key="firecrawl")
 @provider_credentials(_ENV_PREFIX)
 class _FirecrawlCredentials(ProviderCredentials):
     """Environment-backed credentials for Firecrawl v2 APIs."""
