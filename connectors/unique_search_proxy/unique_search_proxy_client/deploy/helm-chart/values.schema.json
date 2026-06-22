@@ -1791,7 +1791,7 @@
     "googleSearch": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Google Search configuration. Generated from Settings (GOOGLE_SEARCH_* env vars).",
+      "description": "Google Search configuration. Generated from _GoogleCredentials (GOOGLE_SEARCH_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -1848,7 +1848,7 @@
     "braveSearch": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Brave Search configuration. Generated from Settings (BRAVE_SEARCH_* env vars).",
+      "description": "Brave Search configuration. Generated from _BraveCredentials (BRAVE_SEARCH_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -1900,7 +1900,7 @@
     "perplexitySearch": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Perplexity Search configuration. Generated from Settings (PERPLEXITY_SEARCH_* env vars).",
+      "description": "Perplexity Search configuration. Generated from _PerplexityCredentials (PERPLEXITY_SEARCH_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -1952,7 +1952,7 @@
     "bingAgent": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Bing Agent configuration. Generated from Settings (BING_AGENT_* env vars).",
+      "description": "Bing Agent configuration. Generated from _BingAgentCredentials (BING_AGENT_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -2025,7 +2025,7 @@
     "vertexaiAgent": {
       "type": "object",
       "additionalProperties": false,
-      "description": "VertexAI Agent configuration. Generated from Settings (VERTEXAI_AGENT_* env vars).",
+      "description": "VertexAI Agent configuration. Generated from _VertexAIAgentCredentials (VERTEXAI_AGENT_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -2046,7 +2046,7 @@
     "tavily": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Tavily configuration. Generated from Settings (TAVILY_* env vars).",
+      "description": "Tavily configuration. Generated from _TavilyCredentials (TAVILY_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -2098,7 +2098,7 @@
     "jina": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Jina configuration. Generated from Settings (JINA_* env vars).",
+      "description": "Jina configuration. Generated from _JinaCredentials (JINA_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
@@ -2153,7 +2153,7 @@
     "firecrawl": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Firecrawl configuration. Generated from Settings (FIRECRAWL_* env vars).",
+      "description": "Firecrawl configuration. Generated from _FirecrawlCredentials (FIRECRAWL_* env vars).",
       "properties": {
         "enabled": {
           "type": "boolean",
