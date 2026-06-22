@@ -352,6 +352,7 @@ class TestRunLoopDebugParams:
             call.args[0] for call in ua._debug_info_manager.add.call_args_list
         ]
         assert "loop_params" in keys_written
+        assert "skills" in keys_written
 
     @pytest.mark.ai
     @pytest.mark.asyncio
