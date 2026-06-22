@@ -43,6 +43,13 @@ def _emit_snapshot_warnings(snapshot: dict[str, Any]) -> None:
             "these are not applied by upsert.",
             err=True,
         )
+    prompts = snapshot.get("assistantPrompts")
+    if prompts:
+        typer.echo(
+            f"Note: snapshot lists {len(prompts)} assistant prompt(s); "
+            "these will be applied on create/update.",
+            err=True,
+        )
 
 
 def _validate_snapshot(snapshot: dict[str, Any], *, creating: bool) -> None:
