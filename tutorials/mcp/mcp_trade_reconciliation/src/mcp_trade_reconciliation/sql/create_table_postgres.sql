@@ -60,7 +60,9 @@ CREATE INDEX counterparty_email_cf_match_idx
   ON counterparty_email_cashflows (vendor, ccy, action, value_date, status);
 
 -- -------------------------------------------------------------------------
--- Seed: customer (book) cash flows (6 rows for a focused demo)
+-- Seed: customer (book) cash flows (10 rows: 6 focused-demo rows + 4 extra
+-- rows that match the ad-hoc emails added during a demo via
+-- Save_Counterparty_Email_Cashflow).
 --
 -- Row purpose:
 --   1. exact-match candidate (vs em-gs-msft-9001)
@@ -69,6 +71,7 @@ CREATE INDEX counterparty_email_cf_match_idx
 --   4. exact-match candidate (vs em-ms-401)
 --   5. no email counterpart at all (stays unmatched on the book side)
 --   6. value_date mismatch candidate (vs em-date-mismatch)
+--   7-10. extra book rows for ad-hoc Save_Counterparty_Email_Cashflow demos
 -- -------------------------------------------------------------------------
 INSERT INTO customer_book_cashflows
   (bfx_trade_id, instrument, ccy, account, counterparty, side, trade_date, settl_date, gross_amt) VALUES

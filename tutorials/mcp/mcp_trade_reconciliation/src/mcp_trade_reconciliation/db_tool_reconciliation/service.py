@@ -363,13 +363,19 @@ def _load_for_matching(
                 "ORDER BY id ASC"
             )
         else:
+            # ORDER BY id ASC so processing order is deterministic across runs
+            # (mirrors the default UNMATCHED path); otherwise competing email
+            # rows could claim the same book line in a different order each time.
             cur.execute(
-                f"SELECT * FROM {COUNTERPARTY_TABLE} WHERE id = ANY(%s)",
+                f"SELECT * FROM {COUNTERPARTY_TABLE} WHERE id = ANY(%s) ORDER BY id ASC",
                 (email_ids,),
             )
         email_rows = cur.fetchall()
 
-        cur.execute(f"SELECT * FROM {CUSTOMER_TABLE} ORDER BY id ASC")
+        # FOR UPDATE locks the book rows for the duration of this transaction so
+        # two concurrent match runs cannot both reserve the same customer cash
+        # flow (the in-memory reservation below is not visible across sessions).
+        cur.execute(f"SELECT * FROM {CUSTOMER_TABLE} ORDER BY id ASC FOR UPDATE")
         customer_rows = cur.fetchall()
 
         # Reserve book rows that are already linked to *other* email rows. The
@@ -504,8 +510,14 @@ def save_counterparty_email_cashflow(
     # Run matching only for the newly inserted row so we get a focused outcome.
     match_result = match_cashflows(email_ids=[inserted["id"]])
 
+    # Re-read the row so `inserted` reflects the post-match state (status,
+    # matched_customer_cf_id, difference) rather than the pre-match RETURNING row.
+    with _readonly_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(f"SELECT * FROM {COUNTERPARTY_TABLE} WHERE id = %s", (inserted["id"],))
+        refreshed = cur.fetchone()
+
     return {
-        "inserted": _row_to_jsonable(inserted),
+        "inserted": _row_to_jsonable(refreshed or inserted),
         "match": match_result,
     }
 
