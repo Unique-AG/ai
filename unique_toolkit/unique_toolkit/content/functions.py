@@ -681,13 +681,15 @@ def request_content_by_id(
         url = f"{url}?chatId={chat_id}"
 
     # Download the file and save it to the random directory
-    headers = {
+    headers: dict[str, str] = {
         "x-api-version": unique_sdk.api_version,
-        "x-app-id": unique_sdk.app_id,
         "x-user-id": user_id,
         "x-company-id": company_id,
-        "Authorization": "Bearer %s" % (unique_sdk.api_key,),
     }
+    if unique_sdk.app_id:
+        headers["x-app-id"] = unique_sdk.app_id
+    if unique_sdk.api_key:
+        headers["Authorization"] = "Bearer %s" % (unique_sdk.api_key,)
 
     return requests.get(url, headers=headers)
 
