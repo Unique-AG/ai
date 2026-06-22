@@ -351,7 +351,6 @@ def download_content(
 
     headers: dict[str, str] = {
         "x-api-version": unique_sdk.api_version,
-        "x-app-id": unique_sdk.app_id,
         "x-user-id": userId,
         "x-company-id": companyId,
     }
