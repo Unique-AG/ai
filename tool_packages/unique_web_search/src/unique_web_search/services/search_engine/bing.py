@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated, Literal
+from typing import Annotated, Literal, override
 
 from pydantic import BaseModel, Field
 from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
@@ -8,6 +8,14 @@ from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model import LanguageModelService
 
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+    search_proxy_client_enabled,
+)
+from unique_web_search.services.proxy.mappers import (
+    agent_answer_text,
+    map_agent_answer,
+)
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
@@ -75,6 +83,8 @@ class BingSearchConfig(
 
 
 class BingSearch(SearchEngine[BingSearchConfig]):
+    supports_proxy_search = True
+
     def __init__(
         self,
         config: BingSearchConfig,
@@ -93,6 +103,9 @@ class BingSearch(SearchEngine[BingSearchConfig]):
 
     @property
     def is_configured(self) -> bool:
+        if search_proxy_client_enabled:
+            return True
+
         async def _is_configured() -> bool:
             return await credentials_are_valid(self.credentials)
 
@@ -102,7 +115,22 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        async with open_search_proxy_client(timeout=120.0) as client:
+            response = await client.agent_search.bing(
+                query=query,
+                fetch_size=self.config.fetch_size,
+                agent_id=self.config.agent_id or None,
+                generation_instructions=self.config.generation_instructions,
+            )
+            return await map_agent_answer(
+                agent_answer_text(response),
+                self.response_parsers,
+            )
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         agent_client = get_project_client(self.credentials, self.config.endpoint)
 
         search_results = await create_and_process_run(

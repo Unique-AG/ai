@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.24.0...unique-orchestrator-v2026.26.0) (2026-06-22)
+
+
+### Features
+
+* trigger dev version deployment for orchestrator ([#1885](https://github.com/Unique-AG/ai/issues/1885)) ([66d4593](https://github.com/Unique-AG/ai/commit/66d45934c8ee68dcfe8b9eea347a4c70b0f22d0f))
+* User Memory ([#1771](https://github.com/Unique-AG/ai/issues/1771)) ([098b0de](https://github.com/Unique-AG/ai/commit/098b0de1d11f45cb4f013b49c367e52bf9c3250b))
+* **user-memory:** hide config ([#1900](https://github.com/Unique-AG/ai/issues/1900)) ([336913a](https://github.com/Unique-AG/ai/commit/336913a479e4f250c479c0d23a5c5e393d820af3))
+
+
+### Miscellaneous
+
+* arm release 2026.26.0 ([d3c79b3](https://github.com/Unique-AG/ai/commit/d3c79b385f2714ab9c6237a545da21dea0cfb34a))
+
 ## [2026.24.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.22.0...unique-orchestrator-v2026.24.0) (2026-06-04)
 
 

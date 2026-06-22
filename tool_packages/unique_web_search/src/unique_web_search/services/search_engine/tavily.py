@@ -1,5 +1,5 @@
 import logging
-from typing import Literal, Sequence, Union
+from typing import Literal, Sequence, Union, override
 
 from pydantic import BaseModel, Field, ValidationError
 from tavily import AsyncTavilyClient
@@ -120,7 +120,12 @@ class TavilySearch(SearchEngine[TavilyConfig]):
     def requires_scraping(self) -> bool:
         return False
 
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        raise NotImplementedError("TavilySearch does not support proxy search")
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         tavily_search_settings = get_tavily_search_settings()
         assert tavily_search_settings.is_configured
 
