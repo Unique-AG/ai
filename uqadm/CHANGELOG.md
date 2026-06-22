@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.26.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.24.0...uqadm-v2026.26.0) (2026-06-22)
+
+
+### Features
+
+* **uqadm:** Add uqadm kb sync command ([#1770](https://github.com/Unique-AG/ai/issues/1770)) ([d0a1a77](https://github.com/Unique-AG/ai/commit/d0a1a77a503db614192a0bc310e597b01f98a87d))
+
+
+### Miscellaneous
+
+* arm release 2026.26.0 ([d3c79b3](https://github.com/Unique-AG/ai/commit/d3c79b385f2714ab9c6237a545da21dea0cfb34a))
+
 ## [2026.24.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.22.0...uqadm-v2026.24.0) (2026-06-04)
 
 

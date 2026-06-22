@@ -353,10 +353,11 @@ def download_content(
         "x-api-version": unique_sdk.api_version,
         "x-user-id": userId,
         "x-company-id": companyId,
-        "Authorization": "Bearer %s" % (unique_sdk.api_key,),
     }
     if unique_sdk.app_id:
         headers["x-app-id"] = unique_sdk.app_id
+    if unique_sdk.api_key:
+        headers["Authorization"] = "Bearer %s" % (unique_sdk.api_key,)
 
     # Issue the request before resolving the destination. A non-200
     # response should never leave a half-created directory or empty

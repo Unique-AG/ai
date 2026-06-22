@@ -33,6 +33,10 @@ class TestArgumentScreeningConfig:
         config = ArgumentScreeningConfig()
         assert config.guidelines == DEFAULT_GUIDELINES
 
+    def test_defaults_organization_specific_blocked_keywords_empty(self):
+        config = ArgumentScreeningConfig()
+        assert config.organization_specific_blocked_keywords == []
+
     def test_defaults_rejection_response_template(self):
         config = ArgumentScreeningConfig()
         assert config.rejection_response_template == DEFAULT_REJECTION_RESPONSE_TEMPLATE
@@ -199,7 +203,6 @@ class TestArgumentScreeningService:
             enabled=True,
             system_prompt="System: screen this",
             user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
-            guidelines="No secrets allowed",
         )
         mock_response = Mock()
         mock_response.choices = [
@@ -222,7 +225,74 @@ class TestArgumentScreeningService:
 
         assert system_msg.content == "System: screen this"
         assert "hello" in user_msg.content
-        assert "No secrets allowed" in user_msg.content
+        assert "Configured blocked terms:" in user_msg.content
+        assert "[none configured]" in user_msg.content
+
+    @pytest.mark.asyncio
+    async def test_passes_configured_blocked_keywords_in_guidelines(
+        self,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
+    ):
+        config = ArgumentScreeningConfig(
+            enabled=True,
+            user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
+            organization_specific_blocked_keywords=["EFG", "efgbank.com"],
+        )
+        mock_response = Mock()
+        mock_response.choices = [
+            Mock(message=Mock(parsed={"go": True, "reason": "OK"}))
+        ]
+        mock_language_model_service.complete_async.return_value = mock_response
+
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=config,
+        )
+        await service({"query": "hello"}, mock_message_log_callback)
+
+        call_args = mock_language_model_service.complete_async.call_args
+        messages = call_args[0][0]
+        user_msg = next(m for m in messages if m.role.value == "user")
+
+        assert "- EFG" in user_msg.content
+        assert "- efgbank.com" in user_msg.content
+        assert user_msg.content.count("- EFG") == 1
+
+    @pytest.mark.asyncio
+    async def test_attaches_configured_keywords_to_custom_guidelines(
+        self,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
+    ):
+        config = ArgumentScreeningConfig(
+            enabled=True,
+            user_prompt_template="Args: {{ arguments }} Rules: {{ guidelines }}",
+            guidelines="Custom guidelines",
+            organization_specific_blocked_keywords=["EFG"],
+        )
+        mock_response = Mock()
+        mock_response.choices = [
+            Mock(message=Mock(parsed={"go": True, "reason": "OK"}))
+        ]
+        mock_language_model_service.complete_async.return_value = mock_response
+
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=config,
+        )
+        await service({"query": "hello"}, mock_message_log_callback)
+
+        call_args = mock_language_model_service.complete_async.call_args
+        messages = call_args[0][0]
+        user_msg = next(m for m in messages if m.role.value == "user")
+
+        assert "Custom guidelines" in user_msg.content
+        assert "- EFG" in user_msg.content
 
     @pytest.mark.asyncio
     async def test_uses_structured_output(
