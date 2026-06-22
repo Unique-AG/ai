@@ -247,18 +247,20 @@ def test_empty_dir_is_noop(
     content.get_infos.assert_not_called()
 
 
-@patch("uqadm.kb.sync.echo_credential_debug_if_auth_failure")
+@patch("uqadm.kb.sync.mimetypes.guess_type", return_value=(None, None))
 @patch("uqadm.kb.sync.upload_file")
 @patch("uqadm.kb.sync.Content")
 @patch("uqadm.kb.sync.Folder")
-def test_unknown_mime_type_skipped_and_exits_1(
+def test_unknown_mime_fails_upload(
     folder: MagicMock,
     content: MagicMock,
     upload: MagicMock,
-    _debug: MagicMock,
+    _guess_type: MagicMock,
     tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # A file whose name yields no MIME type is counted as failed and skipped.
+    # A file whose MIME type cannot be determined is not uploaded; it counts as
+    # failed and the command exits 1.
     (tmp_path / "noext").write_text("x", encoding="utf-8")
     folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
     content.get_infos.return_value = _no_remote()
@@ -275,6 +277,59 @@ def test_unknown_mime_type_skipped_and_exits_1(
 
     assert exc.value.code == 1
     upload.assert_not_called()
+    assert "failed: noext: could not determine MIME type" in capsys.readouterr().err
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_md_uploads_as_text_markdown(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "readme.md").write_text("# hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+    )
+
+    upload.assert_called_once()
+    assert upload.call_args.args[4] == "text/markdown"
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_xsd_uploads_as_application_xml(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "schema.xsd").write_text("<xsd/>", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+    )
+
+    upload.assert_called_once()
+    assert upload.call_args.args[4] == "application/xml"
 
 
 @patch("uqadm.kb.sync.echo_credential_debug_if_auth_failure")

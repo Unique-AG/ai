@@ -427,6 +427,11 @@ uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 | `--dry-run` | Show planned uploads without writing anything. |
 | `--slot SLOT` | Credential slot. |
 
+Extensions that the OS `mimetypes` database cannot resolve (common on macOS for
+``.md``, ``.xsd``, etc.) are registered with curated text/doc MIME types so they
+sync correctly. Any file whose MIME type still cannot be determined is reported
+as failed and skipped (it is never uploaded), and the command exits non-zero.
+
 ### `kb download`
 
 Download files from a KB folder scope into a local directory. Requires exactly

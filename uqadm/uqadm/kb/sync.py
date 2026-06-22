@@ -17,6 +17,20 @@ from uqadm.kb._paths import join_path_segments
 
 _PAGE_SIZE = 100
 
+# Extensions that mimetypes commonly fails to resolve on macOS/minimal systems.
+# Registered with the stdlib registry so mimetypes.guess_type resolves them.
+for _ext, _type in {
+    ".md": "text/markdown",
+    ".markdown": "text/markdown",
+    ".xsd": "application/xml",
+    ".xml": "application/xml",
+    ".yaml": "application/yaml",
+    ".yml": "application/yaml",
+    ".toml": "application/toml",
+    ".jsonl": "application/jsonl",
+}.items():
+    mimetypes.add_type(_type, _ext)
+
 
 def _collect_files(folder: Path, recursive: bool) -> list[Path]:
     if recursive:
