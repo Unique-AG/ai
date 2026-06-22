@@ -132,6 +132,7 @@ def test_get_space_returns_sub_agents_from_response() -> None:
         "id": "assistant_parent",
         "name": "Parent assistant",
         "isSubAgent": False,
+        "subAgentSettings": None,
         "subAgents": [
             {
                 "id": "assistant_sub",
@@ -161,10 +162,32 @@ def test_get_space_returns_sub_agents_from_response() -> None:
         )
 
     assert space["isSubAgent"] is False
+    assert space["subAgentSettings"] is None
     assert space["subAgents"][0]["id"] == "assistant_sub"
     assert space["subAgents"][0]["settingsOverride"]["configuration"] == {
         "depth": "high"
     }
+
+
+def test_get_spaces_returns_sub_agent_fields_from_response() -> None:
+    response = {
+        "data": [
+            {
+                "id": "assistant_parent",
+                "name": "Parent assistant",
+                "isSubAgent": False,
+                "subAgentSettings": None,
+                "subAgents": [],
+            }
+        ]
+    }
+
+    with patch.object(Space, "_static_request", return_value=response):
+        spaces = Space.get_spaces(user_id="user_1", company_id="company_1")
+
+    assert spaces["data"][0]["isSubAgent"] is False
+    assert spaces["data"][0]["subAgentSettings"] is None
+    assert spaces["data"][0]["subAgents"] == []
 
 
 def test_get_space_allows_partial_response_without_sub_agents() -> None:

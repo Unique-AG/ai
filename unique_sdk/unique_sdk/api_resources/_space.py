@@ -312,10 +312,11 @@ class Space(APIResource["Space"]):
     access: list[str]
     isExternal: bool
     isPinned: bool
-    isSubAgent: bool
+    isSubAgent: bool | None
+    subAgentSettings: SubAgentSettings | None
     uiType: str
     settings: dict[str, Any] | None
-    subAgents: list["Space.SubAgent"]
+    subAgents: list["Space.SubAgent"] | None
     assistantMcpServers: list["Space.McpServer"]
     modules: list["Space.Module"]
     scopeRules: list["Space.ScopeRule"]

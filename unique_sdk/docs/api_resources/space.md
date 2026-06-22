@@ -810,10 +810,11 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `access` (List[str]) - Access control list
     - `isExternal` (bool) - Whether space is external
     - `isPinned` (bool) - Whether space is pinned
-    - `isSubAgent` (bool) - Whether the space is a sub-agent
+    - `isSubAgent` (bool, optional) - Whether the space is a sub-agent
     - `uiType` (str) - UI type identifier
     - `settings` (Dict[str, Any] | None) - Space settings
-    - `subAgents` (List[SubAgent]) - Linked sub-agents. See [`Space.SubAgent`](#spacesubagent) for structure.
+    - `subAgentSettings` (SubAgentSettings | None) - This space's own sub-agent tool settings. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
+    - `subAgents` (List[SubAgent], optional) - Linked sub-agents. See [`Space.SubAgent`](#spacesubagent) for structure.
     - `assistantMcpServers` (List[AssistantMcpServer]) - List of MCP servers. See [`Space.AssistantMcpServer`](#spaceassistantmcpserver) for structure.
     - `modules` (List[Module]) - List of configured modules. See [`Space.Module`](#spacemodule) for structure.
     - `scopeRules` (List[ScopeRule]) - List of scope rules. See [`Space.ScopeRule`](#spacescoperule) for structure.
