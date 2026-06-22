@@ -372,10 +372,23 @@ def _load_for_matching(
         cur.execute(f"SELECT * FROM {CUSTOMER_TABLE} ORDER BY id ASC")
         customer_rows = cur.fetchall()
 
-        cur.execute(
-            f"SELECT matched_customer_cf_id FROM {COUNTERPARTY_TABLE} "
-            "WHERE matched_customer_cf_id IS NOT NULL"
-        )
+        # Reserve book rows that are already linked to *other* email rows. The
+        # email rows we are about to (re)match must not have their own current
+        # link counted as reserved, otherwise re-running the matcher for an
+        # already-MATCHED row would find no eligible book row and clear the
+        # match. Excluding the rows being processed makes re-matching idempotent.
+        processed_ids = [r["id"] for r in email_rows]
+        if processed_ids:
+            cur.execute(
+                f"SELECT matched_customer_cf_id FROM {COUNTERPARTY_TABLE} "
+                "WHERE matched_customer_cf_id IS NOT NULL AND id <> ALL(%s)",
+                (processed_ids,),
+            )
+        else:
+            cur.execute(
+                f"SELECT matched_customer_cf_id FROM {COUNTERPARTY_TABLE} "
+                "WHERE matched_customer_cf_id IS NOT NULL"
+            )
         already_matched = {
             r["matched_customer_cf_id"] for r in cur.fetchall() if r["matched_customer_cf_id"] is not None
         }
