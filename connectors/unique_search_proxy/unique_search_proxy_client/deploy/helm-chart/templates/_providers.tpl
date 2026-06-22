@@ -37,6 +37,10 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ required "bingAgent.connection.endpoint is required when bingAgent.enabled is true. Set it in your environment overlay." .Values.bingAgent.connection.endpoint | quote }}
 - name: BING_AGENT_BING_RESOURCE_CONNECTION_STRING
   value: {{ required "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." .Values.bingAgent.connection.bingResourceConnectionString | quote }}
+{{- if .Values.bingAgent.connection.agentId -}}
+- name: BING_AGENT_AGENT_ID
+  value: {{ .Values.bingAgent.connection.agentId | quote }}
+{{- end -}}
 - name: BING_AGENT_BING_AGENT_MODEL
   value: {{ .Values.bingAgent.connection.bingAgentModel | quote }}
 - name: BING_AGENT_AZURE_IDENTITY_CREDENTIAL_TYPE
@@ -84,11 +88,31 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .Values.httpClient.connection.proxyAuthMode | quote }}
 - name: HTTP_CLIENT_PROXY_PROTOCOL
   value: {{ .Values.httpClient.connection.proxyProtocol | quote }}
+{{- if .Values.httpClient.connection.proxyHost -}}
+- name: HTTP_CLIENT_PROXY_HOST
+  value: {{ .Values.httpClient.connection.proxyHost | quote }}
+{{- end -}}
+{{- if .Values.httpClient.connection.proxyPort -}}
+- name: HTTP_CLIENT_PROXY_PORT
+  value: {{ .Values.httpClient.connection.proxyPort | quote }}
+{{- end -}}
+{{- if .Values.httpClient.connection.proxySslCaBundlePath -}}
+- name: HTTP_CLIENT_PROXY_SSL_CA_BUNDLE_PATH
+  value: {{ .Values.httpClient.connection.proxySslCaBundlePath | quote }}
+{{- end -}}
 {{- if .Values.httpClient.connection.proxyUsername -}}
 {{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PROXY_USERNAME" "src" .Values.httpClient.connection.proxyUsername "ctx" .) }}
 {{- end -}}
 {{- if .Values.httpClient.connection.proxyPassword -}}
 {{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PROXY_PASSWORD" "src" .Values.httpClient.connection.proxyPassword "ctx" .) }}
+{{- end -}}
+{{- if .Values.httpClient.connection.proxySslCertPath -}}
+- name: HTTP_CLIENT_PROXY_SSL_CERT_PATH
+  value: {{ .Values.httpClient.connection.proxySslCertPath | quote }}
+{{- end -}}
+{{- if .Values.httpClient.connection.proxySslKeyPath -}}
+- name: HTTP_CLIENT_PROXY_SSL_KEY_PATH
+  value: {{ .Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end -}}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
   value: {{ .Values.httpClient.connection.poolTimeoutSeconds | quote }}
@@ -131,6 +155,10 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ required "bingAgent.connection.endpoint is required when bingAgent.enabled is true. Set it in your environment overlay." .ctx.Values.bingAgent.connection.endpoint | quote }}
 - name: BING_AGENT_BING_RESOURCE_CONNECTION_STRING
   value: {{ required "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." .ctx.Values.bingAgent.connection.bingResourceConnectionString | quote }}
+{{- if .ctx.Values.bingAgent.connection.agentId -}}
+- name: BING_AGENT_AGENT_ID
+  value: {{ .ctx.Values.bingAgent.connection.agentId | quote }}
+{{- end -}}
 - name: BING_AGENT_BING_AGENT_MODEL
   value: {{ .ctx.Values.bingAgent.connection.bingAgentModel | quote }}
 - name: BING_AGENT_AZURE_IDENTITY_CREDENTIAL_TYPE
@@ -178,11 +206,31 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .ctx.Values.httpClient.connection.proxyAuthMode | quote }}
 - name: HTTP_CLIENT_PROXY_PROTOCOL
   value: {{ .ctx.Values.httpClient.connection.proxyProtocol | quote }}
+{{- if .ctx.Values.httpClient.connection.proxyHost -}}
+- name: HTTP_CLIENT_PROXY_HOST
+  value: {{ .ctx.Values.httpClient.connection.proxyHost | quote }}
+{{- end -}}
+{{- if .ctx.Values.httpClient.connection.proxyPort -}}
+- name: HTTP_CLIENT_PROXY_PORT
+  value: {{ .ctx.Values.httpClient.connection.proxyPort | quote }}
+{{- end -}}
+{{- if .ctx.Values.httpClient.connection.proxySslCaBundlePath -}}
+- name: HTTP_CLIENT_PROXY_SSL_CA_BUNDLE_PATH
+  value: {{ .ctx.Values.httpClient.connection.proxySslCaBundlePath | quote }}
+{{- end -}}
 {{- if .ctx.Values.httpClient.connection.proxyUsername -}}
 {{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PROXY_USERNAME" "src" .ctx.Values.httpClient.connection.proxyUsername "ctx" .ctx) }}
 {{- end -}}
 {{- if .ctx.Values.httpClient.connection.proxyPassword -}}
 {{ include "base.valueSource.env" (dict "name" "HTTP_CLIENT_PROXY_PASSWORD" "src" .ctx.Values.httpClient.connection.proxyPassword "ctx" .ctx) }}
+{{- end -}}
+{{- if .ctx.Values.httpClient.connection.proxySslCertPath -}}
+- name: HTTP_CLIENT_PROXY_SSL_CERT_PATH
+  value: {{ .ctx.Values.httpClient.connection.proxySslCertPath | quote }}
+{{- end -}}
+{{- if .ctx.Values.httpClient.connection.proxySslKeyPath -}}
+- name: HTTP_CLIENT_PROXY_SSL_KEY_PATH
+  value: {{ .ctx.Values.httpClient.connection.proxySslKeyPath | quote }}
 {{- end -}}
 - name: HTTP_CLIENT_POOL_TIMEOUT_SECONDS
   value: {{ .ctx.Values.httpClient.connection.poolTimeoutSeconds | quote }}

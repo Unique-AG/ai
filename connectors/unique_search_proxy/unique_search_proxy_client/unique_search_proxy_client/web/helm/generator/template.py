@@ -64,6 +64,15 @@ def _emit_env_field(
             f'  value: {{{{ required "{_fail_message(group, field)}" '
             f"{connection_path} | quote }}}}"
         )
+    elif field.default is None:
+        # Optional override with no literal default in values.yaml: only emit the
+        # env var when the overlay sets it, so the service keeps its own default
+        # instead of receiving an empty string.
+        lines.append(f"{{{{- if {connection_path} -}}}}")
+        lines.append(
+            f"- name: {field.env_var}\n  value: {{{{ {connection_path} | quote }}}}"
+        )
+        lines.append("{{- end -}}")
     else:
         lines.append(
             f"- name: {field.env_var}\n  value: {{{{ {connection_path} | quote }}}}"

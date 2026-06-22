@@ -206,8 +206,9 @@ def iter_helm_fields(
 def _should_emit_in_template(field: HelmFieldSpec) -> bool:
     if field.required_when_enabled or field.sensitive:
         return True
-    if field.default is None:
-        return False
+    # Optional fields default to ``None`` (no literal in values.yaml) but are
+    # still settable via overlays, so they must be emitted — guarded so the env
+    # var only renders when the overlay actually provides a value.
     return field.default is not NOT_PROVIDED
 
 
