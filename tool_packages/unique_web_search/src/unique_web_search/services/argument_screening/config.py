@@ -42,6 +42,17 @@ class ArgumentScreeningConfig(BaseModel):
         title="Screening Guidelines",
         description="Rules the screening agent follows to decide whether arguments are safe. This is the primary field for administrators to customize.",
     )
+    organization_specific_blocked_keywords: Annotated[
+        list[str],
+        RJSFMetaTag({"ui:options": {"orderable": False}}),
+    ] = Field(
+        default_factory=list,
+        title="Organization-Specific Blocked Keywords",
+        description=(
+            "Terms, domains, product names, portals, or internal project names "
+            "that must always block WebSearch when detected."
+        ),
+    )
     system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(rows=4),

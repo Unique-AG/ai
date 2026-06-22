@@ -7,7 +7,7 @@ readme = "README.md"
 license = "Proprietary"
 requires-python = ">=3.11"
 dependencies = [
-    "unique-toolkit>=2026.24.0",
+    "unique-toolkit>=2026.26.0",
     "griffe-pydantic>=1.1.8",
 ]
 
@@ -101,6 +101,7 @@ override-dependencies = [
 "unique-deep-research" = false
 "unique-stock-ticker" = false
 "unique-follow-up-questions" = false
+"unique-user-memory" = false
 "unique-six" = false
 "unique-search-proxy" = false
 "unique-search-proxy-core" = false

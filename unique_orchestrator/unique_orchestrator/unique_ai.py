@@ -85,6 +85,7 @@ class UniqueAI:
         loop_iteration_runner: LoopIterationRunner,
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
+        user_memory_text: str = "",
     ) -> None: ...
 
     # Responses API Dependencies
@@ -109,6 +110,7 @@ class UniqueAI:
         loop_iteration_runner: ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
+        user_memory_text: str = "",
     ) -> None: ...
 
     def __init__(
@@ -132,6 +134,7 @@ class UniqueAI:
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
+        user_memory_text: str = "",
     ) -> None:
         self._logger = logger
         self._event = event
@@ -139,6 +142,7 @@ class UniqueAI:
         self._chat_service = chat_service
         self._content_service = content_service
         self._uploaded_documents = uploaded_documents or []
+        self._user_memory_text = user_memory_text
         self._skill_choices = getattr(event.payload, "skill_choices", [])
 
         self._debug_info_manager = debug_info_manager
@@ -553,6 +557,7 @@ class UniqueAI:
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
             user_metadata=user_metadata,
             uploaded_documents_expired=uploaded_documents_expired,
+            user_memory=self._user_memory_text,
         )
         return system_message
 
@@ -623,7 +628,7 @@ class UniqueAI:
             result.is_positive for result in evaluation_results.unpack()
         ):
             self._logger.warning(
-                "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop"
+                "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop."
             )  # TODO: add retry counter and instruction
 
         return True

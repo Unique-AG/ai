@@ -17,6 +17,7 @@ on:
           - internal_search
           - skill_tool
           - stock_ticker
+          - user_memory
           - follow_up_questions
           - six
         default: ''
@@ -49,6 +50,8 @@ jobs:
               - 'tool_packages/unique_skill_tool/**'
             stock_ticker:
               - 'postprocessors/unique_stock_ticker/**'
+            user_memory:
+              - 'postprocessors/unique_user_memory/**'
             follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
             six:
@@ -66,6 +69,7 @@ jobs:
               {"id": "internal_search", "dir": "tool_packages/unique_internal_search", "python": "3.12"},
               {"id": "skill_tool", "dir": "tool_packages/unique_skill_tool", "python": "3.12"},
               {"id": "stock_ticker", "dir": "postprocessors/unique_stock_ticker", "python": "3.12"},
+              {"id": "user_memory", "dir": "postprocessors/unique_user_memory", "python": "3.12"},
               {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
               {"id": "six", "dir": "connectors/unique_six", "python": "3.12"}
             ]
@@ -101,7 +105,18 @@ jobs:
       - name: Checkout base commit
         run: git checkout ${{ steps.base.outputs.commit }} --quiet
 
+      - name: Check package exists on base
+        id: base_pkg
+        run: |
+          if [ -f "${{ matrix.dir }}/pyproject.toml" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Package '${{ matrix.dir }}' does not exist on base commit (new package); skipping base export."
+          fi
+
       - name: Setup uv (base)
+        if: steps.base_pkg.outputs.exists == 'true'
         uses: ./.github/actions/setup-uv
         with:
           package_dir: ${{ matrix.dir }}
@@ -109,6 +124,7 @@ jobs:
           lock_mode: frozen
 
       - name: Export base defaults
+        if: steps.base_pkg.outputs.exists == 'true'
         working-directory: ${{ matrix.dir }}
         env:
           UV_NO_SOURCES: 1
@@ -123,6 +139,12 @@ jobs:
             mkdir -p "$GITHUB_WORKSPACE/config-artifacts-base/"
             echo '{"exported_count": 0, "skipped_count": 0, "warnings": [], "config_files": {}}' > "$GITHUB_WORKSPACE/config-artifacts-base/manifest.json"
           fi
+
+      - name: Create empty base manifest for new package
+        if: steps.base_pkg.outputs.exists == 'false'
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/config-artifacts-base/"
+          echo '{"exported_count": 0, "skipped_count": 0, "warnings": [], "config_files": {}}' > "$GITHUB_WORKSPACE/config-artifacts-base/manifest.json"
 
       - name: Upload base artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

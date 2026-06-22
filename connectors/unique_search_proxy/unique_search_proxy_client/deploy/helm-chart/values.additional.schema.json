@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "properties": {
+    "googleSearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Google Custom Search API configuration. Mirrors the app's _GoogleCredentials pydantic model (api_endpoint, engine_id, api_key).",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "connection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "apiEndpoint": { "type": "string", "format": "uri", "description": "Google Custom Search API base URL." },
+            "engineId":    { "type": "string", "description": "Google Programmable Search Engine ID (cx query parameter). Set in your environment overlay." },
+            "apiKey":      { "$ref": "#/$defs/valueSourceSensitive", "description": "Google Search API key. Set in your environment overlay." }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "then": {
+            "required": ["connection"],
+            "properties": {
+              "connection": { "required": ["apiEndpoint", "engineId", "apiKey"] }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

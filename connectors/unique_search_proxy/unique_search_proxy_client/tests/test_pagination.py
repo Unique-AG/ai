@@ -1,24 +1,5 @@
 import pytest
 from unique_search_proxy_core.schema import SearchEngineRaw
-from unique_search_proxy_core.search_engines.pagination import (
-    PageRequest,
-    iter_page_requests,
-)
-
-
-class TestIterPageRequests:
-    @pytest.mark.ai
-    def test_single_page_when_fetch_size_below_max(self) -> None:
-        pages = list(iter_page_requests(5, max_page_size=10))
-        assert pages == [PageRequest(page_index=1, offset=1, count=5)]
-
-    @pytest.mark.ai
-    def test_multiple_pages(self) -> None:
-        pages = list(iter_page_requests(15, max_page_size=10))
-        assert pages == [
-            PageRequest(page_index=1, offset=1, count=10),
-            PageRequest(page_index=2, offset=11, count=5),
-        ]
 
 
 class TestSearchEngineRaw:

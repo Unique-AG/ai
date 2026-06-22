@@ -22,5 +22,5 @@ class TestGetSearchEngine:
 
     @pytest.mark.ai
     def test_unregistered_engine_raises(self) -> None:
-        with pytest.raises(EngineNotConfiguredError, match="google"):
+        with pytest.raises(EngineNotConfiguredError, match="not registered"):
             get_search_engine("google")

@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, override
 
 from firecrawl import AsyncFirecrawl
 from firecrawl.v2.types import Document, ScrapeOptions
@@ -78,7 +78,12 @@ class FireCrawlSearch(SearchEngine[FireCrawlConfig]):
     def requires_scraping(self) -> bool:
         return False
 
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        raise NotImplementedError("FirecrawlSearch does not support proxy search")
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         """Search the web for the given query using Firecrawl.
 
         Args:

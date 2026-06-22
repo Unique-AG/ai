@@ -5,15 +5,21 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.basic_proxy_crawler import BasicProxyCrawler
+from ...models.basic_crawl_request import BasicCrawlRequest
 from ...models.crawl_response import CrawlResponse
+from ...models.firecrawl_crawl_request import FirecrawlCrawlRequest
 from ...models.http_validation_error import HTTPValidationError
+from ...models.jina_crawl_request import JinaCrawlRequest
+from ...models.tavily_crawl_request import TavilyCrawlRequest
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: BasicProxyCrawler,
+    body: BasicCrawlRequest
+    | FirecrawlCrawlRequest
+    | JinaCrawlRequest
+    | TavilyCrawlRequest,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -22,7 +28,14 @@ def _get_kwargs(
         "url": "/v1/crawl",
     }
 
-    _kwargs["json"] = body.to_dict()
+    if isinstance(body, BasicCrawlRequest):
+        _kwargs["json"] = body.to_dict()
+    elif isinstance(body, TavilyCrawlRequest):
+        _kwargs["json"] = body.to_dict()
+    elif isinstance(body, JinaCrawlRequest):
+        _kwargs["json"] = body.to_dict()
+    else:
+        _kwargs["json"] = body.to_dict()
 
     headers["Content-Type"] = "application/json"
 
@@ -63,12 +76,15 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: BasicProxyCrawler,
+    body: BasicCrawlRequest
+    | FirecrawlCrawlRequest
+    | JinaCrawlRequest
+    | TavilyCrawlRequest,
 ) -> Response[CrawlResponse | HTTPValidationError]:
     """Crawl URLs with a configured crawler
 
     Args:
-        body (BasicProxyCrawler):
+        body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,12 +108,15 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient | Client,
-    body: BasicProxyCrawler,
+    body: BasicCrawlRequest
+    | FirecrawlCrawlRequest
+    | JinaCrawlRequest
+    | TavilyCrawlRequest,
 ) -> CrawlResponse | HTTPValidationError | None:
     """Crawl URLs with a configured crawler
 
     Args:
-        body (BasicProxyCrawler):
+        body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -116,12 +135,15 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
-    body: BasicProxyCrawler,
+    body: BasicCrawlRequest
+    | FirecrawlCrawlRequest
+    | JinaCrawlRequest
+    | TavilyCrawlRequest,
 ) -> Response[CrawlResponse | HTTPValidationError]:
     """Crawl URLs with a configured crawler
 
     Args:
-        body (BasicProxyCrawler):
+        body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,12 +165,15 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient | Client,
-    body: BasicProxyCrawler,
+    body: BasicCrawlRequest
+    | FirecrawlCrawlRequest
+    | JinaCrawlRequest
+    | TavilyCrawlRequest,
 ) -> CrawlResponse | HTTPValidationError | None:
     """Crawl URLs with a configured crawler
 
     Args:
-        body (BasicProxyCrawler):
+        body (BasicCrawlRequest | FirecrawlCrawlRequest | JinaCrawlRequest | TavilyCrawlRequest):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

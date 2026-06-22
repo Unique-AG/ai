@@ -4,10 +4,20 @@ from unique_search_proxy_core.search_engines import (
     SearchEngineType,
     parse_search_engine_config,
 )
-from unique_search_proxy_core.search_engines.config_types import SearchRequest
+from unique_search_proxy_core.search_engines.brave.schema import (
+    BraveConfig,
+    BraveSearchRequest,
+)
+from unique_search_proxy_core.search_engines.config_types import (
+    parse_search_request,
+)
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
-    GoogleRequest,
+    GoogleSearchRequest,
+)
+from unique_search_proxy_core.search_engines.perplexity.schema import (
+    PerplexityConfig,
+    PerplexitySearchRequest,
 )
 
 
@@ -29,7 +39,7 @@ class TestSearchEngineConfigUnion:
 
     @pytest.mark.ai
     def test_search_request_parses_flat_google_payload(self) -> None:
-        req = SearchRequest.model_validate(
+        req = parse_search_request(
             {
                 "engine": "google",
                 "query": "hello",
@@ -38,9 +48,71 @@ class TestSearchEngineConfigUnion:
             },
         )
         assert req.engine == SearchEngineType.GOOGLE
-        assert isinstance(req, GoogleRequest)
+        assert isinstance(req, GoogleSearchRequest)
         assert req.fetch_size == 8
         assert req.query == "hello"
+
+    @pytest.mark.ai
+    def test_brave_config_accepts_engine_specific_fields(self) -> None:
+        config = parse_search_engine_config(
+            {
+                "engine": "brave",
+                "fetchSize": 12,
+                "safesearch": {"expose": False, "value": "strict"},
+            },
+        )
+        assert isinstance(config, BraveConfig)
+        assert config.engine == SearchEngineType.BRAVE
+        assert config.fetch_size == 12
+        assert config.safesearch.value == "strict"
+
+    @pytest.mark.ai
+    def test_search_request_parses_flat_brave_payload(self) -> None:
+        req = parse_search_request(
+            {
+                "engine": "brave",
+                "query": "hello",
+                "fetchSize": 8,
+                "timeout": 30,
+                "safesearch": "moderate",
+            },
+        )
+        assert req.engine == SearchEngineType.BRAVE
+        assert isinstance(req, BraveSearchRequest)
+        assert req.fetch_size == 8
+        assert req.query == "hello"
+        assert req.safesearch == "moderate"
+
+    @pytest.mark.ai
+    def test_perplexity_config_accepts_engine_specific_fields(self) -> None:
+        config = parse_search_engine_config(
+            {
+                "engine": "perplexity",
+                "fetchSize": 12,
+                "searchDomainFilter": {"expose": False, "value": ["example.com"]},
+            },
+        )
+        assert isinstance(config, PerplexityConfig)
+        assert config.engine == SearchEngineType.PERPLEXITY
+        assert config.fetch_size == 12
+        assert config.search_domain_filter.value == ["example.com"]
+
+    @pytest.mark.ai
+    def test_search_request_parses_flat_perplexity_payload(self) -> None:
+        req = parse_search_request(
+            {
+                "engine": "perplexity",
+                "query": "hello",
+                "fetchSize": 8,
+                "timeout": 30,
+                "searchContextSize": "low",
+            },
+        )
+        assert req.engine == SearchEngineType.PERPLEXITY
+        assert isinstance(req, PerplexitySearchRequest)
+        assert req.fetch_size == 8
+        assert req.query == "hello"
+        assert req.search_context_size == "low"
 
     @pytest.mark.ai
     def test_unknown_engine_rejected_by_union(self) -> None:
@@ -50,4 +122,8 @@ class TestSearchEngineConfigUnion:
     @pytest.mark.ai
     def test_registered_engine_type_enum(self) -> None:
         assert SearchEngineType.GOOGLE.value == "google"
+        assert SearchEngineType.BRAVE.value == "brave"
+        assert SearchEngineType.PERPLEXITY.value == "perplexity"
         assert SearchEngineType.GOOGLE in SearchEngineType
+        assert SearchEngineType.BRAVE in SearchEngineType
+        assert SearchEngineType.PERPLEXITY in SearchEngineType

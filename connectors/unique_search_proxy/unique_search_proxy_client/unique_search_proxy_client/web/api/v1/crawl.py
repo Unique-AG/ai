@@ -6,7 +6,11 @@ import time
 
 from fastapi import APIRouter, Body, Request
 from unique_search_proxy_core.crawlers.config_types import CrawlRequest
-from unique_search_proxy_core.errors import ProxyError, UpstreamTimeoutError
+from unique_search_proxy_core.errors import (
+    ProxyError,
+    UpstreamTimeoutError,
+    attach_request_context,
+)
 from unique_search_proxy_core.schema import CrawlResponse, ProxyErrorCode
 
 from unique_search_proxy_client.web.api.v1.openapi_examples import (
@@ -14,6 +18,13 @@ from unique_search_proxy_client.web.api.v1.openapi_examples import (
 )
 from unique_search_proxy_client.web.core.client import get_http_client_pool
 from unique_search_proxy_client.web.core.crawlers.factory import get_crawler_service
+from unique_search_proxy_client.web.core.crawlers.pinned_egress import (
+    PinnedEgressCrawler,
+)
+from unique_search_proxy_client.web.core.url_safety.gate import (
+    apply_url_safety_gate,
+    merge_crawl_results,
+)
 from unique_search_proxy_client.web.monitoring.metrics import (
     record_crawl_error,
     record_crawl_success,
@@ -21,6 +32,14 @@ from unique_search_proxy_client.web.monitoring.metrics import (
 
 router = APIRouter(tags=["crawl"])
 _LOGGER = logging.getLogger(__name__)
+
+
+def _crawl_request_context(exc: ProxyError, *, crawler_id: str) -> ProxyError:
+    return attach_request_context(
+        exc,
+        request="crawl",
+        provider=crawler_id,
+    )
 
 
 @router.post(
@@ -32,27 +51,57 @@ async def crawl(
     request: Request,
     body: CrawlRequest = Body(openapi_examples=CRAWL_OPENAPI_EXAMPLES),  # type: ignore[valid-type]
 ) -> CrawlResponse:
-    crawler_id = body.crawler_type
+    crawler_id = body.crawler
     timeout = body.timeout
     started = time.perf_counter()
 
     try:
-        pool = get_http_client_pool(request.app)
-        crawler = get_crawler_service(crawler_id, http_client=pool.client)
         async with asyncio.timeout(timeout):
-            results = await crawler.crawl(body)
+            gate = await apply_url_safety_gate(body.urls)
+            if not gate.allowed_targets:
+                record_crawl_success(
+                    crawler_id,
+                    len(body.urls),
+                    time.perf_counter() - started,
+                )
+                return CrawlResponse(
+                    crawler=crawler_id,
+                    results=merge_crawl_results(
+                        body.urls,
+                        blocked_by_index=gate.blocked_by_index,
+                        crawler_results=[],
+                    ),
+                )
+
+            crawl_body = body.model_copy(
+                update={
+                    "urls": [target.display_url for target in gate.allowed_targets],
+                },
+            )
+
+            pool = get_http_client_pool(request.app)
+            crawler = get_crawler_service(crawler_id, http_client=pool.client)
+            if isinstance(crawler, PinnedEgressCrawler):
+                crawler_results = await crawler.crawl_pinned(
+                    crawl_body,
+                    gate.allowed_targets,
+                )
+            else:
+                crawler_results = await crawler.crawl(crawl_body)
     except TimeoutError as exc:
         record_crawl_error(
             crawler_id,
             ProxyErrorCode.UPSTREAM_TIMEOUT.value,
             time.perf_counter() - started,
         )
-        raise UpstreamTimeoutError(
-            f"Crawler '{crawler_id}' timed out after {timeout}s",
-            crawler=crawler_id,
+        raise _crawl_request_context(
+            UpstreamTimeoutError(
+                f"Crawler '{crawler_id}' timed out after {timeout}s",
+            ),
+            crawler_id=crawler_id,
         ) from exc
-    except ProxyError:
-        raise
+    except ProxyError as exc:
+        raise _crawl_request_context(exc, crawler_id=crawler_id) from exc
     except Exception:
         record_crawl_error(
             crawler_id,
@@ -62,4 +111,11 @@ async def crawl(
         raise
 
     record_crawl_success(crawler_id, len(body.urls), time.perf_counter() - started)
-    return CrawlResponse(crawler_type=crawler_id, results=results)
+    return CrawlResponse(
+        crawler=crawler_id,
+        results=merge_crawl_results(
+            body.urls,
+            blocked_by_index=gate.blocked_by_index,
+            crawler_results=crawler_results,
+        ),
+    )

@@ -86,30 +86,61 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GoogleRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GoogleSearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/BraveSearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PerplexitySearchRequest"
+                  }
+                ],
+                "title": "Body"
               },
               "examples": {
-                "google_search": {
-                  "summary": "Google search",
+                "google_minimal": {
+                  "summary": "Google search (minimal)",
                   "description": "Flat search request; requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID in .env.",
                   "value": {
                     "engine": "google",
                     "query": "unique ag",
                     "fetchSize": 10,
-                    "safe": "active",
-                    "timeout": 30
+                    "timeout": 30,
+                    "safe": "active"
                   }
                 },
-                "google_search_with_gl": {
+                "google_with_gl": {
                   "summary": "Google search (with gl and dateRestrict)",
-                  "description": "Full execution payload including optional provider parameters.",
+                  "description": "Google search with geolocation and recency filters. Requires GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_ENGINE_ID in .env.",
                   "value": {
                     "engine": "google",
                     "query": "unique ag",
                     "fetchSize": 10,
-                    "gl": "ch",
-                    "dateRestrict": "d7",
+                    "timeout": 30,
                     "safe": "active",
+                    "gl": "ch",
+                    "dateRestrict": "d7"
+                  }
+                },
+                "brave_minimal": {
+                  "summary": "Brave search (minimal)",
+                  "description": "Flat search request; requires BRAVE_SEARCH_API_KEY in .env.",
+                  "value": {
+                    "engine": "brave",
+                    "query": "unique ag",
+                    "fetchSize": 10,
+                    "timeout": 30
+                  }
+                },
+                "perplexity_minimal": {
+                  "summary": "Perplexity search (minimal)",
+                  "description": "Flat search request; requires PERPLEXITY_SEARCH_API_KEY in .env.",
+                  "value": {
+                    "engine": "perplexity",
+                    "query": "unique ag",
+                    "fetchSize": 10,
                     "timeout": 30
                   }
                 }
@@ -142,6 +173,142 @@
         }
       }
     },
+    "/v1/agent-search": {
+      "post": {
+        "tags": [
+          "agent-search"
+        ],
+        "summary": "Run an agent-based grounded search",
+        "operationId": "agent_search_v1_agent_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BingAgentSearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VertexAIAgentSearchRequest"
+                  }
+                ],
+                "title": "Body"
+              },
+              "examples": {
+                "bing": {
+                  "summary": "Bing grounding agent",
+                  "value": {
+                    "engine": "bing",
+                    "query": "What changed in the EU AI Act this year?",
+                    "fetchSize": 5,
+                    "timeout": 120
+                  }
+                },
+                "vertexai": {
+                  "summary": "Vertex AI grounding",
+                  "value": {
+                    "engine": "vertexai",
+                    "query": "Latest developments in quantum computing",
+                    "vertexaiModelName": "gemini-3-flash-preview",
+                    "timeout": 120
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agent-search/stream": {
+      "post": {
+        "tags": [
+          "agent-search"
+        ],
+        "summary": "Stream an agent-based grounded search (SSE)",
+        "operationId": "agent_search_stream_v1_agent_search_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BingAgentSearchRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VertexAIAgentSearchRequest"
+                  }
+                ],
+                "title": "Body"
+              },
+              "examples": {
+                "bing": {
+                  "summary": "Bing grounding agent",
+                  "value": {
+                    "engine": "bing",
+                    "query": "What changed in the EU AI Act this year?",
+                    "fetchSize": 5,
+                    "timeout": 120
+                  }
+                },
+                "vertexai": {
+                  "summary": "Vertex AI grounding",
+                  "value": {
+                    "engine": "vertexai",
+                    "query": "Latest developments in quantum computing",
+                    "vertexaiModelName": "gemini-3-flash-preview",
+                    "timeout": 120
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/crawl": {
       "post": {
         "tags": [
@@ -153,17 +320,29 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BasicCrawlerRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BasicCrawlRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TavilyCrawlRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/JinaCrawlRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/FirecrawlCrawlRequest"
+                  }
+                ],
+                "title": "Body"
               },
               "examples": {
                 "basic_raw": {
                   "summary": "Basic crawl (raw body only)",
                   "description": "Returns raw response text and contentType; content stays null.",
                   "value": {
-                    "urls": [
-                      "https://example.com"
-                    ],
-                    "crawlerType": "BasicProxyCrawler",
+                    "crawler": "Basic",
+                    "timeout": 30,
                     "contentTypes": {
                       "html": false,
                       "xhtml": false,
@@ -171,22 +350,170 @@
                       "markdown": false,
                       "pdf": false
                     },
-                    "timeout": 30
+                    "maxConcurrentRequests": 10,
+                    "urls": [
+                      "https://example.com"
+                    ]
                   }
                 },
                 "basic_html_markdown": {
                   "summary": "Basic crawl (HTML to markdown)",
                   "description": "Processes allowed content types into the content field.",
                   "value": {
-                    "urls": [
-                      "https://example.com"
-                    ],
-                    "crawlerType": "BasicProxyCrawler",
+                    "crawler": "Basic",
+                    "timeout": 30,
                     "contentTypes": {
                       "html": true,
-                      "xhtml": true
+                      "xhtml": true,
+                      "plainText": false,
+                      "markdown": false,
+                      "pdf": false
                     },
-                    "timeout": 30
+                    "maxConcurrentRequests": 10,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "basic_multi_url": {
+                  "summary": "Basic crawl (multi-URL batch)",
+                  "description": "Fetches multiple URLs in one request with default content processing.",
+                  "value": {
+                    "crawler": "Basic",
+                    "timeout": 30,
+                    "contentTypes": {
+                      "html": true,
+                      "xhtml": true,
+                      "plainText": true,
+                      "markdown": true,
+                      "pdf": false
+                    },
+                    "maxConcurrentRequests": 10,
+                    "urls": [
+                      "https://example.com",
+                      "https://www.example.org"
+                    ]
+                  }
+                },
+                "tavily_minimal": {
+                  "summary": "Tavily extract (minimal)",
+                  "description": "Tavily Extract API; requires TAVILY_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Tavily",
+                    "timeout": 30,
+                    "extractDepth": "advanced",
+                    "format": "markdown",
+                    "includeImages": false,
+                    "includeFavicon": false,
+                    "includeUsage": false,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "tavily_rerank": {
+                  "summary": "Tavily extract (query rerank)",
+                  "description": "Tavily extract with query reranking and chunks per source. Requires TAVILY_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Tavily",
+                    "timeout": 30,
+                    "extractDepth": "advanced",
+                    "format": "markdown",
+                    "query": "main product features",
+                    "chunksPerSource": 3,
+                    "includeImages": true,
+                    "includeFavicon": false,
+                    "includeUsage": false,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "jina_minimal": {
+                  "summary": "Jina reader (minimal)",
+                  "description": "Jina Reader API; requires JINA_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Jina",
+                    "timeout": 30,
+                    "returnFormat": "markdown",
+                    "engine": "browser",
+                    "maxConcurrentRequests": 10,
+                    "noCache": false,
+                    "withGeneratedAlt": false,
+                    "withLinksSummary": false,
+                    "withImagesSummary": false,
+                    "withIframe": false,
+                    "doNotTrack": true,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "jina_selectors": {
+                  "summary": "Jina reader (selectors + no cache)",
+                  "description": "Jina Reader with CSS selectors and cache bypass. Requires JINA_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Jina",
+                    "timeout": 30,
+                    "returnFormat": "markdown",
+                    "engine": "browser",
+                    "maxConcurrentRequests": 10,
+                    "noCache": true,
+                    "waitForSelector": [
+                      "main",
+                      "article"
+                    ],
+                    "removeSelector": [
+                      "header",
+                      "footer",
+                      "nav"
+                    ],
+                    "withGeneratedAlt": false,
+                    "withLinksSummary": false,
+                    "withImagesSummary": false,
+                    "withIframe": false,
+                    "doNotTrack": true,
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "firecrawl_minimal": {
+                  "summary": "Firecrawl batch scrape (minimal)",
+                  "description": "Firecrawl v2 batch scrape; requires FIRECRAWL_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Firecrawl",
+                    "timeout": 60,
+                    "onlyMainContent": true,
+                    "onlyCleanContent": false,
+                    "ignoreInvalidUrls": true,
+                    "waitFor": 0,
+                    "mobile": false,
+                    "blockAds": true,
+                    "removeBase64Images": true,
+                    "proxy": "auto",
+                    "urls": [
+                      "https://example.com"
+                    ]
+                  }
+                },
+                "firecrawl_enhanced": {
+                  "summary": "Firecrawl batch scrape (enhanced proxy)",
+                  "description": "Firecrawl with enhanced proxy, mobile emulation, and wait. Requires FIRECRAWL_API_KEY in .env.",
+                  "value": {
+                    "crawler": "Firecrawl",
+                    "timeout": 90,
+                    "onlyMainContent": true,
+                    "onlyCleanContent": false,
+                    "ignoreInvalidUrls": true,
+                    "waitFor": 1000,
+                    "mobile": true,
+                    "blockAds": true,
+                    "removeBase64Images": true,
+                    "proxy": "enhanced",
+                    "urls": [
+                      "https://example.com"
+                    ]
                   }
                 }
               }
@@ -221,7 +548,36 @@
   },
   "components": {
     "schemas": {
-      "BasicCrawlerRequest": {
+      "AgentSearchResponse": {
+        "properties": {
+          "engine": {
+            "type": "string",
+            "title": "Engine"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer",
+            "description": "Agent response text as returned by the provider (opaque to the proxy)",
+            "default": ""
+          },
+          "raw": {
+            "title": "Raw",
+            "description": "Opaque provider payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "engine",
+          "query"
+        ],
+        "title": "Agent Search Response",
+        "description": "Result of an agent-based (grounded) search.\n\nThin egress contract: opaque ``answer`` text from the provider plus ``raw``\nfor debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.)."
+      },
+      "BasicCrawlRequest": {
         "properties": {
           "urls": {
             "items": {
@@ -232,11 +588,11 @@
             "title": "Urls",
             "description": "URLs to crawl"
           },
-          "crawlerType": {
+          "crawler": {
             "type": "string",
-            "const": "BasicProxyCrawler",
-            "title": "Crawler Type",
-            "default": "BasicProxyCrawler"
+            "const": "Basic",
+            "title": "Crawler",
+            "default": "Basic"
           },
           "timeout": {
             "type": "integer",
@@ -263,11 +619,239 @@
             "default": 10
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "urls"
         ],
-        "title": "Basic Proxy Crawler "
+        "title": "Basic Crawl Request"
+      },
+      "BingAgentSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "bing",
+            "title": "Agent engine",
+            "description": "Provider discriminator; must be `bing` for this config.",
+            "default": "bing"
+          },
+          "generationInstructions": {
+            "type": "string",
+            "title": "Generation Instructions",
+            "description": "Instructions injected into the grounding agent.",
+            "default": "You are an Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you find.\n\n## Core Directives\n1. **Search broadly** \u2014 issue multiple searches with varied keywords and phrasings to cover every angle of the query.\n2. **Read every source thoroughly** \u2014 do NOT skim. Extract every relevant fact, figure, statistic, date, name, quote, and piece of context.\n3. **One entry per source** \u2014 each source gets its own result object. Never merge information from different sources into a single entry.\n4. **Preserve detail** \u2014 prefer verbosity over brevity. Include specific numbers, full names, exact dates, and direct quotes whenever available. Do NOT paraphrase away precision.\n5. **No omissions** \u2014 if a source contains relevant information, it MUST appear in your output. When in doubt, include it.\n"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds (agent runs can be slow).",
+            "default": 120
+          },
+          "fetchSize": {
+            "type": "integer",
+            "title": "Fetch Size",
+            "description": "Maximum number of Bing grounding results per query",
+            "default": 5
+          },
+          "agentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "Azure AI agent id. Resolved from deployment env when not set. When empty, the service auto-provisions or looks up a grounding agent."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Bing Agent Search Request"
+      },
+      "BraveSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "brave",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `brave` for this config.",
+            "default": "brave"
+          },
+          "fetchSize": {
+            "type": "integer",
+            "title": "Fetch Size",
+            "description": "Default result count merged into each search request",
+            "default": 10
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "extraSnippets": {
+            "type": "boolean",
+            "title": "Extra snippets",
+            "description": "Request up to five additional alternative excerpts per result (Brave `extra_snippets`).",
+            "default": true
+          },
+          "spellcheck": {
+            "type": "boolean",
+            "title": "Spellcheck",
+            "description": "Whether Brave spell-checks the query and uses the corrected form.",
+            "default": false
+          },
+          "textDecorations": {
+            "type": "boolean",
+            "title": "Text decorations",
+            "description": "Whether result snippets include decoration markers (e.g. highlighting).",
+            "default": true
+          },
+          "operators": {
+            "type": "boolean",
+            "title": "Search operators",
+            "description": "Whether Brave applies search operators in the query.",
+            "default": true
+          },
+          "uiLang": {
+            "type": "string",
+            "title": "UI language",
+            "description": "User interface language for response strings (Brave `ui_lang`), e.g. `en-US`. Distinct from `search_lang`.",
+            "default": "en-US"
+          },
+          "units": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "metric",
+                  "imperial"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement units",
+            "description": "Measurement units for location-rich results: `metric` or `imperial`."
+          },
+          "summary": {
+            "type": "boolean",
+            "title": "Summary",
+            "description": "Enable summary key generation in web search results (Brave summarizer).",
+            "default": true
+          },
+          "includeFetchMetadata": {
+            "type": "boolean",
+            "title": "Include fetch metadata",
+            "description": "Include fetch metadata in the Brave response.",
+            "default": false
+          },
+          "goggles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Goggles",
+            "description": "Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles per request."
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country",
+            "description": "Two-letter ISO 3166-1 alpha-2 country code for result origin (Brave `country`). Set `value` for a fixed default; set `expose` so the LLM may override per query."
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness",
+            "description": "Recency filter: `pd`, `pw`, `pm`, `py`, or `YYYY-MM-DDtoYYYY-MM-DD`. `value` + `expose` behave like `country`."
+          },
+          "searchLang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search language",
+            "description": "Language code for result documents (Brave `search_lang`). `value` + `expose` behave like `country`."
+          },
+          "safesearch": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "moderate",
+                  "strict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safe search",
+            "description": "Adult content filter: `off`, `moderate` (API default), or `strict`. Usually set via admin `value`; enable `expose` only if the LLM may tune per query."
+          },
+          "resultFilter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result filter",
+            "description": "Result types to include, e.g. `web`, `news`, `videos`. Omit (`null`) for all subscribed types. `value` + `expose` behave like `country`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Brave Search Request"
       },
       "ContentTypeToggles": {
         "properties": {
@@ -308,9 +892,9 @@
       },
       "CrawlResponse": {
         "properties": {
-          "crawlerType": {
+          "crawler": {
             "type": "string",
-            "title": "Crawler Type"
+            "title": "Crawler"
           },
           "results": {
             "items": {
@@ -322,7 +906,7 @@
         },
         "type": "object",
         "required": [
-          "crawlerType",
+          "crawler",
           "results"
         ],
         "title": "Crawl Response"
@@ -376,7 +960,7 @@
               }
             ],
             "title": "Raw",
-            "description": "Unmodified response body text, or null when no body was received"
+            "description": "Upstream provider response for this URL (JSON object or text wrapper); included on success and on per-URL failures for debugging"
           }
         },
         "type": "object",
@@ -385,7 +969,160 @@
         ],
         "title": "Crawl Url Result"
       },
-      "GoogleRequest": {
+      "FirecrawlCrawlRequest": {
+        "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
+          "crawler": {
+            "type": "string",
+            "const": "Firecrawl",
+            "title": "Crawler",
+            "default": "Firecrawl"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "onlyMainContent": {
+            "type": "boolean",
+            "title": "Only main content",
+            "description": "Exclude headers, navs, footers before markdown generation.",
+            "default": true
+          },
+          "onlyCleanContent": {
+            "type": "boolean",
+            "title": "Only clean content",
+            "description": "LLM pass to remove residual boilerplate from markdown.",
+            "default": false
+          },
+          "maxConcurrency": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max concurrency",
+            "description": "Maximum concurrent scrapes for this batch job."
+          },
+          "ignoreInvalidUrls": {
+            "type": "boolean",
+            "title": "Ignore invalid URLs",
+            "description": "Skip invalid URLs instead of failing the whole batch.",
+            "default": true
+          },
+          "waitFor": {
+            "type": "integer",
+            "title": "Wait for",
+            "description": "Extra delay in milliseconds before fetching page content.",
+            "default": 0
+          },
+          "mobile": {
+            "type": "boolean",
+            "title": "Mobile emulation",
+            "description": "Emulate a mobile device when scraping.",
+            "default": false
+          },
+          "blockAds": {
+            "type": "boolean",
+            "title": "Block ads",
+            "description": "Enable ad-blocking and cookie-popup blocking.",
+            "default": true
+          },
+          "removeBase64Images": {
+            "type": "boolean",
+            "title": "Remove base64 images",
+            "description": "Strip base64 image data from markdown output.",
+            "default": true
+          },
+          "proxy": {
+            "type": "string",
+            "enum": [
+              "basic",
+              "enhanced",
+              "auto"
+            ],
+            "title": "Proxy mode",
+            "description": "Firecrawl proxy tier: `basic`, `enhanced`, or `auto`.",
+            "default": "auto"
+          },
+          "includeTags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include tags",
+            "description": "HTML tags to include in scrape output."
+          },
+          "excludeTags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude tags",
+            "description": "HTML tags to exclude from scrape output."
+          },
+          "scrapeHeaders": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scrape headers",
+            "description": "Headers sent to the target page (cookies, user-agent, etc.)."
+          },
+          "maxAge": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max age",
+            "description": "Return cached page content younger than this age in milliseconds."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "urls"
+        ],
+        "title": "Firecrawl Crawl Request"
+      },
+      "GoogleSearchRequest": {
         "properties": {
           "query": {
             "type": "string",
@@ -563,7 +1300,7 @@
         "required": [
           "query"
         ],
-        "title": "Google Request"
+        "title": "Google Search Request"
       },
       "HTTPValidationError": {
         "properties": {
@@ -577,6 +1314,216 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "JinaCrawlRequest": {
+        "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
+          "crawler": {
+            "type": "string",
+            "const": "Jina",
+            "title": "Crawler",
+            "default": "Jina"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "returnFormat": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "html",
+              "text",
+              "screenshot",
+              "pageshot"
+            ],
+            "title": "Return format",
+            "description": "Jina Reader output format: `markdown`, `html`, `text`, `screenshot`, or `pageshot`.",
+            "default": "markdown"
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "browser",
+              "direct",
+              "cf-browser-rendering"
+            ],
+            "title": "Engine",
+            "description": "`browser` for best quality, `direct` for speed, `cf-browser-rendering` for JS-heavy sites.",
+            "default": "browser"
+          },
+          "pageTimeout": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page load timeout",
+            "description": "Max seconds to wait for the page to load (Jina Reader). Defaults to the crawl `timeout` when unset."
+          },
+          "maxConcurrentRequests": {
+            "type": "integer",
+            "title": "Maximum concurrent reader requests",
+            "description": "Maximum concurrent Jina Reader POST requests.",
+            "default": 10
+          },
+          "noCache": {
+            "type": "boolean",
+            "title": "Bypass cache",
+            "description": "Bypass Jina cache and fetch fresh content.",
+            "default": false
+          },
+          "targetSelector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target selector",
+            "description": "CSS selectors to focus extraction on specific page elements."
+          },
+          "waitForSelector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wait for selector",
+            "description": "CSS selectors to wait for before returning content."
+          },
+          "removeSelector": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remove selector",
+            "description": "CSS selectors for page regions to strip (headers, footers, etc.)."
+          },
+          "withGeneratedAlt": {
+            "type": "boolean",
+            "title": "Generated alt text",
+            "description": "Generate alt text for images missing alt tags.",
+            "default": false
+          },
+          "withLinksSummary": {
+            "type": "boolean",
+            "title": "Links summary",
+            "description": "Include a links summary in the reader response.",
+            "default": false
+          },
+          "withImagesSummary": {
+            "type": "boolean",
+            "title": "Images summary",
+            "description": "Include an images summary in the reader response.",
+            "default": false
+          },
+          "withIframe": {
+            "type": "boolean",
+            "title": "Include iframes",
+            "description": "Include iframe content in the reader response.",
+            "default": false
+          },
+          "retainImages": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "all",
+                  "alt",
+                  "all_p",
+                  "alt_p"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retain images",
+            "description": "Control which images are retained in markdown output."
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale",
+            "description": "Browser locale used to render the page (e.g. `en-US`)."
+          },
+          "referer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referer",
+            "description": "Referer header sent when fetching the target URL."
+          },
+          "proxyUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proxy URL",
+            "description": "Proxy URL used by Jina Reader to access the target page."
+          },
+          "doNotTrack": {
+            "type": "boolean",
+            "title": "Do not track",
+            "description": "Send DNT (Do Not Track) to the reader service.",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "urls"
+        ],
+        "title": "Jina Crawl Request"
       },
       "PerUrlError": {
         "properties": {
@@ -596,6 +1543,190 @@
         ],
         "title": "Per Url Error"
       },
+      "PerplexitySearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "perplexity",
+            "title": "Search engine",
+            "description": "Provider discriminator; must be `perplexity` for this config.",
+            "default": "perplexity"
+          },
+          "fetchSize": {
+            "type": "integer",
+            "title": "Fetch Size",
+            "description": "Default result count merged into each search request",
+            "default": 10
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "maxTokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max tokens",
+            "description": "Maximum total webpage content tokens across all results (Perplexity `max_tokens`). Omitted when unset. Omit `search_context_size` when using this or `max_tokens_per_page`."
+          },
+          "maxTokensPerPage": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max tokens per page",
+            "description": "Maximum webpage content tokens extracted from each result page (Perplexity `max_tokens_per_page`). Omitted when unset. Omit `search_context_size` when using this or `max_tokens`."
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country",
+            "description": "ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters). Set `value` for a fixed default; set `expose` so the LLM may override per query."
+          },
+          "searchContextSize": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search context size",
+            "description": "Controls how much content is extracted from result pages: `low`, `medium`, or `high` (API default). Omit when using `max_tokens` or `max_tokens_per_page`. `value` + `expose` behave like `country`."
+          },
+          "searchLanguageFilter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search language filter",
+            "description": "ISO 639-1 language codes (two characters each, up to 20). `value` + `expose` behave like `country`."
+          },
+          "searchDomainFilter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search domain filter",
+            "description": "Limit results to specific domains (up to 20). `value` + `expose` behave like `country`."
+          },
+          "searchRecencyFilter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hour",
+                  "day",
+                  "week",
+                  "month",
+                  "year"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search recency filter",
+            "description": "Filter by publication recency: `hour`, `day`, `week`, `month`, or `year`. `value` + `expose` behave like `country`."
+          },
+          "lastUpdatedAfterFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last updated after",
+            "description": "Return results updated after this date (Perplexity `last_updated_after_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          },
+          "lastUpdatedBeforeFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last updated before",
+            "description": "Return results updated before this date (Perplexity `last_updated_before_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          },
+          "searchAfterDateFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search after date",
+            "description": "Return results published after this date (Perplexity `search_after_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          },
+          "searchBeforeDateFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search before date",
+            "description": "Return results published before this date (Perplexity `search_before_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Perplexity Search Request"
+      },
       "ProvidersListResponse": {
         "properties": {
           "searchEngines": {
@@ -605,6 +1736,14 @@
             "type": "array",
             "title": "Search Engines",
             "description": "Registered search engine ids (config discriminator values)"
+          },
+          "agentEngines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agent Engines",
+            "description": "Registered agent search engine ids (config discriminator values)"
           },
           "crawlers": {
             "items": {
@@ -653,6 +1792,99 @@
         ],
         "title": "Search Response"
       },
+      "TavilyCrawlRequest": {
+        "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Urls",
+            "description": "URLs to crawl"
+          },
+          "crawler": {
+            "type": "string",
+            "const": "Tavily",
+            "title": "Crawler",
+            "default": "Tavily"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds",
+            "default": 30
+          },
+          "extractDepth": {
+            "type": "string",
+            "enum": [
+              "basic",
+              "advanced"
+            ],
+            "title": "Extract depth",
+            "description": "Tavily extract depth: `basic` or `advanced`. Advanced retrieves more data (tables, embedded content) with higher success.",
+            "default": "advanced"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "text"
+            ],
+            "title": "Output format",
+            "description": "Extracted content format: `markdown` or `text`.",
+            "default": "markdown"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank query",
+            "description": "User intent for reranking extracted content chunks. When set, `chunks_per_source` may be used."
+          },
+          "chunksPerSource": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunks per source",
+            "description": "Max relevant chunks per URL when `query` is set (1\u20135). Chunks appear in `raw_content` separated by `[...]`."
+          },
+          "includeImages": {
+            "type": "boolean",
+            "title": "Include images",
+            "description": "Include extracted image URLs in the Tavily response.",
+            "default": false
+          },
+          "includeFavicon": {
+            "type": "boolean",
+            "title": "Include favicon",
+            "description": "Include the favicon URL for each extracted result.",
+            "default": false
+          },
+          "includeUsage": {
+            "type": "boolean",
+            "title": "Include usage",
+            "description": "Include Tavily credit usage information in the response.",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "urls"
+        ],
+        "title": "Tavily Crawl Request"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -685,6 +1917,52 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VertexAIAgentSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Query",
+            "description": "Search query string"
+          },
+          "engine": {
+            "type": "string",
+            "const": "vertexai",
+            "title": "Agent engine",
+            "description": "Provider discriminator; must be `vertexai` for this config.",
+            "default": "vertexai"
+          },
+          "generationInstructions": {
+            "type": "string",
+            "title": "Generation Instructions",
+            "description": "Instructions injected into the grounding agent.",
+            "default": "You are an Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you find.\n\n## Core Directives\n1. **Search broadly** \u2014 issue multiple searches with varied keywords and phrasings to cover every angle of the query.\n2. **Read every source thoroughly** \u2014 do NOT skim. Extract every relevant fact, figure, statistic, date, name, quote, and piece of context.\n3. **One entry per source** \u2014 each source gets its own result object. Never merge information from different sources into a single entry.\n4. **Preserve detail** \u2014 prefer verbosity over brevity. Include specific numbers, full names, exact dates, and direct quotes whenever available. Do NOT paraphrase away precision.\n5. **No omissions** \u2014 if a source contains relevant information, it MUST appear in your output. When in doubt, include it.\n"
+          },
+          "timeout": {
+            "type": "integer",
+            "title": "Timeout",
+            "description": "Request timeout in seconds (agent runs can be slow).",
+            "default": 120
+          },
+          "vertexaiModelName": {
+            "type": "string",
+            "title": "Vertexai Model Name",
+            "description": "Gemini model name for grounded generation",
+            "default": "gemini-3-flash-preview"
+          },
+          "enableEnterpriseSearch": {
+            "type": "boolean",
+            "title": "Enable Enterprise Search",
+            "description": "Use enterprise web search grounding tool instead of Google Search",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "Vertex Ai Agent Search Request"
       },
       "WebSearchResult": {
         "properties": {

@@ -2,18 +2,47 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic import BaseModel
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
-from unique_search_proxy_core.search_engines.base import SearchEngineType
 
-from unique_search_proxy_sdk._generated.models.basic_proxy_crawler import (
-    BasicProxyCrawler as SdkBasicCrawlerRequest,
-)
-from unique_search_proxy_sdk._generated.models.google_request import (
-    GoogleRequest as SdkGoogleRequest,
-)
+
+@dataclass(frozen=True, slots=True)
+class SdkSearchBody:
+    """JSON body for ``POST /v1/search`` without attrs ``from_dict``.
+
+    The generated attrs request models are fragile under IPython ``%autoreload``
+    (attrs-generated ``__init__`` can raise read-only attribute errors after a
+    reload). The OpenAPI route only needs ``to_dict()`` for serialization, so we
+    pass validated core payloads through this wrapper instead.
+    """
+
+    payload: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.payload
+
+
+@dataclass(frozen=True, slots=True)
+class SdkCrawlBody:
+    """JSON body for ``POST /v1/crawl`` without attrs ``from_dict``."""
+
+    payload: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.payload
+
+
+@dataclass(frozen=True, slots=True)
+class SdkAgentSearchBody:
+    """JSON body for ``POST /v1/agent-search`` without attrs ``from_dict``."""
+
+    payload: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.payload
 
 
 def _model_to_sdk_dict(model: BaseModel) -> dict[str, Any]:
@@ -26,20 +55,16 @@ def _model_to_sdk_dict(model: BaseModel) -> dict[str, Any]:
     return data
 
 
-def to_sdk_google_request(request: BaseModel) -> SdkGoogleRequest:
-    return SdkGoogleRequest.from_dict(_model_to_sdk_dict(request))
+def to_sdk_search_request(request: BaseModel) -> SdkSearchBody:
+    """Build the HTTP JSON body for a validated core search request."""
+    return SdkSearchBody(payload=_model_to_sdk_dict(request))
 
 
-def to_sdk_crawl_request(request: BaseModel) -> SdkBasicCrawlerRequest:
-    return SdkBasicCrawlerRequest.from_dict(_model_to_sdk_dict(request))
+def to_sdk_crawl_request(request: BaseModel) -> SdkCrawlBody:
+    """Build the HTTP JSON body for a validated core crawl request."""
+    return SdkCrawlBody(payload=_model_to_sdk_dict(request))
 
 
-def to_sdk_search_request(request: BaseModel) -> SdkGoogleRequest:
-    """Dispatch flat search request to the generated SDK model for its engine."""
-    engine = getattr(request, "engine", None)
-    if engine is None:
-        raise ValueError("Search request is missing engine discriminator")
-    engine_id = engine.value if hasattr(engine, "value") else str(engine)
-    if engine_id == SearchEngineType.GOOGLE.value:
-        return to_sdk_google_request(request)
-    raise ValueError(f"No SDK converter for search engine {engine_id!r}")
+def to_sdk_agent_search_request(request: BaseModel) -> SdkAgentSearchBody:
+    """Build the HTTP JSON body for a validated core agent-search request."""
+    return SdkAgentSearchBody(payload=_model_to_sdk_dict(request))

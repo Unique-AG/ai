@@ -153,11 +153,11 @@ def google_request_model() -> type[BaseModel]:
     return build_request_model(GoogleConfig)
 
 
-GoogleRequest = google_request_model()
+GoogleSearchRequest = google_request_model()
 
 
 __all__ = [
     "GoogleConfig",
-    "GoogleRequest",
+    "GoogleSearchRequest",
     "google_request_model",
 ]

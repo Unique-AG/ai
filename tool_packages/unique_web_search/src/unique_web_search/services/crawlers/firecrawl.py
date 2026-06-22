@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, override
 
 from firecrawl import AsyncFirecrawl
 
@@ -11,6 +11,10 @@ from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
 from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+)
+from unique_web_search.services.proxy.mappers import map_crawl_response
 
 
 class FirecrawlCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.FIRECRAWL]):
@@ -18,6 +22,8 @@ class FirecrawlCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.FIRECRAWL
 
 
 class FirecrawlCrawler(BaseCrawler[FirecrawlCrawlerConfig]):
+    supports_proxy_crawl = True
+
     def __init__(self, config: FirecrawlCrawlerConfig):
         super().__init__(config)
 
@@ -25,8 +31,22 @@ class FirecrawlCrawler(BaseCrawler[FirecrawlCrawlerConfig]):
     # @track(
     #     tags=["firecrawl", "scrape"],
     # )
-    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+    @override
+    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
+        async with open_search_proxy_client(
+            timeout=float(self.config.timeout),
+        ) as client:
+            response = await client.crawl.firecrawl(
+                urls=urls,
+                timeout=int(self.config.timeout),
+                only_main_content=True,
+            )
+            return map_crawl_response(response, urls)
+
+    @override
+    async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         urls = [target.normalized_url for target in targets]
+
         api_key = get_firecrawl_search_settings().api_key
         assert api_key is not None, "Firecrawl API key is not configured"
 

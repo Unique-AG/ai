@@ -1,5 +1,5 @@
 import json
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, TypeVar, override
 
 from httpx import AsyncClient
 from pydantic import Field
@@ -93,7 +93,12 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
         self.api_endpoint = config.api_endpoint
         self.is_configured = True  # No possibility to check if the API is configured from our side. So we assume it is configured.
 
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        raise NotImplementedError("CustomAPI does not support proxy search")
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         params, body = self._prepare_request_params_and_body(query)
 
         async_client_params = self._client_config | {

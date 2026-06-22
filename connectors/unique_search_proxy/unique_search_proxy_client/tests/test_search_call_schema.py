@@ -9,7 +9,6 @@ class TestResolveSearchCallSchema:
     def test_query_and_fetch_size_in_schema(self) -> None:
         descriptor = resolve_search_call_schema("google")
         assert descriptor.engine == "google"
-        assert descriptor.snippet_only is True
         assert descriptor.mode == "standard"
         properties = descriptor.call_schema.get("properties", {})
         assert "query" in properties
@@ -89,20 +88,72 @@ class TestResolveSearchCallSchema:
             },
         )
         assert descriptor.engine == "google"
-        assert descriptor.snippet_only is True
         assert descriptor.mode == "standard"
         assert "query" in descriptor.call_schema["properties"]
         assert "fetchSize" not in descriptor.call_schema["properties"]
         assert "gl" in descriptor.call_schema["properties"]
 
     @pytest.mark.ai
+    def test_brave_call_schema_defaults(self) -> None:
+        descriptor = resolve_search_call_schema("brave")
+        assert descriptor.engine == "brave"
+        assert descriptor.mode == "standard"
+        properties = descriptor.call_schema.get("properties", {})
+        assert "query" in properties
+        assert "fetchSize" not in properties
+        assert "extraSnippets" not in properties
+        assert "safesearch" not in properties
+
+    @pytest.mark.ai
+    def test_brave_exposed_fields_appear_in_call_schema(self) -> None:
+        descriptor = resolve_search_call_schema(
+            "brave",
+            config={
+                "engine": "brave",
+                "country": {"expose": True, "value": "CH"},
+                "freshness": {"expose": False, "value": "pw"},
+            },
+        )
+        properties = descriptor.call_schema.get("properties", {})
+        assert "query" in properties
+        assert "country" in properties
+        assert "freshness" not in properties
+
+    @pytest.mark.ai
+    def test_perplexity_call_schema_defaults(self) -> None:
+        descriptor = resolve_search_call_schema("perplexity")
+        assert descriptor.engine == "perplexity"
+        assert descriptor.mode == "standard"
+        properties = descriptor.call_schema.get("properties", {})
+        assert "query" in properties
+        assert "fetchSize" not in properties
+        assert "searchContextSize" not in properties
+
+    @pytest.mark.ai
+    def test_perplexity_exposed_fields_appear_in_call_schema(self) -> None:
+        descriptor = resolve_search_call_schema(
+            "perplexity",
+            config={
+                "engine": "perplexity",
+                "country": {"expose": True, "value": "US"},
+                "searchRecencyFilter": {"expose": False, "value": "week"},
+                "searchDomainFilter": {"expose": True, "value": ["example.com"]},
+            },
+        )
+        properties = descriptor.call_schema.get("properties", {})
+        assert "query" in properties
+        assert "country" in properties
+        assert "searchDomainFilter" in properties
+        assert "searchRecencyFilter" not in properties
+
+    @pytest.mark.ai
     def test_unknown_engine_raises(self) -> None:
         with pytest.raises(ValueError, match="No search_engine config registered"):
-            resolve_search_call_schema("brave")
+            resolve_search_call_schema("bing")
 
     @pytest.mark.ai
     def test_invalid_engine_id_raises_when_config_provided(self) -> None:
-        with pytest.raises(ValueError, match="is not a valid SearchEngineType"):
+        with pytest.raises(ValueError, match="does not match engine"):
             resolve_search_call_schema(
                 "brave",
                 config={"engine": "google"},

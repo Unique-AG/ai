@@ -41,6 +41,9 @@ runs:
           stock_ticker:
             - 'postprocessors/unique_stock_ticker/**'
             - '!postprocessors/unique_stock_ticker/**/*.md'
+          user_memory:
+            - 'postprocessors/unique_user_memory/**'
+            - '!postprocessors/unique_user_memory/**/*.md'
           deep_research:
             - 'tool_packages/unique_deep_research/**'
             - '!tool_packages/unique_deep_research/**/*.md'

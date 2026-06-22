@@ -3,8 +3,8 @@ import socket
 from unittest.mock import Mock
 
 import pytest
+import unique_search_proxy_core.url_safety.dns as url_safety_dns
 
-import unique_web_search.services.crawlers.url_safety.dns as url_safety_dns
 from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan

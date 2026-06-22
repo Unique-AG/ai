@@ -88,11 +88,12 @@ def provider_param_exclude_fields(config_cls: type[BaseModel]) -> set[str]:
 def provider_query_params_from_request(
     request: BaseModel,
     config_cls: type[BaseModel],
+    by_alias: bool = True,
 ) -> dict[str, Any]:
     """Serialize provider knobs from a derived request model."""
     return request.model_dump(
         mode="json",
         exclude_none=True,
         exclude=provider_param_exclude_fields(config_cls),
-        by_alias=True,
+        by_alias=by_alias,
     )

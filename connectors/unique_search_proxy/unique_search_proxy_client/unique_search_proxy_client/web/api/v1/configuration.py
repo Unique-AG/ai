@@ -19,6 +19,7 @@ async def list_providers() -> ProvidersListResponse:
     providers = list_registered_providers()
     return ProvidersListResponse(
         search_engines=providers["search_engines"],
+        agent_engines=providers["agent_engines"],
         crawlers=providers["crawlers"],
     )
 

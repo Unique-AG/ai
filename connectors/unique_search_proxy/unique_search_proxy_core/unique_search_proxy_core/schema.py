@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Any, overload
+from typing import Annotated, Any, Literal, overload
 
 import humps
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from pydantic.fields import ComputedFieldInfo, FieldInfo
+
+ProxyRequestType = Literal["search", "agent_search", "crawl"]
 
 
 def field_title_generator(
@@ -33,6 +35,15 @@ def get_model_config(title: str | None = None) -> ConfigDict:
 camelized_model_config = get_model_config()
 
 
+deployment_model_config = ConfigDict(
+    alias_generator=to_camel,
+    field_title_generator=field_title_generator,
+    model_title_generator=model_title_generator,
+    populate_by_name=True,
+    extra="forbid",
+)
+
+
 # Marks the deactivated branch of an optional config value. Locally declared so
 # core has no runtime dependency on unique-toolkit for this one-line alias.
 DeactivatedNone = Annotated[
@@ -57,10 +68,17 @@ class ErrorDetail(BaseModel):
 
     code: str
     message: str
-    engine: str | None = None
-    crawler: str | None = None
+    request: ProxyRequestType | None = None
+    provider: str | None = None
     retryable: bool = False
     details: list[dict[str, Any]] | None = None
+    raw: Any | None = Field(
+        default=None,
+        description=(
+            "Upstream provider response on request-level failure "
+            "(JSON object or text wrapper)"
+        ),
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -150,7 +168,10 @@ class CrawlUrlResult(BaseModel):
     error: PerUrlError | None = None
     raw: Any | None = Field(
         default=None,
-        description="Unmodified response body text, or null when no body was received",
+        description=(
+            "Upstream provider response for this URL (JSON object or text wrapper); "
+            "included on success and on per-URL failures for debugging"
+        ),
     )
 
 
@@ -163,12 +184,58 @@ class SearchResponse(BaseModel):
     curated: list[WebSearchResult]
 
 
+class AgentSearchResponse(BaseModel):
+    """Result of an agent-based (grounded) search.
+
+    Thin egress contract: opaque ``answer`` text from the provider plus ``raw``
+    for debugging. Consumers interpret ``answer`` (JSON parsing, citations, etc.).
+    """
+
+    model_config = camelized_model_config
+
+    engine: str
+    query: str
+    answer: str = Field(
+        default="",
+        description="Agent response text as returned by the provider (opaque to the proxy)",
+    )
+    raw: Any = Field(default=None, description="Opaque provider payload")
+
+
+class AgentSearchDelta(BaseModel):
+    """Incremental answer token emitted while streaming an agent search."""
+
+    model_config = camelized_model_config
+
+    type: Literal["delta"] = "delta"
+    text: str
+
+
+class AgentSearchDone(BaseModel):
+    """Terminal streaming event carrying the fully assembled response."""
+
+    model_config = camelized_model_config
+
+    type: Literal["done"] = "done"
+    response: AgentSearchResponse
+
+
+AgentSearchStreamEvent = Annotated[
+    AgentSearchDelta | AgentSearchDone,
+    Field(discriminator="type"),
+]
+
+
 class ProvidersListResponse(BaseModel):
     model_config = camelized_model_config
 
     search_engines: list[str] = Field(
         ...,
         description="Registered search engine ids (config discriminator values)",
+    )
+    agent_engines: list[str] = Field(
+        default_factory=list,
+        description="Registered agent search engine ids (config discriminator values)",
     )
     crawlers: list[str] = Field(
         ...,
@@ -179,13 +246,11 @@ class ProvidersListResponse(BaseModel):
 class CrawlResponse(BaseModel):
     model_config = camelized_model_config
 
-    crawler_type: str
+    crawler: str
     results: list[CrawlUrlResult]
 
 
 class CrawlerConfig(BaseModel):
     model_config = camelized_model_config
 
-    crawler_type: str = Field(
-        ..., title="Crawler type", description="Crawler identifier"
-    )
+    crawler: str = Field(..., title="Crawler", description="Crawler identifier")

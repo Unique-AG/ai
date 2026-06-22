@@ -29,6 +29,7 @@ on:
           - swot
           - follow_up_questions
           - stock_ticker
+          - user_memory
           - deep_research
           - internal_search
           - quartr
