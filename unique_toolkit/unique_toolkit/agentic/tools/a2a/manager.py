@@ -21,8 +21,15 @@ class A2AManager:
     def get_all_sub_agents(
         self,
         tool_configs: list[ToolBuildConfig],
-        event: ChatEvent,
+        event: ChatEvent | None,
     ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]:
+        if event is None:
+            return [
+                tool_config
+                for tool_config in tool_configs
+                if not tool_config.is_sub_agent
+            ], []
+
         sub_agents = []
 
         for tool_config in tool_configs:
