@@ -247,9 +247,12 @@ whole file.
 | `vision` | You rendered the page to an image and read it with your vision capability. |
 | `indexed` | You read the content via `unique-cli read` (indexed chunks). |
 
-**MANDATORY verification before EVERY `unique-cli cite` call — NO EXCEPTIONS.**
-Pick the row matching the file you read; verify the cited content really is where
-you claim before calling `cite`:
+**Verify page numbers before citing — unless you already have them from `unique-cli read`.**
+If you cited straight from `unique-cli read` output (`--read-method indexed`), its
+`[p.N]` / `[p.N-M]` markers are already physical positions — skip the checks below
+and cite them directly. Otherwise — you read the raw bytes yourself
+(`--read-method text`/`vision`) — pick the row matching the file you read and
+verify the cited content really is where you claim before calling `cite`:
 
 - **PDF** — `pdfinfo file.pdf | grep Pages` for the total physical page count, then
   for **each** page run `pdftotext -f N -l N file.pdf -` and confirm the content is
