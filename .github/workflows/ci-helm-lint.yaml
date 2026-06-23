@@ -39,6 +39,16 @@ jobs:
       - name: Check values.schema.json drift
         run: scripts/render-values-schema.sh --check
 
+      - name: Install helm-docs
+        run: |
+          curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v1.14.2/helm-docs_1.14.2_Linux_x86_64.tar.gz \
+            | tar -xz -C /tmp
+          sudo mv /tmp/helm-docs /usr/local/bin/helm-docs
+          helm-docs --version
+
+      - name: Check chart README.md drift
+        run: scripts/render-helm-docs.sh --check
+
   prepare:
     runs-on: ubuntu-latest
     permissions:

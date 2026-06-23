@@ -166,7 +166,10 @@ uv run python scripts/generate_helm_config.py
 #    (run from the ai repo root — step 1 deliberately does NOT do this)
 ( cd ../../.. && scripts/render-values-schema.sh )
 
-# 3. Render every fixture to confirm the chart still templates
+# 3. Regenerate README.md for Artifact Hub (helm-docs)
+( cd ../../.. && scripts/render-helm-docs.sh )
+
+# 4. Render every fixture to confirm the chart still templates
 #    (needs helm + login to ghcr.io for the base dependency)
 scripts/render_helm_fixtures.sh
 ```
@@ -175,6 +178,8 @@ Drift check for CI / pre-commit (exit 1 if committed artifacts are stale):
 
 ```bash
 uv run python scripts/generate_helm_config.py --check
+( cd ../../.. && scripts/render-values-schema.sh --check )
+( cd ../../.. && scripts/render-helm-docs.sh --check )
 ```
 
 ### Adding or changing a provider field
@@ -182,6 +187,6 @@ uv run python scripts/generate_helm_config.py --check
 1. Edit the settings class in `web/settings/providers/<provider>.py` (or `client.py` /
    `monitoring.py`). Type + default determine sensitivity, required-ness, and schema type;
    `@helm_settings` metadata controls the block name, title, and egress.
-2. Run steps 1–3 above and review the diff in `values.yaml`, `_generated.tpl`, and the schemas.
+2. Run steps 1–4 above and review the diff in `values.yaml`, `_generated.tpl`, the schemas, and `README.md`.
 3. For a brand-new provider, also add `helm-chart/fixtures/values-<provider>-enabled.yaml`
    so the render test exercises it.
