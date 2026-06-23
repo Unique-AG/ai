@@ -76,8 +76,7 @@ class _SectionBlock:
         schema validation, so the template emits ``{}`` for them.
         """
         return any(
-            row.literal is not None or row.list_items is not None
-            for row in self.rows
+            row.literal is not None or row.list_items is not None for row in self.rows
         )
 
 
