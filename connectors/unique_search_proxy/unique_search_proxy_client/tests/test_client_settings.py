@@ -12,7 +12,7 @@ from unique_search_proxy_client.web.settings.secret_str import (
     LogSecretStr,
     read_secret_headers,
 )
-from unique_search_proxy_client.web.settings.startup_report import (
+from unique_search_proxy_client.web.startup_report import (
     _format_settings_value,
 )
 
@@ -80,13 +80,13 @@ class TestHttpClientSecretFormatting:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        import unique_search_proxy_client.web.settings.startup_log as startup_log_module
-        from unique_search_proxy_client.web.settings.startup_log import (
+        import unique_search_proxy_client.web.settings.secret_str as secret_str_module
+        from unique_search_proxy_client.web.settings.secret_str import (
             StartupLogSettings,
         )
 
         monkeypatch.setattr(
-            startup_log_module,
+            secret_str_module,
             "startup_log_settings",
             StartupLogSettings(secret_suffix_len=3),
         )

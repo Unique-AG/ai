@@ -27,10 +27,10 @@ from unique_search_proxy_client.web.core.search_engines.google.query_params impo
     build_google_query_params,
 )
 from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
-from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
 from unique_search_proxy_client.web.settings.providers.google import (
     _get_google_search_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED
 
 
 class TestMergeConfigAndInvocation:

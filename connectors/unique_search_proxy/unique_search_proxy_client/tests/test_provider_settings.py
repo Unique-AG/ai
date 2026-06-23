@@ -1,7 +1,6 @@
 import pytest
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 
-from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
 from unique_search_proxy_client.web.settings.providers.brave import (
     _BraveCredentials,
     _get_brave_search_credentials,
@@ -14,6 +13,7 @@ from unique_search_proxy_client.web.settings.providers.perplexity import (
     _get_perplexity_search_credentials,
     _PerplexityCredentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED
 
 _DEFAULT_BRAVE_API_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
 _DEFAULT_PERPLEXITY_API_ENDPOINT = "https://api.perplexity.ai/search"

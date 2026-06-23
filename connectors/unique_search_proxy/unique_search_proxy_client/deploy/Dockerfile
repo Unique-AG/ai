@@ -5,7 +5,6 @@
 # workspace (pyproject.toml + uv.lock + all workspace member sources).
 #
 # Both cd-containerize and ci-containerize set context: .
-# For local development, use Dockerfile.local instead.
 # =============================================================================
 
 # ── Stage 1: install deps into an isolated venv ───────────────────────────────

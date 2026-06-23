@@ -4,13 +4,16 @@ from typing import Literal
 
 from pydantic import Field
 
+from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.providers.base import (
-    NOT_PROVIDED,
     ProviderCredentials,
     provider_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
+from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
+    LogSecretStr,
+)
 from unique_search_proxy_client.web.utils.url import join_url_path
 
 _TAVILY_API_BASE = "https://api.tavily.com"
@@ -22,6 +25,7 @@ _TAVILY_OPERATION_PATHS: dict[TavilyOperation, tuple[str, ...]] = {
 _ENV_PREFIX = "TAVILY_"
 
 
+@helm_settings(title="Tavily", helm_key="tavily")
 @provider_credentials(_ENV_PREFIX)
 class _TavilyCredentials(ProviderCredentials):
     """Environment-backed credentials for Tavily APIs."""

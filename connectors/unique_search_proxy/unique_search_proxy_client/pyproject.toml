@@ -20,6 +20,7 @@ dependencies = [
     "certifi>=2025.11.12,<2027",
     "google-genai>=1.73.0,<2",
     "google-auth>=2.43.0,<3",
+    "jinja2>=3.1.6,<4",
     "unique-toolkit[monitoring]>=2026.26.0",
     "unique-search-proxy-core>=2026.26.0",
 ]
@@ -77,6 +78,8 @@ DEP003 = ["unique_toolkit", "unique_search_proxy_core"]
 
 [tool.poe.tasks]
 generate-sdk = "python scripts/generate_sdk.py"
+generate-helm-config = "python scripts/generate_helm_config.py"
+render-helm-fixtures = "bash scripts/render_helm_fixtures.sh"
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
