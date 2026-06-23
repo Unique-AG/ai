@@ -1,6 +1,6 @@
 [project]
 name = "unique-search-proxy"
-version = "2026.26.0"
+version = "2026.26.1"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
@@ -20,8 +20,8 @@ dependencies = [
     "certifi>=2025.11.12,<2027",
     "google-genai>=1.73.0,<2",
     "google-auth>=2.43.0,<3",
-    "unique-toolkit[monitoring]>=2026.26.0",
-    "unique-search-proxy-core>=2026.26.0",
+    "unique-toolkit[monitoring]>=2026.26.1",
+    "unique-search-proxy-core>=2026.26.1",
 ]
 
 [dependency-groups]
