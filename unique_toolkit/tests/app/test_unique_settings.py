@@ -3,7 +3,14 @@ from pathlib import Path
 
 import pytest
 from pydantic import SecretStr
+from unique_sdk.api_resources._agentic_table import MagicTableAction
 
+from unique_toolkit.agentic_table.schemas import (
+    DDMetadata,
+    MagicTableEvent,
+    MagicTableEventTypes,
+    MagicTableUpdateCellPayload,
+)
 from unique_toolkit.app.schemas import (
     BaseEvent,
     ChatEvent,
@@ -14,6 +21,8 @@ from unique_toolkit.app.schemas import (
     EventName,
 )
 from unique_toolkit.app.unique_settings import (
+    MAGIC_TABLE_STREAMING_ASSISTANT_MESSAGE_ID,
+    MAGIC_TABLE_STREAMING_USER_MESSAGE_ID,
     AuthContext,
     ChatContext,
     EnvFileNotFoundError,
@@ -1294,3 +1303,56 @@ class TestUniqueContext:
         )
         ctx = UniqueContext.from_event(event)
         assert ctx.chat is None
+
+    @pytest.mark.ai
+    def test_from_magic_table_event__maps_auth_and_chat(self) -> None:
+        event = _make_magic_table_event(
+            company_id="company-mt",
+            user_id="user-mt",
+            chat_id="chat-mt",
+            assistant_id="asst-mt",
+        )
+        ctx = UniqueContext.from_magic_table_event(event)
+        assert ctx.auth.get_confidential_company_id() == "company-mt"
+        assert ctx.auth.get_confidential_user_id() == "user-mt"
+        assert ctx.chat is not None
+        assert ctx.chat.chat_id == "chat-mt"
+        assert ctx.chat.assistant_id == "asst-mt"
+        assert (
+            ctx.chat.last_assistant_message_id
+            == MAGIC_TABLE_STREAMING_ASSISTANT_MESSAGE_ID
+        )
+        assert ctx.chat.last_user_message_id == MAGIC_TABLE_STREAMING_USER_MESSAGE_ID
+
+    @pytest.mark.ai
+    def test_from_magic_table_event__raises_without_chat_id(self) -> None:
+        event = _make_magic_table_event(chat_id="")
+        with pytest.raises(ValueError, match="missing chat_id"):
+            UniqueContext.from_magic_table_event(event)
+
+
+def _make_magic_table_event(
+    *,
+    user_id: str = "user-1",
+    company_id: str = "company-1",
+    chat_id: str = "chat-1",
+    assistant_id: str = "asst-1",
+) -> MagicTableEvent:
+    return MagicTableEvent(
+        id="evt-mt-1",
+        event=MagicTableEventTypes.UPDATE_CELL,
+        user_id=user_id,
+        company_id=company_id,
+        payload=MagicTableUpdateCellPayload(
+            name="agentic-table",
+            sheet_name="sheet-1",
+            action=MagicTableAction.UPDATE_CELL,
+            chat_id=chat_id,
+            assistant_id=assistant_id,
+            table_id="table-1",
+            column_order=0,
+            row_order=0,
+            data="cell",
+            metadata=DDMetadata(),
+        ),
+    )

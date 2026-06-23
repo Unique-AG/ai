@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, overload
+from typing import Any, overload
 
 import unique_sdk
 from requests import Response
@@ -9,7 +9,7 @@ from typing_extensions import Self, deprecated
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, Correlation
-from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
@@ -32,9 +32,6 @@ from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
 )
-
-if TYPE_CHECKING:
-    from unique_toolkit.app.unique_settings import UniqueContext
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 

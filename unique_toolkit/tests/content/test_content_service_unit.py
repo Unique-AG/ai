@@ -1083,3 +1083,31 @@ class TestGetDocumentsUploadedToChatAsync:
         assert len(result) == 2
         returned_ids = {c.id for c in result}
         assert returned_ids == {"file_a", "file_b"}
+
+
+class TestContentServiceFromContext:
+    @pytest.mark.ai
+    def test_from_context__uses_parent_chat_when_correlated(self) -> None:
+        from pydantic import SecretStr
+
+        from unique_toolkit.app.unique_settings import (
+            AuthContext,
+            ChatContext,
+            UniqueContext,
+        )
+
+        ctx = UniqueContext(
+            auth=AuthContext(
+                company_id=SecretStr("company-1"),
+                user_id=SecretStr("user-1"),
+            ),
+            chat=ChatContext(
+                chat_id="sub-chat",
+                assistant_id="asst-1",
+                parent_chat_id="parent-chat",
+                metadata_filter={"k": "v"},
+            ),
+        )
+        service = ContentService.from_context(ctx)
+        assert service._chat_id == "parent-chat"
+        assert service._metadata_filter == {"k": "v"}
