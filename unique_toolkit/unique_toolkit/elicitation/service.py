@@ -265,9 +265,8 @@ class ElicitationService:
             ElicitationCancelledException: If the user cancelled.
             ElicitationExpiredException: If the request expired or timed out.
         """
-        num_trials = int(timeout_seconds // poll_interval_seconds) + 1
+        num_trials = int(timeout_seconds / poll_interval_seconds) + 1
         for _ in range(num_trials):
-            await asyncio.sleep(poll_interval_seconds)
             elicitation = await self.get_async(elicitation_id)
             match elicitation.status:
                 case ElicitationStatus.ACCEPTED:
@@ -279,7 +278,7 @@ class ElicitationService:
                 case ElicitationStatus.EXPIRED:
                     raise ElicitationExpiredException()
                 case _:
-                    continue
+                    await asyncio.sleep(poll_interval_seconds)
         raise ElicitationExpiredException()
 
     # List Pending Methods
