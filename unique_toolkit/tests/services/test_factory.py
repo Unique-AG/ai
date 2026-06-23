@@ -549,3 +549,21 @@ class TestDefaultRegistrations:
         """
         with pytest.raises(ServiceNotRegisteredError):
             UniqueServiceFactory.create("Identity", settings=settings)
+
+    @pytest.mark.ai
+    def test_content_service__registered(
+        self, settings_with_chat: UniqueSettings
+    ) -> None:
+        from unique_toolkit.content.service import ContentService
+
+        svc = UniqueServiceFactory.create(ContentService, settings=settings_with_chat)
+        assert isinstance(svc, ContentService)
+        assert svc._chat_id == "chat-1"
+
+    @pytest.mark.ai
+    def test_language_model_service__registered(self, settings: UniqueSettings) -> None:
+        from unique_toolkit.language_model.service import LanguageModelService
+
+        svc = UniqueServiceFactory.create(LanguageModelService, settings=settings)
+        assert isinstance(svc, LanguageModelService)
+        assert svc._company_id == "company-1"
