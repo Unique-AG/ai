@@ -383,35 +383,56 @@ class ShellState:
             return [], []
         return self._metadata_filter.scope()
 
-    def metadata_filter_navigable_scope(self) -> tuple[list[str], list[str]]:
-        """``(navigable_folder_paths, content_ids)`` for denial hints.
+    def metadata_filter_navigable_scope(
+        self,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """``(navigable_folder_paths, free_content_ids,
+        folder_restricted_content_ids)`` for denial hints.
 
-        Like :meth:`metadata_filter_scope` but restricts the folders to those
-        the agent can actually browse, so a hint never names a folder that
-        ``ls``/``cd`` would deny. See UN-21780. Returns empty lists when no
-        per-message filter is configured.
+        Like :meth:`metadata_filter_scope` but restricts folders to those the
+        agent can actually browse and splits content ids by whether they are
+        folder-restricted, so a hint never names a folder ``ls``/``cd`` would
+        deny and can describe folder-bound documents precisely. See UN-21780.
+        Returns empty lists when no per-message filter is configured.
         """
         if self._metadata_filter is None:
-            return [], []
-        return self._metadata_filter.navigable_scope()
+            return [], [], []
+        return self._metadata_filter.describe_navigable_scope()
+
+    @staticmethod
+    def _format_hint_ids(ids: list[str]) -> str:
+        """Comma-joined id list, truncated to keep the denial hint one line."""
+        shown = ", ".join(ids[:5])
+        return shown if len(ids) <= 5 else f"{shown} (+{len(ids) - 5} more)"
 
     def scope_denial_hint(self) -> str:
         """One-line description of the active scope, for denial messages.
 
         Steers the agent back to in-scope folders/documents instead of
-        prompting blind retries on out-of-scope content.
+        prompting blind retries on out-of-scope content. Folder-restricted
+        documents are described as living *within* the named folders, so the
+        agent is never told a document is freely reachable when it is actually
+        gated behind a folder constraint ``read``/``cite`` would enforce. See
+        UN-21780.
         """
         if self.workspace_metadata_filter is not None:
-            folders, content_ids = self.metadata_filter_navigable_scope()
+            folders, free_ids, restricted_ids = self.metadata_filter_navigable_scope()
+            # A folder-restricted id can only be *described* as such when there
+            # is a folder to anchor it to. Without one (e.g. a contentId AND-ed
+            # with a non-folder constraint), list it plainly as a best effort.
+            if restricted_ids and not folders:
+                free_ids = free_ids + restricted_ids
+                restricted_ids = []
             parts: list[str] = []
             if folders:
                 parts.append("folders: " + ", ".join(folders))
-            if content_ids:
-                shown = ", ".join(content_ids[:5])
-                more = (
-                    "" if len(content_ids) <= 5 else f" (+{len(content_ids) - 5} more)"
+            if restricted_ids:
+                parts.append(
+                    "documents within those folders: "
+                    + self._format_hint_ids(restricted_ids)
                 )
-                parts.append(f"documents: {shown}{more}")
+            if free_ids:
+                parts.append("documents: " + self._format_hint_ids(free_ids))
             return "; ".join(parts) if parts else "the task's configured scope"
         paths = self._resolve_workspace_scope_paths()
         if paths:

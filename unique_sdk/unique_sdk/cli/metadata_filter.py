@@ -169,6 +169,51 @@ def _collect_filter_targets(
     return folder_ids, content_ids
 
 
+def _content_reachable_without_folder(node: Any, content_id: str) -> bool:
+    """True if *content_id* satisfies *node* with **no** ``folderIdPath`` match.
+
+    Structural, I/O-free counterpart to ``MetadataFilter.allows_content`` used
+    only to classify a listed content id for the denial *hint*: is the document
+    reachable on its own (a pure ``contentId`` scope or a standalone ``or``
+    alternative), or is it *folder-restricted* — ``and``-combined with a folder
+    it must also live under?
+
+    Every ``folderIdPath`` leaf is pinned to "no match" (a positive containment
+    leaf is False; a negated ``notIn`` folder is True, since "not in that
+    folder" is satisfied when no folder matches), and every other
+    non-``contentId`` leaf fails closed (False), mirroring ``_eval_leaf``. A
+    True result therefore means "reachable regardless of folder". See UN-21780.
+    """
+    if not isinstance(node, dict):
+        return False
+    if "and" in node:
+        children = node.get("and") or []
+        return bool(children) and all(
+            _content_reachable_without_folder(c, content_id) for c in children
+        )
+    if "or" in node:
+        children = node.get("or") or []
+        return bool(children) and any(
+            _content_reachable_without_folder(c, content_id) for c in children
+        )
+    path = node.get("path")
+    field = path[0] if isinstance(path, list) and path else path
+    negated = _is_negated_operator(node.get("operator"))
+    if field == "contentId":
+        value = node.get("value")
+        matched = (
+            content_id in value if isinstance(value, list) else content_id == value
+        )
+        return (not matched) if negated else matched
+    if field == "folderIdPath":
+        # No folder matches in this hypothetical: a positive containment leaf is
+        # unsatisfied; a negated (notIn) folder leaf is satisfied.
+        return negated
+    # Any other leaf (mimeType, dates, custom metadata) is unevaluable here and
+    # fails closed, exactly as enforcement does.
+    return False
+
+
 class MetadataFilter:
     """A per-message UniqueQL ``metaDataFilter`` tree plus the logic to evaluate it.
 
@@ -355,16 +400,35 @@ class MetadataFilter:
                 paths.append(resolved)
         return paths, content_ids
 
-    def navigable_scope(self) -> tuple[list[str], list[str]]:
-        """Like :meth:`scope`, but folders limited to the *navigable* spine.
+    def describe_navigable_scope(
+        self,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """Scope description for denial hints, as ``(navigable_folder_paths,
+        free_content_ids, folder_restricted_content_ids)``.
 
-        Used for denial hints so the folders named match what ``ls``/``cd``
-        can actually enter. :meth:`scope` collects every positive
-        ``folderIdPath`` leaf, including a folder reachable only as an ``or``
-        alternative to a ``contentId`` allowlist (e.g. ``and(folderA,
-        or(folderB, contentId in […]))``) — those are not standalone-navigable
-        (``ls``/``read``/``cite`` deny them), so naming them in a hint would
-        point the agent at a folder it cannot browse. See UN-21780.
+        * ``navigable_folder_paths`` — folders ``ls``/``cd`` can actually enter
+          (the conjunctive spine; see :meth:`navigable_folder_ids`), so a hint
+          never names a folder the agent would be denied. :meth:`scope` by
+          contrast collects every positive ``folderIdPath`` leaf, including one
+          reachable only as an ``or`` alternative to a ``contentId`` allowlist
+          (e.g. ``and(folderA, or(folderB, contentId in […]))``).
+        * ``free_content_ids`` — documents reachable regardless of folder (a
+          pure ``contentId`` scope, or a standalone ``or`` alternative).
+        * ``folder_restricted_content_ids`` — documents ``and``-combined with a
+          folder constraint, i.e. reachable only *within* the navigable folders.
+
+        Splitting the content ids lets the hint describe the filter's real
+        structure ("documents X, Y within folder A") instead of either
+        over-promising every listed id as freely reachable — naming a document
+        that ``read``/``cite`` would still deny — or dropping the ids entirely.
+        See UN-21780.
         """
         _, content_ids = _collect_filter_targets(self._tree)
-        return self._navigable_folder_paths(), content_ids
+        free: list[str] = []
+        restricted: list[str] = []
+        for content_id in content_ids:
+            if _content_reachable_without_folder(self._tree, content_id):
+                free.append(content_id)
+            else:
+                restricted.append(content_id)
+        return self._navigable_folder_paths(), free, restricted

@@ -960,3 +960,51 @@ class TestMetadataFilterContentGating:
         # standalone-browsable, so it must not appear in the hint.
         assert "/Funds/Fund B" not in hint
         assert "cont_1" in hint
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_scope_denial_hint_folder_restricted_documents(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        """Documents AND-combined with a folder are described as living
+        *within* that folder, not as freely reachable (UN-21780)."""
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_1", "cont_2"],
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        hint = s.scope_denial_hint()
+        assert "/Funds/Fund A" in hint
+        assert "within those folders" in hint
+        assert "cont_1" in hint
+        assert "cont_2" in hint
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_scope_denial_hint_pure_content_ids_not_folder_qualified(
+        self,
+        mock_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """A pure contentId scope lists documents plainly — they are reachable
+        regardless of folder, so no ``within those folders`` qualifier (UN-21780)."""
+        mock_path.side_effect = _folder_path_side_effect({})
+        flt = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_1", "cont_2"],
+        }
+        s = self._state_with_filter(flt)
+        hint = s.scope_denial_hint()
+        assert "documents:" in hint
+        assert "within those folders" not in hint
+        assert "cont_1" in hint
+        assert "cont_2" in hint

@@ -204,3 +204,96 @@ class TestFolderNavigation:
         folders, content_ids = mf.scope()
         assert folders == ["/A"]
         assert content_ids == ["cont_x"]
+
+
+class TestDescribeNavigableScope:
+    """``describe_navigable_scope`` classifies content ids as folder-restricted
+    vs free for precise denial hints (UN-21780)."""
+
+    def test_pure_content_ids_are_free(self) -> None:
+        mf, _ = _make_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_x", "cont_y"]}
+        )
+        folders, free, restricted = mf.describe_navigable_scope()
+        assert folders == []
+        assert free == ["cont_x", "cont_y"]
+        assert restricted == []
+
+    def test_and_combined_content_ids_are_folder_restricted(self) -> None:
+        mf, _ = _make_filter(
+            {
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_a",
+                    },
+                    {
+                        "path": ["contentId"],
+                        "operator": "in",
+                        "value": ["cont_x", "cont_y"],
+                    },
+                ]
+            },
+            scope_paths={"scope_a": "/A"},
+        )
+        folders, free, restricted = mf.describe_navigable_scope()
+        assert folders == ["/A"]
+        assert free == []
+        # Reachable only *within* /A — must not be advertised as freely readable.
+        assert restricted == ["cont_x", "cont_y"]
+
+    def test_or_alternative_content_id_is_free(self) -> None:
+        mf, _ = _make_filter(
+            {
+                "or": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_a",
+                    },
+                    {"path": ["contentId"], "operator": "in", "value": ["cont_x"]},
+                ]
+            },
+            scope_paths={"scope_a": "/A"},
+        )
+        folders, free, restricted = mf.describe_navigable_scope()
+        # The OR mixes a folder grant with a contentId allowlist, so the folder
+        # is not standalone-navigable; the content id is reachable on its own.
+        assert folders == []
+        assert free == ["cont_x"]
+        assert restricted == []
+
+    def test_nested_or_under_and_is_folder_restricted(self) -> None:
+        mf, _ = _make_filter(
+            {
+                "and": [
+                    {
+                        "path": ["folderIdPath"],
+                        "operator": "contains",
+                        "value": "scope_a",
+                    },
+                    {
+                        "or": [
+                            {
+                                "path": ["folderIdPath"],
+                                "operator": "contains",
+                                "value": "scope_b",
+                            },
+                            {
+                                "path": ["contentId"],
+                                "operator": "in",
+                                "value": ["cont_x"],
+                            },
+                        ]
+                    },
+                ]
+            },
+            scope_paths={"scope_a": "/A", "scope_b": "/B"},
+        )
+        folders, free, restricted = mf.describe_navigable_scope()
+        # /A is on the conjunctive spine; /B is only an OR alternative.
+        assert folders == ["/A"]
+        assert free == []
+        # cont_x must additionally live under /A, so it is folder-restricted.
+        assert restricted == ["cont_x"]
