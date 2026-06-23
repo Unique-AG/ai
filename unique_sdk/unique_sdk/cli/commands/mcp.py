@@ -43,9 +43,25 @@ _MCP_MAX_ITEMS_PER_CALL = 8
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
 
+# Canonical ``toolName`` written to both manifests: the **bare advertised tool
+# name** (the payload ``name`` the agent passes to ``unique-cli mcp``).
+# ``unique-cli mcp`` only runs in skills mode, where the agent invokes a tool by
+# its bare advertised name (the SI ``mcp_skill_generator`` renders the example
+# payload with that bare name). The SI runner therefore resolves a friendly
+# display label by keying its tool-config map on this bare name. The
+# ``mcp__<server>__<tool>`` parsing below is a defensive fallback for that
+# double-underscore convention and does not fire in skills mode; there
+# ``serverName`` is sourced from ``response.mcpServerId`` instead (see
+# ``cmd_mcp``).
+
 
 def _server_name_from_tool(name: str) -> str | None:
-    """Best-effort server name for the ``mcp__<server>__<tool>`` convention."""
+    """Best-effort server name for the ``mcp__<server>__<tool>`` convention.
+
+    Defensive only — the bare advertised tool name carries no ``mcp__`` prefix
+    in skills mode (the only mode that runs this command), so this returns
+    ``None`` there and the caller falls back to ``response.mcpServerId``.
+    """
     parts = name.split("__")
     if len(parts) >= 3 and parts[0] == "mcp":
         return parts[1]
