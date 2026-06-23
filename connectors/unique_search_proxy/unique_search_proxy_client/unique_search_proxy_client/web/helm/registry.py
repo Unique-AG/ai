@@ -43,6 +43,7 @@ class HelmSettingsGroup:
     env_prefix: str
     helm_key: str | None
     kind: HelmSettingsKind
+    gated: bool
     egress: EgressRule | None = None
 
 
@@ -76,6 +77,7 @@ def _group_from_instance(instance: BaseSettings) -> HelmSettingsGroup:
         env_prefix=helm_env_prefix(runtime_cls),
         helm_key=meta.helm_key,
         kind=meta.kind,
+        gated=meta.gated,
         egress=meta.egress,
     )
 
@@ -88,6 +90,9 @@ def _url_safety_settings_group() -> HelmSettingsGroup:
         env_prefix=URL_SAFETY_ENV_PREFIX,
         helm_key=URL_SAFETY_HELM_KEY,
         kind="urlSafety",
+        # urlSafety has its own real ``enabled`` field (URL_SAFETY_ENABLED); it is
+        # not wrapped in a synthetic helm gate.
+        gated=False,
     )
 
 

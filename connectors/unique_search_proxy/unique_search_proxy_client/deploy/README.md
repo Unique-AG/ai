@@ -62,7 +62,9 @@ renders. The field **type** and **default** are what matter:
 | `str` with URL default | `string` (`format: uri`) | the default value | plain `value:` |
 | `str` / `Literal` | `valueSourceString` | the default | plain `value:` |
 | `bool` / `int` / `float` | `valueSourceBoolean` / `Integer` / `number` | the default | plain `value:` |
-| `list` / `dict`, or non-scalar | skipped | skipped | skipped |
+| `list[str]` (default) | skipped (documented as a comment) | commented placeholder | skipped |
+| `list[str]` + `helm: {overridable: true}` | `array` of `string` | the default rendered as a real list | plain `value:` JSON-encoded (`\| toJson`) |
+| `dict`, or other non-scalar | skipped | skipped | skipped |
 
 Rules of thumb baked into the generator:
 
@@ -72,6 +74,12 @@ Rules of thumb baked into the generator:
   `helm.required_when_enabled`). These get added to the schema's conditional `required` list
   *and* a `fail`/`required` guard in the template, so a provider enabled without its mandatory
   inputs fails `helm template` with a clear message.
+- **Overridable lists**: a `list[str]` is documentation-only by default (its code default is the
+  source of truth and isn't exposed to overlays). Mark it with
+  `json_schema_extra={"helm": {"overridable": true}}` to expose it: the default renders as a real
+  `values.yaml` list, the schema gets an `array` of `string`, and the template injects it as a
+  single JSON-encoded env var that pydantic-settings parses back into a list. Overlays **replace**
+  the whole list (Helm does not merge arrays), so a customer-managed tenant supplies the full set.
 - A field can be hidden with `json_schema_extra={"helm": {"skip": true}}` or renamed/overridden
   via the same `helm` extra (`helm_name`, `value_source`).
 

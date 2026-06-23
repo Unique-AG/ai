@@ -128,9 +128,9 @@ vertexaiAgent:
   enabled: false
   connection:
     credentialType: workload_identity
+    serviceAccountScopes:
+      - "https://www.googleapis.com/auth/cloud-platform"
     # serviceAccountCredentials: <fromSecret or fromSecretProvider>
-    # serviceAccountScopes (code default, not env-overridable):
-    #   - https://www.googleapis.com/auth/cloud-platform
 
 tavily:
   enabled: false
@@ -153,7 +153,6 @@ firecrawl:
     # apiKey: <fromSecret or fromSecretProvider>
 
 httpClient:
-  enabled: false
   connection:
     proxyAuthMode: none
     proxyProtocol: http
@@ -171,20 +170,20 @@ urlSafety:
     maxRedirectHops: 10
     redirectTimeoutSeconds: 10.0
   network:
+    allowedSchemes:
+      - http
+      - https
+    localhostHosts:
+      - localhost
+      - localhost.localdomain
+    metadataHosts:
+      - 100.100.100.200
+      - 169.254.169.254
+      - 169.254.170.2
+      - metadata.azure.internal
+      - metadata.google.internal
     clusterLocalSuffix: .cluster.local
     serviceSuffix: .svc
-    # allowedSchemes (code default, not env-overridable):
-    #   - http
-    #   - https
-    # localhostHosts (code default, not env-overridable):
-    #   - localhost
-    #   - localhost.localdomain
-    # metadataHosts (code default, not env-overridable):
-    #   - 100.100.100.200
-    #   - 169.254.169.254
-    #   - 169.254.170.2
-    #   - metadata.azure.internal
-    #   - metadata.google.internal
 # @helm-gen:end providers
 
 # ════ Exposure ════════════════════════════════════════════════════════════════

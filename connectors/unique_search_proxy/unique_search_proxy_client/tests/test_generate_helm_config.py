@@ -37,17 +37,38 @@ def test_all_registry_groups_have_helm_keys() -> None:
     }
 
 
+def test_provider_groups_are_gated_but_always_on_config_is_not() -> None:
+    """The helm gate is opt-out: providers gated, always-on config not.
+
+    This is the chart-only ``enabled`` gate, distinct from a group's real runtime
+    activation field (e.g. urlSafety.enabled).
+    """
+    gated = {g.helm_key: g.gated for g in helm_generated_groups()}
+    assert gated["httpClient"] is False
+    assert gated["urlSafety"] is False
+    provider_keys = set(gated) - {"httpClient", "urlSafety"}
+    assert provider_keys, "expected at least one gated provider group"
+    assert all(gated[key] for key in provider_keys)
+
+
 def test_generated_schema_contains_all_provider_blocks() -> None:
     schema = json.loads((CHART_DIR / "values.additional.schema.json").read_text())
     properties = schema["properties"]
     for group in helm_generated_groups():
         assert group.helm_key in properties
         block = properties[group.helm_key]
-        if group.kind == "urlSafety":
-            assert block["properties"]["enabled"]["default"] is True
-            assert "connection" not in block["properties"]
-            assert "redirects" in block["properties"]
-            assert "network" in block["properties"]
+        if not group.gated:
+            # Non-gated groups get no synthetic ``enabled`` helm gate. A real
+            # activation field (urlSafety.enabled) still appears; httpClient has
+            # none.
+            if group.helm_key == "urlSafety":
+                assert block["properties"]["enabled"]["default"] is True
+                assert "connection" not in block["properties"]
+                assert "redirects" in block["properties"]
+                assert "network" in block["properties"]
+            else:
+                assert "enabled" not in block["properties"]
+                assert "connection" in block["properties"]
             continue
         assert block["properties"]["enabled"]["default"] is False
         assert "connection" in block["properties"]
@@ -88,6 +109,65 @@ def test_http_client_values_yaml_has_tuning_section() -> None:
     ]
     assert "  tuning:" in http_client_block
     assert "    poolTimeoutSeconds:" in http_client_block
+
+
+def test_http_client_values_yaml_has_no_enabled_toggle() -> None:
+    """httpClient has no runtime ``enabled`` field, so it must not emit one.
+
+    Emitting ``enabled: false`` while the template injects env vars regardless
+    would be misleading; emitting it as a real gate silently drops proxy config.
+    """
+    values = (CHART_DIR / "values.yaml").read_text()
+    http_client_index = values.index("httpClient:")
+    http_client_block = values[
+        http_client_index : values.index("\n\n", http_client_index)
+    ]
+    assert "enabled:" not in http_client_block
+
+
+def test_http_client_env_injection_is_not_enabled_gated() -> None:
+    """Proxy env vars must render from their own fields, not a synthetic flag.
+
+    Regression for overlays that set ``httpClient.connection.*`` (proxy host /
+    secrets) without ``httpClient.enabled: true`` and silently deployed with no
+    ``HTTP_CLIENT_*`` env vars.
+    """
+    template = (CHART_DIR / "templates" / "_providers.tpl").read_text()
+    assert "and .Values.httpClient .Values.httpClient.enabled" not in template
+    assert "and .ctx.Values.httpClient .ctx.Values.httpClient.enabled" not in template
+    # The non-secret proxy defaults are always emitted (no enclosing gate).
+    assert "HTTP_CLIENT_PROXY_AUTH_MODE" in template
+    # Proxy secrets are collected whenever configured, gated on the fields
+    # themselves rather than on a meaningless ``enabled`` toggle.
+    assert (
+        "{{- if or .ctx.Values.httpClient.connection.proxyUsername "
+        ".ctx.Values.httpClient.connection.proxyPassword -}}"
+    ) in template
+
+
+def test_url_safety_lists_are_overridable_in_chart() -> None:
+    """SSRF guardrail lists must be overlay-tunable for customer-managed tenants.
+
+    They render as real (replaceable) values.yaml lists, get array schemas, and
+    inject as JSON-encoded env vars that pydantic-settings parses back to lists.
+    """
+    values = (CHART_DIR / "values.yaml").read_text()
+    url_safety_index = values.index("urlSafety:")
+    url_safety_block = values[url_safety_index : values.index("\n\n", url_safety_index)]
+    assert "    allowedSchemes:\n      - http\n      - https" in url_safety_block
+    assert "    metadataHosts:\n" in url_safety_block
+
+    schema = json.loads((CHART_DIR / "values.additional.schema.json").read_text())
+    network = schema["properties"]["urlSafety"]["properties"]["network"]["properties"]
+    for key in ("allowedSchemes", "localhostHosts", "metadataHosts"):
+        assert network[key]["type"] == "array"
+        assert network[key]["items"] == {"type": "string"}
+
+    template = (CHART_DIR / "templates" / "_providers.tpl").read_text()
+    assert (
+        "value: {{ .Values.urlSafety.network.allowedSchemes | toJson | quote }}"
+        in template
+    )
 
 
 def test_assign_field_sections_injects_section_metadata() -> None:

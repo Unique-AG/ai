@@ -56,6 +56,8 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 {{- if .Values.vertexaiAgent.connection.serviceAccountCredentials -}}
 {{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .) }}
 {{- end -}}
+- name: VERTEXAI_AGENT_SERVICE_ACCOUNT_SCOPES
+  value: {{ .Values.vertexaiAgent.connection.serviceAccountScopes | toJson | quote }}
 {{- end -}}
 {{- if and .Values.tavily .Values.tavily.enabled -}}
 {{- if not .Values.tavily.connection.apiKey -}}
@@ -85,7 +87,6 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 - name: FIRECRAWL_API_VERSION
   value: {{ .Values.firecrawl.connection.apiVersion | quote }}
 {{- end -}}
-{{- if and .Values.httpClient .Values.httpClient.enabled -}}
 - name: HTTP_CLIENT_PROXY_AUTH_MODE
   value: {{ .Values.httpClient.connection.proxyAuthMode | quote }}
 - name: HTTP_CLIENT_PROXY_PROTOCOL
@@ -122,11 +123,16 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .Values.httpClient.tuning.maxKeepaliveConnections | quote }}
-{{- end -}}
 - name: URL_SAFETY_ENABLED
   value: {{ .Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
   value: {{ .Values.urlSafety.redirects.resolveRedirects | quote }}
+- name: URL_SAFETY_ALLOWED_SCHEMES
+  value: {{ .Values.urlSafety.network.allowedSchemes | toJson | quote }}
+- name: URL_SAFETY_LOCALHOST_HOSTS
+  value: {{ .Values.urlSafety.network.localhostHosts | toJson | quote }}
+- name: URL_SAFETY_METADATA_HOSTS
+  value: {{ .Values.urlSafety.network.metadataHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX
@@ -188,6 +194,8 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 {{- if .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials -}}
 {{ include "base.valueSource.env" (dict "name" "VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS" "src" .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials "ctx" .ctx) }}
 {{- end -}}
+- name: VERTEXAI_AGENT_SERVICE_ACCOUNT_SCOPES
+  value: {{ .ctx.Values.vertexaiAgent.connection.serviceAccountScopes | toJson | quote }}
 {{- end -}}
 {{- if and .ctx.Values.tavily .ctx.Values.tavily.enabled -}}
 {{- if not .ctx.Values.tavily.connection.apiKey -}}
@@ -217,7 +225,6 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 - name: FIRECRAWL_API_VERSION
   value: {{ .ctx.Values.firecrawl.connection.apiVersion | quote }}
 {{- end -}}
-{{- if and .ctx.Values.httpClient .ctx.Values.httpClient.enabled -}}
 - name: HTTP_CLIENT_PROXY_AUTH_MODE
   value: {{ .ctx.Values.httpClient.connection.proxyAuthMode | quote }}
 - name: HTTP_CLIENT_PROXY_PROTOCOL
@@ -254,11 +261,16 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
   value: {{ .ctx.Values.httpClient.tuning.maxConnections | quote }}
 - name: HTTP_CLIENT_MAX_KEEPALIVE_CONNECTIONS
   value: {{ .ctx.Values.httpClient.tuning.maxKeepaliveConnections | quote }}
-{{- end -}}
 - name: URL_SAFETY_ENABLED
   value: {{ .ctx.Values.urlSafety.enabled | quote }}
 - name: URL_SAFETY_RESOLVE_REDIRECTS
   value: {{ .ctx.Values.urlSafety.redirects.resolveRedirects | quote }}
+- name: URL_SAFETY_ALLOWED_SCHEMES
+  value: {{ .ctx.Values.urlSafety.network.allowedSchemes | toJson | quote }}
+- name: URL_SAFETY_LOCALHOST_HOSTS
+  value: {{ .ctx.Values.urlSafety.network.localhostHosts | toJson | quote }}
+- name: URL_SAFETY_METADATA_HOSTS
+  value: {{ .ctx.Values.urlSafety.network.metadataHosts | toJson | quote }}
 - name: URL_SAFETY_CLUSTER_LOCAL_SUFFIX
   value: {{ .ctx.Values.urlSafety.network.clusterLocalSuffix | quote }}
 - name: URL_SAFETY_SERVICE_SUFFIX
@@ -385,7 +397,7 @@ Overrides base.externalService.*.ext hooks from the shared base library chart.
 {{- if and .ctx.Values.firecrawl .ctx.Values.firecrawl.enabled -}}
 {{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.firecrawl.connection.apiKey)) }}
 {{- end -}}
-{{- if and .ctx.Values.httpClient .ctx.Values.httpClient.enabled -}}
+{{- if or .ctx.Values.httpClient.connection.proxyUsername .ctx.Values.httpClient.connection.proxyPassword -}}
 {{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.httpClient.connection.proxyUsername .ctx.Values.httpClient.connection.proxyPassword)) }}
 {{- end -}}
 {{- end -}}

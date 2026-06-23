@@ -17,7 +17,11 @@ def _field_property(field: HelmFieldSpec) -> dict[str, Any]:
     prop: dict[str, Any] = {
         "description": f"Maps to env var {field.env_var}.",
     }
-    if field.schema_ref:
+    if field.container:
+        # Overridable list[str] → JSON array of strings (see _section_properties).
+        prop["type"] = "array"
+        prop["items"] = {"type": "string"}
+    elif field.schema_ref:
         prop["$ref"] = field.schema_ref
     elif field.plain_type == "string":
         prop["type"] = "string"
@@ -31,10 +35,12 @@ def _field_property(field: HelmFieldSpec) -> dict[str, Any]:
 
 
 def _section_properties(fields: tuple[HelmFieldSpec, ...]) -> dict[str, Any]:
+    # Plain (documentation-only) list fields are excluded; a list is exposed in
+    # the schema only when explicitly marked overridable.
     return {
         field.helm_name: _field_property(field)
         for field in fields
-        if not field.container
+        if not field.container or field.overridable
     }
 
 
@@ -77,11 +83,27 @@ def _required_when_enabled_allof(
     ]
 
 
-def _provider_schema(group: HelmSettingsGroup) -> dict[str, Any]:
+def _block_level_enabled_default(fields: tuple[HelmFieldSpec, ...]) -> bool | None:
+    """Default of a real, block-level ``enabled`` field, if the group has one."""
+    for block_field in block_level_fields(fields):
+        default = block_field.default
+        return default if isinstance(default, bool) else True
+    return None
+
+
+def _group_schema(group: HelmSettingsGroup) -> dict[str, Any]:
     fields = iter_helm_fields(group.model, env_prefix=group.env_prefix)
-    properties: dict[str, Any] = {
-        "enabled": {"type": "boolean", "default": False},
-    }
+    properties: dict[str, Any] = {}
+
+    # A real, runtime ``enabled`` field (block-level) is the group's activation
+    # and always appears. Otherwise a gated group gets a synthetic ``enabled``
+    # gate; a non-gated group with no such field (e.g. httpClient) gets neither.
+    enabled_default = _block_level_enabled_default(fields)
+    if enabled_default is not None:
+        properties["enabled"] = {"type": "boolean", "default": enabled_default}
+    elif group.gated:
+        properties["enabled"] = {"type": "boolean", "default": False}
+
     for section_name, section_fields in group_fields_by_section(fields):
         properties[section_name] = _section_schema(section_fields)
 
@@ -94,38 +116,11 @@ def _provider_schema(group: HelmSettingsGroup) -> dict[str, Any]:
         ),
         "properties": properties,
     }
-    all_of = _required_when_enabled_allof(fields, enabled_const=True)
-    if all_of:
-        block["allOf"] = all_of
+    if group.gated:
+        all_of = _required_when_enabled_allof(fields, enabled_const=True)
+        if all_of:
+            block["allOf"] = all_of
     return block
-
-
-def _url_safety_schema(group: HelmSettingsGroup) -> dict[str, Any]:
-    fields = iter_helm_fields(group.model, env_prefix=group.env_prefix)
-    properties: dict[str, Any] = {}
-    for block_field in block_level_fields(fields):
-        default = block_field.default
-        enabled_default = default if isinstance(default, bool) else True
-        properties["enabled"] = {"type": "boolean", "default": enabled_default}
-
-    for section_name, section_fields in group_fields_by_section(fields):
-        properties[section_name] = _section_schema(section_fields)
-
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "description": (
-            f"{group.title} configuration. Generated from "
-            f"{group.model.__name__} ({group.env_prefix}* env vars)."
-        ),
-        "properties": properties,
-    }
-
-
-def _group_schema(group: HelmSettingsGroup) -> dict[str, Any]:
-    if group.kind == "urlSafety":
-        return _url_safety_schema(group)
-    return _provider_schema(group)
 
 
 def build_additional_schema(groups: tuple[HelmSettingsGroup, ...]) -> dict[str, Any]:

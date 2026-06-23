@@ -67,7 +67,17 @@ def _assign_field_helm_flags(
 def configure_url_safety_helm_model(model: type[UrlSafetySettings]) -> None:
     """Inject Helm section metadata onto ``UrlSafetySettings`` model fields."""
     assign_field_sections(model, _URL_SAFETY_SECTIONS)
-    _assign_field_helm_flags(model, {"enabled": {"block_level": True}})
+    _assign_field_helm_flags(
+        model,
+        {
+            "enabled": {"block_level": True},
+            # Expose these lists to overlays so customer-managed tenants can tune
+            # SSRF guardrails per environment. Overlays replace the whole list.
+            "allowed_schemes": {"overridable": True},
+            "localhost_hosts": {"overridable": True},
+            "metadata_hosts": {"overridable": True},
+        },
+    )
 
 
 URL_SAFETY_MODEL = type(url_safety_settings)

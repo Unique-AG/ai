@@ -25,6 +25,10 @@ class ProxyConfig(BaseModel):
     title="HTTP Client",
     helm_key="httpClient",
     kind="httpClient",
+    # Always-on client config: proxy behaviour is driven by proxy_auth_mode and
+    # the proxy fields, not by a chart-only toggle. Gating it would silently drop
+    # proxy config from overlays that set it without ``enabled: true``.
+    gated=False,
     egress=None,
     env_prefix=HTTP_CLIENT_ENV_PREFIX,
     sections={

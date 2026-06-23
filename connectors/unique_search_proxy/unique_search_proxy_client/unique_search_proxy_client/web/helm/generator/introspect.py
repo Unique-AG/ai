@@ -126,6 +126,7 @@ class HelmFieldSpec:
     section: str
     block_level: bool
     container: bool
+    overridable: bool
     emit_in_template: bool
     emit_in_values: bool
 
@@ -196,6 +197,7 @@ def iter_helm_fields(
         helm_name = str(helm_extra.get("helm_name", snake_to_camel(field_name)))
         section = str(helm_extra.get("section", DEFAULT_HELM_SECTION))
         block_level = bool(helm_extra.get("block_level"))
+        overridable = bool(helm_extra.get("overridable"))
         spec = HelmFieldSpec(
             python_name=field_name,
             helm_name=helm_name,
@@ -209,6 +211,7 @@ def iter_helm_fields(
             section=section,
             block_level=block_level,
             container=container,
+            overridable=overridable,
             emit_in_template=False,
             emit_in_values=True,
         )
@@ -226,6 +229,7 @@ def iter_helm_fields(
                 section=spec.section,
                 block_level=spec.block_level,
                 container=spec.container,
+                overridable=spec.overridable,
                 emit_in_template=_should_emit_in_template(spec),
                 emit_in_values=spec.emit_in_values,
             )
@@ -253,7 +257,9 @@ def _connection_property_types(
 
 def _should_emit_in_template(field: HelmFieldSpec) -> bool:
     if field.container:
-        return False
+        # Lists are documentation-only unless explicitly marked overridable, in
+        # which case they are injected (JSON-encoded) so overlays can set them.
+        return field.overridable
     if field.required_when_enabled or field.sensitive:
         return True
     # Optional fields default to ``None`` (no literal in values.yaml) but are

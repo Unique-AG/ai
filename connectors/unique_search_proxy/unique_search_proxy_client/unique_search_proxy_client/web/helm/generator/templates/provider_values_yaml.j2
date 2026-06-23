@@ -4,9 +4,9 @@
 
 {% endif %}
 {{ group.helm_key }}:
-{% if group.kind == "urlSafety" %}
+{% if group.enabled_literal is not none %}
   enabled: {{ group.enabled_literal }}
-{% else %}
+{% elif group.gated %}
   enabled: false
 {% endif %}
 {% for section in group.sections %}
@@ -17,6 +17,15 @@
 {% for row in section.rows %}
 {% if row.literal is not none %}
     {{ row.helm_name }}: {{ row.literal }}
+{% elif row.list_items is not none %}
+{% if row.list_items %}
+    {{ row.helm_name }}:
+{% for item in row.list_items %}
+      - {{ item }}
+{% endfor %}
+{% else %}
+    {{ row.helm_name }}: []
+{% endif %}
 {% elif row.container_items %}
     # {{ row.helm_name }} ({{ container_note }}):
 {% for item in row.container_items %}

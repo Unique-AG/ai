@@ -31,6 +31,9 @@ class _VertexAIAgentCredentials(ProviderCredentials):
     service_account_credentials: LogSecretStr | None = Field(default=None)
     service_account_scopes: list[str] = Field(
         default=["https://www.googleapis.com/auth/cloud-platform"],
+        # Exposed to overlays so tenants can request narrower/additional OAuth
+        # scopes. Overlays replace the whole list (Helm does not merge arrays).
+        json_schema_extra={"helm": {"overridable": True}},
     )
 
 

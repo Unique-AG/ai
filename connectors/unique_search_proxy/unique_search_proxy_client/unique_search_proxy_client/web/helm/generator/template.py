@@ -47,6 +47,16 @@ def _emit_env_field(
     lines: list[str] = []
     connection_path = _values_path(group, field, hooks=hooks)
 
+    if field.container:
+        # Overridable list: JSON-encode so pydantic-settings parses it back into a
+        # list[str] from the single env var. Always emitted; values.yaml carries
+        # the code default and overlays replace the whole list.
+        lines.append(
+            f"- name: {field.env_var}\n"
+            f"  value: {{{{ {connection_path} | toJson | quote }}}}"
+        )
+        return lines
+
     if field.sensitive:
         if field.required_when_enabled:
             lines.append(f"{{{{- if not {connection_path} -}}}}")
@@ -87,25 +97,27 @@ def _emit_env_field(
 
 
 def _emit_group_env_block(group: HelmSettingsGroup, *, hooks: bool) -> list[str]:
-    if group.kind == "urlSafety":
-        lines: list[str] = []
-        for field in iter_helm_fields(group.model, env_prefix=group.env_prefix):
-            if not field.emit_in_template:
-                continue
-            lines.extend(_emit_env_field(group, field, hooks=hooks))
-        return lines
-
-    values_root = ".ctx.Values" if hooks else ".Values"
-    lines = [
-        f"{{{{- if and {values_root}.{group.helm_key} "
-        f"{values_root}.{group.helm_key}.enabled -}}}}",
-    ]
+    field_lines: list[str] = []
     for field in iter_helm_fields(group.model, env_prefix=group.env_prefix):
         if not field.emit_in_template:
             continue
-        lines.extend(_emit_env_field(group, field, hooks=hooks))
-    lines.append("{{- end -}}")
-    return lines
+        field_lines.extend(_emit_env_field(group, field, hooks=hooks))
+
+    # Only gated groups wrap their env injection in a synthetic ``enabled`` flag.
+    # Non-gated groups (e.g. ``httpClient``, ``urlSafety``) are always-on; their
+    # behaviour is driven by their own fields, so their env vars must always be
+    # emitted. Gating them would silently drop config from overlays that set it
+    # without the (chart-only) ``enabled: true``.
+    if not group.gated:
+        return field_lines
+
+    values_root = ".ctx.Values" if hooks else ".Values"
+    return [
+        f"{{{{- if and {values_root}.{group.helm_key} "
+        f"{values_root}.{group.helm_key}.enabled -}}}}",
+        *field_lines,
+        "{{- end -}}",
+    ]
 
 
 def _find_helm_field(
@@ -210,21 +222,32 @@ def _emit_secret_provider_block(groups: tuple[HelmSettingsGroup, ...]) -> list[s
         ]
         if not sensitive_fields:
             continue
-        lines.append(
-            f"{{{{- if and .ctx.Values.{group.helm_key} "
-            f".ctx.Values.{group.helm_key}.enabled -}}}}"
-        )
-        field_refs = " ".join(
+        field_paths = [
             f".ctx.Values.{group.helm_key}.{field.section}.{field.helm_name}"
             if not field.block_level
             else f".ctx.Values.{group.helm_key}.{field.helm_name}"
             for field in sensitive_fields
-        )
-        lines.append(
+        ]
+        field_refs = " ".join(field_paths)
+        include_line = (
             '{{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault '
             f'"fields" (list {field_refs})) '
             "}}"
         )
+        # Gated blocks collect secrets behind their synthetic ``enabled`` flag.
+        # Non-gated blocks (e.g. ``httpClient``) have no such toggle, so collect
+        # their secrets whenever at least one is configured — mirroring the
+        # always-on env injection and avoiding a silently-dropped credential.
+        if group.gated:
+            guard = (
+                f"and .ctx.Values.{group.helm_key} .ctx.Values.{group.helm_key}.enabled"
+            )
+        elif len(field_paths) == 1:
+            guard = field_paths[0]
+        else:
+            guard = f"or {field_refs}"
+        lines.append(f"{{{{- if {guard} -}}}}")
+        lines.append(include_line)
         lines.append("{{- end -}}")
     return lines
 

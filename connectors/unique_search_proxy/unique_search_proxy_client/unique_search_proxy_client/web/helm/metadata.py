@@ -59,6 +59,7 @@ class HelmGroupMeta:
     title: str
     helm_key: str | None
     kind: HelmSettingsKind
+    gated: bool = True
     egress: EgressRule | None = None
 
 
@@ -110,6 +111,7 @@ def helm_settings(
     title: str,
     helm_key: str | None,
     kind: HelmSettingsKind = "provider",
+    gated: bool = True,
     egress: EgressRule | None = _DEFAULT_EGRESS,
     env_prefix: str | None = None,
     sections: Mapping[str, Sequence[str]] | None = None,
@@ -122,6 +124,14 @@ def helm_settings(
 
     Pass ``sections`` to assign model fields to named Helm value sub-blocks
     (e.g. ``connection`` vs ``tuning``). Unlisted fields default to ``connection``.
+
+    ``gated`` controls whether the generated chart wraps the group's env
+    injection in a synthetic ``{{ if .Values.<key>.enabled }}`` helm gate (and
+    emits a synthetic ``enabled: false`` default). Leave it ``True`` for credential
+    providers that are toggled on per environment. Set it ``False`` for always-on
+    config (e.g. ``httpClient``, ``urlSafety``) whose behaviour is driven by its
+    own fields, not by a chart-only toggle — this is the *helm gate*, which is
+    distinct from any real runtime ``enabled`` field a group may declare.
     """
 
     def decorate(cls: S) -> S:
@@ -133,6 +143,7 @@ def helm_settings(
                 title=title,
                 helm_key=helm_key,
                 kind=kind,
+                gated=gated,
                 egress=egress,
             ),
         )

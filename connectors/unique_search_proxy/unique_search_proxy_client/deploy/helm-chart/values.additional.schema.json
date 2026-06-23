@@ -255,6 +255,13 @@
             "serviceAccountCredentials": {
               "description": "Maps to env var VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS.",
               "$ref": "#/$defs/valueSourceSensitive"
+            },
+            "serviceAccountScopes": {
+              "description": "Maps to env var VERTEXAI_AGENT_SERVICE_ACCOUNT_SCOPES.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         }
@@ -428,10 +435,6 @@
       "additionalProperties": false,
       "description": "HTTP Client configuration. Generated from HttpClientSettings (HTTP_CLIENT_* env vars).",
       "properties": {
-        "enabled": {
-          "type": "boolean",
-          "default": false
-        },
         "connection": {
           "type": "object",
           "additionalProperties": false,
@@ -525,6 +528,27 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "allowedSchemes": {
+              "description": "Maps to env var URL_SAFETY_ALLOWED_SCHEMES.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "localhostHosts": {
+              "description": "Maps to env var URL_SAFETY_LOCALHOST_HOSTS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "metadataHosts": {
+              "description": "Maps to env var URL_SAFETY_METADATA_HOSTS.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "clusterLocalSuffix": {
               "description": "Maps to env var URL_SAFETY_CLUSTER_LOCAL_SUFFIX.",
               "$ref": "#/$defs/valueSourceString"
