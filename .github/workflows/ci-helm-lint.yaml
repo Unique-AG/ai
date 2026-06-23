@@ -39,6 +39,12 @@ jobs:
       - name: Check values.schema.json drift
         run: scripts/render-values-schema.sh --check
 
+      - name: Install helm-docs
+        uses: ./.github/actions/install-helm-docs
+
+      - name: Check chart README.md drift
+        run: scripts/render-helm-docs.sh --check
+
   prepare:
     runs-on: ubuntu-latest
     permissions:

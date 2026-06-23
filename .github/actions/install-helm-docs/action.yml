@@ -1,0 +1,38 @@
+name: 'Install helm-docs'
+description: 'Installs helm-docs with SHA256 integrity verification before execution'
+
+inputs:
+  version:
+    description: 'helm-docs version to install'
+    required: false
+    default: '1.14.2'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install helm-docs
+      shell: bash
+      env:
+        HELM_DOCS_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        case "${HELM_DOCS_VERSION}" in
+          1.14.2)
+            helm_docs_sha256='a8cf72ada34fad93285ba2a452b38bdc5bd52cc9a571236244ec31022928d6cc'
+            ;;
+          *)
+            echo "Unsupported helm-docs version: ${HELM_DOCS_VERSION}" >&2
+            exit 1
+            ;;
+        esac
+
+        archive="helm-docs_${HELM_DOCS_VERSION}_Linux_x86_64.tar.gz"
+        url="https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/${archive}"
+        dest="${RUNNER_TEMP}/${archive}"
+
+        curl -fsSL -o "${dest}" "${url}"
+        echo "${helm_docs_sha256}  ${dest}" | sha256sum -c -
+        tar -xzf "${dest}" -C "${RUNNER_TEMP}"
+        sudo install -m 0755 "${RUNNER_TEMP}/helm-docs" /usr/local/bin/helm-docs
+        helm-docs --version

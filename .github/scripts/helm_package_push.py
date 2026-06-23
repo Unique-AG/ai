@@ -164,8 +164,17 @@ def chart_exists(registry: str, name: str, version: str) -> bool:
         return False
 
 
+def render_helm_docs(chart_dir: Path) -> None:
+    """Regenerate README.md so version badges match the stamped chart metadata."""
+    script = Path(__file__).resolve().parents[2] / "scripts" / "render-helm-docs.sh"
+    if not script.is_file():
+        raise ValueError(f"render-helm-docs.sh not found at {script}")
+    run(["bash", str(script), str(chart_dir)])
+
+
 def package_chart(chart_dir: Path, destination: Path) -> Path:
     """Resolve dependencies and package the chart, returning the ``.tgz`` path."""
+    render_helm_docs(chart_dir)
     run(["helm", "dependency", "update", str(chart_dir)])
     result = run(["helm", "package", str(chart_dir), "--destination", str(destination)])
     match = re.search(r"saved it to:\s*(.+\.tgz)", result.stdout)
