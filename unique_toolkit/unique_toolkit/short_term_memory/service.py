@@ -52,23 +52,33 @@ class ShortTermMemoryService:
         chat_id: str | None = None,
         message_id: str | None = None,
     ):
-        self._event = event
-        if event:
-            self._company_id: str = event.company_id
-            self._user_id: str = event.user_id
+        if event is not None:
             if isinstance(event, ChatEvent):
-                self._chat_id = event.payload.chat_id
-                self._message_id = event.payload.user_message.id
-        else:
-            [company_id, user_id] = validate_required_values([company_id, user_id])
+                delegated = type(self).from_event(event)
+                self._event = event
+                self._company_id = delegated._company_id
+                self._user_id = delegated._user_id
+                self._chat_id = delegated._chat_id
+                self._message_id = delegated._message_id
+                return
 
-            if not (chat_id or message_id):
-                raise ValueError("Chat_id or message_id must be provided")
+            self._event = event
+            self._company_id = event.company_id
+            self._user_id = event.user_id
+            self._chat_id = None
+            self._message_id = None
+            return
 
-            self._company_id = company_id
-            self._user_id = user_id
-            self._chat_id = chat_id
-            self._message_id = message_id
+        self._event = None
+        [company_id, user_id] = validate_required_values([company_id, user_id])
+
+        if not (chat_id or message_id):
+            raise ValueError("Chat_id or message_id must be provided")
+
+        self._company_id = company_id
+        self._user_id = user_id
+        self._chat_id = chat_id
+        self._message_id = message_id
 
     @classmethod
     def from_event(cls, event: ChatEvent):
