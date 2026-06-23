@@ -25,7 +25,12 @@ from unique_toolkit.app.feature_flags import UNIQUE_TOOLKIT_FEATURE_FLAGS
 from unique_toolkit.app.find_env_file import EnvFileNotFoundError, find_env_file
 
 if TYPE_CHECKING:
+    from unique_toolkit.agentic_table.schemas import MagicTableEvent
     from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+
+# Placeholder message ids for magic-table runs that create messages dynamically.
+MAGIC_TABLE_STREAMING_ASSISTANT_MESSAGE_ID = "magic-table-streaming-assistant"
+MAGIC_TABLE_STREAMING_USER_MESSAGE_ID = "magic-table-streaming-user"
 
 
 logger = getLogger(__name__)
@@ -459,6 +464,38 @@ class UniqueContext:
         return cls(
             auth=AuthContext.from_event(event),
             chat=ChatContext.from_chat_event(event),
+        )
+
+    @classmethod
+    def from_magic_table_event(cls, event: MagicTableEvent) -> Self:
+        """Build auth + chat context from a magic-table webhook event.
+
+        Magic-table payloads carry ``chat_id`` and ``assistant_id`` but no live
+        user/assistant message objects. Placeholder message ids are used so
+        chat-scoped services (e.g. :class:`ChatService`) can be constructed via
+        :meth:`from_context`; do not use this context for short-term memory
+        writes that require a real message id.
+        """
+        payload = event.payload
+        if not payload.chat_id:
+            msg = (
+                "Magic-table event is missing chat_id; "
+                "chat-scoped services cannot be built."
+            )
+            raise ValueError(msg)
+        parent_chat_id = (
+            payload.correlation.parent_chat_id if payload.correlation else None
+        )
+        return cls(
+            auth=AuthContext.from_event(event),
+            chat=ChatContext(
+                chat_id=payload.chat_id,
+                assistant_id=payload.assistant_id,
+                last_assistant_message_id=MAGIC_TABLE_STREAMING_ASSISTANT_MESSAGE_ID,
+                last_user_message_id=MAGIC_TABLE_STREAMING_USER_MESSAGE_ID,
+                metadata_filter=payload.metadata_filter,
+                parent_chat_id=parent_chat_id,
+            ),
         )
 
     @classmethod
