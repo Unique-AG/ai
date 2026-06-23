@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -260,6 +260,25 @@ class TestCmdCiteFile:
         assert "task scope" in result
         # Nothing should be written when denied.
         assert not (workspace / ".unique" / "file-refs.jsonl").exists()
+
+    @patch("unique_sdk.Content.get_info")
+    def test_out_of_scope_cont_id_denied_before_title_fetch(
+        self, mock_get_info: MagicMock, state: ShellState, workspace: Path
+    ):
+        """Citing an out-of-scope cont_ id must deny *before* resolving its
+        title, so no Content.get_info probes the KB (the cross-scope existence/
+        title oracle). See UN-21780.
+        """
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed"],
+        }
+        state._chat_file_content_ids_cache = set()
+        result = cmd_cite_file(state, "cont_blocked", "1", "text")
+        assert CITE_ERROR_PREFIX in result
+        assert "task scope" in result
+        mock_get_info.assert_not_called()
 
     def test_metadata_filter_allows_chat_attached_file(
         self, state: ShellState, workspace_with_manifest: Path

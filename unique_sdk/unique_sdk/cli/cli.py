@@ -672,7 +672,11 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
     "--folder",
     "-f",
     default=None,
-    help="Restrict search to a folder (path, name, or scope ID). Defaults to current directory.",
+    help=(
+        "Restrict search to a folder (path, name, or scope ID). Without an "
+        "active task scope, defaults to the current directory; with one, the "
+        "task scope is the boundary and --folder ANDs an extra constraint."
+    ),
 )
 @click.option(
     "--metadata",
@@ -702,9 +706,12 @@ def search(
     both semantic similarity and keyword matching.
 
     \b
-    By default, searches within the current directory scope with up
-    to 200 results. Use --folder to target a different folder, and
-    --metadata to filter by custom metadata fields.
+    Without an active task scope, searches within the current directory
+    scope with up to 200 results; use --folder to target a different
+    folder. When the task defines a per-message scope, that scope is the
+    search boundary regardless of the current directory, and --folder
+    ANDs an additional constraint. Use --metadata to filter by custom
+    metadata fields.
 
     \b
     Examples:

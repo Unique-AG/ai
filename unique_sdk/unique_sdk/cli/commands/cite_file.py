@@ -137,6 +137,21 @@ def _resolve_content_id_with_manifest(
     3. Fall back to KB resolution via _resolve_content_id.
     """
     if name_or_id.startswith("cont_"):
+        # Gate the id *before* resolving its title: resolve_content_title hits
+        # Content.get_info, so fetching it for an out-of-scope id would probe
+        # the KB ahead of denial — the same cross-scope existence/title oracle
+        # closed for bare-filename resolution, and unlike read which gates
+        # first. Chat-attached files stay exempt via is_content_within_workspace
+        # (cite is read-only). See UN-21780.
+        if (
+            state.workspace_metadata_filter is not None
+            and not state.is_content_within_workspace(name_or_id)
+        ):
+            raise ValueError(
+                f"permission denied: {name_or_id} is outside your task scope "
+                f"({state.scope_denial_hint()}). Only cite documents within that "
+                "scope or files attached to this chat."
+            )
         return name_or_id, state.resolve_content_title(name_or_id)
 
     manifest_path = Path.cwd() / _CHAT_FILES_MANIFEST
