@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "2026.26.0"
+version = "2026.26.1"
 description = "Add your description here"
 readme = "README.md"
 authors = [
