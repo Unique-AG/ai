@@ -100,6 +100,7 @@ class Space(APIResource["Space"]):
         skillChoices: NotRequired[list[dict[str, Any]]]
         scopeRules: NotRequired[dict[str, Any] | None]
         correlation: NotRequired["Space.Correlation | None"]
+        autoApproveElicitation: NotRequired[bool | None]
 
     class GetChatMessagesParams(RequestOptions):
         """
