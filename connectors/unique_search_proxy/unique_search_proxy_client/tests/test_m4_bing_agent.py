@@ -31,6 +31,7 @@ def bing_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "/subscriptions/test/resourceGroups/r/providers/...",
     )
     monkeypatch.setenv("BING_AGENT_AGENT_ID", "agent-123")
+    monkeypatch.setenv("BING_AGENT_BING_AGENT_MODEL", "gpt-4o-deployment")
     from unique_search_proxy_client.web.settings.providers import bing_agent
 
     monkeypatch.setattr(

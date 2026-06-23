@@ -1964,11 +1964,11 @@
           "properties": {
             "endpoint": {
               "description": "Maps to env var BING_AGENT_ENDPOINT.",
-              "$ref": "#/$defs/valueSourceString"
+              "$ref": "#/$defs/valueSourceSensitive"
             },
             "bingResourceConnectionString": {
               "description": "Maps to env var BING_AGENT_BING_RESOURCE_CONNECTION_STRING.",
-              "$ref": "#/$defs/valueSourceString"
+              "$ref": "#/$defs/valueSourceSensitive"
             },
             "agentId": {
               "description": "Maps to env var BING_AGENT_AGENT_ID.",
@@ -1976,7 +1976,7 @@
             },
             "bingAgentModel": {
               "description": "Maps to env var BING_AGENT_BING_AGENT_MODEL.",
-              "$ref": "#/$defs/valueSourceString"
+              "$ref": "#/$defs/valueSourceSensitive"
             },
             "azureIdentityCredentialType": {
               "description": "Maps to env var BING_AGENT_AZURE_IDENTITY_CREDENTIAL_TYPE.",
@@ -2014,7 +2014,8 @@
               "connection": {
                 "required": [
                   "endpoint",
-                  "bingResourceConnectionString"
+                  "bingResourceConnectionString",
+                  "bingAgentModel"
                 ]
               }
             }

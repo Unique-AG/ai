@@ -31,6 +31,7 @@ from unique_search_proxy_client.web.core.provider_response import transport_erro
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
     bing_agent_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import read_secret
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
         try:
             agent_client = get_project_client(
                 get_credentials(),
-                endpoint=creds.endpoint,
+                endpoint=read_secret(creds.endpoint),
             )
             output_schema = resolve_output_schema_for_engine(request.engine)
             async with agent_client:

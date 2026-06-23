@@ -35,16 +35,22 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.perplexitySearch.connection.apiEndpoint | quote }}
 {{- end }}
 {{- if and .Values.bingAgent .Values.bingAgent.enabled }}
-- name: BING_AGENT_ENDPOINT
-  value: {{ required "bingAgent.connection.endpoint is required when bingAgent.enabled is true. Set it in your environment overlay." .Values.bingAgent.connection.endpoint | quote }}
-- name: BING_AGENT_BING_RESOURCE_CONNECTION_STRING
-  value: {{ required "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." .Values.bingAgent.connection.bingResourceConnectionString | quote }}
+{{- if not .Values.bingAgent.connection.endpoint }}
+{{- fail "bingAgent.connection.endpoint is required when bingAgent.enabled is true. Set it in your environment overlay." }}
+{{- end }}
+{{ include "base.valueSource.env" (dict "name" "BING_AGENT_ENDPOINT" "src" .Values.bingAgent.connection.endpoint "ctx" .) }}
+{{- if not .Values.bingAgent.connection.bingResourceConnectionString }}
+{{- fail "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." }}
+{{- end }}
+{{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_RESOURCE_CONNECTION_STRING" "src" .Values.bingAgent.connection.bingResourceConnectionString "ctx" .) }}
 {{- if .Values.bingAgent.connection.agentId }}
 - name: BING_AGENT_AGENT_ID
   value: {{ .Values.bingAgent.connection.agentId | quote }}
 {{- end }}
-- name: BING_AGENT_BING_AGENT_MODEL
-  value: {{ .Values.bingAgent.connection.bingAgentModel | quote }}
+{{- if not .Values.bingAgent.connection.bingAgentModel }}
+{{- fail "bingAgent.connection.bingAgentModel is required when bingAgent.enabled is true. Set it in your environment overlay." }}
+{{- end }}
+{{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_AGENT_MODEL" "src" .Values.bingAgent.connection.bingAgentModel "ctx" .) }}
 - name: BING_AGENT_AZURE_IDENTITY_CREDENTIAL_TYPE
   value: {{ .Values.bingAgent.connection.azureIdentityCredentialType | quote }}
 - name: BING_AGENT_AZURE_IDENTITY_VALIDATE_TOKEN_URL
@@ -173,16 +179,22 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.perplexitySearch.connection.apiEndpoint | quote }}
 {{- end }}
 {{- if and .ctx.Values.bingAgent .ctx.Values.bingAgent.enabled }}
-- name: BING_AGENT_ENDPOINT
-  value: {{ required "bingAgent.connection.endpoint is required when bingAgent.enabled is true. Set it in your environment overlay." .ctx.Values.bingAgent.connection.endpoint | quote }}
-- name: BING_AGENT_BING_RESOURCE_CONNECTION_STRING
-  value: {{ required "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." .ctx.Values.bingAgent.connection.bingResourceConnectionString | quote }}
+{{- if not .ctx.Values.bingAgent.connection.endpoint }}
+{{- fail "bingAgent.connection.endpoint is required when bingAgent.enabled is true. Set it in your environment overlay." }}
+{{- end }}
+{{ include "base.valueSource.env" (dict "name" "BING_AGENT_ENDPOINT" "src" .ctx.Values.bingAgent.connection.endpoint "ctx" .ctx) }}
+{{- if not .ctx.Values.bingAgent.connection.bingResourceConnectionString }}
+{{- fail "bingAgent.connection.bingResourceConnectionString is required when bingAgent.enabled is true. Set it in your environment overlay." }}
+{{- end }}
+{{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_RESOURCE_CONNECTION_STRING" "src" .ctx.Values.bingAgent.connection.bingResourceConnectionString "ctx" .ctx) }}
 {{- if .ctx.Values.bingAgent.connection.agentId }}
 - name: BING_AGENT_AGENT_ID
   value: {{ .ctx.Values.bingAgent.connection.agentId | quote }}
 {{- end }}
-- name: BING_AGENT_BING_AGENT_MODEL
-  value: {{ .ctx.Values.bingAgent.connection.bingAgentModel | quote }}
+{{- if not .ctx.Values.bingAgent.connection.bingAgentModel }}
+{{- fail "bingAgent.connection.bingAgentModel is required when bingAgent.enabled is true. Set it in your environment overlay." }}
+{{- end }}
+{{ include "base.valueSource.env" (dict "name" "BING_AGENT_BING_AGENT_MODEL" "src" .ctx.Values.bingAgent.connection.bingAgentModel "ctx" .ctx) }}
 - name: BING_AGENT_AZURE_IDENTITY_CREDENTIAL_TYPE
   value: {{ .ctx.Values.bingAgent.connection.azureIdentityCredentialType | quote }}
 - name: BING_AGENT_AZURE_IDENTITY_VALIDATE_TOKEN_URL
@@ -386,6 +398,9 @@ library extension hooks (base.externalService.*.ext).
 {{- end -}}
 {{- if and .ctx.Values.perplexitySearch .ctx.Values.perplexitySearch.enabled -}}
 {{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.perplexitySearch.connection.apiKey)) }}
+{{- end -}}
+{{- if and .ctx.Values.bingAgent .ctx.Values.bingAgent.enabled -}}
+{{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.bingAgent.connection.endpoint .ctx.Values.bingAgent.connection.bingResourceConnectionString .ctx.Values.bingAgent.connection.bingAgentModel)) }}
 {{- end -}}
 {{- if and .ctx.Values.vertexaiAgent .ctx.Values.vertexaiAgent.enabled -}}
 {{ include "base.conn.secretProvider.fields" (dict "extByVault" .extByVault "fields" (list .ctx.Values.vertexaiAgent.connection.serviceAccountCredentials)) }}
