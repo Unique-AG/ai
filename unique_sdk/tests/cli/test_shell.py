@@ -556,3 +556,34 @@ class TestShellSchedule:
     def test_schedule_delete_no_id(self) -> None:
         out = _capture(_shell(), "schedule delete")
         assert "Usage:" in out
+
+
+class TestShellCite:
+    def test_cite_no_args_prints_usage(self) -> None:
+        out = _capture(_shell(), "cite")
+        assert "Usage: cite" in out
+
+    def test_cite_missing_read_method(self) -> None:
+        out = _capture(_shell(), "cite report.pdf --pages 3")
+        assert "--read-method is required" in out
+
+    def test_cite_no_positional_prints_usage(self) -> None:
+        out = _capture(_shell(), "cite --pages 3 --read-method text")
+        assert "Usage: cite" in out
+
+    def test_cite_pages_requires_value(self) -> None:
+        out = _capture(_shell(), "cite report.pdf --pages")
+        assert "--pages requires a value" in out
+
+    def test_cite_read_method_requires_value(self) -> None:
+        out = _capture(_shell(), "cite report.pdf --read-method")
+        assert "--read-method requires a value" in out
+
+    def test_cite_valid_calls_cmd(self) -> None:
+        with patch(
+            "unique_sdk.cli.commands.cite_file.cmd_cite_file",
+            return_value="[filesource1] -> report.pdf page 3",
+        ) as mock_cite:
+            out = _capture(_shell(), "cite report.pdf --pages 3 --read-method text")
+        assert "[filesource1]" in out
+        mock_cite.assert_called_once()

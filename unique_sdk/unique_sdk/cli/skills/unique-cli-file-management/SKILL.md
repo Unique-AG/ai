@@ -73,9 +73,11 @@ unique-cli read cont_abc123
 unique-cli read cont_abc123 --page 12
 unique-cli read cont_abc123 --from-page 5 --to-page 9
 
-# Declare page citations after reading a file
-unique-cli cite report.pdf --pages 3,5,7
-unique-cli cite cont_abc123 --pages 1-4
+# Declare page citations after reading a file (--read-method is mandatory)
+unique-cli cite report.pdf --pages 3,5,7 --read-method text
+unique-cli cite cont_abc123 --pages 1-4 --read-method vision
+# Non-paginated files (Excel, CSV, txt): omit --pages to cite the whole file
+unique-cli cite data.xlsx --read-method text
 
 # Delete a file
 unique-cli rm report.pdf
@@ -203,26 +205,60 @@ can attribute text to pages.
 
 ## Citing File Pages
 
-After reading **any** file and using its content in your answer, declare citations:
+After reading **any** file (PDF, Office, text, etc.) and using its content in your
+answer, declare citations. `cite` works on **any** file type, not just PDFs.
+`--read-method` is **mandatory**: it records how you actually read the cited page(s).
 
 ```bash
-unique-cli cite report.pdf --pages 3,5
-unique-cli cite cont_abc123 --pages 1-4
+unique-cli cite report.pdf --pages 3,5 --read-method text
+unique-cli cite cont_abc123 --pages 1-4 --read-method vision
+unique-cli cite data.xlsx --read-method text          # non-paginated: omit --pages
 ```
 
 This registers `[filesourceN]` markers. Use them inline in your answer.
 The platform converts `[filesourceN]` into footnotes and clickable reference chips.
 
-**MANDATORY 3-step verification before EVERY `unique-cli cite` call — NO EXCEPTIONS:**
+**`--pages` is optional.** Omit it to cite the **whole file**. Paginated formats
+(PDF, PPTX) take page/slide numbers; **non-paginated formats (Excel `.xlsx`/`.xls`,
+CSV, `.txt`, HTML, images) have no pages — always omit `--pages`** and cite the
+whole file.
 
-1. `pdfinfo file.pdf | grep Pages` — get total physical page count.
-2. For **each** page you intend to cite, run `pdftotext -f N -l N file.pdf -` and confirm the content you are referencing is actually on that physical page. Do NOT skip this. Do NOT assume page numbers.
-3. Only after step 2 confirms a match, call `unique-cli cite` with the verified physical page numbers.
+**Choosing `--read-method`** (declare the *representation* of the source you actually read):
 
-Page numbers are **physical PDF positions** (1-based). NEVER use printed page numbers from headers/footers — they often differ from physical positions.
+- `text` → you used **extracted text** (`pdftotext`, PyMuPDF / `fitz` `page.get_text()`, MarkItDown, or any text extraction).
+- `vision` → you read a **rendered image** of the page/slide (e.g. `get_pixmap()`) with your vision capability.
+- `indexed` → you relied on **`unique-cli read`** output (the platform's indexed chunks).
 
+| Value | When to use |
+|-------|-------------|
+| `text` | You read the page/document as extracted text and used that text. |
+| `vision` | You rendered the page to an image and read it with your vision capability. |
+| `indexed` | You read the content via `unique-cli read` (indexed chunks). |
+
+**MANDATORY verification before EVERY `unique-cli cite` call — NO EXCEPTIONS.**
+Pick the row matching the file you read; verify the cited content really is where
+you claim before calling `cite`:
+
+- **PDF** — `pdfinfo file.pdf | grep Pages` for the total physical page count, then
+  for **each** page run `pdftotext -f N -l N file.pdf -` and confirm the content is
+  on that physical page. Page numbers are **physical PDF positions** (1-based);
+  NEVER use printed page numbers from headers/footers — they often differ.
+- **PPTX** — the page number is the **slide number** (1-based). Verify against the
+  slide you actually read.
+- **DOCX** — use the rendered page from your text extraction; if there is no
+  reliable page boundary, cite the **whole file** (omit `--pages`).
+- **Non-paginated (XLSX/CSV/TXT/HTML/images)** — there are no pages. Do **NOT**
+  pass `--pages`; cite the whole file and verify the content exists in it.
+
+Then determine `--read-method`: report the representation you actually read. In a
+fallback chain (e.g. text extraction returned nothing → render + read visually),
+report `text` if you used extracted text or `vision` if you read a rendered image.
+Only after verifying, call `unique-cli cite` with the verified page numbers (if any)
+and `--read-method`.
+
+- **One method per `cite` call.** If different pages were read with different methods, issue separate `cite` calls — one per method.
 - Numbers are **per-turn only**; do not reuse from prior turns.
-- Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search`.
+- Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search` — those are referenced automatically.
 
 ## Error Handling
 
