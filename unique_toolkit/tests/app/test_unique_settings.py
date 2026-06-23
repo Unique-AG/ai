@@ -1323,6 +1323,7 @@ class TestUniqueContext:
             == MAGIC_TABLE_STREAMING_ASSISTANT_MESSAGE_ID
         )
         assert ctx.chat.last_user_message_id == MAGIC_TABLE_STREAMING_USER_MESSAGE_ID
+        assert ctx.chat.last_user_message_text == ""
 
     @pytest.mark.ai
     def test_from_magic_table_event__raises_without_chat_id(self) -> None:

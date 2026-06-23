@@ -493,6 +493,7 @@ class UniqueContext:
                 assistant_id=payload.assistant_id,
                 last_assistant_message_id=MAGIC_TABLE_STREAMING_ASSISTANT_MESSAGE_ID,
                 last_user_message_id=MAGIC_TABLE_STREAMING_USER_MESSAGE_ID,
+                last_user_message_text="",
                 metadata_filter=payload.metadata_filter,
                 parent_chat_id=parent_chat_id,
             ),
