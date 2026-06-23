@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.app.schemas import BaseEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
@@ -60,25 +60,22 @@ class LanguageModelService:
         user_id: str | None = None,
         **kwargs: dict[str, Any],  # only here for backward compatibility
     ):
-        if isinstance(event, ChatEvent):
+        if event is not None:
+            auth_scoped = type(self).from_event(event)
+            self._company_id = auth_scoped._company_id
+            self._user_id = auth_scoped._user_id
             self._event = event
-            self._chat_id = event.payload.chat_id
-            self._assistant_id = event.payload.assistant_id
-            self._company_id = event.company_id
-            self._user_id = event.user_id
-        elif isinstance(event, BaseEvent):
-            self._event = event
-            self._company_id = event.company_id
-            self._user_id = event.user_id
-            self._chat_id = None
-            self._assistant_id = None
-        else:
-            [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._event = None
-            self._company_id: str = company_id
-            self._user_id: str = user_id
-            self._chat_id: str | None = None
-            self._assistant_id: str | None = None
+            payload = event.payload
+            self._chat_id = getattr(payload, "chat_id", None)
+            self._assistant_id = getattr(payload, "assistant_id", None)
+            return
+
+        [company_id, user_id] = validate_required_values([company_id, user_id])
+        self._event = None
+        self._company_id: str = company_id
+        self._user_id: str = user_id
+        self._chat_id: str | None = None
+        self._assistant_id: str | None = None
 
     @classmethod
     def from_event(cls, event: BaseEvent[Any]):
@@ -88,7 +85,7 @@ class LanguageModelService:
         return cls(company_id=event.company_id, user_id=event.user_id)
 
     @classmethod
-    def from_settings(cls, settings: UniqueSettings | str | None = None):
+    def from_settings(cls, settings: UniqueSettings | str | None = None, **kwargs: Any):
         """
         Initialize the LanguageModelService with a settings object.
         """
