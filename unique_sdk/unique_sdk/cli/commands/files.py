@@ -372,18 +372,21 @@ def cmd_versions(
 
 def cmd_restore_version(state: ShellState, content_version_id: str) -> str:
     """Restore a file from an archived content version ID."""
-    if not state.is_within_workspace():
-        return "restore-version: permission denied (outside workspace scope)"
     # A per-message metaDataFilter is a hard task boundary, but the restore
     # API only resolves a contentVersionId to its content *after* mutating,
     # so an out-of-scope version can't be screened beforehand. Deny while a
     # filter is active rather than allow an unverifiable mutation; reads stay
-    # gated regardless. See UN-21780.
+    # gated regardless. The filter replaces the static scope for the turn, so
+    # check it *before* the static is_within_workspace() fallback — otherwise
+    # an out-of-static-scope cwd would surface the static denial (no task-scope
+    # hint) even though the filter is authoritative. See UN-21780.
     if state.workspace_metadata_filter is not None:
         return (
             "restore-version: permission denied: cannot verify the target is "
             f"within your task scope ({state.scope_denial_hint()})."
         )
+    if not state.is_within_workspace():
+        return "restore-version: permission denied (outside workspace scope)"
     try:
         result = unique_sdk.Content.restore_version(
             user_id=state.config.user_id,

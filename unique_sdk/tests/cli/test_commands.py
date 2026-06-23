@@ -1497,6 +1497,29 @@ class TestFiles:
         assert "permission denied" in result
         mock_restore.assert_not_called()
 
+    @patch("unique_sdk.Content.restore_version")
+    def test_restore_version_filter_denial_precedes_static_scope(
+        self,
+        mock_restore: MagicMock,
+    ) -> None:
+        """When a per-message filter is active it replaces the static scope for
+        the turn, so an out-of-static-scope cwd must still surface the
+        filter-specific 'cannot verify the target' denial (with the task-scope
+        hint), not the hint-less static denial. See UN-21780.
+        """
+        state = _state("/Outside", "scope_other")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_x"],
+        }
+        result = cmd_restore_version(state, "cver_1")
+        assert "cannot verify the target" in result
+        assert "outside workspace scope" not in result
+        mock_restore.assert_not_called()
+
     @patch("unique_sdk.cli.commands.files.shutil.move")
     @patch("unique_sdk.cli.commands.files.download_content")
     def test_download_by_id(
