@@ -1,16 +1,23 @@
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.crawlers.base import CrawlerType
-from unique_search_proxy_core.crawlers.config_types import CrawlRequest
+from unique_search_proxy_core.crawlers.config_types import parse_crawl_request
 from unique_search_proxy_core.schema import ProxyErrorCode
+from unique_search_proxy_core.url_safety import ResolvedCrawlTarget
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.core.crawlers.basic.service import (
     BasicCrawlerService,
 )
+from unique_search_proxy_client.web.core.crawlers.pinned_egress import (
+    PinnedEgressCrawler,
+)
+from unique_search_proxy_client.web.core.url_safety.gate import AllowedCrawlTarget
 
 _HTML_PAGE = """
 <html><head><title>Test</title></head>
@@ -18,23 +25,34 @@ _HTML_PAGE = """
 """
 
 
+def _is_example_com_request(request: httpx.Request) -> bool:
+    host_header = request.headers.get("host", "")
+    if isinstance(host_header, bytes):
+        host_header = host_header.decode()
+    url = str(request.url)
+    return "example.com" in host_header or "example.com" in url
+
+
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     def handler(request: httpx.Request) -> httpx.Response:
         url = str(request.url)
+        host_header = request.headers.get("host", "")
+        if isinstance(host_header, bytes):
+            host_header = host_header.decode()
         if "file.pdf" in url:
             return httpx.Response(
                 200,
                 text="%PDF-1.4",
                 headers={"content-type": "application/pdf"},
             )
-        if "blocked.example" in url:
+        if "blocked.example" in host_header or "blocked.example" in url:
             return httpx.Response(
                 403,
                 text="forbidden",
                 headers={"content-type": "text/plain"},
             )
-        if "example.com" in url:
+        if _is_example_com_request(request):
             return httpx.Response(
                 200,
                 text=_HTML_PAGE,
@@ -61,10 +79,10 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 @pytest.mark.ai
 def test_basic_crawler_service_returns_markdown() -> None:
     async def run() -> None:
-        request = CrawlRequest.model_validate(
+        request = parse_crawl_request(
             {
                 "urls": ["https://example.com/article"],
-                "crawlerType": CrawlerType.BASIC.value,
+                "crawler": CrawlerType.BASIC.value,
                 "timeout": 10,
                 "contentTypes": {"html": True},
             },
@@ -94,18 +112,73 @@ def test_basic_crawler_service_returns_markdown() -> None:
 
 
 @pytest.mark.ai
+def test_basic_crawler_service_implements_pinned_egress_protocol() -> None:
+    crawler = BasicCrawlerService()
+    assert isinstance(crawler, PinnedEgressCrawler)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_crawl_pinned__fetches_resolved_ip_with_host_and_sni() -> None:
+    html = "<html><body><p>Hello</p></body></html>"
+    response = httpx.Response(
+        200,
+        text=html,
+        headers={"content-type": "text/html; charset=utf-8"},
+        request=httpx.Request("GET", "https://93.184.216.34/docs?q=1"),
+    )
+    http_client = AsyncMock(spec=httpx.AsyncClient)
+    http_client.get.return_value = response
+
+    request = parse_crawl_request(
+        {
+            "urls": ["https://example.com/docs?q=1"],
+            "crawler": CrawlerType.BASIC.value,
+            "timeout": 10,
+            "contentTypes": {"html": True},
+        },
+    )
+    allowed_targets = [
+        AllowedCrawlTarget(
+            display_url="https://example.com/docs?q=1",
+            resolved=ResolvedCrawlTarget(
+                normalized_url="https://example.com/docs?q=1",
+                hostname="example.com",
+                resolved_ip="93.184.216.34",
+                used_dns_resolution=True,
+            ),
+        ),
+    ]
+
+    crawler = BasicCrawlerService(http_client=http_client)
+    results = await crawler.crawl_pinned(request, allowed_targets)
+
+    assert len(results) == 1
+    assert results[0].error is None
+    assert results[0].url == "https://example.com/docs?q=1"
+    http_client.get.assert_called_once()
+    assert http_client.get.call_args.args[0] == "https://93.184.216.34/docs?q=1"
+    call_headers = http_client.get.call_args.kwargs["headers"]
+    assert call_headers["Host"] == "example.com"
+    assert call_headers["User-Agent"]
+    assert (
+        http_client.get.call_args.kwargs["extensions"]["sni_hostname"] == "example.com"
+    )
+
+
+@pytest.mark.ai
 def test_crawl_endpoint_returns_per_url_results(client: TestClient) -> None:
     resp = client.post(
         "/v1/crawl",
         json={
             "urls": ["https://example.com/a", "https://blocked.example/x"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {"html": True},
         },
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["crawlerType"] == CrawlerType.BASIC.value
+    assert body["crawler"] == CrawlerType.BASIC.value
     assert len(body["results"]) == 2
 
     success = next(r for r in body["results"] if "example.com/a" in r["url"])
@@ -127,7 +200,7 @@ def test_crawl_returns_pdf_body_and_content_type(client: TestClient) -> None:
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
         },
     )
     assert resp.status_code == 200
@@ -155,7 +228,7 @@ def test_crawl_reports_markdown_conversion_error(
         "/v1/crawl",
         json={
             "urls": ["https://example.com/a"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {"html": True},
         },
     )
@@ -174,7 +247,7 @@ def test_crawl_without_processing_leaves_content_null(client: TestClient) -> Non
         "/v1/crawl",
         json={
             "urls": ["https://example.com/a"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {
                 "html": False,
                 "xhtml": False,
@@ -197,7 +270,7 @@ def test_crawl_pdf_forbidden_skips_processing(client: TestClient) -> None:
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
         },
     )
     assert resp.status_code == 200
@@ -213,7 +286,7 @@ def test_crawl_pdf_allowed_reports_processing_error(client: TestClient) -> None:
         "/v1/crawl",
         json={
             "urls": ["https://example.com/file.pdf"],
-            "crawlerType": CrawlerType.BASIC.value,
+            "crawler": CrawlerType.BASIC.value,
             "contentTypes": {"pdf": True},
         },
     )

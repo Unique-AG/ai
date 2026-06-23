@@ -155,6 +155,18 @@ class Folder(APIResource["Folder"]):
         parentId: NotRequired[str]
         name: NotRequired[str]
 
+    class MoveParams(RequestOptions):
+        folderId: str
+        newParentId: str
+
+    class MoveResult(TypedDict):
+        scopeId: str
+        asyncMetadataRebuild: bool
+        jobId: NotRequired[str | None]
+        affectedFiles: NotRequired[int | None]
+        message: NotRequired[str | None]
+        object: Literal["folder-move"]
+
     class GetInfosParams(RequestOptions):
         """
         Parameters for getting multiple paginated folders by their parent Id.
@@ -550,6 +562,44 @@ class Folder(APIResource["Folder"]):
             await cls._static_request_async(
                 "patch",
                 f"{cls.RESOURCE_URL}/{scopeId}",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def move(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.MoveParams"],
+    ) -> "Folder.MoveResult":
+        folder_id = params.pop("folderId")
+        return cast(
+            "Folder.MoveResult",
+            cls._static_request(
+                "post",
+                f"{cls.RESOURCE_URL}/{folder_id}/move",
+                user_id,
+                company_id=company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def move_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Folder.MoveParams"],
+    ) -> "Folder.MoveResult":
+        folder_id = params.pop("folderId")
+        return cast(
+            "Folder.MoveResult",
+            await cls._static_request_async(
+                "post",
+                f"{cls.RESOURCE_URL}/{folder_id}/move",
                 user_id,
                 company_id=company_id,
                 params=params,

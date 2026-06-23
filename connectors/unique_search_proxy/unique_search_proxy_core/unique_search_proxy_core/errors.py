@@ -5,6 +5,7 @@ from typing import Any
 from unique_search_proxy_core.schema import (
     ErrorDetail,
     ProxyErrorCode,
+    ProxyRequestType,
 )
 
 
@@ -14,32 +15,40 @@ class ProxyError(Exception):
     code: ProxyErrorCode = ProxyErrorCode.BAD_REQUEST
     status_code: int = 400
     retryable: bool = False
+    message: str
+    request: ProxyRequestType | None
+    provider: str | None
+    details: list[dict[str, Any]] | None
+    upstream_raw: Any | None
 
     def __init__(
         self,
         message: str,
         *,
-        engine: str | None = None,
-        crawler: str | None = None,
+        request: ProxyRequestType | None = None,
+        provider: str | None = None,
         retryable: bool | None = None,
         details: list[dict[str, Any]] | None = None,
+        upstream_raw: Any | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
-        self.engine = engine
-        self.crawler = crawler
+        self.request = request
+        self.provider = provider
         if retryable is not None:
             self.retryable = retryable
         self.details = details
+        self.upstream_raw = upstream_raw
 
     def to_detail(self) -> ErrorDetail:
         return ErrorDetail(
             code=self.code.value,
             message=self.message,
-            engine=self.engine,
-            crawler=self.crawler,
+            request=self.request,
+            provider=self.provider,
             retryable=self.retryable,
             details=self.details,
+            raw=self.upstream_raw,
         )
 
 
@@ -83,14 +92,34 @@ class EngineNotConfiguredError(ProxyError):
     code = ProxyErrorCode.ENGINE_NOT_CONFIGURED
     status_code = 503
 
-    def __init__(self, provider: str, *, kind: str = "engine") -> None:
-        super().__init__(
-            f"{kind.capitalize()} '{provider}' is not registered or not configured",
-            engine=provider if kind == "engine" else None,
-            crawler=provider if kind == "crawler" else None,
-        )
-        self.provider = provider
-        self.kind = kind
+    def __init__(
+        self,
+        *,
+        missing_env_vars: list[str] | None = None,
+    ) -> None:
+        if missing_env_vars:
+            env_list = ", ".join(missing_env_vars)
+            message = (
+                f"Provider is not configured. Set environment variable(s): {env_list}"
+            )
+            details = [{"envVar": env_var} for env_var in missing_env_vars]
+        else:
+            message = "Provider is not registered or not configured"
+            details = None
+        super().__init__(message, details=details)
+        self.missing_env_vars = missing_env_vars or []
+
+
+def attach_request_context(
+    exc: ProxyError,
+    *,
+    request: ProxyRequestType,
+    provider: str,
+) -> ProxyError:
+    """Set request route and payload provider id on a proxy error."""
+    exc.request = request
+    exc.provider = provider
+    return exc
 
 
 class UpstreamTimeoutError(ProxyError):

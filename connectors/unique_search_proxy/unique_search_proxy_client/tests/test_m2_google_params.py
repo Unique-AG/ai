@@ -1,5 +1,6 @@
 import pytest
 from pydantic import BaseModel, Field, model_validator
+from unique_search_proxy_core.errors import EngineNotConfiguredError
 from unique_search_proxy_core.param_policy.exposable_param import (
     ExposableParam,
     merge_exposable_params_with_factory_defaults,
@@ -10,9 +11,8 @@ from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import (
     ExposableStrOrNone,
     GoogleConfig,
-    GoogleRequest,
+    GoogleSearchRequest,
 )
-from unique_search_proxy_core.search_engines.pagination import PageRequest
 from unique_search_proxy_core.search_engines.params import (
     config_defaults,
     llm_exposed_field_names,
@@ -20,13 +20,16 @@ from unique_search_proxy_core.search_engines.params import (
 )
 
 from unique_search_proxy_client.web.core.search_engines import resolve_engine_call
-from unique_search_proxy_client.web.core.search_engines.google.credentials import (
-    GoogleCredentials,
+from unique_search_proxy_client.web.core.search_engines.google.pagination import (
+    iter_google_page_requests,
+)
+from unique_search_proxy_client.web.core.search_engines.google.query_params import (
     build_google_query_params,
 )
-from unique_search_proxy_client.web.core.search_engines.google.settings import (
-    GoogleSearchSettings,
-    reset_google_search_settings_for_tests,
+from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
+from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
+from unique_search_proxy_client.web.settings.providers.google import (
+    _get_google_search_credentials,
 )
 
 
@@ -68,34 +71,9 @@ class TestMergeConfigAndInvocation:
             config,
             {"query": "news", "gl": "ch"},
         )
-        assert isinstance(request, GoogleRequest)
+        assert isinstance(request, GoogleSearchRequest)
         assert request.date_restrict == "m1"
         assert request.gl == "ch"
-
-
-class TestGoogleCredentials:
-    @pytest.mark.ai
-    def test_from_settings_uses_config_override_for_cx(self) -> None:
-        settings = GoogleSearchSettings(
-            google_search_api_key="key",
-            google_search_engine_id="env-cx",
-            google_search_api_endpoint="https://example.com/search",
-        )
-        credentials = GoogleCredentials.from_settings(
-            settings,
-            search_engine_id="config-cx",
-        )
-        assert credentials.search_engine_id == "config-cx"
-
-    @pytest.mark.ai
-    def test_from_settings_falls_back_to_env_cx(self) -> None:
-        settings = GoogleSearchSettings(
-            google_search_api_key="key",
-            google_search_engine_id="env-cx",
-            google_search_api_endpoint="https://example.com/search",
-        )
-        credentials = GoogleCredentials.from_settings(settings)
-        assert credentials.search_engine_id == "env-cx"
 
 
 class TestGoogleProviderParams:
@@ -114,6 +92,11 @@ class TestGoogleProviderParams:
         assert dumped == {"dateRestrict": "d7", "gl": "us", "safe": "active"}
 
     @pytest.mark.ai
+    def test_google_page_offsets_use_one_based_start_index(self) -> None:
+        pages = list(iter_google_page_requests(15))
+        assert [(page.offset, page.count) for page in pages] == [(1, 10), (11, 5)]
+
+    @pytest.mark.ai
     def test_pagination_is_separate_from_engine_params(self) -> None:
         config = GoogleConfig()
         request = merge_config_and_invocation(
@@ -124,14 +107,8 @@ class TestGoogleProviderParams:
         page = PageRequest(page_index=2, offset=11, count=5)
         query = build_google_query_params(
             query="hello",
-            credentials=type(
-                "Creds",
-                (),
-                {
-                    "api_key": "key",
-                    "search_engine_id": "cx",
-                },
-            )(),
+            api_key="key",
+            search_engine_id="cx",
             request=request,
             page=page,
         )
@@ -148,33 +125,28 @@ class TestGoogleConfigDefaults:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        reset_google_search_settings_for_tests()
         monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "env-cx")
         monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "key")
         config = GoogleConfig()
         assert config.search_engine_id is None
 
     @pytest.mark.ai
-    def test_credentials_resolve_search_engine_id_from_env(
+    def test_check_credentials_at_call_time(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        reset_google_search_settings_for_tests()
-        monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "env-cx")
-        monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", "key")
-        monkeypatch.setenv(
-            "GOOGLE_SEARCH_API_ENDPOINT",
-            "https://www.googleapis.com/customsearch/v1",
-        )
-        credentials = GoogleCredentials.from_env()
-        assert credentials.search_engine_id == "env-cx"
+        monkeypatch.setenv("GOOGLE_SEARCH_API_KEY", NOT_PROVIDED)
+        monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", NOT_PROVIDED)
+        credentials = _get_google_search_credentials()
+        with pytest.raises(EngineNotConfiguredError) as exc_info:
+            credentials.check_credentials()
+        assert "GOOGLE_SEARCH_API_KEY" in exc_info.value.missing_env_vars
 
     @pytest.mark.ai
     def test_search_engine_id_default_none_when_env_unset(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        reset_google_search_settings_for_tests()
         monkeypatch.setenv("GOOGLE_SEARCH_ENGINE_ID", "")
         config = GoogleConfig()
         assert config.search_engine_id is None

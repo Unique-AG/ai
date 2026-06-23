@@ -8,12 +8,14 @@ from typing import TYPE_CHECKING
 import httpx
 from httpx import AsyncClient
 
-from unique_search_proxy_client.web.core.client.settings import (
+from unique_search_proxy_client.web.settings.client import (
     HttpClientSettings,
     ProxyAuthMode,
     ProxyConfig,
     http_client_settings,
 )
+from unique_search_proxy_client.web.settings.providers.base import read_secret
+from unique_search_proxy_client.web.settings.secret_str import read_secret_headers
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -51,7 +53,8 @@ def _build_proxy_url_with_username_password(settings: HttpClientSettings) -> str
         raise ValueError("Proxy username and password are required")
     return (
         f"{settings.proxy_protocol}://"
-        f"{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}"
+        f"{read_secret(proxy_username)}:{read_secret(proxy_password)}"
+        f"@{proxy_host}:{proxy_port}"
     )
 
 
@@ -92,7 +95,7 @@ def _get_username_password_proxy_kwargs(settings: HttpClientSettings) -> ProxyCo
     )
     return ProxyConfig(
         proxy=proxy_url,
-        headers=settings.proxy_headers,
+        headers=read_secret_headers(settings.proxy_headers) or None,
         verify=settings.proxy_ssl_ca_bundle_path or True,
     )
 
@@ -104,7 +107,7 @@ def _get_ssl_tls_proxy_kwargs(settings: HttpClientSettings) -> ProxyConfig:
     return ProxyConfig(
         proxy=proxy_url,
         cert=cert_args,
-        headers=settings.proxy_headers,
+        headers=read_secret_headers(settings.proxy_headers) or None,
         verify=settings.proxy_ssl_ca_bundle_path or True,
     )
 

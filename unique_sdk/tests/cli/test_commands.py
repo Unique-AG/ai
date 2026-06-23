@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ import pytest
 
 import unique_sdk
 from unique_sdk.cli.commands.files import (
+    _detect_upload_mime_type,
     _resolve_content_id,
     _resolve_upload_destination,
     cmd_download,
@@ -1017,6 +1019,48 @@ class TestFiles:
         result = cmd_upload(_state("/R", "scope_r"), "/nonexistent/file.pdf")
         assert "local file not found" in result
 
+    @pytest.mark.parametrize(
+        ("filename", "expected_mime_type"),
+        [
+            ("test.pdf", "application/pdf"),
+            (
+                "test.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
+            (
+                "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            (
+                "test.pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ),
+            ("test.txt", "text/plain"),
+            ("test.html", "text/html"),
+            ("test.md", "text/markdown"),
+        ],
+    )
+    @patch("unique_sdk.cli.commands.files.mimetypes.guess_type")
+    def test_detect_upload_mime_type_uses_supported_format_mapping(
+        self,
+        mock_guess_type: MagicMock,
+        filename: str,
+        expected_mime_type: str,
+    ) -> None:
+        mock_guess_type.return_value = (None, None)
+
+        assert _detect_upload_mime_type(Path(filename)) == expected_mime_type
+        mock_guess_type.assert_not_called()
+
+    @patch("unique_sdk.cli.commands.files.mimetypes.guess_type")
+    def test_detect_upload_mime_type_falls_back_to_guess_type(
+        self,
+        mock_guess_type: MagicMock,
+    ) -> None:
+        mock_guess_type.return_value = ("image/png", None)
+
+        assert _detect_upload_mime_type(Path("test.png")) == "image/png"
+
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.cli.commands.files.upload_file")
     def test_upload_success(
@@ -1289,6 +1333,32 @@ class TestFiles:
         result = cmd_mvdir(state, "scope_allowed", "New Name")
         assert "permission denied" not in result
         mock_update.assert_called_once()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    @patch("unique_sdk.cli.commands.files.mimetypes.guess_type")
+    def test_upload_xlsx_uses_supported_mime_type_mapping(
+        self,
+        mock_guess_type: MagicMock,
+        mock_upload: MagicMock,
+        mock_path: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        f = tmp_path / "test.xlsx"
+        f.write_bytes(b"content")
+        mock_result = MagicMock()
+        mock_result.id = "cont_new"
+        mock_upload.return_value = mock_result
+        mock_path.return_value = {"folderPath": "/Reports"}
+        mock_guess_type.return_value = (None, None)
+
+        result = cmd_upload(_state("/Reports", "scope_r"), str(f))
+
+        assert "Uploaded" in result
+        assert mock_upload.call_args.kwargs["mime_type"] == (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        mock_guess_type.assert_not_called()
 
     @patch("unique_sdk.Content.versions")
     @patch("unique_sdk.Content.get_infos")

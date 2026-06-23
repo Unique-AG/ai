@@ -1,6 +1,6 @@
 import logging
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, override
 
 from pydantic import BaseModel, Field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -169,6 +169,9 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
     # @track(
     #     tags=["crawl4ai", "scrape"],
     # )
+    @override
+    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
+        raise NotImplementedError("Crawl4AiCrawler does not support proxy crawl")
 
     @staticmethod
     def _get_ssrf_guard_hook():
@@ -209,7 +212,8 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
 
         return _ssrf_guard_hook
 
-    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+    @override
+    async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         urls = [target.normalized_url for target in targets]
         # Lazy import of crawl4ai - only import when actually needed
         from crawl4ai import (

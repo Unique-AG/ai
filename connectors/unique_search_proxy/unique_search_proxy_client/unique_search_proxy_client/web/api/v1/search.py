@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body, Request
 from unique_search_proxy_core.errors import (
     ProxyError,
     UpstreamTimeoutError,
+    attach_request_context,
 )
 from unique_search_proxy_core.schema import (
     ProxyErrorCode,
@@ -42,6 +43,14 @@ def _curated_results(
     return curated
 
 
+def _search_request_context(exc: ProxyError, *, engine_id: str) -> ProxyError:
+    return attach_request_context(
+        exc,
+        request="search",
+        provider=engine_id,
+    )
+
+
 @router.post(
     "/search",
     response_model=SearchResponse,
@@ -70,12 +79,14 @@ async def search(
             ProxyErrorCode.UPSTREAM_TIMEOUT.value,
             time.perf_counter() - started,
         )
-        raise UpstreamTimeoutError(
-            f"Search engine '{engine_id}' timed out after {timeout}s",
-            engine=engine_id,
+        raise _search_request_context(
+            UpstreamTimeoutError(
+                f"Search engine '{engine_id}' timed out after {timeout}s",
+            ),
+            engine_id=engine_id,
         ) from exc
-    except ProxyError:
-        raise
+    except ProxyError as exc:
+        raise _search_request_context(exc, engine_id=engine_id) from exc
     except Exception:
         record_search_error(
             engine_id,

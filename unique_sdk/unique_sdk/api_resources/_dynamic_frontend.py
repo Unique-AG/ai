@@ -16,6 +16,8 @@ class DynamicFrontend(APIResource["DynamicFrontend"]):
     spaceId: str
     name: str
     contentId: str
+    url: str | None
+    configUrl: str | None
     status: dict[str, object] | None
 
     class CreateParams(RequestOptions):
@@ -60,6 +62,24 @@ class DynamicFrontend(APIResource["DynamicFrontend"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def delete(
+        cls,
+        space_id: str,
+        user_id: str,
+        company_id: str,
+    ) -> "DynamicFrontend":
+        """Delete a deployed Dynamic Frontend space."""
+        return cast(
+            DynamicFrontend,
+            cls._static_request(
+                "delete",
+                f"/dynamic-frontend/{space_id}",
+                user_id,
+                company_id,
             ),
         )
 

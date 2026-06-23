@@ -47,6 +47,22 @@ crawl_blocked_total = m.counter(
     ["reason_category"],
 )
 
+agent_search_duration_seconds = m.histogram(
+    "agent_search_duration_seconds",
+    "Agent search request latency",
+    ["engine"],
+)
+agent_search_total = m.counter(
+    "agent_search_total",
+    "Agent search requests by engine",
+    ["engine"],
+)
+agent_search_errors_total = m.counter(
+    "agent_search_errors_total",
+    "Agent search request failures",
+    ["engine", "error_code"],
+)
+
 proxy_errors_total = m.counter(
     "proxy_errors_total",
     "Top-level API errors returned to clients",
@@ -55,7 +71,7 @@ proxy_errors_total = m.counter(
 
 
 def _metrics_enabled() -> bool:
-    from unique_search_proxy_client.web.monitoring.settings import prometheus_settings
+    from unique_search_proxy_client.web.settings.monitoring import prometheus_settings
 
     return prometheus_settings.enabled
 
@@ -93,6 +109,24 @@ def record_crawl_blocked(reason_category: str, count: int = 1) -> None:
     if not _metrics_enabled():
         return
     crawl_blocked_total.labels(reason_category=reason_category).inc(count)
+
+
+def record_agent_search_success(engine: str, duration_seconds: float) -> None:
+    if not _metrics_enabled():
+        return
+    agent_search_total.labels(engine=engine).inc()
+    agent_search_duration_seconds.labels(engine=engine).observe(duration_seconds)
+
+
+def record_agent_search_error(
+    engine: str,
+    error_code: str,
+    duration_seconds: float,
+) -> None:
+    if not _metrics_enabled():
+        return
+    agent_search_errors_total.labels(engine=engine, error_code=error_code).inc()
+    agent_search_duration_seconds.labels(engine=engine).observe(duration_seconds)
 
 
 def record_proxy_error(error_code: str) -> None:

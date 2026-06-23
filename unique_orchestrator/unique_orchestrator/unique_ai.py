@@ -6,6 +6,7 @@ from typing import Any, cast, overload
 
 import jinja2
 from typing_extensions import deprecated
+from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -35,7 +36,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
     SafeTaskExecutor,
     ToolManager,
 )
-from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.app.schemas import ChatEvent, McpServer, SkillReference
 from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
@@ -85,6 +86,7 @@ class UniqueAI:
         loop_iteration_runner: LoopIterationRunner,
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
+        user_memory_text: str = "",
     ) -> None: ...
 
     # Responses API Dependencies
@@ -109,6 +111,7 @@ class UniqueAI:
         loop_iteration_runner: ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
+        user_memory_text: str = "",
     ) -> None: ...
 
     def __init__(
@@ -132,6 +135,7 @@ class UniqueAI:
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
         agent_file_registry: list[str] | None = None,
         uploaded_documents: list[Content] | None = None,
+        user_memory_text: str = "",
     ) -> None:
         self._logger = logger
         self._event = event
@@ -139,7 +143,10 @@ class UniqueAI:
         self._chat_service = chat_service
         self._content_service = content_service
         self._uploaded_documents = uploaded_documents or []
-        self._skill_choices = getattr(event.payload, "skill_choices", [])
+        self._user_memory_text = user_memory_text
+        self._skill_choices: list[SkillReference] = getattr(
+            event.payload, "skill_choices", []
+        )
 
         self._debug_info_manager = debug_info_manager
         self._reference_manager = reference_manager
@@ -309,6 +316,10 @@ class UniqueAI:
                 },
             )
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
+            self._debug_info_manager.add(
+                "skills",
+                self._get_activated_skills_debug_info(),
+            )
 
             tool_names = [
                 tool["name"] for tool in self._debug_info_manager.get()["tools"]
@@ -344,6 +355,33 @@ class UniqueAI:
                 "thinking_level": thinking_level,
             }
         )
+
+    def _get_activated_skills_debug_info(self) -> list[dict[str, str | bool]]:
+        skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)
+        if not isinstance(skill_tool, SkillTool):
+            return []
+
+        forced_content_ids = {
+            choice.content_id for choice in self._skill_choices if choice.content_id
+        }
+        forced_names = {choice.name for choice in self._skill_choices if choice.name}
+
+        skills_debug_info: dict[str, dict[str, str | bool]] = {}
+        for skill in skill_tool.activated_skills:
+            skills_debug_info.setdefault(
+                skill.name,
+                {
+                    "name": skill.name,
+                    "content_id": skill.content_id,
+                    "is_forced": (
+                        skill.content_id in forced_content_ids
+                        if skill.content_id
+                        else skill.name in forced_names
+                    ),
+                },
+            )
+
+        return list(skills_debug_info.values())
 
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
@@ -553,6 +591,7 @@ class UniqueAI:
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
             user_metadata=user_metadata,
             uploaded_documents_expired=uploaded_documents_expired,
+            user_memory=self._user_memory_text,
         )
         return system_message
 
@@ -623,7 +662,7 @@ class UniqueAI:
             result.is_positive for result in evaluation_results.unpack()
         ):
             self._logger.warning(
-                "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop"
+                "we should add here the retry counter add an instruction and retry the loop for now we just exit the loop."
             )  # TODO: add retry counter and instruction
 
         return True
@@ -662,7 +701,7 @@ class UniqueAI:
         # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
         # redundant and noisy to also list it here.
 
-        tool_names_not_to_log: set[str] = {"DeepResearch", "Skill"}
+        tool_names_not_to_log: set[str] = {"DeepResearch", "Skill", "AskUser"}
 
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:

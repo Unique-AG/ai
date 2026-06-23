@@ -13,6 +13,7 @@ from unique_sdk.cli.commands.cite_file import (
     is_error_output as _is_cite_error_output,
 )
 from unique_sdk.cli.commands.dynamic_frontend import (
+    cmd_dynamic_frontend_delete,
     cmd_dynamic_frontend_deploy,
     cmd_dynamic_frontend_list,
 )
@@ -512,7 +513,7 @@ def read_cmd(
 
 @main.group(name="dynamic-frontend")
 def dynamic_frontend() -> None:
-    """Deploy and list Dynamic Frontend spaces."""
+    """Deploy, list, and delete Dynamic Frontend spaces."""
 
 
 @dynamic_frontend.command(name="deploy")
@@ -577,6 +578,29 @@ def dynamic_frontend_deploy(
 def dynamic_frontend_list(ctx: click.Context, output_json: bool) -> None:
     """List Dynamic Frontend spaces the current user can manage."""
     output = cmd_dynamic_frontend_list(LazyState.get(ctx), output_json=output_json)
+    click.echo(output)
+    if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
+        ctx.exit(1)
+
+
+@dynamic_frontend.command(name="delete")
+@click.argument("space_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def dynamic_frontend_delete(
+    ctx: click.Context, space_id: str, output_json: bool
+) -> None:
+    """Delete a deployed Dynamic Frontend space by its space id.
+
+    \b
+    Example:
+      unique-cli dynamic-frontend delete assistant_123
+    """
+    output = cmd_dynamic_frontend_delete(
+        LazyState.get(ctx), space_id, output_json=output_json
+    )
     click.echo(output)
     if output.startswith(_DYNAMIC_FRONTEND_ERROR_PREFIX):
         ctx.exit(1)

@@ -30,10 +30,16 @@ from unique_search_proxy_client.web.error_handlers import proxy_error_response
             ProxyErrorCode.RATE_LIMITED,
         ),
         (UpstreamError("upstream"), 502, ProxyErrorCode.UPSTREAM_ERROR),
-        (EngineNotConfiguredError("google"), 503, ProxyErrorCode.ENGINE_NOT_CONFIGURED),
+        (
+            EngineNotConfiguredError(
+                missing_env_vars=["GOOGLE_SEARCH_API_KEY"],
+            ),
+            503,
+            ProxyErrorCode.ENGINE_NOT_CONFIGURED,
+        ),
         (UpstreamTimeoutError("timeout"), 504, ProxyErrorCode.UPSTREAM_TIMEOUT),
         (
-            EmptySearchResultsError("none", engine="google"),
+            EmptySearchResultsError("none"),
             404,
             ProxyErrorCode.EMPTY_SEARCH_RESULTS,
         ),
@@ -52,6 +58,19 @@ def test_rate_limited_sets_retry_after_header() -> None:
         RateLimitedError("slow", retry_after_seconds=42),
     )
     assert response.headers.get("Retry-After") == "42"
+
+
+@pytest.mark.ai
+def test_upstream_error_serializes_raw_payload() -> None:
+    raw = {"error": {"message": "invalid key"}}
+    response = proxy_error_response(
+        UpstreamError("upstream failed", upstream_raw=raw),
+    )
+    assert response.status_code == 502
+    import json
+
+    body = json.loads(response.body.decode())
+    assert body["error"]["raw"] == raw
 
 
 @pytest.fixture
@@ -88,11 +107,15 @@ class TestV1StructuredErrors:
                 "/v1/crawl",
                 json={
                     "urls": ["https://example.com"],
-                    "crawlerType": CrawlerType.BASIC.value,
+                    "crawler": CrawlerType.BASIC.value,
                 },
             )
             assert resp.status_code == 503
-            assert resp.json()["error"]["crawler"] == CrawlerType.BASIC.value
+            error = resp.json()["error"]
+            assert error["request"] == "crawl"
+            assert error["provider"] == CrawlerType.BASIC.value
+            assert "engine" not in error
+            assert "crawler" not in error
         finally:
             _CRAWLER_REGISTRY.clear()
             _CRAWLER_REGISTRY.update(saved)

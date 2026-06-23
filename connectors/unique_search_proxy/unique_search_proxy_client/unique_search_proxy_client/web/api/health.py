@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 
 from unique_search_proxy_client.web.core.client import get_http_client_pool
 from unique_search_proxy_client.web.core.registry import (
+    registered_agent_engines,
     registered_crawlers,
     registered_search_engines,
 )
@@ -23,5 +24,6 @@ async def ready(request: Request) -> dict[str, object]:
         "status": "ready",
         "httpClient": "ok" if not pool.client.is_closed else "closed",
         "searchEngines": sorted(registered_search_engines()),
+        "agentEngines": sorted(registered_agent_engines()),
         "crawlers": sorted(registered_crawlers()),
     }

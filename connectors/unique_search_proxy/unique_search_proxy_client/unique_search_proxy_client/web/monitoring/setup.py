@@ -5,7 +5,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
 
-import unique_search_proxy_client.web.monitoring.settings as monitoring_settings
+import unique_search_proxy_client.web.settings.monitoring as monitoring_settings
 
 _LOGGER = logging.getLogger(__name__)
 

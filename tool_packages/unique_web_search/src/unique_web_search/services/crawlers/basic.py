@@ -20,6 +20,10 @@ from unique_web_search.services.crawlers.url_safety import (
     ResolvedCrawlTarget,
 )
 from unique_web_search.services.crawlers.utils import get_random_user_agent
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+)
+from unique_web_search.services.proxy.mappers import map_crawl_response
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +55,8 @@ class BasicCrawlerConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
 
 
 class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
+    supports_proxy_crawl = True
+
     def __init__(self, config: BasicCrawlerConfig):
         super().__init__(config)
 
@@ -63,7 +69,19 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
     #     tags=["basic", "scrape"],
     # )
     @override
-    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
+        async with open_search_proxy_client(
+            timeout=float(self.config.timeout),
+        ) as client:
+            response = await client.crawl.basic(
+                urls=urls,
+                timeout=int(self.config.timeout),
+                max_concurrent_requests=self.config.max_concurrent_requests,
+            )
+            return map_crawl_response(response, urls)
+
+    @override
+    async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         async with async_client(timeout=Timeout(self.config.timeout)) as client:
             tasks = [self._crawl_url_with_client(client, target) for target in targets]
             results = await asyncio.gather(*tasks, return_exceptions=True)

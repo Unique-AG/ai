@@ -30,12 +30,12 @@ class ResponsesToolCallEventHandler:
         self._tool_calls: list[LanguageModelFunction] = []
 
     async def on_output_item_added(self, event: ResponseOutputItemAddedEvent) -> None:
-        from openai.types.responses.response_function_tool_call_item import (
-            ResponseFunctionToolCallItem,
+        from openai.types.responses.response_function_tool_call import (
+            ResponseFunctionToolCall,
         )
 
         item = event.item
-        if isinstance(item, ResponseFunctionToolCallItem):
+        if isinstance(item, ResponseFunctionToolCall) and item.id is not None:
             self._function_name_by_item_id[item.id] = item.name
 
     async def on_function_arguments_done(

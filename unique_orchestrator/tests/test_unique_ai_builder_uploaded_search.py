@@ -12,10 +12,12 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 from unique_toolkit.content.schemas import Content
+from unique_user_memory.user_memory import UserMemoryState
 
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
 from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai_builder import (
+    _build_common,
     _build_responses,
     _CommonComponents,
     _configure_uploaded_search_tool,
@@ -42,6 +44,7 @@ def _make_common_components(uploaded_documents):
         mcp_manager=MagicMock(),
         a2a_manager=MagicMock(),
         mcp_servers=[],
+        user_memory_text="",
     )
 
 
@@ -54,6 +57,119 @@ def _make_event(tool_choices):
     event.payload.tool_choices = tool_choices
     event.payload.mcp_servers = []
     return event
+
+
+def _patch_build_common_user_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[MagicMock, AsyncMock]:
+    event = _make_event(tool_choices=[])
+    event.payload.additional_parameters = None
+    event.payload.mcp_servers = []
+
+    chat_service = MagicMock()
+    chat_service.download_chat_images_and_documents_async = AsyncMock(
+        return_value=([], [])
+    )
+    content_service = MagicMock()
+
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ChatService",
+        MagicMock(return_value=chat_service),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ContentService.from_event",
+        MagicMock(return_value=content_service),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.LanguageModelService.from_event",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ToolProgressReporter",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ThinkingManager",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.HistoryManager",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.EvaluationManager",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.MCPManager",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.A2AManager",
+        MagicMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.MessageStepLogger",
+        MagicMock(return_value=MagicMock()),
+    )
+    memory_state = UserMemoryState(scope_id="scope_1", text="remembered")
+    load_user_memory = AsyncMock(return_value=memory_state)
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.load_user_memory",
+        load_user_memory,
+    )
+
+    return event, load_user_memory
+
+
+@pytest.mark.asyncio
+async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+
+    config = UniqueAIConfig()
+
+    common_components = await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+    )
+
+    load_user_memory.assert_not_awaited()
+    assert common_components.user_memory_text == ""
+    postprocessor_names = [
+        postprocessor.name
+        for postprocessor in common_components.postprocessor_manager.get_postprocessors(
+            "ignored"
+        )
+    ]
+    assert "UserMemoryPostprocessor" not in postprocessor_names
+
+
+@pytest.mark.asyncio
+async def test_build_common_registers_user_memory_when_space_allow_user_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+
+    common_components = await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    assert common_components.user_memory_text == "remembered"
+    postprocessor_names = [
+        postprocessor.name
+        for postprocessor in common_components.postprocessor_manager.get_postprocessors(
+            "ignored"
+        )
+    ]
+    assert "UserMemoryPostprocessor" in postprocessor_names
 
 
 class _FakeResponsesApiToolManager:

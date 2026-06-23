@@ -14,6 +14,7 @@ from unique_sdk.api_resources._dynamic_frontend import DynamicFrontend
 from unique_sdk.cli.cli import main
 from unique_sdk.cli.commands.dynamic_frontend import (
     _format_space,
+    cmd_dynamic_frontend_delete,
     cmd_dynamic_frontend_deploy,
     cmd_dynamic_frontend_list,
 )
@@ -51,6 +52,8 @@ def _space(
     space_id: str = "space_1",
     name: str = "Revenue Dashboard",
     content_id: str = "cont_1",
+    url: str | None = "https://chat.example.com/space/space_1",
+    config_url: str | None = "https://admin.example.com/dynamic-frontend-space/space_1",
     status: dict[str, object] | None = None,
 ) -> _FakeSpace:
     return _FakeSpace(
@@ -59,6 +62,8 @@ def _space(
             "spaceId": space_id,
             "name": name,
             "contentId": content_id,
+            "url": url,
+            "configUrl": config_url,
             "status": status,
         }
     )
@@ -128,6 +133,31 @@ def test_dynamic_frontend_modify__calls_expected_endpoint(
 
 
 @patch.object(DynamicFrontend, "_static_request", autospec=True)
+def test_dynamic_frontend_delete__calls_expected_endpoint(
+    mock_request: MagicMock,
+) -> None:
+    """Purpose: Verify deleting a Dynamic Frontend space sends the expected request.
+    Why this matters: Delete must target the existing space by id via DELETE.
+    Setup summary: Mock _static_request, call delete, and assert DELETE path.
+    """
+    mock_request.return_value = _FakeSpace({"spaceId": "space_1", "deleted": True})
+
+    result = DynamicFrontend.delete(
+        "space_1",
+        user_id="user_1",
+        company_id="company_1",
+    )
+
+    assert result["spaceId"] == "space_1"
+    mock_request.assert_called_once_with(
+        "delete",
+        "/dynamic-frontend/space_1",
+        "user_1",
+        "company_1",
+    )
+
+
+@patch.object(DynamicFrontend, "_static_request", autospec=True)
 def test_dynamic_frontend_list__returns_response_data(
     mock_request: MagicMock,
 ) -> None:
@@ -185,6 +215,10 @@ def test_cmd_dynamic_frontend_deploy__uploads_file_and_creates_space(
 
     assert 'Created Dynamic Frontend space "Revenue Dashboard" (space_1)' in output
     assert "Content: cont_1" in output
+    assert "URL: https://chat.example.com/space/space_1" in output
+    assert (
+        "Config URL: https://admin.example.com/dynamic-frontend-space/space_1" in output
+    )
     mock_upload_file.assert_called_once_with(
         userId="user_1",
         companyId="company_1",
@@ -219,6 +253,10 @@ def test_cmd_dynamic_frontend_deploy__updates_existing_space(
     )
 
     assert 'Updated Dynamic Frontend space "Revenue Dashboard" (space_1)' in output
+    assert "URL: https://chat.example.com/space/space_1" in output
+    assert (
+        "Config URL: https://admin.example.com/dynamic-frontend-space/space_1" in output
+    )
     mock_modify.assert_called_once_with(
         "space_1",
         user_id="user_1",
@@ -321,17 +359,71 @@ def test_cmd_dynamic_frontend_deploy__api_error_is_returned(
     assert "dynamic-frontend deploy: upstream boom" in output
 
 
+@patch("unique_sdk.DynamicFrontend.delete")
+def test_cmd_dynamic_frontend_delete__deletes_space(mock_delete: MagicMock) -> None:
+    """Purpose: Verify delete removes a space and reports the deleted id.
+    Why this matters: Operators need confirmation the space was removed.
+    Setup summary: Mock delete, call the command, and assert output plus API args.
+    """
+    mock_delete.return_value = _FakeSpace({"spaceId": "space_1", "deleted": True})
+
+    output = cmd_dynamic_frontend_delete(_state(), "space_1")
+
+    assert output == "Deleted Dynamic Frontend space space_1"
+    mock_delete.assert_called_once_with(
+        "space_1",
+        user_id="user_1",
+        company_id="company_1",
+    )
+
+
+def test_cmd_dynamic_frontend_delete__requires_space_id() -> None:
+    """Purpose: Verify delete rejects an empty space id before any API call.
+    Why this matters: A missing id should produce a clear error, not a bad request.
+    Setup summary: Call delete with an empty id and assert the validation message.
+    """
+    assert "provide a space id" in cmd_dynamic_frontend_delete(_state(), "")
+
+
+@patch("unique_sdk.DynamicFrontend.delete")
+def test_cmd_dynamic_frontend_delete__json_output(mock_delete: MagicMock) -> None:
+    """Purpose: Verify delete can emit raw JSON for scripting.
+    Why this matters: Automation consumers need machine-readable confirmation.
+    Setup summary: Mock delete, request JSON output, and parse the result.
+    """
+    mock_delete.return_value = _FakeSpace({"spaceId": "space_1", "deleted": True})
+
+    output = cmd_dynamic_frontend_delete(_state(), "space_1", output_json=True)
+
+    assert json.loads(output)["deleted"] is True
+
+
+@patch("unique_sdk.DynamicFrontend.delete")
+def test_cmd_dynamic_frontend_delete__api_error_is_returned(
+    mock_delete: MagicMock,
+) -> None:
+    """Purpose: Verify delete reports SDK API errors as CLI output.
+    Why this matters: CLI callers should receive actionable errors instead of tracebacks.
+    Setup summary: Make delete raise APIError and assert the returned message.
+    """
+    mock_delete.side_effect = unique_sdk.APIError("upstream boom")
+
+    output = cmd_dynamic_frontend_delete(_state(), "space_1")
+
+    assert "dynamic-frontend delete: upstream boom" in output
+
+
 def test_format_space__includes_status_fields() -> None:
     """Purpose: Verify list formatting includes status phase and URL when present.
     Why this matters: Operators need deployment status and URL from list output.
     Setup summary: Format a fake space with status metadata and assert tabular fields.
     """
-    output = _format_space(
-        _space(status={"phase": "READY", "url": "https://app.example.com"})
-    )
+    output = _format_space(_space(status={"phase": "READY"}))
 
-    assert (
-        output == "space_1\tRevenue Dashboard\tcont_1\tREADY\thttps://app.example.com"
+    assert output == (
+        "space_1\tRevenue Dashboard\tcont_1\tREADY"
+        "\thttps://chat.example.com/space/space_1"
+        "\thttps://admin.example.com/dynamic-frontend-space/space_1"
     )
 
 
@@ -345,7 +437,11 @@ def test_cmd_dynamic_frontend_list__formats_spaces(mock_list: MagicMock) -> None
 
     output = cmd_dynamic_frontend_list(_state())
 
-    assert output == "space_1\tRevenue Dashboard\tcont_1"
+    assert output == (
+        "space_1\tRevenue Dashboard\tcont_1"
+        "\thttps://chat.example.com/space/space_1"
+        "\thttps://admin.example.com/dynamic-frontend-space/space_1"
+    )
     mock_list.assert_called_once_with(user_id="user_1", company_id="company_1")
 
 

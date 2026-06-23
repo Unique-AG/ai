@@ -1,7 +1,13 @@
+import asyncio
 from typing import Any
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import ChatEvent, Correlation
+from unique_toolkit.elicitation.exceptions import (
+    ElicitationCancelledException,
+    ElicitationDeclinedException,
+    ElicitationExpiredException,
+)
 from unique_toolkit.elicitation.functions import (
     create_elicitation,
     create_elicitation_async,
@@ -18,6 +24,7 @@ from unique_toolkit.elicitation.schemas import (
     ElicitationList,
     ElicitationMode,
     ElicitationResponseResult,
+    ElicitationStatus,
 )
 
 
@@ -234,6 +241,45 @@ class ElicitationService:
             company_id=self._company_id,
             elicitation_id=elicitation_id,
         )
+
+    async def wait_for_response_async(
+        self,
+        *,
+        elicitation_id: str,
+        timeout_seconds: int,
+        poll_interval_seconds: float = 1.0,
+    ) -> Elicitation:
+        """
+        Poll an elicitation until the user accepts it.
+
+        Args:
+            elicitation_id (str): The elicitation ID to poll.
+            timeout_seconds (int): How long to wait before giving up.
+            poll_interval_seconds (float): Seconds between polls.
+
+        Returns:
+            Elicitation: The accepted elicitation.
+
+        Raises:
+            ElicitationDeclinedException: If the user declined.
+            ElicitationCancelledException: If the user cancelled.
+            ElicitationExpiredException: If the request expired or timed out.
+        """
+        num_trials = int(timeout_seconds / poll_interval_seconds) + 1
+        for _ in range(num_trials):
+            elicitation = await self.get_async(elicitation_id)
+            match elicitation.status:
+                case ElicitationStatus.ACCEPTED:
+                    return elicitation
+                case ElicitationStatus.DECLINED:
+                    raise ElicitationDeclinedException()
+                case ElicitationStatus.CANCELLED:
+                    raise ElicitationCancelledException()
+                case ElicitationStatus.EXPIRED:
+                    raise ElicitationExpiredException()
+                case _:
+                    await asyncio.sleep(poll_interval_seconds)
+        raise ElicitationExpiredException()
 
     # List Pending Methods
     ############################################################################

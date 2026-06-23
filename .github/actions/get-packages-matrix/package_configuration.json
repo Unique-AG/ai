@@ -7,6 +7,7 @@
   {"id": "swot",                 "shorthand": "swot", "dir": "tool_packages/unique_swot",                     "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique-swot"},
   {"id": "follow_up_questions",  "shorthand": "fuq",  "dir": "postprocessors/unique_follow_up_questions",     "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_follow_up_questions"},
   {"id": "stock_ticker",         "shorthand": "st",   "dir": "postprocessors/unique_stock_ticker",            "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_stock_ticker"},
+  {"id": "user_memory",          "shorthand": "um",   "dir": "postprocessors/unique_user_memory",             "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_user_memory"},
   {"id": "deep_research",        "shorthand": "dr",   "dir": "tool_packages/unique_deep_research",            "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_deep_research"},
   {"id": "internal_search",      "shorthand": "is",   "dir": "tool_packages/unique_internal_search",          "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_internal_search"},
   {"id": "skill_tool",           "shorthand": "sktl", "dir": "tool_packages/unique_skill_tool",               "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": false, "typecheck_require_zero_errors": true, "pypi_name": "unique_skill_tool"},

@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, override
 
 import httpx
 from httpx import Response, Timeout
@@ -161,6 +161,24 @@ class JinaSearch(SearchEngine[JinaConfig]):
     def requires_scraping(self) -> bool:
         return False
 
+    @override
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        raise NotImplementedError("JinaSearch does not support proxy search")
+
+    @override
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        """Search the web for the given query using Jina Search API."""
+        try:
+            response = await self._perform_web_search_request(query=query, **kwargs)
+            search_results = self._extract_urls(response=response)
+            _LOGGER.info(f"Found {len(search_results)} URLs")
+
+        except Exception as e:
+            _LOGGER.exception(f"Failed to extract URLs from Jina search response: {e}")
+            search_results = []
+
+        return search_results
+
     def _get_request_params(self, query, **kwargs) -> dict:
         """Get the request parameters for Jina Search API."""
         # Ensure required settings are available
@@ -268,20 +286,3 @@ class JinaSearch(SearchEngine[JinaConfig]):
         async with httpx.AsyncClient() as client:
             response = await client.post(**request_params, timeout=Timeout(timeout=120))
         return response
-
-    # TODO: Find a tracking solution
-    # @track(
-    #     tags=["jina_search"],
-    # )
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        """Search the web for the given query using Jina Search API."""
-        try:
-            response = await self._perform_web_search_request(query=query, **kwargs)
-            search_results = self._extract_urls(response=response)
-            _LOGGER.info(f"Found {len(search_results)} URLs")
-
-        except Exception as e:
-            _LOGGER.exception(f"Failed to extract URLs from Jina search response: {e}")
-            search_results = []
-
-        return search_results

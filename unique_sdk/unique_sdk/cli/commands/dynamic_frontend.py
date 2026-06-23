@@ -36,12 +36,15 @@ def _format_space(space: object) -> str:
     content_id = getattr(space, "contentId", "")
     status = getattr(space, "status", None)
     phase = ""
-    url = ""
+    url = str(getattr(space, "url", "") or "")
+    config_url = str(getattr(space, "configUrl", "") or "")
     if isinstance(status, dict):
         phase = str(status.get("phase") or "")
-        url = str(status.get("url") or "")
+        url = url or str(status.get("url") or "")
     return "\t".join(
-        part for part in [str(space_id), str(name), str(content_id), phase, url] if part
+        part
+        for part in [str(space_id), str(name), str(content_id), phase, url, config_url]
+        if part
     )
 
 
@@ -93,12 +96,48 @@ def cmd_dynamic_frontend_deploy(
 
         space_id_value = getattr(space, "spaceId", None) or getattr(space, "id", "")
         name_value = getattr(space, "name", name or "")
+        url_value = getattr(space, "url", None)
+        config_url_value = getattr(space, "configUrl", None)
+        url_line = (
+            f"\nURL: {url_value}" if isinstance(url_value, str) and url_value else ""
+        )
+        config_url_line = (
+            f"\nConfig URL: {config_url_value}"
+            if isinstance(config_url_value, str) and config_url_value
+            else ""
+        )
         return (
             f'{action} Dynamic Frontend space "{name_value}" ({space_id_value})\n'
             f"Content: {resolved_content_id}"
+            f"{url_line}"
+            f"{config_url_line}"
         )
     except (ValueError, unique_sdk.APIError, OSError) as e:
         return f"dynamic-frontend deploy: {e}"
+
+
+def cmd_dynamic_frontend_delete(
+    state: ShellState,
+    space_id: str,
+    *,
+    output_json: bool = False,
+) -> str:
+    try:
+        if not space_id:
+            return "dynamic-frontend delete: provide a space id."
+        result = unique_sdk.DynamicFrontend.delete(
+            space_id,
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+        )
+        if output_json:
+            return json.dumps(dict(result), indent=2, default=str)
+        deleted_id = (
+            getattr(result, "spaceId", None) or getattr(result, "id", None) or space_id
+        )
+        return f"Deleted Dynamic Frontend space {deleted_id}"
+    except (ValueError, unique_sdk.APIError) as e:
+        return f"dynamic-frontend delete: {e}"
 
 
 def cmd_dynamic_frontend_list(state: ShellState, *, output_json: bool = False) -> str:

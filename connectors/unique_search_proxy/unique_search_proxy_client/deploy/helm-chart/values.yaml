@@ -1,31 +1,21 @@
+# ════ Identity ════════════════════════════════════════════════════════════════
 nameOverride: search-proxy
 fullnameOverride: search-proxy
 selectorComponentLabel: server
 
+# ════ Compute ═════════════════════════════════════════════════════════════════
+
 # ── Deployment ────────────────────────────────────────────────────────────────
 env:
   LOG_LEVEL: info
-  WORKERS: "4"
   TIMEOUT: "120"
-  GOOGLE_SEARCH_API_ENDPOINT: https://customsearch.googleapis.com/customsearch/v1
-  GOOGLE_SEARCH_ENGINE_ID: "00c5f6e9ac4644f42"
-
-# Google Search API key is read from an EXISTING Secret. The chart only
-# references it (secretKeyRef) and never creates it, so any mechanism
-# (External Secrets, sealed-secrets, manual kubectl) that produces
-# `search-proxy-secret` works. Override name/key in your overlay if it differs.
-envVars:
-  - name: GOOGLE_SEARCH_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: search-proxy-secret
-        key: GOOGLE_SEARCH_API_KEY
+  WORKERS: "4"
 
 image:
   pullPolicy: IfNotPresent
   registry: ghcr.io
   repository: unique-ag/ai/search-proxy
-  tag: "2026.24.0" # x-release-please-version
+  tag: "2026.26.0" # x-release-please-version
   useDigest: false # not yet supported for out-of-tree charts
 
 ports:
@@ -39,12 +29,12 @@ podSecurityContext:
 
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 1000
   capabilities:
     drop:
       - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
 
 resources:
   requests:
@@ -78,30 +68,10 @@ probes:
     periodSeconds: 10
 
 deployment:
-  revisionHistoryLimit: 3
   metadata:
     annotations:
       reloader.stakater.com/auto: "true"
-
-# ── Service ───────────────────────────────────────────────────────────────────
-service:
-  port: 80
-
-# ── ServiceAccount ────────────────────────────────────────────────────────────
-serviceAccount:
-  enabled: true
-
-# ── Autoscaling ───────────────────────────────────────────────────────────────
-autoscaling:
-  enabled: false
-
-# ── PodDisruptionBudget ───────────────────────────────────────────────────────
-pdb:
-  maxUnavailable: 30%
-
-# ── NetworkPolicy ─────────────────────────────────────────────────────────────
-networkPolicy:
-  enabled: false
+  revisionHistoryLimit: 3
 
 # ── Volumes ───────────────────────────────────────────────────────────────────
 volumeMounts:
@@ -113,20 +83,58 @@ volumes:
       sizeLimit: 5Gi
     name: tmp-volume
 
-
 # ── WorkloadIdentity (GCP, Vertex AI) ─────────────────────────────────────────
-# Vertex AI backend authenticates via GCP Workload Identity Federation; base
-# sets GOOGLE_APPLICATION_CREDENTIALS for the SDK. Enable and fill the
-# env-specific fields in your environment overlay. base.validateGcpWorkloadIdentity
-# fails fast if enabled and any field below is empty.
 workloadIdentity:
   gcp:
     enabled: false
     projectId: ""
-    workloadIdentityPool: ""
     provider: ""
     serviceAccountEmail: ""
+    workloadIdentityPool: ""
 
-# ── Prometheus ────────────────────────────────────────────────────────────────
-prometheus:
+# ════ Data ════════════════════════════════════════════════════════════════════
+
+# ── Google Search API ─────────────────────────────────────────────────────────
+googleSearch:
+  enabled: false
+  connection:
+    apiEndpoint: https://customsearch.googleapis.com/customsearch/v1
+    # ── Required — set in your per-cluster overlay ───────────────────────────
+    # engineId: <google-programmable-search-engine-id>
+    # apiKey:
+    #   # Use-case A — from an existing Kubernetes Secret:
+    #   fromSecret:
+    #     name: <secret-name>
+    #     key: GOOGLE_SEARCH_API_KEY
+    #   # Use-case B — from Azure Key Vault (SecretProviderClass):
+    #   fromSecretProvider:
+    #     vault: <vault-name>
+    #     secretKey: GOOGLE-SEARCH-API-KEY
+
+# ════ Exposure ════════════════════════════════════════════════════════════════
+
+# ── Service ───────────────────────────────────────────────────────────────────
+service:
+  port: 80
+
+# ════ Operations ══════════════════════════════════════════════════════════════
+
+# ── ServiceAccount ────────────────────────────────────────────────────────────
+serviceAccount:
   enabled: true
+
+# ── HorizontalPodAutoscaler ───────────────────────────────────────────────────
+autoscaling:
+  enabled: false
+
+# ── PodDisruptionBudget ───────────────────────────────────────────────────────
+pdb:
+  maxUnavailable: 30%
+
+# ── NetworkPolicy ─────────────────────────────────────────────────────────────
+networkPolicy:
+  enabled: false
+  flavor: cilium
+  enableDefaultDeny:
+    ingress: true
+    egress: true

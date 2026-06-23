@@ -37,6 +37,12 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
+from unique_toolkit.agentic.tools.experimental.ask_user_tool import (
+    AskUserTool,
+)
+from unique_toolkit.agentic.tools.experimental.ask_user_tool import (
+    AskUserToolConfig as BaseAskUserToolConfig,
+)
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -56,6 +62,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
+from unique_user_memory.config import UserMemoryConfig
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
@@ -108,6 +115,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         description=(
             "Whether chat users may override the language model for a single message"
         ),
+    )
+
+    allow_user_memory: bool = Field(
+        default=False,
+        description=("Whether persistent per-user memory is active for this space."),
     )
 
     switchable_language_models: list[SwitchableLanguageModelConfig] = Field(
@@ -286,6 +298,12 @@ class UniqueAIServices(BaseToolConfig):
         ToolProgressReporterConfig()
     )
 
+    user_memory_config: UserMemoryConfig = Field(
+        title="User Memory (Experimental)",
+        description="Configuration for persistent user memory. Experimental feature - requires activation via feature flag.",
+        default_factory=UserMemoryConfig,
+    )
+
     @field_validator("stock_ticker_config", mode="before")
     @classmethod
     def check_if_stock_ticker_config_is_none(cls, stock_ticker_config):
@@ -379,6 +397,13 @@ class UploadedSearchToolConfig(BaseToolConfig):
         return self
 
 
+class AskUserToolConfig(BaseAskUserToolConfig):
+    enabled: bool = Field(
+        default=False,
+        description="Enable the AskUser elicitation tool.",
+    )
+
+
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -418,6 +443,12 @@ class ExperimentalConfig(BaseToolConfig):
     )
 
     uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()
+
+    ask_user_tool_config: AskUserToolConfig = Field(
+        title="Ask User Tool (Elicitation)",
+        description="Configuration for the AskUser tool",
+        default_factory=AskUserToolConfig,
+    )
 
     use_responses_api: bool = Field(
         default=False,
@@ -577,6 +608,27 @@ class UniqueAIConfig(BaseToolConfig):
         elif not config.enabled and has_tool:
             self.space.tools = [
                 t for t in self.space.tools if t.name != TodoWriteTool.name
+            ]
+
+        return self
+
+    @model_validator(mode="after")
+    def inject_ask_user_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = AskUserTool.name in tool_names
+        config = self.agent.experimental.ask_user_tool_config
+
+        if config.enabled and not has_tool:
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=AskUserTool.name,
+                    display_name=AskUserTool.DISPLAY_NAME,
+                    configuration=config,
+                )
+            )
+        elif not config.enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools if t.name != AskUserTool.name
             ]
 
         return self

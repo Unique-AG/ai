@@ -6,18 +6,23 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from unique_search_proxy_core.projection import build_crawl_request_model
+from unique_search_proxy_core.crawlers.config_types import crawler_config_from_request
+from unique_search_proxy_core.crawlers.projection import (
+    URLS_FIELD,
+    build_crawl_request_model,
+)
 
-CRAWLER_TYPE_FIELD = "crawler_type"
-URLS_FIELD = "urls"
+CRAWLER_FIELD = "crawler"
 TIMEOUT_FIELD = "timeout"
+
+_DEPLOYMENT_DEFAULT_EXCLUDED_FIELDS = frozenset({CRAWLER_FIELD, URLS_FIELD})
 
 
 def crawler_config_defaults(config: BaseModel) -> dict[str, Any]:
     """Deployment defaults merged into each flat crawl request."""
     defaults: dict[str, Any] = {}
     for field_name in type(config).model_fields:
-        if field_name == CRAWLER_TYPE_FIELD:
+        if field_name in _DEPLOYMENT_DEFAULT_EXCLUDED_FIELDS:
             continue
         defaults[field_name] = getattr(config, field_name)
     return defaults
@@ -31,13 +36,14 @@ def merge_crawler_config_and_invocation(
     request_model = build_crawl_request_model(type(config))
     defaults = crawler_config_defaults(config)
     merged: dict[str, Any] = {**defaults, **invocation}
-    if CRAWLER_TYPE_FIELD in request_model.model_fields:
-        merged[CRAWLER_TYPE_FIELD] = getattr(config, CRAWLER_TYPE_FIELD)
-    return request_model.model_validate(merged)
+    merged[CRAWLER_FIELD] = getattr(config, CRAWLER_FIELD)
+    request = request_model.model_validate(merged)
+    crawler_config_from_request(request)
+    return request
 
 
 __all__ = [
-    "CRAWLER_TYPE_FIELD",
+    "CRAWLER_FIELD",
     "TIMEOUT_FIELD",
     "URLS_FIELD",
     "crawler_config_defaults",

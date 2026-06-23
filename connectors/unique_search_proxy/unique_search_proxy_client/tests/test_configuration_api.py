@@ -24,10 +24,15 @@ class TestProviderConfigSchemaCore:
         assert properties["engine"].get("const") == "google"
 
     @pytest.mark.ai
-    def test_union_schema_is_object_with_properties(self) -> None:
+    def test_union_schema_includes_registered_engines(self) -> None:
         schema = search_engines_config_json_schema()
-        assert schema.get("type") == "object"
-        assert "engine" in schema.get("properties", {})
+        defs = schema.get("$defs", {})
+        assert "GoogleConfig" in defs
+        assert "BraveConfig" in defs
+        any_of = schema.get("anyOf", [])
+        refs = {item["$ref"] for item in any_of}
+        assert "#/$defs/GoogleConfig" in refs
+        assert "#/$defs/BraveConfig" in refs
 
 
 class TestConfigurationEndpoints:
@@ -37,4 +42,11 @@ class TestConfigurationEndpoints:
         assert resp.status_code == 200
         body = resp.json()
         assert "google" in body["searchEngines"]
+        assert "brave" in body["searchEngines"]
+        assert "perplexity" in body["searchEngines"]
         assert CrawlerType.BASIC.value in body["crawlers"]
+        assert CrawlerType.TAVILY.value in body["crawlers"]
+        assert CrawlerType.JINA.value in body["crawlers"]
+        assert CrawlerType.FIRECRAWL.value in body["crawlers"]
+        assert "bing" in body["agentEngines"]
+        assert "vertexai" in body["agentEngines"]

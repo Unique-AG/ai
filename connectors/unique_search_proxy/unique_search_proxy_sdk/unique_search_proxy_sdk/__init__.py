@@ -13,6 +13,7 @@ Regenerate after API changes::
 """
 
 from unique_search_proxy_sdk._generated.client import Client as OpenAPIClient
+from unique_search_proxy_sdk.agent_search_client import AgentSearchClient
 from unique_search_proxy_sdk.client import UniqueSearchProxyClient
 from unique_search_proxy_sdk.crawl_client import CrawlClient
 from unique_search_proxy_sdk.errors import UniqueSearchProxyClientError
@@ -20,6 +21,7 @@ from unique_search_proxy_sdk.search_client import SearchClient
 
 __all__ = [
     "CrawlClient",
+    "AgentSearchClient",
     "OpenAPIClient",
     "SearchClient",
     "UniqueSearchProxyClient",

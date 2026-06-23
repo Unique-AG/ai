@@ -1,6 +1,9 @@
 import pytest
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_stock_ticker.config import StockTickerConfig
+from unique_toolkit.agentic.tools.experimental.ask_user_tool import (
+    AskUserTool,
+)
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -20,8 +23,10 @@ from unique_toolkit.language_model.infos import (
     ModelCapabilities,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+from unique_user_memory.config import UserMemoryConfig
 
 from unique_orchestrator.config import (
+    AskUserToolConfig,
     EvaluationConfig,
     UniqueAIConfig,
     UniqueAIServices,
@@ -463,3 +468,100 @@ class TestUniqueAIConfigInjectTodoToolValidator:
 
         assert self._todo_entries(config) == []
         assert [t.name for t in config.space.tools] == [t.name for t in default_tools]
+
+
+class TestUniqueAIConfigUserMemory:
+    def test_user_memory_config_defaults(self):
+        config = UniqueAIConfig()
+
+        assert isinstance(config.agent.services.user_memory_config, UserMemoryConfig)
+        assert config.agent.services.user_memory_config.max_tokens == 2000
+
+    def test_user_memory_config_parses_payload(self):
+        config = UniqueAIConfig(
+            agent={
+                "services": {
+                    "user_memory_config": {
+                        "max_tokens": 1500,
+                    }
+                }
+            }
+        )
+
+        memory_config = config.agent.services.user_memory_config
+        assert memory_config.max_tokens == 1500
+
+    def test_allow_user_memory_defaults_to_false(self):
+        config = UniqueAIConfig()
+
+        assert config.space.allow_user_memory is False
+
+    def test_allow_user_memory_parses_camel_case_payload(self):
+        config = UniqueAIConfig(space={"allowUserMemory": True})
+
+        assert config.space.allow_user_memory is True
+
+
+class TestUniqueAIConfigInjectAskUserToolValidator:
+    """Tests for UniqueAIConfig.inject_ask_user_tool (AskUser)."""
+
+    def _entries(self, config: UniqueAIConfig) -> list[ToolBuildConfig]:
+        return [t for t in config.space.tools if t.name == AskUserTool.name]
+
+    def test_appends_when_enabled(self) -> None:
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[],
+            ),
+            agent={
+                "experimental": {
+                    "ask_user_tool_config": AskUserToolConfig(enabled=True)
+                }
+            },
+        )
+
+        entries = self._entries(config)
+        assert len(entries) == 1
+        assert entries[0].name == AskUserTool.name
+        assert isinstance(entries[0].configuration, AskUserToolConfig)
+        assert entries[0].configuration.enabled is True
+
+    def test_removes_when_disabled(self) -> None:
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[
+                    ToolBuildConfig(
+                        name=AskUserTool.name,
+                        configuration=AskUserToolConfig(enabled=False),
+                    )
+                ],
+            ),
+            agent={
+                "experimental": {
+                    "ask_user_tool_config": AskUserToolConfig(enabled=False)
+                }
+            },
+        )
+
+        assert self._entries(config) == []
+
+    def test_idempotent_when_already_present(self) -> None:
+        existing = ToolBuildConfig(
+            name=AskUserTool.name,
+            configuration=AskUserToolConfig(enabled=True),
+        )
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=_make_model(supports_responses_api=True),
+                tools=[existing],
+            ),
+            agent={
+                "experimental": {
+                    "ask_user_tool_config": AskUserToolConfig(enabled=True)
+                }
+            },
+        )
+
+        assert len(self._entries(config)) == 1

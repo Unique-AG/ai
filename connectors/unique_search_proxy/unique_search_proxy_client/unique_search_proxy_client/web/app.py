@@ -1,19 +1,32 @@
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from unique_search_proxy_core.logging import suppress_httpx_request_logs
 
 # Application entrypoint only. HTTP SDK lives in unique_search_proxy_sdk.
 from unique_search_proxy_client.web.api import health_router, v1_router
 from unique_search_proxy_client.web.core.client.service import create_http_client_pool
 from unique_search_proxy_client.web.core.providers import register_builtin_providers
 from unique_search_proxy_client.web.error_handlers import register_exception_handlers
+from unique_search_proxy_client.web.logging_config import (
+    build_logging_config,
+    configure_logging,
+)
 from unique_search_proxy_client.web.monitoring import setup_prometheus
+from unique_search_proxy_client.web.settings.startup_report import (
+    log_startup_settings_report,
+)
 
-load_dotenv()
+if "pytest" not in sys.modules:
+    load_dotenv()
+
+configure_logging()
+suppress_httpx_request_logs()
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +49,7 @@ logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _LOGGER.info("Starting Unique Search Proxy...")
+    log_startup_settings_report(_LOGGER)
     pool = await create_http_client_pool()
     app.state.http_client_pool = pool
     try:
@@ -79,4 +93,9 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=2349)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=2349,
+        log_config=build_logging_config(),
+    )

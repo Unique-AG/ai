@@ -2,9 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from unique_search_proxy_client.web.app import create_app
-from unique_search_proxy_client.web.monitoring.settings import (
-    PrometheusSettingsForTests,
-)
+from unique_search_proxy_client.web.settings.monitoring import get_prometheus_settings
 
 
 @pytest.fixture
@@ -16,13 +14,10 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 @pytest.fixture
 def client_metrics_disabled(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    from unique_search_proxy_client.web.monitoring.settings import (
-        PrometheusSettingsForTests,
-    )
-
+    monkeypatch.setenv("PROMETHEUS_ENABLED", "false")
     monkeypatch.setattr(
-        "unique_search_proxy_client.web.monitoring.settings.prometheus_settings",
-        PrometheusSettingsForTests(enabled=False),
+        "unique_search_proxy_client.web.settings.monitoring.prometheus_settings",
+        get_prometheus_settings(),
     )
     with TestClient(create_app()) as test_client:
         yield test_client
@@ -62,6 +57,7 @@ class TestMetricsEndpoint:
 
 class TestPrometheusSettings:
     @pytest.mark.ai
-    def test_prometheus_enabled_default(self) -> None:
-        settings = PrometheusSettingsForTests()
+    def test_prometheus_enabled_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PROMETHEUS_ENABLED", raising=False)
+        settings = get_prometheus_settings()
         assert settings.enabled is True

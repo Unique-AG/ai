@@ -14,6 +14,7 @@ import httpx
 
 from unique_search_proxy_sdk._generated.client import Client as OpenAPIClient
 from unique_search_proxy_sdk._transport import OpenapiTransport
+from unique_search_proxy_sdk.agent_search_client import AgentSearchClient
 from unique_search_proxy_sdk.crawl_client import CrawlClient
 from unique_search_proxy_sdk.search_client import SearchClient
 
@@ -23,8 +24,8 @@ _DEFAULT_TIMEOUT_SECONDS = 60.0
 class UniqueSearchProxyClient:
     """Async HTTP entrypoint for the search proxy API.
 
-    Exposes :attr:`search` and :attr:`crawl` sub-clients. Configuration and
-    call-schema helpers belong in ``unique_search_proxy_core``.
+    Exposes :attr:`search`, :attr:`agent_search`, and :attr:`crawl` sub-clients.
+    Configuration and call-schema helpers belong in ``unique_search_proxy_core``.
     """
 
     def __init__(
@@ -40,6 +41,7 @@ class UniqueSearchProxyClient:
             timeout=timeout,
         )
         self.search = SearchClient(self._transport)
+        self.agent_search = AgentSearchClient(self._transport)
         self.crawl = CrawlClient(self._transport)
 
     @property

@@ -6,7 +6,7 @@ from unique_search_proxy_client.web.core.client.service import (
     create_http_client_pool,
     get_http_client_pool,
 )
-from unique_search_proxy_client.web.core.client.settings import (
+from unique_search_proxy_client.web.settings.client import (
     HTTP_CLIENT_ENV_PREFIX,
     HttpClientSettings,
     ProxyAuthMode,

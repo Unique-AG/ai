@@ -10,6 +10,10 @@ from unique_web_search.services.crawlers.base import (
     CrawlerType,
 )
 from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+)
+from unique_web_search.services.proxy.mappers import map_crawl_response
 
 
 class TavilyCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.TAVILY]):
@@ -18,6 +22,8 @@ class TavilyCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.TAVILY]):
 
 
 class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
+    supports_proxy_crawl = True
+
     def __init__(self, config: TavilyCrawlerConfig):
         super().__init__(config)
 
@@ -25,8 +31,23 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
     # @track(
     #     tags=["tavily", "scrape"],
     # )
-    async def _crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
+    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
+        async with open_search_proxy_client(
+            timeout=float(self.config.timeout),
+        ) as client:
+            response = await client.crawl.tavily(
+                urls=urls,
+                timeout=int(self.config.timeout),
+                extract_depth=self.config.depth,
+                format="markdown",
+                include_images=False,
+                include_favicon=False,
+            )
+            return map_crawl_response(response, urls)
+
+    async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         urls = [target.normalized_url for target in targets]
+
         api_key = get_tavily_search_settings().api_key
         assert api_key is not None, "Tavily API key is not configured"
 
