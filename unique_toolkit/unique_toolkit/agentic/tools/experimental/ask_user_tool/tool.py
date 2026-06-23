@@ -101,6 +101,7 @@ class AskUserTool(Tool[AskUserToolConfig]):
         service = self.chat_service.elicitation
 
         _LOGGER.info("Creating elicitation request")
+
         created = await service.create_async(
             mode=ElicitationMode.FORM,
             message=params.message,
@@ -108,6 +109,7 @@ class AskUserTool(Tool[AskUserToolConfig]):
             json_schema=params.response_schema,
             expires_in_seconds=self.config.timeout_seconds,
         )
+
         _LOGGER.info("Elicitation request (id %s) successfully created", created.id)
 
         try:
@@ -118,7 +120,6 @@ class AskUserTool(Tool[AskUserToolConfig]):
             )
         except ElicitationDeclinedException:
             _LOGGER.info("Elicitation with id %s was declined", created.id)
-
             return ToolCallResponse(
                 id=tool_call.id,
                 name=self.name,
@@ -126,7 +127,6 @@ class AskUserTool(Tool[AskUserToolConfig]):
             )
         except ElicitationCancelledException:
             _LOGGER.info("Elicitation with id %s was cancelled", created.id)
-
             return ToolCallResponse(
                 id=tool_call.id,
                 name=self.name,
@@ -134,7 +134,6 @@ class AskUserTool(Tool[AskUserToolConfig]):
             )
         except ElicitationExpiredException:
             _LOGGER.info("Elicitation with id %s has expired", created.id)
-
             return ToolCallResponse(
                 id=tool_call.id,
                 name=self.name,
