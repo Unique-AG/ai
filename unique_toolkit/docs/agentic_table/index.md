@@ -18,19 +18,26 @@ The `unique_toolkit.agentic_table` module provides:
 
 The Agentic Table module triggers the following events when specific actions are performed. Each event contains the necessary payload to perform the action. All payload schemas are defined in the `unique_toolkit.agentic_table.schemas` module.
 
-All payloads inherit from `MagicTableBasePayload` which includes the following base attributes:
+All payloads inherit from `MagicTableBasePayload`, which extends the shared
+`BaseEventPayload` envelope from `unique_toolkit.app.schemas` and adds
+magic-table-specific fields. Chat-only fields such as `user_message` and
+`assistant_message` live on `ChatEventPayload`, not on magic-table payloads.
 
-- `name: str` - The name of the module
-- `sheet_name: str` - The name of the sheet
-- `action: MagicTableAction` - The action being performed
+**From `BaseEventPayload`:**
+
+- `name: str` - The module / action name driving the event
 - `chat_id: str` - The chat ID
 - `assistant_id: str` - The assistant ID
-- `table_id: str` - The table ID
-- `user_message: ChatEventUserMessage` - The user message that triggered the event
-- `assistant_message: ChatEventAssistantMessage` - The assistant message associated with the event
 - `configuration: dict[str, Any]` - Configuration dictionary
-- `metadata: T` - Metadata specific to the payload type (varies by event)
 - `metadata_filter: dict[str, Any] | None` - Optional metadata filter
+- `correlation: Correlation | None` - Optional link to a parent chat message
+
+**Additional fields on `MagicTableBasePayload`:**
+
+- `sheet_name: str` - The name of the sheet
+- `action: MagicTableAction` - The action being performed
+- `table_id: str` - The table ID
+- `metadata: T` - Metadata specific to the payload type (varies by event)
 
 | Event Name | Description | Payload Type | Payload Structure |
 |------------|-------------|--------------|-------------------|

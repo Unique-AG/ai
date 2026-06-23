@@ -81,7 +81,7 @@ class ContextRelevancyEvaluator:
         company_id: str | None = None,
         user_id: str | None = None,
     ):
-        if isinstance(event, (ChatEvent, BaseEvent)):
+        if isinstance(event, BaseEvent):
             self.language_model_service = LanguageModelService.from_event(event)
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
@@ -40,7 +40,7 @@ class LanguageModelService:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
+    def __init__(self, event: BaseEvent[Any]): ...
 
     """
         Initialize the LanguageModelService with an event (deprecated)
@@ -55,12 +55,12 @@ class LanguageModelService:
 
     def __init__(
         self,
-        event: Event | ChatEvent | BaseEvent[Any] | None = None,
+        event: BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         **kwargs: dict[str, Any],  # only here for backward compatibility
     ):
-        if isinstance(event, (ChatEvent, Event)):
+        if isinstance(event, ChatEvent):
             self._event = event
             self._chat_id = event.payload.chat_id
             self._assistant_id = event.payload.assistant_id
@@ -106,7 +106,7 @@ class LanguageModelService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent[Any] | None:
+    def event(self) -> BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 
