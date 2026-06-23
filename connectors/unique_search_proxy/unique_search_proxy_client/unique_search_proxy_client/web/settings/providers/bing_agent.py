@@ -8,7 +8,10 @@ from unique_search_proxy_client.web.settings.providers.base import (
     ProviderCredentials,
     provider_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED
+from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
+    LogSecretStr,
+)
 
 _ENV_PREFIX = "BING_AGENT_"
 
@@ -18,10 +21,12 @@ _ENV_PREFIX = "BING_AGENT_"
 class _BingAgentCredentials(ProviderCredentials):
     """Environment-backed credentials for Bing grounding via Azure AI Projects."""
 
-    endpoint: str = Field(default=NOT_PROVIDED)
-    bing_resource_connection_string: str = Field(default=NOT_PROVIDED)
+    endpoint: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
+    bing_resource_connection_string: LogSecretStr = Field(
+        default=LogSecretStr(NOT_PROVIDED),
+    )
     agent_id: str | None = Field(default=None)
-    bing_agent_model: str = Field(default="gpt-4o-deployment")
+    bing_agent_model: LogSecretStr = Field(default=LogSecretStr(NOT_PROVIDED))
     azure_identity_credential_type: str = Field(default="default")
     azure_identity_validate_token_url: str = Field(
         default="https://management.azure.com/.default",

@@ -117,12 +117,12 @@ perplexitySearch:
 bingAgent:
   enabled: false
   connection:
-    bingAgentModel: "gpt-4o-deployment"
     azureIdentityCredentialType: default
     azureIdentityValidateTokenUrl: "https://management.azure.com/.default"
     usePrivateEndpointTransport: false
-    # endpoint: <set in cluster overlay when enabled>
-    # bingResourceConnectionString: <set in cluster overlay when enabled>
+    # endpoint: <fromSecret or fromSecretProvider>
+    # bingResourceConnectionString: <fromSecret or fromSecretProvider>
+    # bingAgentModel: <fromSecret or fromSecretProvider>
 
 vertexaiAgent:
   enabled: false
