@@ -280,6 +280,22 @@ class TestCmdCiteFile:
         assert "task scope" in result
         mock_get_info.assert_not_called()
 
+    @patch("unique_sdk.Content.get_info")
+    def test_cont_id_gated_before_title_fetch_without_filter(
+        self, mock_get_info: MagicMock, state: ShellState, workspace: Path
+    ):
+        """Even without a per-message filter, cite enforces scope on a cont_ id
+        (matching read's cont_ fast-path) and denies *before* resolving the
+        title, so no Content.get_info probes the KB. See UN-21780.
+        """
+        with patch.object(
+            ShellState, "is_content_within_workspace", return_value=False
+        ):
+            result = cmd_cite_file(state, "cont_blocked", "1", "text")
+        assert CITE_ERROR_PREFIX in result
+        assert "task scope" in result
+        mock_get_info.assert_not_called()
+
     def test_metadata_filter_allows_chat_attached_file(
         self, state: ShellState, workspace_with_manifest: Path
     ):

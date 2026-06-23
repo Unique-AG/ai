@@ -707,6 +707,33 @@ class TestFiles:
         assert name == "memo.pdf"
 
     @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_resolve_by_path_out_of_filter_folder_denied_without_lookup(
+        self,
+        mock_fpath: MagicMock,
+        mock_finfo: MagicMock,
+        mock_cinfos: MagicMock,
+    ) -> None:
+        """A path into a folder outside the per-message filter scope is denied
+        structurally — before Folder.get_info or the name scan — so a matching
+        out-of-scope file can't leak its existence (task-scope permission denied
+        vs File not found). See UN-21780.
+        """
+        mock_fpath.return_value = {"folderPath": "/Allowed"}
+        s = _state("/", None)
+        s.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        s._chat_file_content_ids_cache = set()
+        with pytest.raises(ValueError, match="permission denied"):
+            _resolve_content_id(s, "/Outside/secret.pdf")
+        mock_finfo.assert_not_called()
+        mock_cinfos.assert_not_called()
+
+    @patch("unique_sdk.Content.get_infos")
     def test_resolve_by_name_allowed_by_metadata_filter(self, mock: MagicMock) -> None:
         mock.return_value = {"contentInfos": [_content_info()]}
         s = _state("/Reports", "scope_r")

@@ -87,13 +87,31 @@ def _resolve_content_id(
         if not folder_path:
             folder_path = "/"
         # An active per-message filter replaces the static scopeIds for content
-        # access, so the static folder check must not over-deny an in-filter
-        # path; the resolved content id is gated by is_content_within_workspace
-        # below either way. See UN-21780.
-        if (
-            state.workspace_metadata_filter is None
-            and not state.is_folder_target_within_workspace(folder_path)
-        ):
+        # access. Gate the *folder* against the navigable filter scope before
+        # Folder.get_info + the name scan: deferring solely to the per-id gate
+        # lets a path into an out-of-scope folder resolve the file and surface a
+        # task-scope "permission denied" instead of "File not found", leaking
+        # cross-boundary existence — the same oracle closed for bare filenames
+        # at root. The path check is structural (no API call), so it denies
+        # uniformly whether or not the file exists. See UN-21780.
+        if state.workspace_metadata_filter is not None:
+            # Only gate the folder when the filter actually constrains folders.
+            # A pure contentId scope has no navigable folders, so the document
+            # may live anywhere and the per-id gate below is authoritative —
+            # gating on folder here would wrongly deny it. When the filter does
+            # name folders, a path outside them is denied structurally (no API
+            # call), so an out-of-scope file can't leak existence via the per-id
+            # "permission denied" vs "File not found" distinction.
+            if (
+                state.navigable_folder_ids()
+                and not state.folder_path_allowed_by_metadata_filter(folder_path)
+            ):
+                raise ValueError(
+                    f"permission denied: {name_or_id} is outside your task scope "
+                    f"({state.scope_denial_hint()}). Use 'unique-cli search' or "
+                    "'ls' within that scope instead."
+                )
+        elif not state.is_folder_target_within_workspace(folder_path):
             raise ValueError("permission denied (outside workspace scope)")
 
         info = unique_sdk.Folder.get_info(

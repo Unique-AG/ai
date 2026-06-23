@@ -417,20 +417,23 @@ class ShellState:
         """
         if self.workspace_metadata_filter is not None:
             folders, free_ids, restricted_ids = self.metadata_filter_navigable_scope()
-            # A folder-restricted id can only be *described* as such when there
-            # is a folder to anchor it to. Without one (e.g. a contentId AND-ed
-            # with a non-folder constraint), list it plainly as a best effort.
-            if restricted_ids and not folders:
-                free_ids = free_ids + restricted_ids
-                restricted_ids = []
             parts: list[str] = []
             if folders:
                 parts.append("folders: " + ", ".join(folders))
             if restricted_ids:
-                parts.append(
+                # Folder-restricted ids are anchored to the named folders when
+                # there are any. Without a folder to anchor them (e.g. a
+                # contentId AND-ed with an unevaluable leaf such as mimeType,
+                # which allows_content fails closed on) they must NOT be promoted
+                # into the freely-reachable list — the hint would then claim a
+                # document is directly citeable when the filter still denies it.
+                # Describe them as scope-restricted instead.
+                anchor = (
                     "documents within those folders: "
-                    + self._format_hint_ids(restricted_ids)
+                    if folders
+                    else "scope-restricted documents: "
                 )
+                parts.append(anchor + self._format_hint_ids(restricted_ids))
             if free_ids:
                 parts.append("documents: " + self._format_hint_ids(free_ids))
             return "; ".join(parts) if parts else "the task's configured scope"

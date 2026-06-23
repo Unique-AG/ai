@@ -1008,3 +1008,28 @@ class TestMetadataFilterContentGating:
         assert "within those folders" not in hint
         assert "cont_1" in hint
         assert "cont_2" in hint
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_scope_denial_hint_unevaluable_restricted_not_promoted(
+        self,
+        mock_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """A contentId AND-ed with an unevaluable leaf (mimeType) is folder-
+        restricted but has no folder to anchor it. It must be labelled
+        scope-restricted, not promoted into the freely-reachable documents list,
+        since allows_content fails closed on it and the filter still denies
+        access. See UN-21780."""
+        mock_path.side_effect = _folder_path_side_effect({})
+        flt = {
+            "and": [
+                {"path": ["contentId"], "operator": "in", "value": ["cont_x"]},
+                {
+                    "path": ["mimeType"],
+                    "operator": "equals",
+                    "value": "application/pdf",
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        hint = s.scope_denial_hint()
+        assert hint == "scope-restricted documents: cont_x"
