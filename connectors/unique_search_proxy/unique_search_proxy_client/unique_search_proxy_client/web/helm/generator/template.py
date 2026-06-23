@@ -155,7 +155,7 @@ def _emit_endpoint_field_egress(
     fail_msg = _fail_message(group, endpoint_field)
     section = endpoint_field.section
     return [
-        f"{{{{- if and .Values.{group.helm_key} .Values.{group.helm_key}.enabled -}}}}",
+        f"{{{{ if and .Values.{group.helm_key} .Values.{group.helm_key}.enabled }}}}",
         f'{{{{- $endpoint := required "{fail_msg}" '
         f".Values.{group.helm_key}.{section}.{helm_endpoint} -}}}}",
         "{{- $parsed := urlParse $endpoint -}}",
@@ -170,7 +170,7 @@ def _emit_endpoint_field_egress(
         "  - ports:",
         "    - port: {{ $port | quote }}",
         "      protocol: TCP",
-        "{{- end -}}",
+        "{{- end }}",
     ]
 
 
@@ -186,7 +186,7 @@ def _emit_domain_wildcard_egress(
     fail_msg = _fail_message(group, domain_field)
     section = domain_field.section
     return [
-        f"{{{{- if and .Values.{group.helm_key} .Values.{group.helm_key}.enabled -}}}}",
+        f"{{{{ if and .Values.{group.helm_key} .Values.{group.helm_key}.enabled }}}}",
         f'{{{{- $domain := required "{fail_msg}" '
         f".Values.{group.helm_key}.{section}.{helm_domain} -}}}}",
         "- toFQDNs:",
@@ -195,7 +195,7 @@ def _emit_domain_wildcard_egress(
         "  - ports:",
         f'    - port: "{egress.port}"',
         "      protocol: TCP",
-        "{{- end -}}",
+        "{{- end }}",
     ]
 
 
