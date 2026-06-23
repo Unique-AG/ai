@@ -15,13 +15,17 @@ from unique_sdk.cli.state import ShellState
 from unique_sdk.utils.file_io import download_content, upload_file
 
 # A denial result has the shape ``<command>: permission denied[…]`` (the
-# command token is lowercase, e.g. ``upload``/``ls``/``restore-version``).
-# Successful results start with a capitalised past-tense verb ("Uploaded:",
-# "Downloaded:", "Renamed", "Restored:"), so anchoring on a lowercase command
-# prefix matches every denial without misfiring on a success line that merely
-# contains the phrase (e.g. a filename). MULTILINE so a wrapped multi-line
-# result still matches. See UN-21780.
-_PERMISSION_DENIED_RE = re.compile(r"^[a-z][a-z0-9-]*: permission denied", re.MULTILINE)
+# command token is lowercase, e.g. ``upload``/``ls``/``restore-version``) and
+# is always the *first thing* in the result string — each command returns the
+# denial verbatim (e.g. ``"upload: permission denied: …"``, ``"read:
+# permission denied: …"``). Anchor at the start of the string only: with
+# re.MULTILINE, ``^`` would match the start of any line, so a multi-line
+# *success* output containing a line shaped like ``token: permission denied``
+# mid-result (e.g. quoted document text) would trigger a false non-zero exit.
+# Successful results also start with a capitalised past-tense verb ("Uploaded:",
+# "Downloaded:", "Renamed", "Restored:"), so the lowercase-prefix anchor never
+# misfires on them. See UN-21780.
+_PERMISSION_DENIED_RE = re.compile(r"^[a-z][a-z0-9-]*: permission denied")
 
 
 def _normalize_unique_file_path(cwd: str, path: str) -> str:

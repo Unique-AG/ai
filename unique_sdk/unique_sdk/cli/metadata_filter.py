@@ -70,6 +70,9 @@ def _is_folder_only_subtree(node: Any) -> bool:
         return False
     for key in ("and", "or"):
         if key in node:
+            # UniqueQL has no negated group nodes; only leaf operators can be
+            # negated (notIn/notEquals/notContains). A group's navigability
+            # therefore depends solely on its children. See UN-21780.
             children = node.get(key) or []
             return bool(children) and all(_is_folder_only_subtree(c) for c in children)
     if _is_negated_operator(node.get("operator")):
@@ -342,7 +345,7 @@ class MetadataFilter:
 
         Folder scope ids are resolved to absolute paths; content ids are
         returned verbatim. Used to *describe* the active scope to the agent
-        (``ls`` at root, denial hints) without enumerating folder contents.
+        (``ls`` at root) without enumerating folder contents.
         """
         folder_ids, content_ids = _collect_filter_targets(self._tree)
         paths: list[str] = []
@@ -351,3 +354,17 @@ class MetadataFilter:
             if resolved:
                 paths.append(resolved)
         return paths, content_ids
+
+    def navigable_scope(self) -> tuple[list[str], list[str]]:
+        """Like :meth:`scope`, but folders limited to the *navigable* spine.
+
+        Used for denial hints so the folders named match what ``ls``/``cd``
+        can actually enter. :meth:`scope` collects every positive
+        ``folderIdPath`` leaf, including a folder reachable only as an ``or``
+        alternative to a ``contentId`` allowlist (e.g. ``and(folderA,
+        or(folderB, contentId in […]))``) — those are not standalone-navigable
+        (``ls``/``read``/``cite`` deny them), so naming them in a hint would
+        point the agent at a folder it cannot browse. See UN-21780.
+        """
+        _, content_ids = _collect_filter_targets(self._tree)
+        return self._navigable_folder_paths(), content_ids

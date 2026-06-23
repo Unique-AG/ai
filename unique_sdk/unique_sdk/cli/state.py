@@ -376,12 +376,24 @@ class ShellState:
 
         Folder scope ids are resolved to absolute paths (cached); content ids
         are returned verbatim. Used to *describe* the active scope to the agent
-        (``ls`` at root, denial hints) without enumerating folder contents.
-        Returns empty lists when no per-message filter is configured.
+        (``ls`` at root) without enumerating folder contents. Returns empty
+        lists when no per-message filter is configured.
         """
         if self._metadata_filter is None:
             return [], []
         return self._metadata_filter.scope()
+
+    def metadata_filter_navigable_scope(self) -> tuple[list[str], list[str]]:
+        """``(navigable_folder_paths, content_ids)`` for denial hints.
+
+        Like :meth:`metadata_filter_scope` but restricts the folders to those
+        the agent can actually browse, so a hint never names a folder that
+        ``ls``/``cd`` would deny. See UN-21780. Returns empty lists when no
+        per-message filter is configured.
+        """
+        if self._metadata_filter is None:
+            return [], []
+        return self._metadata_filter.navigable_scope()
 
     def scope_denial_hint(self) -> str:
         """One-line description of the active scope, for denial messages.
@@ -390,7 +402,7 @@ class ShellState:
         prompting blind retries on out-of-scope content.
         """
         if self.workspace_metadata_filter is not None:
-            folders, content_ids = self.metadata_filter_scope()
+            folders, content_ids = self.metadata_filter_navigable_scope()
             parts: list[str] = []
             if folders:
                 parts.append("folders: " + ", ".join(folders))

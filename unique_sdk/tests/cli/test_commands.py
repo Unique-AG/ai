@@ -90,6 +90,11 @@ class TestIsPermissionDeniedOutput:
             'Uploaded: "permission denied.pdf" (cont_1) to /Reports',
             "Downloaded: permission denied notes.txt -> /tmp/x",
             "Renamed permission denied.pdf",
+            # A multi-line success whose *later* line happens to start with a
+            # lowercase token + ": permission denied" must NOT be flagged: the
+            # regex anchors at the start of the string only (no re.MULTILINE),
+            # so only a result that *begins* with the denial shape counts.
+            "Downloaded: report.pdf -> /tmp/x\nfoo: permission denied (in body)",
         ):
             assert not is_permission_denied_output(out), out
 
@@ -420,7 +425,10 @@ class TestNavigation:
         result = cmd_ls(state)
         assert "allowed.pdf" in result
         assert "blocked.pdf" not in result
-        assert "1 file(s)" in result
+        # The in-scope count is for the current page; the folder's real total
+        # (from the API totalCount) is preserved as "(of N in folder)" rather
+        # than being overwritten by the filtered page length. See UN-21780.
+        assert "1 file(s) in task scope (of 2 in folder)" in result
 
 
 # --- Folders ---

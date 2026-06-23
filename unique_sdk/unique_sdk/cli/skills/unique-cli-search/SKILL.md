@@ -67,6 +67,13 @@ When no `--folder` is given:
 - Otherwise, in interactive mode: searches within the current directory
 - Otherwise, at root `/`: searches the entire knowledge base
 
+> **Note:** When a task scope is active, `cd` itself is **not** gated — you can
+> `cd` into a folder outside the task scope, but `ls`, `read`, `cite`,
+> `download`, etc. will then deny from there with a hint naming the in-scope
+> folders/documents. A denial after `cd`ing into a sibling folder is expected:
+> move back to an in-scope folder (or use `search`, which already searches the
+> whole task scope regardless of cwd).
+
 ## Metadata Filtering
 
 Filter by metadata fields using `--metadata key=value` (repeatable, AND logic):

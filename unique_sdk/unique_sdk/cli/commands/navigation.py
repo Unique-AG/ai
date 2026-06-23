@@ -145,7 +145,17 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
             files = [
                 f for f in files if state.is_content_within_workspace(f.get("id", ""))
             ]
-            total_files = len(files)
+            # ``files`` is only the current API page, so the in-scope count is
+            # per-page, not the folder total. Report it as the shown-in-scope
+            # count and keep the API ``totalCount`` as the folder's real size,
+            # rather than overwriting total_files with the page length (which
+            # would silently undercount paginated folders). See UN-21780.
+            output = format_ls(folders, files)
+            summary = (
+                f"\n{total_folders} folder(s), {len(files)} file(s) in task scope "
+                f"(of {total_files} in folder)"
+            )
+            return output + summary
 
         output = format_ls(folders, files)
         summary = f"\n{total_folders} folder(s), {total_files} file(s)"

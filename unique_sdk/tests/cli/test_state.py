@@ -919,3 +919,44 @@ class TestMetadataFilterContentGating:
         hint = s.scope_denial_hint()
         assert "/Funds/Fund A" in hint
         assert "cont_1" in hint
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_scope_denial_hint_omits_non_navigable_or_folder(self, mock_path) -> None:  # type: ignore[no-untyped-def]
+        """A folder reachable only as an OR-alternative to a contentId
+        allowlist is not navigable, so the denial hint must not name it —
+        ``ls``/``cd`` would deny it too (UN-21780).
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_fund_b": "/Funds/Fund B"}
+        )
+        flt = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {
+                    "or": [
+                        {
+                            "path": ["folderIdPath"],
+                            "operator": "contains",
+                            "value": "scope_fund_b",
+                        },
+                        {
+                            "path": ["contentId"],
+                            "operator": "in",
+                            "value": ["cont_1"],
+                        },
+                    ]
+                },
+            ]
+        }
+        s = self._state_with_filter(flt)
+        hint = s.scope_denial_hint()
+        # Fund A sits on the conjunctive spine → navigable, named in the hint.
+        assert "/Funds/Fund A" in hint
+        # Fund B is only an OR alternative to the contentId allowlist → not
+        # standalone-browsable, so it must not appear in the hint.
+        assert "/Funds/Fund B" not in hint
+        assert "cont_1" in hint
