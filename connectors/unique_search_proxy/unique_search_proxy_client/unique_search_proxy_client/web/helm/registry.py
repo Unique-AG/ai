@@ -48,7 +48,7 @@ class HelmSettingsGroup:
 
 
 # Order is authoritative: it drives the order of every generated Helm artifact
-# (values.yaml, _providers.tpl, schema) and the startup report. Adding a group
+# (values.yaml, _generated.tpl, schema) and the startup report. Adding a group
 # means adding its singleton here; all metadata (title, helm_key, kind, egress,
 # env prefix) is declared once on the class via @helm_settings / @provider_credentials.
 _REGISTERED_INSTANCES: tuple[BaseSettings, ...] = (

@@ -3,7 +3,7 @@
 
 Writes (chart-local, owned by this generator):
   - deploy/helm-chart/values.additional.schema.json
-  - deploy/helm-chart/templates/_providers.tpl
+  - deploy/helm-chart/templates/_generated.tpl
   - deploy/helm-chart/values.yaml  (only the @helm-gen:providers region)
 
 Does NOT write values.schema.json — that is merged from the shared base chart

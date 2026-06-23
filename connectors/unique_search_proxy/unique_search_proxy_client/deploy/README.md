@@ -14,7 +14,7 @@ web/settings/monitoring.py (PrometheusSettings)┘
             │   (scripts/generate_helm_config.py)
             ▼
 helm-chart/values.yaml                     # @helm-gen:begin..end providers region
-helm-chart/templates/_providers.tpl        # env injection + Cilium egress hooks
+helm-chart/templates/_generated.tpl        # env injection + Cilium egress hooks
 helm-chart/values.additional.schema.json   # provider JSON schema
 ```
 
@@ -55,7 +55,7 @@ The registry (`web/helm/registry.py`) collects all decorated classes; the genera
 For each model field, `iter_helm_fields` (`web/helm/generator/introspect.py`) decides how it
 renders. The field **type** and **default** are what matter:
 
-| Python field | Schema (`connection.<name>`) | `values.yaml` | Template (`_providers.tpl`) |
+| Python field | Schema (`connection.<name>`) | `values.yaml` | Template (`_generated.tpl`) |
 | --- | --- | --- | --- |
 | `LogSecretStr` / `SecretStr` | `valueSourceSensitive` | commented placeholder | `base.valueSource.env` (from a Secret) |
 | `str` default `NOT_PROVIDED` | `valueSourceString`, **required when enabled** | commented placeholder | `required "…"` env value |
@@ -94,7 +94,7 @@ are rejected):
 
 ```
 LogSecretStr field ─▶ schema: valueSourceSensitive ─▶ overlay sets fromSecret/fromSecretProvider
-                   ─▶ _providers.tpl: base.valueSource.env ─▶ container env var ─▶ pydantic reads it
+                   ─▶ _generated.tpl: base.valueSource.env ─▶ container env var ─▶ pydantic reads it
 ```
 
 In your environment overlay you supply one of:
@@ -144,7 +144,7 @@ template listing every variable; it is gitignored, so never commit real keys.
 ## 4. Egress is generated too
 
 Each provider's outbound Cilium rule is derived from the `egress` argument on `@helm_settings`
-and rendered into `_providers.tpl` (only when `networkPolicy.enabled`):
+and rendered into `_generated.tpl` (only when `networkPolicy.enabled`):
 
 - **endpoint field** (default) → the generator parses the configured endpoint URL at render
   time and emits `toFQDNs: matchName: <host>` on the URL's port (443/`http`→80/explicit).
@@ -159,7 +159,7 @@ and rendered into `_providers.tpl` (only when `networkPolicy.enabled`):
 Run from the **client root** (`unique_search_proxy_client/`):
 
 ```bash
-# 1. Regenerate values.yaml (providers region), _providers.tpl, values.additional.schema.json
+# 1. Regenerate values.yaml (providers region), _generated.tpl, values.additional.schema.json
 uv run python scripts/generate_helm_config.py
 
 # 2. Re-merge the full values.schema.json from the shared base chart
@@ -182,6 +182,6 @@ uv run python scripts/generate_helm_config.py --check
 1. Edit the settings class in `web/settings/providers/<provider>.py` (or `client.py` /
    `monitoring.py`). Type + default determine sensitivity, required-ness, and schema type;
    `@helm_settings` metadata controls the block name, title, and egress.
-2. Run steps 1–3 above and review the diff in `values.yaml`, `_providers.tpl`, and the schemas.
+2. Run steps 1–3 above and review the diff in `values.yaml`, `_generated.tpl`, and the schemas.
 3. For a brand-new provider, also add `helm-chart/fixtures/values-<provider>-enabled.yaml`
    so the render test exercises it.

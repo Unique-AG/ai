@@ -82,7 +82,7 @@ def test_generated_schema_contains_all_provider_blocks() -> None:
 
 
 def test_generated_template_env_vars_match_pydantic_names() -> None:
-    template = (CHART_DIR / "templates" / "_providers.tpl").read_text()
+    template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
     for group in generated_groups_tuple():
         assert group.helm_key is not None
         for field in iter_helm_fields(group.model, env_prefix=group.env_prefix):
@@ -132,7 +132,7 @@ def test_http_client_env_injection_is_not_enabled_gated() -> None:
     secrets) without ``httpClient.enabled: true`` and silently deployed with no
     ``HTTP_CLIENT_*`` env vars.
     """
-    template = (CHART_DIR / "templates" / "_providers.tpl").read_text()
+    template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
     assert "and .Values.httpClient .Values.httpClient.enabled" not in template
     assert "and .ctx.Values.httpClient .ctx.Values.httpClient.enabled" not in template
     # The non-secret proxy defaults are always emitted (no enclosing gate).
@@ -143,6 +143,32 @@ def test_http_client_env_injection_is_not_enabled_gated() -> None:
         "{{- if or .ctx.Values.httpClient.connection.proxyUsername "
         ".ctx.Values.httpClient.connection.proxyPassword -}}"
     ) in template
+
+
+def test_optional_env_fields_use_left_trim_only_wrappers() -> None:
+    """Optional/conditional env blocks must not right-trim their wrappers.
+
+    A right-trim ({{- ... -}}) on a false/empty optional block also eats the
+    leading newline of the *next* always-emitted field, merging two ``- name:``
+    entries onto one line and producing invalid YAML (helm lint failure). The
+    generator must emit left-trim-only wrappers ({{- ... }} / {{- end }}).
+    """
+    template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
+    # An optional proxy field sits between two always-emitted httpClient fields.
+    assert "{{- if .Values.httpClient.connection.proxyHost }}" in template
+    assert "{{- if .Values.httpClient.connection.proxyHost -}}" not in template
+
+    # Inside the env-injection define, every wrapper must be left-trim-only: the
+    # only right-trims allowed are the define header/footer themselves. (The
+    # separate egress define legitimately uses -}} for value computation.)
+    env_define = template[
+        template.index('{{- define "base.externalService.env.ext" -}}') :
+    ]
+    env_define = env_define[: env_define.index("{{- define ", 1)]
+    lines = [line for line in env_define.splitlines() if line.strip()]
+    body = lines[1:-1]  # drop define header + closing {{- end -}}
+    offenders = [line for line in body if line.endswith("-}}")]
+    assert not offenders, f"right-trim wrappers in env define: {offenders}"
 
 
 def test_url_safety_lists_are_overridable_in_chart() -> None:
@@ -163,7 +189,7 @@ def test_url_safety_lists_are_overridable_in_chart() -> None:
         assert network[key]["type"] == "array"
         assert network[key]["items"] == {"type": "string"}
 
-    template = (CHART_DIR / "templates" / "_providers.tpl").read_text()
+    template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
     assert (
         "value: {{ .Values.urlSafety.network.allowedSchemes | toJson | quote }}"
         in template
@@ -214,7 +240,7 @@ def test_generate_artifacts_is_deterministic() -> None:
 
 
 def test_google_template_preserves_required_engine_id_guard() -> None:
-    template = (CHART_DIR / "templates" / "_providers.tpl").read_text()
+    template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
     assert 'required "googleSearch.connection.engineId is required' in template
     assert "GOOGLE_SEARCH_API_KEY" in template
     assert "toFQDNs:" in template
@@ -228,3 +254,9 @@ def test_google_template_preserves_required_engine_id_guard() -> None:
 
 def test_stale_google_template_is_absent() -> None:
     assert not (CHART_DIR / "templates" / "_google.tpl").exists()
+
+
+def test_stale_providers_template_is_absent() -> None:
+    # Renamed to _generated.tpl; the old name must not linger (it would shadow
+    # the current output via Helm's global define namespace).
+    assert not (CHART_DIR / "templates" / "_providers.tpl").exists()

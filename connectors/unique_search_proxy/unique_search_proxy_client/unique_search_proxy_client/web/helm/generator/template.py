@@ -14,8 +14,10 @@ _GENERATED_HEADER = """{{/*
 GENERATED — do not edit. Regenerate with:
   uv run python scripts/generate_helm_config.py
 
-External provider / HTTP client extension hooks for the search-proxy chart.
-Overrides base.externalService.*.ext hooks from the shared base library chart.
+Generated Helm wiring for every @helm_settings group (search providers plus
+internal config such as httpClient and urlSafety): env injection, Cilium egress
+rules and secret-provider collection. Implemented as overrides of the shared base
+library extension hooks (base.externalService.*.ext).
 */}}
 """
 
@@ -58,12 +60,16 @@ def _emit_env_field(
         return lines
 
     if field.sensitive:
+        # Conditional wrappers use left-trim only ({{- ... }} / {{- end }}). A
+        # right-trim ({{- ... -}}) on an empty/false block would also consume the
+        # newline of the *following* always-emitted field, merging two env entries
+        # onto one line and producing invalid YAML.
         if field.required_when_enabled:
-            lines.append(f"{{{{- if not {connection_path} -}}}}")
-            lines.append(f'{{{{- fail "{_fail_message(group, field)}" -}}}}')
-            lines.append("{{- end -}}")
+            lines.append(f"{{{{- if not {connection_path} }}}}")
+            lines.append(f'{{{{- fail "{_fail_message(group, field)}" }}}}')
+            lines.append("{{- end }}")
         else:
-            lines.append(f"{{{{- if {connection_path} -}}}}")
+            lines.append(f"{{{{- if {connection_path} }}}}")
         ctx = ".ctx" if hooks else "."
         lines.append(
             '{{ include "base.valueSource.env" (dict "name" '
@@ -71,7 +77,7 @@ def _emit_env_field(
             "}}"
         )
         if not field.required_when_enabled:
-            lines.append("{{- end -}}")
+            lines.append("{{- end }}")
         return lines
 
     if field.required_when_enabled:
@@ -83,12 +89,13 @@ def _emit_env_field(
     elif field.default is None:
         # Optional override with no literal default in values.yaml: only emit the
         # env var when the overlay sets it, so the service keeps its own default
-        # instead of receiving an empty string.
-        lines.append(f"{{{{- if {connection_path} -}}}}")
+        # instead of receiving an empty string. Left-trim only (see note above):
+        # a right-trim here would swallow the next field's leading newline.
+        lines.append(f"{{{{- if {connection_path} }}}}")
         lines.append(
             f"- name: {field.env_var}\n  value: {{{{ {connection_path} | quote }}}}"
         )
-        lines.append("{{- end -}}")
+        lines.append("{{- end }}")
     else:
         lines.append(
             f"- name: {field.env_var}\n  value: {{{{ {connection_path} | quote }}}}"
@@ -111,12 +118,15 @@ def _emit_group_env_block(group: HelmSettingsGroup, *, hooks: bool) -> list[str]
     if not group.gated:
         return field_lines
 
+    # Left-trim only: a right-trim on the closing gate would consume the leading
+    # newline of whatever follows (e.g. the always-on httpClient block), merging
+    # the last gated env entry with the next one into invalid YAML.
     values_root = ".ctx.Values" if hooks else ".Values"
     return [
         f"{{{{- if and {values_root}.{group.helm_key} "
-        f"{values_root}.{group.helm_key}.enabled -}}}}",
+        f"{values_root}.{group.helm_key}.enabled }}}}",
         *field_lines,
-        "{{- end -}}",
+        "{{- end }}",
     ]
 
 
@@ -252,7 +262,7 @@ def _emit_secret_provider_block(groups: tuple[HelmSettingsGroup, ...]) -> list[s
     return lines
 
 
-def render_providers_template(groups: tuple[HelmSettingsGroup, ...]) -> str:
+def render_generated_template(groups: tuple[HelmSettingsGroup, ...]) -> str:
     lines = [_GENERATED_HEADER.rstrip()]
 
     lines.append('{{- define "base.externalService.env.ext" -}}')
