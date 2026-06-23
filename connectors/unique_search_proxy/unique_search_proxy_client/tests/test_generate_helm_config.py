@@ -145,6 +145,27 @@ def test_http_client_env_injection_is_not_enabled_gated() -> None:
     ) in template
 
 
+def test_egress_rules_use_left_trim_only_block_wrappers() -> None:
+    """Consecutive Cilium egress rules must not merge onto one YAML line.
+
+    A right-trim on block ``{{- end -}}`` plus left-trim on the next ``{{- if``
+    eats the newline between list items, producing ``protocol: TCP- toFQDNs:``
+    and invalid YAML when multiple providers are enabled.
+    """
+    template = (CHART_DIR / "templates" / "_generated.tpl").read_text()
+    egress_define = template[
+        template.index(
+            '{{- define "base.externalService.networkPolicy.cilium.egress.rules.ext" -}}',
+        ) :
+    ]
+    egress_define = egress_define[: egress_define.index("{{- define ", 1)]
+    assert "protocol: TCP\n{{- end -}}" not in egress_define
+    assert "{{- if and .Values.googleSearch .Values.googleSearch.enabled" not in (
+        egress_define
+    )
+    assert "protocol: TCP\n{{- end }}\n{{ if and .Values.tavily" in egress_define
+
+
 def test_optional_env_fields_use_left_trim_only_wrappers() -> None:
     """Optional/conditional env blocks must not right-trim their wrappers.
 
@@ -160,7 +181,7 @@ def test_optional_env_fields_use_left_trim_only_wrappers() -> None:
 
     # Inside the env-injection define, every wrapper must be left-trim-only: the
     # only right-trims allowed are the define header/footer themselves. (The
-    # separate egress define legitimately uses -}} for value computation.)
+    # separate egress define uses left-trim-only block wrappers (see egress test).
     env_define = template[
         template.index('{{- define "base.externalService.env.ext" -}}') :
     ]

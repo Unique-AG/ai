@@ -296,7 +296,7 @@ library extension hooks (base.externalService.*.ext).
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.cilium.egress.rules.ext" -}}
-{{- if and .Values.googleSearch .Values.googleSearch.enabled -}}
+{{ if and .Values.googleSearch .Values.googleSearch.enabled }}
 {{- $endpoint := required "googleSearch.connection.apiEndpoint is required when googleSearch.enabled is true. Set it in your environment overlay." .Values.googleSearch.connection.apiEndpoint -}}
 {{- $parsed := urlParse $endpoint -}}
 {{- $hostParts := $parsed.host | splitList ":" -}}
@@ -310,8 +310,8 @@ library extension hooks (base.externalService.*.ext).
   - ports:
     - port: {{ $port | quote }}
       protocol: TCP
-{{- end -}}
-{{- if and .Values.braveSearch .Values.braveSearch.enabled -}}
+{{- end }}
+{{ if and .Values.braveSearch .Values.braveSearch.enabled }}
 {{- $endpoint := required "braveSearch.connection.apiEndpoint is required when braveSearch.enabled is true. Set it in your environment overlay." .Values.braveSearch.connection.apiEndpoint -}}
 {{- $parsed := urlParse $endpoint -}}
 {{- $hostParts := $parsed.host | splitList ":" -}}
@@ -325,8 +325,8 @@ library extension hooks (base.externalService.*.ext).
   - ports:
     - port: {{ $port | quote }}
       protocol: TCP
-{{- end -}}
-{{- if and .Values.perplexitySearch .Values.perplexitySearch.enabled -}}
+{{- end }}
+{{ if and .Values.perplexitySearch .Values.perplexitySearch.enabled }}
 {{- $endpoint := required "perplexitySearch.connection.apiEndpoint is required when perplexitySearch.enabled is true. Set it in your environment overlay." .Values.perplexitySearch.connection.apiEndpoint -}}
 {{- $parsed := urlParse $endpoint -}}
 {{- $hostParts := $parsed.host | splitList ":" -}}
@@ -340,8 +340,8 @@ library extension hooks (base.externalService.*.ext).
   - ports:
     - port: {{ $port | quote }}
       protocol: TCP
-{{- end -}}
-{{- if and .Values.tavily .Values.tavily.enabled -}}
+{{- end }}
+{{ if and .Values.tavily .Values.tavily.enabled }}
 {{- $endpoint := required "tavily.connection.apiEndpoint is required when tavily.enabled is true. Set it in your environment overlay." .Values.tavily.connection.apiEndpoint -}}
 {{- $parsed := urlParse $endpoint -}}
 {{- $hostParts := $parsed.host | splitList ":" -}}
@@ -355,8 +355,8 @@ library extension hooks (base.externalService.*.ext).
   - ports:
     - port: {{ $port | quote }}
       protocol: TCP
-{{- end -}}
-{{- if and .Values.jina .Values.jina.enabled -}}
+{{- end }}
+{{ if and .Values.jina .Values.jina.enabled }}
 {{- $domain := required "jina.connection.apiDomain is required when jina.enabled is true. Set it in your environment overlay." .Values.jina.connection.apiDomain -}}
 - toFQDNs:
   - matchPattern: {{ printf "*.%s" $domain | quote }}
@@ -364,8 +364,8 @@ library extension hooks (base.externalService.*.ext).
   - ports:
     - port: "443"
       protocol: TCP
-{{- end -}}
-{{- if and .Values.firecrawl .Values.firecrawl.enabled -}}
+{{- end }}
+{{ if and .Values.firecrawl .Values.firecrawl.enabled }}
 {{- $endpoint := required "firecrawl.connection.apiEndpoint is required when firecrawl.enabled is true. Set it in your environment overlay." .Values.firecrawl.connection.apiEndpoint -}}
 {{- $parsed := urlParse $endpoint -}}
 {{- $hostParts := $parsed.host | splitList ":" -}}
@@ -379,7 +379,7 @@ library extension hooks (base.externalService.*.ext).
   - ports:
     - port: {{ $port | quote }}
       protocol: TCP
-{{- end -}}
+{{- end }}
 {{- end -}}
 
 {{- define "base.externalService.networkPolicy.cilium.egress.hasRules.ext" -}}
