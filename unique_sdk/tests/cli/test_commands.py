@@ -600,6 +600,27 @@ class TestFiles:
         with pytest.raises(ValueError, match="permission denied"):
             _resolve_content_id(s, "report.pdf")
 
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_by_name_at_root_with_filter_refuses_whole_kb_scan(
+        self, mock: MagicMock
+    ) -> None:
+        """At the KB root (no folder context) a bare file name would resolve via
+        an unparented whole-KB scan. With a per-message filter active that is a
+        cross-scope existence/title oracle, so it must be refused *before* any
+        Content.get_infos call rather than scan everything and gate per id. See
+        UN-21780.
+        """
+        s = _state("/", None)
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed_only"],
+        }
+        s._chat_file_content_ids_cache = set()
+        with pytest.raises(ValueError, match="permission denied"):
+            _resolve_content_id(s, "report.pdf")
+        mock.assert_not_called()
+
     @patch("unique_sdk.Content.delete")
     def test_rm_denies_out_of_scope_chat_attachment(
         self, mock_delete: MagicMock

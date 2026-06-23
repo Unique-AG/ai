@@ -104,10 +104,26 @@ def _resolve_content_id(
         scope_id = info.get("id")
         if not scope_id:
             raise ValueError(f"folder not found: {folder_path}")
-    elif state.workspace_metadata_filter is None and not state.is_within_workspace():
-        # See above: defer to the filter (enforced on the resolved id) when one
-        # is active rather than over-denying via static scopeIds. UN-21780.
-        raise ValueError("permission denied (outside workspace scope)")
+    elif scope_id is None:
+        # A bare file name with no folder context resolves via an *unparented*
+        # Content.get_infos scan across the whole knowledge base.
+        if state.workspace_metadata_filter is not None:
+            # With a per-message filter active, a whole-KB filename scan would
+            # discover documents outside the task scope before the per-id gate
+            # runs — and the deny-vs-not-found distinction is an existence/title
+            # oracle across the task boundary. That is broader than the
+            # ls/read-at-root gating intent, so require a bounded context
+            # instead. The cont_ fast-path, an explicit in-scope path, or a
+            # ``cd`` into an in-scope folder all still work. See UN-21780.
+            raise ValueError(
+                f"permission denied: {name_or_id} can't be resolved by name at "
+                f"the knowledge-base root while a task scope is active "
+                f"({state.scope_denial_hint()}). Use 'unique-cli search', cite "
+                "by content id, or 'cd' into an in-scope folder."
+            )
+        if not state.is_within_workspace():
+            # No per-message filter: defer to the static scopeIds boundary.
+            raise ValueError("permission denied (outside workspace scope)")
 
     params: dict[str, Any] = {}
     if scope_id:
