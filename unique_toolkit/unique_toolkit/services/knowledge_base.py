@@ -16,7 +16,7 @@ from unique_toolkit._common.metadata_filter_scope import (
     merge_scope_clause_into_metadata_filter,
 )
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.constants import (
     DEFAULT_SEARCH_LANGUAGE,
@@ -93,7 +93,7 @@ class KnowledgeBaseService:
         """
         metadata_filter = None
 
-        if isinstance(event, ChatEvent):
+        if isinstance(event, AssistantWebhookEvent):
             metadata_filter = event.payload.metadata_filter
 
         return cls(

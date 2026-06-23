@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent
+from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.constants import (
@@ -65,9 +65,12 @@ class LanguageModelService:
             self._company_id = auth_scoped._company_id
             self._user_id = auth_scoped._user_id
             self._event = event
-            payload = event.payload
-            self._chat_id = getattr(payload, "chat_id", None)
-            self._assistant_id = getattr(payload, "assistant_id", None)
+            self._chat_id = None
+            self._assistant_id = None
+            if isinstance(event, AssistantWebhookEvent):
+                payload = event.payload
+                self._chat_id = payload.chat_id
+                self._assistant_id = payload.assistant_id
             return
 
         [company_id, user_id] = validate_required_values([company_id, user_id])

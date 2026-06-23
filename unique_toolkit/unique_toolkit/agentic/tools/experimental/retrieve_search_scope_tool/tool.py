@@ -116,7 +116,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             )
 
         try:
-            settings = UniqueSettings.from_chat_event(self._event)
+            settings = UniqueSettings.from_chat_event(self.event)
             kb_service = UniqueServiceFactory(
                 settings=settings
             ).knowledge_base_service()

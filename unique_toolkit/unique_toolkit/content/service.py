@@ -8,7 +8,7 @@ from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, Correlation
+from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent, Correlation
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
@@ -79,12 +79,19 @@ class ContentService:
         """
 
         if event is not None:
-            delegated = type(self).from_event(event)
+            if isinstance(event, AssistantWebhookEvent):
+                delegated = type(self).from_event(event)
+                self._event = event
+                self._company_id = delegated._company_id
+                self._user_id = delegated._user_id
+                self._chat_id = delegated._chat_id
+                self._metadata_filter = delegated._metadata_filter
+                return
+
             self._event = event
-            self._company_id = delegated._company_id
-            self._user_id = delegated._user_id
-            self._chat_id = delegated._chat_id
-            self._metadata_filter = delegated._metadata_filter
+            self._metadata_filter = None
+            self._company_id = event.company_id
+            self._user_id = event.user_id
             return
 
         self._event = None
@@ -111,20 +118,26 @@ class ContentService:
             ContentService: Instance scoped to the event's chat or, when
                 correlation is present, the parent chat.
         """
-        payload = event.payload
-        if payload.correlation is not None:
-            return cls.from_correlation(
-                event.company_id,
-                event.user_id,
-                payload.correlation,
+        if isinstance(event, AssistantWebhookEvent):
+            payload = event.payload
+            if payload.correlation is not None:
+                return cls.from_correlation(
+                    event.company_id,
+                    event.user_id,
+                    payload.correlation,
+                    metadata_filter=payload.metadata_filter,
+                )
+
+            return cls(
+                company_id=event.company_id,
+                user_id=event.user_id,
+                chat_id=payload.chat_id,
                 metadata_filter=payload.metadata_filter,
             )
 
         return cls(
             company_id=event.company_id,
             user_id=event.user_id,
-            chat_id=payload.chat_id,
-            metadata_filter=payload.metadata_filter,
         )
 
     @classmethod

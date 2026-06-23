@@ -155,6 +155,13 @@ class _ToolManager(Generic[_ApiMode]):
         self._a2a_manager = a2a_manager
         self._builtin_tool_manager = builtin_tool_manager
         self._api_mode = api_mode
+        self._sub_agents: list[SubAgentTool] = []
+        self._builtin_tools: list[OpenAIBuiltInTool[Any]] = []
+        self._mcp_tools: list[Tool[Any]] = []
+        self._internal_tools: list[Tool[Any]] = []
+        self.available_tools: list[
+            Tool[Any] | OpenAIBuiltInTool[Any] | SubAgentTool
+        ] = []
         self._init__tools(run_context.tool_init_event)
 
     def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
@@ -208,8 +215,11 @@ class _ToolManager(Generic[_ApiMode]):
                     tool_progress_reporter=self._tool_progress_reporter,
                 )
             else:
-                built_tool = ToolFactory.tool_map[t.name](t.configuration)
-                built_tool.settings = t
+                self._logger.info(
+                    "Skipping internal tool '%s' (requires chat event for initialization)",
+                    t.name,
+                )
+                continue
             self._internal_tools.append(built_tool)
 
         # Combine all types of tools
@@ -683,6 +693,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
+        api_mode: Literal["completions"] = "completions",
+        builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
     ) -> Self:
         return super().from_run_context(
             logger=logger,
@@ -691,8 +703,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
-            api_mode="completions",
-            builtin_tool_manager=None,
+            api_mode=api_mode,
+            builtin_tool_manager=builtin_tool_manager,
         )
 
 
@@ -729,8 +741,12 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
-        builtin_tool_manager: OpenAIBuiltInToolManager,
+        api_mode: Literal["responses"] = "responses",
+        builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
     ) -> Self:
+        if builtin_tool_manager is None:
+            msg = "builtin_tool_manager is required for ResponsesApiToolManager"
+            raise ValueError(msg)
         instance = cls.__new__(cls)
         instance._builtin_tool_manager = builtin_tool_manager
         instance._setup(
@@ -740,7 +756,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
-            api_mode="responses",
+            api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
         )
         return instance
