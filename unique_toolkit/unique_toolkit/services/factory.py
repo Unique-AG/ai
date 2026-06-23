@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from unique_toolkit._common.chunk_relevancy_sorter.service import (
         ChunkRelevancySorter,
     )
-    from unique_toolkit.content.service import ContentService
-    from unique_toolkit.language_model.service import LanguageModelService
 
 
 class ServiceProtocol(Protocol):
@@ -103,20 +101,6 @@ class UniqueServiceFactory:
     def knowledge_base_service(self, **kwargs: Any) -> KnowledgeBaseService:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
-
-    def content_service(self, **kwargs: Any) -> ContentService:
-        """Create a :class:`ContentService` using the pre-bound context."""
-        from unique_toolkit.content.service import ContentService as _ContentService
-
-        return self.get(_ContentService, **kwargs)
-
-    def language_model_service(self, **kwargs: Any) -> LanguageModelService:
-        """Create a :class:`LanguageModelService` using the pre-bound context."""
-        from unique_toolkit.language_model.service import (
-            LanguageModelService as _LanguageModelService,
-        )
-
-        return self.get(_LanguageModelService, **kwargs)
 
     def chunk_relevancy_sorter(self) -> ChunkRelevancySorter:
         """Create a :class:`ChunkRelevancySorter` using the pre-bound context."""
