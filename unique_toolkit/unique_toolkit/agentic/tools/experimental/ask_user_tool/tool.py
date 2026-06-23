@@ -15,6 +15,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressRepo
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.elicitation import (
     ElicitationCancelledException,
+    ElicitationDeclinedException,
     ElicitationExpiredException,
     ElicitationMode,
 )
@@ -115,13 +116,21 @@ class AskUserTool(Tool[AskUserToolConfig]):
                 timeout_seconds=self.config.timeout_seconds,
                 poll_interval_seconds=self.config.poll_interval_seconds,
             )
+        except ElicitationDeclinedException:
+            _LOGGER.info("Elicitation with id %s was declined", created.id)
+
+            return ToolCallResponse(
+                id=tool_call.id,
+                name=self.name,
+                content=self.config.declined_message,
+            )
         except ElicitationCancelledException:
             _LOGGER.info("Elicitation with id %s was cancelled", created.id)
 
             return ToolCallResponse(
                 id=tool_call.id,
                 name=self.name,
-                content=self.config.declined_message,
+                content=self.config.cancelled_message,
             )
         except ElicitationExpiredException:
             _LOGGER.info("Elicitation with id %s has expired", created.id)

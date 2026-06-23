@@ -5,6 +5,7 @@ from pydantic import Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.elicitation import (
+    ElicitationCancelledException,
     ElicitationDeclinedException,
     ElicitationExpiredException,
 )
@@ -89,6 +90,17 @@ class AskUserToolConfig(BaseToolConfig):
         default=ElicitationDeclinedException.INSTRUCTION,
         description="Message returned to the model when the user declines the request.",
         title="Declined response",
+    )
+
+    cancelled_message: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(ElicitationCancelledException.INSTRUCTION.splitlines())
+        ),
+    ] = Field(
+        default=ElicitationCancelledException.INSTRUCTION,
+        description="Message returned to the model when the user cancels the request.",
+        title="Cancelled response",
     )
 
     expired_message: Annotated[

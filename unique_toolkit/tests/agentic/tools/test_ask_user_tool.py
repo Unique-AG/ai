@@ -221,15 +221,20 @@ async def test_ask_user_expired_returns_default_message() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ask_user_cancelled_propagates() -> None:
+async def test_ask_user_cancelled_returns_configured_message() -> None:
     from unique_toolkit.elicitation import ElicitationCancelledException
 
-    tool, _ = _tool_with_service(wait_side_effect=ElicitationCancelledException())
+    config = AskUserToolConfig(cancelled_message="custom cancelled")
+    tool, _ = _tool_with_service(
+        config, wait_side_effect=ElicitationCancelledException()
+    )
 
-    with pytest.raises(ElicitationCancelledException):
-        await tool.run(
-            _tool_call(message="Sure?", response_schema=_MINIMAL_ANSWER_SCHEMA)
-        )
+    resp = await tool.run(
+        _tool_call(message="Sure?", response_schema=_MINIMAL_ANSWER_SCHEMA)
+    )
+
+    assert resp.error_message == ""
+    assert resp.content == "custom cancelled"
 
 
 def test_ask_user_does_not_take_control() -> None:
