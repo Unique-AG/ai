@@ -18,7 +18,8 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model import LanguageModelToolDescription
 
 if TYPE_CHECKING:
-    pass
+    from unique_toolkit.language_model.service import LanguageModelService
+    from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
 )
@@ -176,17 +177,33 @@ class Tool(ABC, Generic[ConfigType]):
         tool_progress_reporter: ToolProgressReporter | None = ...,
     ) -> None: ...
 
+    @overload
+    def __init__(
+        self,
+        config: ConfigType,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        event: ChatEvent | None = ...,
+    ) -> None: ...
+
     def __init__(
         self,
         config: ConfigType,
         event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         """Initialize the tool.
 
-        Preferred (decoupled): `Tool(config)` — configuration only.
+        Preferred (decoupled): ``Tool(config)`` — configuration only.
 
-        Backward compatible: `Tool(config, event, tool_progress_reporter)` — creates
+        Service injection: ``Tool(config, chat_service=..., language_model_service=...)``.
+
+        Backward compatible: ``Tool(config, event, tool_progress_reporter)`` — creates
         deprecated chat_service, language_model_service, message_step_logger for
         legacy subclasses.
         """
@@ -199,6 +216,20 @@ class Tool(ABC, Generic[ConfigType]):
         module_name = "default overwrite for module name"
         self.logger = getLogger(f"{module_name}.{__name__}")
         self.debug_info: dict[str, Any] = {}
+
+        if chat_service is not None and language_model_service is not None:
+            from unique_toolkit.agentic.message_log_manager.service import (
+                MessageStepLogger,
+            )
+
+            self._event = event
+            self._tool_progress_reporter = tool_progress_reporter
+            self._chat_service = chat_service
+            self._language_model_service = language_model_service
+            self._message_step_logger = MessageStepLogger(
+                chat_service=self._chat_service,
+            )
+            return
 
         if event is not None:
             from unique_toolkit.agentic.message_log_manager.service import (

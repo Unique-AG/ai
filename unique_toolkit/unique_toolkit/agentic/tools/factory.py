@@ -38,6 +38,27 @@ class ToolFactory:
         return tool
 
     @classmethod
+    def build_tool_with_services(
+        cls,
+        tool_name: str,
+        settings: "ToolBuildConfig",
+        *,
+        chat_service: Any,
+        language_model_service: Any,
+        tool_progress_reporter: Any | None = None,
+        event: Any | None = None,
+    ) -> Tool[BaseToolConfig]:
+        tool = cls.tool_map[tool_name](
+            settings.configuration,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            tool_progress_reporter=tool_progress_reporter,
+            event=event,
+        )
+        tool.settings = settings
+        return tool
+
+    @classmethod
     def build_tool_config(cls, tool_name: str, **kwargs) -> BaseToolConfig:
         if tool_name not in cls.tool_config_map:
             raise ValueError(f"Tool {tool_name} not found")
