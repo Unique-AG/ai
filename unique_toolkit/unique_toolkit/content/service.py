@@ -1,10 +1,10 @@
 import logging
 from pathlib import Path
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import unique_sdk
 from requests import Response
-from typing_extensions import deprecated
+from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
@@ -32,6 +32,9 @@ from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
 )
+
+if TYPE_CHECKING:
+    from unique_toolkit.app.unique_settings import UniqueContext
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -161,10 +164,40 @@ class ContentService:
         )
 
     @classmethod
+    def from_context(
+        cls,
+        context: UniqueContext,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> Self:
+        """Create a ContentService from a :class:`UniqueContext`.
+
+        When ``context.chat.parent_chat_id`` is set (subagent correlation),
+        content operations are scoped to the parent chat.
+        """
+        if context.chat is None:
+            msg = "ContentService requires chat context (context.chat is None)"
+            raise ValueError(msg)
+        chat = context.chat
+        effective_filter = (
+            metadata_filter if metadata_filter is not None else chat.metadata_filter
+        )
+        chat_id = (
+            chat.parent_chat_id if chat.parent_chat_id is not None else chat.chat_id
+        )
+        return cls(
+            company_id=context.auth.get_confidential_company_id(),
+            user_id=context.auth.get_confidential_user_id(),
+            chat_id=chat_id,
+            metadata_filter=effective_filter,
+        )
+
+    @classmethod
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
         metadata_filter: dict[str, Any] | None = None,
+        **kwargs: Any,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
@@ -174,6 +207,12 @@ class ContentService:
             settings = UniqueSettings.from_env_auto_with_sdk_init()
         elif isinstance(settings, str):
             settings = UniqueSettings.from_env_auto_with_sdk_init(filename=settings)
+
+        if settings.context.chat is not None:
+            return cls.from_context(
+                settings.context,
+                metadata_filter=metadata_filter,
+            )
 
         return cls(
             company_id=settings.auth.company_id.get_secret_value(),

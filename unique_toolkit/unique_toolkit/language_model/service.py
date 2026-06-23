@@ -88,7 +88,7 @@ class LanguageModelService:
         return cls(company_id=event.company_id, user_id=event.user_id)
 
     @classmethod
-    def from_settings(cls, settings: UniqueSettings | str | None = None):
+    def from_settings(cls, settings: UniqueSettings | str | None = None, **kwargs: Any):
         """
         Initialize the LanguageModelService with a settings object.
         """
