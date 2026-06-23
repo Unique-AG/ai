@@ -36,7 +36,7 @@ from unique_search_proxy_client.web.core.search_engines.service_base import (
 from unique_search_proxy_client.web.settings.providers import (
     perplexity_search_credentials as credentials,
 )
-from unique_search_proxy_client.web.settings.providers.base import read_secret
+from unique_search_proxy_client.web.settings.secret_str import read_secret
 
 _LOGGER = logging.getLogger(__name__)
 _PERPLEXITY_PROVIDER_LABEL = "Perplexity Search API"

@@ -25,10 +25,10 @@ from unique_search_proxy_client.web.core.provider_response import (
     upstream_error_message,
     upstream_response_raw,
 )
-from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.firecrawl import (
     firecrawl_crawl_credentials as credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import read_secret
 from unique_search_proxy_client.web.utils.url import join_url_path
 
 _LOGGER = logging.getLogger(__name__)

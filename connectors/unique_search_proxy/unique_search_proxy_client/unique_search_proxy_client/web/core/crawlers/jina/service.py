@@ -18,10 +18,10 @@ from unique_search_proxy_client.web.core.provider_response import (
     transport_error_raw,
     upstream_response_raw,
 )
-from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.jina import (
     jina_crawl_credentials as credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import read_secret
 
 _LOGGER = logging.getLogger(__name__)
 

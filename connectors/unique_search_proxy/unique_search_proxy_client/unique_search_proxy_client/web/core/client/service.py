@@ -14,8 +14,10 @@ from unique_search_proxy_client.web.settings.client import (
     ProxyConfig,
     http_client_settings,
 )
-from unique_search_proxy_client.web.settings.providers.base import read_secret
-from unique_search_proxy_client.web.settings.secret_str import read_secret_headers
+from unique_search_proxy_client.web.settings.secret_str import (
+    read_secret,
+    read_secret_headers,
+)
 
 if TYPE_CHECKING:
     from fastapi import FastAPI

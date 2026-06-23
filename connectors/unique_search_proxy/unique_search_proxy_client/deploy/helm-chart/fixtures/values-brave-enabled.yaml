@@ -1,0 +1,12 @@
+# Overlay fixture: enable Brave Web Search.
+braveSearch:
+  enabled: true
+  connection:
+    apiEndpoint: https://api.search.brave.com/res/v1/web/search
+    apiKey:
+      fromSecret:
+        name: search-proxy-secrets
+        key: BRAVE_SEARCH_API_KEY
+
+networkPolicy:
+  enabled: true

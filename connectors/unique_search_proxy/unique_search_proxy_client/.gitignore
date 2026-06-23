@@ -1,0 +1,2 @@
+# Local helm template output (scripts/render_helm_fixtures.sh)
+.helm-render/

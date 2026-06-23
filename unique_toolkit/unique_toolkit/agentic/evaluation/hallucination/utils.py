@@ -16,6 +16,8 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -104,19 +106,28 @@ def _get_msgs(
     """
     Composes the messages for hallucination analysis based on the provided input and configuration.
 
-    This method composes messages with or without context based on the availability of context texts
-    and history message texts in the input.
+    This method composes messages with or without context based on the availability of context texts,
+    history message texts, and (for vision-capable models) context images in the input.
 
     Args:
-        input (EvaluationMetricInput): The input data that includes context texts and history message texts
-                                      for the analysis.
+        input (EvaluationMetricInput): The input data that includes context texts, history message texts,
+                                      and context images for the analysis.
         config (EvaluationMetricConfig): The configuration settings for composing messages.
         logger (Optional[logging.Logger], optional): The logger used for logging debug information.
 
     Returns:
         The composed messages as per the provided input and configuration.
     """
-    has_context = bool(input.context_texts or input.history_messages)
+    # Context images only count as grounding when the model can actually consume
+    # them; otherwise _compose_msgs drops them and the message would be text-only.
+    model_supports_vision = (
+        ModelCapabilities.VISION in config.language_model.capabilities
+    )
+    has_context = bool(
+        input.context_texts
+        or input.history_messages
+        or (input.context_images and model_supports_vision)
+    )
 
     if has_context:
         _LOGGER.debug("Using context / history for hallucination evaluation.")
@@ -165,6 +176,36 @@ def _compose_msgs(
         else None,
         output_text=input.output_text,
     )
+
+    # When images are provided AND the configured model is vision-capable, build
+    # a multimodal user message (rendered user text + one image part per data
+    # URL) so the model can ground the check against the rendered pages. If the
+    # model lacks VISION we drop the images and fall back to the text-only
+    # message: attaching images to a non-vision model would make the LLM call
+    # fail. Without images the message stays the exact text-only form, so
+    # existing callers are unaffected.
+    context_images = input.context_images or []
+    model_supports_vision = (
+        ModelCapabilities.VISION in config.language_model.capabilities
+    )
+    # When has_context is True for an images-only input, the caller already
+    # confirmed the model is vision-capable, so this branch stays unreachable in
+    # that case and only logs for a genuine non-vision misconfiguration.
+    if context_images and not model_supports_vision:
+        _LOGGER.warning(
+            "Hallucination model %s lacks VISION capability; ignoring "
+            "%d context image(s) and grounding on text only.",
+            config.language_model.name,
+            len(context_images),
+        )
+    if context_images and model_supports_vision:
+        return (
+            MessagesBuilder()
+            .append(system_msg)
+            .image_message_append(content=user_msg_content, images=context_images)
+            .build()
+        )
+
     user_msg = LanguageModelUserMessage(content=user_msg_content)
 
     return LanguageModelMessages([system_msg, user_msg])

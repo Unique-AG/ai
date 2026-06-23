@@ -37,10 +37,10 @@ from unique_search_proxy_client.web.core.search_engines.pagination import PageRe
 from unique_search_proxy_client.web.core.search_engines.service_base import (
     SearchEngineService,
 )
-from unique_search_proxy_client.web.settings.providers.base import read_secret
 from unique_search_proxy_client.web.settings.providers.google import (
     google_search_credentials as credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import read_secret
 
 _GOOGLE_PROVIDER_LABEL = "Google Custom Search API"
 

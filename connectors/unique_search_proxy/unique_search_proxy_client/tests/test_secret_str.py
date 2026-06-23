@@ -4,8 +4,8 @@ from collections.abc import Callable
 
 import pytest
 
-from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
 from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
     LogSecretStr,
     _mask_secret_for_display,
 )
@@ -18,13 +18,13 @@ def patch_startup_log_suffix_len(
     """Set ``startup_log_settings.secret_suffix_len`` for the duration of a test."""
 
     def _patch(suffix_len: int) -> None:
-        import unique_search_proxy_client.web.settings.startup_log as startup_log_module
-        from unique_search_proxy_client.web.settings.startup_log import (
+        import unique_search_proxy_client.web.settings.secret_str as secret_str_module
+        from unique_search_proxy_client.web.settings.secret_str import (
             StartupLogSettings,
         )
 
         monkeypatch.setattr(
-            startup_log_module,
+            secret_str_module,
             "startup_log_settings",
             StartupLogSettings(secret_suffix_len=suffix_len),
         )

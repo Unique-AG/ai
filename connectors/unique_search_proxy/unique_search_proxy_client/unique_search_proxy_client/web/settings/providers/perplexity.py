@@ -2,18 +2,22 @@ from __future__ import annotations
 
 from pydantic import Field
 
+from unique_search_proxy_client.web.helm.metadata import helm_settings
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.providers.base import (
-    NOT_PROVIDED,
     ProviderCredentials,
     provider_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
+from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
+    LogSecretStr,
+)
 
 _DEFAULT_PERPLEXITY_API_ENDPOINT = "https://api.perplexity.ai/search"
 _ENV_PREFIX = "PERPLEXITY_SEARCH_"
 
 
+@helm_settings(title="Perplexity Search", helm_key="perplexitySearch")
 @provider_credentials(_ENV_PREFIX)
 class _PerplexityCredentials(ProviderCredentials):
     """Environment-backed credentials for Perplexity Search."""

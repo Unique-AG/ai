@@ -1,4 +1,1 @@
-# Local build artifacts staged into the build context (see Dockerfile.local)
-wheelhouse/
-*.whl
 .env
