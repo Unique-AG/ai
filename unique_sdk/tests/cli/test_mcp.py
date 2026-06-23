@@ -229,6 +229,59 @@ def test_refs_manifest_failure_does_not_break_tool_call(tmp_path: Path) -> None:
     assert out.startswith("result text")
 
 
+def test_output_manifest_gets_server_id_from_response(tmp_path: Path) -> None:
+    # Bare skill-mode tool names have no mcp__ prefix, so _server_name_from_tool
+    # returns None. The output manifest must still record serverName via the
+    # response's mcpServerId — same logic as the refs manifest.
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": "status: ok"}],
+        mcp_server_id="srv_99",
+    )
+    _run("plainTool", response, formatted="ok text")
+    entries = _lines(tmp_path, _OUTPUT_MANIFEST)
+    assert entries[0]["serverName"] == "srv_99"
+
+
+def test_partial_refs_returned_when_later_write_fails(tmp_path: Path) -> None:
+    # When writing the refs manifest entry for a later item fails, items already
+    # successfully written must still appear in the citation footer.
+    from unique_sdk.cli.commands.mcp import _annotate_mcp_results_for_citations
+
+    response = _FakeMCPResponse(
+        content=[
+            {"type": "resource_link", "uri": "https://e/a", "name": "Doc A"},
+            {"type": "resource_link", "uri": "https://e/b", "name": "Doc B"},
+        ]
+    )
+
+    refs_path = tmp_path / ".unique" / "mcp-refs.jsonl"
+    refs_path.parent.mkdir(parents=True, exist_ok=True)
+
+    write_count = [0]
+    original_append = mcp_cmd._append_turn_refs_manifest_entry
+
+    def fail_second_write(path, entry):
+        write_count[0] += 1
+        if write_count[0] == 2:
+            raise OSError("disk full")
+        original_append(path, entry)
+
+    with patch.object(
+        mcp_cmd, "_append_turn_refs_manifest_entry", side_effect=fail_second_write
+    ):
+        annotated = _annotate_mcp_results_for_citations(
+            response,
+            tool_name="mcp__kb__search",
+            server_name="kb",
+            refs_log_path=refs_path,
+        )
+
+    # First item was written and annotated; second was not.
+    assert len(annotated) == 1
+    assert annotated[0][0] == 1
+    assert annotated[0][1]["title"] == "Doc A"
+
+
 def test_api_error_writes_no_manifest(tmp_path: Path) -> None:
     payload = json.dumps({"name": "mcp__crm__get", "arguments": {}})
     with patch.object(

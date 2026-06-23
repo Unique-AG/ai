@@ -201,9 +201,15 @@ def _annotate_mcp_results_for_citations(
                         "title": item.get("title"),
                         "snippet": item.get("snippet"),
                     }
+                    try:
+                        _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
+                    except (UnsafeRefsLogPathError, OSError) as exc:
+                        _LOGGER.warning(
+                            "mcp: failed to append refs manifest entry: %s", exc
+                        )
+                        break
                     numbers_by_key[key] = source_number
                     entries.append(manifest_entry)
-                    _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
                 annotated.append((source_number, item))
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append refs manifest: %s", exc)
@@ -225,7 +231,9 @@ def _citation_footer(annotated: list[tuple[int, dict[str, Any]]]) -> str:
     return "\n".join(lines)
 
 
-def _append_mcp_output_manifest(name: str, text: str) -> None:
+def _append_mcp_output_manifest(
+    name: str, text: str, *, server_name: str | None = None
+) -> None:
     """Best-effort append of one MCP tool result to the per-turn manifest.
 
     Never raises: a manifest failure must not change what the agent sees as
@@ -238,7 +246,7 @@ def _append_mcp_output_manifest(name: str, text: str) -> None:
             refs_log_path,
             {
                 "toolName": name,
-                "serverName": _server_name_from_tool(name),
+                "serverName": server_name,
                 "text": text[:_MCP_OUTPUT_TEXT_CHAR_LIMIT],
             },
         )
@@ -326,9 +334,8 @@ def cmd_mcp(
             fallback = repr(response)
         formatted = f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
 
-    _append_mcp_output_manifest(name, formatted)
-
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
+    _append_mcp_output_manifest(name, formatted, server_name=server_name)
     annotated = _annotate_mcp_results_for_citations(
         response, tool_name=name, server_name=server_name
     )
