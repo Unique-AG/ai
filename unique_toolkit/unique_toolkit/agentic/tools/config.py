@@ -21,6 +21,7 @@ T = TypeVar("T", bound=BaseToolConfig, default=BaseToolConfig)
 
 
 def _ensure_base_tool_config(value: dict[str, Any]) -> None:
+    """Make configuration parseable; disabled/demoted tools are never built at runtime."""
     configuration = value.get("configuration")
     if not isinstance(configuration, BaseToolConfig):
         value["configuration"] = BaseToolConfig()
