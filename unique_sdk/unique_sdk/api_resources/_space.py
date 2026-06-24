@@ -54,6 +54,8 @@ class Space(APIResource["Space"]):
         languageModel: NotRequired[str | None]
         isExternal: NotRequired[bool | None]
         isPinned: NotRequired[bool | None]
+        allowModelSwitching: NotRequired[bool | None]
+        switchableLanguageModels: NotRequired[list[dict[str, Any]] | None]
         uiType: NotRequired["Space.UiType | None"]
         settings: NotRequired[dict[str, Any] | None]
         assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
@@ -68,6 +70,8 @@ class Space(APIResource["Space"]):
         languageModel: NotRequired[str | None]
         isPinned: NotRequired[bool | None]
         settings: NotRequired[dict[str, Any] | None]
+        allowModelSwitching: NotRequired[bool | None]
+        switchableLanguageModels: NotRequired[list[dict[str, Any]] | None]
         allowEndUserSpace: NotRequired[bool | None]
         uiType: NotRequired["Space.UiType | None"]
         assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
@@ -282,6 +286,8 @@ class Space(APIResource["Space"]):
     chatUpload: str
     goals: list[str]
     languageModel: str | None
+    allowModelSwitching: bool
+    switchableLanguageModels: list[dict[str, Any]] | None
     fallbackModule: str
     access: list[str]
     isExternal: bool

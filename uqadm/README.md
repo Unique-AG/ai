@@ -324,6 +324,8 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 
 Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-intelligence-space/<id>`.
 
+Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules, MCP bindings, and briefings are not migrated.
+
 ### `space access-grant SPACE_ID`
 
 Add **user or group** entries to a space ACL via ``Space.add_space_access``. The API **merges** new entries with existing access; it does not replace the full ACL.

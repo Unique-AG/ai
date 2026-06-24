@@ -90,6 +90,8 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
         "alert",
         "chatUpload",
         "languageModel",
+        "allowModelSwitching",
+        "switchableLanguageModels",
         "isExternal",
         "isPinned",
         "uiType",
@@ -133,6 +135,7 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
         "alert",
         "chatUpload",
         "languageModel",
+        "allowModelSwitching",
         "isPinned",
         "settings",
         "allowEndUserSpace",
@@ -141,6 +144,8 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
     for key in simple:
         if src.get(key) is not None:
             kwargs[key] = src[key]
+    if "switchableLanguageModels" in src:
+        kwargs["switchableLanguageModels"] = src["switchableLanguageModels"]
     if "assistantPrompts" in src:
         kwargs["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]
