@@ -111,9 +111,9 @@ NEVER extract:
   error messages, file contents, search results.
 - Anything stated as third-party information or retrieved context.
 
-# Token budget - STRICT
+# Word budget - STRICT
 
-The complete file MUST be <= {{ max_tokens }} tokens.
+The complete file MUST be <= {{ max_words }} words (corresponding to {{ max_tokens }} tokens).
 When approaching the budget, drop content in this priority order:
 
 1. Oldest entries in Recent Topics.
@@ -148,6 +148,7 @@ def consolidation_system_prompt(max_tokens: int) -> str:
     section_list = "\n".join(f"- ## {heading}" for heading in SECTION_HEADINGS)
     now = datetime.now(timezone.utc)
     return Template(_CONSOLIDATION_SYSTEM_PROMPT_TEMPLATE).render(
+        max_words=max_tokens * 0.75,
         max_tokens=max_tokens,
         section_list=section_list,
         now_datetime=now.strftime("%Y-%m-%d %H:%M UTC"),
