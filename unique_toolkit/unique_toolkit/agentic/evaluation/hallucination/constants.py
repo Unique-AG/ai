@@ -52,6 +52,18 @@ class HallucinationConfig(EvaluationMetricConfig):
         default={},
         description="Additional options to pass to the language model.",
     )
+    max_external_context_chars_per_source: SkipJsonSchema[int] = Field(
+        default=20_000,
+        ge=0,
+        description=(
+            "Per-source character cap applied to external (non-chunk) "
+            "context texts, e.g. MCP tool output. Raw/large tool results "
+            "inflate the judge prompt and the eval-LLM call; each external "
+            "text is truncated to this many characters before being added "
+            "to the context. 0 disables truncation. Does not affect "
+            "chunk-derived context."
+        ),
+    )
     score_to_label: dict[str, str] = {
         "LOW": "GREEN",
         "MEDIUM": "YELLOW",

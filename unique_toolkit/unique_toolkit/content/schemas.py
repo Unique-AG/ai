@@ -215,7 +215,15 @@ class ContentReference(BaseModel):
     sequence_number: int
     source: str
     source_id: str
-    url: str
+    url: str | None = Field(
+        default=None,
+        description=(
+            "Link target for the reference. Optional: some sources (e.g. an "
+            "opaque MCP tool result with no resource link) have no URL and "
+            "render as a display-only, non-clickable citation. Nullable "
+            "end-to-end (node-chat persists it as a nullable column)."
+        ),
+    )
     original_index: list[int] = Field(
         default=[],
         description="List of indices in the ChatMessage original_text this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
