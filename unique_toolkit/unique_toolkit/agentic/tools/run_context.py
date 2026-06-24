@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
+from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Self
 
 from unique_toolkit.app.schemas import ChatEvent
 
 
-@dataclass(frozen=True)
-class ToolRunContext:
+class ToolRunContext(BaseModel):
     """Tool-manager runtime state decoupled from a raw :class:`ChatEvent`."""
 
-    tool_choices: list[str] = field(default_factory=list)
-    disabled_tools: list[str] = field(default_factory=list)
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    tool_choices: list[str] = Field(default_factory=list)
+    disabled_tools: list[str] = Field(default_factory=list)
     tool_init_event: ChatEvent | None = None
 
     @classmethod
