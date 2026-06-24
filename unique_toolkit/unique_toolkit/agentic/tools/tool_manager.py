@@ -200,7 +200,7 @@ class _ToolManager(Generic[_ApiMode]):
         registered_tool_names.update(t.name for t in self._mcp_tools)
 
         # Build internal tools from configurations
-        self._internal_tools = []
+        self._internal_tools.clear()
         for t in tool_configs:
             if t.name in registered_tool_names:
                 continue
@@ -747,9 +747,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         if builtin_tool_manager is None:
             msg = "builtin_tool_manager is required for ResponsesApiToolManager"
             raise ValueError(msg)
-        instance = cls.__new__(cls)
-        instance._builtin_tool_manager = builtin_tool_manager
-        instance._setup(
+        return super().from_run_context(
             logger=logger,
             config=config,
             run_context=run_context,
@@ -759,7 +757,6 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
         )
-        return instance
 
     def get_required_include_params(self) -> list[ResponseIncludable]:
         """Return Responses API include params required by all active built-in tools."""

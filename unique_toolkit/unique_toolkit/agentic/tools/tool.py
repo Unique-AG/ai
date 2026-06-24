@@ -249,11 +249,12 @@ class Tool(ABC, Generic[ConfigType]):
         "Never reuse event. Dangerous. Prefer Tool(config) and inject context in run()."
     )
     def event(self) -> ChatEvent:
-        if not hasattr(self, "_event") or self._event is None:
+        chat_event = getattr(self, "_event", None)
+        if chat_event is None:
             raise AttributeError(
                 "event not available (tool was initialized with config only). "
             )
-        return self._event
+        return chat_event
 
     @property
     @deprecated(
