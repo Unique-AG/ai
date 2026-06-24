@@ -260,6 +260,45 @@ class TestCmdRead:
         assert "permission denied" not in output
         assert "Allowed text." in output
 
+    def test_read_blocked_by_metadata_filter_with_hint(self, state: ShellState) -> None:
+        # Per-message filter (contentId-in) denies a doc not in the list and
+        # the message steers the agent back to the in-scope documents.
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed"],
+        }
+        state._chat_file_content_ids_cache = set()
+        output = cmd_read(state, "cont_blocked")
+        assert is_error_output(output)
+        assert "permission denied" in output
+        assert "task scope" in output
+        assert "cont_allowed" in output
+
+    def test_read_chat_attached_file_allowed_under_filter(
+        self, state: ShellState
+    ) -> None:
+        # An attached chat file is a turn input — readable even though the
+        # per-message filter would otherwise exclude it.
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_other"],
+        }
+        state._chat_file_content_ids_cache = {"cont_attached"}
+        with patch(
+            "unique_sdk.cli.commands.read.unique_sdk.Content.search",
+            return_value=[
+                _make_content(
+                    cont_id="cont_attached",
+                    chunks=[{"id": "c", "text": "Question text.", "order": 1}],
+                )
+            ],
+        ):
+            output = cmd_read(state, "cont_attached")
+        assert "permission denied" not in output
+        assert "Question text." in output
+
 
 class TestChunkInPageRange:
     def test_single_page_overlap(self) -> None:

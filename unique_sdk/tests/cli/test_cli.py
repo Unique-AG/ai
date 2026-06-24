@@ -152,6 +152,50 @@ class TestClickCLI:
         assert result.exit_code == 1
         assert "search:" in result.output
 
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_permission_denied_exits_nonzero(self, mock_ls: MagicMock) -> None:
+        """Bugbot regression: an out-of-scope ls denial must exit non-zero so
+        agent ``&&`` chains fail cleanly, like read/cite/download (UN-21780).
+        """
+        mock_ls.return_value = (
+            "ls: permission denied: target is outside your task scope "
+            "(folders: /Funds/Fund A)."
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls", "/Other"])
+        assert result.exit_code == 1
+        assert "permission denied" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_ls")
+    def test_ls_ok_exits_zero(self, mock_ls: MagicMock) -> None:
+        mock_ls.return_value = "(empty)\n0 folder(s), 0 file(s)"
+        runner = CliRunner()
+        result = runner.invoke(main, ["ls"])
+        assert result.exit_code == 0
+
+    @patch("unique_sdk.cli.cli.cmd_versions")
+    def test_versions_permission_denied_exits_nonzero(
+        self, mock_versions: MagicMock
+    ) -> None:
+        """Bugbot regression: an out-of-scope versions denial must exit
+        non-zero so agent ``&&`` chains fail cleanly (UN-21780).
+        """
+        mock_versions.return_value = (
+            "versions: permission denied: cont_x is outside your task scope "
+            "(folders: /Funds/Fund A)."
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, ["versions", "cont_x"])
+        assert result.exit_code == 1
+        assert "permission denied" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_versions")
+    def test_versions_ok_exits_zero(self, mock_versions: MagicMock) -> None:
+        mock_versions.return_value = "No versions found."
+        runner = CliRunner()
+        result = runner.invoke(main, ["versions", "cont_x"])
+        assert result.exit_code == 0
+
     @patch("unique_sdk.cli.cli.cmd_read")
     def test_read(self, mock_read: MagicMock) -> None:
         mock_read.return_value = "Content: doc (cont_abc) — 1 chunk(s)\n\ntext"
@@ -445,6 +489,53 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "Deleted scheduled task task_1" in result.output
 
+    # -- Out-of-scope denials must exit non-zero (UN-21780) --
+    # Agents chain content access with shell `&&`; a denial that exited 0
+    # would let the chain continue as if the read/cite/download succeeded.
+
+    @patch("unique_sdk.cli.cli.cmd_cite_file")
+    def test_cite_denial_exits_nonzero(self, mock_cite: MagicMock) -> None:
+        mock_cite.return_value = (
+            "cite: permission denied: cont_x is outside your task scope "
+            "(folders: /Funds). Only cite documents within that scope or "
+            "files attached to this chat."
+        )
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["cite", "cont_x", "--pages", "1", "--read-method", "text"]
+        )
+        assert result.exit_code == 1
+        assert "permission denied" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_cite_file")
+    def test_cite_success_exits_zero(self, mock_cite: MagicMock) -> None:
+        mock_cite.return_value = "[filesource1] -> cont_x page 1"
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["cite", "cont_x", "--pages", "1", "--read-method", "text"]
+        )
+        assert result.exit_code == 0
+        assert "[filesource1]" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_download")
+    def test_download_denial_exits_nonzero(self, mock_dl: MagicMock) -> None:
+        mock_dl.return_value = (
+            "download: permission denied: cont_x is outside your task scope "
+            "(folders: /Funds). Use 'unique-cli search' or 'ls' instead."
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, ["download", "cont_x"])
+        assert result.exit_code == 1
+        assert "permission denied" in result.output
+
+    @patch("unique_sdk.cli.cli.cmd_rm")
+    def test_rm_denial_exits_nonzero(self, mock_rm: MagicMock) -> None:
+        mock_rm.return_value = "rm: permission denied (outside workspace scope)"
+        runner = CliRunner()
+        result = runner.invoke(main, ["rm", "cont_x"])
+        assert result.exit_code == 1
+        assert "permission denied" in result.output
+
     @staticmethod
     def _write_chat_files_manifest() -> None:
         unique_dir = Path(".unique")
@@ -490,3 +581,34 @@ class TestClickCLI:
         runner = CliRunner()
         result = runner.invoke(main, ["cite", "report.pdf", "--pages", "3"])
         assert result.exit_code != 0
+
+
+class TestDenialDetectors:
+    """Unit tests for the dispatcher's denial/error detectors (UN-21780)."""
+
+    def test_cite_is_error_output(self) -> None:
+        from unique_sdk.cli.commands.cite_file import is_error_output
+
+        assert is_error_output("cite: permission denied: ...") is True
+        assert is_error_output("cite: invalid --pages value") is True
+        assert is_error_output("[filesource1] -> cont_x page 1") is False
+
+    def test_files_is_permission_denied_output(self) -> None:
+        from unique_sdk.cli.commands.files import (
+            is_permission_denied_output,
+        )
+
+        assert (
+            is_permission_denied_output(
+                "rm: permission denied (outside workspace scope)"
+            )
+            is True
+        )
+        assert (
+            is_permission_denied_output(
+                "download: permission denied: cont_x is outside your task "
+                "scope (folders: /Funds)."
+            )
+            is True
+        )
+        assert is_permission_denied_output("Downloaded: report.pdf -> ./x.pdf") is False

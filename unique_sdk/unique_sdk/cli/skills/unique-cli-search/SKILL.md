@@ -61,8 +61,18 @@ unique-cli search "growth" -f scope_abc123
 ```
 
 When no `--folder` is given:
-- In interactive mode: searches within the current directory
-- At root `/`: searches the entire knowledge base
+- If the task defines a scope (a per-message scope filter): that scope is the
+  search boundary, regardless of the current directory. `cd`/cwd does **not**
+  narrow further — only an explicit `--folder` ANDs an additional constraint.
+- Otherwise, in interactive mode: searches within the current directory
+- Otherwise, at root `/`: searches the entire knowledge base
+
+> **Note:** When a task scope is active, `cd` itself is **not** gated — you can
+> `cd` into a folder outside the task scope, but `ls`, `read`, `cite`,
+> `download`, etc. will then deny from there with a hint naming the in-scope
+> folders/documents. A denial after `cd`ing into a sibling folder is expected:
+> move back to an in-scope folder (or use `search`, which already searches the
+> whole task scope regardless of cwd).
 
 ## Metadata Filtering
 
@@ -87,7 +97,7 @@ unique-cli search <query> [--folder <path|scope_id>] [--metadata <key=value>]...
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--folder` | `-f` | Current dir | Folder path, name, or scope ID |
+| `--folder` | `-f` | Task scope, else current dir | Folder path, name, or scope ID |
 | `--metadata` | `-m` | None | Key=value filter (repeatable) |
 | `--limit` | `-l` | 200 | Max results |
 
@@ -170,7 +180,7 @@ Each paragraph is one ingested chunk (OCR, extracted text, image descriptions) p
 
 **When chunks are empty:** if the document was just uploaded and ingestion hasn't finished, `read` returns a message saying so — retry after a short wait. If chunks stay empty after a reasonable wait, download the file (`unique-cli download <cont_id>`) and inspect it yourself; some files are not ingested correctly and must be read directly.
 
-**`read` does not produce `[sourceN]` citations.** It is for reading and understanding document content. If you need to cite specific facts in your answer, run `unique-cli search "<relevant query>"` against the same document's folder to generate proper `[sourceN]` references.
+**`read` does not produce `[sourceN]` citations** — but you do **not** need to re-`search` to cite a document you have already read. When you have the `cont_*` ID, declare citations directly with `unique-cli cite <cont_id> --pages <N>` (documented in the `unique-cli-file-management` skill). `cite` registers `[filesourceN]` markers that render as footnotes and clickable chips on the platform, working straight from the ingested index — no re-search and no file download required, and the page numbers it expects are the same `[p.N]` physical positions `read` already prints. Re-run `unique-cli search` only when you actually need relevance-ranked `[sourceN]` chunks across documents you have not yet identified — not merely to cite something you just read.
 
 ## Prerequisites
 
