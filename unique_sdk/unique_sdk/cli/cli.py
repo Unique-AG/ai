@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import click
 
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.cite_file import cmd_cite_file
+from unique_sdk.cli.commands.cite_file import (
+    is_error_output as _is_cite_error_output,
+)
 from unique_sdk.cli.commands.dynamic_frontend import (
     cmd_dynamic_frontend_delete,
     cmd_dynamic_frontend_deploy,
@@ -29,6 +33,9 @@ from unique_sdk.cli.commands.files import (
     cmd_rm,
     cmd_upload,
     cmd_versions,
+)
+from unique_sdk.cli.commands.files import (
+    is_permission_denied_output as _is_permission_denied_output,
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
@@ -132,6 +139,25 @@ class LazyState:
         return ctx.obj
 
 
+def emit(
+    output: str,
+    *,
+    is_error: Callable[[str], bool] = _is_permission_denied_output,
+) -> None:
+    """Print a command's *output* and exit non-zero when it is an error.
+
+    Errors (e.g. a scope denial) are written to stderr and raise
+    ``SystemExit(1)`` so agent ``&&`` chains stop cleanly; successful output
+    goes to stdout. The default predicate matches the ``<cmd>: permission
+    denied`` shape shared by the scope-gated commands; pass ``is_error`` for
+    commands with their own error-detection helper (cite/read/search/...).
+    """
+    if is_error(output):
+        click.echo(output, err=True)
+        raise SystemExit(1)
+    click.echo(output)
+
+
 @click.group(invoke_without_command=True, help=MAIN_HELP)
 @click.version_option(version=__version__, prog_name="unique-cli")
 @click.pass_context
@@ -203,7 +229,8 @@ def ls(ctx: click.Context, target: str | None) -> None:
       unique-cli ls /Reports     List a specific path
       unique-cli ls scope_abc    List by scope ID
     """
-    click.echo(cmd_ls(LazyState.get(ctx), target))
+    output = cmd_ls(LazyState.get(ctx), target)
+    emit(output)
 
 
 @main.command()
@@ -221,7 +248,8 @@ def mkdir(ctx: click.Context, name: str) -> None:
       unique-cli mkdir Q2
       unique-cli mkdir "2025/Q1"
     """
-    click.echo(cmd_mkdir(LazyState.get(ctx), name))
+    output = cmd_mkdir(LazyState.get(ctx), name)
+    emit(output)
 
 
 @main.command()
@@ -246,7 +274,8 @@ def rmdir(ctx: click.Context, target: str, recursive: bool) -> None:
       unique-cli rmdir /Reports/Q1 --recursive
       unique-cli rmdir scope_abc123 -r
     """
-    click.echo(cmd_rmdir(LazyState.get(ctx), target, recursive=recursive))
+    output = cmd_rmdir(LazyState.get(ctx), target, recursive=recursive)
+    emit(output)
 
 
 @main.command()
@@ -265,7 +294,8 @@ def mvdir(ctx: click.Context, old_name: str, new_name: str) -> None:
       unique-cli mvdir Q1 "Q1-2025"
       unique-cli mvdir scope_abc123 "New Name"
     """
-    click.echo(cmd_mvdir(LazyState.get(ctx), old_name, new_name))
+    output = cmd_mvdir(LazyState.get(ctx), old_name, new_name)
+    emit(output)
 
 
 @main.command()
@@ -298,7 +328,8 @@ def upload(ctx: click.Context, local_path: str, destination: str | None) -> None
       unique-cli upload ./report.pdf Q1/
       unique-cli upload ./report.pdf /Archive/2025/
     """
-    click.echo(cmd_upload(LazyState.get(ctx), local_path, destination))
+    output = cmd_upload(LazyState.get(ctx), local_path, destination)
+    emit(output)
 
 
 @main.command()
@@ -324,7 +355,8 @@ def versions(
       unique-cli versions /Reports/Q1/report.pdf
       unique-cli versions cont_abc123 --take 10
     """
-    click.echo(cmd_versions(LazyState.get(ctx), name_or_id, skip=skip, take=take))
+    output = cmd_versions(LazyState.get(ctx), name_or_id, skip=skip, take=take)
+    emit(output)
 
 
 @main.command(name="restore-version")
@@ -340,7 +372,8 @@ def restore_version(ctx: click.Context, content_version_id: str) -> None:
     Examples:
       unique-cli restore-version cver_abc123
     """
-    click.echo(cmd_restore_version(LazyState.get(ctx), content_version_id))
+    output = cmd_restore_version(LazyState.get(ctx), content_version_id)
+    emit(output)
 
 
 @main.command()
@@ -365,7 +398,8 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
       unique-cli download annual.pdf ./downloads/
       unique-cli download cont_abc123 ~/Desktop/
     """
-    click.echo(cmd_download(LazyState.get(ctx), name_or_id, local_dest))
+    output = cmd_download(LazyState.get(ctx), name_or_id, local_dest)
+    emit(output)
 
 
 @main.command(name="cite")
@@ -376,11 +410,26 @@ def download(ctx: click.Context, name_or_id: str, local_dest: str | None) -> Non
     default=None,
     help="Page numbers to cite: '3-7' or '1,3,5'. Omit for whole-file.",
 )
+@click.option(
+    "--read-method",
+    "-m",
+    "read_method",
+    required=True,
+    help=(
+        "How you read the cited source: 'text' (page/document text, e.g. "
+        "pdftotext, PyMuPDF, MarkItDown), 'vision' (page rendered as an image "
+        "and read visually), or 'indexed' (read via the platform index with "
+        "unique-cli read). Common tool names (pdftotext, fitz, ocr, ...) are "
+        "accepted and normalized. Use separate cite calls when different pages "
+        "were read by different methods."
+    ),
+)
 @click.pass_context
 def cite(
     ctx: click.Context,
     name_or_id: str,
     pages: str | None,
+    read_method: str,
 ) -> None:
     """Declare page citations for a file.
 
@@ -388,14 +437,19 @@ def cite(
     Registers [filesourceN] markers for pages you referenced in your answer.
     Does NOT read or extract the file — use your own tools for that.
     NAME_OR_ID can be a file path, current-directory file name, or content ID.
+    --read-method is mandatory: it records how you read the page(s).
+    --pages is optional; omit it to cite the whole file (e.g. non-paginated
+    formats).
 
     \b
     Examples:
-      unique-cli cite report.pdf --pages 3,5,7
-      unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7
-      unique-cli cite cont_abc123 --pages 1-4
+      unique-cli cite report.pdf --pages 3,5,7 --read-method text
+      unique-cli cite /Reports/Q1/report.pdf --pages 3,5,7 --read-method vision
+      unique-cli cite cont_abc123 --pages 1-4 --read-method indexed
+      unique-cli cite notes.docx --read-method text
     """
-    click.echo(cmd_cite_file(LazyState.get(ctx), name_or_id, pages))
+    output = cmd_cite_file(LazyState.get(ctx), name_or_id, pages, read_method)
+    emit(output, is_error=_is_cite_error_output)
 
 
 @main.command(name="read")
@@ -473,10 +527,7 @@ def read_cmd(
         to_page=to_page,
         max_chars=max_chars,
     )
-    if _is_read_error_output(output):
-        click.echo(output, err=True)
-        raise SystemExit(1)
-    click.echo(output)
+    emit(output, is_error=_is_read_error_output)
 
 
 @main.group(name="dynamic-frontend")
@@ -590,7 +641,8 @@ def rm(ctx: click.Context, name_or_id: str) -> None:
       unique-cli rm /Reports/Q1/report.pdf
       unique-cli rm cont_abc123
     """
-    click.echo(cmd_rm(LazyState.get(ctx), name_or_id))
+    output = cmd_rm(LazyState.get(ctx), name_or_id)
+    emit(output)
 
 
 @main.command()
@@ -610,7 +662,8 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
       unique-cli mv /Reports/Q1/annual.pdf annual-2025.pdf
       unique-cli mv cont_abc123 "New Title.pdf"
     """
-    click.echo(cmd_mv_file(LazyState.get(ctx), old_name, new_name))
+    output = cmd_mv_file(LazyState.get(ctx), old_name, new_name)
+    emit(output)
 
 
 @main.command()
@@ -619,7 +672,11 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
     "--folder",
     "-f",
     default=None,
-    help="Restrict search to a folder (path, name, or scope ID). Defaults to current directory.",
+    help=(
+        "Restrict search to a folder (path, name, or scope ID). Without an "
+        "active task scope, defaults to the current directory; with one, the "
+        "task scope is the boundary and --folder ANDs an extra constraint."
+    ),
 )
 @click.option(
     "--metadata",
@@ -649,9 +706,12 @@ def search(
     both semantic similarity and keyword matching.
 
     \b
-    By default, searches within the current directory scope with up
-    to 200 results. Use --folder to target a different folder, and
-    --metadata to filter by custom metadata fields.
+    Without an active task scope, searches within the current directory
+    scope with up to 200 results; use --folder to target a different
+    folder. When the task defines a per-message scope, that scope is the
+    search boundary regardless of the current directory, and --folder
+    ANDs an additional constraint. Use --metadata to filter by custom
+    metadata fields.
 
     \b
     Examples:

@@ -8,10 +8,10 @@ from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.pipeline.transport import AsyncioRequestsTransport
 from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
 
-from unique_search_proxy_client.web.settings.providers.base import NOT_PROVIDED
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
     bing_agent_credentials,
 )
+from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def get_project_client(
     *,
     endpoint: str | None = None,
 ) -> AIProjectClient:
-    resolved_endpoint = endpoint or bing_agent_credentials.endpoint
+    resolved_endpoint = endpoint or read_secret(bing_agent_credentials.endpoint)
     if not resolved_endpoint or resolved_endpoint == NOT_PROVIDED:
         msg = "Bing agent Azure AI project endpoint is not configured"
         raise ValueError(msg)

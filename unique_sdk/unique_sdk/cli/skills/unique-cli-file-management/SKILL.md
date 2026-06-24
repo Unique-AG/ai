@@ -73,9 +73,11 @@ unique-cli read cont_abc123
 unique-cli read cont_abc123 --page 12
 unique-cli read cont_abc123 --from-page 5 --to-page 9
 
-# Declare page citations after reading a file
-unique-cli cite report.pdf --pages 3,5,7
-unique-cli cite cont_abc123 --pages 1-4
+# Declare page citations after reading a file (--read-method is mandatory)
+unique-cli cite report.pdf --pages 3,5,7 --read-method text
+unique-cli cite cont_abc123 --pages 1-4 --read-method vision
+# Non-paginated files (Excel, CSV, txt): omit --pages to cite the whole file
+unique-cli cite data.xlsx --read-method text
 
 # Delete a file
 unique-cli rm report.pdf
@@ -203,32 +205,82 @@ can attribute text to pages.
 
 ## Citing File Pages
 
-After reading **any** file and using its content in your answer, declare citations:
+After reading **any** file (PDF, Office, text, etc.) and using its content in your
+answer, declare citations. `cite` works on **any** file type, not just PDFs.
+`--read-method` is **mandatory**: it records how you actually read the cited page(s).
 
 ```bash
-unique-cli cite report.pdf --pages 3,5
-unique-cli cite cont_abc123 --pages 1-4
+unique-cli cite report.pdf --pages 3,5 --read-method text
+unique-cli cite cont_abc123 --pages 1-4 --read-method vision
+unique-cli cite data.xlsx --read-method text          # non-paginated: omit --pages
 ```
 
 This registers `[filesourceN]` markers. Use them inline in your answer.
 The platform converts `[filesourceN]` into footnotes and clickable reference chips.
 
-**MANDATORY 3-step verification before EVERY `unique-cli cite` call — NO EXCEPTIONS:**
+**Which page number to cite.** `cite` expects **physical page positions** (1-based) — the same positions ingestion assigns and that `unique-cli read` prints as `[p.N]` / `[p.N-M]` prefixes. NEVER cite a printed page number from a header/footer; those often differ from the physical position.
 
-1. `pdfinfo file.pdf | grep Pages` — get total physical page count.
-2. For **each** page you intend to cite, run `pdftotext -f N -l N file.pdf -` and confirm the content you are referencing is actually on that physical page. Do NOT skip this. Do NOT assume page numbers.
-3. Only after step 2 confirms a match, call `unique-cli cite` with the verified physical page numbers.
+**Preferred path — you read the file with `unique-cli read` (no download needed):**
+The `[p.N]` markers in `read` output are already physical positions from ingestion, identical to what `cite` consumes. Cite those page numbers directly. Do **not** download the file or run `pdfinfo` / `pdftotext` just to re-derive pages you can already see in the `read` output — that duplicates work `read` already did and wastes round-trips.
 
-Page numbers are **physical PDF positions** (1-based). NEVER use printed page numbers from headers/footers — they often differ from physical positions.
+**Fallback path — verify against the raw file only when you must:**
+If you obtained the content some other way (you `download`ed the raw bytes and parsed them yourself, or `read` returned text with no `[p.N]` markers), confirm the physical page before citing:
 
+1. `pdfinfo file.pdf | grep Pages` — total physical page count.
+2. For **each** page you intend to cite, run `pdftotext -f N -l N file.pdf -` and confirm the referenced content is actually on that physical page.
+3. Cite only the verified physical page numbers.
+
+**`--pages` is optional.** Omit it to cite the **whole file**. Paginated formats
+(PDF, PPTX) take page/slide numbers; **non-paginated formats (Excel `.xlsx`/`.xls`,
+CSV, `.txt`, HTML, images) have no pages — always omit `--pages`** and cite the
+whole file.
+
+**Choosing `--read-method`** (declare the *representation* of the source you actually read):
+
+- `text` → you used **extracted text** (`pdftotext`, PyMuPDF / `fitz` `page.get_text()`, MarkItDown, or any text extraction).
+- `vision` → you read a **rendered image** of the page/slide (e.g. `get_pixmap()`) with your vision capability.
+- `indexed` → you relied on **`unique-cli read`** output (the platform's indexed chunks).
+
+| Value | When to use |
+|-------|-------------|
+| `text` | You read the page/document as extracted text and used that text. |
+| `vision` | You rendered the page to an image and read it with your vision capability. |
+| `indexed` | You read the content via `unique-cli read` (indexed chunks). |
+
+**Verify page numbers before citing — unless you already have them from `unique-cli read`.**
+If you cited straight from `unique-cli read` output (`--read-method indexed`), its
+`[p.N]` / `[p.N-M]` markers are already physical positions — skip the checks below
+and cite them directly. Otherwise — you read the raw bytes yourself
+(`--read-method text`/`vision`) — pick the row matching the file you read and
+verify the cited content really is where you claim before calling `cite`:
+
+- **PDF** — `pdfinfo file.pdf | grep Pages` for the total physical page count, then
+  for **each** page run `pdftotext -f N -l N file.pdf -` and confirm the content is
+  on that physical page. Page numbers are **physical PDF positions** (1-based);
+  NEVER use printed page numbers from headers/footers — they often differ.
+- **PPTX** — the page number is the **slide number** (1-based). Verify against the
+  slide you actually read.
+- **DOCX** — use the rendered page from your text extraction; if there is no
+  reliable page boundary, cite the **whole file** (omit `--pages`).
+- **Non-paginated (XLSX/CSV/TXT/HTML/images)** — there are no pages. Do **NOT**
+  pass `--pages`; cite the whole file and verify the content exists in it.
+
+Then determine `--read-method`: report the representation you actually read. In a
+fallback chain (e.g. text extraction returned nothing → render + read visually),
+report `text` if you used extracted text or `vision` if you read a rendered image.
+Only after verifying, call `unique-cli cite` with the verified page numbers (if any)
+and `--read-method`.
+
+- **One method per `cite` call.** If different pages were read with different methods, issue separate `cite` calls — one per method.
 - Numbers are **per-turn only**; do not reuse from prior turns.
-- Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search`.
+- Do NOT use `cite` for content from `unique-cli search` or `unique-cli web-search` — those are referenced automatically.
 
 ## Error Handling
 
 - If env vars are missing, the CLI exits with a clear error listing the missing variables.
 - File-not-found and folder-not-found errors are returned as text, not exceptions.
-- All commands print their result to stdout -- parse output as needed.
+- Successful results print to stdout -- parse output as needed.
+- Scope denials (e.g. a file or folder outside the task scope) print to **stderr** and exit with a **non-zero** status, so a denial in an `&&` chain stops the chain instead of being treated as success. Read the stderr message: it names the in-scope folders/documents to redirect you, rather than retrying the same out-of-scope target.
 
 ## Interactive Mode
 

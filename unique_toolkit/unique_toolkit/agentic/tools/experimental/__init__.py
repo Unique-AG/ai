@@ -1,3 +1,7 @@
+from unique_toolkit.agentic.tools.experimental.ask_user_tool import (
+    AskUserTool,
+    AskUserToolConfig,
+)
 from unique_toolkit.agentic.tools.experimental.open_file_tool import (
     OpenFileTool,
     OpenFileToolRuntime,
@@ -19,6 +23,8 @@ from unique_toolkit.agentic.tools.experimental.todo import (
 )
 
 __all__ = [
+    "AskUserTool",
+    "AskUserToolConfig",
     "DisplayMode",
     "OpenFileTool",
     "OpenFileToolRuntime",

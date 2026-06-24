@@ -1,6 +1,6 @@
 [project]
 name = "unique-search-proxy"
-version = "2026.26.0"
+version = "2026.28.0.dev1"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
@@ -20,8 +20,9 @@ dependencies = [
     "certifi>=2025.11.12,<2027",
     "google-genai>=1.73.0,<2",
     "google-auth>=2.43.0,<3",
-    "unique-toolkit[monitoring]>=2026.26.0",
-    "unique-search-proxy-core>=2026.26.0",
+    "jinja2>=3.1.6,<4",
+    "unique-toolkit[monitoring]>=2026.28.0.dev2,<2026.28.0rc0",
+    "unique-search-proxy-core>=2026.28.0.dev0,<2026.28.0rc0",
 ]
 
 [dependency-groups]
@@ -77,6 +78,8 @@ DEP003 = ["unique_toolkit", "unique_search_proxy_core"]
 
 [tool.poe.tasks]
 generate-sdk = "python scripts/generate_sdk.py"
+generate-helm-config = "python scripts/generate_helm_config.py"
+render-helm-fixtures = "bash scripts/render_helm_fixtures.sh"
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."

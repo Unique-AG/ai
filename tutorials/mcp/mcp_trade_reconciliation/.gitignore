@@ -1,0 +1,9 @@
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+.ruff_cache
+uv.lock
+azure-pg-connection.txt
+secrets.sh

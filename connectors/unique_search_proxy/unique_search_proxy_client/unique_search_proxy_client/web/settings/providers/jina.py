@@ -4,13 +4,19 @@ from typing import Literal
 
 from pydantic import Field
 
+from unique_search_proxy_client.web.helm.metadata import (
+    EgressDomainWildcard,
+    helm_settings,
+)
 from unique_search_proxy_client.web.settings.base import get_settings
 from unique_search_proxy_client.web.settings.providers.base import (
-    NOT_PROVIDED,
     ProviderCredentials,
     provider_credentials,
 )
-from unique_search_proxy_client.web.settings.secret_str import LogSecretStr
+from unique_search_proxy_client.web.settings.secret_str import (
+    NOT_PROVIDED,
+    LogSecretStr,
+)
 
 _JINA_DOMAIN = "jina.ai"
 _JINA_SUBDOMAINS: dict[str, dict[str, str]] = {
@@ -22,6 +28,13 @@ _DEFAULT_JINA_DEPLOYMENT: JinaDeployment = "global"
 _ENV_PREFIX = "JINA_"
 
 
+# Reader/search hosts are computed subdomains of ``api_domain``; a wildcard FQDN
+# covers both operations and both deployments (global / eu-beta).
+@helm_settings(
+    title="Jina",
+    helm_key="jina",
+    egress=EgressDomainWildcard("api_domain"),
+)
 @provider_credentials(_ENV_PREFIX)
 class _JinaCredentials(ProviderCredentials):
     """Environment-backed credentials for Jina Reader and Search."""

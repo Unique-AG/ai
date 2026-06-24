@@ -32,6 +32,7 @@ class ReferenceManager:
         self._tool_chunks: dict[str, tool_chunks] = {}
         self._chunks: list[ContentChunk] = []
         self._references: list[list[ContentReference]] = []
+        self._external_context_texts: list[str] = []
 
     def extract_referenceable_chunks(
         self, tool_responses: list[ToolCallResponse]
@@ -46,6 +47,21 @@ class ReferenceManager:
 
     def get_chunks(self) -> list[ContentChunk]:
         return self._chunks
+
+    def add_external_context_texts(self, texts: list[str]) -> None:
+        """Register groundedness context that is not backed by ContentChunks.
+
+        Some retrieval sources (e.g. MCP tool output) provide text the answer
+        is built on but are deliberately *not* modelled as ContentChunks — they
+        are a different entity from ingested document chunks and must not flow
+        through the chunk/reference pipeline. They still need to ground the
+        hallucination check, so they are stored here and appended to the
+        evaluation context alongside the chunk-derived texts.
+        """
+        self._external_context_texts.extend(text for text in texts if text)
+
+    def get_external_context_texts(self) -> list[str]:
+        return self._external_context_texts
 
     def get_tool_chunks(self) -> dict[str, tool_chunks]:
         return self._tool_chunks

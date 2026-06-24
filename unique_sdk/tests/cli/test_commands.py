@@ -70,6 +70,48 @@ def _folder_info(
     }
 
 
+class TestIsPermissionDeniedOutput:
+    def test_denial_lines_detected(self) -> None:
+        from unique_sdk.cli.commands.files import is_permission_denied_output
+
+        for out in (
+            "upload: permission denied (outside workspace scope)",
+            "upload: permission denied: destination is outside your task scope.",
+            "restore-version: permission denied: cannot verify the target.",
+            "ls: permission denied: target is outside your task scope.",
+            "download: permission denied: cont_x is outside your task scope.",
+        ):
+            assert is_permission_denied_output(out), out
+
+    def test_success_containing_phrase_not_flagged(self) -> None:
+        from unique_sdk.cli.commands.files import is_permission_denied_output
+
+        # A successful result must not exit non-zero just because its text
+        # contains the phrase (e.g. a filename). Successes are capitalised.
+        for out in (
+            'Uploaded: "permission denied.pdf" (cont_1) to /Reports',
+            "Downloaded: permission denied notes.txt -> /tmp/x",
+            "Renamed permission denied.pdf",
+            # A multi-line success whose *later* line happens to start with a
+            # lowercase token + ": permission denied" must NOT be flagged: the
+            # regex anchors at the start of the string only (no re.MULTILINE),
+            # so only a result that *begins* with the denial shape counts.
+            "Downloaded: report.pdf -> /tmp/x\nfoo: permission denied (in body)",
+        ):
+            assert not is_permission_denied_output(out), out
+
+
+def _folder_path_side_effect(mapping: dict[str, str]):  # type: ignore[no-untyped-def]
+    """Side effect for Folder.get_folder_path mapping scope_id -> folderPath."""
+
+    def _inner(*, user_id, company_id, scope_id):  # type: ignore[no-untyped-def]
+        if scope_id in mapping:
+            return {"folderPath": mapping[scope_id]}
+        raise Exception(f"folder not found: {scope_id}")
+
+    return _inner
+
+
 def _content_info(
     title: str = "report.pdf",
     cid: str = "cont_123",
@@ -181,6 +223,214 @@ class TestNavigation:
         result = cmd_ls(state)
         assert "0 folder(s), 0 file(s)" in result
         mock_folders.assert_called_once()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_metadata_filter_scoped(
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """ls at root with a per-message filter shows only its folders + docs.
+
+        The doc is shown only because it satisfies the *full* AND filter (it
+        lives in Fund A); root ls verifies this via is_content_within_workspace.
+        """
+        mock_folder.return_value = _folder_info("Fund A", "scope_fund_a")
+        # cont_1's owner folder resolves into Fund A, so the AND filter holds.
+        info = _content_info("memo.pdf", "cont_1")
+        info["ownerId"] = "scope_fund_a"
+        mock_content.return_value = {"contentInfo": [info]}
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        state = _state()
+        # Static scope present but the per-message filter takes precedence.
+        state.workspace_scope_ids = ["scope_broad"]
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "uniquepathid://scope_root/scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_1"],
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "Fund A/" in result
+        assert "memo.pdf" in result
+        assert "in task scope" in result
+        mock_folder.assert_called_once_with(
+            user_id="u1", company_id="c1", scopeId="scope_fund_a"
+        )
+        assert mock_content.call_args.kwargs["contentId"] == "cont_1"
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_info")
+    def test_ls_root_hides_contentid_excluded_by_and(
+        self,
+        mock_folder: MagicMock,
+        mock_content: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """Regression: a contentId in the filter that the *full* AND filter
+        excludes (its owner folder is outside the required scope) must not have
+        its title listed at root — read/cite and in-folder ls already deny it.
+        See UN-21780.
+        """
+        mock_folder.return_value = _folder_info("Fund A", "scope_fund_a")
+        # cont_x is named by the contentId leaf but lives outside Fund A.
+        info = _content_info("secret.pdf", "cont_x")
+        info["ownerId"] = "scope_other"
+        mock_content.return_value = {"contentInfo": [info]}
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A", "scope_other": "/Other"}
+        )
+        state = _state()
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "uniquepathid://scope_root/scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_x"],
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "secret.pdf" not in result
+        assert "0 file(s)" in result.split("folder(s),")[1]
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_target_outside_metadata_filter_denied(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        """A non-root ls target outside the per-message scope is denied."""
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "folderPath": {
+                    "scope_fund_a": "/Funds/Fund A",
+                    "scope_outside": "/Other",
+                }.get(scope, "")
+            }
+
+        mock_path.side_effect = path_for
+        state = _state("/Other", "scope_outside")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_fund_a",
+        }
+        result = cmd_ls(state)
+        assert "permission denied" in result
+        mock_folders.assert_not_called()
+        mock_files.assert_not_called()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_target_inside_metadata_filter_allowed(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+    ) -> None:
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_fund_a": {"folderPath": "/Funds/Fund A"},
+                "scope_sub": {"folderPath": "/Funds/Fund A/Sub"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {"contentInfos": [], "totalCount": 0}
+        state = _state("/Funds/Fund A/Sub", "scope_sub")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_fund_a",
+        }
+        result = cmd_ls(state)
+        assert "permission denied" not in result
+        mock_folders.assert_called_once()
+
+    @patch("unique_sdk.Content.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_infos")
+    def test_ls_inside_folder_filters_files_to_allowlist(
+        self,
+        mock_folders: MagicMock,
+        mock_files: MagicMock,
+        mock_path: MagicMock,
+        mock_info: MagicMock,
+    ) -> None:
+        """A combined folder + contentId filter must hide non-allowlisted
+        files even when listing inside the allowed folder (UN-21780).
+        """
+
+        def path_for(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            scope = kwargs.get("scope_id")
+            return {
+                "scope_fund_a": {"folderPath": "/Funds/Fund A"},
+                "scope_owner": {"folderPath": "/Funds/Fund A"},
+            }.get(scope, {"folderPath": ""})
+
+        mock_path.side_effect = path_for
+        # Both files live in the allowed folder; only the allowlisted one
+        # should survive the contentId leaf of the AND filter.
+        mock_info.return_value = {"contentInfo": [{"ownerId": "scope_owner"}]}
+        mock_folders.return_value = {"folderInfos": [], "totalCount": 0}
+        mock_files.return_value = {
+            "contentInfos": [
+                _content_info("allowed.pdf", "cont_allowed"),
+                _content_info("blocked.pdf", "cont_blocked"),
+            ],
+            "totalCount": 2,
+        }
+        state = _state("/Funds/Fund A", "scope_fund_a")
+        state._chat_file_content_ids_cache = set()
+        state.workspace_metadata_filter = {
+            "and": [
+                {
+                    "path": ["folderIdPath"],
+                    "operator": "contains",
+                    "value": "scope_fund_a",
+                },
+                {
+                    "path": ["contentId"],
+                    "operator": "in",
+                    "value": ["cont_allowed"],
+                },
+            ]
+        }
+        result = cmd_ls(state)
+        assert "allowed.pdf" in result
+        assert "blocked.pdf" not in result
+        # The in-scope count is for the current page; the folder's real total
+        # (from the API totalCount) is preserved as "(of N in folder)" rather
+        # than being overwritten by the filtered page length. See UN-21780.
+        assert "1 file(s) in task scope (of 2 in folder)" in result
 
 
 # --- Folders ---
@@ -329,6 +579,171 @@ class TestFiles:
             _state("/Reports", "scope_r"),
             "report.pdf",
         )
+        assert cid == "cont_123"
+        assert name == "report.pdf"
+
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_by_name_gated_by_metadata_filter(self, mock: MagicMock) -> None:
+        """Resolving by file name must not bypass the per-message scope.
+
+        The cont_ fast-path checks is_content_within_workspace; the name/path
+        resolution path must gate the *resolved* id the same way (UN-21780).
+        """
+        mock.return_value = {"contentInfos": [_content_info()]}
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed_only"],
+        }
+        s._chat_file_content_ids_cache = set()
+        with pytest.raises(ValueError, match="permission denied"):
+            _resolve_content_id(s, "report.pdf")
+
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_by_name_at_root_with_filter_refuses_whole_kb_scan(
+        self, mock: MagicMock
+    ) -> None:
+        """At the KB root (no folder context) a bare file name would resolve via
+        an unparented whole-KB scan. With a per-message filter active that is a
+        cross-scope existence/title oracle, so it must be refused *before* any
+        Content.get_infos call rather than scan everything and gate per id. See
+        UN-21780.
+        """
+        s = _state("/", None)
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_allowed_only"],
+        }
+        s._chat_file_content_ids_cache = set()
+        with pytest.raises(ValueError, match="permission denied"):
+            _resolve_content_id(s, "report.pdf")
+        mock.assert_not_called()
+
+    @patch("unique_sdk.Content.delete")
+    def test_rm_denies_out_of_scope_chat_attachment(
+        self, mock_delete: MagicMock
+    ) -> None:
+        """A chat attachment outside the task scope is read-exempt but must not
+        be deletable via that exemption. See UN-21780.
+        """
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_in_scope"],
+        }
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        # Read-exempt...
+        assert s.is_content_within_workspace("cont_attached")
+        # ...but rm is denied.
+        result = cmd_rm(s, "cont_attached")
+        assert "permission denied" in result
+        mock_delete.assert_not_called()
+
+    @patch("unique_sdk.Content.delete")
+    @patch("unique_sdk.Content.get_infos")
+    def test_rm_by_name_denies_out_of_scope_chat_attachment(
+        self, mock_infos: MagicMock, mock_delete: MagicMock
+    ) -> None:
+        """Resolving by file name must honour the same read-only exemption —
+        rm <name> can't reach an out-of-scope chat attachment. See UN-21780.
+        """
+        mock_infos.return_value = {
+            "contentInfos": [_content_info("attached.pdf", "cont_attached")]
+        }
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_in_scope"],
+        }
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        result = cmd_rm(s, "attached.pdf")
+        assert "permission denied" in result
+        mock_delete.assert_not_called()
+
+    @patch("unique_sdk.Content.update")
+    def test_mv_denies_out_of_scope_chat_attachment(
+        self, mock_update: MagicMock
+    ) -> None:
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_in_scope"],
+        }
+        s._chat_file_content_ids_cache = {"cont_attached"}
+        result = cmd_mv_file(s, "cont_attached", "renamed.pdf")
+        assert "permission denied" in result
+        mock_update.assert_not_called()
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    def test_resolve_by_path_in_filter_not_blocked_by_static_scope(
+        self, mock_finfo: MagicMock, mock_cinfos: MagicMock
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds for content
+        access, so a path lookup to an in-filter folder outside the static
+        scope must resolve (the resolved id is gated by the filter). See
+        UN-21780.
+        """
+        mock_finfo.return_value = {"id": "scope_allowed"}
+        mock_cinfos.return_value = {
+            "contentInfos": [_content_info("memo.pdf", "cont_1")]
+        }
+        s = _state("/", None)
+        s.workspace_scope_ids = ["scope_admin"]
+        s._workspace_scope_paths = ["/Admin"]
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_1"],
+        }
+        s._chat_file_content_ids_cache = set()
+        cid, name = _resolve_content_id(s, "/Funds/Fund A/memo.pdf")
+        assert cid == "cont_1"
+        assert name == "memo.pdf"
+
+    @patch("unique_sdk.Content.get_infos")
+    @patch("unique_sdk.Folder.get_info")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_resolve_by_path_out_of_filter_folder_denied_without_lookup(
+        self,
+        mock_fpath: MagicMock,
+        mock_finfo: MagicMock,
+        mock_cinfos: MagicMock,
+    ) -> None:
+        """A path into a folder outside the per-message filter scope is denied
+        structurally — before Folder.get_info or the name scan — so a matching
+        out-of-scope file can't leak its existence (task-scope permission denied
+        vs File not found). See UN-21780.
+        """
+        mock_fpath.return_value = {"folderPath": "/Allowed"}
+        s = _state("/", None)
+        s.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        s._chat_file_content_ids_cache = set()
+        with pytest.raises(ValueError, match="permission denied"):
+            _resolve_content_id(s, "/Outside/secret.pdf")
+        mock_finfo.assert_not_called()
+        mock_cinfos.assert_not_called()
+
+    @patch("unique_sdk.Content.get_infos")
+    def test_resolve_by_name_allowed_by_metadata_filter(self, mock: MagicMock) -> None:
+        mock.return_value = {"contentInfos": [_content_info()]}
+        s = _state("/Reports", "scope_r")
+        s.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_123"],
+        }
+        s._chat_file_content_ids_cache = set()
+        cid, name = _resolve_content_id(s, "report.pdf")
         assert cid == "cont_123"
         assert name == "report.pdf"
 
@@ -715,6 +1130,260 @@ class TestFiles:
 
     @patch("unique_sdk.Folder.get_folder_path")
     @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_blocked_by_metadata_filter_without_scope_ids(
+        self,
+        mock_upload: MagicMock,
+        mock_path: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """A per-message metaDataFilter (no static scopeIds) must gate the
+        upload destination, not leave it unrestricted (UN-21780).
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        f = tmp_path / "test.pdf"
+        f.write_text("content")
+        state = _state("/Other", "scope_other")
+        # No static scopeIds, only a per-message folder filter.
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_upload(state, str(f), "scope_other")
+        assert "permission denied" in result
+        mock_upload.assert_not_called()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_allowed_by_metadata_filter(
+        self,
+        mock_upload: MagicMock,
+        mock_path: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        f = tmp_path / "test.pdf"
+        f.write_text("content")
+        mock_result = MagicMock()
+        mock_result.id = "cont_new"
+        mock_upload.return_value = mock_result
+        state = _state("/Funds/Fund A", "scope_allowed")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_upload(state, str(f), "scope_allowed")
+        assert "Uploaded" in result
+        mock_upload.assert_called_once()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.files.upload_file")
+    def test_upload_in_filter_not_blocked_by_static_scope(
+        self,
+        mock_upload: MagicMock,
+        mock_path: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds, so an
+        in-filter upload destination outside the static scope must not be
+        over-denied by the static-scope check. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        f = tmp_path / "test.pdf"
+        f.write_text("content")
+        mock_result = MagicMock()
+        mock_result.id = "cont_new"
+        mock_upload.return_value = mock_result
+        state = _state("/Funds/Fund A", "scope_allowed")
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_upload(state, str(f), "scope_allowed")
+        assert "Uploaded" in result
+        mock_upload.assert_called_once()
+
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_blocked_by_metadata_filter(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        """A per-message filter must gate folder creation, not just static
+        scopeIds — mkdir under an out-of-scope cwd is denied (UN-21780).
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A", "scope_other": "/Other"}
+        )
+        state = _state("/Other", "scope_other")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mkdir(state, "Q2")
+        assert "permission denied" in result
+        mock_create.assert_not_called()
+
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_allowed_by_metadata_filter(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        state = _state("/Funds/Fund A", "scope_allowed")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mkdir(state, "Q2")
+        assert "Created" in result
+        mock_create.assert_called_once()
+
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_in_filter_not_blocked_by_static_scope(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds, so an
+        in-filter destination outside the static scope must not be over-denied
+        by the static-scope check. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        mock_create.return_value = {"createdFolders": [{"id": "scope_new"}]}
+        state = _state("/Funds/Fund A", "scope_allowed")
+        # Static scope covers a different subtree; the filter is authoritative.
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mkdir(state, "Q2")
+        assert "Created" in result
+        mock_create.assert_called_once()
+
+    @patch("unique_sdk.Folder.create_paths")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mkdir_dotdot_escapes_metadata_filter_blocked(
+        self, mock_path: MagicMock, mock_create: MagicMock
+    ) -> None:
+        """Regression: `mkdir ../Other/X` from an in-scope cwd must be denied —
+        the gate checks the normalized destination path, not just cwd's scope
+        id. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_fund_a": "/Funds/Fund A"}
+        )
+        state = _state("/Funds/Fund A", "scope_fund_a")
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_fund_a",
+        }
+        result = cmd_mkdir(state, "../Fund B/Secret")
+        assert "permission denied" in result
+        mock_create.assert_not_called()
+
+    @patch("unique_sdk.Folder.delete")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_rmdir_blocked_by_metadata_filter(
+        self, mock_path: MagicMock, mock_delete: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A", "scope_other": "/Other"}
+        )
+        state = _state("/", None)
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_rmdir(state, "scope_other", recursive=True)
+        assert "permission denied" in result
+        mock_delete.assert_not_called()
+
+    @patch("unique_sdk.Folder.update")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mvdir_blocked_by_metadata_filter(
+        self, mock_path: MagicMock, mock_update: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A", "scope_other": "/Other"}
+        )
+        state = _state("/", None)
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mvdir(state, "scope_other", "New Name")
+        assert "permission denied" in result
+        mock_update.assert_not_called()
+
+    @patch("unique_sdk.Folder.delete")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_rmdir_in_filter_not_blocked_by_static_scope(
+        self, mock_path: MagicMock, mock_delete: MagicMock
+    ) -> None:
+        """An active per-message filter replaces the static scopeIds, so an
+        in-filter target outside the static scope must not be over-denied by
+        the static-scope check. See UN-21780.
+        """
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        state = _state("/", None)
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_rmdir(state, "scope_allowed", recursive=True)
+        assert "permission denied" not in result
+        mock_delete.assert_called_once()
+
+    @patch("unique_sdk.Folder.update")
+    @patch("unique_sdk.Folder.get_folder_path")
+    def test_mvdir_in_filter_not_blocked_by_static_scope(
+        self, mock_path: MagicMock, mock_update: MagicMock
+    ) -> None:
+        mock_path.side_effect = _folder_path_side_effect(
+            {"scope_allowed": "/Funds/Fund A"}
+        )
+        mock_update.return_value = {"id": "scope_allowed", "name": "New Name"}
+        state = _state("/", None)
+        state.workspace_scope_ids = ["scope_admin"]
+        state._workspace_scope_paths = ["/Admin"]
+        state.workspace_metadata_filter = {
+            "path": ["folderIdPath"],
+            "operator": "contains",
+            "value": "scope_allowed",
+        }
+        result = cmd_mvdir(state, "scope_allowed", "New Name")
+        assert "permission denied" not in result
+        mock_update.assert_called_once()
+
+    @patch("unique_sdk.Folder.get_folder_path")
+    @patch("unique_sdk.cli.commands.files.upload_file")
     @patch("unique_sdk.cli.commands.files.mimetypes.guess_type")
     def test_upload_xlsx_uses_supported_mime_type_mapping(
         self,
@@ -835,6 +1504,47 @@ class TestFiles:
         state._workspace_scope_paths = ["/Workspace"]
         result = cmd_restore_version(state, "cver_1")
         assert "permission denied" in result
+        mock_restore.assert_not_called()
+
+    @patch("unique_sdk.Content.restore_version")
+    def test_restore_version_blocked_by_metadata_filter(
+        self,
+        mock_restore: MagicMock,
+    ) -> None:
+        """A per-message filter can't be verified before the restore mutates,
+        so restore-version is denied while one is active (UN-21780).
+        """
+        state = _state()
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_x"],
+        }
+        result = cmd_restore_version(state, "cver_1")
+        assert "permission denied" in result
+        mock_restore.assert_not_called()
+
+    @patch("unique_sdk.Content.restore_version")
+    def test_restore_version_filter_denial_precedes_static_scope(
+        self,
+        mock_restore: MagicMock,
+    ) -> None:
+        """When a per-message filter is active it replaces the static scope for
+        the turn, so an out-of-static-scope cwd must still surface the
+        filter-specific 'cannot verify the target' denial (with the task-scope
+        hint), not the hint-less static denial. See UN-21780.
+        """
+        state = _state("/Outside", "scope_other")
+        state.workspace_scope_ids = ["scope_ws"]
+        state._workspace_scope_paths = ["/Workspace"]
+        state.workspace_metadata_filter = {
+            "path": ["contentId"],
+            "operator": "in",
+            "value": ["cont_x"],
+        }
+        result = cmd_restore_version(state, "cver_1")
+        assert "cannot verify the target" in result
+        assert "outside workspace scope" not in result
         mock_restore.assert_not_called()
 
     @patch("unique_sdk.cli.commands.files.shutil.move")

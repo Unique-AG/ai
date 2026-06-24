@@ -23,6 +23,14 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Check generated Helm artifacts drift
+        run: |
+          cd connectors/unique_search_proxy/unique_search_proxy_client
+          uv run python scripts/generate_helm_config.py --check
+
       - name: Login to GHCR
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -30,6 +38,12 @@ jobs:
 
       - name: Check values.schema.json drift
         run: scripts/render-values-schema.sh --check
+
+      - name: Install helm-docs
+        uses: ./.github/actions/install-helm-docs
+
+      - name: Check chart README.md drift
+        run: scripts/render-helm-docs.sh --check
 
   prepare:
     runs-on: ubuntu-latest

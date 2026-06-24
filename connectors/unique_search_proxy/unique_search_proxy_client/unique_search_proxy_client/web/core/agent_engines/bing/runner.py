@@ -20,6 +20,7 @@ from unique_search_proxy_client.web.core.agent_engines.structured_output import 
     build_agent_instructions,
 )
 from unique_search_proxy_client.web.settings.providers import bing_agent as settings
+from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
 
 _LOGGER = logging.getLogger(__name__)
 _AGENT_NAME_IDENTIFIER = "UNIQUE_GROUNDING_WITH_BING_AGENT"
@@ -38,7 +39,7 @@ async def _create_agent_id(agent_client: AIProjectClient) -> str:
     creds = settings.bing_agent_credentials
     agent = await agent_client.agents.create_agent(
         name=_AGENT_NAME_IDENTIFIER,
-        model=creds.bing_agent_model,
+        model=read_secret(creds.bing_agent_model),
     )
     return agent.id
 
@@ -55,8 +56,10 @@ async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
 
 
 def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
-    connection_id = settings.bing_agent_credentials.bing_resource_connection_string
-    if not connection_id or connection_id == "NOT_PROVIDED":
+    connection_id = read_secret(
+        settings.bing_agent_credentials.bing_resource_connection_string,
+    )
+    if not connection_id or connection_id == NOT_PROVIDED:
         msg = "Bing agent resource connection string is not configured"
         raise ValueError(msg)
     return BingGroundingTool(connection_id=connection_id, count=fetch_size)
@@ -130,7 +133,7 @@ async def _create_agent_and_run_thread(
     resolved_agent_id = await get_or_create_agent_id(agent_client)
     return await agent_client.agents.create_thread_and_process_run(
         agent_id=resolved_agent_id,
-        model=creds.bing_agent_model,
+        model=read_secret(creds.bing_agent_model),
         toolset=get_bing_grounding_tool(fetch_size=fetch_size),  # type: ignore[arg-type]
         instructions=instructions,
         thread=AgentThreadCreationOptions(

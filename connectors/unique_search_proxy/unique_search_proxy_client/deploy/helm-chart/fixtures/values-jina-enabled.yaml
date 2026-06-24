@@ -1,0 +1,13 @@
+# Overlay fixture: enable Jina Reader/Search (no real secrets).
+jina:
+  enabled: true
+  connection:
+    deployment: global
+    apiDomain: jina.ai
+    apiKey:
+      fromSecret:
+        name: search-proxy-secrets
+        key: JINA_API_KEY
+
+networkPolicy:
+  enabled: true

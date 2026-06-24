@@ -5,27 +5,70 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import unique_sdk
 from unique_sdk.cli.config import Config
+from unique_sdk.cli.metadata_filter import MetadataFilter
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
+_CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
-def _load_workspace_scope_ids() -> list[str]:
+def _load_search_config() -> dict[str, Any]:
+    """Load ``.unique-search.json`` from the cwd, or ``{}`` when absent/invalid."""
     config_path = Path.cwd() / _SEARCH_CONFIG_FILENAME
     if not config_path.is_file():
-        return []
+        return {}
     try:
         data = json.loads(config_path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return []
-        scope_ids = data.get("scopeIds")
-        if isinstance(scope_ids, list) and all(isinstance(s, str) for s in scope_ids):
-            return scope_ids
     except (json.JSONDecodeError, OSError):
-        pass
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _load_workspace_scope_ids(data: dict[str, Any]) -> list[str]:
+    scope_ids = data.get("scopeIds")
+    if isinstance(scope_ids, list) and all(isinstance(s, str) for s in scope_ids):
+        return scope_ids
     return []
+
+
+def _load_workspace_metadata_filter(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Per-message UniqueQL scope written by the Swappable Intelligence runner.
+
+    When present (e.g. from an Agentic Table column's ``scope_rules``), it
+    expresses scopes a flat ``scopeIds`` list cannot — recursive folder
+    CONTAINS, contentId IN, boolean trees — and takes precedence over the
+    static ``scopeIds``. See UN-21780.
+    """
+    metadata_filter = data.get("metaDataFilter")
+    return (
+        metadata_filter
+        if isinstance(metadata_filter, dict) and metadata_filter
+        else None
+    )
+
+
+def _load_chat_file_content_ids() -> set[str]:
+    """Content IDs of files attached to this chat, from ``.unique/chat-files.json``.
+
+    The Swappable Intelligence runner downloads chat-attached files into the
+    workspace and writes a ``{filename: contentId}`` manifest. These are turn
+    *inputs* (e.g. an Agentic Table row's question file), not knowledge-base
+    documents, so they must stay readable regardless of the per-message KB
+    scope filter. Returns an empty set when the manifest is absent or invalid.
+    """
+    path = Path.cwd() / _CHAT_FILES_MANIFEST_PATH
+    if not path.is_file():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return set()
+    if not isinstance(data, dict):
+        return set()
+    return {v for v in data.values() if isinstance(v, str) and v.startswith("cont_")}
 
 
 class ShellState:
@@ -35,8 +78,49 @@ class ShellState:
         self.config = config
         self._path = "/"
         self._scope_id: str | None = None
-        self.workspace_scope_ids: list[str] = _load_workspace_scope_ids()
         self._workspace_scope_paths: list[str] | None = None
+        # Per-turn caches for per-message metadata-filter content gating. Keyed
+        # by id; populated lazily so repeated reads/cites of the same document
+        # cost at most one resolution per turn. Initialised before the filter
+        # below because the setter wires these cached lookups into it.
+        # See UN-21780.
+        self._scope_path_cache: dict[str, str | None] = {}
+        self._content_owner_path_cache: dict[str, str | None] = {}
+        self._chat_file_content_ids_cache: set[str] | None = None
+        # Raw ``Content.get_info`` item per content id, shared by the scope
+        # gate (owner path) and citation title resolution so a read+cite of
+        # the same document costs one info call per turn. See UN-21780.
+        self._content_info_cache: dict[str, unique_sdk.Content.ContentInfo | None] = {}
+        _search_config = _load_search_config()
+        self.workspace_scope_ids: list[str] = _load_workspace_scope_ids(_search_config)
+        # The MetadataFilter (when present) is rebuilt by the property setter,
+        # which injects this state's cached path/owner resolvers. Both backing
+        # attributes are seeded here so the assignment below is a plain setter
+        # call (the property getter never sees an unset attribute).
+        self._workspace_metadata_filter: dict[str, Any] | None = None
+        self._metadata_filter: MetadataFilter | None = None
+        self.workspace_metadata_filter = _load_workspace_metadata_filter(_search_config)
+
+    @property
+    def workspace_metadata_filter(self) -> dict[str, Any] | None:
+        return self._workspace_metadata_filter
+
+    @workspace_metadata_filter.setter
+    def workspace_metadata_filter(self, value: dict[str, Any] | None) -> None:
+        # Keep the raw tree (read by command code) and the compiled evaluator in
+        # lock-step, so tests/callers that reassign the filter after construction
+        # get a matching MetadataFilter. The resolvers are this state's cached,
+        # API-backed lookups, so the evaluator stays free of unique_sdk/caching.
+        self._workspace_metadata_filter = value
+        self._metadata_filter = (
+            MetadataFilter(
+                value,
+                resolve_scope_path=self._resolve_scope_path,
+                resolve_content_owner_path=self._resolve_content_owner_path,
+            )
+            if value
+            else None
+        )
 
     @property
     def workspace_restricted(self) -> bool:
@@ -77,13 +161,28 @@ class ShellState:
         current = self._path
         return any(current == p or current.startswith(p + "/") for p in paths)
 
-    def is_content_within_workspace(self, content_id: str) -> bool:
-        """Return True if the content item's owner scope is within the workspace.
+    def is_content_within_workspace(
+        self, content_id: str, *, allow_chat_files: bool = True
+    ) -> bool:
+        """Return True if *content_id* is in the current workspace scope.
 
-        Makes one API call to resolve the content's parent scope, then
-        delegates to is_folder_target_within_workspace.  Always returns True
-        when no workspace restriction is configured.
+        Precedence (UN-21780):
+        1. A per-message UniqueQL ``metaDataFilter`` (e.g. an Agentic Table
+           column's ``scope_rules``) is the authority for this turn and
+           *replaces* the static ``scopeIds`` for content access. Files the
+           caller attached to the chat are turn inputs and stay readable —
+           but only for non-destructive access: pass ``allow_chat_files=False``
+           from mutating ops (``rm``/``mv``) so a chat attachment outside the
+           task scope can't be deleted or renamed via the exemption.
+        2. Otherwise the static ``scopeIds`` boundary applies (one API call to
+           resolve the content's parent scope, then
+           ``is_folder_target_within_workspace``).
+        3. With neither configured, everything is in scope.
         """
+        if self.workspace_metadata_filter is not None:
+            if allow_chat_files and content_id in self._chat_file_content_ids():
+                return True
+            return self.content_allowed_by_metadata_filter(content_id)
         if not self.workspace_scope_ids:
             return True
         try:
@@ -145,6 +244,203 @@ class ShellState:
         if not paths:
             return self._scope_id in self.workspace_scope_ids
         return any(resolved == p or resolved.startswith(p + "/") for p in paths)
+
+    # ── Per-message metadata-filter content gating (UN-21780) ──────────────
+
+    def _chat_file_content_ids(self) -> set[str]:
+        """Content IDs attached to this chat (turn inputs), cached per turn."""
+        if self._chat_file_content_ids_cache is None:
+            self._chat_file_content_ids_cache = _load_chat_file_content_ids()
+        return self._chat_file_content_ids_cache
+
+    def _resolve_scope_path(self, scope_id: str) -> str | None:
+        """Resolve a folder scope id to its absolute folder path (cached)."""
+        if scope_id in self._scope_path_cache:
+            return self._scope_path_cache[scope_id]
+        path: str | None = None
+        try:
+            resp = unique_sdk.Folder.get_folder_path(
+                user_id=self.config.user_id,
+                company_id=self.config.company_id,
+                scope_id=scope_id,
+            )
+            stripped = (resp.get("folderPath") or "").rstrip("/")
+            path = stripped or None
+        except Exception:
+            path = None
+        self._scope_path_cache[scope_id] = path
+        return path
+
+    def _resolve_content_owner_path(self, content_id: str) -> str | None:
+        """Resolve a content's owning folder path (cached).
+
+        One ``Content.get_info`` (owner scope) plus one
+        ``Folder.get_folder_path`` (owner → path), both memoised on this
+        ``ShellState`` so repeated reads/cites of the same document within a
+        turn cost nothing after the first.
+        """
+        if content_id in self._content_owner_path_cache:
+            return self._content_owner_path_cache[content_id]
+        owner_path: str | None = None
+        info = self._get_content_info(content_id)
+        owner_id = info.get("ownerId", "") if info else ""
+        if owner_id:
+            owner_path = self._resolve_scope_path(owner_id)
+        self._content_owner_path_cache[content_id] = owner_path
+        return owner_path
+
+    def _get_content_info(
+        self, content_id: str
+    ) -> unique_sdk.Content.ContentInfo | None:
+        """Return the cached ``Content.get_info`` item for *content_id*.
+
+        One API call per content id per turn, memoised on this ``ShellState``
+        and shared between owner-path scope checks and citation title lookup.
+        """
+        if content_id in self._content_info_cache:
+            return self._content_info_cache[content_id]
+        info: unique_sdk.Content.ContentInfo | None = None
+        try:
+            result = unique_sdk.Content.get_info(
+                user_id=self.config.user_id,
+                company_id=self.config.company_id,
+                contentId=content_id,
+            )
+            items = result.get("contentInfo", [])
+            info = items[0] if items else None
+        except Exception:
+            info = None
+        self._content_info_cache[content_id] = info
+        return info
+
+    def resolve_content_title(self, content_id: str) -> str:
+        """Human-readable title for a content id, falling back to the id.
+
+        Mirrors the ``title or key`` convention used by ``read`` and ``ls`` so
+        citations made by bare ``cont_*`` id still render with the document's
+        filename instead of the opaque id. See UN-21780.
+        """
+        info = self._get_content_info(content_id)
+        if not info:
+            return content_id
+        return info.get("title") or info.get("key") or content_id
+
+    def content_allowed_by_metadata_filter(self, content_id: str) -> bool:
+        """Return True if *content_id* satisfies the per-message scope filter.
+
+        Delegates to the compiled :class:`MetadataFilter` so file reads/cites
+        honour the same per-turn scope as ``unique-cli search``. Returns True
+        when no filter is configured. See UN-21780 and ``MetadataFilter`` for
+        the conservative-subset evaluation semantics.
+        """
+        if self._metadata_filter is None:
+            return True
+        return self._metadata_filter.allows_content(content_id)
+
+    def navigable_folder_ids(self) -> list[str]:
+        """Folder scope ids the per-message filter grants for navigation.
+
+        Narrower than ``metadata_filter_scope()``: excludes folders that are
+        only reachable as an ``or`` alternative to a ``contentId`` allowlist,
+        which are not standalone-browsable. Empty when no filter is set.
+        """
+        if self._metadata_filter is None:
+            return []
+        return self._metadata_filter.navigable_folder_ids()
+
+    def folder_allowed_by_metadata_filter(self, scope_id: str) -> bool:
+        """True if *scope_id* is inside one of the filter's navigable scopes.
+
+        Gates explicit folder targets (e.g. ``ls <path>``) so navigation
+        cannot enumerate folders outside the per-message scope. Returns True
+        when no per-message filter is configured.
+        """
+        if self._metadata_filter is None:
+            return True
+        return self._metadata_filter.allows_folder_scope(scope_id)
+
+    def folder_path_allowed_by_metadata_filter(self, folder_path: str) -> bool:
+        """True if an absolute folder *path* lies within a navigable scope.
+
+        Path-based counterpart to ``folder_allowed_by_metadata_filter`` for
+        targets that don't yet have a scope id (e.g. a ``mkdir`` destination),
+        so a ``..`` traversal can't create structure outside the per-message
+        task scope. Returns True when no per-message filter is configured.
+        """
+        if self._metadata_filter is None:
+            return True
+        return self._metadata_filter.allows_folder_path(folder_path)
+
+    def metadata_filter_scope(self) -> tuple[list[str], list[str]]:
+        """Return ``(folder_paths, content_ids)`` referenced by the filter.
+
+        Folder scope ids are resolved to absolute paths (cached); content ids
+        are returned verbatim. Used to *describe* the active scope to the agent
+        (``ls`` at root) without enumerating folder contents. Returns empty
+        lists when no per-message filter is configured.
+        """
+        if self._metadata_filter is None:
+            return [], []
+        return self._metadata_filter.scope()
+
+    def metadata_filter_navigable_scope(
+        self,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """``(navigable_folder_paths, free_content_ids,
+        folder_restricted_content_ids)`` for denial hints.
+
+        Like :meth:`metadata_filter_scope` but restricts folders to those the
+        agent can actually browse and splits content ids by whether they are
+        folder-restricted, so a hint never names a folder ``ls``/``cd`` would
+        deny and can describe folder-bound documents precisely. See UN-21780.
+        Returns empty lists when no per-message filter is configured.
+        """
+        if self._metadata_filter is None:
+            return [], [], []
+        return self._metadata_filter.describe_navigable_scope()
+
+    @staticmethod
+    def _format_hint_ids(ids: list[str]) -> str:
+        """Comma-joined id list, truncated to keep the denial hint one line."""
+        shown = ", ".join(ids[:5])
+        return shown if len(ids) <= 5 else f"{shown} (+{len(ids) - 5} more)"
+
+    def scope_denial_hint(self) -> str:
+        """One-line description of the active scope, for denial messages.
+
+        Steers the agent back to in-scope folders/documents instead of
+        prompting blind retries on out-of-scope content. Folder-restricted
+        documents are described as living *within* the named folders, so the
+        agent is never told a document is freely reachable when it is actually
+        gated behind a folder constraint ``read``/``cite`` would enforce. See
+        UN-21780.
+        """
+        if self.workspace_metadata_filter is not None:
+            folders, free_ids, restricted_ids = self.metadata_filter_navigable_scope()
+            parts: list[str] = []
+            if folders:
+                parts.append("folders: " + ", ".join(folders))
+            if restricted_ids:
+                # Folder-restricted ids are anchored to the named folders when
+                # there are any. Without a folder to anchor them (e.g. a
+                # contentId AND-ed with an unevaluable leaf such as mimeType,
+                # which allows_content fails closed on) they must NOT be promoted
+                # into the freely-reachable list — the hint would then claim a
+                # document is directly citeable when the filter still denies it.
+                # Describe them as scope-restricted instead.
+                anchor = (
+                    "documents within those folders: "
+                    if folders
+                    else "scope-restricted documents: "
+                )
+                parts.append(anchor + self._format_hint_ids(restricted_ids))
+            if free_ids:
+                parts.append("documents: " + self._format_hint_ids(free_ids))
+            return "; ".join(parts) if parts else "the task's configured scope"
+        paths = self._resolve_workspace_scope_paths()
+        if paths:
+            return "folders: " + ", ".join(paths)
+        return "the workspace scope"
 
     @property
     def cwd(self) -> str:

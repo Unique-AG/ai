@@ -54,6 +54,17 @@ class HallucinationEvaluation(Evaluation):
             reference_pattern=self.config.reference_pattern,
         )
 
+        # Append non-chunk groundedness context (e.g. MCP tool output). These
+        # are added in full ("all retrieved output as context") rather than via
+        # source-marker selection, since they carry no [sourceN] markers.
+        external_context_texts = self._reference_manager.get_external_context_texts()
+        max_chars = self.config.max_external_context_chars_per_source
+        if max_chars > 0:
+            external_context_texts = [
+                text[:max_chars] for text in external_context_texts
+            ]
+        context_texts = context_texts + external_context_texts
+
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
             user_id=self._user_id,

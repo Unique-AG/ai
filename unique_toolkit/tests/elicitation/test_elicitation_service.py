@@ -21,6 +21,11 @@ from unique_toolkit.app.schemas import (
     Correlation,
     EventName,
 )
+from unique_toolkit.elicitation.exceptions import (
+    ElicitationCancelledException,
+    ElicitationDeclinedException,
+    ElicitationExpiredException,
+)
 from unique_toolkit.elicitation.schemas import (
     Elicitation,
     ElicitationAction,
@@ -642,3 +647,91 @@ async def test_elicitation_service__respond_async__mirrors_sync(mocker) -> None:
     assert isinstance(result, ElicitationResponseResult)
     assert result.success is True
     mock_respond_async.assert_called_once()
+
+
+# Wait For Response Tests
+# ============================================================================
+
+
+def _elicitation_with_status(
+    base_elicitation_data: dict[str, Any],
+    status: str,
+    response_content: dict[str, Any] | None = None,
+) -> Elicitation:
+    data = {**base_elicitation_data, "status": status}
+    if response_content is not None:
+        data["responseContent"] = response_content
+    return Elicitation.model_validate(data, by_alias=True)
+
+
+@pytest.mark.asyncio
+async def test_wait_for_response_async__returns__on_accepted(
+    mocker,
+    base_elicitation_data: dict[str, Any],
+) -> None:
+    service = ElicitationService(user_id="test_user", company_id="test_company")
+    accepted = _elicitation_with_status(
+        base_elicitation_data, "ACCEPTED", {"answer": "x"}
+    )
+    mocker.patch.object(
+        service, "get_async", new_callable=AsyncMock, return_value=accepted
+    )
+    mocker.patch(
+        "unique_toolkit.elicitation.service.asyncio.sleep", new_callable=AsyncMock
+    )
+
+    result = await service.wait_for_response_async(
+        elicitation_id="elic_test123", timeout_seconds=5
+    )
+
+    assert result.response_content == {"answer": "x"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status", "exception"),
+    [
+        ("DECLINED", ElicitationDeclinedException),
+        ("CANCELLED", ElicitationCancelledException),
+        ("EXPIRED", ElicitationExpiredException),
+    ],
+)
+async def test_wait_for_response_async__raises__on_terminal_status(
+    mocker,
+    base_elicitation_data: dict[str, Any],
+    status: str,
+    exception: type[Exception],
+) -> None:
+    service = ElicitationService(user_id="test_user", company_id="test_company")
+    elicitation = _elicitation_with_status(base_elicitation_data, status)
+    mocker.patch.object(
+        service, "get_async", new_callable=AsyncMock, return_value=elicitation
+    )
+    mocker.patch(
+        "unique_toolkit.elicitation.service.asyncio.sleep", new_callable=AsyncMock
+    )
+
+    with pytest.raises(exception):
+        await service.wait_for_response_async(
+            elicitation_id="elic_test123", timeout_seconds=5
+        )
+
+
+@pytest.mark.asyncio
+async def test_wait_for_response_async__raises_expired__on_timeout(
+    mocker,
+    base_elicitation_data: dict[str, Any],
+) -> None:
+    service = ElicitationService(user_id="test_user", company_id="test_company")
+    pending = _elicitation_with_status(base_elicitation_data, "PENDING")
+    mocker.patch.object(
+        service, "get_async", new_callable=AsyncMock, return_value=pending
+    )
+    mocker.patch(
+        "unique_toolkit.elicitation.service.asyncio.sleep", new_callable=AsyncMock
+    )
+
+    with pytest.raises(ElicitationExpiredException):
+        await service.wait_for_response_async(
+            elicitation_id="elic_test123", timeout_seconds=2
+        )
