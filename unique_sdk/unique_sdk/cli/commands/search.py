@@ -272,7 +272,7 @@ def cmd_search(
             **search_params,
         )
 
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"{SEARCH_ERROR_PREFIX} {e}"
 
     log_path = refs_log_path or (Path.cwd() / _REFS_LOG_RELATIVE_PATH)

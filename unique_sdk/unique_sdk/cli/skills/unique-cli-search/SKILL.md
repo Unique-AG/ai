@@ -64,6 +64,9 @@ When no `--folder` is given:
 - If the task defines a scope (a per-message scope filter): that scope is the
   search boundary, regardless of the current directory. `cd`/cwd does **not**
   narrow further — only an explicit `--folder` ANDs an additional constraint.
+  **You do not need `--folder` here** — just run `unique-cli search "<query>"`.
+  Passing a folder *path* that isn't navigable to your user errors with
+  `Folder ... not found`; only narrow within the scope via a `scope_` id.
 - Otherwise, in interactive mode: searches within the current directory
 - Otherwise, at root `/`: searches the entire knowledge base
 

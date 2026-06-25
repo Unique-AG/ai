@@ -70,7 +70,7 @@ def cmd_mkdir(state: ShellState, name: str) -> str:
             last = created[-1]
             return f"Created: {full_path} ({last['id']})"
         return f"Created: {full_path}"
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"mkdir: {e}"
 
 
@@ -108,7 +108,7 @@ def cmd_rmdir(state: ShellState, target: str, recursive: bool = False) -> str:
                 recursive=recursive,
             )
             return f"Deleted folder: {target}"
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"rmdir: {e}"
 
 
@@ -145,5 +145,5 @@ def cmd_mvdir(state: ShellState, old_name: str, new_name: str) -> str:
                 name=new_name,
             )
         return f"Renamed folder -> {result.get('name', new_name)}\n{format_folder_info(result)}"
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"mvdir: {e}"

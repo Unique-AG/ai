@@ -550,3 +550,18 @@ class TestCmdSearchCallShapes:
         out = cmd_search(_state(), "q")
         assert out.startswith(SEARCH_ERROR_PREFIX)
         assert "oops" in out
+
+    @patch("unique_sdk.Folder.get_info")
+    def test_folder_not_found_returns_prefix_not_raise(self, mock: MagicMock) -> None:
+        # Regression (UN-21780, QA): a non-existent --folder makes
+        # Folder.get_info raise InvalidRequestError, which is a UniqueError
+        # but NOT an APIError. The handler used to catch only APIError, so the
+        # error escaped cmd_search as an uncaught traceback (exit 1). It must
+        # surface as a clean "search:" error string instead.
+        mock.side_effect = unique_sdk.InvalidRequestError(
+            "Folder with id or path /Anupriya Test/Answer Library not found",
+            "folderPath",
+        )
+        out = cmd_search(_state(), "q", folder="/Anupriya Test/Answer Library")
+        assert out.startswith(SEARCH_ERROR_PREFIX)
+        assert "not found" in out
