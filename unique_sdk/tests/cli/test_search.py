@@ -34,11 +34,14 @@ from unique_sdk.cli.commands._citation_manifest import (
 )
 from unique_sdk.cli.commands.search import (
     SEARCH_ERROR_PREFIX,
+    UPLOADED_SEARCH_ERROR_PREFIX,
     _build_metadata_filter,
     _format_source_block,
     _result_to_chunk_payload,
     cmd_search,
+    cmd_uploaded_search,
     is_error_output,
+    is_uploaded_search_error_output,
 )
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
@@ -565,3 +568,154 @@ class TestCmdSearchCallShapes:
         out = cmd_search(_state(), "q", folder="/Anupriya Test/Answer Library")
         assert out.startswith(SEARCH_ERROR_PREFIX)
         assert "not found" in out
+
+
+def _uploaded_state(
+    *,
+    chat_id: str | None = "chat_parent",
+    content_ids: list[str] | None = None,
+) -> ShellState:
+    """A state carrying an uploaded-document scope (as the runner would write).
+
+    ``ShellState`` loads ``.unique-uploaded.json`` from cwd at construction; the
+    autouse fixture pins cwd to an empty ``tmp_path`` so nothing is loaded, and
+    we set the resolved attributes directly to mimic a populated config.
+    """
+    s = _state()
+    s.uploaded_search_chat_id = chat_id
+    s.uploaded_search_content_ids = (
+        content_ids if content_ids is not None else ["cont_up1", "cont_up2"]
+    )
+    return s
+
+
+class TestCmdUploadedSearch:
+    @patch("unique_sdk.Search.create")
+    def test_no_uploaded_scope_returns_prefix_and_no_api_call(
+        self, mock: MagicMock
+    ) -> None:
+        out = cmd_uploaded_search(
+            _uploaded_state(chat_id=None, content_ids=[]), "anything"
+        )
+        assert out.startswith(UPLOADED_SEARCH_ERROR_PREFIX)
+        mock.assert_not_called()
+        assert not (Path.cwd() / ".unique").exists()
+
+    @patch("unique_sdk.Search.create")
+    def test_passes_chat_only_chat_id_and_content_ids(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        cmd_uploaded_search(
+            _uploaded_state(chat_id="chat_p", content_ids=["cont_a", "cont_b"]),
+            "fee structure",
+        )
+        kwargs = mock.call_args[1]
+        assert kwargs["searchString"] == "fee structure"
+        assert kwargs["searchType"] == "COMBINED"
+        assert kwargs["chatOnly"] is True
+        assert kwargs["chatId"] == "chat_p"
+        assert kwargs["contentIds"] == ["cont_a", "cont_b"]
+        # Uploaded search must never carry a KB folder/metadata scope.
+        assert "scopeIds" not in kwargs
+        assert "metaDataFilter" not in kwargs
+
+    @patch("unique_sdk.Search.create")
+    def test_chat_id_only_omits_content_ids(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        cmd_uploaded_search(_uploaded_state(chat_id="chat_p", content_ids=[]), "q")
+        kwargs = mock.call_args[1]
+        assert kwargs["chatId"] == "chat_p"
+        assert "contentIds" not in kwargs
+
+    @patch("unique_sdk.Search.create")
+    def test_writes_block_and_manifest(self, mock: MagicMock) -> None:
+        mock.return_value = [_make_search_result(content_id="cont_up1")]
+        out = cmd_uploaded_search(_uploaded_state(), "target asset classes")
+        assert "Found 1 result(s):" in out
+        assert "<source1>" in out
+        manifest = Path.cwd() / ".unique" / "kb-search-refs.jsonl"
+        lines = manifest.read_text(encoding="utf-8").splitlines()
+        assert len(lines) == 1
+        assert json.loads(lines[0])["id"] == "cont_up1"
+
+    @patch("unique_sdk.Search.create")
+    def test_numbering_continues_across_search_and_uploaded_search(
+        self, mock: MagicMock
+    ) -> None:
+        # A KB search then an uploaded search in the same turn must share the
+        # per-turn manifest so [sourceN] numbering stays continuous.
+        mock.side_effect = [
+            [_make_search_result(content_id="cont_kb", chunk_id="chunk_kb")],
+            [_make_search_result(content_id="cont_up", chunk_id="chunk_up")],
+        ]
+        first = cmd_search(_state(), "kb query")
+        second = cmd_uploaded_search(_uploaded_state(), "uploaded query")
+        assert "<source1>" in first
+        assert "<source2>" in second
+        manifest = Path.cwd() / ".unique" / "kb-search-refs.jsonl"
+        ids = [
+            json.loads(line)["id"]
+            for line in manifest.read_text(encoding="utf-8").splitlines()
+        ]
+        assert ids == ["cont_kb", "cont_up"]
+
+    @patch("unique_sdk.Search.create")
+    def test_api_error_returns_prefix_and_writes_nothing(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("oops")
+        out = cmd_uploaded_search(_uploaded_state(), "q")
+        assert out.startswith(UPLOADED_SEARCH_ERROR_PREFIX)
+        assert "oops" in out
+        assert not (Path.cwd() / ".unique").exists()
+
+    @patch("unique_sdk.Search.create")
+    def test_empty_results_no_manifest_write(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        out = cmd_uploaded_search(_uploaded_state(), "no hits")
+        assert "No results found" in out
+        assert not (Path.cwd() / ".unique").exists()
+
+
+class TestUploadedConfigLoading:
+    # The autouse ``_isolate_kb_search_refs_manifest`` fixture pins cwd to this
+    # test's ``tmp_path``, so writing ``.unique-uploaded.json`` there and then
+    # constructing ``ShellState`` exercises the real cwd-based loader.
+    def test_loads_chat_id_and_content_ids_from_file(self, tmp_path: Path) -> None:
+        (tmp_path / ".unique-uploaded.json").write_text(
+            json.dumps({"chatId": "chat_x", "contentIds": ["cont_1", "cont_2"]}),
+            encoding="utf-8",
+        )
+        s = ShellState(_config())
+        assert s.uploaded_search_chat_id == "chat_x"
+        assert s.uploaded_search_content_ids == ["cont_1", "cont_2"]
+        assert s.uploaded_search_available is True
+
+    def test_absent_file_yields_empty_scope(self) -> None:
+        s = ShellState(_config())
+        assert s.uploaded_search_chat_id is None
+        assert s.uploaded_search_content_ids == []
+        assert s.uploaded_search_available is False
+
+    def test_malformed_file_yields_empty_scope(self, tmp_path: Path) -> None:
+        (tmp_path / ".unique-uploaded.json").write_text("{not json", encoding="utf-8")
+        s = ShellState(_config())
+        assert s.uploaded_search_available is False
+
+    def test_non_string_content_ids_rejected(self, tmp_path: Path) -> None:
+        (tmp_path / ".unique-uploaded.json").write_text(
+            json.dumps({"chatId": "chat_x", "contentIds": ["cont_1", 42]}),
+            encoding="utf-8",
+        )
+        s = ShellState(_config())
+        # The list is rejected wholesale (mixed types), chat id still loads.
+        assert s.uploaded_search_content_ids == []
+        assert s.uploaded_search_chat_id == "chat_x"
+
+
+class TestIsUploadedSearchErrorOutput:
+    def test_error_string_is_error(self) -> None:
+        assert (
+            is_uploaded_search_error_output(f"{UPLOADED_SEARCH_ERROR_PREFIX} no docs")
+            is True
+        )
+
+    def test_normal_output_is_not_error(self) -> None:
+        assert is_uploaded_search_error_output("Found 1 result(s):") is False

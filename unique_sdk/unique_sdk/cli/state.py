@@ -12,6 +12,7 @@ from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
+_UPLOADED_CONFIG_FILENAME = ".unique-uploaded.json"
 _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
@@ -25,6 +26,38 @@ def _load_search_config() -> dict[str, Any]:
     except (json.JSONDecodeError, OSError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _load_uploaded_config() -> dict[str, Any]:
+    """Load ``.unique-uploaded.json`` from the cwd, or ``{}`` when absent/invalid.
+
+    Written by the Swappable Intelligence runner when the task carries per-row
+    uploaded documents (an Agentic Table row's ``selectedUploadedFiles``). It
+    holds the chat that owns those uploads and their content ids so
+    ``unique-cli uploaded-search`` can reach them: uploaded files live outside
+    the knowledge-base folder scopes, so the scope-bound ``unique-cli search``
+    structurally cannot return them. See UN-21780.
+    """
+    config_path = Path.cwd() / _UPLOADED_CONFIG_FILENAME
+    if not config_path.is_file():
+        return {}
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _load_uploaded_content_ids(data: dict[str, Any]) -> list[str]:
+    content_ids = data.get("contentIds")
+    if isinstance(content_ids, list) and all(isinstance(c, str) for c in content_ids):
+        return content_ids
+    return []
+
+
+def _load_uploaded_chat_id(data: dict[str, Any]) -> str | None:
+    chat_id = data.get("chatId")
+    return chat_id if isinstance(chat_id, str) and chat_id else None
 
 
 def _load_workspace_scope_ids(data: dict[str, Any]) -> list[str]:
@@ -100,6 +133,23 @@ class ShellState:
         self._workspace_metadata_filter: dict[str, Any] | None = None
         self._metadata_filter: MetadataFilter | None = None
         self.workspace_metadata_filter = _load_workspace_metadata_filter(_search_config)
+        # Per-row uploaded documents reachable via ``unique-cli uploaded-search``.
+        # Loaded from ``.unique-uploaded.json`` (written by the runner). The chat
+        # id is the chat that *owns* the uploads — for a subagent this is the
+        # parent chat — and is required for the chat-scoped uploaded search.
+        # See UN-21780.
+        _uploaded_config = _load_uploaded_config()
+        self.uploaded_search_chat_id: str | None = _load_uploaded_chat_id(
+            _uploaded_config
+        )
+        self.uploaded_search_content_ids: list[str] = _load_uploaded_content_ids(
+            _uploaded_config
+        )
+
+    @property
+    def uploaded_search_available(self) -> bool:
+        """True when this task has per-row uploaded documents to search."""
+        return bool(self.uploaded_search_content_ids or self.uploaded_search_chat_id)
 
     @property
     def workspace_metadata_filter(self) -> dict[str, Any] | None:
