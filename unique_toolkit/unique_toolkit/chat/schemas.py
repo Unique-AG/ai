@@ -226,6 +226,10 @@ class MessageLogDetails(BaseModel):
     status: str | None = Field(
         default=None, description="Overarching status of the current message log"
     )
+    debug: dict[str, Any] | None = Field(
+        default=None,
+        description="Raw tool tracing: tool name, input args (stdin), truncated output (stdout) for debugging",
+    )
 
 
 class MessageLog(BaseModel):
