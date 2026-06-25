@@ -3,6 +3,10 @@
 `FakeMCP` captures `@mcp.tool(...)` registrations so unit tests can call the real
 tool callables without a running FastMCP server. Unit tests monkeypatch the DB
 layer (no Postgres needed); integration tests skip when the DB / server is down.
+
+Imports (`import common`, `import crm`, `import meetings`, …) resolve via the
+package's `[tool.pytest.ini_options] pythonpath = ["src/mcp_crm"]` in pyproject.toml
+— so run tests with pytest (e.g. `uv run pytest`).
 """
 
 import pytest

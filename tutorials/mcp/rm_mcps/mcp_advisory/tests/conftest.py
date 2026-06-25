@@ -4,18 +4,11 @@
 tool callables (including the closures defined inside `register()`) without a
 running FastMCP server. Unit tests monkeypatch the DB layer, so they need no
 Postgres; integration tests skip themselves when the DB / server is unavailable.
+
+Imports (`import common`, `import portfolios`, …) resolve via the package's
+`[tool.pytest.ini_options] pythonpath = ["src/mcp_advisory"]` in pyproject.toml —
+so run tests with pytest (e.g. `uv run pytest`).
 """
-
-import os
-import sys
-
-# Put the package's source dir on sys.path so `import common`, `import portfolios`,
-# etc. resolve regardless of which pyproject pytest picks as its rootdir. Mirrors
-# `[tool.pytest.ini_options] pythonpath`, but also works when a higher-level config
-# wins (e.g. the ai repo root pyproject — i.e. running from PyCharm / the repo root).
-_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "mcp_advisory"))
-if _SRC not in sys.path:
-    sys.path.insert(0, _SRC)
 
 import pytest
 
