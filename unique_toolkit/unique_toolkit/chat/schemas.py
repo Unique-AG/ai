@@ -216,7 +216,7 @@ class MessageLogUncitedReferences(BaseModel):
 
 class MessageLogEvent(BaseModel):
     model_config = model_config
-    type: Literal["WebSearch", "InternalSearch"]
+    type: Literal["WebSearch", "InternalSearch", "Elicitation"]
     text: str
 
 
