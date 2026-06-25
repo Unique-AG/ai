@@ -95,12 +95,11 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
 
     @override
     async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        raise NotImplementedError("CustomAPI does not support proxy search")
+        return await self._legacy_search(query=query, **kwargs)
 
     @override
     async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         params, body = self._prepare_request_params_and_body(query)
-
         async_client_params = self._client_config | {
             "timeout": self.config.timeout,
         }
