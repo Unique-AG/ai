@@ -146,6 +146,9 @@ class ChatMessage(BaseModel):
     updated_at: datetime | None = None
     references: list[ContentReference] | None = []
     assessment: list[ChatMessageAssessment] | None = None
+    segment_kind: str | None = None
+    response_turn_id: str | None = None
+    segment_index: int | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
