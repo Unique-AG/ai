@@ -29,6 +29,7 @@ The Chat in Space utilities provide:
     - `max_wait` (optional) - Maximum seconds to wait (default: 60.0)
     - `stop_condition` (optional) - When to stop: `"stoppedStreamingAt"` or `"completedAt"` (default: `"stoppedStreamingAt"`)
     - `correlation` (optional) - Correlation data to link this message to a parent message in another chat. Should contain: `parentMessageId`, `parentChatId`, `parentAssistantId`
+    - `auto_approve_elicitation` (optional) - When `True`, automatically approves elicitation requests during the assistant run. Use for non-interactive automation where no user is present. Requires `unique_sdk.api_version = "2026-03-01"`.
 
     **Returns:**
 

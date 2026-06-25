@@ -301,6 +301,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `toolChoices` (List[str], optional) - List of tools to use (e.g., `["WebSearch", "InternalSearch"]`)
     - `scopeRules` (Dict[str, Any], optional) - UniqueQL filter for document scope
     - `correlation` ([`Space.Correlation`](#spacecorrelation), optional) - Correlation data to link this message to a parent message in another chat
+    - `autoApproveElicitation` (bool, optional) - When `true`, automatically approves elicitation requests during the assistant run. Use for non-interactive SDK/automation flows where no user is present to respond. Requires `unique_sdk.api_version = "2026-03-01"`.
 
     **Returns:**
 
@@ -366,6 +367,20 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
             "parentChatId": "chat_abc123",
             "parentAssistantId": "assistant_def456",
         }
+    )
+    ```
+
+    **Example - Non-interactive automation (auto-approve elicitations):**
+
+    ```python
+    unique_sdk.api_version = "2026-03-01"
+
+    message = unique_sdk.Space.create_message(
+        user_id=user_id,
+        company_id=company_id,
+        assistantId="assistant_abc123",
+        text="Run the scheduled report workflow",
+        autoApproveElicitation=True,
     )
     ```
 

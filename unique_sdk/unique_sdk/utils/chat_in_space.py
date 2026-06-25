@@ -24,6 +24,7 @@ async def send_message_and_wait_for_completion(
     max_wait: float = 60.0,
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
     correlation: "Space.Correlation | None" = None,
+    auto_approve_elicitation: bool | None = None,
     on_message_update: Callable[["Space.Message"], Awaitable[None]] | None = None,
 ) -> "Space.Message":
     """
@@ -43,22 +44,31 @@ async def send_message_and_wait_for_completion(
         stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
         correlation: Optional correlation data to link this message to a parent message in another chat.
             Should contain: parentMessageId, parentChatId, parentAssistantId.
+        auto_approve_elicitation: When True, automatically approves elicitation requests during
+            the assistant run. Use for non-interactive automation where no user is present.
         on_message_update: Optional async callback called whenever the latest assistant
             message changes while waiting for completion.
 
     Returns:
         The completed Space.Message.
     """
+    create_message_params: Space.CreateMessageParams = {
+        "assistantId": assistant_id,
+        "text": text,
+        "toolChoices": tool_choices,
+        "skillChoices": list(skill_choices),
+        "scopeRules": scope_rules,
+        "correlation": correlation,
+    }
+    if chat_id is not None:
+        create_message_params["chatId"] = chat_id
+    if auto_approve_elicitation is not None:
+        create_message_params["autoApproveElicitation"] = auto_approve_elicitation
+
     response = await Space.create_message_async(
         user_id=user_id,
         company_id=company_id,
-        assistantId=assistant_id,
-        chatId=chat_id,
-        text=text,
-        toolChoices=tool_choices,
-        skillChoices=list(skill_choices),
-        scopeRules=scope_rules,
-        correlation=correlation,
+        **create_message_params,
     )
     chat_id = response.get("chatId")
     message_id = response.get("id")
