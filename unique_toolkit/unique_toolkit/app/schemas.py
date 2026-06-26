@@ -280,7 +280,7 @@ class BaseEventPayload(BaseModel):
 
 class ChatEventPayload(BaseEventPayload):
     # Re-require configuration on chat (BaseEventPayload defaults it for magic-table).
-    configuration: dict[str, Any]
+    configuration: dict[str, Any] = Field(...)
     description: str
     user_message: ChatEventUserMessage
     assistant_message: ChatEventAssistantMessage
