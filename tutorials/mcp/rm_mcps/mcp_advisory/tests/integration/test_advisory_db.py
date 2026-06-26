@@ -44,12 +44,12 @@ def test_corporate_actions_list_shape(fake_mcp):
 
 
 def test_house_view_bonds_synonym(fake_mcp):
-    r = _call(fake_mcp, house_views, "get_house_view", input="bonds")
+    r = _call(fake_mcp, house_views, "get_house_view", asset_class="bonds")
     assert r["asset_class"] == "Fixed income"
 
 
 def test_list_models_has_catalogue(fake_mcp):
-    r = _call(fake_mcp, model_portfolios, "list_model_portfolios", input="all")
+    r = _call(fake_mcp, model_portfolios, "list_model_portfolios")
     assert r["count"] >= 4 and any(m["code"] == "BI-3" for m in r["models"])
 
 

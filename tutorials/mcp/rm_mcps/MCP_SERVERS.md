@@ -58,15 +58,15 @@ The investment side of the RM Agent, in one connector: the CIO Office's bank-wid
 
 #### `get_cio_themes`
 
-[HV 1b] CIO investment themes / convictions: theme, horizon, conviction, rationale. Bank-wide. Input: 'all' (or omit).
+[HV 1b] CIO investment themes / convictions: theme, horizon, conviction, rationale. Bank-wide. No arguments.
 
 **System Prompt: Tool Usage Instructions**
 
-> Input: 'all' (or omit). Bank-wide.
+> No arguments. Bank-wide.
 
 **System Prompt: Tool Response Format Instructions**
 
-> Returns `{house, as_of, count, themes:[{theme, horizon, conviction, rationale}]}`.
+> Returns `{house, as_of, valid_until, count, themes:[{theme, horizon, conviction, rationale}]}`.
 
 #### `get_corporate_actions`
 
@@ -118,15 +118,15 @@ The investment side of the RM Agent, in one connector: the CIO Office's bank-wid
 
 #### `get_house_view`
 
-[HV 1a] CIO house view: per-asset-class stance (Overweight/Neutral/Underweight/Selective), conviction score, rationale, as-of and valid-until. Bank-wide (not per client). Input: 'all' (or 'current') for the full view, or an asset class (equities, fixed income, alternatives, fx, cash).
+[HV 1a] CIO house view: per-asset-class stance (Overweight/Neutral/Underweight/Selective), conviction score, rationale, as-of and valid-until. Bank-wide (not per client). Call with no arguments for the full view, or pass an asset class (equities, fixed income, alternatives, fx, cash) to filter.
 
 **System Prompt: Tool Usage Instructions**
 
-> Input: 'all' (full view) or an asset class (equities / fixed income / alternatives / fx / cash). Bank-wide — no client_id.
+> No arguments for the full view, or pass an asset class (equities / fixed income / alternatives / fx / cash) to filter. Bank-wide — no client_id.
 
 **System Prompt: Tool Response Format Instructions**
 
-> Returns `{house, as_of, valid_until, views:[{asset_class, stance, conviction, rationale}]}` (or a single asset-class object). Always quote `as_of` / `valid_until`.
+> Returns `{house, as_of, valid_until, count, views:[{asset_class, stance, conviction, rationale}]}` (or a single asset-class object). Always quote `as_of` / `valid_until`.
 
 #### `get_model_portfolio`
 
@@ -190,15 +190,15 @@ The investment side of the RM Agent, in one connector: the CIO Office's bank-wid
 
 #### `get_tactical_calls`
 
-[HV 1c] Tactical allocation calls: dimension, call (over/under-weight/hedge), detail, magnitude, conviction, rationale. Bank-wide. Input: 'all' (or omit).
+[HV 1c] Tactical allocation calls: dimension, call (over/under-weight/hedge), detail, magnitude, conviction, rationale. Bank-wide. No arguments.
 
 **System Prompt: Tool Usage Instructions**
 
-> Input: 'all' (or omit). Bank-wide.
+> No arguments. Bank-wide.
 
 **System Prompt: Tool Response Format Instructions**
 
-> Returns `{house, as_of, count, calls:[{dimension, call, detail, magnitude, conviction, rationale}]}`.
+> Returns `{house, as_of, valid_until, count, calls:[{dimension, call, detail, magnitude, conviction, rationale}]}`.
 
 #### `get_tax_lots`
 
@@ -226,11 +226,11 @@ The investment side of the RM Agent, in one connector: the CIO Office's bank-wid
 
 #### `list_model_portfolios`
 
-[MDL 1a] Model-portfolio catalogue: code, name, risk band, reference currency, expected return, volatility, expected max drawdown, rebalancing cadence. Input: 'all' (or omit).
+[MDL 1a] Model-portfolio catalogue: code, name, risk band, reference currency, expected return, volatility, expected max drawdown, rebalancing cadence. No arguments.
 
 **System Prompt: Tool Usage Instructions**
 
-> Input: 'all' (or omit). Use for the model catalogue.
+> No arguments. Use for the model catalogue.
 
 **System Prompt: Tool Response Format Instructions**
 

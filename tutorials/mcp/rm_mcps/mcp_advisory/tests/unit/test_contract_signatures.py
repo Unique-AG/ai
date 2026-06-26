@@ -27,12 +27,12 @@ CONTRACT = {
     "get_orders": {"input", "client_id"},
     "get_tax_lots": {"input", "client_id"},
     "get_transaction_monitoring": {"input", "client_id"},
-    # house views (bank-wide)
-    "get_house_view": {"input"},
-    "get_cio_themes": {"input"},
-    "get_tactical_calls": {"input"},
+    # house views (bank-wide) — call with no args; get_house_view optionally filters by asset_class
+    "get_house_view": {"asset_class"},
+    "get_cio_themes": set(),
+    "get_tactical_calls": set(),
     # model portfolios
-    "list_model_portfolios": {"input"},
+    "list_model_portfolios": set(),
     "get_model_portfolio": {"input", "code", "model"},
     "recommend_model": {"input", "client_id"},
     # lombard

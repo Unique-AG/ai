@@ -15,17 +15,17 @@ from common.db import query_all, query_one
 
 HOUSE_VIEW_DESCRIPTION = (
     "[HV 1a] CIO house view: per-asset-class stance (Overweight/Neutral/Underweight/Selective), "
-    "conviction score, rationale, as-of and valid-until. Bank-wide (not per client). Input: 'all' "
-    "(or 'current') for the full view, or an asset class (equities, fixed income, alternatives, "
-    "fx, cash)."
+    "conviction score, rationale, as-of and valid-until. Bank-wide (not per client). Call with no "
+    "arguments for the full view, or pass an asset class (equities, fixed income, alternatives, "
+    "fx, cash) to filter."
 )
 CIO_THEMES_DESCRIPTION = (
     "[HV 1b] CIO investment themes / convictions: theme, horizon, conviction, rationale. Bank-wide. "
-    "Input: 'all' (or omit)."
+    "No arguments."
 )
 TACTICAL_CALLS_DESCRIPTION = (
     "[HV 1c] Tactical allocation calls: dimension, call (over/under-weight/hedge), detail, "
-    "magnitude, conviction, rationale. Bank-wide. Input: 'all' (or omit)."
+    "magnitude, conviction, rationale. Bank-wide. No arguments."
 )
 
 
@@ -43,7 +43,7 @@ def _house_view(arg: str) -> dict:
     views = query_all("SELECT asset_class, stance, score, rationale FROM house_view ORDER BY position")
     if arg in ("", "all", "current", "house", "house view"):
         return {"house": meta["house"], "as_of": meta["as_of"],
-                "valid_until": meta["valid_until"], "views": views}
+                "valid_until": meta["valid_until"], "count": len(views), "views": views}
 
     def matches(v: dict) -> bool:
         a = v["asset_class"].lower()
@@ -62,35 +62,34 @@ def _house_view(arg: str) -> dict:
 def _cio_themes() -> dict:
     meta = _meta()
     themes = query_all("SELECT theme, horizon, conviction, rationale FROM cio_themes ORDER BY position")
-    return {"house": meta["house"], "as_of": meta["as_of"], "count": len(themes), "themes": themes}
+    return {"house": meta["house"], "as_of": meta["as_of"], "valid_until": meta["valid_until"],
+            "count": len(themes), "themes": themes}
 
 
 def _tactical_calls() -> dict:
     meta = _meta()
     calls = query_all('SELECT dimension, "call", detail, magnitude, conviction, rationale '
                       "FROM tactical_calls ORDER BY position")
-    return {"house": meta["house"], "as_of": meta["as_of"], "count": len(calls), "calls": calls}
+    return {"house": meta["house"], "as_of": meta["as_of"], "valid_until": meta["valid_until"],
+            "count": len(calls), "calls": calls}
 
 
 def register(mcp) -> None:
     @mcp.tool(name="get_house_view", title="Get House View",
               description=HOUSE_VIEW_DESCRIPTION, meta={"unique.app/icon": "compass"})
     def get_house_view(
-        input: Annotated[str, Field(description="'all' or 'current' for the full view, or an asset "
-                                    "class: equities, fixed income, alternatives, fx, cash.")] = "all",
+        asset_class: Annotated[str, Field(description="Omit for the full house view, or pass an asset "
+                                          "class to filter: equities / fixed income / alternatives / "
+                                          "fx / cash.")] = "",
     ) -> str:
-        return json.dumps(_house_view(input))
+        return json.dumps(_house_view(asset_class))
 
     @mcp.tool(name="get_cio_themes", title="Get CIO Themes",
               description=CIO_THEMES_DESCRIPTION, meta={"unique.app/icon": "lightbulb"})
-    def get_cio_themes(
-        input: Annotated[str, Field(description="'all' (or omit).")] = "all",
-    ) -> str:
+    def get_cio_themes() -> str:
         return json.dumps(_cio_themes())
 
     @mcp.tool(name="get_tactical_calls", title="Get Tactical Calls",
               description=TACTICAL_CALLS_DESCRIPTION, meta={"unique.app/icon": "target"})
-    def get_tactical_calls(
-        input: Annotated[str, Field(description="'all' (or omit).")] = "all",
-    ) -> str:
+    def get_tactical_calls() -> str:
         return json.dumps(_tactical_calls())

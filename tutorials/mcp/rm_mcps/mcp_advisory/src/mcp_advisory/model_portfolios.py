@@ -14,7 +14,7 @@ from common.db import make_client_tools, query_all, query_one
 
 _LIST_DESC = (
     "[MDL 1a] Model-portfolio catalogue: code, name, risk band, reference currency, expected "
-    "return, volatility, expected max drawdown, rebalancing cadence. Input: 'all' (or omit)."
+    "return, volatility, expected max drawdown, rebalancing cadence. No arguments."
 )
 _GET_DESC = (
     "[MDL 1b] A model portfolio in full: code, name, risk band, reference currency, target "
@@ -41,9 +41,7 @@ def register(mcp) -> None:
         description=_LIST_DESC,
         meta={"unique.app/icon": "list"},
     )
-    def list_model_portfolios(
-        input: Annotated[str, Field(description="'all' (or omit).")] = "all",
-    ) -> str:
+    def list_model_portfolios() -> str:
         row = query_one("SELECT data FROM model_catalog WHERE id = 1")
         return json.dumps(row["data"] if row else {"count": 0, "models": []})
 

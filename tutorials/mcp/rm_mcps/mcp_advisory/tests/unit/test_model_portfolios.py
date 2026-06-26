@@ -17,7 +17,7 @@ ROWS = [
 def test_list_model_portfolios(fake_mcp, monkeypatch):
     monkeypatch.setattr(mp, "query_one", lambda sql, params=(): {"data": CATALOG})
     mp.register(fake_mcp)
-    out = json.loads(fake_mcp.tools["list_model_portfolios"](input="all"))
+    out = json.loads(fake_mcp.tools["list_model_portfolios"]())
     assert out["count"] == 2 and {m["code"] for m in out["models"]} == {"BI-3", "GR-7"}
 
 

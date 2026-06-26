@@ -67,12 +67,21 @@ def test_risk_exposure_currency_exposure_where_present(tools):
     assert "currency_exposure" in call(tools, "get_risk_exposure", input="Hofer")
 
 
-# --- house view: 'all' / 'current' / each asset class + synonyms / unknown ----------------------
-def test_house_view_all_and_current(tools):
-    for arg in ("all", "current"):
-        out = call(tools, "get_house_view", input=arg)
-        assert {"house", "as_of", "valid_until", "views"} <= set(out)
-        assert len(out["views"]) == 5
+# --- house view: no-args (full) / asset-class filter + synonyms / unknown -----------------------
+def test_house_view_no_args_is_full(tools):
+    out = call(tools, "get_house_view")
+    assert {"house", "as_of", "valid_until", "count", "views"} <= set(out)
+    assert out["count"] == len(out["views"]) == 5
+
+
+def test_house_view_family_consistent_shape(tools):
+    # The three bank-wide House-View tools share the SAME metadata shape — all called with NO args.
+    meta = {"house", "as_of", "valid_until", "count"}
+    for tool, field in [("get_house_view", "views"), ("get_cio_themes", "themes"),
+                        ("get_tactical_calls", "calls")]:
+        out = call(tools, tool)
+        assert meta <= set(out), f"{tool} missing {meta - set(out)}"
+        assert out["count"] == len(out[field])
 
 
 @pytest.mark.parametrize("arg,expected", [
@@ -80,26 +89,28 @@ def test_house_view_all_and_current(tools):
     ("fx", "FX"), ("cash", "Cash"),
     ("bonds", "Fixed income"), ("equity", "Equities"), ("alts", "Alternatives"),  # synonyms
 ])
-def test_house_view_asset_classes_and_synonyms(tools, arg, expected):
-    out = call(tools, "get_house_view", input=arg)
+def test_house_view_asset_class_filter_and_synonyms(tools, arg, expected):
+    out = call(tools, "get_house_view", asset_class=arg)
     assert out["asset_class"] == expected and "stance" in out
 
 
 def test_house_view_unknown_class_is_graceful(tools):
-    out = call(tools, "get_house_view", input="crypto")
+    out = call(tools, "get_house_view", asset_class="crypto")
     assert "error" in out and "available" in out
 
 
 def test_cio_themes_and_tactical_calls(tools):
-    th = call(tools, "get_cio_themes", input="all")
-    assert {"house", "as_of", "count", "themes"} <= set(th) and th["count"] == th["count"]
-    tc = call(tools, "get_tactical_calls", input="all")
-    assert {"house", "as_of", "count", "calls"} <= set(tc)
+    th = call(tools, "get_cio_themes")
+    assert {"house", "as_of", "valid_until", "count", "themes"} <= set(th)
+    assert th["count"] == len(th["themes"])
+    tc = call(tools, "get_tactical_calls")
+    assert {"house", "as_of", "valid_until", "count", "calls"} <= set(tc)
+    assert tc["count"] == len(tc["calls"])
 
 
 # --- models: list / by-code / by-name / unknown / recommend ------------------------------------
 def test_list_then_get_every_model_by_code(tools):
-    cat = call(tools, "list_model_portfolios", input="all")
+    cat = call(tools, "list_model_portfolios")
     assert cat["count"] >= 4
     for m in cat["models"]:
         full = call(tools, "get_model_portfolio", input=m["code"])

@@ -58,7 +58,7 @@ def test_holdings_over_http():
 
 
 def test_house_view_over_http():
-    r = _run(_call("get_house_view", {"input": "all"}))
+    r = _run(_call("get_house_view", {}))
     assert len(r["views"]) >= 5
 
 
