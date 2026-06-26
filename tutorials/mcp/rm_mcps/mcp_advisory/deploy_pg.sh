@@ -12,7 +12,7 @@ RG="${RG:-rg-lab-demo-001-rm-mcps}"
 LOCATION="${LOCATION:-westeurope}"
 APP="rm-advisory-mcp"
 ACR="rmmcpsacr"               # shared registry for all RM MCPs
-PG_SERVER="rm-mcps-pg-db"     # shared Postgres server for all RM MCPs
+PG_SERVER="${PG_SERVER:-rm-mcps-pg-db}"     # shared Postgres server for all RM MCPs
 PG_ADMIN_USER="pgadmin"
 PG_DB="rmmcps"                # shared DB; Advisory tables are namespaced
 
@@ -31,8 +31,9 @@ fi
 echo "[1/8] Setting subscription..."
 az account set --subscription "$SUBSCRIPTION"
 
-# === RESOURCE GROUP (idempotent) ===
-az group create -n "$RG" -l "$LOCATION" 1>/dev/null
+# === RESOURCE GROUP (idempotent) — reuse if it already exists (it may live in a
+# different region than $LOCATION, e.g. a pre-provisioned lab RG); only create when missing. ===
+az group show -n "$RG" 1>/dev/null 2>&1 || az group create -n "$RG" -l "$LOCATION" 1>/dev/null
 
 # === CREATE POSTGRESQL FLEXIBLE SERVER (idempotent; not recreated if exists) ===
 echo "[2/8] PostgreSQL Flexible Server (this can take 5-15 min on first run)..."
@@ -47,11 +48,11 @@ else
     --yes
 fi
 
-# === CREATE DATABASE (idempotent) ===
+# === CREATE DATABASE (idempotent) — show-or-create. NOTE: the db name flag is
+# -n/--name, NOT --database-name (current az CLI rejects the latter). ===
 echo "[3/8] Creating database..."
-az postgres flexible-server db create \
-  --server-name "$PG_SERVER" --resource-group "$RG" \
-  --database-name "$PG_DB" 2>/dev/null || echo "  Database exists."
+az postgres flexible-server db show --server-name "$PG_SERVER" -g "$RG" -n "$PG_DB" &>/dev/null \
+  || az postgres flexible-server db create --server-name "$PG_SERVER" -g "$RG" -n "$PG_DB" 1>/dev/null
 
 # === FIREWALL RULE (allow Web App and psql; idempotent) ===
 echo "[4/8] Firewall rule..."

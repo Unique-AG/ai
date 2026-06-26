@@ -11,7 +11,7 @@ RG="${RG:-rg-lab-demo-001-rm-mcps}"
 LOCATION="${LOCATION:-westeurope}"
 APP="rm-crm-mcp"
 ACR="rmmcpsacr"               # shared registry for all RM MCPs
-PG_SERVER="rm-mcps-pg-db"     # shared Postgres server for all RM MCPs
+PG_SERVER="${PG_SERVER:-rm-mcps-pg-db}"     # shared Postgres server for all RM MCPs
 PG_ADMIN_USER="pgadmin"
 PG_DB="rmmcps"                # shared DB; CRM tables are namespaced
 
