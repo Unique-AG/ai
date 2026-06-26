@@ -170,6 +170,9 @@ class Tool(ABC, Generic[ConfigType]):
     def __init__(self, config: ConfigType) -> None: ...
 
     @overload
+    @deprecated(
+        "Passing event is deprecated. Use Tool(config) and inject context in run()."
+    )
     def __init__(
         self,
         config: ConfigType,
