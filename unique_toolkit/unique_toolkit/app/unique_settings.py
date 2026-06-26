@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, TypeVar
 from urllib.parse import ParseResult, urlparse, urlunparse
 
+import httpx
 import unique_sdk
 from pydantic import (
     AliasChoices,
@@ -316,6 +317,18 @@ class ApiType(StrEnum):
     LEGACY = "legacy"
 
 
+class ApiProbeResponse(BaseModel):
+    version: str
+
+
+class UniqueApiConnectionError(Exception):
+    """Raised when GET /probe fails to confirm API reachability."""
+
+    def __init__(self, base_url: str, message: str) -> None:
+        self.base_url = base_url
+        super().__init__(f"{message} (base URL: {base_url})")
+
+
 @register_config()
 class UniqueApi(BaseSettings):
     base_url: str = Field(
@@ -347,6 +360,8 @@ class UniqueApi(BaseSettings):
         extra="ignore",
         frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
+
+    _probe_check_failed: bool = PrivateAttr(default=False)
 
     @model_validator(mode="after")
     def _warn_about_defaults(self) -> Self:
@@ -398,6 +413,8 @@ class UniqueApi(BaseSettings):
         return parsed, base_path
 
     def sdk_url(self) -> str:
+        if self._probe_check_failed:
+            return self.base_url
         parsed, base_path = self.base_path()
         return urlunparse(parsed._replace(path=base_path, query=None, fragment=None))
 
@@ -405,6 +422,25 @@ class UniqueApi(BaseSettings):
         parsed, base_path = self.base_path()
         path = base_path + "/openai-proxy"
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
+
+    async def check_connection(self, *, timeout: float = 10.0) -> ApiProbeResponse:
+        """Verify the API is reachable via GET ``{sdk_url}/probe`` (no auth required)."""
+        parsed, base_path = self.base_path()
+        probe_url = urlunparse(
+            parsed._replace(path=base_path, query=None, fragment=None)
+        )
+        probe_url = f"{probe_url.rstrip('/')}/probe"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(probe_url, timeout=timeout)
+                response.raise_for_status()
+                result = ApiProbeResponse.model_validate(response.json())
+                self._probe_check_failed = False
+                return result
+        except Exception as exc:
+            self._probe_check_failed = True
+            raise UniqueApiConnectionError(self.base_url, str(exc)) from exc
 
 
 # EventFilterOptions
@@ -574,7 +610,6 @@ class UniqueSettings:
             logger.warning(
                 f"Environment file '{filename}' not found. Falling back to environment variables only."
             )
-            # Fall back to environment variables only
             return cls.from_env()
 
     def init_sdk(self) -> None:
@@ -604,6 +639,10 @@ class UniqueSettings:
         settings = cls.from_env_auto(filename)
         settings.init_sdk()
         return settings
+
+    async def check_api_connection(self, *, timeout: float = 10.0) -> ApiProbeResponse:
+        """Verify the API is reachable via GET ``{sdk_url}/probe``."""
+        return await self.api.check_connection(timeout=timeout)
 
     @classmethod
     def from_chat_event(cls, event: ChatEvent) -> UniqueSettings:
