@@ -250,14 +250,36 @@ class ChatEventSkill(BaseModel):
 SkillReference = ChatEventSkill
 
 
-class ChatEventPayload(BaseModel):
+class BaseEventPayload(BaseModel):
+    """Common payload fields shared by all assistant-context webhook events.
+
+    Both :class:`ChatEventPayload` and :class:`MagicTableBasePayload` extend
+    this. Services that only need the common envelope (``chat_id``,
+    ``assistant_id``, ``metadata_filter``, ``correlation``, ...) should
+    accept :class:`AssistantWebhookEvent` and read the payload off this
+    shared shape; services that need chat-only fields (``user_message``,
+    ``assistant_message``) must accept :class:`ChatEvent` explicitly.
+    """
+
     model_config = model_config
 
-    name: str
-    description: str
-    configuration: dict[str, Any]
+    name: str = Field(description="The module / action name driving the event.")
     chat_id: str
     assistant_id: str
+    configuration: dict[str, Any]
+    # Default is None as empty dict triggers error in `backend-ingestion`
+    metadata_filter: dict[str, Any] | None = Field(
+        default=None,
+        description="Metadata filter compiled after module selection function calling and scope rules.",
+    )
+    correlation: Correlation | None = Field(
+        default=None,
+        description="The correlation to parent message in another chat.",
+    )
+
+
+class ChatEventPayload(BaseEventPayload):
+    description: str
     user_message: ChatEventUserMessage
     assistant_message: ChatEventAssistantMessage
     text: str | None = None
@@ -296,11 +318,6 @@ class ChatEventPayload(BaseModel):
         default_factory=dict,
         description="Parameters extracted from module selection function calling the tool.",
     )
-    # Default is None as empty dict triggers error in `backend-ingestion`
-    metadata_filter: dict[str, Any] | None = Field(
-        default=None,
-        description="Metadata filter compiled after module selection function calling and scope rules.",
-    )
     raw_scope_rules: UniqueQL | None = Field(
         default=None,
         description="Raw UniqueQL rule that can be compiled to a metadata filter.",
@@ -316,10 +333,6 @@ class ChatEventPayload(BaseModel):
     session_config: JsonValue | None = Field(
         default=None,
         description="The session configuration for the chat session.",
-    )
-    correlation: Correlation | None = Field(
-        default=None,
-        description="The correlation to parent message in another chat.",
     )
 
     @field_validator("raw_scope_rules", mode="before")
@@ -341,12 +354,38 @@ class EventPayload(ChatEventPayload):
     # additional_parameters: Optional[EventAdditionalParameters] = None
 
 
-class ChatEvent(BaseEvent[UniqueChatEventFilterOptions]):
+PayloadT_co = TypeVar("PayloadT_co", bound=BaseEventPayload, covariant=True)
+
+
+class AssistantWebhookEvent(
+    BaseEvent[FilterOptionsT], Generic[FilterOptionsT, PayloadT_co]
+):
+    """Umbrella envelope for webhook events that carry assistant/chat context.
+
+    The payload is constrained to :class:`BaseEventPayload`, giving consumers
+    a typed view of the shared envelope fields (``chat_id``, ``assistant_id``,
+    ``metadata_filter``, ``correlation``, ...). Concrete events specialize
+    the payload type:
+
+    * :class:`ChatEvent` → :class:`ChatEventPayload`
+    * ``MagicTableEvent`` → ``MagicTablePayloadTypes`` (discriminated union)
+
+    ``PayloadT_co`` is covariant so that ``AssistantWebhookEvent[..., ChildPayload]``
+    is a subtype of ``AssistantWebhookEvent[..., ParentPayload]``. This lets a
+    service signature accept *any* assistant-context event while still
+    accessing the common ``BaseEventPayload`` shape in a type-checked way.
+    """
+
     model_config = model_config
 
-    payload: ChatEventPayload
+    # Covariant payload must stay read-only; reassignment through a widened type is unsound.
+    payload: PayloadT_co = Field(frozen=True)
     created_at: Optional[int] = None
     version: Optional[str] = None
+
+
+class ChatEvent(AssistantWebhookEvent[UniqueChatEventFilterOptions, ChatEventPayload]):
+    model_config = model_config
 
     class FilterOptions(BaseSettings):
         assistant_ids: list[str] = Field(
