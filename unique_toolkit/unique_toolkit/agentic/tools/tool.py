@@ -219,6 +219,12 @@ class Tool(ABC, Generic[ConfigType]):
         self.logger = getLogger(f"{module_name}.{__name__}")
         self.debug_info: dict[str, Any] = {}
 
+        if (chat_service is None) != (language_model_service is None):
+            raise ValueError(
+                "chat_service and language_model_service must be injected together; "
+                "supplying only one is not supported."
+            )
+
         if chat_service is not None and language_model_service is not None:
             from unique_toolkit.agentic.message_log_manager.service import (
                 MessageStepLogger,
