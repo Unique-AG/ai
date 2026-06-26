@@ -59,11 +59,13 @@ def test_client_memory_crud_round_trip(fake_mcp):
     upsert = fake_mcp.tools["upsert_talking_point"]
     delete = fake_mcp.tools["delete_talking_point"]
 
+    # Markus is seeded with talking points at positions 1-5; use a free slot that is
+    # still within the enforced MEMORY_MAX_POINTS (MAXITEMS) cap.
     before = len(json.loads(get(client_id="Markus")))
-    upsert(client_id="Markus", position=90, text="integration test point")
+    upsert(client_id="Markus", position=20, text="integration test point")
     mid = json.loads(get(client_id="Markus"))
-    assert any(r["position"] == 90 for r in mid)
-    delete(client_id="Markus", position=90)
+    assert any(r["position"] == 20 for r in mid)
+    delete(client_id="Markus", position=20)
     after = len(json.loads(get(client_id="Markus")))
     assert after == before  # cleaned up, back to baseline
 
@@ -80,11 +82,11 @@ def test_reset_restores_baseline(fake_mcp):
     upsert = fake_mcp.tools["upsert_talking_point"]
 
     baseline = len(json.loads(get(client_id="Markus")))
-    upsert(client_id="Markus", position=91, text="to be wiped by reset")
-    assert any(r["position"] == 91 for r in json.loads(get(client_id="Markus")))
+    upsert(client_id="Markus", position=19, text="to be wiped by reset")  # free slot within MAXITEMS
+    assert any(r["position"] == 19 for r in json.loads(get(client_id="Markus")))
 
     result = reset_demo_data(sql_dir)
     assert result["reset"] is True
 
     after = json.loads(get(client_id="Markus"))
-    assert len(after) == baseline and not any(r["position"] == 91 for r in after)
+    assert len(after) == baseline and not any(r["position"] == 19 for r in after)

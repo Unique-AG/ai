@@ -119,7 +119,12 @@ def reset_demo_data(sql_dir: str) -> dict:
                 if existing:
                     cur.execute("TRUNCATE TABLE " + ", ".join(existing) + " RESTART IDENTITY CASCADE")
                 for text in texts:
-                    cur.execute(text)  # whole file (no params → literal %/; are safe)
+                    # Execute each seed file as ONE multi-statement script: psycopg2 runs all
+                    # ';'-separated statements via libpq in this transaction, and parses SQL
+                    # quoting correctly. The files use no bound params, and several values
+                    # contain ';' inside string literals (e.g. house_views), so a naive
+                    # split(';') would corrupt them — whole-file execute is the safe choice.
+                    cur.execute(text)
                 counts = {}
                 for tbl in tables:
                     cur.execute(f"SELECT COUNT(*) FROM {tbl}")
