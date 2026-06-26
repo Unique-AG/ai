@@ -1,6 +1,6 @@
 # RM Agent — MCP Servers Reference (2-connector build)
 
-_From the deployed Advisory + CRM MCP servers · 2 servers · 38 tools · as-of 2026-06-26._
+_From the deployed Advisory + CRM MCP servers · 2 servers · 39 tools · as-of 2026-06-26._
 
 This is the **consolidated** layout: the nine n8n workflows are replaced by **two**
 standalone MCP servers. Connector names below are the exact server names — use them
@@ -16,7 +16,7 @@ legacy numeric id; all resolve to the same client. Unknown input returns an `Unk
 ## Servers
 
 - **RM Agent - Advisory** (`https://rm-advisory-mcp.azurewebsites.net/mcp`) — 18 tools — _consolidates n8n: House Views, Client Portfolios, Transactions, Model Portfolios, Lombard Coverage_
-- **RM Agent - CRM** (`https://rm-crm-mcp.azurewebsites.net/mcp`) — 20 tools — _consolidates n8n: CRM, Client Memory, Calendar_
+- **RM Agent - CRM** (`https://rm-crm-mcp.azurewebsites.net/mcp`) — 21 tools — _consolidates n8n: CRM, Client Memory, Calendar; + server-side dashboard-section editor_
 
 > The n8n **Portfolio Optimizer** (`propose_rebalance` / `check_suitability`) is **not** in this build — it was the Phase-2 advice engine and has no port yet.
 
@@ -27,6 +27,7 @@ legacy numeric id; all resolve to the same client. Unknown input returns an `Unk
 - **`list_documents`** now returns **`open_doc_payload`** per row (`{"contentId":"cont_…"}`) — the dashboard "Open" button attr-binds it (the payload-less `openDocument` + `data-unique-key` path does not open files).
 - Per-client tools accept a **name**, a **client_id**, or a **legacy numeric id** (passed as `input` or `client_id`); resolve once via `get_party_identity`, reuse the `client_id`.
 - Response shapes corrected to match the live tools: `recommend_model` → `{client_id, model, note}`; `get_coverage_scenario` → `options[]`; `get_risk_exposure` `currency_exposure` present for some clients; `get_attribution` → `{client_id, error}` for clients with no attribution.
+- **New `edit_dashboard_section`** (CRM) — adds / removes a whole **card** (talking points, open questions, facility documents, house view, model portfolio, recommendation) on a client's investment-proposal dashboard and writes the HTML back to the KB **server-side in one call** (pass `content_id`). The agent's task scope is read-only on the dashboard document, so this tool is the **only** way to persist a section toggle — the agent must not download / edit / `unique-cli upload` the HTML. Entry point for the agent is the `dashboard-sections` skill; to change a list's *contents* (not toggle the whole card) use the client-memory `upsert_*` / `delete_*` tools.
 
 ---
 
@@ -264,15 +265,15 @@ Reset this server's demo data to its baseline. DESTRUCTIVE: truncates the Adviso
 
 ## RM Agent - CRM
 
-**Endpoint:** `https://rm-crm-mcp.azurewebsites.net/mcp`  ·  **Tools:** 20
+**Endpoint:** `https://rm-crm-mcp.azurewebsites.net/mcp`  ·  **Tools:** 21
 
 **Description**
 
-The relationship side of the RM Agent, in one connector: the client system of record (legal identity, KYC identifiers, legal-entity & ownership/UBO chain, relationship & RM ownership, mandate & objectives, interaction history, the client-book roster, and the per-client KB document catalog); the EDITABLE per-client lists shown live on the investment-proposal dashboard (talking points, open questions, facility documents); and the RM calendar (upcoming & past client meetings). Mostly read-only — the client-memory `upsert_*` / `delete_*` tools are the only writers. Synthetic demo data, consistent with `/RM Client Data`.
+The relationship side of the RM Agent, in one connector: the client system of record (legal identity, KYC identifiers, legal-entity & ownership/UBO chain, relationship & RM ownership, mandate & objectives, interaction history, the client-book roster, and the per-client KB document catalog); the EDITABLE per-client lists shown live on the investment-proposal dashboard (talking points, open questions, facility documents); a server-side dashboard editor (`edit_dashboard_section`) that adds / removes whole cards on that dashboard; and the RM calendar (upcoming & past client meetings). Mostly read-only — the client-memory `upsert_*` / `delete_*` tools and `edit_dashboard_section` are the only writers. Synthetic demo data, consistent with `/RM Client Data`.
 
 **System Prompt**
 
-> Use this connector to establish WHO a client is, to manage the dashboard's editable lists, and to read the calendar — never for holdings, prices, performance, or recommendations (use `RM Agent - Advisory`). ALWAYS resolve the client here first (by name or client_id) and reuse the returned `client_id` across this connector and `RM Agent - Advisory`. Treat identity / relationship / mandate as authoritative; an empty field on a wired client means 'not yet captured' (signal), not 'unknown' — say so rather than inventing a value. Never infer suitability or returns from CRM data. EDITABLE MEMORY: the talking points / open questions / facility documents on the proposal dashboard live here — read with the `get_*` / `list_documents` tools (each row has a `position` + `text`/`title`), then `upsert_*` to add a row (next free position) or change one (existing position), or `delete_*` to remove a row by position; keep talking points / questions ≤200 chars and ≤20 per client; for documents pass a valid `cont_…` `contentId` from `list_available_documents`. The dashboard reads these live — never edit a file or the dashboard HTML. CALENDAR: present times in the event's stated timezone and lead with the soonest relevant meeting. `list_available_documents` is the read-only catalog of a client's KB files (pick contentIds from it when curating the document list).
+> Use this connector to establish WHO a client is, to manage the dashboard's editable lists, and to read the calendar — never for holdings, prices, performance, or recommendations (use `RM Agent - Advisory`). ALWAYS resolve the client here first (by name or client_id) and reuse the returned `client_id` across this connector and `RM Agent - Advisory`. Treat identity / relationship / mandate as authoritative; an empty field on a wired client means 'not yet captured' (signal), not 'unknown' — say so rather than inventing a value. Never infer suitability or returns from CRM data. EDITABLE MEMORY: the talking points / open questions / facility documents on the proposal dashboard live here — read with the `get_*` / `list_documents` tools (each row has a `position` + `text`/`title`), then `upsert_*` to add a row (next free position) or change one (existing position), or `delete_*` to remove a row by position; keep talking points / questions ≤200 chars and ≤20 per client; for documents pass a valid `cont_…` `contentId` from `list_available_documents`. The dashboard reads these live — never edit a file or the dashboard HTML. SECTION TOGGLE: to add or remove a WHOLE card (section) of the dashboard — e.g. drop the open-questions card or bring the talking-points card back — call `edit_dashboard_section` (one call, writes server-side); never download / edit / `unique-cli upload` the HTML yourself (your task scope is read-only on it). CALENDAR: present times in the event's stated timezone and lead with the soonest relevant meeting. `list_available_documents` is the read-only catalog of a client's KB files (pick contentIds from it when curating the document list).
 
 ### Tools
 
@@ -311,6 +312,18 @@ Delete one talking point by position for a client.
 **System Prompt: Tool Response Format Instructions**
 
 > Deletes the matching row (`{client_id, position, deleted:true}`); the dashboard drops it on refresh.
+
+#### `edit_dashboard_section`
+
+[DASH 1] Add or remove a WHOLE section (card) of a client's investment-proposal dashboard — recommendation, house view, model portfolio, talking points, open questions, facility documents — and write the HTML back to the Knowledge Base in one call (no file download/upload on the agent's side). Removed cards stay in the dashboard's embedded section library, so `add` restores the exact card. To change a list's CONTENTS rather than toggle the whole card, use the client-memory `upsert_*` / `delete_*` tools instead.
+
+**System Prompt: Tool Usage Instructions**
+
+> WRITE (whole card, server-side). Input: `client_id`; `action` (`list` | `remove` | `add`); `section` (a key — `recommendation` / `house_view` / `model_portfolio` / `talking_points` / `open_questions` / `facility_documents` — or a card id like `mod-5`; omit for `list`); and `content_id` (the dashboard's `cont_…` id — it's in the Edit-with-AI prompt; pass it so the exact file is edited). Make ONE call — it toggles the card and saves the file with the server's own credentials. Do NOT download / edit / `unique-cli upload` the dashboard (the agent's task scope is read-only on that document). If it returns "MCP tool is not enabled", stop and tell the RM the tool needs enabling/re-syncing on this connector — do not fall back to the CLI.
+
+**System Prompt: Tool Response Format Instructions**
+
+> `list` → `{client_id, present:[{id,key}], addable:[{id,key}]}`. `remove`/`add` → `{client_id, section, id, action, changed:true, note}` (or `changed:false` with a `note` — e.g. "already removed" / "already present"). On success tell the RM to **Refresh** the dashboard.
 
 #### `get_entity_ownership`
 

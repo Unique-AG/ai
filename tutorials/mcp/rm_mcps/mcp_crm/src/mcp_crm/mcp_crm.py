@@ -36,6 +36,7 @@ from starlette.requests import Request
 
 import client_memory
 import crm
+import dashboard
 import meetings
 from common.db import RESET_DEMO_DATA_DESCRIPTION, reset_demo_data
 
@@ -118,6 +119,7 @@ mcp = FastMCP("RM Agent - CRM", auth=build_auth())
 crm.register(mcp)
 client_memory.register(mcp)
 meetings.register(mcp)
+dashboard.register(mcp)
 
 # --- demo reset ----------------------------------------------------------------
 _SQL_DIR = str(Path(__file__).parent / "sql")

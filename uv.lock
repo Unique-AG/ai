@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-06-09T11:00:00.463484926Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -22,7 +22,7 @@ unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
 unique-mcp = false
-litellm = "2026-05-17T00:00:00Z"
+litellm = "2026-05-16T22:00:00Z"
 unique-orchestrator = false
 unique-follow-up-questions = false
 unique-user-memory = false
@@ -34,7 +34,7 @@ unique-stock-ticker = false
 unique-search-proxy-sdk = false
 unique-skill-tool = false
 unique-quartr = false
-pymdown-extensions = "2026-05-15T00:00:00Z"
+pymdown-extensions = "2026-05-14T22:00:00Z"
 
 [manifest]
 members = [

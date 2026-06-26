@@ -12,6 +12,9 @@ dependencies = [
     "py-key-value-aio[postgresql]>=0.4.0",
     "pydantic>=2.12.3",
     "python-dotenv>=1.0.0",
+    "unique-sdk>=2026.24",          # KB download + scope resolution for edit_dashboard_section
+    "unique-toolkit>=2026.24",      # KnowledgeBaseService.upload_content_from_bytes (the working KB write path)
+    "requests>=2.32",               # file_io PUT/GET of KB blobs
 ]
 
 [tool.uv]

@@ -27,4 +27,6 @@ INSERT INTO model_recommend (client_id, data) VALUES ($rmt$PTY-0003001$rmt$, $rm
 INSERT INTO model_recommend (client_id, data) VALUES ($rmt$CH-PB-0049217$rmt$, $rmj${"model": "BG-5", "note": "Balanced (4/6), modest growth; current allocation slightly equity-heavy vs model."}$rmj$::jsonb) ON CONFLICT (client_id) DO NOTHING;
 INSERT INTO model_recommend (client_id, data) VALUES ($rmt$CH-PB-0061884$rmt$, $rmj${"model": "GR-7", "note": "Growth (5/6), 15+ year horizon; alternatives sleeve actively managed."}$rmj$::jsonb) ON CONFLICT (client_id) DO NOTHING;
 INSERT INTO model_recommend (client_id, data) VALUES ($rmt$CH-PROS-0118$rmt$, $rmj${"model": null, "note": "UHNW prospect — consolidation scenario; risk profile TBD."}$rmj$::jsonb) ON CONFLICT (client_id) DO NOTHING;
+INSERT INTO model_recommend (client_id, data) VALUES ($rmt$CH-PROS-0119$rmt$, $rmj${"model": "GR-7", "note": "Growth (5/6), 10yr+ horizon; globally diversified SAA, thematic technology capped at 5% to avoid re-concentration."}$rmj$::jsonb) ON CONFLICT (client_id) DO NOTHING;
+INSERT INTO model_recommend (client_id, data) VALUES ($rmt$GB-PB-0072001$rmt$, $rmj${"model": "BG-5", "note": "Balanced Growth (GBP); trim Mag-7 to mandate (aggregate 20%, clear NVDA/MSFT cap breaches) and redeploy to broaden equity + income."}$rmj$::jsonb) ON CONFLICT (client_id) DO NOTHING;
 
