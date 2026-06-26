@@ -56,12 +56,13 @@ def test_party_identity_over_http():
 
 
 def test_memory_crud_over_http():
-    _run(_call("upsert_talking_point", {"client_id": "Markus", "position": 92, "text": "http test"}))
+    # Markus is seeded at positions 1-5; use a free slot within the MEMORY_MAX_POINTS cap.
+    _run(_call("upsert_talking_point", {"client_id": "Markus", "position": 18, "text": "http test"}))
     rows = _run(_call("get_talking_points", {"client_id": "Markus"}))
-    assert any(r["position"] == 92 for r in rows)
-    _run(_call("delete_talking_point", {"client_id": "Markus", "position": 92}))
+    assert any(r["position"] == 18 for r in rows)
+    _run(_call("delete_talking_point", {"client_id": "Markus", "position": 18}))
     rows2 = _run(_call("get_talking_points", {"client_id": "Markus"}))
-    assert not any(r["position"] == 92 for r in rows2)
+    assert not any(r["position"] == 18 for r in rows2)
 
 
 def test_unknown_client_over_http():
