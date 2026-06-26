@@ -127,6 +127,8 @@ class MagicTableBasePayload(BaseEventPayload, Generic[A, T]):
 
     model_config = get_configuration_dict()
 
+    # Optional on magic-table (BaseEventPayload requires it for chat).
+    configuration: dict[str, Any] = Field(default_factory=dict)
     sheet_name: str
     action: A
     table_id: str

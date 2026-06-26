@@ -266,7 +266,7 @@ class BaseEventPayload(BaseModel):
     name: str = Field(description="The module / action name driving the event.")
     chat_id: str
     assistant_id: str
-    configuration: dict[str, Any] = Field(default_factory=dict)
+    configuration: dict[str, Any]
     # Default is None as empty dict triggers error in `backend-ingestion`
     metadata_filter: dict[str, Any] | None = Field(
         default=None,
@@ -279,8 +279,6 @@ class BaseEventPayload(BaseModel):
 
 
 class ChatEventPayload(BaseEventPayload):
-    # Re-require configuration on chat (BaseEventPayload defaults it for magic-table).
-    configuration: dict[str, Any] = Field(...)
     description: str
     user_message: ChatEventUserMessage
     assistant_message: ChatEventAssistantMessage
