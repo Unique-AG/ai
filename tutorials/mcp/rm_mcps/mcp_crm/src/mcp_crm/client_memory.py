@@ -77,15 +77,15 @@ def register(mcp) -> None:
     @mcp.tool(name="upsert_talking_point", title="Upsert Talking Point",
               description="Create or update one talking point at a position for a client.",
               meta={"unique.app/icon": "pencil"})
-    def upsert_talking_point(client_id: _CID = "", position: _POS = 1,
+    def upsert_talking_point(client_id: _CID = "", input: _CID = "", position: _POS = 1,
                              text: Annotated[str, Field(description="Talking-point text.")] = "") -> str:
-        return json.dumps(_upsert("rm_talking_points", ("text",), client_id, position, {"text": text}))
+        return json.dumps(_upsert("rm_talking_points", ("text",), client_id or input, position, {"text": text}))
 
     @mcp.tool(name="delete_talking_point", title="Delete Talking Point",
               description="Delete one talking point by position for a client.",
               meta={"unique.app/icon": "trash"})
-    def delete_talking_point(client_id: _CID = "", position: _POS = 1) -> str:
-        return json.dumps(_delete("rm_talking_points", client_id, position))
+    def delete_talking_point(client_id: _CID = "", input: _CID = "", position: _POS = 1) -> str:
+        return json.dumps(_delete("rm_talking_points", client_id or input, position))
 
     # --- open questions ---------------------------------------------------------
     @mcp.tool(name="get_open_questions", title="Get Open Questions",
@@ -97,15 +97,15 @@ def register(mcp) -> None:
     @mcp.tool(name="upsert_open_question", title="Upsert Open Question",
               description="Create or update one open question at a position for a client.",
               meta={"unique.app/icon": "pencil"})
-    def upsert_open_question(client_id: _CID = "", position: _POS = 1,
+    def upsert_open_question(client_id: _CID = "", input: _CID = "", position: _POS = 1,
                              text: Annotated[str, Field(description="Open-question text.")] = "") -> str:
-        return json.dumps(_upsert("rm_open_questions", ("text",), client_id, position, {"text": text}))
+        return json.dumps(_upsert("rm_open_questions", ("text",), client_id or input, position, {"text": text}))
 
     @mcp.tool(name="delete_open_question", title="Delete Open Question",
               description="Delete one open question by position for a client.",
               meta={"unique.app/icon": "trash"})
-    def delete_open_question(client_id: _CID = "", position: _POS = 1) -> str:
-        return json.dumps(_delete("rm_open_questions", client_id, position))
+    def delete_open_question(client_id: _CID = "", input: _CID = "", position: _POS = 1) -> str:
+        return json.dumps(_delete("rm_open_questions", client_id or input, position))
 
     # --- documents (pinned, with contentId) ------------------------------------
     @mcp.tool(name="list_documents", title="List Documents (Memory)",
@@ -117,14 +117,14 @@ def register(mcp) -> None:
     @mcp.tool(name="upsert_document", title="Upsert Document (Memory)",
               description="Create or update one pinned document (title + contentId) at a position for a client.",
               meta={"unique.app/icon": "pencil"})
-    def upsert_document(client_id: _CID = "", position: _POS = 1,
+    def upsert_document(client_id: _CID = "", input: _CID = "", position: _POS = 1,
                         title: Annotated[str, Field(description="Document title.")] = "",
                         contentId: Annotated[str, Field(description="KB content id.")] = "") -> str:
-        return json.dumps(_upsert("rm_documents", ("title", "contentId"), client_id, position,
+        return json.dumps(_upsert("rm_documents", ("title", "contentId"), client_id or input, position,
                                   {"title": title, "contentId": contentId}))
 
     @mcp.tool(name="delete_document", title="Delete Document (Memory)",
               description="Delete one pinned document by position for a client.",
               meta={"unique.app/icon": "trash"})
-    def delete_document(client_id: _CID = "", position: _POS = 1) -> str:
-        return json.dumps(_delete("rm_documents", client_id, position))
+    def delete_document(client_id: _CID = "", input: _CID = "", position: _POS = 1) -> str:
+        return json.dumps(_delete("rm_documents", client_id or input, position))

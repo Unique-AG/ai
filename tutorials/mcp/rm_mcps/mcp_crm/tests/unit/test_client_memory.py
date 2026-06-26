@@ -82,6 +82,18 @@ def test_tools_registered(fake_mcp):
     assert expected <= set(fake_mcp.tools)
 
 
+def test_write_tools_accept_input_alias(fake_mcp, monkeypatch):
+    # upsert/delete must resolve a client name passed via `input`, like the getters.
+    seen = {}
+    monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1" if v else None)
+    monkeypatch.setattr(cm, "execute", lambda sql, params=(): seen.update(params=params))
+    cm.register(fake_mcp)
+    r = json.loads(fake_mcp.tools["upsert_talking_point"](input="Brunner", position=2, text="hi"))
+    assert r == {"client_id": "PTY-1", "position": 2, "updated": True, "text": "hi"}
+    d = json.loads(fake_mcp.tools["delete_talking_point"](input="Brunner", position=2))
+    assert d == {"client_id": "PTY-1", "position": 2, "deleted": True}
+
+
 def test_get_tool_accepts_input_alias(fake_mcp, monkeypatch):
     monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1" if v else None)
     monkeypatch.setattr(cm, "query_all", lambda sql, params=(): [])
