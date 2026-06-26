@@ -220,7 +220,7 @@ class ContentReference(BaseModel):
         description=(
             "Optional free-text/structured description carried alongside the "
             "reference. Used by MCP tool references (UN-22310) to carry an "
-            'enriched ``{"mcp": {connectorName, title, details?, iconUrl?}}`` '
+            'enriched ``{"mcp": {connectorName, title, details?, mcpServerId?}}`` '
             "JSON payload the chat frontend renders as a card. Nullable "
             "end-to-end (node-chat persists it as a nullable column; empty "
             "values are dropped before sending)."
