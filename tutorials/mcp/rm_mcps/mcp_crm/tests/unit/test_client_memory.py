@@ -29,6 +29,14 @@ def test_upsert_truncates_to_maxlen(monkeypatch):
     assert len(captured["params"][2]) == cm.MAXLEN
 
 
+def test_upsert_response_echoes_stored_truncated_text(monkeypatch):
+    # The response must reflect what was stored (truncated), not the original input.
+    monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1")
+    monkeypatch.setattr(cm, "execute", lambda sql, params=(): None)
+    r = cm._upsert("rm_talking_points", ("text",), "x", 1, {"text": "a" * 500})
+    assert r["text"] == "a" * cm.MAXLEN
+
+
 def test_upsert_document_keeps_content_id_untruncated(monkeypatch):
     captured = {}
     monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1")

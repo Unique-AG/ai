@@ -35,9 +35,11 @@ if ! az postgres flexible-server show -n "$PG_SERVER" -g "$RG" &>/dev/null; then
   echo "ERROR: shared server $PG_SERVER not found in $RG. Run mcp_advisory/deploy_pg.sh first."
   exit 1
 fi
-az postgres flexible-server db create \
-  --server-name "$PG_SERVER" --resource-group "$RG" \
-  --database-name "$PG_DB" 2>/dev/null || echo "  Database exists."
+# Shared DB is normally created by mcp_advisory; create it here too (idempotent,
+# show-or-create) in case CRM is deployed first. The db name flag is -n/--name —
+# current az CLI rejects --database-name.
+az postgres flexible-server db show --server-name "$PG_SERVER" -g "$RG" -n "$PG_DB" &>/dev/null \
+  || az postgres flexible-server db create --server-name "$PG_SERVER" -g "$RG" -n "$PG_DB" 1>/dev/null
 
 echo "[3/7] Seeding CRM tables (sql/*.sql)..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

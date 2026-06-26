@@ -39,10 +39,12 @@ def _upsert(table: str, extra: tuple, client_id: str, position: int, values: dic
     # to MAXITEMS, so a client's list can never grow past the n8n limit.
     if not 1 <= int(position) <= MAXITEMS:
         return {"client_id": cid, "error": f"position must be between 1 and {MAXITEMS} (MEMORY_MAX_POINTS)."}
+    # Truncate text/title to MAXLEN (contentId kept whole); store AND echo the SAME
+    # values so the response reflects exactly what was persisted, not the input.
+    stored = {k: str(values.get(k, "")) if k == "contentId" else str(values.get(k, ""))[:MAXLEN]
+              for k in extra}
     cols = ["client_id", "position", *extra]
-    vals = [cid, int(position)] + [
-        (str(values.get(k, "")) if k == "contentId" else str(values.get(k, ""))[:MAXLEN]) for k in extra
-    ]
+    vals = [cid, int(position)] + [stored[k] for k in extra]
     collist = ",".join(_qcol(c) for c in cols)
     ph = ",".join(["%s"] * len(cols))
     setlist = ",".join(f"{_qcol(c)}=EXCLUDED.{_qcol(c)}" for c in extra)
@@ -51,7 +53,7 @@ def _upsert(table: str, extra: tuple, client_id: str, position: int, values: dic
         f"ON CONFLICT (client_id, position) DO UPDATE SET {setlist}",
         tuple(vals),
     )
-    return {"client_id": cid, "position": int(position), "updated": True, **values}
+    return {"client_id": cid, "position": int(position), "updated": True, **stored}
 
 
 def _delete(table: str, client_id: str, position: int) -> dict:
