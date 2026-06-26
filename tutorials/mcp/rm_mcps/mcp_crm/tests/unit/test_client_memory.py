@@ -109,3 +109,14 @@ def test_get_tool_accepts_input_alias(fake_mcp, monkeypatch):
     # both client_id and input should resolve
     assert json.loads(fake_mcp.tools["get_talking_points"](input="Brunner")) == []
     assert json.loads(fake_mcp.tools["get_talking_points"](client_id="PTY-1")) == []
+
+
+def test_list_documents_adds_open_doc_payload(fake_mcp, monkeypatch):
+    # The dashboard's §6 "Open" button attr-binds open_doc_payload; list_documents must
+    # supply it as a JSON {"contentId": "..."} string per row (else documents won't open).
+    monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1")
+    monkeypatch.setattr(cm, "query_all", lambda sql, params=():
+                        [{"client_id": "PTY-1", "position": 1, "title": "X", "contentId": "cont_abc"}])
+    cm.register(fake_mcp)
+    rows = json.loads(fake_mcp.tools["list_documents"](client_id="PTY-1"))
+    assert rows[0]["open_doc_payload"] == json.dumps({"contentId": "cont_abc"})

@@ -114,7 +114,15 @@ def register(mcp) -> None:
               description="Get the client's pinned documents (ordered list with title + contentId). Input: client name or client_id.",
               meta={"unique.app/icon": "files"})
     def list_documents(client_id: _CID = "", input: _CID = "") -> str:
-        return json.dumps(_get("rm_documents", client_id or input))
+        rows = _get("rm_documents", client_id or input)
+        # Add an attr-bindable openDocument payload per row (same pattern as
+        # list_clients.open_doc_payload) so the dashboard's "Open" button gets a valid
+        # {"contentId": "cont_…"} object — the payload-less openDocument + data-unique-key
+        # path does NOT survive list rendering (the key renders as the value).
+        if isinstance(rows, list):
+            for r in rows:
+                r["open_doc_payload"] = json.dumps({"contentId": r.get("contentId", "")})
+        return json.dumps(rows)
 
     @mcp.tool(name="upsert_document", title="Upsert Document (Memory)",
               description="Create or update one pinned document (title + contentId) at a position for a client.",
