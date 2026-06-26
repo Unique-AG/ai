@@ -45,6 +45,14 @@ def test_coverage_ccy_override_adds_fx_note(fake_mcp, monkeypatch):
     assert out["reporting_ccy"] == "USD" and "fx_note" in out
 
 
+def test_coverage_unknown_client_errors(fake_mcp, monkeypatch):
+    # A non-empty client that doesn't resolve must error, not serve Markus's record.
+    monkeypatch.setattr(lb, "query_one", lambda sql, params=(): {"data": {}})
+    lb.register(fake_mcp)
+    out = json.loads(fake_mcp.tools["get_coverage_scenario"](client_id="Hofer", scenario_id="baseline"))
+    assert "error" in out and "Unknown client" in out["error"]
+
+
 def test_coverage_unknown_scenario_is_graceful(fake_mcp, monkeypatch):
     monkeypatch.setattr(lb, "query_one", lambda sql, params=(): None)
     lb.register(fake_mcp)

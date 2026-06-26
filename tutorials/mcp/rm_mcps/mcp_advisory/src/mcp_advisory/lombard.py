@@ -73,7 +73,14 @@ def register(mcp) -> None:
         reporting_ccy: Annotated[str, Field(description="Reporting currency override (echoed only).")] = "",
         as_of: Annotated[str, Field(description="As-of timestamp override (echoed only).")] = "",
     ) -> str:
-        party = _resolve_party(client_id or client) or "50318"
+        # A non-empty client that doesn't resolve is an error — don't silently serve
+        # Markus Brunner's record. Empty/omitted input defaults to the only demo party.
+        raw = str(client_id or client or "").strip()
+        party = _resolve_party(raw)
+        if raw and not party:
+            return json.dumps({"error": f"Unknown client '{raw}'. Demo data covers client_id "
+                               "50318 (Markus Brunner).", "available_parties": [50318]})
+        party = party or "50318"
         scen = _resolve_scenario(scenario_id)
         if scen == "":
             return json.dumps({"error": "Unknown scenario_id. Use one of: " + " | ".join(SCENARIOS) + ".",

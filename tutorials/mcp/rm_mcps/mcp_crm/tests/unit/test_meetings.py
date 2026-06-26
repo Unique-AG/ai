@@ -44,6 +44,15 @@ def test_next_meeting_sorts_by_start(fake_mcp, monkeypatch):
     assert r["next_meeting"]["title"] == "A"
 
 
+def test_next_meeting_unknown_client_errors(fake_mcp, monkeypatch):
+    # A named client that doesn't resolve must error, not return the global earliest.
+    monkeypatch.setattr(mt, "resolve_client", lambda v: None)
+    monkeypatch.setattr(mt, "query_all", lambda sql, params=(): [{"data": {"start": "2026-06-25"}}])
+    mt.register(fake_mcp)
+    r = json.loads(fake_mcp.tools["get_next_meeting"](input="Ghost Client"))
+    assert "error" in r and "Unknown client" in r["error"]
+
+
 def test_get_meetings_shape(fake_mcp, monkeypatch):
     monkeypatch.setattr(mt, "resolve_client", lambda v: None)
     monkeypatch.setattr(mt, "query_all", lambda sql, params=(): [])

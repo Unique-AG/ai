@@ -35,6 +35,10 @@ def _upsert(table: str, extra: tuple, client_id: str, position: int, values: dic
     cid = resolve_client(client_id)
     if cid is None:
         return unknown(client_id)
+    # Enforce the documented MEMORY_MAX_POINTS cap: positions are 1-based and bounded
+    # to MAXITEMS, so a client's list can never grow past the n8n limit.
+    if not 1 <= int(position) <= MAXITEMS:
+        return {"client_id": cid, "error": f"position must be between 1 and {MAXITEMS} (MEMORY_MAX_POINTS)."}
     cols = ["client_id", "position", *extra]
     vals = [cid, int(position)] + [
         (str(values.get(k, "")) if k == "contentId" else str(values.get(k, ""))[:MAXLEN]) for k in extra

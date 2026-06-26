@@ -45,6 +45,13 @@ def test_upsert_unknown_client(monkeypatch):
     assert "Unknown client" in r["error"]
 
 
+def test_upsert_rejects_position_over_max(monkeypatch):
+    monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1")
+    monkeypatch.setattr(cm, "execute", lambda sql, params=(): None)
+    r = cm._upsert("rm_talking_points", ("text",), "x", cm.MAXITEMS + 1, {"text": "x"})
+    assert "error" in r and "MEMORY_MAX_POINTS" in r["error"]
+
+
 def test_delete_shape(monkeypatch):
     monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1")
     monkeypatch.setattr(cm, "execute", lambda sql, params=(): None)

@@ -9,7 +9,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from common.db import query_all, resolve_client
+from common.db import query_all, resolve_client, unknown
 
 _MEETINGS_DESC = (
     "[CAL 1a] Calendar meetings (synthetic, consistent with RM Client Data). Input: a client name "
@@ -63,6 +63,23 @@ def register(mcp) -> None:
     def get_next_meeting(
         input: Annotated[str, Field(description="Client name or client_id.")] = "",
     ) -> str:
-        meetings, _ = _events(input)
-        meetings = sorted(meetings, key=lambda e: e.get("start") or e.get("start_at") or e.get("date") or "")
-        return json.dumps({"next_meeting": meetings[0] if meetings else None})
+        # Unlike get_meetings, this tool is scoped to a single client: a named client
+        # that doesn't resolve must error (not silently fall through to the globally
+        # earliest meeting). 'week'/'all'/omit keep the "all upcoming" behaviour.
+        raw = str(input or "").strip()
+        specific = bool(raw) and raw.lower() not in ("week", "all")
+        cid = resolve_client(raw) if specific else None
+        if specific and cid is None:
+            return json.dumps(unknown(raw))
+        if cid:
+            rows = query_all(
+                "SELECT data FROM calendar_events WHERE client_id = %s ORDER BY start_at", (cid,)
+            )
+        else:
+            rows = query_all("SELECT data FROM calendar_events ORDER BY start_at")
+        meetings = sorted((r["data"] for r in rows),
+                          key=lambda e: e.get("start") or e.get("start_at") or e.get("date") or "")
+        out = {"next_meeting": meetings[0] if meetings else None}
+        if cid:
+            out["client_id"] = cid
+        return json.dumps(out)
