@@ -32,7 +32,7 @@ def test_party_identity_resolves_name(fake_mcp):
 def test_list_clients_status_filter(fake_mcp):
     crm.register(fake_mcp)
     r = json.loads(fake_mcp.tools["list_clients"](status="client"))
-    assert r["total"] == 3  # Markus, Hofer, Lavanchy
+    assert r["total"] == 4  # Markus, Hofer, Lavanchy, Sophia Brown
 
 
 def test_entity_ownership(fake_mcp):
@@ -49,7 +49,8 @@ def test_unknown_client_fails_gracefully(fake_mcp):
 
 def test_next_meeting_for_client(fake_mcp):
     meetings.register(fake_mcp)
-    r = json.loads(fake_mcp.tools["get_next_meeting"](input="Markus"))
+    # Use a client that reliably has a seeded meeting (Markus has no calendar event).
+    r = json.loads(fake_mcp.tools["get_next_meeting"](input="Lavanchy"))
     assert r["next_meeting"] is not None
 
 

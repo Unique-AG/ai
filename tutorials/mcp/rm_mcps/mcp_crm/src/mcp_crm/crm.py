@@ -12,6 +12,7 @@ from typing import Annotated
 from pydantic import Field
 
 from common.db import make_client_tools, query_all, query_one, resolve_client, unknown
+from common.tool_prompts import tool_meta
 
 SPECS = [
     {
@@ -98,7 +99,7 @@ def register(mcp) -> None:
         name="list_clients",
         title="List Clients",
         description=_LIST_CLIENTS_DESC,
-        meta={"unique.app/icon": "users"},
+        meta=tool_meta("list_clients", {"unique.app/icon": "users"}),
     )
     def list_clients(
         q: Annotated[str, Field(description="Free-text substring over name/client_id/segment/rm/status.")] = "",
@@ -134,7 +135,7 @@ def register(mcp) -> None:
         name="list_available_documents",
         title="List Available Documents",
         description=_LIST_DOCS_DESC,
-        meta={"unique.app/icon": "folder-open"},
+        meta=tool_meta("list_available_documents", {"unique.app/icon": "folder-open"}),
     )
     def list_available_documents(
         input: Annotated[str, Field(description="Client name or client_id.")] = "",

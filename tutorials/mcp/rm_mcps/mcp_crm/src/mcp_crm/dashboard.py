@@ -27,6 +27,9 @@ from unique_toolkit import KnowledgeBaseService  # 'unique_toolkit.chat' KeyErro
 # primed at module top, not lazily inside a tool/thread). Startup stays under Azure's warmup limit via
 # WEBSITES_CONTAINER_START_TIME_LIMIT (set to 600 on the web app), so module-top imports are safe here.
 
+from common.db import resolve_client  # canonical client_id for the KB folder path
+from common.tool_prompts import tool_meta
+
 unique_sdk.api_key = _API_KEY = os.getenv("UNIQUE_APP_KEY", "")
 unique_sdk.app_id = os.getenv("UNIQUE_APP_ID", "")
 unique_sdk.api_base = os.getenv("UNIQUE_API_BASE", "https://gateway.qa.unique.app/public/chat-gen2").rstrip("/")
@@ -128,7 +131,7 @@ _DESC = (
 
 def register(mcp) -> None:
     @mcp.tool(name="edit_dashboard_section", title="Edit Dashboard Section", description=_DESC,
-              meta={"unique.app/icon": "layout-panel-top"})
+              meta=tool_meta("edit_dashboard_section", {"unique.app/icon": "layout-panel-top"}))
     def edit_dashboard_section(
         client_id: Annotated[str, Field(description="Client id, e.g. CH-PROS-0119.")],
         action: Annotated[str, Field(description="list | remove | add")] = "list",
@@ -140,7 +143,10 @@ def register(mcp) -> None:
     ) -> str:
         if not (_USER and _COMPANY and _API_KEY):
             return json.dumps({"error": "KB credentials not configured on the server (UNIQUE_* env)."})
-        client_id = (client_id or "").strip()
+        # Resolve a name / legacy id to the canonical client_id so the KB write lands in
+        # the right /RM Client Data/<client_id>/outputs folder (downloads use content_id).
+        raw = (client_id or "").strip()
+        client_id = resolve_client(raw) or raw
         cid = (content_id or "").strip()
         folder = f"{KB_ROOT}/{client_id}/outputs"
         if not cid:

@@ -40,7 +40,7 @@ def test_get_holdings_markus(fake_mcp):
 
 def test_corporate_actions_list_shape(fake_mcp):
     r = _call(fake_mcp, transactions, "get_corporate_actions", input="Markus")
-    assert "corporate_actions" in r and r["count"] == len(r["corporate_actions"])
+    assert "items" in r and r["count"] == len(r["items"])
 
 
 def test_house_view_bonds_synonym(fake_mcp):

@@ -13,6 +13,7 @@ from typing import Annotated
 from pydantic import Field
 
 from common.db import execute, query_all, resolve_client, unknown
+from common.tool_prompts import tool_meta
 
 MAXLEN = 200    # MEMORY_MAX_CHARS
 MAXITEMS = 20   # MEMORY_MAX_POINTS
@@ -72,47 +73,47 @@ def register(mcp) -> None:
     # --- talking points ---------------------------------------------------------
     @mcp.tool(name="get_talking_points", title="Get Talking Points",
               description="Get the client's editable talking points (ordered list). Input: client name or client_id.",
-              meta={"unique.app/icon": "message-square"})
+              meta=tool_meta("get_talking_points", {"unique.app/icon": "message-square"}))
     def get_talking_points(client_id: _CID = "", input: _CID = "") -> str:
         return json.dumps(_get("rm_talking_points", client_id or input))
 
     @mcp.tool(name="upsert_talking_point", title="Upsert Talking Point",
               description="Create or update one talking point at a position for a client.",
-              meta={"unique.app/icon": "pencil"})
+              meta=tool_meta("upsert_talking_point", {"unique.app/icon": "pencil"}))
     def upsert_talking_point(client_id: _CID = "", input: _CID = "", position: _POS = 1,
                              text: Annotated[str, Field(description="Talking-point text.")] = "") -> str:
         return json.dumps(_upsert("rm_talking_points", ("text",), client_id or input, position, {"text": text}))
 
     @mcp.tool(name="delete_talking_point", title="Delete Talking Point",
               description="Delete one talking point by position for a client.",
-              meta={"unique.app/icon": "trash"})
+              meta=tool_meta("delete_talking_point", {"unique.app/icon": "trash"}))
     def delete_talking_point(client_id: _CID = "", input: _CID = "", position: _POS = 1) -> str:
         return json.dumps(_delete("rm_talking_points", client_id or input, position))
 
     # --- open questions ---------------------------------------------------------
     @mcp.tool(name="get_open_questions", title="Get Open Questions",
               description="Get the client's editable open questions (ordered list). Input: client name or client_id.",
-              meta={"unique.app/icon": "circle-question"})
+              meta=tool_meta("get_open_questions", {"unique.app/icon": "circle-question"}))
     def get_open_questions(client_id: _CID = "", input: _CID = "") -> str:
         return json.dumps(_get("rm_open_questions", client_id or input))
 
     @mcp.tool(name="upsert_open_question", title="Upsert Open Question",
               description="Create or update one open question at a position for a client.",
-              meta={"unique.app/icon": "pencil"})
+              meta=tool_meta("upsert_open_question", {"unique.app/icon": "pencil"}))
     def upsert_open_question(client_id: _CID = "", input: _CID = "", position: _POS = 1,
                              text: Annotated[str, Field(description="Open-question text.")] = "") -> str:
         return json.dumps(_upsert("rm_open_questions", ("text",), client_id or input, position, {"text": text}))
 
     @mcp.tool(name="delete_open_question", title="Delete Open Question",
               description="Delete one open question by position for a client.",
-              meta={"unique.app/icon": "trash"})
+              meta=tool_meta("delete_open_question", {"unique.app/icon": "trash"}))
     def delete_open_question(client_id: _CID = "", input: _CID = "", position: _POS = 1) -> str:
         return json.dumps(_delete("rm_open_questions", client_id or input, position))
 
     # --- documents (pinned, with contentId) ------------------------------------
     @mcp.tool(name="list_documents", title="List Documents (Memory)",
               description="Get the client's pinned documents (ordered list with title + contentId). Input: client name or client_id.",
-              meta={"unique.app/icon": "files"})
+              meta=tool_meta("list_documents", {"unique.app/icon": "files"}))
     def list_documents(client_id: _CID = "", input: _CID = "") -> str:
         rows = _get("rm_documents", client_id or input)
         # Add an attr-bindable openDocument payload per row (same pattern as
@@ -126,7 +127,7 @@ def register(mcp) -> None:
 
     @mcp.tool(name="upsert_document", title="Upsert Document (Memory)",
               description="Create or update one pinned document (title + contentId) at a position for a client.",
-              meta={"unique.app/icon": "pencil"})
+              meta=tool_meta("upsert_document", {"unique.app/icon": "pencil"}))
     def upsert_document(client_id: _CID = "", input: _CID = "", position: _POS = 1,
                         title: Annotated[str, Field(description="Document title.")] = "",
                         contentId: Annotated[str, Field(description="KB content id.")] = "") -> str:
@@ -135,6 +136,6 @@ def register(mcp) -> None:
 
     @mcp.tool(name="delete_document", title="Delete Document (Memory)",
               description="Delete one pinned document by position for a client.",
-              meta={"unique.app/icon": "trash"})
+              meta=tool_meta("delete_document", {"unique.app/icon": "trash"}))
     def delete_document(client_id: _CID = "", input: _CID = "", position: _POS = 1) -> str:
         return json.dumps(_delete("rm_documents", client_id or input, position))

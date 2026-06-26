@@ -45,9 +45,10 @@ async def _call(name, args):
 
 def test_tool_inventory():
     names = _run(_names())
-    assert len(names) == 20
+    assert len(names) == 21
     assert "Reset_Demo_Data" in names
-    assert {"get_party_identity", "list_clients", "get_talking_points", "get_meetings"} <= set(names)
+    assert {"get_party_identity", "list_clients", "get_talking_points", "get_meetings",
+            "edit_dashboard_section"} <= set(names)
 
 
 def test_party_identity_over_http():

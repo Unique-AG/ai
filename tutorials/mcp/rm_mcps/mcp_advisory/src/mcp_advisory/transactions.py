@@ -10,7 +10,7 @@ SPECS = [
         "name": "get_corporate_actions",
         "table": "corporate_actions",
         "style": "list",
-        "field": "corporate_actions",
+        "field": "items",
         "meta": {"unique.app/icon": "calendar-clock"},
         "description": (
             "[T&T 7a] Corporate actions: event type, affected security, terms, key dates, "
@@ -22,7 +22,7 @@ SPECS = [
         "name": "get_elections",
         "table": "elections",
         "style": "list",
-        "field": "elections",
+        "field": "items",
         "meta": {"unique.app/icon": "check-square"},
         "description": (
             "[T&T 7b] Elections/instructions: captured client election, validation status, "
@@ -34,7 +34,7 @@ SPECS = [
         "name": "get_orders",
         "table": "orders",
         "style": "list",
-        "field": "orders",
+        "field": "items",
         "meta": {"unique.app/icon": "receipt"},
         "description": (
             "[T&T 7c] Orders/trades: proposed/actual order, estimated cost/price, pre-trade "

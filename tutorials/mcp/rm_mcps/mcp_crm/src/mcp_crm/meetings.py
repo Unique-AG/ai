@@ -10,6 +10,7 @@ from typing import Annotated
 from pydantic import Field
 
 from common.db import query_all, resolve_client, unknown
+from common.tool_prompts import tool_meta
 
 _MEETINGS_DESC = (
     "[CAL 1a] Calendar meetings (synthetic, consistent with RM Client Data). Input: a client name "
@@ -43,7 +44,7 @@ def register(mcp) -> None:
         name="get_meetings",
         title="Get Meetings",
         description=_MEETINGS_DESC,
-        meta={"unique.app/icon": "calendar-days"},
+        meta=tool_meta("get_meetings", {"unique.app/icon": "calendar-days"}),
     )
     def get_meetings(
         input: Annotated[str, Field(description="Client name/id, RM username, 'week', or omit.")] = "",
@@ -58,7 +59,7 @@ def register(mcp) -> None:
         name="get_next_meeting",
         title="Get Next Meeting",
         description=_NEXT_DESC,
-        meta={"unique.app/icon": "calendar-check"},
+        meta=tool_meta("get_next_meeting", {"unique.app/icon": "calendar-check"}),
     )
     def get_next_meeting(
         input: Annotated[str, Field(description="Client name or client_id.")] = "",

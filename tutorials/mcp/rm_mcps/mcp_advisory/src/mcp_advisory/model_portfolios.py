@@ -11,6 +11,7 @@ from typing import Annotated
 from pydantic import Field
 
 from common.db import make_client_tools, query_all, query_one
+from common.tool_prompts import tool_meta
 
 _LIST_DESC = (
     "[MDL 1a] Model-portfolio catalogue: code, name, risk band, reference currency, expected "
@@ -39,7 +40,7 @@ def register(mcp) -> None:
         name="list_model_portfolios",
         title="List Model Portfolios",
         description=_LIST_DESC,
-        meta={"unique.app/icon": "list"},
+        meta=tool_meta("list_model_portfolios", {"unique.app/icon": "list"}),
     )
     def list_model_portfolios() -> str:
         row = query_one("SELECT data FROM model_catalog WHERE id = 1")
@@ -49,7 +50,7 @@ def register(mcp) -> None:
         name="get_model_portfolio",
         title="Get Model Portfolio",
         description=_GET_DESC,
-        meta={"unique.app/icon": "file-chart-column"},
+        meta=tool_meta("get_model_portfolio", {"unique.app/icon": "file-chart-column"}),
     )
     def get_model_portfolio(
         input: Annotated[str, Field(description="Model code (CP-1, BI-3, BG-5, GR-7) or name.")] = "",

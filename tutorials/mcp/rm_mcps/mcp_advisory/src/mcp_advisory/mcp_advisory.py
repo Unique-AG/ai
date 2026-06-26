@@ -44,6 +44,7 @@ import model_portfolios
 import portfolios
 import transactions
 from common.db import RESET_DEMO_DATA_DESCRIPTION, reset_demo_data
+from common.tool_prompts import tool_meta
 
 load_dotenv()
 
@@ -141,7 +142,7 @@ _SQL_DIR = str(Path(__file__).parent / "sql")
     name="Reset_Demo_Data",
     title="Reset demo data",
     description=RESET_DEMO_DATA_DESCRIPTION,
-    meta={"unique.app/icon": "rotate-ccw", "unique.app/system-prompt": RESET_DEMO_DATA_DESCRIPTION},
+    meta=tool_meta("Reset_Demo_Data", {"unique.app/icon": "rotate-ccw"}),
 )
 def reset_demo_data_tool() -> str:
     return json.dumps(reset_demo_data(_SQL_DIR))

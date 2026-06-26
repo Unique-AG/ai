@@ -22,6 +22,8 @@ from dotenv import load_dotenv
 from psycopg2.extras import RealDictCursor
 from pydantic import Field
 
+from common.tool_prompts import tool_meta
+
 load_dotenv()
 
 DB_HOST = os.getenv("PGHOST", "localhost")
@@ -201,5 +203,5 @@ def _register_client_tool(mcp, spec: dict) -> None:
         name=spec["name"],
         title=spec.get("title"),
         description=spec["description"],
-        meta=spec.get("meta"),
+        meta=tool_meta(spec["name"], spec.get("meta")),
     )(tool)

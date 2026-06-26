@@ -11,6 +11,7 @@ from typing import Annotated
 from pydantic import Field
 
 from common.db import query_one
+from common.tool_prompts import tool_meta
 
 # Markus is keyed 50318 in the coverage store; bridge the ids/names the agent may pass.
 PARTY_ALIASES = {
@@ -63,7 +64,7 @@ def register(mcp) -> None:
         name="get_coverage_scenario",
         title="Get Lombard Coverage Scenario",
         description=_DESC,
-        meta={"unique.app/icon": "scale-balanced"},
+        meta=tool_meta("get_coverage_scenario", {"unique.app/icon": "scale-balanced"}),
     )
     def get_coverage_scenario(
         client_id: Annotated[str, Field(description="Client id / name / facility id.")] = "",

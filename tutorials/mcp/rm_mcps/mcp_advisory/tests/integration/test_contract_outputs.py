@@ -51,9 +51,9 @@ def test_client_input_forms_resolve_identically(tools):
     ("get_portfolio_transactions", {"client_id", "items", "count"}),
     ("get_attribution", {"client_id", "contribution_by_position", "contribution_by_asset_class", "top_contributors", "top_detractors"}),
     ("get_risk_exposure", {"client_id", "asset_allocation", "flags"}),
-    ("get_corporate_actions", {"client_id", "corporate_actions", "count"}),
-    ("get_elections", {"client_id", "elections", "count"}),
-    ("get_orders", {"client_id", "orders", "count"}),
+    ("get_corporate_actions", {"client_id", "items", "count"}),
+    ("get_elections", {"client_id", "items", "count"}),
+    ("get_orders", {"client_id", "items", "count"}),
     ("get_tax_lots", {"client_id", "lots", "unrealised_gain_loss", "estimated_transaction_cost", "estimated_tax_impact"}),
     ("get_transaction_monitoring", {"client_id", "alerts", "status", "open_cases"}),
 ])

@@ -61,14 +61,14 @@ def test_list_clients_no_args_is_whole_book(tools):
     # The cockpit binds list_clients with {} (no args) — must return the whole book.
     out = call(tools, "list_clients")
     assert {"total", "count", "skip", "limit", "clients"} <= set(out)
-    assert out["total"] == 6
+    assert out["total"] == 8
     assert {"client_id", "name", "status", "segment", "rm", "open_doc_payload"} <= set(out["clients"][0])
 
 
 @pytest.mark.parametrize("kwargs,expected_total", [
-    ({"status": "client"}, 3),
-    ({"status": "prospect"}, 3),
-    ({"segment": "UHNW"}, 3),
+    ({"status": "client"}, 4),     # Markus, Hofer, Lavanchy, Sophia Brown
+    ({"status": "prospect"}, 4),   # Katharina, Ellery, Moretti-Conti, Augustus Feng
+    ({"segment": "UHNW"}, 4),      # Lavanchy, Moretti-Conti, Ellery, Feng
     ({"rm": "marc.dubois"}, 3),
     ({"q": "Brunner"}, 2),
 ])

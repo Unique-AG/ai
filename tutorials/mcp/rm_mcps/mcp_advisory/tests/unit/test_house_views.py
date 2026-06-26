@@ -9,9 +9,9 @@ import house_views as hv
 
 META = {"house": "ABC Wealth Management — CIO Office", "as_of": "2026-06-20", "valid_until": "2026-09-30"}
 VIEWS = [
-    {"asset_class": "Equities", "stance": "Neutral", "score": 0, "rationale": "r1"},
-    {"asset_class": "Fixed income", "stance": "Overweight", "score": 1, "rationale": "r2"},
-    {"asset_class": "Alternatives", "stance": "Selective", "score": 1, "rationale": "r3"},
+    {"asset_class": "Equities", "stance": "Neutral", "conviction": 0, "rationale": "r1"},
+    {"asset_class": "Fixed income", "stance": "Overweight", "conviction": 1, "rationale": "r2"},
+    {"asset_class": "Alternatives", "stance": "Selective", "conviction": 1, "rationale": "r3"},
 ]
 THEMES = [{"theme": "Quality", "horizon": "6-12m", "conviction": "High", "rationale": "r"}]
 CALLS = [{"dimension": "Credit", "call": "Overweight", "detail": "d", "magnitude": "+",

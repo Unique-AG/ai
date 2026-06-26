@@ -12,6 +12,7 @@ from typing import Annotated
 from pydantic import Field
 
 from common.db import query_all, query_one
+from common.tool_prompts import tool_meta
 
 HOUSE_VIEW_DESCRIPTION = (
     "[HV 1a] CIO house view: per-asset-class stance (Overweight/Neutral/Underweight/Selective), "
@@ -40,7 +41,8 @@ def _meta() -> dict:
 def _house_view(arg: str) -> dict:
     arg = str(arg or "all").strip().lower()
     meta = _meta()
-    views = query_all("SELECT asset_class, stance, score, rationale FROM house_view ORDER BY position")
+    views = query_all("SELECT asset_class, stance, score AS conviction, rationale "
+                      "FROM house_view ORDER BY position")
     if arg in ("", "all", "current", "house", "house view"):
         return {"house": meta["house"], "as_of": meta["as_of"],
                 "valid_until": meta["valid_until"], "count": len(views), "views": views}
@@ -76,7 +78,8 @@ def _tactical_calls() -> dict:
 
 def register(mcp) -> None:
     @mcp.tool(name="get_house_view", title="Get House View",
-              description=HOUSE_VIEW_DESCRIPTION, meta={"unique.app/icon": "compass"})
+              description=HOUSE_VIEW_DESCRIPTION,
+              meta=tool_meta("get_house_view", {"unique.app/icon": "compass"}))
     def get_house_view(
         asset_class: Annotated[str, Field(description="Omit for the full house view, or pass an asset "
                                           "class to filter: equities / fixed income / alternatives / "
@@ -85,11 +88,13 @@ def register(mcp) -> None:
         return json.dumps(_house_view(asset_class))
 
     @mcp.tool(name="get_cio_themes", title="Get CIO Themes",
-              description=CIO_THEMES_DESCRIPTION, meta={"unique.app/icon": "lightbulb"})
+              description=CIO_THEMES_DESCRIPTION,
+              meta=tool_meta("get_cio_themes", {"unique.app/icon": "lightbulb"}))
     def get_cio_themes() -> str:
         return json.dumps(_cio_themes())
 
     @mcp.tool(name="get_tactical_calls", title="Get Tactical Calls",
-              description=TACTICAL_CALLS_DESCRIPTION, meta={"unique.app/icon": "target"})
+              description=TACTICAL_CALLS_DESCRIPTION,
+              meta=tool_meta("get_tactical_calls", {"unique.app/icon": "target"}))
     def get_tactical_calls() -> str:
         return json.dumps(_tactical_calls())
