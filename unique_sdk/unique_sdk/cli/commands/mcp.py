@@ -43,6 +43,38 @@ _MCP_MAX_ITEMS_PER_CALL = 8
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
 
+# Keys an MCP tool's JSON result commonly uses for the optional "details" line
+# (UN-22310) — e.g. a date and an author such as "10/10/2026 - Jamie Dimon".
+# Best-effort and flat: only top-level keys are inspected (nested provenance is
+# too tool-specific to generalize), and the details line is omitted when none
+# are present.
+_DETAILS_DATE_KEYS = (
+    "date",
+    "updated",
+    "updatedAt",
+    "updatedDate",
+    "lastModified",
+    "modified",
+    "created",
+    "createdAt",
+    "createdDate",
+    "timestamp",
+)
+_DETAILS_AUTHOR_KEYS = (
+    "author",
+    "creator",
+    "owner",
+    "createdBy",
+    "updatedBy",
+    "by",
+    "sender",
+    "from",
+)
+# Keys to read a human name out of an author value that is itself an object
+# (e.g. Atlassian's ``{"displayName": "Jamie Dimon"}``).
+_AUTHOR_NAME_KEYS = ("displayName", "name", "fullName", "emailAddress", "email")
+_MCP_DETAILS_CHAR_LIMIT = 200
+
 # Canonical ``toolName`` written to both manifests: the **bare advertised tool
 # name** (the payload ``name`` the agent passes to ``unique-cli mcp``).
 # ``unique-cli mcp`` only runs in skills mode, where the agent invokes a tool by
@@ -83,6 +115,39 @@ def _title_from_json(obj: dict[str, Any]) -> str | None:
     return None
 
 
+def _first_str_by_keys(obj: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        value = obj.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _author_display(obj: dict[str, Any]) -> str | None:
+    """Read an author name from a record, whether the author value is a plain
+    string or a nested object (e.g. ``{"displayName": "..."}``)."""
+    for key in _DETAILS_AUTHOR_KEYS:
+        value = obj.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, dict):
+            name = _first_str_by_keys(value, _AUTHOR_NAME_KEYS)
+            if name:
+                return name
+    return None
+
+
+def _details_from_json(obj: dict[str, Any]) -> str | None:
+    """Best-effort optional "details" line (UN-22310): a date and/or author
+    composed as "<date> - <author>". Returns ``None`` when neither is found."""
+    date = _first_str_by_keys(obj, _DETAILS_DATE_KEYS)
+    author = _author_display(obj)
+    parts = [part for part in (date, author) if part]
+    if not parts:
+        return None
+    return " - ".join(parts)[:_MCP_DETAILS_CHAR_LIMIT]
+
+
 def _titles_from_json(text: str) -> list[dict[str, Any]]:
     """Best-effort: pull a human title out of a JSON result (object or list of
     objects), e.g. an Atlassian page/issue returned as JSON-in-text. Returns []
@@ -98,7 +163,13 @@ def _titles_from_json(text: str) -> list[dict[str, Any]]:
         if isinstance(entry, dict):
             title = _title_from_json(entry)
             if title:
-                items.append({"title": title, "snippet": None})
+                items.append(
+                    {
+                        "title": title,
+                        "snippet": None,
+                        "details": _details_from_json(entry),
+                    }
+                )
     return items
 
 
@@ -200,6 +271,7 @@ def _annotate_mcp_results_for_citations(
                         "serverName": server_name,
                         "title": item.get("title"),
                         "snippet": item.get("snippet"),
+                        "details": item.get("details"),
                     }
                     try:
                         _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
@@ -224,7 +296,12 @@ def _citation_footer(annotated: list[tuple[int, dict[str, Any]]]) -> str:
     """Tell the agent which marker to cite each retrieved item with."""
     if not annotated:
         return ""
-    lines = ["", "Sources — cite each fact with the marker for the item it came from:"]
+    lines = [
+        "",
+        "Sources — MANDATORY: every fact you take from this result MUST be "
+        "cited inline with its [mcpsourceN] marker below, or it will not be "
+        "referenced in the answer:",
+    ]
     for source_number, item in annotated:
         label = item.get("title") or "this MCP tool result"
         lines.append(f"  [mcpsource{source_number}] {label}")

@@ -134,6 +134,7 @@ def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
             "serverName": "kb",
             "title": "RAG Retrieval Baseline",
             "snippet": "Why retrieval fails",
+            "details": None,
         }
     ]
     assert "[mcpsource1] RAG Retrieval Baseline" in out
@@ -151,6 +152,55 @@ def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert refs[0]["title"] == "RAG Retrieval Baseline"
     assert "url" not in refs[0]
+
+
+# ── Reference enrichment / details line (UN-22310) ───────────────────────────
+
+
+def test_json_in_text_extracts_details_date_and_author(tmp_path: Path) -> None:
+    # Atlassian-style record carrying a date + a nested author object.
+    body = json.dumps(
+        {
+            "title": "Unique <> JP Morgan Introduction Meeting",
+            "updated": "10/10/2026",
+            "author": {"displayName": "Jamie Dimon"},
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__getConfluencePage", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["title"] == "Unique <> JP Morgan Introduction Meeting"
+    assert refs[0]["details"] == "10/10/2026 - Jamie Dimon"
+
+
+def test_json_in_text_details_author_only(tmp_path: Path) -> None:
+    body = json.dumps({"title": "Some email", "creator": "Jane Roe"})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__mail__get", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["details"] == "Jane Roe"
+
+
+def test_json_in_text_no_details_when_absent(tmp_path: Path) -> None:
+    body = json.dumps({"title": "Some email"})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__mail__get", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["details"] is None
+
+
+def test_resource_link_item_has_no_details(tmp_path: Path) -> None:
+    # resource_link blocks carry no date/author → details omitted (None).
+    response = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["details"] is None
 
 
 def test_multiple_items_get_distinct_numbers(tmp_path: Path) -> None:

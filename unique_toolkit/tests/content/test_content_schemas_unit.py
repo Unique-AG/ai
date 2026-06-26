@@ -290,6 +290,55 @@ class TestContentReferenceUrlOptional:
         assert ref.url == "https://example.com"
 
 
+class TestContentReferenceDescription:
+    """UN-22310: optional ``description`` carries the enriched MCP JSON payload."""
+
+    def test_description_defaults_to_none(self):
+        ref = ContentReference(
+            name="Doc",
+            sequence_number=1,
+            source="web",
+            source_id="src",
+        )
+        assert ref.description is None
+
+    def test_description_accepted_when_present(self):
+        payload = '{"mcp": {"connectorName": "Outlook", "title": "Intro"}}'
+        ref = ContentReference(
+            name="Intro",
+            sequence_number=1,
+            source="mcp:outlook",
+            source_id="mcp_abc_mcp_abc",
+            description=payload,
+        )
+        assert ref.description == payload
+
+    def test_from_sdk_reference_round_trips_description(self):
+        ref = ContentReference.from_sdk_reference(
+            {  # type: ignore[arg-type]
+                "name": "Intro",
+                "description": '{"mcp": {"connectorName": "Outlook"}}',
+                "url": None,
+                "sequenceNumber": 1,
+                "source": "mcp:outlook",
+                "sourceId": "mcp_abc_mcp_abc",
+            }
+        )
+        assert ref.description == '{"mcp": {"connectorName": "Outlook"}}'
+
+    def test_from_sdk_reference_without_description_defaults_none(self):
+        ref = ContentReference.from_sdk_reference(
+            {  # type: ignore[arg-type]
+                "name": "Doc",
+                "url": "https://example.com",
+                "sequenceNumber": 1,
+                "source": "web",
+                "sourceId": "src",
+            }
+        )
+        assert ref.description is None
+
+
 class TestContentChunkToReference:
     def test_basic_reference_with_pages(self):
         chunk = ContentChunk(
