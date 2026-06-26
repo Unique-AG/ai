@@ -2,8 +2,8 @@
 
 The Advisory server is the investment/portfolio side of the RM Agent: the market
 intelligence and portfolio data the RM uses to advise. Each domain lives in its
-own subpackage and is wired in with a single ``register(mcp)`` call, so the
-remaining domains drop in as one-liners (see the TODO block below).
+own subpackage and is wired in with a single ``register(mcp)`` call (adding a new
+domain is a one-line ``register()``).
 
 Domains
 -------
