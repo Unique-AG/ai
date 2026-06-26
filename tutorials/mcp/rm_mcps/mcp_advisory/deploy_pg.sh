@@ -54,13 +54,16 @@ echo "[3/8] Creating database..."
 az postgres flexible-server db show --server-name "$PG_SERVER" -g "$RG" -n "$PG_DB" &>/dev/null \
   || az postgres flexible-server db create --server-name "$PG_SERVER" -g "$RG" -n "$PG_DB" 1>/dev/null
 
-# === FIREWALL RULE (allow Web App and psql; idempotent) ===
+# === FIREWALL RULE (allow Azure Web Apps + psql; idempotent) — flags are
+# --server-name (the server) and --name (the rule). Current az CLI rejects the
+# --name/--rule-name combo used elsewhere, and create updates an existing rule,
+# so this is safe to re-run. NOT masked: without this rule the Web Apps cannot
+# reach Postgres, so a failure here must fail the deploy. ===
 echo "[4/8] Firewall rule..."
 az postgres flexible-server firewall-rule create \
-  --resource-group "$RG" --name "$PG_SERVER" \
-  --rule-name AllowAll \
-  --start-ip-address 0.0.0.0 --end-ip-address 255.255.255.255 \
-  2>/dev/null || echo "  Rule exists."
+  --resource-group "$RG" --server-name "$PG_SERVER" \
+  --name AllowAll \
+  --start-ip-address 0.0.0.0 --end-ip-address 255.255.255.255 1>/dev/null
 
 # === SEED ADVISORY DATA (required; idempotent) — every sql/*.sql, one per domain ===
 echo "[5/8] Seeding Advisory tables (sql/*.sql)..."
