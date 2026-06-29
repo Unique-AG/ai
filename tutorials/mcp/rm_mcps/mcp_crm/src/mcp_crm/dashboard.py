@@ -118,6 +118,20 @@ def _add(html: str, sid: str, lib: dict) -> tuple[str, bool]:
     return html[:anchor] + lib[sid]["html"] + "\n" + html[anchor:], True
 
 
+def _renumber(html: str) -> str:
+    """Renumber the VISIBLE section headings to 1..K in document order, so a removed (or added) card
+    never leaves a gap (e.g. 1,3,4 -> 1,2,3). The `mod-N` ids stay fixed (they key the embedded
+    library and the section lookup); only each card's `<h2>` "N." prefix is rewritten. The escaped
+    library blocks (in the rm-section-lib script, using `\\u003c`) aren't matched by _find, so they
+    are left untouched."""
+    for i, s in reversed(list(enumerate(_find(html), start=1))):
+        block = html[s["start"]:s["end"]]
+        new = re.sub(r'(<h2[^>]*>)\s*\d+\.\s*', f'\\g<1>{i}. ', block, count=1)
+        if new != block:
+            html = html[:s["start"]] + new + html[s["end"]:]
+    return html
+
+
 _DESC = (
     "[DASH 1] Add or remove a WHOLE section (card) of a client's investment-proposal dashboard, and "
     "write it straight back to the Knowledge Base — one call, no file download/upload on your side. "
@@ -186,6 +200,7 @@ def register(mcp) -> None:
         if not ok:
             return json.dumps({"client_id": client_id, "section": sid, "changed": False,
                                "note": "section not available (no embedded library entry)."})
+        html = _renumber(html)   # close any numbering gap left by the add/remove (1,3,4 -> 1,2,3)
         try:
             # Write via the KnowledgeBaseService ingestion flow (same path as the working uploader):
             # resolve the folder to a scope id, then upsert the bytes by name (versioned replace).
