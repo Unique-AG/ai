@@ -44,6 +44,24 @@ _MCP_MAX_ITEMS_PER_CALL = 8
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
 
+# Keys under which search-style MCP tools nest their list of hit records
+# (e.g. Atlassian search returns ``{"results": [{title, url, ...}, ...]}``).
+# When a JSON object carries no title of its own, we descend one level into the
+# first of these holding a list of record dicts, so each hit becomes its own
+# citation instead of collapsing to a single title-less "tool (MCP)" chip.
+_RESULT_CONTAINER_KEYS = (
+    "results",
+    "values",
+    "items",
+    "hits",
+    "sections",
+    "pages",
+    "issues",
+    "records",
+    "documents",
+    "data",
+)
+
 # Keys an MCP tool's JSON result commonly uses for the optional "details" line
 # (UN-22310) — e.g. a date and an author such as "10/10/2026 - Jamie Dimon".
 # Best-effort: only top-level record keys are inspected for these (nested
@@ -152,28 +170,59 @@ def _details_from_json(obj: dict[str, Any]) -> str | None:
     return " - ".join(parts)[:_MCP_DETAILS_CHAR_LIMIT]
 
 
+def _record_dicts(parsed: Any) -> list[dict[str, Any]]:
+    """Flatten a parsed JSON result into the record dicts that each carry a
+    title. Handles three shapes, best-effort:
+
+    * a bare object (``{title, ...}``) — a single page/issue fetch;
+    * a list of objects (``[{title, ...}, ...]``);
+    * a search-style envelope where the hits are nested under a container key
+      (``{"results": [{title, ...}, ...]}``) — when the object has no title of
+      its own, descend one level into the first ``_RESULT_CONTAINER_KEYS`` entry
+      holding a list of dicts.
+
+    Only one level of nesting is unwrapped; deeper/again-nested envelopes fall
+    through and the caller drops to the title-less tool chip.
+    """
+    candidates = parsed if isinstance(parsed, list) else [parsed]
+    records: list[dict[str, Any]] = []
+    for entry in candidates:
+        if not isinstance(entry, dict):
+            continue
+        if _title_from_json(entry):
+            records.append(entry)
+            continue
+        for key in _RESULT_CONTAINER_KEYS:
+            value = entry.get(key)
+            if isinstance(value, list):
+                nested = [item for item in value if isinstance(item, dict)]
+                if nested:
+                    records.extend(nested)
+                    break
+    return records
+
+
 def _titles_from_json(text: str) -> list[dict[str, Any]]:
-    """Best-effort: pull a human title out of a JSON result (object or list of
-    objects), e.g. an Atlassian page/issue returned as JSON-in-text. Returns []
-    when the text is not JSON or carries no recognizable title.
+    """Best-effort: pull human titles out of a JSON result, e.g. an Atlassian
+    page/issue (single object), a list of them, or a search envelope nesting
+    hits under ``results``/``values``/… (see ``_record_dicts``). Returns [] when
+    the text is not JSON or no record carries a recognizable title.
     """
     try:
         parsed = json.loads(text)
     except (ValueError, TypeError):
         return []
-    candidates = parsed if isinstance(parsed, list) else [parsed]
     items: list[dict[str, Any]] = []
-    for entry in candidates:
-        if isinstance(entry, dict):
-            title = _title_from_json(entry)
-            if title:
-                items.append(
-                    {
-                        "title": title,
-                        "snippet": None,
-                        "details": _details_from_json(entry),
-                    }
-                )
+    for entry in _record_dicts(parsed):
+        title = _title_from_json(entry)
+        if title:
+            items.append(
+                {
+                    "title": title,
+                    "snippet": None,
+                    "details": _details_from_json(entry),
+                }
+            )
     return items
 
 
