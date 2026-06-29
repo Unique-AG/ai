@@ -154,6 +154,88 @@ def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
     assert "url" not in refs[0]
 
 
+def test_search_envelope_yields_one_ref_per_hit(tmp_path: Path) -> None:
+    # Atlassian `search` returns hits nested under `results`: each hit must
+    # become its own titled citation, not collapse to a single "search (MCP)"
+    # title-less chip (UN-22310 follow-up).
+    body = json.dumps(
+        {
+            "results": [
+                {
+                    "title": "RAG Retrieval: Performance & Scalability (V2)",
+                    "url": "https://c/2",
+                },
+                {
+                    "title": "Retrieval Performance and Scalability Evaluation",
+                    "url": "https://c/3",
+                },
+                {"title": "RAG Retrieval Baseline", "url": "https://c/4"},
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__search", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    titles = [r["title"] for r in refs]
+    assert titles == [
+        "RAG Retrieval: Performance & Scalability (V2)",
+        "Retrieval Performance and Scalability Evaluation",
+        "RAG Retrieval Baseline",
+    ]
+    # No URLs leak into the manifest — the chip is display-only.
+    assert all("url" not in r for r in refs)
+
+
+def test_search_envelope_pulls_details_from_hit(tmp_path: Path) -> None:
+    # A nested hit's date/author still feed the details line.
+    body = json.dumps(
+        {
+            "values": [
+                {
+                    "title": "Some page",
+                    "updated": "10/10/2026",
+                    "author": {"displayName": "Jane Roe"},
+                }
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__search", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["title"] == "Some page"
+    assert refs[0]["details"] == "10/10/2026 - Jane Roe"
+
+
+def test_titled_object_with_container_prefers_own_title(tmp_path: Path) -> None:
+    # An object that has its OWN title is used as-is; we do not also descend
+    # into an incidental list field.
+    body = json.dumps(
+        {
+            "title": "Parent page",
+            "results": [{"title": "child a"}, {"title": "child b"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__getConfluencePage", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Parent page"]
+
+
+def test_unrecognized_envelope_falls_back_to_tool_chip(tmp_path: Path) -> None:
+    # A container holding non-dict entries (or no known key) yields no titles →
+    # the title-less tool chip is kept.
+    body = json.dumps({"matches": ["just", "strings"], "count": 2})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__search", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["title"] is None
+
+
 # ── Reference enrichment / details line (UN-22310) ───────────────────────────
 
 
