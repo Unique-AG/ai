@@ -18,7 +18,6 @@ from unique_toolkit.app.unique_settings import (
     ChatContext,
     EnvFileNotFoundError,
     UniqueApi,
-    UniqueApiConnectionError,
     UniqueApp,
     UniqueAuth,
     UniqueChatEventFilterOptions,
@@ -740,52 +739,43 @@ def test_unique_api__openai_proxy_url__uses_gen2_path__for_gateway_hostname() ->
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_unique_settings__check_connection__calls_llm_models_async(
+async def test_unique_api__check_connection__returns_true_and_sdk_url_is_computed_on_success(
     mocker,
 ) -> None:
     """
-    Purpose: Verify UniqueSettings.check_connection delegates to LLMModels.get_models_async.
-    Why this matters: Connection check must go through the SDK so auth headers are set correctly.
-    Setup summary: Patch LLMModels.get_models_async; assert it is called with auth credentials.
+    Purpose: Verify a successful connection leaves sdk_url() returning the computed URL.
+    Why this matters: init_sdk() uses sdk_url(), so a passing probe must not change URL resolution.
+    Setup summary: Patch get_models_async to return a non-empty model list; assert True and sdk_url.
     """
     from unique_sdk.api_resources._llm_models import LLMModels
 
-    settings = UniqueSettings(
-        auth=UniqueAuth(company_id=SecretStr("co"), user_id=SecretStr("user")),
-        app=UniqueApp(id=SecretStr("id"), key=SecretStr("key")),
-        api=UniqueApi(base_url="http://localhost:8096/"),
-    )
-    expected: LLMModels.LLMModelsResponse = {"models": ["gpt-4o"]}
-    mock_get = mocker.patch.object(
+    api = UniqueApi(base_url="https://gateway.unique.app/unique-api/")
+    mocker.patch.object(
         LLMModels,
         "get_models_async",
         new_callable=mocker.AsyncMock,
-        return_value=expected,
+        return_value={"models": ["gpt-4o"]},
     )
 
-    result = await settings.check_connection()
+    result = await api.check_connection("user", "co")
 
-    assert result is expected
-    mock_get.assert_awaited_once_with("user", "co")
+    assert result is True
+    assert api.sdk_url() == "https://gateway.unique.app/public/chat-gen2"
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_unique_settings__check_connection__raises_connection_error_on_failure(
+async def test_unique_api__check_connection__returns_false_and_sdk_url_falls_back_on_exception(
     mocker,
 ) -> None:
     """
-    Purpose: Verify SDK errors are wrapped in UniqueApiConnectionError.
-    Why this matters: Callers should handle one error type regardless of underlying cause.
-    Setup summary: Patch LLMModels.get_models_async to raise; assert UniqueApiConnectionError.
+    Purpose: Verify a failed connection makes sdk_url() fall back to base_url.
+    Why this matters: If the computed URL is wrong, the fallback prevents further broken calls.
+    Setup summary: Patch get_models_async to raise; assert False and sdk_url == base_url.
     """
     from unique_sdk.api_resources._llm_models import LLMModels
 
-    settings = UniqueSettings(
-        auth=UniqueAuth(company_id=SecretStr("co"), user_id=SecretStr("user")),
-        app=UniqueApp(id=SecretStr("id"), key=SecretStr("key")),
-        api=UniqueApi(base_url="http://localhost:8096/"),
-    )
+    api = UniqueApi(base_url="https://gateway.unique.app/unique-api/")
     mocker.patch.object(
         LLMModels,
         "get_models_async",
@@ -793,12 +783,64 @@ async def test_unique_settings__check_connection__raises_connection_error_on_fai
         side_effect=RuntimeError("connection refused"),
     )
 
-    with pytest.raises(
-        UniqueApiConnectionError, match="connection refused"
-    ) as exc_info:
-        await settings.check_connection()
+    result = await api.check_connection("user", "co")
 
-    assert exc_info.value.base_url == "http://localhost:8096/"
+    assert result is False
+    assert api.sdk_url() == api.base_url
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_unique_api__check_connection__returns_false_and_sdk_url_falls_back_on_empty_models(
+    mocker,
+) -> None:
+    """
+    Purpose: Verify an empty model list is treated as a failed connection.
+    Why this matters: An empty list means the API is unreachable or misconfigured.
+    Setup summary: Patch get_models_async to return empty list; assert False and sdk_url fallback.
+    """
+    from unique_sdk.api_resources._llm_models import LLMModels
+
+    api = UniqueApi(base_url="https://gateway.unique.app/unique-api/")
+    mocker.patch.object(
+        LLMModels,
+        "get_models_async",
+        new_callable=mocker.AsyncMock,
+        return_value={"models": []},
+    )
+
+    result = await api.check_connection("user", "co")
+
+    assert result is False
+    assert api.sdk_url() == api.base_url
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_unique_settings__check_connection__delegates_with_auth_credentials(
+    mocker,
+) -> None:
+    """
+    Purpose: Verify UniqueSettings.check_connection passes auth credentials to UniqueApi.
+    Why this matters: The SDK needs the correct user/company IDs to build auth headers.
+    Setup summary: Patch UniqueApi.check_connection; assert called with auth from settings.
+    """
+    settings = UniqueSettings(
+        auth=UniqueAuth(company_id=SecretStr("co"), user_id=SecretStr("user")),
+        app=UniqueApp(id=SecretStr("id"), key=SecretStr("key")),
+        api=UniqueApi(base_url="http://localhost:8096/"),
+    )
+    mock_check = mocker.patch.object(
+        UniqueApi,
+        "check_connection",
+        new_callable=mocker.AsyncMock,
+        return_value=True,
+    )
+
+    result = await settings.check_connection()
+
+    assert result is True
+    mock_check.assert_awaited_once_with("user", "co")
 
 
 @pytest.mark.ai

@@ -419,10 +419,10 @@ class UniqueApi(BaseSettings):
         path = base_path + "/openai-proxy"
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
-    def check_connection(self, user_id: str, company_id: str) -> bool:
+    async def check_connection(self, user_id: str, company_id: str) -> bool:
         try:
             model_list = await LLMModels.get_models_async(user_id, company_id)
-            check_succeeded = len(model_list.models) > 0
+            check_succeeded = len(model_list["models"]) > 0
             self._probe_check_failed = not check_succeeded
             return check_succeeded
         except Exception:
@@ -633,9 +633,9 @@ class UniqueSettings:
         Returns:
             True if the API is reachable and at least one model is available, False otherwise.
         """
-        return self.api.check_connection(
-            self.authcontext.user_id.get_secret_value(),
-            self.authcontext.company_id.get_secret_value(),
+        return await self.api.check_connection(
+            self.auth.user_id.get_secret_value(),
+            self.auth.company_id.get_secret_value(),
         )
 
     @classmethod
