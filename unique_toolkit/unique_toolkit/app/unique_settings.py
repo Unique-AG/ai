@@ -422,9 +422,8 @@ class UniqueApi(BaseSettings):
     async def check_connection(self, user_id: str, company_id: str) -> bool:
         try:
             model_list = await LLMModels.get_models_async(user_id, company_id)
-            check_succeeded = len(model_list["models"]) > 0
-            self._probe_check_failed = not check_succeeded
-            return check_succeeded
+            self._probe_check_failed = False
+            return len(model_list["models"]) > 0
         except Exception as exc:
             self._probe_check_failed = True
             raise UniqueApiConnectionError(self.base_url, str(exc)) from exc

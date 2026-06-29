@@ -796,13 +796,14 @@ async def test_unique_api__check_connection__raises_and_sdk_url_falls_back_on_ex
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_unique_api__check_connection__returns_false_and_sdk_url_falls_back_on_empty_models(
+async def test_unique_api__check_connection__returns_false_but_keeps_sdk_url_on_empty_models(
     mocker,
 ) -> None:
     """
-    Purpose: Verify an empty model list is treated as a failed connection.
-    Why this matters: An empty list means the API is unreachable or misconfigured.
-    Setup summary: Patch get_models_async to return empty list; assert False and sdk_url fallback.
+    Purpose: Verify an empty model list returns False without triggering the sdk_url() fallback.
+    Why this matters: Empty models means connected but nothing configured — the URL resolution
+    is correct, so sdk_url() must stay on the computed path so later SDK calls still work.
+    Setup summary: Patch get_models_async to return empty list; assert False but sdk_url unchanged.
     """
     from unique_sdk.api_resources._llm_models import LLMModels
 
@@ -817,7 +818,7 @@ async def test_unique_api__check_connection__returns_false_and_sdk_url_falls_bac
     result = await api.check_connection("user", "co")
 
     assert result is False
-    assert api.sdk_url() == api.base_url
+    assert api.sdk_url() == "https://gateway.unique.app/public/chat-gen2"
 
 
 @pytest.mark.ai
