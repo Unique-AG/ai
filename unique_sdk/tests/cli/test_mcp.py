@@ -240,7 +240,11 @@ def test_dedup_backfills_details_from_later_call(tmp_path: Path) -> None:
     assert _lines(tmp_path, _REFS_MANIFEST)[0]["details"] is None
 
     enriched_body = json.dumps(
-        {"title": "Doc A", "updated": "10/10/2026", "author": {"displayName": "Jamie Dimon"}}
+        {
+            "title": "Doc A",
+            "updated": "10/10/2026",
+            "author": {"displayName": "Jamie Dimon"},
+        }
     )
     second = _FakeMCPResponse(content=[{"type": "text", "text": enriched_body}])
     _run("mcp__kb__fetch", second)
