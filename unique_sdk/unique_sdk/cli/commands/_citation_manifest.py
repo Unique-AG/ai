@@ -148,9 +148,13 @@ def _rewrite_turn_refs_manifest(
     lacked. Must be called while holding ``_locked_turn_refs_manifest`` so the
     read → mutate → rewrite sequence does not race a concurrent append.
 
-    Same symlink/regular-file safety discipline as the append path: rejects a
-    symlinked dir/file and opens with ``O_NOFOLLOW`` so a swap between the check
-    and the open still fails closed.
+    Crash-safe: the new content is written to a sibling temp file and then
+    ``os.replace``-d over the manifest, so a failed/partial write never
+    truncates or corrupts the live manifest (the runner keeps reading the old
+    file until the rename succeeds). Same symlink/regular-file safety discipline
+    as the append path — rejects a symlinked dir/file and creates the temp file
+    with ``O_EXCL | O_NOFOLLOW`` so a swap between the check and the open still
+    fails closed.
     """
     _assert_safe_refs_log_path(refs_log_path)
     try:
@@ -160,19 +164,30 @@ def _rewrite_turn_refs_manifest(
             f"failed to create refs log directory: {refs_log_path.parent}"
         ) from exc
     _assert_safe_refs_log_path(refs_log_path)
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+
+    # Unique temp name in the same directory (so os.replace is an atomic
+    # same-filesystem rename). O_EXCL makes the create fail if the name already
+    # exists, so the pid-based name needs no randomness.
+    tmp_path = refs_log_path.with_name(f"{refs_log_path.name}.{os.getpid()}.tmp")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC
     flags |= getattr(os, "O_NOFOLLOW", 0)
     try:
-        fd = os.open(refs_log_path, flags, 0o600)
+        fd = os.open(tmp_path, flags, 0o600)
     except OSError as exc:
         raise UnsafeRefsLogPathError(
-            f"failed to open refs log safely: {refs_log_path}"
+            f"failed to open refs log temp file safely: {tmp_path}"
         ) from exc
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fp:
             for entry in entries:
                 fp.write(json.dumps(entry, default=str, ensure_ascii=False) + "\n")
+        os.replace(tmp_path, refs_log_path)
     except OSError as exc:
+        # The live manifest is untouched; drop the partial temp file.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
         raise UnsafeRefsLogPathError(
             f"failed to write refs log: {refs_log_path}"
         ) from exc

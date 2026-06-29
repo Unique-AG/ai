@@ -374,6 +374,34 @@ def test_partial_refs_returned_when_later_write_fails(tmp_path: Path) -> None:
     assert annotated[0][1]["title"] == "Doc A"
 
 
+def test_rewrite_failure_preserves_live_manifest(tmp_path: Path) -> None:
+    # A failed/partial rewrite must never truncate the live manifest: the new
+    # content goes to a temp file that is os.replace-d into place only on
+    # success, so a mid-write error leaves the original intact and no temp file
+    # behind.
+    from unique_sdk.cli.commands._citation_manifest import (
+        _append_turn_refs_manifest_entry,
+        _rewrite_turn_refs_manifest,
+    )
+
+    refs_path = tmp_path / ".unique" / "mcp-refs.jsonl"
+    original = {"sourceNumber": 1, "toolName": "mcp__kb__fetch", "title": "Doc A"}
+    _append_turn_refs_manifest_entry(refs_path, original)
+
+    with patch(
+        "unique_sdk.cli.commands._citation_manifest.json.dumps",
+        side_effect=OSError("disk full"),
+    ):
+        with pytest.raises(OSError):
+            _rewrite_turn_refs_manifest(
+                refs_path, [{**original, "details": "10/10/2026"}]
+            )
+
+    # Original content survives; no leftover temp file in the directory.
+    assert _lines(tmp_path, _REFS_MANIFEST) == [original]
+    assert list(refs_path.parent.glob("*.tmp")) == []
+
+
 def test_api_error_writes_no_manifest(tmp_path: Path) -> None:
     payload = json.dumps({"name": "mcp__crm__get", "arguments": {}})
     with patch.object(
