@@ -173,13 +173,14 @@ async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunk
             )
         )
         final_kwargs = modify.call_args.kwargs
-        # Streaming timestamps must be JSON-serializable strings — the SDK's
-        # HTTP layer cannot transport a raw ``datetime``.
-        for key in ("stoppedStreamingAt", "completedAt"):
-            value = final_kwargs[key]
-            assert isinstance(value, str)
-            assert _ISO_UTC_MS_Z.match(value), (key, value)
-            json.dumps({key: value})
+        # An answer round (non-empty text) marks streaming stopped. The
+        # timestamp must be a JSON-serializable string — the SDK's HTTP layer
+        # cannot transport a raw ``datetime``. ``completedAt`` is never set.
+        value = final_kwargs["stoppedStreamingAt"]
+        assert isinstance(value, str)
+        assert _ISO_UTC_MS_Z.match(value), value
+        json.dumps({"stoppedStreamingAt": value})
+        assert "completedAt" not in final_kwargs
         assert final_kwargs["text"] == "Done <sup>1</sup>"
         assert final_kwargs["gptRequest"] == {"model": "test-model", "messages": []}
         assert final_kwargs["debugInfo"] == {"trace_id": "trace-1"}
@@ -196,6 +197,30 @@ async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunk
         )
     second_kwargs = modify.call_args.kwargs
     assert second_kwargs["references"] == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_persister__stream_ended__tool_call_round_keeps_message_streaming():
+    """
+    Purpose: A tool-call round (empty text) must not mark the message stopped.
+    Why this matters: The same message is streamed once per agent round; finalizing
+      after a tool round flips the frontend out of the streaming state and hides the
+      inline tool-progress steps. ``stoppedStreamingAt`` must be null for empty text.
+    """
+    persister = MessagePersistingSubscriber(_settings_with_chat())
+    with patch(_MODIFY, new_callable=AsyncMock) as modify:
+        await persister.on_ended(
+            StreamEnded(
+                message_id="amsg-1",
+                chat_id="chat-1",
+                full_text="",
+                original_text="",
+            )
+        )
+        final_kwargs = modify.call_args.kwargs
+        assert final_kwargs["stoppedStreamingAt"] is None
+        assert "completedAt" not in final_kwargs
 
 
 @pytest.mark.ai

@@ -162,6 +162,10 @@ class MessagePersistingSubscriber:
         if event.appendices:
             final_text = final_text + "".join(event.appendices)
 
+        # Only mark streaming stopped on the answer round; tool-call rounds have
+        # empty text and must stay "streaming" so the frontend keeps the steps.
+        stopped_streaming_at = now_iso if final_text else None
+
         await unique_sdk.Message.modify_async(
             id=event.message_id,
             chatId=event.chat_id,
@@ -173,6 +177,5 @@ class MessagePersistingSubscriber:
             # Chat completions persist their request as a JSON array; the SDK type is narrower.
             gptRequest=event.gpt_request,  # pyright: ignore[reportArgumentType]
             debugInfo=event.debug_info,
-            stoppedStreamingAt=cast(Any, now_iso),
-            completedAt=cast(Any, now_iso),
+            stoppedStreamingAt=cast(Any, stopped_streaming_at),
         )
