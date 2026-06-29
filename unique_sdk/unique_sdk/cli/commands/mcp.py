@@ -14,6 +14,7 @@ from unique_sdk.cli.commands._citation_manifest import (
     _append_turn_refs_manifest_entry,
     _locked_turn_refs_manifest,
     _read_turn_refs_manifest,
+    _rewrite_turn_refs_manifest,
 )
 from unique_sdk.cli.formatting import format_mcp_response
 from unique_sdk.cli.state import ShellState
@@ -45,9 +46,12 @@ _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
 
 # Keys an MCP tool's JSON result commonly uses for the optional "details" line
 # (UN-22310) — e.g. a date and an author such as "10/10/2026 - Jamie Dimon".
-# Best-effort and flat: only top-level keys are inspected (nested provenance is
-# too tool-specific to generalize), and the details line is omitted when none
-# are present.
+# Best-effort: only top-level record keys are inspected for these (nested
+# provenance is too tool-specific to generalize). The values themselves may be
+# nested one level — a date is read as a top-level string, while an author may
+# be a plain string or an object whose name is pulled via `_AUTHOR_NAME_KEYS`
+# (e.g. Atlassian's `{"displayName": "..."}`). The line is omitted when neither
+# a date nor an author is found.
 _DETAILS_DATE_KEYS = (
     "date",
     "updated",
@@ -260,6 +264,12 @@ def _annotate_mcp_results_for_citations(
                     numbers_by_key[_item_dedup_key(stored_tool, entry)] = entry[
                         "sourceNumber"
                     ]
+            entries_by_number = {
+                entry["sourceNumber"]: entry
+                for entry in entries
+                if isinstance(entry.get("sourceNumber"), int)
+            }
+            needs_rewrite = False
             for item in items:
                 key = _item_dedup_key(tool_name, item)
                 source_number = numbers_by_key.get(key)
@@ -282,7 +292,25 @@ def _annotate_mcp_results_for_citations(
                         break
                     numbers_by_key[key] = source_number
                     entries.append(manifest_entry)
+                    entries_by_number[source_number] = manifest_entry
+                else:
+                    # Deduped: a prior call already claimed this source number.
+                    # Backfill ``details`` the first call may have lacked (the
+                    # runner reads one entry per source number, so enriching it
+                    # in place is sufficient) — only when newly extracted.
+                    stored = entries_by_number.get(source_number)
+                    new_details = item.get("details")
+                    if stored is not None and new_details and not stored.get("details"):
+                        stored["details"] = new_details
+                        needs_rewrite = True
                 annotated.append((source_number, item))
+            if needs_rewrite:
+                try:
+                    _rewrite_turn_refs_manifest(refs_log_path, entries)
+                except (UnsafeRefsLogPathError, OSError) as exc:
+                    _LOGGER.warning(
+                        "mcp: failed to backfill refs manifest details: %s", exc
+                    )
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append refs manifest: %s", exc)
         return []

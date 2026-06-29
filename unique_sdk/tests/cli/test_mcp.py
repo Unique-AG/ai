@@ -226,6 +226,48 @@ def test_same_title_dedupes_across_calls(tmp_path: Path) -> None:
     assert refs[0]["sourceNumber"] == 1
 
 
+def test_dedup_backfills_details_from_later_call(tmp_path: Path) -> None:
+    # First call retrieves "Doc A" as a bare resource_link (no date/author) →
+    # source 1 with no details. A later call returns the same titled record as
+    # JSON carrying a date + author. The dedup reuses source 1, and the newly
+    # extracted details must be backfilled onto the existing entry (the runner
+    # reads one entry per source number, so an empty details would otherwise
+    # stick for the whole turn).
+    first = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", first)
+    assert _lines(tmp_path, _REFS_MANIFEST)[0]["details"] is None
+
+    enriched_body = json.dumps(
+        {"title": "Doc A", "updated": "10/10/2026", "author": {"displayName": "Jamie Dimon"}}
+    )
+    second = _FakeMCPResponse(content=[{"type": "text", "text": enriched_body}])
+    _run("mcp__kb__fetch", second)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1  # still deduped — one entry, one source number
+    assert refs[0]["sourceNumber"] == 1
+    assert refs[0]["details"] == "10/10/2026 - Jamie Dimon"
+
+
+def test_dedup_does_not_clobber_existing_details(tmp_path: Path) -> None:
+    # First call already has details; a later detail-less call must not erase
+    # them (backfill only fills an empty details, never overwrites).
+    enriched_body = json.dumps({"title": "Doc A", "updated": "01/01/2026"})
+    first = _FakeMCPResponse(content=[{"type": "text", "text": enriched_body}])
+    _run("mcp__kb__fetch", first)
+
+    bare = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", bare)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["details"] == "01/01/2026"
+
+
 def test_different_tools_same_title_get_distinct_numbers(tmp_path: Path) -> None:
     # Tool A records "Doc A" as source 1.
     r = _FakeMCPResponse(

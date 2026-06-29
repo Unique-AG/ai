@@ -30,6 +30,7 @@ __all__ = [
     "_append_turn_refs_manifest_entry",
     "_locked_turn_refs_manifest",
     "_read_turn_refs_manifest",
+    "_rewrite_turn_refs_manifest",
 ]
 
 
@@ -129,6 +130,48 @@ def _append_turn_refs_manifest_entry(
     try:
         with os.fdopen(fd, "a", encoding="utf-8") as fp:
             fp.write(json.dumps(payload, default=str, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        raise UnsafeRefsLogPathError(
+            f"failed to write refs log: {refs_log_path}"
+        ) from exc
+
+
+def _rewrite_turn_refs_manifest(
+    refs_log_path: Path,
+    entries: list[dict[str, Any]],
+) -> None:
+    """Atomically replace the manifest with ``entries`` (one JSON object per
+    line, in order).
+
+    Used to backfill a previously-appended entry in place — e.g. when a later
+    tool call re-cites a deduped item and extracts ``details`` the first call
+    lacked. Must be called while holding ``_locked_turn_refs_manifest`` so the
+    read → mutate → rewrite sequence does not race a concurrent append.
+
+    Same symlink/regular-file safety discipline as the append path: rejects a
+    symlinked dir/file and opens with ``O_NOFOLLOW`` so a swap between the check
+    and the open still fails closed.
+    """
+    _assert_safe_refs_log_path(refs_log_path)
+    try:
+        refs_log_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise UnsafeRefsLogPathError(
+            f"failed to create refs log directory: {refs_log_path.parent}"
+        ) from exc
+    _assert_safe_refs_log_path(refs_log_path)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(refs_log_path, flags, 0o600)
+    except OSError as exc:
+        raise UnsafeRefsLogPathError(
+            f"failed to open refs log safely: {refs_log_path}"
+        ) from exc
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fp:
+            for entry in entries:
+                fp.write(json.dumps(entry, default=str, ensure_ascii=False) + "\n")
     except OSError as exc:
         raise UnsafeRefsLogPathError(
             f"failed to write refs log: {refs_log_path}"
