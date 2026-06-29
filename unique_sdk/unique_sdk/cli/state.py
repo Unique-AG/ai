@@ -148,8 +148,20 @@ class ShellState:
 
     @property
     def uploaded_search_available(self) -> bool:
-        """True when this task has per-row uploaded documents to search."""
-        return bool(self.uploaded_search_content_ids or self.uploaded_search_chat_id)
+        """True when this task has per-row uploaded documents to search.
+
+        Requires *both* a non-empty selected content-id set and the owning
+        chat id. The owning chat id alone is not enough: ``cmd_uploaded_search``
+        would then issue a ``chatOnly`` ``Search.create`` with no ``contentIds``
+        filter, silently widening scope from the row's selected files to *every*
+        upload in the chat. That degenerate state arises when the runner wrote
+        a ``.unique-uploaded.json`` whose ``contentIds`` were absent or
+        malformed (e.g. mixed types, rejected wholesale by
+        ``_load_uploaded_content_ids``) while the ``chatId`` still parsed — so
+        we treat it as "no uploaded scope" rather than "all chat uploads".
+        See UN-21780.
+        """
+        return bool(self.uploaded_search_content_ids and self.uploaded_search_chat_id)
 
     @property
     def workspace_metadata_filter(self) -> dict[str, Any] | None:

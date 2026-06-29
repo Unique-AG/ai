@@ -619,12 +619,16 @@ class TestCmdUploadedSearch:
         assert "metaDataFilter" not in kwargs
 
     @patch("unique_sdk.Search.create")
-    def test_chat_id_only_omits_content_ids(self, mock: MagicMock) -> None:
-        mock.return_value = []
-        cmd_uploaded_search(_uploaded_state(chat_id="chat_p", content_ids=[]), "q")
-        kwargs = mock.call_args[1]
-        assert kwargs["chatId"] == "chat_p"
-        assert "contentIds" not in kwargs
+    def test_chat_id_without_content_ids_is_unavailable(self, mock: MagicMock) -> None:
+        # A chat id with no selected content ids must NOT fall back to a
+        # chatOnly search over every upload in the chat — that silently widens
+        # scope past the row's selection. The guard returns the error prefix and
+        # never hits the API. See UN-21780.
+        out = cmd_uploaded_search(
+            _uploaded_state(chat_id="chat_p", content_ids=[]), "q"
+        )
+        assert out.startswith(UPLOADED_SEARCH_ERROR_PREFIX)
+        mock.assert_not_called()
 
     @patch("unique_sdk.Search.create")
     def test_writes_block_and_manifest(self, mock: MagicMock) -> None:
@@ -708,6 +712,9 @@ class TestUploadedConfigLoading:
         # The list is rejected wholesale (mixed types), chat id still loads.
         assert s.uploaded_search_content_ids == []
         assert s.uploaded_search_chat_id == "chat_x"
+        # ...but a chat id without valid content ids must not enable an
+        # all-uploads search (UN-21780): treat it as no uploaded scope.
+        assert s.uploaded_search_available is False
 
 
 class TestIsUploadedSearchErrorOutput:
