@@ -9,7 +9,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from unique_toolkit.agentic.tools.tool_manager import ResponsesApiToolManager
 
-from unique_orchestrator.unique_ai_builder import ResponsesStreamingHandler
+from unique_orchestrator.unique_ai_builder import (
+    ResponsesStreamingHandler,
+    _ChatServiceResponsesStreaming,
+)
 
 
 def _make_handler(
@@ -17,15 +20,11 @@ def _make_handler(
 ) -> ResponsesStreamingHandler:
     tool_manager = MagicMock(spec=ResponsesApiToolManager)
     tool_manager.get_required_include_params.return_value = include_params
-    chat_service = MagicMock()
-    chat_service.complete_responses_with_references_async = AsyncMock(
-        return_value=MagicMock()
-    )
-    chat_service.complete_responses_with_references = MagicMock(
-        return_value=MagicMock()
-    )
+    inner = MagicMock()
+    inner.complete_with_references_async = AsyncMock(return_value=MagicMock())
+    inner.complete_with_references = MagicMock(return_value=MagicMock())
     return ResponsesStreamingHandler(
-        chat_service=chat_service,
+        inner=inner,
         tool_manager=tool_manager,
     )
 
@@ -45,9 +44,7 @@ async def test_responses_streaming_handler__injects_include__when_tool_manager_r
 
     await handler.complete_with_references_async(messages=[], model_name="model")
 
-    call_kwargs = (
-        handler._chat_service.complete_responses_with_references_async.await_args.kwargs
-    )
+    call_kwargs = handler._inner.complete_with_references_async.await_args.kwargs
     assert call_kwargs["include"] == ["code_interpreter_call.outputs"]
     handler._tool_manager.get_required_include_params.assert_called_once()
 
@@ -66,9 +63,7 @@ async def test_responses_streaming_handler__omits_include__when_tool_manager_ret
 
     await handler.complete_with_references_async(messages=[], model_name="model")
 
-    call_kwargs = (
-        handler._chat_service.complete_responses_with_references_async.await_args.kwargs
-    )
+    call_kwargs = handler._inner.complete_with_references_async.await_args.kwargs
     assert "include" not in call_kwargs
 
 
@@ -81,9 +76,7 @@ def test_responses_streaming_handler__injects_include__sync_path() -> None:
 
     handler.complete_with_references(messages=[], model_name="model")
 
-    call_kwargs = (
-        handler._chat_service.complete_responses_with_references.call_args.kwargs
-    )
+    call_kwargs = handler._inner.complete_with_references.call_args.kwargs
     assert call_kwargs["include"] == ["code_interpreter_call.outputs"]
 
 
@@ -94,7 +87,34 @@ def test_responses_streaming_handler__omits_include__sync_path_when_empty() -> N
 
     handler.complete_with_references(messages=[], model_name="model")
 
-    call_kwargs = (
-        handler._chat_service.complete_responses_with_references.call_args.kwargs
-    )
+    call_kwargs = handler._inner.complete_with_references.call_args.kwargs
     assert "include" not in call_kwargs
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_chat_service_responses_streaming__forwards_to_responses_methods() -> (
+    None
+):
+    """
+    Purpose: The legacy adapter must route the protocol's
+    `complete_with_references[_async]` to ChatService's Responses-specific
+    methods, not the Chat Completions ones.
+    Why this matters: ChatService exposes both; routing to the wrong method
+    would silently stream through the Chat Completions API.
+    """
+    chat_service = MagicMock()
+    chat_service.complete_responses_with_references = MagicMock(
+        return_value=MagicMock()
+    )
+    chat_service.complete_responses_with_references_async = AsyncMock(
+        return_value=MagicMock()
+    )
+    adapter = _ChatServiceResponsesStreaming(chat_service)
+
+    adapter.complete_with_references(messages=[], model_name="model")
+    await adapter.complete_with_references_async(messages=[], model_name="model")
+
+    chat_service.complete_responses_with_references.assert_called_once()
+    chat_service.complete_responses_with_references_async.assert_awaited_once()
+    chat_service.complete_with_references.assert_not_called()
