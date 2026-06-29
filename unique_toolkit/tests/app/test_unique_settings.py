@@ -817,19 +817,21 @@ async def test_unique_api__check_connection__returns_false_and_sdk_url_falls_bac
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_unique_settings__check_connection__delegates_with_auth_credentials(
+async def test_unique_settings__check_connection__inits_sdk_and_delegates_with_auth_credentials(
     mocker,
 ) -> None:
     """
-    Purpose: Verify UniqueSettings.check_connection passes auth credentials to UniqueApi.
-    Why this matters: The SDK needs the correct user/company IDs to build auth headers.
-    Setup summary: Patch UniqueApi.check_connection; assert called with auth from settings.
+    Purpose: Verify check_connection initialises the SDK and passes auth credentials to UniqueApi.
+    Why this matters: SDK globals must be set before the call so the right api_base and credentials
+    are used; they must be re-set after so api_base stays in sync with any sdk_url() fallback.
+    Setup summary: Patch init_sdk and UniqueApi.check_connection; assert both are called correctly.
     """
     settings = UniqueSettings(
         auth=UniqueAuth(company_id=SecretStr("co"), user_id=SecretStr("user")),
         app=UniqueApp(id=SecretStr("id"), key=SecretStr("key")),
         api=UniqueApi(base_url="http://localhost:8096/"),
     )
+    mock_init = mocker.patch.object(UniqueSettings, "init_sdk")
     mock_check = mocker.patch.object(
         UniqueApi,
         "check_connection",
@@ -840,6 +842,7 @@ async def test_unique_settings__check_connection__delegates_with_auth_credential
     result = await settings.check_connection()
 
     assert result is True
+    assert mock_init.call_count == 2  # once before, once after (finally)
     mock_check.assert_awaited_once_with("user", "co")
 
 

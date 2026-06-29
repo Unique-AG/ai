@@ -633,10 +633,15 @@ class UniqueSettings:
         Returns:
             True if the API is reachable and at least one model is available, False otherwise.
         """
-        return await self.api.check_connection(
-            self.auth.user_id.get_secret_value(),
-            self.auth.company_id.get_secret_value(),
-        )
+        self.init_sdk()
+        try:
+            return await self.api.check_connection(
+                self.auth.user_id.get_secret_value(),
+                self.auth.company_id.get_secret_value(),
+            )
+        finally:
+            # Re-sync api_base in case sdk_url() fell back to base_url after a failure.
+            self.init_sdk()
 
     @classmethod
     def from_chat_event(cls, event: ChatEvent) -> UniqueSettings:
