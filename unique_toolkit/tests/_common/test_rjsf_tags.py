@@ -1788,6 +1788,72 @@ def test_AI_ui_schema_for_model__pipe_union_with_annotated_models__resolves_anyo
 
 
 @pytest.mark.ai
+def test_AI_ui_schema_for_model__discriminated_union__emits_oneof_branch_uischema() -> (
+    None
+):
+    """
+    Purpose: Verify a Pydantic discriminated union emits its per-branch uiSchema
+        under ``oneOf`` (not ``anyOf``).
+    Why this matters: Pydantic serialises discriminated unions to ``oneOf`` in the
+        JSON schema. RJSF v6 only reads ``uiSchema.oneOf`` when the schema uses
+        ``oneOf`` (and ``uiSchema.anyOf`` when it uses ``anyOf``). If the generator
+        emits ``anyOf`` for a ``oneOf`` schema, RJSF silently drops every per-branch
+        widget — e.g. a textarea renders as a single-line input. This guards the
+        real WebSearch ``searchEngineConfig`` case.
+    Setup summary: Build a discriminated union of two engine models that both put a
+        textarea on ``instructions``, generate the uiSchema, and assert the branches
+        live under ``oneOf`` with the textarea preserved.
+    """
+
+    class _EngineA(BaseModel):
+        engine: Annotated[
+            Literal["a"], RJSFMetaTag.SpecialWidget.hidden()
+        ] = "a"
+        instructions: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=9)] = "x"
+
+    class _EngineB(BaseModel):
+        engine: Annotated[
+            Literal["b"], RJSFMetaTag.SpecialWidget.hidden()
+        ] = "b"
+        instructions: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=9)] = "y"
+
+    class _Cfg(BaseModel):
+        engine_config: _EngineA | _EngineB = Field(
+            default=_EngineA(), discriminator="engine"
+        )
+
+    ui = ui_schema_for_model(_Cfg)
+
+    field_ui = ui["engine_config"]
+    assert "oneOf" in field_ui, "discriminated union must emit oneOf, not anyOf"
+    assert "anyOf" not in field_ui
+    branches = field_ui["oneOf"]
+    assert len(branches) == 2
+    for branch in branches:
+        assert branch["instructions"]["ui:widget"] == "textarea"
+        assert branch["instructions"]["ui:options"] == {"rows": 9}
+        assert branch["engine"]["ui:widget"] == "hidden"
+
+
+@pytest.mark.ai
+def test_AI_ui_schema_for_model__plain_union__still_emits_anyof() -> None:
+    """
+    Purpose: Verify a plain (non-discriminated) union keeps emitting ``anyOf``.
+    Why this matters: The oneOf change must be scoped strictly to discriminated
+        unions; plain unions serialise to ``anyOf`` in the JSON schema and must
+        keep matching that keyword in the uiSchema.
+    Setup summary: Build a plain union field and assert the branch key is ``anyOf``.
+    """
+
+    class _Plain(BaseModel):
+        value: Annotated[Union[str, int], RJSFMetaTag.BooleanWidget.select()]
+
+    ui = ui_schema_for_model(_Plain)
+    assert "anyOf" in ui["value"]
+    assert "oneOf" not in ui["value"]
+
+
+@pytest.mark.ai
 def test_AI_ui_schema_for_model__default_string_empty_value__plain_str_fields() -> None:
     """
     Purpose: Verify ``default_string_empty_value`` injects ``ui:emptyValue`` for bare

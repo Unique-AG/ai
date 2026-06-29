@@ -928,6 +928,7 @@ def ui_schema_for_model(
     ui: dict[str, Any] = {}
 
     for fname in model_cls.model_fields:
+        field_info = model_cls.model_fields[fname]
         ann = hints[fname]
         node: dict[str, Any] = {}
 
@@ -1019,13 +1020,19 @@ def ui_schema_for_model(
                 _maybe_set_string_empty_value(branch, alt_b, default_string_empty_value)
                 branches.append(branch)
             if branches:
-                # Check if the metadata already has an anyOf structure (from Union composer)
-                if "anyOf" in node:
-                    # Use the anyOf from the metadata (from Union composer)
-                    pass  # Keep the existing anyOf from the Union composer
-                else:
-                    # Create anyOf structure for Union types
-                    node["anyOf"] = branches
+                # RJSF v6 selects the per-branch uiSchema using the SAME keyword
+                # the JSON schema uses for the union: ``schema.oneOf`` reads
+                # ``uiSchema.oneOf`` and ``schema.anyOf`` reads ``uiSchema.anyOf``
+                # (see @rjsf/core ``AnyOfField``). Pydantic emits ``oneOf`` for a
+                # *discriminated* union and ``anyOf`` otherwise, so the uiSchema
+                # branch key MUST match the schema keyword — a ``oneOf`` schema
+                # paired with an ``anyOf`` uiSchema makes RJSF silently drop every
+                # per-branch widget and fall back to default widgets.
+                branch_key = "oneOf" if field_info.discriminator is not None else "anyOf"
+                # Keep any branch structure already supplied by a composer
+                # (Optional/Union write their own ``anyOf`` into ``meta``).
+                if "anyOf" not in node and "oneOf" not in node:
+                    node[branch_key] = branches
 
         # Scalars: node already has metadata if any
         _maybe_set_string_empty_value(node, base, default_string_empty_value)

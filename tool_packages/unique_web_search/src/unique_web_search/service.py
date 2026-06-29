@@ -115,7 +115,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         """Derive the search-engine mode, respecting CustomAPI overrides."""
         cfg = self.search_engine_service.config
         override = cfg.search_engine_mode if isinstance(cfg, CustomAPIConfig) else None
-        return get_search_engine_mode(cfg.search_engine_name, override=override)
+        return get_search_engine_mode(cfg.engine, override=override)
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:

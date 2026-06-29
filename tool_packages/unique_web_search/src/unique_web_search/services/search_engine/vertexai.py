@@ -1,12 +1,13 @@
 import asyncio
 import logging
-from typing import Annotated, Literal, override
+from typing import override
 
 from httpx import AsyncClient as HttpxAsyncClient
 from httpx import HTTPError
 from pydantic import Field
+from unique_search_proxy_core.agent_engines.base import AgentEngineType
+from unique_search_proxy_core.agent_engines.vertexai.schema import VertexAIAgentConfig
 from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
-from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import LanguageModelService
 
@@ -18,18 +19,13 @@ from unique_web_search.services.proxy.mappers import (
     agent_answer_text,
     map_agent_answer,
 )
-from unique_web_search.services.search_engine.base import (
-    BaseSearchEngineConfig,
-    SearchEngine,
-    SearchEngineType,
-    get_search_engine_model_config,
-)
+from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
+from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
     WebSearchResults,
 )
 from unique_web_search.services.search_engine.utils.grounding import (
-    GENERATION_INSTRUCTIONS,
     JsonConversionStrategy,
     LLMParserStrategy,
     convert_response_to_search_results,
@@ -44,26 +40,8 @@ from unique_web_search.services.search_engine.utils.grounding.vertexai import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
-    model_config = get_search_engine_model_config(SearchEngineType.VERTEXAI)
-    search_engine_name: Literal[SearchEngineType.VERTEXAI] = SearchEngineType.VERTEXAI
-
-    vertexai_model_name: str = Field(
-        default="gemini-3-flash-preview",
-        description="The name of the model to use for the search.",
-    )
-
-    generation_instructions: Annotated[
-        str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(GENERATION_INSTRUCTIONS.split("\n"))
-        ),
-    ] = Field(
-        default=GENERATION_INSTRUCTIONS,
-        description="The generation instructions to be injected into the Microsoft Foundry Agents.",
-    )
-
-    fallback_language_model: LMI = get_LMI_default_field(
+class VertexAIConfig(VertexAIAgentConfig):
+    language_model: LMI = get_LMI_default_field(
         DEFAULT_LANGUAGE_MODEL,
         description="The language model to use as a fallback parser if the grounding response is not valid JSON.",
     )
@@ -73,17 +51,20 @@ class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
         description="Whether the search engine requires scraping.",
     )
 
-    enable_entreprise_search: bool = Field(
-        default=False,
-        description="Whether to use the enterprise search.",
-    )
-
     enable_redirect_resolution: bool = Field(
         default=True,
         description="Whether to enable redirect resolution.",
     )
 
 
+@register_search_engine(
+    name="vertexai",
+    key=AgentEngineType.VERTEXAI,
+    config_cls=VertexAIConfig,
+    mode=SearchEngineMode.AGENT,
+    config_display_name="Grounding with VertexAI",
+    needs_language_model=True,
+)
 class VertexAI(SearchEngine[VertexAIConfig]):
     supports_proxy_search = True
 
@@ -99,7 +80,7 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         self.response_parsers = [
             JsonConversionStrategy(),
             LLMParserStrategy(
-                config.fallback_language_model,
+                config.language_model,
                 language_model_service,
             ),
         ]
@@ -110,12 +91,15 @@ class VertexAI(SearchEngine[VertexAIConfig]):
 
     @override
     async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        async with open_search_proxy_client(timeout=120.0) as client:
+        async with open_search_proxy_client(
+            timeout=float(self.config.timeout)
+        ) as client:
             response = await client.agent_search.vertexai(
                 query=query,
                 vertexai_model_name=self.config.vertexai_model_name,
                 generation_instructions=self.config.generation_instructions,
-                enable_enterprise_search=self.config.enable_entreprise_search,
+                enable_enterprise_search=self.config.enable_enterprise_search,
+                timeout=self.config.timeout,
             )
             results = await map_agent_answer(
                 agent_answer_text(response),
@@ -135,7 +119,7 @@ class VertexAI(SearchEngine[VertexAIConfig]):
             model_name=self.config.vertexai_model_name,
             config=get_vertex_grounding_with_structured_output_config(
                 generation_instructions=self.config.generation_instructions,
-                entreprise_search=self.config.enable_entreprise_search,
+                entreprise_search=self.config.enable_enterprise_search,
             ),
             contents=query,
         )
