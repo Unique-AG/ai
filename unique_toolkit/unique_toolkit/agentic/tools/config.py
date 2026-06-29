@@ -1,3 +1,4 @@
+import logging
 from enum import StrEnum
 from typing import Annotated, Any, Generic
 
@@ -14,7 +15,34 @@ from typing_extensions import TypeVar
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T", bound=BaseToolConfig, default=BaseToolConfig)
+
+
+def _ensure_base_tool_config(value: dict[str, Any]) -> None:
+    """Make configuration parseable; disabled/demoted tools are never built at runtime."""
+    configuration = value.get("configuration")
+    if not isinstance(configuration, BaseToolConfig):
+        value["configuration"] = BaseToolConfig()
+
+
+def _non_empty_str(value: dict[str, Any], snake_key: str, camel_key: str) -> str:
+    raw = value.get(snake_key, value.get(camel_key, ""))
+    if raw is None:
+        return ""
+    return str(raw)
+
+
+def _is_mcp_tool_payload(value: dict[str, Any]) -> bool:
+    if _non_empty_str(value, "mcp_source_id", "mcpSourceId"):
+        return True
+
+    configuration = value.get("configuration", {})
+    if isinstance(configuration, dict):
+        if _non_empty_str(configuration, "mcp_source_id", "mcpSourceId"):
+            return True
+    return False
 
 
 class ToolIcon(StrEnum):
@@ -76,11 +104,26 @@ class ToolBuildConfig(BaseModel, Generic[T]):
         value: Any,
         info: ValidationInfo,
     ) -> Any:
-        """Check the given values for."""
+        """Validate and resolve tool configuration based on tool type and name.
+
+        Disabled tools skip validation entirely.
+        Enabled tools that fail validation are demoted to disabled.
+        """
         if not isinstance(value, dict):
             return value
 
-        is_mcp_tool = value.get("mcp_source_id", "") != ""
+        if "isEnabled" in value:
+            is_enabled = bool(value["isEnabled"])
+        elif "is_enabled" in value:
+            is_enabled = bool(value["is_enabled"])
+        else:
+            is_enabled = True
+
+        if not is_enabled:
+            _ensure_base_tool_config(value)
+            return value
+
+        is_mcp_tool = _is_mcp_tool_payload(value)
         mcp_configuration = value.get("configuration", {})
 
         # Import at runtime to avoid circular imports
@@ -102,26 +145,39 @@ class ToolBuildConfig(BaseModel, Generic[T]):
 
         configuration = value.get("configuration", {})
 
-        if is_sub_agent_tool:
-            from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
+        try:
+            if is_sub_agent_tool:
+                from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
 
-            config = ExtendedSubAgentToolConfig.model_validate(configuration)
-        elif isinstance(configuration, dict):
-            # Local import to avoid circular import at module import time
-            from unique_toolkit.agentic.tools.factory import ToolFactory
+                config = ExtendedSubAgentToolConfig.model_validate(configuration)
+            elif isinstance(configuration, dict):
+                # Local import to avoid circular import at module import time
+                from unique_toolkit.agentic.tools.factory import ToolFactory
 
-            config = ToolFactory.build_tool_config(
-                value["name"],
-                **configuration,
+                config = ToolFactory.build_tool_config(
+                    value["name"],
+                    **configuration,
+                )
+            else:
+                # Check that the type of config matches the tool name
+                from unique_toolkit.agentic.tools.factory import ToolFactory
+
+                assert isinstance(
+                    configuration,
+                    ToolFactory.tool_config_map[value["name"]],  # pyright: ignore[reportArgumentType]
+                )
+                config = configuration
+        except Exception:
+            tool_name = value.get("name", "<unknown>")
+            logger.warning(
+                "Tool '%s' has invalid configuration and will be disabled.",
+                tool_name,
+                exc_info=True,
             )
-        else:
-            # Check that the type of config matches the tool name
-            from unique_toolkit.agentic.tools.factory import ToolFactory
+            value["is_enabled"] = False
+            value["isEnabled"] = False
+            _ensure_base_tool_config(value)
+            return value
 
-            assert isinstance(
-                configuration,
-                ToolFactory.tool_config_map[value["name"]],  # pyright: ignore[reportArgumentType]
-            )
-            config = configuration
         value["configuration"] = config
         return value

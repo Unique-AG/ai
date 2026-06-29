@@ -147,7 +147,9 @@ class _ToolManager(Generic[_ApiMode]):
         self._tool_choices = run_context.tool_choices
         self._disabled_tools = run_context.disabled_tools
         self._exclusive_tools = [
-            tool.name for tool in self._config.tools if tool.is_exclusive
+            tool.name
+            for tool in self._config.tools
+            if tool.is_exclusive and tool.is_enabled
         ]
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
@@ -199,28 +201,39 @@ class _ToolManager(Generic[_ApiMode]):
 
         registered_tool_names.update(t.name for t in self._mcp_tools)
 
-        # Build internal tools from configurations
+        # Build internal tools from configurations, skipping disabled and failing tools
         self._internal_tools.clear()
+        safe_executor = SafeTaskExecutor(logger=self._logger, log_exceptions=False)
         for t in tool_configs:
             if t.name in registered_tool_names:
                 continue
             if t.name in OpenAIBuiltInToolName:
                 continue
-            if tool_init_event is not None:
-                built_tool = ToolFactory.build_tool_with_settings(
-                    t.name,
-                    t,
-                    t.configuration,
-                    tool_init_event,
-                    tool_progress_reporter=self._tool_progress_reporter,
-                )
-            else:
+            if not t.is_enabled:
+                self._logger.info("Skipping disabled tool '%s'", t.name)
+                continue
+            if tool_init_event is None:
                 self._logger.info(
                     "Skipping internal tool '%s' (requires chat event for initialization)",
                     t.name,
                 )
                 continue
-            self._internal_tools.append(built_tool)
+            result = safe_executor.execute(
+                ToolFactory.build_tool_with_settings,
+                t.name,
+                t,
+                t.configuration,
+                tool_init_event,
+                tool_progress_reporter=self._tool_progress_reporter,
+            )
+            if result.success:
+                self._internal_tools.append(result.unpack())
+            else:
+                self._logger.warning(
+                    "Skipping tool '%s' due to initialization failure.",
+                    t.name,
+                    exc_info=result.exception,
+                )
 
         # Combine all types of tools
         self.available_tools = (
