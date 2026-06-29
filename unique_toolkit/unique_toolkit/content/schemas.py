@@ -215,6 +215,17 @@ class ContentReference(BaseModel):
     sequence_number: int
     source: str
     source_id: str
+    description: str | None = Field(
+        default=None,
+        description=(
+            "Optional free-text/structured description carried alongside the "
+            "reference. Used by MCP tool references (UN-22310) to carry an "
+            'enriched ``{"mcp": {connectorName, title, details?, mcpServerId?}}`` '
+            "JSON payload the chat frontend renders as a card. Nullable "
+            "end-to-end (node-chat persists it as a nullable column; empty "
+            "values are dropped before sending)."
+        ),
+    )
     url: str | None = Field(
         default=None,
         description=(
@@ -241,6 +252,8 @@ class ContentReference(BaseModel):
             "source": reference["source"],
             "source_id": reference["sourceId"],
         }
+        if "description" in reference:
+            kwargs["description"] = reference["description"]
         if "originalIndex" in reference:
             kwargs["original_index"] = reference["originalIndex"]
 

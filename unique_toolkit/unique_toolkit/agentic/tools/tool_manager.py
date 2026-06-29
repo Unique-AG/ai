@@ -12,6 +12,7 @@ from openai.types.responses import (
     response_create_params,
 )
 from pydantic import BaseModel, Field
+from typing_extensions import Self
 
 from unique_toolkit._common.execution import (
     Result,
@@ -31,6 +32,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToolManager
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
@@ -89,14 +91,65 @@ class _ToolManager(Generic[_ApiMode]):
         api_mode: _ApiMode,
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
     ) -> None:
+        self._setup(
+            logger=logger,
+            config=config,
+            run_context=ToolRunContext.from_chat_event(event),
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+            api_mode=api_mode,
+            builtin_tool_manager=builtin_tool_manager,
+        )
+
+    @classmethod
+    def from_run_context(
+        cls,
+        logger: Logger,
+        config: ToolManagerConfig,
+        *,
+        run_context: ToolRunContext,
+        tool_progress_reporter: ToolProgressReporter,
+        mcp_manager: MCPManager,
+        a2a_manager: A2AManager,
+        api_mode: _ApiMode,
+        builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+    ) -> Self:
+        instance = cls.__new__(cls)
+        instance._setup(
+            logger=logger,
+            config=config,
+            run_context=run_context,
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+            api_mode=api_mode,
+            builtin_tool_manager=builtin_tool_manager,
+        )
+        return instance
+
+    def _setup(
+        self,
+        *,
+        logger: Logger,
+        config: ToolManagerConfig,
+        run_context: ToolRunContext,
+        tool_progress_reporter: ToolProgressReporter,
+        mcp_manager: MCPManager,
+        a2a_manager: A2AManager,
+        api_mode: _ApiMode,
+        builtin_tool_manager: OpenAIBuiltInToolManager | None,
+    ) -> None:
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
         self._tools: list[Tool[Any] | OpenAIBuiltInTool[Any]] = []
-        self._tool_choices = event.payload.tool_choices
-        self._disabled_tools = event.payload.disabled_tools
+        self._tool_choices = run_context.tool_choices
+        self._disabled_tools = run_context.disabled_tools
         self._exclusive_tools = [
-            tool.name for tool in self._config.tools if tool.is_exclusive
+            tool.name
+            for tool in self._config.tools
+            if tool.is_exclusive and tool.is_enabled
         ]
         # this needs to be a set of strings to avoid duplicates
         self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
@@ -104,17 +157,33 @@ class _ToolManager(Generic[_ApiMode]):
         self._a2a_manager = a2a_manager
         self._builtin_tool_manager = builtin_tool_manager
         self._api_mode = api_mode
-        self._init__tools(event)
+        self._sub_agents: list[SubAgentTool] = []
+        self._builtin_tools: list[OpenAIBuiltInTool[Any]] = []
+        self._mcp_tools: list[Tool[Any]] = []
+        self._internal_tools: list[Tool[Any]] = []
+        self.available_tools: list[
+            Tool[Any] | OpenAIBuiltInTool[Any] | SubAgentTool
+        ] = []
+        self._init__tools(run_context.tool_init_event)
 
-    def _init__tools(self, event: ChatEvent) -> None:
+    def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
 
-        tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
-            tool_configs, event
-        )
+        if tool_init_event is not None:
+            tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
+                tool_configs,
+                tool_init_event,
+            )
+        else:
+            tool_configs = [
+                tool_config
+                for tool_config in tool_configs
+                if not tool_config.is_sub_agent
+            ]
+            sub_agents = []
         self._sub_agents = sub_agents
 
         registered_tool_names = set(t.name for t in self._sub_agents)
@@ -132,19 +201,39 @@ class _ToolManager(Generic[_ApiMode]):
 
         registered_tool_names.update(t.name for t in self._mcp_tools)
 
-        # Build internal tools from configurations
-        self._internal_tools = [
-            ToolFactory.build_tool_with_settings(
+        # Build internal tools from configurations, skipping disabled and failing tools
+        self._internal_tools.clear()
+        safe_executor = SafeTaskExecutor(logger=self._logger, log_exceptions=False)
+        for t in tool_configs:
+            if t.name in registered_tool_names:
+                continue
+            if t.name in OpenAIBuiltInToolName:
+                continue
+            if not t.is_enabled:
+                self._logger.info("Skipping disabled tool '%s'", t.name)
+                continue
+            if tool_init_event is None:
+                self._logger.info(
+                    "Skipping internal tool '%s' (requires chat event for initialization)",
+                    t.name,
+                )
+                continue
+            result = safe_executor.execute(
+                ToolFactory.build_tool_with_settings,
                 t.name,
                 t,
                 t.configuration,
-                event,
+                tool_init_event,
                 tool_progress_reporter=self._tool_progress_reporter,
             )
-            for t in tool_configs
-            if t.name not in registered_tool_names  # Skip already handled tools
-            and t.name not in OpenAIBuiltInToolName  # Safeguard
-        ]
+            if result.success:
+                self._internal_tools.append(result.unpack())
+            else:
+                self._logger.warning(
+                    "Skipping tool '%s' due to initialization failure.",
+                    t.name,
+                    exc_info=result.exception,
+                )
 
         # Combine all types of tools
         self.available_tools = (
@@ -607,6 +696,30 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             builtin_tool_manager=None,
         )
 
+    @classmethod
+    def from_run_context(
+        cls,
+        logger: Logger,
+        config: ToolManagerConfig,
+        *,
+        run_context: ToolRunContext,
+        tool_progress_reporter: ToolProgressReporter,
+        mcp_manager: MCPManager,
+        a2a_manager: A2AManager,
+        api_mode: Literal["completions"] = "completions",
+        builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+    ) -> Self:
+        return super().from_run_context(
+            logger=logger,
+            config=config,
+            run_context=run_context,
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+            api_mode=api_mode,
+            builtin_tool_manager=builtin_tool_manager,
+        )
+
 
 class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
     def __init__(
@@ -628,6 +741,33 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
             api_mode="responses",
+            builtin_tool_manager=builtin_tool_manager,
+        )
+
+    @classmethod
+    def from_run_context(
+        cls,
+        logger: Logger,
+        config: ToolManagerConfig,
+        *,
+        run_context: ToolRunContext,
+        tool_progress_reporter: ToolProgressReporter,
+        mcp_manager: MCPManager,
+        a2a_manager: A2AManager,
+        api_mode: Literal["responses"] = "responses",
+        builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+    ) -> Self:
+        if builtin_tool_manager is None:
+            msg = "builtin_tool_manager is required for ResponsesApiToolManager"
+            raise ValueError(msg)
+        return super().from_run_context(
+            logger=logger,
+            config=config,
+            run_context=run_context,
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+            api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
         )
 

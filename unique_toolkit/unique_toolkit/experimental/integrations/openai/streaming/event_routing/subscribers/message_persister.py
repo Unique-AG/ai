@@ -2,8 +2,15 @@
 
 Single responsibility: owns every ``unique_sdk.Message.modify_async`` call
 related to a streaming response (``startedStreamingAt``, incremental text
-+ references, ``stoppedStreamingAt``, ``completedAt``), plus the
-``content_chunks`` used to filter references down to what was actually cited.
++ references, and ``stoppedStreamingAt``), plus the ``content_chunks`` used
+to filter references down to what was actually cited.
+
+The same message is streamed into once per agent round, and this subscriber
+only sees per-request boundaries (never end-of-turn). It therefore stamps
+``stoppedStreamingAt`` only on rounds that produced answer text; tool-call
+rounds (empty text) leave it null so the message stays in the streaming
+state. ``completedAt`` is intentionally **not** written here — the
+orchestrator marks completion at end-of-turn via ``set_completed_at``.
 
 Attach by calling :meth:`register` once on the owned bus:
 
@@ -162,6 +169,10 @@ class MessagePersistingSubscriber:
         if event.appendices:
             final_text = final_text + "".join(event.appendices)
 
+        # Only mark streaming stopped on the answer round; tool-call rounds have
+        # empty text and must stay "streaming" so the frontend keeps the steps.
+        stopped_streaming_at = now_iso if final_text else None
+
         await unique_sdk.Message.modify_async(
             id=event.message_id,
             chatId=event.chat_id,
@@ -173,6 +184,5 @@ class MessagePersistingSubscriber:
             # Chat completions persist their request as a JSON array; the SDK type is narrower.
             gptRequest=event.gpt_request,  # pyright: ignore[reportArgumentType]
             debugInfo=event.debug_info,
-            stoppedStreamingAt=cast(Any, now_iso),
-            completedAt=cast(Any, now_iso),
+            stoppedStreamingAt=cast(Any, stopped_streaming_at),
         )

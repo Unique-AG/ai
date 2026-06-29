@@ -20,6 +20,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -30,6 +31,7 @@ __all__ = [
     "_append_turn_refs_manifest_entry",
     "_locked_turn_refs_manifest",
     "_read_turn_refs_manifest",
+    "_rewrite_turn_refs_manifest",
 ]
 
 
@@ -130,6 +132,67 @@ def _append_turn_refs_manifest_entry(
         with os.fdopen(fd, "a", encoding="utf-8") as fp:
             fp.write(json.dumps(payload, default=str, ensure_ascii=False) + "\n")
     except OSError as exc:
+        raise UnsafeRefsLogPathError(
+            f"failed to write refs log: {refs_log_path}"
+        ) from exc
+
+
+def _rewrite_turn_refs_manifest(
+    refs_log_path: Path,
+    entries: list[dict[str, Any]],
+) -> None:
+    """Atomically replace the manifest with ``entries`` (one JSON object per
+    line, in order).
+
+    Used to backfill a previously-appended entry in place — e.g. when a later
+    tool call re-cites a deduped item and extracts ``details`` the first call
+    lacked. Must be called while holding ``_locked_turn_refs_manifest`` so the
+    read → mutate → rewrite sequence does not race a concurrent append.
+
+    Crash-safe: the new content is written to a sibling temp file and then
+    ``os.replace``-d over the manifest, so a failed/partial write never
+    truncates or corrupts the live manifest (the runner keeps reading the old
+    file until the rename succeeds). Same symlink/regular-file safety discipline
+    as the append path — rejects a symlinked dir/file, and the temp file is
+    created fresh with ``O_CREAT | O_EXCL | O_NOFOLLOW`` (via ``mkstemp``) so a
+    symlink swap between the check and the open still fails closed.
+    """
+    _assert_safe_refs_log_path(refs_log_path)
+    try:
+        refs_log_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise UnsafeRefsLogPathError(
+            f"failed to create refs log directory: {refs_log_path.parent}"
+        ) from exc
+    _assert_safe_refs_log_path(refs_log_path)
+
+    # Unique temp name per call in the same directory (so os.replace is an
+    # atomic same-filesystem rename). ``mkstemp`` generates a fresh random name
+    # and opens it with ``O_CREAT | O_EXCL | O_NOFOLLOW`` (POSIX) at mode 0600 —
+    # a leftover temp from an earlier crashed rewrite can never collide and
+    # block subsequent backfills.
+    try:
+        fd, tmp_name = tempfile.mkstemp(
+            dir=refs_log_path.parent,
+            prefix=f"{refs_log_path.name}.",
+            suffix=".tmp",
+        )
+    except OSError as exc:
+        raise UnsafeRefsLogPathError(
+            f"failed to open refs log temp file safely: {refs_log_path}"
+        ) from exc
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fp:
+            for entry in entries:
+                fp.write(json.dumps(entry, default=str, ensure_ascii=False) + "\n")
+        os.replace(tmp_path, refs_log_path)
+    except OSError as exc:
+        # The live manifest is untouched; drop the partial temp file.
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
         raise UnsafeRefsLogPathError(
             f"failed to write refs log: {refs_log_path}"
         ) from exc

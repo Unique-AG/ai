@@ -134,6 +134,7 @@ def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
             "serverName": "kb",
             "title": "RAG Retrieval Baseline",
             "snippet": "Why retrieval fails",
+            "details": None,
         }
     ]
     assert "[mcpsource1] RAG Retrieval Baseline" in out
@@ -151,6 +152,55 @@ def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert refs[0]["title"] == "RAG Retrieval Baseline"
     assert "url" not in refs[0]
+
+
+# ── Reference enrichment / details line (UN-22310) ───────────────────────────
+
+
+def test_json_in_text_extracts_details_date_and_author(tmp_path: Path) -> None:
+    # Atlassian-style record carrying a date + a nested author object.
+    body = json.dumps(
+        {
+            "title": "Unique <> JP Morgan Introduction Meeting",
+            "updated": "10/10/2026",
+            "author": {"displayName": "Jamie Dimon"},
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__getConfluencePage", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["title"] == "Unique <> JP Morgan Introduction Meeting"
+    assert refs[0]["details"] == "10/10/2026 - Jamie Dimon"
+
+
+def test_json_in_text_details_author_only(tmp_path: Path) -> None:
+    body = json.dumps({"title": "Some email", "creator": "Jane Roe"})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__mail__get", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["details"] == "Jane Roe"
+
+
+def test_json_in_text_no_details_when_absent(tmp_path: Path) -> None:
+    body = json.dumps({"title": "Some email"})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__mail__get", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["details"] is None
+
+
+def test_resource_link_item_has_no_details(tmp_path: Path) -> None:
+    # resource_link blocks carry no date/author → details omitted (None).
+    response = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["details"] is None
 
 
 def test_multiple_items_get_distinct_numbers(tmp_path: Path) -> None:
@@ -174,6 +224,52 @@ def test_same_title_dedupes_across_calls(tmp_path: Path) -> None:
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert len(refs) == 1
     assert refs[0]["sourceNumber"] == 1
+
+
+def test_dedup_backfills_details_from_later_call(tmp_path: Path) -> None:
+    # First call retrieves "Doc A" as a bare resource_link (no date/author) →
+    # source 1 with no details. A later call returns the same titled record as
+    # JSON carrying a date + author. The dedup reuses source 1, and the newly
+    # extracted details must be backfilled onto the existing entry (the runner
+    # reads one entry per source number, so an empty details would otherwise
+    # stick for the whole turn).
+    first = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", first)
+    assert _lines(tmp_path, _REFS_MANIFEST)[0]["details"] is None
+
+    enriched_body = json.dumps(
+        {
+            "title": "Doc A",
+            "updated": "10/10/2026",
+            "author": {"displayName": "Jamie Dimon"},
+        }
+    )
+    second = _FakeMCPResponse(content=[{"type": "text", "text": enriched_body}])
+    _run("mcp__kb__fetch", second)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1  # still deduped — one entry, one source number
+    assert refs[0]["sourceNumber"] == 1
+    assert refs[0]["details"] == "10/10/2026 - Jamie Dimon"
+
+
+def test_dedup_does_not_clobber_existing_details(tmp_path: Path) -> None:
+    # First call already has details; a later detail-less call must not erase
+    # them (backfill only fills an empty details, never overwrites).
+    enriched_body = json.dumps({"title": "Doc A", "updated": "01/01/2026"})
+    first = _FakeMCPResponse(content=[{"type": "text", "text": enriched_body}])
+    _run("mcp__kb__fetch", first)
+
+    bare = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", bare)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["details"] == "01/01/2026"
 
 
 def test_different_tools_same_title_get_distinct_numbers(tmp_path: Path) -> None:
@@ -280,6 +376,56 @@ def test_partial_refs_returned_when_later_write_fails(tmp_path: Path) -> None:
     assert len(annotated) == 1
     assert annotated[0][0] == 1
     assert annotated[0][1]["title"] == "Doc A"
+
+
+def test_rewrite_failure_preserves_live_manifest(tmp_path: Path) -> None:
+    # A failed/partial rewrite must never truncate the live manifest: the new
+    # content goes to a temp file that is os.replace-d into place only on
+    # success, so a mid-write error leaves the original intact and no temp file
+    # behind.
+    from unique_sdk.cli.commands._citation_manifest import (
+        _append_turn_refs_manifest_entry,
+        _rewrite_turn_refs_manifest,
+    )
+
+    refs_path = tmp_path / ".unique" / "mcp-refs.jsonl"
+    original = {"sourceNumber": 1, "toolName": "mcp__kb__fetch", "title": "Doc A"}
+    _append_turn_refs_manifest_entry(refs_path, original)
+
+    with patch(
+        "unique_sdk.cli.commands._citation_manifest.json.dumps",
+        side_effect=OSError("disk full"),
+    ):
+        with pytest.raises(OSError):
+            _rewrite_turn_refs_manifest(
+                refs_path, [{**original, "details": "10/10/2026"}]
+            )
+
+    # Original content survives; no leftover temp file in the directory.
+    assert _lines(tmp_path, _REFS_MANIFEST) == [original]
+    assert list(refs_path.parent.glob("*.tmp")) == []
+
+
+def test_rewrite_succeeds_despite_stale_temp_file(tmp_path: Path) -> None:
+    # A leftover temp file from an earlier crashed rewrite must not block the
+    # next one: each call uses a fresh unique temp name (mkstemp), so it cannot
+    # collide with stale debris.
+    from unique_sdk.cli.commands._citation_manifest import (
+        _append_turn_refs_manifest_entry,
+        _rewrite_turn_refs_manifest,
+    )
+
+    refs_path = tmp_path / ".unique" / "mcp-refs.jsonl"
+    original = {"sourceNumber": 1, "toolName": "mcp__kb__fetch", "title": "Doc A"}
+    _append_turn_refs_manifest_entry(refs_path, original)
+
+    # Simulate debris from a prior process that died mid-rewrite.
+    (refs_path.parent / "mcp-refs.jsonl.12345.tmp").write_text("garbage")
+
+    updated = {**original, "details": "10/10/2026"}
+    _rewrite_turn_refs_manifest(refs_path, [updated])
+
+    assert _lines(tmp_path, _REFS_MANIFEST) == [updated]
 
 
 def test_api_error_writes_no_manifest(tmp_path: Path) -> None:
