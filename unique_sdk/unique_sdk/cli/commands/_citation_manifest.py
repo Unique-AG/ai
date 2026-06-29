@@ -20,6 +20,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -152,9 +153,9 @@ def _rewrite_turn_refs_manifest(
     ``os.replace``-d over the manifest, so a failed/partial write never
     truncates or corrupts the live manifest (the runner keeps reading the old
     file until the rename succeeds). Same symlink/regular-file safety discipline
-    as the append path — rejects a symlinked dir/file and creates the temp file
-    with ``O_EXCL | O_NOFOLLOW`` so a swap between the check and the open still
-    fails closed.
+    as the append path — rejects a symlinked dir/file, and the temp file is
+    created fresh with ``O_CREAT | O_EXCL | O_NOFOLLOW`` (via ``mkstemp``) so a
+    symlink swap between the check and the open still fails closed.
     """
     _assert_safe_refs_log_path(refs_log_path)
     try:
@@ -165,18 +166,22 @@ def _rewrite_turn_refs_manifest(
         ) from exc
     _assert_safe_refs_log_path(refs_log_path)
 
-    # Unique temp name in the same directory (so os.replace is an atomic
-    # same-filesystem rename). O_EXCL makes the create fail if the name already
-    # exists, so the pid-based name needs no randomness.
-    tmp_path = refs_log_path.with_name(f"{refs_log_path.name}.{os.getpid()}.tmp")
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_TRUNC
-    flags |= getattr(os, "O_NOFOLLOW", 0)
+    # Unique temp name per call in the same directory (so os.replace is an
+    # atomic same-filesystem rename). ``mkstemp`` generates a fresh random name
+    # and opens it with ``O_CREAT | O_EXCL | O_NOFOLLOW`` (POSIX) at mode 0600 —
+    # a leftover temp from an earlier crashed rewrite can never collide and
+    # block subsequent backfills.
     try:
-        fd = os.open(tmp_path, flags, 0o600)
+        fd, tmp_name = tempfile.mkstemp(
+            dir=refs_log_path.parent,
+            prefix=f"{refs_log_path.name}.",
+            suffix=".tmp",
+        )
     except OSError as exc:
         raise UnsafeRefsLogPathError(
-            f"failed to open refs log temp file safely: {tmp_path}"
+            f"failed to open refs log temp file safely: {refs_log_path}"
         ) from exc
+    tmp_path = Path(tmp_name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fp:
             for entry in entries:

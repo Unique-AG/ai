@@ -406,6 +406,28 @@ def test_rewrite_failure_preserves_live_manifest(tmp_path: Path) -> None:
     assert list(refs_path.parent.glob("*.tmp")) == []
 
 
+def test_rewrite_succeeds_despite_stale_temp_file(tmp_path: Path) -> None:
+    # A leftover temp file from an earlier crashed rewrite must not block the
+    # next one: each call uses a fresh unique temp name (mkstemp), so it cannot
+    # collide with stale debris.
+    from unique_sdk.cli.commands._citation_manifest import (
+        _append_turn_refs_manifest_entry,
+        _rewrite_turn_refs_manifest,
+    )
+
+    refs_path = tmp_path / ".unique" / "mcp-refs.jsonl"
+    original = {"sourceNumber": 1, "toolName": "mcp__kb__fetch", "title": "Doc A"}
+    _append_turn_refs_manifest_entry(refs_path, original)
+
+    # Simulate debris from a prior process that died mid-rewrite.
+    (refs_path.parent / "mcp-refs.jsonl.12345.tmp").write_text("garbage")
+
+    updated = {**original, "details": "10/10/2026"}
+    _rewrite_turn_refs_manifest(refs_path, [updated])
+
+    assert _lines(tmp_path, _REFS_MANIFEST) == [updated]
+
+
 def test_api_error_writes_no_manifest(tmp_path: Path) -> None:
     payload = json.dumps({"name": "mcp__crm__get", "arguments": {}})
     with patch.object(
