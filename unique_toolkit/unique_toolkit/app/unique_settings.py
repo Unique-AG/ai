@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, TypeVar
 from urllib.parse import ParseResult, urlparse, urlunparse
 
-import httpx
 import unique_sdk
 from pydantic import (
     AliasChoices,
@@ -18,6 +17,7 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Protocol, deprecated
+from unique_sdk.api_resources._llm_models import LLMModels
 
 from unique_toolkit._common.config_checker import register_config
 from unique_toolkit.app.chat_event_filter_options_settings import (
@@ -317,12 +317,8 @@ class ApiType(StrEnum):
     LEGACY = "legacy"
 
 
-class ApiProbeResponse(BaseModel):
-    version: str
-
-
 class UniqueApiConnectionError(Exception):
-    """Raised when GET /probe fails to confirm API reachability."""
+    """Raised when the API connection check fails."""
 
     def __init__(self, base_url: str, message: str) -> None:
         self.base_url = base_url
@@ -345,6 +341,8 @@ class UniqueApi(BaseSettings):
 
     api_type: ApiType = Field(default=ApiType.LEGACY)
 
+    _probe_check_failed: bool = PrivateAttr(default=False)
+
     version: str = Field(
         default="2023-12-06",
         validation_alias=AliasChoices(
@@ -360,8 +358,6 @@ class UniqueApi(BaseSettings):
         extra="ignore",
         frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
-
-    _probe_check_failed: bool = PrivateAttr(default=False)
 
     @model_validator(mode="after")
     def _warn_about_defaults(self) -> Self:
@@ -423,24 +419,15 @@ class UniqueApi(BaseSettings):
         path = base_path + "/openai-proxy"
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
-    async def check_connection(self, *, timeout: float = 10.0) -> ApiProbeResponse:
-        """Verify the API is reachable via GET ``{sdk_url}/probe`` (no auth required)."""
-        parsed, base_path = self.base_path()
-        probe_url = urlunparse(
-            parsed._replace(path=base_path, query=None, fragment=None)
-        )
-        probe_url = f"{probe_url.rstrip('/')}/probe"
-
+    def check_connection(self, user_id: str, company_id: str) -> bool:
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(probe_url, timeout=timeout)
-                response.raise_for_status()
-                result = ApiProbeResponse.model_validate(response.json())
-                self._probe_check_failed = False
-                return result
-        except Exception as exc:
+            model_list = await LLMModels.get_models_async(user_id, company_id)
+            check_succeeded = len(model_list.models) > 0
+            self._probe_check_failed = not check_succeeded
+            return check_succeeded
+        except Exception:
             self._probe_check_failed = True
-            raise UniqueApiConnectionError(self.base_url, str(exc)) from exc
+            return False
 
 
 # EventFilterOptions
@@ -640,9 +627,16 @@ class UniqueSettings:
         settings.init_sdk()
         return settings
 
-    async def check_api_connection(self, *, timeout: float = 10.0) -> ApiProbeResponse:
-        """Verify the API is reachable via GET ``{sdk_url}/probe``."""
-        return await self.api.check_connection(timeout=timeout)
+    async def check_connection(self) -> bool:
+        """Verify the API is reachable by listing available models via the SDK.
+
+        Returns:
+            True if the API is reachable and at least one model is available, False otherwise.
+        """
+        return self.api.check_connection(
+            self.authcontext.user_id.get_secret_value(),
+            self.authcontext.company_id.get_secret_value(),
+        )
 
     @classmethod
     def from_chat_event(cls, event: ChatEvent) -> UniqueSettings:
