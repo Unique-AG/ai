@@ -425,9 +425,9 @@ class UniqueApi(BaseSettings):
             check_succeeded = len(model_list["models"]) > 0
             self._probe_check_failed = not check_succeeded
             return check_succeeded
-        except Exception:
+        except Exception as exc:
             self._probe_check_failed = True
-            return False
+            raise UniqueApiConnectionError(self.base_url, str(exc)) from exc
 
 
 # EventFilterOptions

@@ -18,6 +18,7 @@ from unique_toolkit.app.unique_settings import (
     ChatContext,
     EnvFileNotFoundError,
     UniqueApi,
+    UniqueApiConnectionError,
     UniqueApp,
     UniqueAuth,
     UniqueChatEventFilterOptions,
@@ -765,13 +766,14 @@ async def test_unique_api__check_connection__returns_true_and_sdk_url_is_compute
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_unique_api__check_connection__returns_false_and_sdk_url_falls_back_on_exception(
+async def test_unique_api__check_connection__raises_and_sdk_url_falls_back_on_exception(
     mocker,
 ) -> None:
     """
-    Purpose: Verify a failed connection makes sdk_url() fall back to base_url.
-    Why this matters: If the computed URL is wrong, the fallback prevents further broken calls.
-    Setup summary: Patch get_models_async to raise; assert False and sdk_url == base_url.
+    Purpose: Verify an SDK exception raises UniqueApiConnectionError and falls back sdk_url().
+    Why this matters: Callers must be able to catch a typed error; the fallback prevents further
+    broken calls via the misresolved URL.
+    Setup summary: Patch get_models_async to raise; assert UniqueApiConnectionError and sdk_url fallback.
     """
     from unique_sdk.api_resources._llm_models import LLMModels
 
@@ -783,9 +785,12 @@ async def test_unique_api__check_connection__returns_false_and_sdk_url_falls_bac
         side_effect=RuntimeError("connection refused"),
     )
 
-    result = await api.check_connection("user", "co")
+    with pytest.raises(
+        UniqueApiConnectionError, match="connection refused"
+    ) as exc_info:
+        await api.check_connection("user", "co")
 
-    assert result is False
+    assert exc_info.value.base_url == "https://gateway.unique.app/unique-api/"
     assert api.sdk_url() == api.base_url
 
 
