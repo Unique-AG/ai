@@ -5,8 +5,9 @@ from typing import Annotated, Any
 from pydantic import BeforeValidator, Field, PlainSerializer, ValidationInfo
 from pydantic.fields import FieldInfo
 
+from unique_toolkit._common.restrict_enum import RestrictEnum
 from unique_toolkit.language_model.enum_narrowing import (
-    build_language_model_enum_from_names,
+    intersect_with_language_model_name,
 )
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -61,13 +62,17 @@ def build_lmi_annotation(available_models: list[str]) -> Any:
     if not available_models:
         return LMI
 
-    narrowed_enum = build_language_model_enum_from_names(available_models)
-    allowed_model_names = {member.value for member in narrowed_enum}
+    members = intersect_with_language_model_name(available_models)
+    allowed_model_names = set(members.values())
+    restricted_name = Annotated[
+        LanguageModelName,
+        RestrictEnum(list(members.values())),
+    ]
     return Annotated[
         LanguageModelInfo,
         BeforeValidator(
             _build_restricted_lmi_validator(allowed_model_names),
-            json_schema_input_type=narrowed_enum,
+            json_schema_input_type=restricted_name,
         ),
         PlainSerializer(
             serialize_lmi,
