@@ -22,11 +22,12 @@ print("SDK URL:", settings.api.sdk_url())
 
 # %%
 
-# Check the connection — set a breakpoint here to inspect `result` or `exc`.
-# Returns a dict with a "models" key listing available model names.
+# Check the connection — returns True if at least one model is available,
+# False if connected but no models are configured,
+# raises UniqueApiConnectionError on network/auth failures.
 try:
-    result = asyncio.run(settings.check_connection())
-    print("Connected — available models:", result["models"])
+    connected = asyncio.run(settings.check_connection())
+    print("Connected:", connected)
 except UniqueApiConnectionError as exc:
     print("Connection failed:", exc)
     print("Base URL used:", exc.base_url)
@@ -41,8 +42,8 @@ qa_settings = UniqueSettings(
 )
 
 try:
-    result = asyncio.run(qa_settings.check_connection())
-    print("QA connected — available models:", result["models"])
+    connected = asyncio.run(qa_settings.check_connection())
+    print("QA connected:", connected)
 except UniqueApiConnectionError as exc:
     print("QA connection failed:", exc)
 
