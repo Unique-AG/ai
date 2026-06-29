@@ -630,7 +630,11 @@ class UniqueSettings:
         """Verify the API is reachable by listing available models via the SDK.
 
         Returns:
-            True if the API is reachable and at least one model is available, False otherwise.
+            True if the API is reachable and at least one model is available.
+            False if the API is reachable but no models are configured.
+
+        Raises:
+            UniqueApiConnectionError: If the SDK call fails due to a network or auth error.
         """
         self.init_sdk()
         try:
