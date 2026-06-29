@@ -1,10 +1,16 @@
 """EventHandler for code interpreter call events — pure state accumulator.
 
-The event handler consumes OpenAI Responses code-interpreter events and keeps a
-per-``item_id`` ``(status, text)`` fingerprint to suppress duplicate
-progress updates; each genuine transition is published as an
-:class:`ActivityProgressUpdate` on the event-handler-owned
-:class:`TypedEventBus` (:attr:`activity_bus`).
+The event handler consumes OpenAI Responses code-interpreter lifecycle events
+(``in_progress`` / ``interpreting`` / ``completed``; ``delta`` and ``code.done``
+carry no displayed progress and are ignored) and keeps a per-``correlation_id``
+``(status, text)`` fingerprint to suppress duplicate progress updates; each
+genuine transition is published as an :class:`ActivityProgressUpdate` on the
+event-handler-owned :class:`TypedEventBus` (:attr:`activity_bus`).
+
+Each call surfaces as two correlation ids, mirroring the orchestrator's normal
+tool-call display: a one-shot "Triggered Tool Calls" summary published under
+``{item_id}-triggered`` on the ``in_progress`` event, and the "Code Execution"
+detail published under ``item_id`` on every lifecycle transition.
 
 All SDK I/O (``MessageLog`` create/update, ``Message`` modify) lives in
 subscribers reacting to the outer-bus :class:`ActivityProgress` event
@@ -56,8 +62,12 @@ class ResponsesCodeInterpreterEventHandler:
 
     Publishes :class:`ActivityProgressUpdate` on its own
     :class:`TypedEventBus` (accessible via :attr:`activity_bus`) for
-    every genuine state transition, deduplicated by a per-``item_id``
-    ``(status, text)`` fingerprint.
+    every genuine state transition, deduplicated by a per-``correlation_id``
+    ``(status, text)`` fingerprint. Lifecycle events (``in_progress`` /
+    ``interpreting`` / ``completed``) drive the ``item_id`` detail update;
+    the ``in_progress`` event additionally emits a one-shot "Triggered Tool
+    Calls" summary under ``{item_id}-triggered``. ``delta`` and ``code.done``
+    events are ignored.
     """
 
     def __init__(self) -> None:
