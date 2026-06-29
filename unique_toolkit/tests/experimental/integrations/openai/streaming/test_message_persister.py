@@ -147,9 +147,11 @@ async def test_AI_persister__text_delta__modifies_message_with_text_and_referenc
 @pytest.mark.asyncio
 async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunks():
     """
-    Purpose: ``StreamEnded`` writes the authoritative final state and releases per-stream chunks.
-    Why this matters: Frontend uses ``stoppedStreamingAt`` / ``completedAt`` to mark the
-      message done; cached chunks must not leak across overlapping streams.
+    Purpose: An answer round (non-empty text) writes the authoritative final state,
+      stamps ``stoppedStreamingAt``, and releases per-stream chunks.
+    Why this matters: Frontend uses ``stoppedStreamingAt`` to mark the message done;
+      ``completedAt`` is owned by the orchestrator (``set_completed_at``), not written
+      here; cached chunks must not leak across overlapping streams.
     Setup summary: Publish StreamStarted then StreamEnded; assert final modify kwargs and
       that a subsequent TextUpdate for the same message has no chunks (empty references).
     """

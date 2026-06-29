@@ -2,8 +2,15 @@
 
 Single responsibility: owns every ``unique_sdk.Message.modify_async`` call
 related to a streaming response (``startedStreamingAt``, incremental text
-+ references, ``stoppedStreamingAt``, ``completedAt``), plus the
-``content_chunks`` used to filter references down to what was actually cited.
++ references, and ``stoppedStreamingAt``), plus the ``content_chunks`` used
+to filter references down to what was actually cited.
+
+The same message is streamed into once per agent round, and this subscriber
+only sees per-request boundaries (never end-of-turn). It therefore stamps
+``stoppedStreamingAt`` only on rounds that produced answer text; tool-call
+rounds (empty text) leave it null so the message stays in the streaming
+state. ``completedAt`` is intentionally **not** written here — the
+orchestrator marks completion at end-of-turn via ``set_completed_at``.
 
 Attach by calling :meth:`register` once on the owned bus:
 
