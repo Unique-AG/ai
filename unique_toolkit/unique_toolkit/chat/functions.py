@@ -180,6 +180,7 @@ def map_references(references: list[ContentReference]) -> list[dict[str, Any]]:
     return [
         {
             "name": ref.name,
+            "description": ref.description,
             "url": ref.url,
             "sequenceNumber": ref.sequence_number,
             "sourceId": ref.source_id,
@@ -199,6 +200,7 @@ def map_references_with_original_index(
     return [
         {
             "name": ref.name,
+            "description": ref.description,
             "url": ref.url,
             "sequenceNumber": ref.sequence_number,
             "sourceId": ref.source_id,

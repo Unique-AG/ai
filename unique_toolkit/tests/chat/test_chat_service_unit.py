@@ -159,6 +159,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
@@ -202,6 +203,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
@@ -450,6 +452,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
@@ -493,6 +496,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
