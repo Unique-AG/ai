@@ -636,6 +636,9 @@ class UniqueSettings:
         Raises:
             UniqueApiConnectionError: If the SDK call fails due to a network or auth error.
         """
+        # Reset before init_sdk so each retry always probes the canonical computed
+        # sdk_url(), not a stale base_url left over from a previous failure.
+        self.api._probe_check_failed = False
         self.init_sdk()
         try:
             return await self.api.check_connection(
@@ -643,7 +646,7 @@ class UniqueSettings:
                 self.auth.company_id.get_secret_value(),
             )
         finally:
-            # Re-sync api_base in case sdk_url() fell back to base_url after a failure.
+            # Re-sync api_base with sdk_url() which may have just fallen back.
             self.init_sdk()
 
     @classmethod

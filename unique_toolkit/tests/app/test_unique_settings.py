@@ -853,6 +853,42 @@ async def test_unique_settings__check_connection__inits_sdk_and_delegates_with_a
 
 
 @pytest.mark.ai
+@pytest.mark.asyncio
+async def test_unique_settings__check_connection__resets_probe_flag_so_retry_uses_computed_url(
+    mocker,
+) -> None:
+    """
+    Purpose: Verify that a retry after a previous failure probes the computed sdk_url, not base_url.
+    Why this matters: Without the reset, _probe_check_failed=True causes init_sdk() to set
+    api_base=base_url; a lucky success from that wrong path would then restore the computed URL
+    that originally failed, leaving subsequent SDK calls pointing at the bad URL.
+    Setup summary: Pre-set _probe_check_failed=True; patch LLMModels to succeed; assert the flag
+    is False before the call and sdk_url() returns the computed URL afterwards.
+    """
+    from unique_sdk.api_resources._llm_models import LLMModels
+
+    settings = UniqueSettings(
+        auth=UniqueAuth(company_id=SecretStr("co"), user_id=SecretStr("user")),
+        app=UniqueApp(id=SecretStr("id"), key=SecretStr("key")),
+        api=UniqueApi(base_url="https://gateway.unique.app/unique-api/"),
+    )
+    settings.api._probe_check_failed = True  # simulate a previous failure
+
+    mocker.patch.object(
+        LLMModels,
+        "get_models_async",
+        new_callable=mocker.AsyncMock,
+        return_value={"models": ["gpt-4o"]},
+    )
+
+    result = await settings.check_connection()
+
+    assert result is True
+    assert settings.api._probe_check_failed is False
+    assert settings.api.sdk_url() == "https://gateway.unique.app/public/chat-gen2"
+
+
+@pytest.mark.ai
 def test_unique_auth__from_event__creates_auth__with_event_ids() -> None:
     """
     Purpose: Verify from_event creates UniqueAuth instance from BaseEvent.
