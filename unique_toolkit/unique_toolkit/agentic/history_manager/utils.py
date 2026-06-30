@@ -3,10 +3,13 @@ import logging
 from copy import deepcopy
 from typing import Any
 
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.schemas import Source
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.experimental.resources.feature_flags import (
+    FeatureFlagNames,
+    is_flag_enabled,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelMessage,
@@ -16,15 +19,16 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(__name__)
 
 
-def get_selected_uploaded_content_ids(event: ChatEvent) -> set[str] | None:
+async def get_selected_uploaded_content_ids(event: ChatEvent) -> set[str] | None:
     """Derive the set of content IDs the user explicitly selected.
 
     Returns ``None`` when the feature flag is disabled (meaning *all*
     uploaded images should be included), or a ``set[str]`` of IDs when
     only a subset should be attached.
     """
-    if not feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
-        event.company_id
+    if not await is_flag_enabled(
+        FeatureFlagNames.enable_selected_uploaded_files_un_18215,
+        company_id=event.company_id,
     ):
         return None
 

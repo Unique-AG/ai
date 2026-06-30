@@ -6,11 +6,14 @@ from typing import override
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 
-from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.experimental.resources.feature_flags import (
+    FeatureFlagNames,
+    is_flag_enabled,
+)
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
 _TEMPLATE = """
@@ -56,11 +59,9 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
         super().__init__(self.__class__.__name__)
         self._config = config
         self._company_id = company_id
-        self._is_enabled = (
-            self._config.enable
-            and not feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                company_id
-            )
+        self._is_enabled = is_flag_enabled(
+            FeatureFlagNames.enable_code_execution_fence_un_17972,
+            company_id=self._company_id or "",
         )
 
     @override
