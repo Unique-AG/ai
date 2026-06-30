@@ -146,6 +146,9 @@ class ChatMessage(BaseModel):
     updated_at: datetime | None = None
     references: list[ContentReference] | None = []
     assessment: list[ChatMessageAssessment] | None = None
+    segment_kind: str | None = None
+    response_turn_id: str | None = None
+    segment_index: int | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
@@ -213,8 +216,9 @@ class MessageLogUncitedReferences(BaseModel):
 
 class MessageLogEvent(BaseModel):
     model_config = model_config
-    type: Literal["WebSearch", "InternalSearch"]
+    type: Literal["WebSearch", "InternalSearch", "Elicitation", "Thinking", "ToolCall"]
     text: str
+    step_type: str | None = None
 
 
 class MessageLogDetails(BaseModel):
@@ -222,6 +226,10 @@ class MessageLogDetails(BaseModel):
     data: list[MessageLogEvent] | None = None
     status: str | None = Field(
         default=None, description="Overarching status of the current message log"
+    )
+    debug: dict[str, Any] | None = Field(
+        default=None,
+        description="Raw tool tracing: tool name, input args (stdin), truncated output (stdout) for debugging",
     )
 
 
