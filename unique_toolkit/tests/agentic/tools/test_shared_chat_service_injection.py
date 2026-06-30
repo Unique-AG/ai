@@ -55,6 +55,40 @@ class _SharedServiceTool(Tool[_SharedServiceToolConfig]):
         return []
 
 
+class _FixedInitToolConfig(BaseToolConfig):
+    pass
+
+
+class _FixedInitTool(Tool[_FixedInitToolConfig]):
+    """Mirrors production tools (e.g. AskUser) with a fixed __init__ signature."""
+
+    name = "fixed_init_tool"
+
+    def __init__(
+        self,
+        config: _FixedInitToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+    ) -> None:
+        super().__init__(config, event, tool_progress_reporter)
+
+    def tool_description(self) -> LanguageModelToolDescription:
+        return LanguageModelToolDescription(
+            name=self.name,
+            description="test",
+            parameters=dict,
+        )
+
+    async def run(self, tool_call: LanguageModelFunction):
+        raise NotImplementedError
+
+    def evaluation_check_list(self) -> list[EvaluationMetricName]:
+        return []
+
+    def get_evaluation_checks_based_on_tool_response(self, tool_response):
+        return []
+
+
 @pytest.fixture
 def chat_event() -> ChatEvent:
     event = Mock(spec=ChatEvent)
@@ -152,46 +186,49 @@ def test_tool_manager_injects_shared_services_into_custom_init_tools(
     shared_chat_service: ChatService,
     shared_llm_service: LanguageModelService,
 ) -> None:
-    from unique_toolkit.agentic.tools.experimental.ask_user_tool.config import (
-        AskUserToolConfig,
-    )
+    from unique_toolkit.agentic.tools.factory import ToolFactory
 
-    chat_event.payload.tool_choices = ["AskUser"]
+    ToolFactory.register_tool(_FixedInitTool, _FixedInitToolConfig)
+    chat_event.payload.tool_choices = [_FixedInitTool.name]
 
-    tool_manager = ToolManager(
-        logger=Mock(),
-        config=ToolManagerConfig(
-            tools=[
-                ToolBuildConfig(
-                    name="AskUser",
-                    configuration=AskUserToolConfig(),
-                    display_name="Ask User",
-                    is_exclusive=False,
-                    is_enabled=True,
-                    icon=ToolIcon.BOOK,
-                    selection_policy=ToolSelectionPolicy.BY_USER,
-                )
-            ]
-        ),
-        event=chat_event,
-        tool_progress_reporter=Mock(spec=ToolProgressReporter),
-        mcp_manager=MCPManager(
-            mcp_servers=[],
+    try:
+        tool_manager = ToolManager(
+            logger=Mock(),
+            config=ToolManagerConfig(
+                tools=[
+                    ToolBuildConfig(
+                        name=_FixedInitTool.name,
+                        configuration=_FixedInitToolConfig(),
+                        display_name="Fixed Init Tool",
+                        is_exclusive=False,
+                        is_enabled=True,
+                        icon=ToolIcon.BOOK,
+                        selection_policy=ToolSelectionPolicy.BY_USER,
+                    )
+                ]
+            ),
             event=chat_event,
             tool_progress_reporter=Mock(spec=ToolProgressReporter),
-        ),
-        a2a_manager=A2AManager(
-            logger=Mock(),
-            tool_progress_reporter=Mock(spec=ToolProgressReporter),
-            response_watcher=SubAgentResponseWatcher(),
-        ),
-        chat_service=shared_chat_service,
-        language_model_service=shared_llm_service,
-    )
+            mcp_manager=MCPManager(
+                mcp_servers=[],
+                event=chat_event,
+                tool_progress_reporter=Mock(spec=ToolProgressReporter),
+            ),
+            a2a_manager=A2AManager(
+                logger=Mock(),
+                tool_progress_reporter=Mock(spec=ToolProgressReporter),
+                response_watcher=SubAgentResponseWatcher(),
+            ),
+            chat_service=shared_chat_service,
+            language_model_service=shared_llm_service,
+        )
 
-    ask_user_tool = tool_manager.get_tool_by_name("AskUser")
-    assert ask_user_tool is not None
-    assert ask_user_tool._chat_service is shared_chat_service
+        fixed_init_tool = tool_manager.get_tool_by_name(_FixedInitTool.name)
+        assert fixed_init_tool is not None
+        assert fixed_init_tool._chat_service is shared_chat_service
+    finally:
+        ToolFactory.tool_map.pop(_FixedInitTool.name, None)
+        ToolFactory.tool_config_map.pop(_FixedInitTool.name, None)
 
 
 def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
