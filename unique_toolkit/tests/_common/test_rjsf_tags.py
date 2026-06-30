@@ -1806,15 +1806,11 @@ def test_AI_ui_schema_for_model__discriminated_union__emits_oneof_branch_uischem
     """
 
     class _EngineA(BaseModel):
-        engine: Annotated[
-            Literal["a"], RJSFMetaTag.SpecialWidget.hidden()
-        ] = "a"
+        engine: Annotated[Literal["a"], RJSFMetaTag.SpecialWidget.hidden()] = "a"
         instructions: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=9)] = "x"
 
     class _EngineB(BaseModel):
-        engine: Annotated[
-            Literal["b"], RJSFMetaTag.SpecialWidget.hidden()
-        ] = "b"
+        engine: Annotated[Literal["b"], RJSFMetaTag.SpecialWidget.hidden()] = "b"
         instructions: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=9)] = "y"
 
     class _Cfg(BaseModel):

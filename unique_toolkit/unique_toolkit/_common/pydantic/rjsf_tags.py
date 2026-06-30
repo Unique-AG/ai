@@ -1028,7 +1028,9 @@ def ui_schema_for_model(
                 # branch key MUST match the schema keyword — a ``oneOf`` schema
                 # paired with an ``anyOf`` uiSchema makes RJSF silently drop every
                 # per-branch widget and fall back to default widgets.
-                branch_key = "oneOf" if field_info.discriminator is not None else "anyOf"
+                branch_key = (
+                    "oneOf" if field_info.discriminator is not None else "anyOf"
+                )
                 # Keep any branch structure already supplied by a composer
                 # (Optional/Union write their own ``anyOf`` into ``meta``).
                 if "anyOf" not in node and "oneOf" not in node:
