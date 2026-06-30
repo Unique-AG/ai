@@ -5,6 +5,8 @@ from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConf
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import LanguageModelService
 
 
 class A2AManager:
@@ -22,6 +24,8 @@ class A2AManager:
         self,
         tool_configs: list[ToolBuildConfig],
         event: ChatEvent,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]:
         sub_agents = []
 
@@ -53,6 +57,8 @@ class A2AManager:
                         name=tool_config.name,
                         display_name=tool_config.display_name,
                         response_watcher=self._response_watcher,
+                        chat_service=chat_service,
+                        language_model_service=language_model_service,
                     )
                 )
             except Exception:

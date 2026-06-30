@@ -22,6 +22,7 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.functions import upload_content_from_bytes
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -40,13 +41,27 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         config: MCPToolConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         self.name = mcp_tool.name
-        super().__init__(config)
-        self._event = event
-        self._tool_progress_reporter = tool_progress_reporter
-        self._chat_service = ChatService(event)
-        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
+        if chat_service is not None and language_model_service is not None:
+            super().__init__(
+                config,
+                event=event,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            super().__init__(config)
+            self._event = event
+            self._tool_progress_reporter = tool_progress_reporter
+            self._chat_service = ChatService(event)
+            self._message_step_logger = MessageStepLogger(
+                chat_service=self._chat_service
+            )
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 
@@ -384,7 +399,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 user_id=self._event.user_id,
                 company_id=self._event.company_id,
                 name=self.name,
-                messageId=self._event.payload.assistant_message.id,
+                messageId=self._chat_service._assistant_message_id,
                 chatId=self._event.payload.chat_id,
                 arguments=arguments,
             )

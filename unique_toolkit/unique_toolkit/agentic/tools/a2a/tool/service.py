@@ -53,6 +53,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
     LanguageModelFunction,
+    LanguageModelService,
     LanguageModelToolDescription,
 )
 
@@ -72,12 +73,26 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(configuration)
-        self._event = event
-        self._tool_progress_reporter = tool_progress_reporter
-        self._chat_service = ChatService(event)
-        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
+        if chat_service is not None and language_model_service is not None:
+            super().__init__(
+                configuration,
+                event=event,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            super().__init__(configuration)
+            self._event = event
+            self._tool_progress_reporter = tool_progress_reporter
+            self._chat_service = ChatService(event)
+            self._message_step_logger = MessageStepLogger(
+                chat_service=self._chat_service
+            )
         self._user_id = event.user_id
         self._company_id = event.company_id
 
