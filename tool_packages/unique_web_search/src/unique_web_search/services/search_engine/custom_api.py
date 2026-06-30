@@ -2,16 +2,16 @@ import json
 from typing import Any, Literal, TypeVar, override
 
 from httpx import AsyncClient
-from pydantic import Field
+from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.base import (
-    BaseSearchEngineConfig,
+    LocalSearchEngineType,
     SearchEngine,
     SearchEngineMode,
-    SearchEngineType,
-    get_search_engine_model_config,
 )
+from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
     WebSearchResults,
@@ -62,11 +62,11 @@ ApiRequestMethodType, ApiRequestMethodField = conditional_type(
 )
 
 
-class CustomAPIConfig(BaseSearchEngineConfig[SearchEngineType.CUSTOM_API]):
-    model_config = get_search_engine_model_config(SearchEngineType.CUSTOM_API)
-    search_engine_name: Literal[SearchEngineType.CUSTOM_API] = (
-        SearchEngineType.CUSTOM_API
-    )
+class CustomAPIConfig(BaseModel):
+    model_config = get_configuration_dict(title="Customized API Search")
+
+    engine: Literal[LocalSearchEngineType.CUSTOM_API] = LocalSearchEngineType.CUSTOM_API
+
     api_endpoint: ApiEndpointType = ApiEndpointField  # type: ignore (Dynamic type generation)
     api_headers: ApiHeadersType = ApiHeadersField  # type: ignore (Dynamic type generation)
     api_additional_query_params: ApiAdditionalQueryParamsType = (  # type: ignore (Dynamic type generation)
@@ -87,6 +87,13 @@ class CustomAPIConfig(BaseSearchEngineConfig[SearchEngineType.CUSTOM_API]):
     timeout: int = Field(default=120, description="The timeout of the custom API")
 
 
+@register_search_engine(
+    name="custom_api",
+    key=LocalSearchEngineType.CUSTOM_API,
+    config_cls=CustomAPIConfig,
+    mode=SearchEngineMode.STANDARD,
+    config_display_name="Customized API Search",
+)
 class CustomAPI(SearchEngine[CustomAPIConfig]):
     def __init__(self, config: CustomAPIConfig):
         super().__init__(config)

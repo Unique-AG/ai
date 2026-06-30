@@ -12,8 +12,8 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..models.google_search_request_safe_search import GoogleSearchRequestSafeSearch
-from ..models.google_search_request_site_search_filter_type_0 import (
-    GoogleSearchRequestSiteSearchFilterType0,
+from ..models.google_search_request_site_search_filter import (
+    GoogleSearchRequestSiteSearchFilter,
 )
 from ..types import UNSET, Unset
 
@@ -47,8 +47,8 @@ class GoogleSearchRequest:
             like `gl`.
         site_search (None | str | Unset): Site or domain (Google `siteSearch`). Pair with `siteSearchFilter`. `value` +
             `expose` behave like `gl`.
-        site_search_filter (GoogleSearchRequestSiteSearchFilterType0 | None | Unset): With `siteSearch`: `i` = include
-            only that site, `e` = exclude. `value` + `expose` behave like `gl`.
+        site_search_filter (GoogleSearchRequestSiteSearchFilter | None | Unset): With `siteSearch`: `i` = include only
+            that site, `e` = exclude. `value` + `expose` behave like `gl`.
         sort (None | str | Unset): Sort expression (Google `sort`), e.g. `date`. `value` + `expose` behave like `gl`.
     """
 
@@ -66,7 +66,7 @@ class GoogleSearchRequest:
     exclude_terms: None | str | Unset = UNSET
     file_type: None | str | Unset = UNSET
     site_search: None | str | Unset = UNSET
-    site_search_filter: GoogleSearchRequestSiteSearchFilterType0 | None | Unset = UNSET
+    site_search_filter: GoogleSearchRequestSiteSearchFilter | None | Unset = UNSET
     sort: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -140,9 +140,7 @@ class GoogleSearchRequest:
         site_search_filter: None | str | Unset
         if isinstance(self.site_search_filter, Unset):
             site_search_filter = UNSET
-        elif isinstance(
-            self.site_search_filter, GoogleSearchRequestSiteSearchFilterType0
-        ):
+        elif isinstance(self.site_search_filter, GoogleSearchRequestSiteSearchFilter):
             site_search_filter = self.site_search_filter.value
         else:
             site_search_filter = self.site_search_filter
@@ -296,7 +294,7 @@ class GoogleSearchRequest:
 
         def _parse_site_search_filter(
             data: object,
-        ) -> GoogleSearchRequestSiteSearchFilterType0 | None | Unset:
+        ) -> GoogleSearchRequestSiteSearchFilter | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -304,14 +302,14 @@ class GoogleSearchRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                site_search_filter_type_0 = GoogleSearchRequestSiteSearchFilterType0(
-                    data
+                site_search_filter_site_search_filter = (
+                    GoogleSearchRequestSiteSearchFilter(data)
                 )
 
-                return site_search_filter_type_0
+                return site_search_filter_site_search_filter
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(GoogleSearchRequestSiteSearchFilterType0 | None | Unset, data)
+            return cast(GoogleSearchRequestSiteSearchFilter | None | Unset, data)
 
         site_search_filter = _parse_site_search_filter(d.pop("siteSearchFilter", UNSET))
 

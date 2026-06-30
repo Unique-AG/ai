@@ -1,5 +1,7 @@
 import pytest
 from pydantic import ValidationError
+from unique_search_proxy_core.search_engines import SearchEngineType
+from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -30,8 +32,6 @@ from unique_web_search.services.executors.v1.config import (
 )
 from unique_web_search.services.executors.v2.config import WebSearchV2Config
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
-from unique_web_search.services.search_engine.base import SearchEngineType
-from unique_web_search.services.search_engine.google import GoogleConfig
 
 
 class TestQueryElicitationConfig:
@@ -329,9 +329,7 @@ class TestWebSearchConfig:
 
     def test_web_search_config_custom_values(self, mock_language_model_info):
         """Test WebSearchConfig with custom values."""
-        search_engine_config = GoogleConfig(
-            search_engine_name=SearchEngineType.GOOGLE,
-        )
+        search_engine_config = GoogleConfig()
 
         crawler_config = BasicCrawlerConfig(crawler_type=CrawlerType.BASIC, timeout=60)
 
@@ -619,9 +617,7 @@ class TestWebSearchConfig:
             language_model_max_input_tokens=120_000,
             web_search_active_mode=WebSearchMode.V1,
             web_search_mode_config_v1=v1_config,
-            search_engine_config=GoogleConfig(
-                search_engine_name=SearchEngineType.GOOGLE,
-            ),
+            search_engine_config=GoogleConfig(),
             crawler_config=BasicCrawlerConfig(
                 crawler_type=CrawlerType.BASIC,
                 timeout=45,
@@ -634,7 +630,7 @@ class TestWebSearchConfig:
         assert config.limit_token_sources == 80_000
         assert config.percentage_of_input_tokens_for_sources == 0.35
         assert config.language_model_max_input_tokens == 120_000
-        assert config.search_engine_config.search_engine_name == SearchEngineType.GOOGLE
+        assert config.search_engine_config.engine == SearchEngineType.GOOGLE
         assert config.crawler_config.crawler_type == CrawlerType.BASIC
         assert config.crawler_config.timeout == 45
         assert EvaluationMetricName.HALLUCINATION in config.evaluation_check_list
@@ -661,9 +657,7 @@ class TestWebSearchConfig:
             language_model_max_input_tokens=120_000,
             web_search_active_mode=WebSearchMode.V2,
             web_search_mode_config_v2=v2_config,
-            search_engine_config=GoogleConfig(
-                search_engine_name=SearchEngineType.GOOGLE,
-            ),
+            search_engine_config=GoogleConfig(),
             crawler_config=BasicCrawlerConfig(
                 crawler_type=CrawlerType.BASIC,
                 timeout=45,

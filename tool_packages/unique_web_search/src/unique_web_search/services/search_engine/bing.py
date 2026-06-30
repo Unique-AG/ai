@@ -1,11 +1,11 @@
 import asyncio
-from typing import Annotated, Literal, override
+from typing import override
 
-from pydantic import BaseModel, Field
-from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
-from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from pydantic import Field
+from unique_search_proxy_core.agent_engines.base import AgentEngineType
+from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
+from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
-from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model import LanguageModelService
 
 from unique_web_search.services.proxy.bridge import (
@@ -16,12 +16,8 @@ from unique_web_search.services.proxy.mappers import (
     agent_answer_text,
     map_agent_answer,
 )
-from unique_web_search.services.search_engine.base import (
-    BaseSearchEngineConfig,
-    SearchEngine,
-    SearchEngineType,
-    get_search_engine_model_config,
-)
+from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
+from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -35,28 +31,10 @@ from unique_web_search.services.search_engine.utils.grounding.bing import (
     get_credentials,
     get_project_client,
 )
-from unique_web_search.services.search_engine.utils.grounding.bing.models import (
-    GENERATION_INSTRUCTIONS,
-)
 from unique_web_search.settings import env_settings
 
 
-class BingSearchOptionalQueryParams(BaseModel):
-    model_config = get_configuration_dict()
-
-    requires_scraping: bool = Field(
-        default=False,
-        description="Whether the search engine requires scraping.",
-    )
-
-
-class BingSearchConfig(
-    BaseSearchEngineConfig[SearchEngineType.BING], BingSearchOptionalQueryParams
-):
-    model_config = get_search_engine_model_config(SearchEngineType.BING)
-
-    search_engine_name: Literal[SearchEngineType.BING] = SearchEngineType.BING
-
+class BingSearchConfig(BingAgentConfig):
     agent_id: str = Field(
         default=env_settings.azure_ai_assistant_id or "",
         description="The ID of the agent to use for the search. **This parameter is temporary and will be auto-provisioned in future versions.**",
@@ -65,23 +43,24 @@ class BingSearchConfig(
         default=env_settings.azure_ai_project_endpoint or "",
         description="The endpoint to use for the search. **This parameter is not required to be set. It's loaded automatically from auto-provisioned resource**",
     )
-
-    generation_instructions: Annotated[
-        str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(GENERATION_INSTRUCTIONS.split("\n"))
-        ),
-    ] = Field(
-        default=GENERATION_INSTRUCTIONS,
-        description="The generation instructions to be injected into the Microsoft Foundry Agents.",
-    )
-
     language_model: LMI = get_LMI_default_field(
-        DEFAULT_GPT_4o,
+        DEFAULT_LANGUAGE_MODEL,
         description="The language model to use in as a fallback parser if the agent response is not a valid JSON.",
     )
+    requires_scraping: bool = Field(
+        default=False,
+        description="Whether the search engine requires scraping.",
+    )
 
 
+@register_search_engine(
+    name="bing",
+    key=AgentEngineType.BING,
+    config_cls=BingSearchConfig,
+    mode=SearchEngineMode.AGENT,
+    config_display_name="Grounding with Bing",
+    needs_language_model=True,
+)
 class BingSearch(SearchEngine[BingSearchConfig]):
     supports_proxy_search = True
 
@@ -117,12 +96,15 @@ class BingSearch(SearchEngine[BingSearchConfig]):
 
     @override
     async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        async with open_search_proxy_client(timeout=120.0) as client:
+        async with open_search_proxy_client(
+            timeout=float(self.config.timeout)
+        ) as client:
             response = await client.agent_search.bing(
                 query=query,
                 fetch_size=self.config.fetch_size,
                 agent_id=self.config.agent_id or None,
                 generation_instructions=self.config.generation_instructions,
+                timeout=self.config.timeout,
             )
             return await map_agent_answer(
                 agent_answer_text(response),

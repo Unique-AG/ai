@@ -119,14 +119,15 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             )
         )
 
-        engine = self.search_service.config.search_engine_name.value
+        engine = self.search_service.config.engine.value
         time_start = time()
-        _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
+        _LOGGER.info(f"Company {self.company_id} Searching with {engine}")
 
         await self._message_log_callback.log_queries([step.query_or_url])
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
             results = await self.search_service.search(step.query_or_url)
+
         await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
@@ -135,7 +136,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             StepDebugInfo(
                 step_name=f"{step_name}.search",
                 execution_time=delta_time,
-                config=self.search_service.config.search_engine_name.name,
+                config=engine,
                 extra={
                     "query": step.query_or_url,
                     "number_of_results": len(results),
@@ -144,9 +145,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             )
         )
 
-        _LOGGER.info(
-            f"Searched with {self.search_service} completed in {delta_time} seconds"
-        )
+        _LOGGER.info(f"Searched with {engine} completed in {delta_time} seconds")
 
         if self.search_service.requires_scraping and results:
             results = await self._crawl_search_results(step_name, results)
@@ -159,7 +158,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         """Crawl URLs for the given search results and fill content. Call when results non-empty."""
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
-        _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
+        _LOGGER.info(f"Company {self.company_id} Crawling with {crawler}")
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
             crawl_results = await self.crawler_service.crawl(
                 [result.url for result in results]
@@ -172,7 +171,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             StepDebugInfo(
                 step_name=f"{step_name}.crawl",
                 execution_time=delta_time,
-                config=self.crawler_service.config.crawler_type.name,
+                config=crawler,
                 extra={
                     "number_of_results": len(results),
                     "contents": [result.model_dump() for result in results],
@@ -180,7 +179,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             )
         )
         _LOGGER.info(
-            f"Crawled {len(results)} pages with {self.crawler_service} completed in {delta_time} seconds"
+            f"Crawled {len(results)} pages with {crawler} completed in {delta_time} seconds"
         )
         return results
 
@@ -217,7 +216,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             StepDebugInfo(
                 step_name=f"{step_name}.crawl",
                 execution_time=delta_time,
-                config=self.crawler_service.config.crawler_type.name,
+                config=crawler,
                 extra={
                     "url": step.query_or_url,
                     "content": results,

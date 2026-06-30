@@ -1033,7 +1033,7 @@ class TestBingSearchConfig:
         config = BingSearchConfig()
 
         # Assert
-        assert config.search_engine_name == "Bing"
+        assert config.engine == "bing"
         assert config.requires_scraping is False
         assert config.fetch_size == 5
         assert config.generation_instructions == GENERATION_INSTRUCTIONS

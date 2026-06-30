@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.agent_engines.base import (
     AgentEngineType,
@@ -14,7 +15,9 @@ from unique_search_proxy_core.agent_engines.projection import build_agent_reques
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
     """Deployment + request defaults for Bing grounding via Azure AI Projects."""
 
-    engine: Literal[AgentEngineType.BING] = Field(
+    engine: Annotated[
+        Literal[AgentEngineType.BING], RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
         default=AgentEngineType.BING,
         title="Agent engine",
         description="Provider discriminator; must be `bing` for this config.",

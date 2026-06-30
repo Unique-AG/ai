@@ -67,19 +67,17 @@ GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id
 #### Configuration
 
 ```python
-from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
-from unique_web_search.services.search_engine.utils.google.schema import GoogleSearchOptionalQueryParams
+from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
+from unique_web_search.services.search_engine.google import GoogleSearch
 
 config = GoogleConfig(
-    search_engine_name=SearchEngineType.GOOGLE,
-    fetch_size=10,  # Number of results to fetch
-    custom_search_config=GoogleSearchOptionalQueryParams(
-        safe="active",  # Safe search: off, active, high
-        cr="countryUS",  # Country restriction
-        lr="lang_en",  # Language restriction
-        siteSearch="example.com",  # Limit to specific site
-        dateRestrict="m1"  # Results from last month
-    )
+    fetch_size=10,
+    search_engine_id="your-search-engine-id",  # optional; env default when unset
+    safe="active",
+    gl=ExposableParam(expose=False, value="us"),
+    site_search=ExposableParam(expose=False, value="example.com"),
+    date_restrict=ExposableParam(expose=False, value="m1"),
 )
 
 search = GoogleSearch(config)
@@ -140,7 +138,6 @@ USE_UNIQUE_PRIVATE_ENDPOINT_TRANSPORT=false
 from unique_web_search.services.search_engine.bing import BingSearchConfig, BingSearch
 
 config = BingSearchConfig(
-    search_engine_name=SearchEngineType.BING,
     agent_id="your-agent-id",  # Azure AI Agent ID
     endpoint="https://your-project.openai.azure.com",  # Azure AI Project endpoint
     requires_scraping=False  # Grounding returns full content
@@ -206,12 +203,10 @@ BRAVE_SEARCH_API_KEY=your_brave_api_key
 #### Configuration
 
 ```python
-from unique_web_search.services.search_engine.brave import BraveSearchConfig, BraveSearch
+from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
+from unique_web_search.services.search_engine.brave import BraveSearch
 
-config = BraveSearchConfig(
-    search_engine_name=SearchEngineType.BRAVE,
-    fetch_size=10
-)
+config = BraveConfig(fetch_size=10)
 
 search = BraveSearch(config)
 results = await search.search("privacy-focused search")
@@ -384,9 +379,8 @@ results = await search.search("dynamic web content")
 from unique_web_search.services.search_engine.vertexai import VertexAIConfig, VertexAI
 
 config = VertexAIConfig(
-    search_engine_name=SearchEngineType.VERTEXAI,
-    model_name="gemini-2.5-flash",  # or "gemini-2.5-pro"
-    grounding_system_instruction="Provide detailed technical answers with citations",
+    vertexai_model_name="gemini-3-flash-preview",
+    generation_instructions="Provide detailed technical answers with citations",
     enable_entreprise_search=False,  # Use enterprise search if available
     enable_redirect_resolution=True,  # Resolve URL redirects
     requires_scraping=False
@@ -459,7 +453,6 @@ from unique_web_search.services.search_engine.custom_api import CustomAPIConfig,
 from unique_web_search.settings import CUSTOM_API_REQUEST_METHOD
 
 config = CustomAPIConfig(
-    search_engine_name=SearchEngineType.CUSTOM_API,
     api_endpoint="https://your-api.example.com/search",
     api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
     api_headers={"X-API-Key": "your_api_key"},
@@ -481,7 +474,6 @@ Headers: X-API-Key: your_api_key
 **POST Request Example:**
 ```python
 config = CustomAPIConfig(
-    search_engine_name=SearchEngineType.CUSTOM_API,
     api_endpoint="https://your-api.example.com/search",
     api_request_method=CUSTOM_API_REQUEST_METHOD.POST,
     api_headers={
@@ -529,15 +521,11 @@ Body:
 
 ## Common Configuration
 
-All search engines support these common configuration options:
+Search engine configs use a discriminated union on the `engine` field:
 
-### BaseSearchEngineConfig
-
-```python
-class BaseSearchEngineConfig:
-    search_engine_name: SearchEngineType  # Required
-    fetch_size: int = 5  # Number of results to fetch (where applicable)
-```
+- **Google, Brave, Perplexity**: import config types directly from `unique_search_proxy_core`
+- **Bing, VertexAI**: extend core agent configs (`BingAgentConfig`, `VertexAIAgentConfig`) with web-only fields
+- **Custom API**: standalone `BaseModel` with `engine: Literal[SearchEngineType.CUSTOM_API]`
 
 ### Factory Pattern
 
@@ -667,19 +655,37 @@ except Exception as e:
 To add a new search engine:
 
 1. Create a new file in this directory (e.g., `newsearchengine.py`)
-2. Implement the configuration class inheriting from `BaseSearchEngineConfig`
+2. If the engine exists in `unique_search_proxy_core`, extend its config with web-only fields; otherwise define a `BaseModel` with `engine: Literal[SearchEngineType.NEW]`
 3. Implement the search engine class inheriting from `SearchEngine`
-4. Add the search engine type to `SearchEngineType` enum in `base.py`
-5. Register it in `__init__.py`'s factory function
+4. Register the engine with `@register_search_engine(...)` on the class — no `__init__.py` edit needed (modules are auto-discovered via `pkgutil`)
+5. Add the config and implementation types to the static `SearchEngineConfigTypes` / `SearchEngineTypes` unions in `__init__.py` (required for pyright; guarded by `tests/test_search_engine_registry.py`)
 6. Add tests in `tests/test_search_engines.py`
 
-Example template:
+The shared registration machinery lives in [`services/_registry.py`](../_registry.py); crawlers will reuse the same core in a future migration.
+
+Example template (web-only engine):
 
 ```python
-class NewSearchEngineConfig(BaseSearchEngineConfig[SearchEngineType.NEW]):
-    search_engine_name: Literal[SearchEngineType.NEW] = SearchEngineType.NEW
+from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_toolkit.agentic.tools.config import get_configuration_dict
+
+from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
+from unique_web_search.services.search_engine.registry import register_search_engine
+
+class NewSearchEngineConfig(BaseModel):
+    model_config = get_configuration_dict(title="New Search Engine")
+
+    engine: Literal[SearchEngineType.NEW] = SearchEngineType.NEW
+    fetch_size: int = Field(default=5, ...)
     # Add custom configuration fields
 
+@register_search_engine(
+    name="new",
+    key=SearchEngineType.NEW,
+    config_cls=NewSearchEngineConfig,
+    mode=SearchEngineMode.STANDARD,
+    config_display_name="New Search Engine",
+)
 class NewSearchEngine(SearchEngine[NewSearchEngineConfig]):
     def __init__(self, config: NewSearchEngineConfig):
         super().__init__(config)
@@ -689,9 +695,11 @@ class NewSearchEngine(SearchEngine[NewSearchEngineConfig]):
     def requires_scraping(self) -> bool:
         return False  # or True, depending on your implementation
     
-    async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        # Implement search logic
-        pass
+    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        ...
+
+    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+        ...
 ```
 
 ## Performance Considerations
