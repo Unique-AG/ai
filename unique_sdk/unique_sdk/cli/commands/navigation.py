@@ -19,7 +19,7 @@ def cmd_cd(state: ShellState, target: str) -> str:
     try:
         new_path = state.cd(target)
         return new_path
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"cd: {e}"
 
 
@@ -65,7 +65,7 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                             scopeId=sid,
                         )
                     )
-                except unique_sdk.APIError:
+                except unique_sdk.UniqueError:
                     pass
             scoped_files: list[Any] = []
             for cid in content_ids:
@@ -86,7 +86,7 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                     items = info.get("contentInfo", [])
                     if items:
                         scoped_files.append(items[0])
-                except unique_sdk.APIError:
+                except unique_sdk.UniqueError:
                     pass
             output = format_ls(scoped_folders, scoped_files)
             summary = (
@@ -107,7 +107,7 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
                         scopeId=ws_id,
                     )
                     folders.append(info)
-                except unique_sdk.APIError:
+                except unique_sdk.UniqueError:
                     pass
             output = format_ls(folders, [])
             summary = f"\n{len(folders)} folder(s), 0 file(s)"
@@ -161,5 +161,5 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         summary = f"\n{total_folders} folder(s), {total_files} file(s)"
         return output + summary
 
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"ls: {e}"

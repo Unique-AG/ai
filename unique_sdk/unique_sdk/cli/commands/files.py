@@ -358,7 +358,7 @@ def cmd_upload(
         ).get("folderPath", scope_id)
         return f"Uploaded: {display_name} ({content_id}) to {folder_path}"
 
-    except (ValueError, unique_sdk.APIError, OSError) as e:
+    except (ValueError, unique_sdk.UniqueError, OSError) as e:
         return f"upload: {e}"
 
 
@@ -384,7 +384,7 @@ def cmd_versions(
         )
         data = result.get("data", [])
         return f"Versions for {display_name} ({content_id}):\n{_format_content_versions(data)}"
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"versions: {e}"
 
 
@@ -414,7 +414,7 @@ def cmd_restore_version(state: ShellState, content_version_id: str) -> str:
         title = result.get("title") or result.get("key") or result.get("id", "?")
         content_id = result.get("id", "?")
         return f"Restored: {title} ({content_id}) from version {content_version_id}"
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"restore-version: {e}"
 
 
@@ -449,7 +449,7 @@ def cmd_download(
         shutil.move(str(downloaded_path), str(final_dest))
         return f"Downloaded: {display_name} -> {final_dest}"
 
-    except (ValueError, unique_sdk.APIError, OSError) as e:
+    except (ValueError, unique_sdk.UniqueError, OSError) as e:
         return f"download: {e}"
 
 
@@ -468,7 +468,7 @@ def cmd_rm(state: ShellState, name_or_id: str) -> str:
             contentId=content_id,
         )
         return f"Deleted: {display_name} ({content_id})"
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"rm: {e}"
 
 
@@ -488,7 +488,7 @@ def cmd_mv_file(state: ShellState, old_name: str, new_name: str) -> str:
             title=new_name,
         )
         return f"Renamed: {display_name} -> {result.get('title', new_name)}\n{format_content_info(result)}"
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"mv: {e}"
 
 
