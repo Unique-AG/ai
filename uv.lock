@@ -12,13 +12,13 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-06-16T08:39:34.502168Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-crawl4ai = "2026-06-19T22:00:00Z"
+crawl4ai = "2026-06-19T23:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
@@ -26,9 +26,9 @@ unique-mcp = false
 unique-orchestrator = false
 unique-follow-up-questions = false
 unique-user-memory = false
-langsmith = "2026-06-20T22:00:00Z"
+langsmith = "2026-06-20T23:00:00Z"
 unique-six = false
-pydantic-settings = "2026-06-20T22:00:00Z"
+pydantic-settings = "2026-06-20T23:00:00Z"
 unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
@@ -3841,23 +3841,6 @@ wheels = [
 ]
 
 [[package]]
-name = "perplexityai"
-version = "0.36.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anyio" },
-    { name = "distro" },
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "sniffio" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/44/19/d1535dafc485754173fe8d88b16918918c20ffe8565b97dd9f2660e1266a/perplexityai-0.36.0.tar.gz", hash = "sha256:597ed0cb9ab70824e06e3abad54378e24799317f803643504e0f5bdf6bfc52c1", size = 139816, upload-time = "2026-05-30T22:59:03.93Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/dd/67e14657eeab752bd93dbcbfe27b22e9a62966b835563d3fb8b28fffed1c/perplexityai-0.36.0-py3-none-any.whl", hash = "sha256:1676522bc049ad6fbdc1d7b9317502d5f03d7225afc96a9804b3a0ba32c8eccd", size = 133388, upload-time = "2026-05-30T22:59:02.645Z" },
-]
-
-[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -6365,7 +6348,6 @@ dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
     { name = "markdownify" },
-    { name = "perplexityai" },
     { name = "playwright" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -6394,7 +6376,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "markdownify", specifier = ">=0.14.1,<1" },
-    { name = "perplexityai", specifier = ">=0.34.0" },
     { name = "playwright", specifier = ">=1.58.0" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
