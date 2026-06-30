@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import builtins
-from typing import Any, Literal, NotRequired, TypedDict, Unpack, cast
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, Unpack, cast
 from urllib.parse import quote_plus
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -74,6 +77,7 @@ class Module(APIResource["Module"]):
         *,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Module.ListParams"],
     ) -> builtins.list["Module"]:
         result = cls._static_request(
@@ -82,6 +86,7 @@ class Module(APIResource["Module"]):
             user_id,
             company_id,
             params or None,
+            client=client,
         )
         if isinstance(result, builtins.list):
             data = result
@@ -95,6 +100,7 @@ class Module(APIResource["Module"]):
         *,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Module.ListParams"],
     ) -> builtins.list["Module"]:
         result = await cls._static_request_async(
@@ -103,6 +109,7 @@ class Module(APIResource["Module"]):
             user_id,
             company_id,
             params or None,
+            client=client,
         )
         if isinstance(result, builtins.list):
             data = result
@@ -117,11 +124,12 @@ class Module(APIResource["Module"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Module":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module",
-            cls._static_request("get", url, user_id, company_id),
+            cls._static_request("get", url, user_id, company_id, client=client),
         )
 
     @classmethod
@@ -131,11 +139,14 @@ class Module(APIResource["Module"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Module":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module",
-            await cls._static_request_async("get", url, user_id, company_id),
+            await cls._static_request_async(
+                "get", url, user_id, company_id, client=client
+            ),
         )
 
     @classmethod
@@ -144,6 +155,7 @@ class Module(APIResource["Module"]):
         *,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Module.CreateParams"],
     ) -> "Module":
         return cast(
@@ -154,6 +166,7 @@ class Module(APIResource["Module"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -163,6 +176,7 @@ class Module(APIResource["Module"]):
         *,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Module.CreateParams"],
     ) -> "Module":
         return cast(
@@ -173,6 +187,7 @@ class Module(APIResource["Module"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -183,12 +198,15 @@ class Module(APIResource["Module"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Module.ModifyParams"],
     ) -> "Module":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module",
-            cls._static_request("patch", url, user_id, company_id, params),
+            cls._static_request(
+                "patch", url, user_id, company_id, params, client=client
+            ),
         )
 
     @classmethod
@@ -198,12 +216,15 @@ class Module(APIResource["Module"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Module.ModifyParams"],
     ) -> "Module":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module",
-            await cls._static_request_async("patch", url, user_id, company_id, params),
+            await cls._static_request_async(
+                "patch", url, user_id, company_id, params, client=client
+            ),
         )
 
     @classmethod
@@ -213,11 +234,12 @@ class Module(APIResource["Module"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Module.DeletedObject":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module.DeletedObject",
-            cls._static_request("delete", url, user_id, company_id),
+            cls._static_request("delete", url, user_id, company_id, client=client),
         )
 
     @classmethod
@@ -227,9 +249,12 @@ class Module(APIResource["Module"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Module.DeletedObject":
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module.DeletedObject",
-            await cls._static_request_async("delete", url, user_id, company_id),
+            await cls._static_request_async(
+                "delete", url, user_id, company_id, client=client
+            ),
         )

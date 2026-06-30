@@ -101,6 +101,7 @@ def test_dynamic_frontend_create__calls_expected_endpoint(
         "user_1",
         "company_1",
         params={"name": "Revenue Dashboard", "contentId": "cont_1"},
+        client=None,
     )
 
 
@@ -129,6 +130,7 @@ def test_dynamic_frontend_modify__calls_expected_endpoint(
         "user_1",
         "company_1",
         params={"contentId": "cont_2", "name": None},
+        client=None,
     )
 
 
@@ -154,6 +156,7 @@ def test_dynamic_frontend_delete__calls_expected_endpoint(
         "/dynamic-frontend/space_1",
         "user_1",
         "company_1",
+        client=None,
     )
 
 
@@ -175,6 +178,7 @@ def test_dynamic_frontend_list__returns_response_data(
         "/dynamic-frontend",
         "user_1",
         "company_1",
+        client=None,
     )
 
 

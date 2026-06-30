@@ -1,10 +1,15 @@
-from typing import Literal, TypedDict, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class HistoryMessage(TypedDict):
@@ -31,7 +36,11 @@ class SearchString(APIResource["SearchString"]):
 
     @classmethod
     def create(
-        cls, user_id, company_id, **params: Unpack["SearchString.CreateParams"]
+        cls,
+        user_id,
+        company_id,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["SearchString.CreateParams"],
     ) -> "SearchString":
         return cast(
             "SearchString",
@@ -41,12 +50,17 @@ class SearchString(APIResource["SearchString"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     async def create_async(
-        cls, user_id, company_id, **params: Unpack["SearchString.CreateParams"]
+        cls,
+        user_id,
+        company_id,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["SearchString.CreateParams"],
     ) -> "SearchString":
         return cast(
             "SearchString",
@@ -56,5 +70,6 @@ class SearchString(APIResource["SearchString"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

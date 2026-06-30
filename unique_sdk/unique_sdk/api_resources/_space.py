@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -11,6 +14,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class Space(APIResource["Space"]):
@@ -330,6 +336,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.CreateMessageParams"],
     ) -> "Space.Message":
         """
@@ -345,6 +352,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -353,6 +361,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.CreateMessageParams"],
     ) -> "Space.Message":
         """
@@ -368,6 +377,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -376,6 +386,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.CreateChatParams"],
     ) -> "Space.ChatResult":
         return cast(
@@ -386,6 +397,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -394,6 +406,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.CreateChatParams"],
     ) -> "Space.ChatResult":
         return cast(
@@ -404,6 +417,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -413,6 +427,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         chat_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.GetChatMessagesParams"],
     ) -> "Space.GetAllMessagesResponse":
         """
@@ -426,6 +441,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -435,6 +451,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         chat_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.GetChatMessagesParams"],
     ) -> "Space.GetAllMessagesResponse":
         """
@@ -448,12 +465,17 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     def get_latest_message(
-        cls, user_id: str, company_id: str, chat_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.Message":
         """
         Get the latest message in a space.
@@ -465,12 +487,17 @@ class Space(APIResource["Space"]):
                 f"/space/{chat_id}/messages/latest",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
     @classmethod
     async def get_latest_message_async(
-        cls, user_id: str, company_id: str, chat_id: str
+        cls,
+        user_id: str,
+        company_id: str,
+        chat_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.Message":
         """
         Async get the latest message in a space.
@@ -482,6 +509,7 @@ class Space(APIResource["Space"]):
                 f"/space/{chat_id}/messages/latest",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -491,6 +519,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         chat_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.DeleteChatResponse":
         """
         Delete a chat in a space.
@@ -502,6 +531,7 @@ class Space(APIResource["Space"]):
                 f"/space/chat/{chat_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -511,6 +541,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         chat_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.DeleteChatResponse":
         """
         Async delete a chat in a space.
@@ -522,6 +553,7 @@ class Space(APIResource["Space"]):
                 f"/space/chat/{chat_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -531,6 +563,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space":
         """
         Get detailed information about a space (assistant).
@@ -542,6 +575,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -551,6 +585,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space":
         """
         Async get detailed information about a space (assistant).
@@ -562,6 +597,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -570,6 +606,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.CreateSpaceParams"],
     ) -> "Space":
         return cast(
@@ -580,6 +617,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -588,6 +626,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.CreateSpaceParams"],
     ) -> "Space":
         return cast(
@@ -598,6 +637,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -607,6 +647,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.SpaceAccessResponse":
         return cast(
             "Space.SpaceAccessResponse",
@@ -615,6 +656,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}/access",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -624,6 +666,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.SpaceAccessResponse":
         return cast(
             "Space.SpaceAccessResponse",
@@ -632,6 +675,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}/access",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -641,6 +685,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.AddSpaceAccessParams"],
     ) -> "Space.SpaceAccessResponse":
         return cast(
@@ -651,6 +696,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -660,6 +706,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.AddSpaceAccessParams"],
     ) -> "Space.SpaceAccessResponse":
         return cast(
@@ -670,6 +717,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -679,6 +727,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.DeleteSpaceAccessParams"],
     ) -> "Space.DeleteSpaceAccessResponse":
         return cast(
@@ -689,6 +738,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -698,6 +748,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.DeleteSpaceAccessParams"],
     ) -> "Space.DeleteSpaceAccessResponse":
         return cast(
@@ -708,6 +759,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -717,6 +769,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.UpdateParams"],
     ) -> "Space":
         return cast(
@@ -727,6 +780,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -736,6 +790,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.UpdateParams"],
     ) -> "Space":
         return cast(
@@ -746,6 +801,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -755,6 +811,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.DeleteSpaceResponse":
         """
         Delete a space.
@@ -766,6 +823,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -775,6 +833,7 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         space_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "Space.DeleteSpaceResponse":
         """
         Async delete a space.
@@ -786,6 +845,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -794,6 +854,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.GetSpacesParams"],
     ) -> "Space.Spaces":
         """
@@ -807,6 +868,7 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -815,6 +877,7 @@ class Space(APIResource["Space"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Space.GetSpacesParams"],
     ) -> "Space.Spaces":
         """
@@ -828,5 +891,6 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

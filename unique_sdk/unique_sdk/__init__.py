@@ -61,6 +61,8 @@ from unique_sdk._unique_response import (
 from unique_sdk._util import (
     convert_to_unique_object as convert_to_unique_object,
 )
+from unique_sdk._client import UniqueClient as UniqueClient
+from unique_sdk._client import AsyncUniqueClient as AsyncUniqueClient
 from unique_sdk._webhook import (
     Webhook as Webhook,
 )

@@ -1,8 +1,13 @@
-from typing import Literal, NotRequired, TypedDict, Unpack, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, NotRequired, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class LLMModels(APIResource["LLMModels"]):
@@ -29,6 +34,7 @@ class LLMModels(APIResource["LLMModels"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["LLMModels.GetParams"],
     ) -> "LLMModels.LLMModelsResponse":
         """
@@ -42,6 +48,7 @@ class LLMModels(APIResource["LLMModels"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -50,6 +57,7 @@ class LLMModels(APIResource["LLMModels"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["LLMModels.GetParams"],
     ) -> "LLMModels.LLMModelsResponse":
         """
@@ -63,5 +71,6 @@ class LLMModels(APIResource["LLMModels"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -10,6 +13,9 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class User(APIResource["User"]):
@@ -81,6 +87,7 @@ class User(APIResource["User"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["User.GetParams"],
     ) -> "User.Users":
         """
@@ -94,6 +101,7 @@ class User(APIResource["User"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -102,6 +110,7 @@ class User(APIResource["User"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["User.GetParams"],
     ) -> "User.Users":
         """
@@ -115,6 +124,7 @@ class User(APIResource["User"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -123,6 +133,7 @@ class User(APIResource["User"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["User.UpdateUserConfigurationParams"],
     ) -> "User.UserWithConfiguration":
         """
@@ -136,6 +147,7 @@ class User(APIResource["User"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -144,6 +156,7 @@ class User(APIResource["User"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["User.UpdateUserConfigurationParams"],
     ) -> "User.UserWithConfiguration":
         """
@@ -157,6 +170,7 @@ class User(APIResource["User"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -166,6 +180,7 @@ class User(APIResource["User"]):
         user_id: str,
         company_id: str,
         target_user_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "User.User":
         """
         Get a user by their ID.
@@ -177,6 +192,7 @@ class User(APIResource["User"]):
                 f"/users/{target_user_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -186,6 +202,7 @@ class User(APIResource["User"]):
         user_id: str,
         company_id: str,
         target_user_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "User.User":
         """
         Async get a user by their ID.
@@ -197,6 +214,7 @@ class User(APIResource["User"]):
                 f"/users/{target_user_id}",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -206,6 +224,7 @@ class User(APIResource["User"]):
         user_id: str,
         company_id: str,
         target_user_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "User.UserGroupsResponse":
         return cast(
             "User.UserGroupsResponse",
@@ -214,6 +233,7 @@ class User(APIResource["User"]):
                 f"/users/{target_user_id}/groups",
                 user_id,
                 company_id,
+                client=client,
             ),
         )
 
@@ -223,6 +243,7 @@ class User(APIResource["User"]):
         user_id: str,
         company_id: str,
         target_user_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "User.UserGroupsResponse":
         return cast(
             "User.UserGroupsResponse",
@@ -231,5 +252,6 @@ class User(APIResource["User"]):
                 f"/users/{target_user_id}/groups",
                 user_id,
                 company_id,
+                client=client,
             ),
         )

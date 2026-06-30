@@ -1,8 +1,13 @@
-from typing import Any, Literal, NotRequired, TypedDict, Unpack, cast
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class Search(APIResource["Search"]):
@@ -51,7 +56,11 @@ class Search(APIResource["Search"]):
 
     @classmethod
     def create(
-        cls, user_id: str, company_id: str, **params: Unpack["Search.CreateParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Search.CreateParams"],
     ) -> list["Search"]:
         return cast(
             list["Search"],
@@ -61,12 +70,17 @@ class Search(APIResource["Search"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
     @classmethod
     async def create_async(
-        cls, user_id: str, company_id: str, **params: Unpack["Search.CreateParams"]
+        cls,
+        user_id: str,
+        company_id: str,
+        client: "_BaseClient | None" = None,
+        **params: Unpack["Search.CreateParams"],
     ) -> list["Search"]:
         return cast(
             list["Search"],
@@ -76,5 +90,6 @@ class Search(APIResource["Search"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )

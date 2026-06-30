@@ -24,6 +24,8 @@ if TYPE_CHECKING:
         Reasoning,
     )
 
+    from unique_sdk._client import _BaseClient
+
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
@@ -113,6 +115,7 @@ class Integrated(APIResource["Integrated"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Integrated.CreateStream"],
     ) -> "Integrated.StreamCompletionResult":
         """
@@ -129,6 +132,7 @@ class Integrated(APIResource["Integrated"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -137,6 +141,7 @@ class Integrated(APIResource["Integrated"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Integrated.CreateStream"],
     ) -> "Integrated.StreamCompletionResult":
         """
@@ -153,6 +158,7 @@ class Integrated(APIResource["Integrated"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -161,6 +167,7 @@ class Integrated(APIResource["Integrated"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Integrated.CreateStreamResponsesParams"],
     ) -> "Integrated.ResponsesStreamResult":
         """
@@ -176,6 +183,7 @@ class Integrated(APIResource["Integrated"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -184,6 +192,7 @@ class Integrated(APIResource["Integrated"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Integrated.CreateStreamResponsesParams"],
     ) -> "Integrated.ResponsesStreamResult":
         """
@@ -199,5 +208,6 @@ class Integrated(APIResource["Integrated"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
