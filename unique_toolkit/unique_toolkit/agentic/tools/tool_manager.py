@@ -180,6 +180,21 @@ class _ToolManager(Generic[_ApiMode]):
         ] = []
         self._init__tools(run_context.tool_init_event)
 
+    def _inject_shared_services(self, tool: Tool[Any]) -> None:
+        if self._chat_service is None or self._language_model_service is None:
+            return
+        if not hasattr(tool, "_chat_service"):
+            return
+        from unique_toolkit.agentic.message_log_manager.service import (
+            MessageStepLogger,
+        )
+
+        tool._chat_service = self._chat_service
+        tool._language_model_service = self._language_model_service
+        tool._message_step_logger = MessageStepLogger(
+            chat_service=self._chat_service,
+        )
+
     def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
@@ -234,25 +249,18 @@ class _ToolManager(Generic[_ApiMode]):
                     t.name,
                 )
                 continue
-            build_kwargs: dict[str, Any] = {
-                "tool_progress_reporter": self._tool_progress_reporter,
-            }
-            if (
-                self._chat_service is not None
-                and self._language_model_service is not None
-            ):
-                build_kwargs["chat_service"] = self._chat_service
-                build_kwargs["language_model_service"] = self._language_model_service
             result = safe_executor.execute(
                 ToolFactory.build_tool_with_settings,
                 t.name,
                 t,
                 t.configuration,
                 tool_init_event,
-                **build_kwargs,
+                tool_progress_reporter=self._tool_progress_reporter,
             )
             if result.success:
-                self._internal_tools.append(result.unpack())
+                tool = result.unpack()
+                self._inject_shared_services(tool)
+                self._internal_tools.append(tool)
             else:
                 self._logger.warning(
                     "Skipping tool '%s' due to initialization failure.",
@@ -737,6 +745,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         a2a_manager: A2AManager,
         api_mode: Literal["completions"] = "completions",
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> Self:
         return super().from_run_context(
             logger=logger,
@@ -747,6 +757,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
 
 
@@ -789,6 +801,8 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         a2a_manager: A2AManager,
         api_mode: Literal["responses"] = "responses",
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> Self:
         if builtin_tool_manager is None:
             msg = "builtin_tool_manager is required for ResponsesApiToolManager"
@@ -802,6 +816,8 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
 
     def get_required_include_params(self) -> list[ResponseIncludable]:

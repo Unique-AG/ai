@@ -147,6 +147,53 @@ def test_tool_manager_passes_shared_chat_service_to_internal_tools(
         ToolFactory.tool_config_map.pop(_SharedServiceTool.name, None)
 
 
+def test_tool_manager_injects_shared_services_into_custom_init_tools(
+    chat_event: ChatEvent,
+    shared_chat_service: ChatService,
+    shared_llm_service: LanguageModelService,
+) -> None:
+    from unique_toolkit.agentic.tools.experimental.ask_user_tool.config import (
+        AskUserToolConfig,
+    )
+
+    chat_event.payload.tool_choices = ["AskUser"]
+
+    tool_manager = ToolManager(
+        logger=Mock(),
+        config=ToolManagerConfig(
+            tools=[
+                ToolBuildConfig(
+                    name="AskUser",
+                    configuration=AskUserToolConfig(),
+                    display_name="Ask User",
+                    is_exclusive=False,
+                    is_enabled=True,
+                    icon=ToolIcon.BOOK,
+                    selection_policy=ToolSelectionPolicy.BY_USER,
+                )
+            ]
+        ),
+        event=chat_event,
+        tool_progress_reporter=Mock(spec=ToolProgressReporter),
+        mcp_manager=MCPManager(
+            mcp_servers=[],
+            event=chat_event,
+            tool_progress_reporter=Mock(spec=ToolProgressReporter),
+        ),
+        a2a_manager=A2AManager(
+            logger=Mock(),
+            tool_progress_reporter=Mock(spec=ToolProgressReporter),
+            response_watcher=SubAgentResponseWatcher(),
+        ),
+        chat_service=shared_chat_service,
+        language_model_service=shared_llm_service,
+    )
+
+    ask_user_tool = tool_manager.get_tool_by_name("AskUser")
+    assert ask_user_tool is not None
+    assert ask_user_tool._chat_service is shared_chat_service
+
+
 def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
     chat_event: ChatEvent,
     shared_chat_service: ChatService,

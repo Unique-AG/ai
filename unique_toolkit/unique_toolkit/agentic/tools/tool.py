@@ -190,6 +190,17 @@ class Tool(ABC, Generic[ConfigType]):
         tool_progress_reporter: ToolProgressReporter | None = ...,
     ) -> None: ...
 
+    @overload
+    def __init__(
+        self,
+        config: ConfigType,
+        *,
+        event: ChatEvent,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
     def __init__(
         self,
         config: ConfigType,
