@@ -73,9 +73,10 @@ def _patch_stream(return_value=None, side_effect=None):
 
 
 def _patch_feature_flag(enabled: bool):
-    ff = MagicMock()
-    ff.enable_new_answers_ui_un_14411.is_enabled.return_value = enabled
-    return patch(f"{_MODULE}.feature_flags", ff)
+    return patch(
+        f"{_MODULE}.is_flag_enabled",
+        AsyncMock(return_value=enabled),
+    )
 
 
 # ---------------------------------------------------------------------------
