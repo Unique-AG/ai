@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -8,6 +11,9 @@ from typing import (
     cast,
     overload,
 )
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 from urllib.parse import quote_plus
 
 from unique_sdk._api_resource import APIResource
@@ -90,6 +96,7 @@ class Message(APIResource["Message"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.ListParams"],
     ) -> ListObject["Message"]:
         """
@@ -101,6 +108,7 @@ class Message(APIResource["Message"]):
             user_id,
             company_id,
             params=params,
+            client=client,
         )
 
         if not isinstance(result, ListObject):
@@ -115,6 +123,7 @@ class Message(APIResource["Message"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.ListParams"],
     ) -> ListObject["Message"]:
         """
@@ -126,6 +135,7 @@ class Message(APIResource["Message"]):
             user_id,
             company_id,
             params=params,
+            client=client,
         )
 
         if not isinstance(result, ListObject):
@@ -141,6 +151,7 @@ class Message(APIResource["Message"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.RetrieveParams"],
     ) -> "Message":
         """
@@ -156,6 +167,7 @@ class Message(APIResource["Message"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.RetrieveParams"],
     ) -> "Message":
         """
@@ -170,6 +182,7 @@ class Message(APIResource["Message"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.CreateParams"],
     ) -> "Message":
         """
@@ -189,6 +202,7 @@ class Message(APIResource["Message"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -197,6 +211,7 @@ class Message(APIResource["Message"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.CreateParams"],
     ) -> "Message":
         """
@@ -216,6 +231,7 @@ class Message(APIResource["Message"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -225,6 +241,7 @@ class Message(APIResource["Message"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.ModifyParams"],
     ) -> "Message":
         """
@@ -245,6 +262,7 @@ class Message(APIResource["Message"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -254,6 +272,7 @@ class Message(APIResource["Message"]):
         user_id: str,
         company_id: str,
         id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.ModifyParams"],
     ) -> "Message":
         """
@@ -274,6 +293,7 @@ class Message(APIResource["Message"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -353,6 +373,7 @@ class Message(APIResource["Message"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.CreateEventParams"],
     ) -> "Message":
         """
@@ -374,6 +395,7 @@ class Message(APIResource["Message"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -382,6 +404,7 @@ class Message(APIResource["Message"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Message.CreateEventParams"],
     ) -> "Message":
         """
@@ -403,5 +426,6 @@ class Message(APIResource["Message"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )

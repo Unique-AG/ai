@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import builtins
-from typing import Any, ClassVar, Literal, NotRequired, cast, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NotRequired, cast, get_args
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 from urllib.parse import quote_plus
 
 from typing_extensions import Unpack
@@ -59,6 +62,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AnalyticsOrder.CreateParams"],
     ) -> "AnalyticsOrder":
         return cast(
@@ -69,6 +73,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -77,6 +82,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AnalyticsOrder.CreateParams"],
     ) -> "AnalyticsOrder":
         return cast(
@@ -87,6 +93,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -95,6 +102,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AnalyticsOrder.ListParams"],
     ) -> builtins.list["AnalyticsOrder"]:
         return cast(
@@ -105,6 +113,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -113,6 +122,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AnalyticsOrder.ListParams"],
     ) -> builtins.list["AnalyticsOrder"]:
         return cast(
@@ -123,6 +133,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -132,11 +143,12 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         user_id: str,
         company_id: str,
         order_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "AnalyticsOrder":
         url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
-            cls._static_request("get", url, user_id, company_id),
+            cls._static_request("get", url, user_id, company_id, client=client),
         )
 
     @classmethod
@@ -145,11 +157,14 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         user_id: str,
         company_id: str,
         order_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "AnalyticsOrder":
         url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
-            await cls._static_request_async("get", url, user_id, company_id),
+            await cls._static_request_async(
+                "get", url, user_id, company_id, client=client
+            ),
         )
 
     @classmethod
@@ -158,11 +173,12 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         user_id: str,
         company_id: str,
         order_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "AnalyticsOrder":
         url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
-            cls._static_request("delete", url, user_id, company_id),
+            cls._static_request("delete", url, user_id, company_id, client=client),
         )
 
     @classmethod
@@ -171,11 +187,14 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         user_id: str,
         company_id: str,
         order_id: str,
+        client: "_BaseClient | None" = None,
     ) -> "AnalyticsOrder":
         url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
-            await cls._static_request_async("delete", url, user_id, company_id),
+            await cls._static_request_async(
+                "delete", url, user_id, company_id, client=client
+            ),
         )
 
     @classmethod
@@ -184,9 +203,10 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         user_id: str,
         company_id: str,
         order_id: str,
+        client: "_BaseClient | None" = None,
     ) -> str:
         url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}/download"
-        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+        requestor = APIRequestor(user_id=user_id, company_id=company_id, client=client)
         rbody, rcode, rheaders = requestor.request_raw("get", url)
         if not 200 <= rcode < 300:
             requestor.interpret_response(rbody, rcode, rheaders)
@@ -200,9 +220,10 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         user_id: str,
         company_id: str,
         order_id: str,
+        client: "_BaseClient | None" = None,
     ) -> str:
         url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}/download"
-        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+        requestor = APIRequestor(user_id=user_id, company_id=company_id, client=client)
         rbody, rcode, rheaders = await requestor.request_raw_async("get", url)
         if not 200 <= rcode < 300:
             requestor.interpret_response(rbody, rcode, rheaders)

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
 from typing import (
+    TYPE_CHECKING,
     Any,
     Generic,
     Literal,
@@ -17,6 +20,9 @@ from unique_sdk._util import (
     convert_to_unique_object,
     retry_on_error,
 )
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 T = TypeVar("T", bound=UniqueObject)
 
@@ -194,10 +200,11 @@ class APIResource(UniqueObject, Generic[T]):
         user_id: str | None = None,
         company_id: str | None = None,
         params=None,
+        client: "_BaseClient | None" = None,
     ):
         params = None if params is None else params.copy()
 
-        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+        requestor = APIRequestor(user_id=user_id, company_id=company_id, client=client)
 
         response = requestor.request(method_, url_, params)
         return convert_to_unique_object(response, user_id, company_id, params)
@@ -213,10 +220,11 @@ class APIResource(UniqueObject, Generic[T]):
         user_id: str | None = None,
         company_id: str | None = None,
         params=None,
+        client: "_BaseClient | None" = None,
     ):
         params = None if params is None else params.copy()
 
-        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+        requestor = APIRequestor(user_id=user_id, company_id=company_id, client=client)
 
         response = await requestor.request_async(method_, url_, params)
         return convert_to_unique_object(response, user_id, company_id, params)

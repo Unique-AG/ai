@@ -1,13 +1,19 @@
 """MessageTool persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
 
+from __future__ import annotations
+
 import asyncio
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
     TypedDict,
     Unpack,
 )
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._list_object import ListObject
@@ -109,6 +115,7 @@ class MessageTool(APIResource["MessageTool"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageTool.CreateParams"],
     ) -> ListObject["MessageTool"]:
         return cls._validate_list_response(
@@ -118,6 +125,7 @@ class MessageTool(APIResource["MessageTool"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             )
         )
 
@@ -126,6 +134,7 @@ class MessageTool(APIResource["MessageTool"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageTool.CreateParams"],
     ) -> ListObject["MessageTool"]:
         return cls._validate_list_response(
@@ -135,6 +144,7 @@ class MessageTool(APIResource["MessageTool"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             )
         )
 
@@ -143,6 +153,7 @@ class MessageTool(APIResource["MessageTool"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageTool.GetMessageToolsParams"],
     ) -> ListObject["MessageTool"]:
         message_ids_str = params.get("messageIds") or ""
@@ -157,6 +168,7 @@ class MessageTool(APIResource["MessageTool"]):
                     user_id,
                     company_id,
                     params={**params, "messageIds": chunk},
+                    client=client,
                 )
             )
             for chunk in chunks
@@ -176,6 +188,7 @@ class MessageTool(APIResource["MessageTool"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageTool.GetMessageToolsParams"],
     ) -> ListObject["MessageTool"]:
         message_ids_str = params.get("messageIds") or ""
@@ -190,6 +203,7 @@ class MessageTool(APIResource["MessageTool"]):
                     user_id,
                     company_id,
                     params={**params, "messageIds": chunks[0]},
+                    client=client,
                 )
             )
         results = await asyncio.gather(
@@ -200,6 +214,7 @@ class MessageTool(APIResource["MessageTool"]):
                     user_id,
                     company_id,
                     params={**params, "messageIds": chunk},
+                    client=client,
                 )
                 for chunk in chunks
             )

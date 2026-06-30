@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import calendar
 import datetime
 import json
@@ -5,12 +7,15 @@ import platform
 import time
 from collections import OrderedDict
 from collections.abc import Mapping
-from typing import Any, Callable, NoReturn, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, cast
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import unique_sdk
 from unique_sdk import _error, _http_client, _util, _version
 from unique_sdk._unique_response import UniqueResponse
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 def _encode_datetime(dttime: datetime.datetime):
@@ -87,6 +92,7 @@ class APIRequestor(object):
     api_version: str
     user_id: str | None
     company_id: str | None
+    _additional_headers: dict[str, str]
 
     def __init__(
         self,
@@ -94,15 +100,26 @@ class APIRequestor(object):
         company_id: str | None,
         key=None,
         app_id=None,
+        client: "_BaseClient | None" = None,
     ):
-        self.api_base = unique_sdk.api_base
-        self.api_key = key
-        self.app_id = app_id
-        self.api_version = unique_sdk.api_version
+        if client is not None:
+            self.api_base = client.api_base
+            self.api_key = client.api_key
+            self.app_id = client.app_id
+            self.api_version = client.api_version
+            self._additional_headers = client.additional_headers
+        else:
+            self.api_base = unique_sdk.api_base
+            self.api_key = key
+            self.app_id = app_id
+            self.api_version = unique_sdk.api_version
+            self._additional_headers = {}
         self.user_id = user_id
         self.company_id = company_id
 
-        if unique_sdk.default_http_client:
+        if client is not None and client._http_client is not None:
+            self._client = client._http_client
+        elif unique_sdk.default_http_client:
             self._client = unique_sdk.default_http_client
         else:
             unique_sdk.default_http_client = _http_client.new_default_http_client(
@@ -321,6 +338,8 @@ class APIRequestor(object):
             )
 
         headers = self.request_headers(my_api_key, my_app_id, method)
+        for key, value in self._additional_headers.items():
+            headers[key] = value
         if supplied_headers_dict is not None:
             for key, value in supplied_headers_dict.items():
                 headers[key] = value

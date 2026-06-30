@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     TypedDict,
@@ -12,6 +15,9 @@ import unique_sdk
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class Content(APIResource["Content"]):
@@ -307,6 +313,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.SearchParams"],
     ) -> list["Content"]:
         return cast(
@@ -317,6 +324,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -325,6 +333,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.SearchParams"],
     ) -> list["Content"]:
         return cast(
@@ -335,6 +344,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -343,6 +353,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.ContentInfoParams"],
     ) -> PaginatedContentInfo:
         return cast(
@@ -353,6 +364,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -361,6 +373,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.ContentInfoParams"],
     ) -> PaginatedContentInfo:
         return cast(
@@ -371,6 +384,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -379,6 +393,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.ContentInfosParams"],
     ) -> "Content.PaginatedContentInfos":
         parent_id = unique_sdk.Folder.resolve_scope_id_from_folder_path(
@@ -399,6 +414,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -407,6 +423,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.ContentInfosParams"],
     ) -> "Content.PaginatedContentInfos":
         parent_id = await unique_sdk.Folder.resolve_scope_id_from_folder_path_async(
@@ -427,6 +444,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -435,6 +453,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.UpsertParams"],
     ) -> "Content":
         """
@@ -466,6 +485,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -474,6 +494,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.UpsertParams"],
     ) -> "Content":
         """
@@ -509,6 +530,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -517,6 +539,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.VersionsParams"],
     ) -> "Content.PaginatedContentVersions":
         content_id = params.pop("contentId")
@@ -528,6 +551,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -536,6 +560,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.VersionsParams"],
     ) -> "Content.PaginatedContentVersions":
         content_id = params.pop("contentId")
@@ -547,6 +572,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -555,6 +581,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.VersionDownloadUrlParams"],
     ) -> "Content.ContentVersionDownloadUrl":
         content_version_id = params.pop("contentVersionId")
@@ -566,6 +593,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -574,6 +602,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.VersionDownloadUrlParams"],
     ) -> "Content.ContentVersionDownloadUrl":
         content_version_id = params.pop("contentVersionId")
@@ -585,6 +614,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -593,6 +623,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.RestoreVersionParams"],
     ) -> "Content.ContentInfo":
         content_version_id = params.pop("contentVersionId")
@@ -604,6 +635,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -612,6 +644,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.RestoreVersionParams"],
     ) -> "Content.ContentInfo":
         content_version_id = params.pop("contentVersionId")
@@ -623,6 +656,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -631,6 +665,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.MagicTableSheetIngestParams"],
     ) -> "Content.MagicTableSheetResponse":
         return cast(
@@ -641,6 +676,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -649,6 +685,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.MagicTableSheetIngestParams"],
     ) -> "Content.MagicTableSheetResponse":
         return cast(
@@ -659,6 +696,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id=company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -667,6 +705,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.UpdateParams"],
     ) -> "Content.ContentInfo":
         content_id = cls.resolve_content_id_from_file_path(
@@ -695,6 +734,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -703,6 +743,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.UpdateParams"],
     ) -> "Content.ContentInfo":
         content_id = cls.resolve_content_id_from_file_path(
@@ -731,6 +772,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -739,6 +781,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.UpdateIngestionStateParams"],
     ) -> "Content.ContentInfo":
         content_id = params.get("contentId")
@@ -752,6 +795,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params={"ingestionState": ingestion_state},
+                client=client,
             ),
         )
 
@@ -760,6 +804,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.UpdateIngestionStateParams"],
     ) -> "Content.ContentInfo":
         content_id = params.get("contentId")
@@ -773,6 +818,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params={"ingestionState": ingestion_state},
+                client=client,
             ),
         )
 
@@ -781,6 +827,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.DeleteParams"],
     ) -> "Content.DeleteResponse":
         """
@@ -803,6 +850,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -811,6 +859,7 @@ class Content(APIResource["Content"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["Content.DeleteParams"],
     ) -> "Content.DeleteResponse":
         """
@@ -833,6 +882,7 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -843,6 +893,7 @@ class Content(APIResource["Content"]):
         company_id: str,
         content_id: str | None = None,
         file_path: str | None = None,
+        client: "_BaseClient | None" = None,
     ) -> str | None:
         """
         Returns the contentId to use: if content_id is provided, returns it;
@@ -858,6 +909,7 @@ class Content(APIResource["Content"]):
             file_info = cls.get_info(
                 user_id=user_id,
                 company_id=company_id,
+                client=client,
                 filePath=file_path,
             )
             content_infos = file_info.get("contentInfo")
