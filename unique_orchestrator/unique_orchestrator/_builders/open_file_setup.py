@@ -22,7 +22,9 @@ from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_orchestrator.config import UniqueAIConfig
@@ -81,6 +83,9 @@ def configure_file_payload(
     reference_manager: ReferenceManager,
     language_model: LanguageModelInfo,
     tool_manager: ResponsesApiToolManager,
+    *,
+    chat_service: ChatService | None = None,
+    language_model_service: LanguageModelService | None = None,
 ) -> tuple[HistoryManager, list[str]]:
     """Configure file-in-payload handling for the Responses API.
 
@@ -112,12 +117,20 @@ def configure_file_payload(
     agent_file_registry: list[str] = []
 
     if config.agent.experimental.open_file_tool_config.send_files_in_payload:
-        tool_manager.add_tool(
-            OpenFileTool(
-                event=event,
-                registry=agent_file_registry,
-                config=config.agent.experimental.open_file_tool_config,
-            )
+        use_shared_services = (
+            chat_service is not None and language_model_service is not None
         )
+        open_file_tool = OpenFileTool(
+            config=config.agent.experimental.open_file_tool_config,
+            registry=agent_file_registry,
+            chat_service=chat_service if use_shared_services else None,
+            language_model_service=language_model_service
+            if use_shared_services
+            else None,
+            event=None if use_shared_services else event,
+        )
+        if use_shared_services:
+            open_file_tool._event = event
+        tool_manager.add_tool(open_file_tool)
 
     return history_manager, agent_file_registry

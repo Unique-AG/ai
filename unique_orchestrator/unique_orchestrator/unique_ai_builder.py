@@ -549,6 +549,8 @@ async def _build_responses(
             common_components.reference_manager,
             config.space.language_model,
             tool_manager,
+            chat_service=common_components.chat_service,
+            language_model_service=common_components.llm_service,
         )
         common_components = common_components._replace(
             history_manager=history_manager,

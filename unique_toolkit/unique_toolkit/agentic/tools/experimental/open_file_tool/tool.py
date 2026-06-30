@@ -5,7 +5,10 @@ from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -25,11 +28,30 @@ class OpenFileTool(Tool[OpenFileToolConfig]):
 
     def __init__(
         self,
-        event: ChatEvent,
-        registry: list[str],
         config: OpenFileToolConfig,
+        registry: list[str],
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        event: ChatEvent | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(config, event)
+        if chat_service is not None and language_model_service is not None:
+            init_kwargs: dict[str, object] = {
+                "tool_progress_reporter": tool_progress_reporter,
+                "chat_service": chat_service,
+                "language_model_service": language_model_service,
+            }
+            if event is not None:
+                init_kwargs["event"] = event
+            super().__init__(config, **init_kwargs)
+        elif event is not None:
+            super().__init__(config, event, tool_progress_reporter)
+        else:
+            raise ValueError(
+                "OpenFileTool requires event or injected chat_service and "
+                "language_model_service"
+            )
         self._registry = registry
 
     def display_name(self) -> str:

@@ -180,7 +180,9 @@ class _ToolManager(Generic[_ApiMode]):
         ] = []
         self._init__tools(run_context.tool_init_event)
 
-    def _inject_shared_services(self, tool: Tool[Any]) -> None:
+    def _inject_shared_services(
+        self, tool: Tool[Any], tool_init_event: ChatEvent | None = None
+    ) -> None:
         if self._chat_service is None or self._language_model_service is None:
             return
         if not hasattr(tool, "_chat_service"):
@@ -194,6 +196,8 @@ class _ToolManager(Generic[_ApiMode]):
         tool._message_step_logger = MessageStepLogger(
             chat_service=self._chat_service,
         )
+        if tool_init_event is not None:
+            tool._event = tool_init_event
 
     def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
         tool_choices = self._tool_choices
@@ -249,17 +253,31 @@ class _ToolManager(Generic[_ApiMode]):
                     t.name,
                 )
                 continue
-            result = safe_executor.execute(
-                ToolFactory.build_tool_with_settings,
-                t.name,
-                t,
-                t.configuration,
-                tool_init_event,
-                tool_progress_reporter=self._tool_progress_reporter,
-            )
+            if (
+                self._chat_service is not None
+                and self._language_model_service is not None
+            ):
+                result = safe_executor.execute(
+                    ToolFactory.build_tool_with_settings,
+                    t.name,
+                    t,
+                    t.configuration,
+                    tool_progress_reporter=self._tool_progress_reporter,
+                    chat_service=self._chat_service,
+                    language_model_service=self._language_model_service,
+                )
+            else:
+                result = safe_executor.execute(
+                    ToolFactory.build_tool_with_settings,
+                    t.name,
+                    t,
+                    t.configuration,
+                    tool_init_event,
+                    tool_progress_reporter=self._tool_progress_reporter,
+                )
             if result.success:
                 tool = result.unpack()
-                self._inject_shared_services(tool)
+                self._inject_shared_services(tool, tool_init_event)
                 self._internal_tools.append(tool)
             else:
                 self._logger.warning(

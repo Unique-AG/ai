@@ -60,17 +60,35 @@ class _FixedInitToolConfig(BaseToolConfig):
 
 
 class _FixedInitTool(Tool[_FixedInitToolConfig]):
-    """Mirrors production tools (e.g. AskUser) with a fixed __init__ signature."""
+    """Mirrors production tools (e.g. AskUser) with service-injection support."""
 
     name = "fixed_init_tool"
 
     def __init__(
         self,
         config: _FixedInitToolConfig,
-        event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        event: ChatEvent | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(config, event, tool_progress_reporter)
+        if chat_service is not None and language_model_service is not None:
+            init_kwargs: dict[str, object] = {
+                "tool_progress_reporter": tool_progress_reporter,
+                "chat_service": chat_service,
+                "language_model_service": language_model_service,
+            }
+            if event is not None:
+                init_kwargs["event"] = event
+            super().__init__(config, **init_kwargs)
+        elif event is not None:
+            super().__init__(config, event, tool_progress_reporter)
+        else:
+            raise ValueError(
+                "_FixedInitTool requires event or injected chat_service and "
+                "language_model_service"
+            )
 
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
@@ -264,10 +282,10 @@ def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
             server_user_prompt=mcp_server.user_prompt,
             mcp_source_id=mcp_server.id,
         ),
-        event=chat_event,
         chat_service=shared_chat_service,
         language_model_service=shared_llm_service,
     )
+    wrapper._event = chat_event
 
     shared_chat_service._assistant_message_id = "assistant-msg-updated"
     captured: dict[str, str] = {}

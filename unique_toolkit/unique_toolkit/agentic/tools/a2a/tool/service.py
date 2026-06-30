@@ -20,7 +20,6 @@ from unique_toolkit._common.referencing import (
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -68,33 +67,37 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     def __init__(
         self,
         configuration: SubAgentToolConfig,
-        event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
         *,
+        event: ChatEvent | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
         if chat_service is not None and language_model_service is not None:
-            super().__init__(
-                configuration,
-                event=event,
-                tool_progress_reporter=tool_progress_reporter,
-                chat_service=chat_service,
-                language_model_service=language_model_service,
-            )
+            init_kwargs: dict[str, object] = {
+                "tool_progress_reporter": tool_progress_reporter,
+                "chat_service": chat_service,
+                "language_model_service": language_model_service,
+            }
+            if event is not None:
+                init_kwargs["event"] = event
+            super().__init__(configuration, **init_kwargs)
+            self._user_id = chat_service.user_id
+            self._company_id = chat_service.company_id
+            chat_id = chat_service.chat_id
+        elif event is not None:
+            super().__init__(configuration, event, tool_progress_reporter)
+            self._user_id = event.user_id
+            self._company_id = event.company_id
+            chat_id = event.payload.chat_id
         else:
-            super().__init__(configuration)
-            self._event = event
-            self._tool_progress_reporter = tool_progress_reporter
-            self._chat_service = ChatService(event)
-            self._message_step_logger = MessageStepLogger(
-                chat_service=self._chat_service
+            raise ValueError(
+                "SubAgentTool requires event or injected chat_service and "
+                "language_model_service"
             )
-        self._user_id = event.user_id
-        self._company_id = event.company_id
 
         self.name = name
         self._display_name = display_name
@@ -102,7 +105,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         self._short_term_memory_manager = get_sub_agent_short_term_memory_manager(
             company_id=self._company_id,
             user_id=self._user_id,
-            chat_id=event.payload.chat_id,
+            chat_id=chat_id,
             assistant_id=self.config.assistant_id,
         )
         self._should_run_evaluation = False

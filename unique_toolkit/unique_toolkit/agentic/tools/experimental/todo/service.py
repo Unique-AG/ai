@@ -20,7 +20,11 @@ from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
-from unique_toolkit.language_model import LanguageModelToolDescription
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import (
+    LanguageModelService,
+    LanguageModelToolDescription,
+)
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -43,14 +47,38 @@ class TodoWriteTool(Tool[TodoConfig]):
     def __init__(
         self,
         config: TodoConfig,
-        event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        event: ChatEvent | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(config, event, tool_progress_reporter)
+        if chat_service is not None and language_model_service is not None:
+            init_kwargs: dict[str, object] = {
+                "tool_progress_reporter": tool_progress_reporter,
+                "chat_service": chat_service,
+                "language_model_service": language_model_service,
+            }
+            if event is not None:
+                init_kwargs["event"] = event
+            super().__init__(config, **init_kwargs)
+            company_id = chat_service.company_id
+            user_id = chat_service.user_id
+            chat_id = chat_service.chat_id
+        elif event is not None:
+            super().__init__(config, event, tool_progress_reporter)
+            company_id = event.company_id
+            user_id = event.user_id
+            chat_id = event.payload.chat_id
+        else:
+            raise ValueError(
+                "TodoWriteTool requires event or injected chat_service and "
+                "language_model_service"
+            )
         stm_service = ShortTermMemoryService(
-            company_id=event.company_id,
-            user_id=event.user_id,
-            chat_id=event.payload.chat_id,
+            company_id=company_id,
+            user_id=user_id,
+            chat_id=chat_id,
             message_id=None,
         )
         self._memory_manager: PersistentShortMemoryManager[TodoList] = (

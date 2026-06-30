@@ -10,7 +10,6 @@ import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -39,28 +38,28 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         mcp_server: McpServer,
         mcp_tool: McpTool,
         config: MCPToolConfig,
-        event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
         *,
+        event: ChatEvent | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
         self.name = mcp_tool.name
         if chat_service is not None and language_model_service is not None:
-            super().__init__(
-                config,
-                event=event,
-                tool_progress_reporter=tool_progress_reporter,
-                chat_service=chat_service,
-                language_model_service=language_model_service,
-            )
+            init_kwargs: dict[str, object] = {
+                "tool_progress_reporter": tool_progress_reporter,
+                "chat_service": chat_service,
+                "language_model_service": language_model_service,
+            }
+            if event is not None:
+                init_kwargs["event"] = event
+            super().__init__(config, **init_kwargs)
+        elif event is not None:
+            super().__init__(config, event, tool_progress_reporter)
         else:
-            super().__init__(config)
-            self._event = event
-            self._tool_progress_reporter = tool_progress_reporter
-            self._chat_service = ChatService(event)
-            self._message_step_logger = MessageStepLogger(
-                chat_service=self._chat_service
+            raise ValueError(
+                "MCPToolWrapper requires event or injected chat_service and "
+                "language_model_service"
             )
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
