@@ -14,7 +14,7 @@ import pytest
 
 import unique_sdk
 from unique_sdk.cli.commands import mcp as mcp_cmd
-from unique_sdk.cli.commands.mcp import cmd_mcp
+from unique_sdk.cli.commands.mcp import cmd_mcp, record_mcp_citations
 from unique_sdk.cli.config import Config
 from unique_sdk.cli.state import ShellState
 
@@ -438,3 +438,135 @@ def test_api_error_writes_no_manifest(tmp_path: Path) -> None:
     assert out.startswith("mcp:")
     assert _lines(tmp_path, _REFS_MANIFEST) == []
     assert _lines(tmp_path, _OUTPUT_MANIFEST) == []
+
+
+# ── record_mcp_citations: shared helper (skills + tools-mode proxy) ───────────
+#
+# The CLI flow defaults to ``Path.cwd()/.unique`` (covered above via cmd_mcp);
+# these exercise the explicit ``unique_dir`` path the in-process tools-mode proxy
+# uses, where cwd is NOT the agent workspace.
+
+
+def _unique_lines(unique_dir: Path, filename: str) -> list[dict]:
+    path = unique_dir / filename
+    if not path.is_file():
+        return []
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def test_record_mcp_citations_writes_both_manifests_under_unique_dir(
+    tmp_path: Path,
+) -> None:
+    unique_dir = tmp_path / "ws" / ".unique"
+    response = _FakeMCPResponse(
+        content=[
+            {
+                "type": "resource_link",
+                "uri": "https://kb.example.com/doc/9",
+                "name": "RAG Retrieval Baseline",
+                "description": "Why retrieval fails",
+            }
+        ],
+        mcp_server_id="kb",
+    )
+
+    footer = record_mcp_citations(
+        response,
+        tool_name="fetch",  # bare advertised name (tools mode)
+        server_name="kb",
+        unique_dir=unique_dir,
+        formatted_text="Why retrieval fails — details here",
+    )
+
+    # No `.unique/.unique/` nesting — filenames join directly onto unique_dir.
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    output = _unique_lines(unique_dir, "mcp-output.jsonl")
+    assert refs == [
+        {
+            "sourceNumber": 1,
+            "toolName": "fetch",
+            "serverName": "kb",
+            "title": "RAG Retrieval Baseline",
+            "snippet": "Why retrieval fails",
+            "details": None,
+        }
+    ]
+    assert output == [
+        {
+            "toolName": "fetch",
+            "serverName": "kb",
+            "text": "Why retrieval fails — details here",
+        }
+    ]
+    assert "[mcpsource1] RAG Retrieval Baseline" in footer
+
+
+def test_record_mcp_citations_dedups_title_across_calls(tmp_path: Path) -> None:
+    unique_dir = tmp_path / ".unique"
+
+    def _resp() -> _FakeMCPResponse:
+        return _FakeMCPResponse(
+            content=[{"type": "resource_link", "uri": "x", "name": "Same Doc"}],
+            mcp_server_id="kb",
+        )
+
+    f1 = record_mcp_citations(
+        _resp(),
+        tool_name="fetch",
+        server_name="kb",
+        unique_dir=unique_dir,
+        formatted_text="first",
+    )
+    f2 = record_mcp_citations(
+        _resp(),
+        tool_name="fetch",
+        server_name="kb",
+        unique_dir=unique_dir,
+        formatted_text="second",
+    )
+
+    # Same title → one refs entry / one reused source number; both calls'
+    # output is grounded (no dedup on the output manifest).
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    output = _unique_lines(unique_dir, "mcp-output.jsonl")
+    assert len(refs) == 1
+    assert refs[0]["sourceNumber"] == 1
+    assert "[mcpsource1] Same Doc" in f1
+    assert "[mcpsource1] Same Doc" in f2
+    assert [e["text"] for e in output] == ["first", "second"]
+
+
+def test_record_mcp_citations_concurrent_monotonic_numbers(
+    tmp_path: Path,
+) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    unique_dir = tmp_path / ".unique"
+    n = 8
+
+    def _record(i: int) -> str:
+        response = _FakeMCPResponse(
+            content=[{"type": "resource_link", "uri": f"u{i}", "name": f"Doc {i}"}],
+            mcp_server_id="kb",
+        )
+        return record_mcp_citations(
+            response,
+            tool_name="fetch",
+            server_name="kb",
+            unique_dir=unique_dir,
+            formatted_text=f"body {i}",
+        )
+
+    with ThreadPoolExecutor(max_workers=n) as pool:
+        list(pool.map(_record, range(n)))
+
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    numbers = sorted(e["sourceNumber"] for e in refs)
+    # Distinct titles → one entry each, with unique consecutive numbers and no
+    # collisions despite concurrent writers (the per-turn flock serializes them).
+    assert numbers == list(range(1, n + 1))
+    assert len(_unique_lines(unique_dir, "mcp-output.jsonl")) == n
