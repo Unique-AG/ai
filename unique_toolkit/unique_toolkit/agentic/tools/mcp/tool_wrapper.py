@@ -9,7 +9,6 @@ from typing import Any, Dict
 import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -22,6 +21,10 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.functions import upload_content_from_bytes
+from unique_toolkit.experimental.resources.feature_flags import (
+    FeatureFlagNames,
+    is_flag_enabled,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -124,11 +127,9 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         )
 
         # Notify progress if reporter is available
-        if (
-            self._tool_progress_reporter
-            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self._event.company_id
-            )
+        if self._tool_progress_reporter and not await is_flag_enabled(
+            FeatureFlagNames.enable_new_answers_ui_un_14411,
+            company_id=self._event.company_id,
         ):
             await self._tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
@@ -163,11 +164,9 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             )
 
             # Notify completion
-            if (
-                self._tool_progress_reporter
-                and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self._event.company_id
-                )
+            if self._tool_progress_reporter and not await is_flag_enabled(
+                FeatureFlagNames.enable_new_answers_ui_un_14411,
+                company_id=self._event.company_id,
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
@@ -189,11 +188,9 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             self.logger.error(f"Error executing MCP tool {self.name}: {e}")
 
             # Notify failure
-            if (
-                self._tool_progress_reporter
-                and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self._event.company_id
-                )
+            if self._tool_progress_reporter and not await is_flag_enabled(
+                FeatureFlagNames.enable_new_answers_ui_un_14411,
+                company_id=self._event.company_id,
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
                     tool_call=tool_call,
