@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections import Counter
 from logging import getLogger
+from typing import overload
+
+from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -44,24 +47,43 @@ _STATUS_ICON = {
 class TodoWriteTool(Tool[TodoConfig]):
     name: str = "TodoWrite"
 
+    @overload
     def __init__(
         self,
         config: TodoConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
+    def __init__(
+        self,
+        config: TodoConfig,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: TodoConfig,
+        event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
         *,
-        event: ChatEvent | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
         if chat_service is not None and language_model_service is not None:
-            init_kwargs: dict[str, object] = {
-                "tool_progress_reporter": tool_progress_reporter,
-                "chat_service": chat_service,
-                "language_model_service": language_model_service,
-            }
-            if event is not None:
-                init_kwargs["event"] = event
-            super().__init__(config, **init_kwargs)
+            super().__init__(
+                config,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
             company_id = chat_service.company_id
             user_id = chat_service.user_id
             chat_id = chat_service.chat_id

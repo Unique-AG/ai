@@ -53,25 +53,26 @@ class MCPManager:
                         server_user_prompt=server.user_prompt,
                         mcp_source_id=server.id,
                     )
-                    use_shared_services = (
+                    if (
                         self._chat_service is not None
                         and self._language_model_service is not None
-                    )
-                    wrapper = MCPToolWrapper(
-                        mcp_server=server,
-                        mcp_tool=tool,
-                        config=config,
-                        tool_progress_reporter=self._tool_progress_reporter,
-                        chat_service=self._chat_service
-                        if use_shared_services
-                        else None,
-                        language_model_service=self._language_model_service
-                        if use_shared_services
-                        else None,
-                        event=None if use_shared_services else self._event,
-                    )
-                    if use_shared_services:
-                        wrapper._event = self._event
+                    ):
+                        wrapper = MCPToolWrapper(
+                            mcp_server=server,
+                            mcp_tool=tool,
+                            config=config,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                            chat_service=self._chat_service,
+                            language_model_service=self._language_model_service,
+                        )
+                    else:
+                        wrapper = MCPToolWrapper(
+                            mcp_server=server,
+                            mcp_tool=tool,
+                            config=config,
+                            event=self._event,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                        )
                     wrapper.settings = ToolBuildConfig(  # TODO: this must be refactored to behave like the other tools.
                         name=tool.name,
                         configuration=config,

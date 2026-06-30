@@ -1,8 +1,10 @@
 """Regression tests for shared ChatService injection into tools (UN-19148)."""
 
+from typing import overload
 from unittest.mock import Mock
 
 import pytest
+from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.a2a import A2AManager
@@ -64,24 +66,43 @@ class _FixedInitTool(Tool[_FixedInitToolConfig]):
 
     name = "fixed_init_tool"
 
+    @overload
     def __init__(
         self,
         config: _FixedInitToolConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
+    def __init__(
+        self,
+        config: _FixedInitToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: _FixedInitToolConfig,
+        event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
         *,
-        event: ChatEvent | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
         if chat_service is not None and language_model_service is not None:
-            init_kwargs: dict[str, object] = {
-                "tool_progress_reporter": tool_progress_reporter,
-                "chat_service": chat_service,
-                "language_model_service": language_model_service,
-            }
-            if event is not None:
-                init_kwargs["event"] = event
-            super().__init__(config, **init_kwargs)
+            super().__init__(
+                config,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
         elif event is not None:
             super().__init__(config, event, tool_progress_reporter)
         else:
@@ -285,7 +306,6 @@ def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
         chat_service=shared_chat_service,
         language_model_service=shared_llm_service,
     )
-    wrapper._event = chat_event
 
     shared_chat_service._assistant_message_id = "assistant-msg-updated"
     captured: dict[str, str] = {}

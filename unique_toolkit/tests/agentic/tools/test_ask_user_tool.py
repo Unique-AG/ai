@@ -115,12 +115,12 @@ def test_input_blank_message_rejected() -> None:
 
 def test_parameter_descriptions_come_from_config() -> None:
     default_config = AskUserToolConfig()
-    default_tool = AskUserTool(default_config, event=_chat_event())
+    default_tool = AskUserTool(default_config, _chat_event())
     default_props = default_tool.tool_description_as_json()["properties"]
     assert default_props["message"]["description"] == default_config.message_description
 
     custom_tool = AskUserTool(
-        AskUserToolConfig(message_description="custom"), event=_chat_event()
+        AskUserToolConfig(message_description="custom"), _chat_event()
     )
     custom_props = custom_tool.tool_description_as_json()["properties"]
     assert custom_props["message"]["description"] == "custom"
@@ -137,7 +137,7 @@ def _tool_with_service(
     service.wait_for_response_async = AsyncMock(
         return_value=wait_return, side_effect=wait_side_effect
     )
-    tool = AskUserTool(config or AskUserToolConfig(), event=_chat_event())
+    tool = AskUserTool(config or AskUserToolConfig(), _chat_event())
     tool._chat_service = MagicMock(elicitation=service)
     return tool, service
 
@@ -181,14 +181,14 @@ async def test_ask_user_confirm_schema_sent_to_platform() -> None:
 
 @pytest.mark.asyncio
 async def test_ask_user_missing_response_schema_raises() -> None:
-    tool = AskUserTool(AskUserToolConfig(), event=_chat_event())
+    tool = AskUserTool(AskUserToolConfig(), _chat_event())
     with pytest.raises(ValidationError):
         await tool.run(_tool_call(message="Which quarter?"))
 
 
 @pytest.mark.asyncio
 async def test_ask_user_empty_message_raises() -> None:
-    tool = AskUserTool(AskUserToolConfig(), event=_chat_event())
+    tool = AskUserTool(AskUserToolConfig(), _chat_event())
     with pytest.raises(ValidationError):
         await tool.run(_tool_call(message="  ", response_schema=_MINIMAL_ANSWER_SCHEMA))
 
@@ -239,5 +239,5 @@ async def test_ask_user_cancelled_returns_configured_message() -> None:
 
 def test_ask_user_does_not_take_control() -> None:
     event = _chat_event()
-    tool = AskUserTool(AskUserToolConfig(), event=event)
+    tool = AskUserTool(AskUserToolConfig(), event)
     assert tool.takes_control() is False

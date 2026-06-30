@@ -1,9 +1,10 @@
 import asyncio
 import json
 import logging
-from typing import Annotated, override
+from typing import Annotated, overload, override
 
 from pydantic import BaseModel, Field, JsonValue, StringConstraints
+from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.experimental.ask_user_tool.config import (
@@ -41,24 +42,43 @@ class AskUserTool(Tool[AskUserToolConfig]):
     name = "AskUser"
     DISPLAY_NAME = "Ask User"
 
+    @overload
     def __init__(
         self,
         config: AskUserToolConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
+    def __init__(
+        self,
+        config: AskUserToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: AskUserToolConfig,
+        event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
         *,
-        event: ChatEvent | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
         if chat_service is not None and language_model_service is not None:
-            init_kwargs: dict[str, object] = {
-                "tool_progress_reporter": tool_progress_reporter,
-                "chat_service": chat_service,
-                "language_model_service": language_model_service,
-            }
-            if event is not None:
-                init_kwargs["event"] = event
-            super().__init__(config, **init_kwargs)
+            super().__init__(
+                config,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
         elif event is not None:
             super().__init__(config, event, tool_progress_reporter)
         else:

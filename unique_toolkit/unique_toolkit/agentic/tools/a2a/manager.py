@@ -49,23 +49,25 @@ class A2AManager:
             sub_agent_tool_config = tool_config.configuration
 
             try:
-                use_shared_services = (
-                    chat_service is not None and language_model_service is not None
-                )
-                sub_agent = SubAgentTool(
-                    configuration=sub_agent_tool_config,
-                    tool_progress_reporter=self._tool_progress_reporter,
-                    name=tool_config.name,
-                    display_name=tool_config.display_name,
-                    response_watcher=self._response_watcher,
-                    chat_service=chat_service if use_shared_services else None,
-                    language_model_service=language_model_service
-                    if use_shared_services
-                    else None,
-                    event=None if use_shared_services else event,
-                )
-                if use_shared_services and event is not None:
-                    sub_agent._event = event
+                if chat_service is not None and language_model_service is not None:
+                    sub_agent = SubAgentTool(
+                        configuration=sub_agent_tool_config,
+                        tool_progress_reporter=self._tool_progress_reporter,
+                        name=tool_config.name,
+                        display_name=tool_config.display_name,
+                        response_watcher=self._response_watcher,
+                        chat_service=chat_service,
+                        language_model_service=language_model_service,
+                    )
+                else:
+                    sub_agent = SubAgentTool(
+                        configuration=sub_agent_tool_config,
+                        event=event,
+                        tool_progress_reporter=self._tool_progress_reporter,
+                        name=tool_config.name,
+                        display_name=tool_config.display_name,
+                        response_watcher=self._response_watcher,
+                    )
                 sub_agents.append(sub_agent)
             except Exception:
                 self._logger.warning(

@@ -4,10 +4,11 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import override
+from typing import overload, override
 
 import unique_sdk
 from pydantic import Field, TypeAdapter, create_model
+from typing_extensions import deprecated
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
@@ -64,27 +65,52 @@ _ContentChunkList = TypeAdapter(list[ContentChunk])
 class SubAgentTool(Tool[SubAgentToolConfig]):
     name: str = "SubAgentTool"
 
+    @overload
     def __init__(
         self,
         configuration: SubAgentToolConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        name: str = ...,
+        display_name: str = ...,
+        response_watcher: SubAgentResponseWatcher | None = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
+    def __init__(
+        self,
+        configuration: SubAgentToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        name: str = ...,
+        display_name: str = ...,
+        response_watcher: SubAgentResponseWatcher | None = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        configuration: SubAgentToolConfig,
+        event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
         *,
-        event: ChatEvent | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
         if chat_service is not None and language_model_service is not None:
-            init_kwargs: dict[str, object] = {
-                "tool_progress_reporter": tool_progress_reporter,
-                "chat_service": chat_service,
-                "language_model_service": language_model_service,
-            }
-            if event is not None:
-                init_kwargs["event"] = event
-            super().__init__(configuration, **init_kwargs)
+            super().__init__(
+                configuration,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
             self._user_id = chat_service.user_id
             self._company_id = chat_service.company_id
             chat_id = chat_service.chat_id
@@ -501,7 +527,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 stop_condition=self.config.stop_condition,
                 correlation=Space.Correlation(
                     parentMessageId=self._chat_service._assistant_message_id,
-                    parentChatId=self._event.payload.chat_id,
+                    parentChatId=self._chat_service.chat_id,
                     parentAssistantId=self.config.assistant_id,
                 ),
                 on_message_update=on_message_update,

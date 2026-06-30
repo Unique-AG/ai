@@ -117,20 +117,19 @@ def configure_file_payload(
     agent_file_registry: list[str] = []
 
     if config.agent.experimental.open_file_tool_config.send_files_in_payload:
-        use_shared_services = (
-            chat_service is not None and language_model_service is not None
-        )
-        open_file_tool = OpenFileTool(
-            config=config.agent.experimental.open_file_tool_config,
-            registry=agent_file_registry,
-            chat_service=chat_service if use_shared_services else None,
-            language_model_service=language_model_service
-            if use_shared_services
-            else None,
-            event=None if use_shared_services else event,
-        )
-        if use_shared_services:
-            open_file_tool._event = event
+        if chat_service is not None and language_model_service is not None:
+            open_file_tool = OpenFileTool(
+                config=config.agent.experimental.open_file_tool_config,
+                registry=agent_file_registry,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            open_file_tool = OpenFileTool(
+                config=config.agent.experimental.open_file_tool_config,
+                registry=agent_file_registry,
+                event=event,
+            )
         tool_manager.add_tool(open_file_tool)
 
     return history_manager, agent_file_registry
