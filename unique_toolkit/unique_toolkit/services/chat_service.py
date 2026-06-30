@@ -1783,7 +1783,7 @@ class ChatService(ChatServiceDeprecated):
             if not rate_limit_retry_config.log_message_on_retry:
                 return
             if not await is_flag_enabled(
-                FeatureFlagNames.ENABLE_NEW_ANSWERS_UI_UN_14411,
+                FeatureFlagNames.enable_new_answers_ui_un_14411,
                 company_id=self._company_id,
             ):
                 return
