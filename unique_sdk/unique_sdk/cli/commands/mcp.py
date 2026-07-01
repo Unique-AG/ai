@@ -337,16 +337,25 @@ def _citation_footer(annotated: list[tuple[int, dict[str, Any]]]) -> str:
 
 
 def _append_mcp_output_manifest(
-    name: str, text: str, *, server_name: str | None = None
+    name: str,
+    text: str,
+    *,
+    server_name: str | None = None,
+    output_path: Path | None = None,
 ) -> None:
     """Best-effort append of one MCP tool result to the per-turn manifest.
 
     Never raises: a manifest failure must not change what the agent sees as
     the tool result. The groundedness check simply does not fire for this
     call when the write fails.
+
+    ``output_path`` is the full path of the ``mcp-output.jsonl`` manifest. It
+    defaults to ``Path.cwd() / .unique / mcp-output.jsonl`` so the CLI flow
+    (where cwd is the agent workspace) is unchanged; callers that run outside
+    the workspace cwd (e.g. the in-process tools-mode proxy) pass it explicitly.
     """
     try:
-        refs_log_path = Path.cwd() / _MCP_OUTPUT_LOG_RELATIVE_PATH
+        refs_log_path = output_path or (Path.cwd() / _MCP_OUTPUT_LOG_RELATIVE_PATH)
         _append_turn_refs_manifest_entry(
             refs_log_path,
             {
@@ -357,6 +366,47 @@ def _append_mcp_output_manifest(
         )
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append output manifest: %s", exc)
+
+
+def record_mcp_citations(
+    response: Any,
+    *,
+    tool_name: str,
+    server_name: str | None,
+    unique_dir: Path,
+    formatted_text: str,
+) -> str:
+    """Write both per-turn MCP manifests under ``unique_dir`` and return the
+    ``[mcpsourceN]`` citation footer for the agent.
+
+    Shared by the ``unique-cli mcp`` skills flow (``cmd_mcp``) and the
+    in-process tools-mode proxy in assistants-core, so both write identical
+    manifests and footers. ``unique_dir`` is the workspace ``.unique`` directory
+    (its filenames are joined directly here — do not pass the workspace root).
+
+    - ``response`` is the raw ``unique_sdk.MCP`` result, used for citation
+      extraction (titles from ``resource_link`` names / JSON bodies).
+    - ``formatted_text`` is the source text the model actually saw for this
+      tool result, recorded as the hallucination groundedness context.
+
+    Best-effort and never raises: the underlying manifest writers swallow their
+    own errors, and ``_annotate_mcp_results_for_citations`` owns the per-turn
+    file lock — this function must stay lock-free to avoid a same-process flock
+    self-deadlock.
+    """
+    _append_mcp_output_manifest(
+        tool_name,
+        formatted_text,
+        server_name=server_name,
+        output_path=unique_dir / _MCP_OUTPUT_LOG_RELATIVE_PATH.name,
+    )
+    annotated = _annotate_mcp_results_for_citations(
+        response,
+        tool_name=tool_name,
+        server_name=server_name,
+        refs_log_path=unique_dir / _MCP_REFS_LOG_RELATIVE_PATH.name,
+    )
+    return _citation_footer(annotated)
 
 
 def _read_payload(
@@ -440,8 +490,11 @@ def cmd_mcp(
         formatted = f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
 
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
-    _append_mcp_output_manifest(name, formatted, server_name=server_name)
-    annotated = _annotate_mcp_results_for_citations(
-        response, tool_name=name, server_name=server_name
+    footer = record_mcp_citations(
+        response,
+        tool_name=name,
+        server_name=server_name,
+        unique_dir=Path.cwd() / ".unique",
+        formatted_text=formatted,
     )
-    return formatted + _citation_footer(annotated)
+    return formatted + footer
