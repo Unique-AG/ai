@@ -1,4 +1,4 @@
-import warnings
+from typing import TYPE_CHECKING, Any
 
 from .cancellation import CancellationEvent as CancellationEvent
 from .cancellation import CancellationWatcher as CancellationWatcher
@@ -9,12 +9,25 @@ from .schemas import ChatMessageAssessmentLabel as ChatMessageAssessmentLabel
 from .schemas import ChatMessageAssessmentStatus as ChatMessageAssessmentStatus
 from .schemas import ChatMessageAssessmentType as ChatMessageAssessmentType
 from .schemas import ChatMessageRole as ChatMessageRole
-
-# Import ChatService with deprecation warning suppressed for internal use
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", DeprecationWarning)
-    from .service import ChatService as ChatService
-
 from .utils import (
     convert_chat_history_to_injectable_string as convert_chat_history_to_injectable_string,
 )
+
+if TYPE_CHECKING:
+    from .service import ChatService as ChatService
+
+
+def __getattr__(name: str) -> Any:
+    # Lazy import to break the circular dependency:
+    # chat/__init__ → chat/service → chat/deprecated/service → chat/functions → chat/__init__
+    # ChatService here is the deprecated shim; the canonical path is
+    # unique_toolkit.services.chat_service.ChatService.
+    if name == "ChatService":
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            from unique_toolkit.chat.service import ChatService
+
+        return ChatService
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
