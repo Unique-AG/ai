@@ -1616,6 +1616,9 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 7, 1),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
