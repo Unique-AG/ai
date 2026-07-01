@@ -1205,6 +1205,155 @@ class TestInternalSearchTool:
         assert tool.chat_id == "parent_chat_456"
 
     @pytest.mark.ai
+    def test_tool__initializes__with_injected_services__defers_search_service_init(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+    ) -> None:
+        """
+        Purpose: Verify InternalSearchTool accepts injected chat_service/language_model_service
+            without an event and defers InternalSearchService setup.
+        Why this matters: Service injection must not eagerly build the search service, since the
+            content_service/event snapshot is only available once _on_services_injected() fires.
+        Setup summary: Construct with only chat_service/language_model_service, assert deferred.
+        """
+        chat_service = Mock()
+        language_model_service = Mock()
+
+        tool = InternalSearchTool(
+            configuration=base_internal_search_config,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
+
+        assert tool._chat_service is chat_service
+        assert tool._language_model_service is language_model_service
+        assert tool._search_service_initialized is False
+
+    @pytest.mark.ai
+    def test_tool__init__raises__when_neither_event_nor_services_provided(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+    ) -> None:
+        """
+        Purpose: Verify InternalSearchTool.__init__ rejects construction with no event and no
+            injected services.
+        Why this matters: Silently constructing an unusable tool would defer the failure to
+            first use instead of failing fast at wiring time.
+        Setup summary: Call constructor with only configuration, expect ValueError.
+        """
+        with pytest.raises(ValueError, match="requires event or injected chat_service"):
+            InternalSearchTool(configuration=base_internal_search_config)
+
+    @pytest.mark.ai
+    def test_initialize_search_service_from_services__raises__without_content_service(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+    ) -> None:
+        """
+        Purpose: Verify _initialize_search_service_from_services raises when content_service
+            was never injected.
+        Why this matters: ContentService is required to build InternalSearchService; a missing
+            injection must fail loudly rather than crash later with an AttributeError.
+        Setup summary: Construct tool via service injection, leave _content_service unset, call hook.
+        """
+        tool = InternalSearchTool(
+            configuration=base_internal_search_config,
+            chat_service=Mock(),
+            language_model_service=Mock(),
+        )
+        tool._content_service = None
+        tool._event = mock_chat_event
+
+        with pytest.raises(ValueError, match="requires injected content_service"):
+            tool._initialize_search_service_from_services()
+
+    @pytest.mark.ai
+    def test_initialize_search_service_from_services__raises__without_event(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+    ) -> None:
+        """
+        Purpose: Verify _initialize_search_service_from_services raises when no event snapshot
+            has been attached to the tool.
+        Why this matters: extract_selected_uploaded_file_ids needs a ChatEvent; without one the
+            tool cannot resolve which uploaded files are in scope.
+        Setup summary: Construct tool via service injection, leave _event unset, call hook.
+        """
+        tool = InternalSearchTool(
+            configuration=base_internal_search_config,
+            chat_service=Mock(),
+            language_model_service=Mock(),
+        )
+        tool._content_service = mock_content_service
+        tool._event = None
+
+        with pytest.raises(ValueError, match="requires tool_init_event snapshot"):
+            tool._initialize_search_service_from_services()
+
+    @pytest.mark.ai
+    def test_initialize_search_service_from_services__is_idempotent(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chat_event: Any,
+    ) -> None:
+        """
+        Purpose: Verify _initialize_search_service_from_services is a no-op once already run.
+        Why this matters: _on_services_injected() may be invoked more than once by callers;
+            re-running setup would clobber runtime state (e.g. accumulated debug_info).
+        Setup summary: Mark the tool as already initialized, call the hook, assert no ValueError
+            despite missing content_service/event (which would otherwise raise).
+        """
+        tool = InternalSearchTool(
+            configuration=base_internal_search_config,
+            chat_service=Mock(),
+            language_model_service=Mock(),
+        )
+        tool._search_service_initialized = True
+        tool._content_service = None
+        tool._event = None
+
+        tool._initialize_search_service_from_services()
+
+        assert tool._search_service_initialized is True
+
+    @pytest.mark.ai
+    def test_on_services_injected__builds_search_service__from_injected_state(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chat_event: Any,
+    ) -> None:
+        """
+        Purpose: Verify _on_services_injected() wires up InternalSearchService using the
+            injected content_service, chat_service, and event snapshot.
+        Why this matters: This is the hook ToolManager calls after service injection; if it
+            fails to build the search service, the tool would silently be unusable.
+        Setup summary: Construct via service injection, attach content_service/event, invoke hook.
+        """
+        chat_service = Mock()
+        chat_service.company_id = "company_123"
+        chat_service.user_id = "user_123"
+        chat_service._content_scope_chat_id = "chat_123"
+
+        tool = InternalSearchTool(
+            configuration=base_internal_search_config,
+            chat_service=chat_service,
+            language_model_service=Mock(),
+        )
+        tool._content_service = mock_content_service
+        tool._event = mock_chat_event
+
+        tool._on_services_injected()
+
+        assert tool._search_service_initialized is True
+        assert tool.content_service is mock_content_service
+        assert tool.chat_id == "chat_123"
+        assert tool.company_id == "company_123"
+
+    @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_post_progress_message__notifies_reporter__when_reporter_exists(
         self,

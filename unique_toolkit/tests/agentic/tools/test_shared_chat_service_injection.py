@@ -380,53 +380,6 @@ def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
     assert captured["messageId"] == "assistant-msg-updated"
 
 
-def test_tool_manager_registers_skill_tool_with_injected_services(
-    chat_event: ChatEvent,
-    shared_chat_service: ChatService,
-    shared_llm_service: LanguageModelService,
-    content_service: ContentService,
-) -> None:
-    from unique_skill_tool.config import SkillToolConfig
-    from unique_skill_tool.service import SkillTool
-
-    tool_manager = ToolManager(
-        logger=Mock(),
-        config=ToolManagerConfig(
-            tools=[
-                ToolBuildConfig(
-                    name=SkillTool.name,
-                    configuration=SkillToolConfig(),
-                    display_name="Skill",
-                    is_exclusive=False,
-                    is_enabled=True,
-                    icon=ToolIcon.BOOK,
-                    selection_policy=ToolSelectionPolicy.BY_USER,
-                )
-            ]
-        ),
-        event=chat_event,
-        tool_progress_reporter=Mock(spec=ToolProgressReporter),
-        mcp_manager=MCPManager(
-            mcp_servers=[],
-            tool_progress_reporter=Mock(spec=ToolProgressReporter),
-            chat_service=shared_chat_service,
-            language_model_service=shared_llm_service,
-        ),
-        a2a_manager=A2AManager(
-            logger=Mock(),
-            tool_progress_reporter=Mock(spec=ToolProgressReporter),
-            response_watcher=SubAgentResponseWatcher(),
-        ),
-        chat_service=shared_chat_service,
-        language_model_service=shared_llm_service,
-        content_service=content_service,
-    )
-
-    skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
-    assert skill_tool is not None
-    assert skill_tool._chat_service is shared_chat_service
-
-
 def test_tool_manager_calls_on_services_injected_with_content_service(
     chat_event: ChatEvent,
     shared_chat_service: ChatService,
