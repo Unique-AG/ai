@@ -173,8 +173,6 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
                 WebSearchTool.name,
                 RetrieveSearchScopeTool.name,
             ):
-                if not hasattr(tool.configuration, "language_model_max_input_tokens"):
-                    continue
                 tool.configuration.language_model_max_input_tokens = (  # type: ignore
                     info.data["language_model"].token_limits.token_limit_input
                 )
