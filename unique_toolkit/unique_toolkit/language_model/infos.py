@@ -83,12 +83,14 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
+    ANTHROPIC_CLAUDE_SONNET_5 = "litellm:anthropic-claude-sonnet-5"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
     ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
     ANTHROPIC_CLAUDE_OPUS_4_7 = "litellm:anthropic-claude-opus-4-7"
     ANTHROPIC_CLAUDE_OPUS_4_8 = "litellm:anthropic-claude-opus-4-8"
+    ANTHROPIC_CLAUDE_FABLE_5 = "litellm:anthropic-claude-fable-5"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
@@ -128,9 +130,11 @@ class LanguageModelName(StrEnum):
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
     VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
+    VERTEX_CLAUDE_SONNET_5 = "litellm:vertex-claude-sonnet-5"
     VERTEX_CLAUDE_OPUS_4_6 = "litellm:vertex-claude-opus-4-6"
     VERTEX_CLAUDE_OPUS_4_7 = "litellm:vertex-claude-opus-4-7"
     VERTEX_CLAUDE_OPUS_4_8 = "litellm:vertex-claude-opus-4-8"
+    VERTEX_CLAUDE_FABLE_5 = "litellm:vertex-claude-fable-5"
 
 
 class EncoderName(StrEnum):
@@ -1590,6 +1594,30 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 2, 17),
                     supported_reasoning_efforts=[],
                 )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5
+                | LanguageModelName.VERTEX_CLAUDE_SONNET_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-sonnet-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 7, 1),
+                    supported_reasoning_efforts=[],
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
                     name=model_name,
@@ -1723,6 +1751,30 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 5, 28),
+                    supported_reasoning_efforts=[],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_FABLE_5
+                | LanguageModelName.VERTEX_CLAUDE_FABLE_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-fable-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 7, 1),
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
