@@ -2,7 +2,9 @@ from logging import Logger
 
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_LANGUAGE_MODEL,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
@@ -19,7 +21,9 @@ class UserMemoryPostprocessor(Postprocessor):
         self,
         *,
         config: UserMemoryConfig,
-        language_model: LanguageModelInfo = LanguageModelInfo.from_name(DEFAULT_GPT_4o),
+        language_model: LanguageModelInfo = LanguageModelInfo.from_name(
+            DEFAULT_LANGUAGE_MODEL
+        ),
         event: ChatEvent,
         state: UserMemoryState,
         logger: Logger,

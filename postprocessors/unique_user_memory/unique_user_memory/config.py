@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_LANGUAGE_MODEL,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
@@ -20,7 +22,7 @@ class UserMemoryConfig(BaseModel):
         ),
     )
     language_model: LMI = Field(
-        default=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
+        default=LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
         description=(
             "The language model used for post-turn memory consolidation when "
             "'Use Orchestrator Language Model' is false."

@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_LANGUAGE_MODEL,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_user_memory.config import UserMemoryConfig
@@ -20,7 +22,7 @@ from unique_user_memory.user_memory import (
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 from unique_user_memory.user_memory_prompts import empty_profile
 
-_TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
+_TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
 
 
 def test_enforce_token_cap_truncates_long_content() -> None:
