@@ -1349,11 +1349,39 @@ def test_tool_build_config__disables_tool__with_wrong_config_type(
 
 
 @pytest.mark.ai
-def test_tool_build_config__skips_validation__when_disabled() -> None:
+def test_tool_build_config__resolves_config__when_disabled_but_valid(
+    register_simple_tool,
+) -> None:
     """
-    Purpose: Verify disabled tools skip config validation entirely.
-    Why this matters: Disabled tools should never crash due to invalid config.
-    Setup summary: Create config with is_enabled=False and unregistered name; assert no error.
+    Purpose: Verify a disabled tool with a valid config keeps its concrete config type.
+    Why this matters: Downstream validators key off the tool name and expect the
+    concrete config (e.g. to read language_model_max_input_tokens). A disabled tool
+    with a valid config must retain its resolved config, not a bare BaseToolConfig.
+    Setup summary: Create a disabled config for a registered tool; assert config resolved.
+    """
+    # Arrange — "test_tool" is registered to SimpleToolConfig by the fixture
+    config_data = {
+        "name": "test_tool",
+        "is_enabled": False,
+        "configuration": {"param_one": "kept", "param_two": 321},
+    }
+
+    # Act
+    config = ToolBuildConfig(**config_data)
+
+    # Assert — stays disabled, but the concrete config is preserved
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, SimpleToolConfig)
+    assert config.configuration.param_one == "kept"
+    assert config.configuration.param_two == 321
+
+
+@pytest.mark.ai
+def test_tool_build_config__demotes_disabled_tool__with_invalid_config() -> None:
+    """
+    Purpose: Verify a disabled tool with an invalid config is demoted, not crashed.
+    Why this matters: Disabled tools may carry stale/garbage config; loading must not fail.
+    Setup summary: Create config with is_enabled=False and unregistered name; assert fallback.
     """
     # Arrange — tool name is not registered, config is garbage, but tool is disabled
     config_data = {
@@ -1372,13 +1400,11 @@ def test_tool_build_config__skips_validation__when_disabled() -> None:
 
 
 @pytest.mark.ai
-def test_tool_build_config__skips_validation__when_disabled_with_camel_case_key() -> (
-    None
-):
+def test_tool_build_config__demotes_disabled_tool__with_camel_case_key() -> None:
     """
-    Purpose: Verify disabled tools skip validation when isEnabled uses camelCase.
+    Purpose: Verify a disabled tool with an invalid config is demoted when isEnabled is camelCase.
     Why this matters: Backend payloads use alias_generator=to_camel keys.
-    Setup summary: Create config with isEnabled=False and invalid config; assert no error.
+    Setup summary: Create config with isEnabled=False and invalid config; assert fallback.
     """
     config_data = {
         "name": "nonexistent_tool_xyz",
@@ -1394,11 +1420,9 @@ def test_tool_build_config__skips_validation__when_disabled_with_camel_case_key(
 
 
 @pytest.mark.ai
-def test_tool_build_config__skips_validation__when_disabled_with_null_configuration() -> (
-    None
-):
+def test_tool_build_config__demotes_disabled_tool__with_null_configuration() -> None:
     """
-    Purpose: Verify disabled tools with null configuration do not crash validation.
+    Purpose: Verify a disabled tool with null configuration does not crash validation.
     Why this matters: Disabled tools may carry incomplete backend payloads.
     Setup summary: Create disabled config with configuration=null; assert BaseToolConfig fallback.
     """
