@@ -317,7 +317,6 @@ async def _build_common(
 
     mcp_manager = MCPManager(
         mcp_servers=event.payload.mcp_servers,
-        event=event,
         tool_progress_reporter=tool_progress_reporter,
         chat_service=chat_service,
         language_model_service=llm_service,

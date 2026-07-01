@@ -205,12 +205,16 @@ class _ToolManager(Generic[_ApiMode]):
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
 
-        if tool_init_event is not None:
+        if self._chat_service is not None and self._language_model_service is not None:
+            tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
+                tool_configs,
+                chat_service=self._chat_service,
+                language_model_service=self._language_model_service,
+            )
+        elif tool_init_event is not None:
             tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
                 tool_configs,
                 tool_init_event,
-                chat_service=self._chat_service,
-                language_model_service=self._language_model_service,
             )
         else:
             tool_configs = [

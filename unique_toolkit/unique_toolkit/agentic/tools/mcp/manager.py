@@ -1,4 +1,7 @@
 import logging
+from typing import overload
+
+from typing_extensions import deprecated
 
 from unique_toolkit.agentic.tools.config import (
     ToolBuildConfig,
@@ -14,21 +17,57 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model import LanguageModelService
 
+_EVENT_INJECTION_DEPRECATED = (
+    "Passing event is deprecated. Inject chat_service and language_model_service."
+)
+
 
 class MCPManager:
+    @overload
+    def __init__(
+        self,
+        mcp_servers: list[McpServer],
+        *,
+        tool_progress_reporter: ToolProgressReporter,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+    ) -> None: ...
+
+    @overload
+    @deprecated(_EVENT_INJECTION_DEPRECATED)
     def __init__(
         self,
         mcp_servers: list[McpServer],
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        mcp_servers: list[McpServer],
+        event: ChatEvent | None = None,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
-    ):
+    ) -> None:
+        if tool_progress_reporter is None:
+            raise TypeError("tool_progress_reporter is required")
+
         self._mcp_servers = mcp_servers
-        self._event = event
         self._tool_progress_reporter = tool_progress_reporter
         self._chat_service = chat_service
         self._language_model_service = language_model_service
+
+        if chat_service is not None and language_model_service is not None:
+            self._event = event
+        elif event is not None:
+            self._event = event
+        else:
+            raise ValueError(
+                "MCPManager requires event or injected chat_service and "
+                "language_model_service"
+            )
 
     def get_mcp_servers(self):
         return self._mcp_servers
@@ -65,13 +104,18 @@ class MCPManager:
                             chat_service=self._chat_service,
                             language_model_service=self._language_model_service,
                         )
-                    else:
+                    elif self._event is not None:
                         wrapper = MCPToolWrapper(
                             mcp_server=server,
                             mcp_tool=tool,
                             config=config,
                             event=self._event,
                             tool_progress_reporter=self._tool_progress_reporter,
+                        )
+                    else:
+                        raise ValueError(
+                            "MCPManager requires event or injected chat_service and "
+                            "language_model_service"
                         )
                     wrapper.settings = ToolBuildConfig(  # TODO: this must be refactored to behave like the other tools.
                         name=tool.name,

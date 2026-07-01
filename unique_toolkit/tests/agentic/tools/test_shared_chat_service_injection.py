@@ -198,7 +198,6 @@ def test_tool_manager_passes_shared_chat_service_to_internal_tools(
             tool_progress_reporter=Mock(spec=ToolProgressReporter),
             mcp_manager=MCPManager(
                 mcp_servers=[],
-                event=chat_event,
                 tool_progress_reporter=Mock(spec=ToolProgressReporter),
                 chat_service=shared_chat_service,
                 language_model_service=shared_llm_service,

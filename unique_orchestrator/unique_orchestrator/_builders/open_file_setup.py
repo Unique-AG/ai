@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from logging import Logger
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
+from typing_extensions import deprecated
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -33,6 +34,11 @@ if TYPE_CHECKING:
     from unique_toolkit.agentic.reference_manager.reference_manager import (
         ReferenceManager,
     )
+
+_OPEN_FILE_INJECTION_DEPRECATED = (
+    "Passing event without chat_service and language_model_service is deprecated "
+    "for OpenFileTool wiring. Inject chat_service and language_model_service."
+)
 
 
 def handle_uploaded_file_tool_choices(
@@ -73,6 +79,34 @@ def handle_uploaded_file_tool_choices(
             "open-file tool is active.",
             len(uploaded_non_pdfs),
         )
+
+
+@overload
+def configure_file_payload(
+    config: UniqueAIConfig,
+    event: ChatEvent,
+    logger: Logger,
+    history_manager: HistoryManager,
+    reference_manager: ReferenceManager,
+    language_model: LanguageModelInfo,
+    tool_manager: ResponsesApiToolManager,
+    *,
+    chat_service: ChatService,
+    language_model_service: LanguageModelService,
+) -> tuple[HistoryManager, list[str]]: ...
+
+
+@overload
+@deprecated(_OPEN_FILE_INJECTION_DEPRECATED)
+def configure_file_payload(
+    config: UniqueAIConfig,
+    event: ChatEvent,
+    logger: Logger,
+    history_manager: HistoryManager,
+    reference_manager: ReferenceManager,
+    language_model: LanguageModelInfo,
+    tool_manager: ResponsesApiToolManager,
+) -> tuple[HistoryManager, list[str]]: ...
 
 
 def configure_file_payload(
@@ -124,11 +158,16 @@ def configure_file_payload(
                 chat_service=chat_service,
                 language_model_service=language_model_service,
             )
-        else:
+        elif event is not None:
             open_file_tool = OpenFileTool(
                 config=config.agent.experimental.open_file_tool_config,
                 registry=agent_file_registry,
                 event=event,
+            )
+        else:
+            raise ValueError(
+                "configure_file_payload requires event or injected chat_service and "
+                "language_model_service for OpenFileTool"
             )
         tool_manager.add_tool(open_file_tool)
 
