@@ -29,6 +29,16 @@ from unique_toolkit.language_model.schemas import (
 
 logger = logging.getLogger(__name__)
 
+# Default guidance appended to every MCP tool's system prompt. Tools that return
+# a list often surface only a single, tool-named reference (e.g. "search_..."),
+# because the list result carries no per-item title. Nudging the agent to fetch
+# each item individually yields a distinct, properly-titled reference per item.
+_LIST_ITEM_RETRIEVAL_GUIDANCE = (
+    "When using a tool that returns a list of items, try to retrieve detailed "
+    "information for each individual list item where possible (e.g. via a "
+    "get-by-id tool) instead of relying on the list result alone."
+)
+
 
 class MCPToolWrapper(Tool[MCPToolConfig]):
     """Wrapper class for MCP tools that implements the Tool interface"""
@@ -81,13 +91,15 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     def tool_description_for_system_prompt(self) -> str:
         """Return tool description for system prompt"""
         # Not using jinja here to keep it simple and not import new packages.
-        description = (
-            f"**MCP Server**: {self._mcp_server.name}\n"
-            f"**Tool Name**: {self.name}\n"
-            f"{self._mcp_tool.system_prompt}"
-        )
+        lines = [
+            f"**MCP Server**: {self._mcp_server.name}",
+            f"**Tool Name**: {self.name}",
+        ]
+        if self._mcp_tool.system_prompt:
+            lines.append(self._mcp_tool.system_prompt)
+        lines.append(_LIST_ITEM_RETRIEVAL_GUIDANCE)
 
-        return description
+        return "\n".join(lines)
 
     def tool_description_for_user_prompt(self) -> str:
         return self._mcp_tool.user_prompt or ""
