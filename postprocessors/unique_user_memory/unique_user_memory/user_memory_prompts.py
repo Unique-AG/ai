@@ -177,6 +177,91 @@ def consolidation_system_prompt(max_tokens: int) -> str:
     )
 
 
+_CONDENSATION_SYSTEM_PROMPT_TEMPLATE = """\
+You are a memory-compaction engine for the Unique AI platform.
+
+You are given an existing user-memory profile (Markdown with YAML
+frontmatter) that is OVER its size budget. Your job is to rewrite it so
+it becomes materially SHORTER while preserving every durable, high-signal
+fact about the user. This is lossy compression, not deletion of meaning.
+
+# Size target - STRICT
+
+- The current profile is about {{ current_tokens }} tokens.
+- You MUST bring it down to at most {{ target_tokens }} tokens
+  (roughly {{ target_words }} words) - about a {{ reduction_pct }}%
+  reduction. Aim comfortably under the target; do not stop early.
+
+# How to shrink (in priority order)
+
+1. Merge duplicate and near-duplicate bullets that state the same or
+   overlapping information into a single clear bullet. Redundancy is the
+   main reason this profile is oversized - collapse it aggressively.
+2. Delete outdated, stale, resolved, or superseded entries: old
+   "Recent Topics", answered "Open Questions / Follow-ups", and facts a
+   later bullet already contradicts or refines.
+3. Tighten verbose, flowery, or repetitive prose into short factual
+   bullets. Remove hedging and filler.
+4. Fold low-signal "Work Context" and "Skills & Expertise" bullets into
+   broader summary bullets.
+5. "Identity" and "Communication Preferences" carry the most durable
+   signal - tighten and de-duplicate them, but never drop a genuinely
+   distinct fact or preference.
+
+# Hard rules
+
+- NEVER invent, embellish, or add facts that are not already present.
+- Preserve the YAML frontmatter. Keep `user_id` and `schema_version`
+  exactly; keep `last_updated` and `turn_count` as they are.
+- Keep exactly these section headings, in this order, even if a section
+  becomes empty (use the literal string `_(empty)_`):
+
+{{ section_list }}
+
+- Resolve contradictions in favour of the most recent statement; never
+  keep two conflicting bullets.
+- Use `-` markdown bullets, no nesting beyond two levels, no emojis.
+
+# Output
+
+Return ONLY the complete rewritten profile file - frontmatter followed by
+the body. Do NOT emit a diff, do NOT wrap the output in ``` fences, and
+do NOT add any commentary before or after the file.
+"""
+
+
+def condensation_system_prompt(
+    *,
+    max_tokens: int,
+    current_tokens: int,
+    target_tokens: int,
+) -> str:
+    section_list = "\n".join(f"- ## {heading}" for heading in SECTION_HEADINGS)
+    safe_current = max(current_tokens, target_tokens + 1)
+    reduction_pct = int(round((1 - target_tokens / safe_current) * 100))
+    return Template(_CONDENSATION_SYSTEM_PROMPT_TEMPLATE).render(
+        section_list=section_list,
+        current_tokens=current_tokens,
+        target_tokens=target_tokens,
+        target_words=int(target_tokens * 0.75),
+        reduction_pct=max(reduction_pct, 1),
+        max_tokens=max_tokens,
+    )
+
+
+_CONDENSATION_USER_PROMPT_TEMPLATE = """\
+<profile_to_condense>
+{{ profile }}
+</profile_to_condense>
+
+Return the complete, condensed profile file now.
+"""
+
+
+def condensation_user_prompt(profile: str) -> str:
+    return Template(_CONDENSATION_USER_PROMPT_TEMPLATE).render(profile=profile)
+
+
 _CONSOLIDATION_USER_PROMPT_TEMPLATE = """\
 User ID: {{ user_id }}
 

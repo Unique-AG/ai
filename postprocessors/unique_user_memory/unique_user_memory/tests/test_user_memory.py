@@ -8,11 +8,13 @@ from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     UserMemoryState,
     _sanitize_for_xml_context,
+    condense_user_memory,
     consolidate_user_memory,
     count_tokens,
     download_user_memory,
     enforce_token_cap,
     ensure_user_memory_folder,
+    fit_user_memory,
     upload_user_memory,
 )
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
@@ -28,6 +30,113 @@ def test_enforce_token_cap_truncates_long_content() -> None:
 
     assert "<!-- truncated to fit memory budget -->" in capped
     assert len(capped) < len(content)
+
+
+def test_enforce_token_cap_keeps_body_when_section_exceeds_budget() -> None:
+    # A single section whose bullets are joined by single newlines used to be
+    # treated as one indivisible paragraph, dropping the whole body.
+    bullets = "\n".join(f"- fact number {index} about the user" for index in range(200))
+    content = f"# User Memory\n\n## Identity\n{bullets}"
+
+    capped = enforce_token_cap(content=content, max_tokens=120)
+
+    assert "<!-- truncated to fit memory budget -->" in capped
+    assert "# User Memory" in capped
+    assert "## Identity" in capped
+    # Some individual bullets survive rather than only the heading.
+    assert "- fact number 0 about the user" in capped
+    assert count_tokens(content=capped) <= 120
+
+
+@pytest.mark.asyncio
+async def test_fit_user_memory_returns_unchanged_when_within_budget() -> None:
+    content = "# User Memory\n\n## Identity\n- short"
+
+    result = await fit_user_memory(
+        content=content,
+        max_tokens=2000,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == content
+
+
+@pytest.mark.asyncio
+async def test_fit_user_memory_condenses_before_hard_cut(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    oversized = "# User Memory\n\n## Identity\n" + "\n".join(
+        f"- fact number {index} that is fairly wordy about the user"
+        for index in range(400)
+    )
+    condensed = "# User Memory\n\n## Identity\n- concise summary of the user"
+    condense = AsyncMock(return_value=condensed)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.condense_user_memory",
+        condense,
+    )
+
+    result = await fit_user_memory(
+        content=oversized,
+        max_tokens=120,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == condensed
+    condense.assert_awaited_once()
+    assert "<!-- truncated to fit memory budget -->" not in result
+
+
+@pytest.mark.asyncio
+async def test_fit_user_memory_hard_cuts_when_condense_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    oversized = "# User Memory\n\n## Identity\n" + "\n".join(
+        f"- fact number {index} about the user" for index in range(400)
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.condense_user_memory",
+        AsyncMock(return_value=None),
+    )
+
+    result = await fit_user_memory(
+        content=oversized,
+        max_tokens=120,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert "<!-- truncated to fit memory budget -->" in result
+    assert count_tokens(content=result) <= 120
+
+
+@pytest.mark.asyncio
+async def test_condense_user_memory_rejects_non_profile_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.choices[0].message.content = "sorry, I cannot help"
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await condense_user_memory(
+        content="# User Memory\n\n## Identity\n- lots of stuff",
+        max_tokens=2000,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is None
 
 
 def test_count_tokens_uses_language_model_encoder() -> None:

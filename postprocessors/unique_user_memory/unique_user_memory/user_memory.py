@@ -23,6 +23,8 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory_prompts import (
     SECTION_HEADINGS,
+    condensation_system_prompt,
+    condensation_user_prompt,
     consolidation_system_prompt,
     consolidation_user_prompt,
     empty_profile,
@@ -31,6 +33,9 @@ from unique_user_memory.user_memory_prompts import (
 MEMORY_FILENAME = "memory.md"
 MIME_TYPE = "text/markdown"
 _LLM_OUTPUT_HEADROOM_TOKENS = 200
+# When condensing an oversized profile, aim below the hard cap so the LLM
+# output leaves headroom and the hard-cut safety net rarely has to fire.
+_CONDENSE_TARGET_RATIO = 0.9
 _TRUNCATION_MARKER = "\n\n<!-- truncated to fit memory budget -->"
 _DEFAULT_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
@@ -85,18 +90,22 @@ def enforce_token_cap(
 
     marker_tokens = _count_tokens(content=_TRUNCATION_MARKER, encode=encode)
     target = max(0, max_tokens - marker_tokens)
-    paragraphs = content.split("\n\n")
+    # Split on lines rather than blank-line paragraphs: memory profiles keep
+    # each bullet on its own line inside a section, so paragraph-level cuts
+    # would treat a whole (multi-thousand-token) section as one indivisible
+    # unit and drop the entire body once it exceeds the budget.
+    lines = content.split("\n")
     accepted: list[str] = []
     running = 0
-    for paragraph in paragraphs:
-        paragraph_tokens = _count_tokens(content=paragraph + "\n\n", encode=encode)
-        if running + paragraph_tokens > target:
+    for line in lines:
+        line_tokens = _count_tokens(content=line + "\n", encode=encode)
+        if running + line_tokens > target:
             break
-        accepted.append(paragraph)
-        running += paragraph_tokens
+        accepted.append(line)
+        running += line_tokens
 
     if accepted:
-        truncated = "\n\n".join(accepted)
+        truncated = "\n".join(accepted)
     else:
         truncated = decode(encode(content)[:target])
 
@@ -110,6 +119,159 @@ def enforce_token_cap(
     if _count_tokens(content=result, encode=encode) > max_tokens:
         result = decode(encode(result)[:max_tokens])
 
+    return result
+
+
+async def condense_user_memory(
+    *,
+    content: str,
+    max_tokens: int,
+    language_model: LanguageModelInfo,
+    event: ChatEvent,
+    logger: Logger,
+) -> str | None:
+    """Ask the LLM to rewrite an oversized profile into a shorter one.
+
+    Removes duplicate and outdated bullets and tightens prose, targeting a
+    fraction of the hard cap so the result leaves headroom. Returns the
+    condensed profile, or ``None`` when the call fails or the output does
+    not look like a profile (the caller then falls back to a hard cut).
+    """
+    current_tokens = count_tokens(content=content, language_model=language_model)
+    target_tokens = max(1, int(max_tokens * _CONDENSE_TARGET_RATIO))
+
+    try:
+        llm_service = LanguageModelService(event)
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] cannot construct LanguageModelService for condense: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    messages = LanguageModelMessages(
+        [
+            LanguageModelSystemMessage(
+                content=condensation_system_prompt(
+                    max_tokens=max_tokens,
+                    current_tokens=current_tokens,
+                    target_tokens=target_tokens,
+                )
+            ),
+            LanguageModelUserMessage(
+                content=condensation_user_prompt(_sanitize_for_xml_context(content))
+            ),
+        ]
+    )
+
+    try:
+        response = await llm_service.complete_async(
+            messages=messages,
+            model_name=language_model.name,
+            other_options={"max_tokens": max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS},
+        )
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] condense LLM call failed (model=%s): [%s] %s",
+            language_model.name,
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    try:
+        raw = response.choices[0].message.content or ""
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] could not extract content from condense response: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return None
+
+    if not isinstance(raw, str):
+        logger.warning(
+            "[user-memory] condense returned non-string content (%s)",
+            type(raw).__name__,
+        )
+        return None
+
+    candidate = _strip_code_fences(raw).strip()
+    if not _is_well_formed_profile(candidate):
+        logger.warning(
+            "[user-memory] condense output did not look like a profile (%d chars)",
+            len(candidate),
+        )
+        return None
+
+    return candidate
+
+
+async def fit_user_memory(
+    *,
+    content: str,
+    max_tokens: int,
+    language_model: LanguageModelInfo,
+    event: ChatEvent,
+    logger: Logger,
+) -> str:
+    """Ensure ``content`` fits ``max_tokens``, condensing before cutting.
+
+    Fast path: content already within budget is returned untouched (no LLM
+    call). Otherwise the profile is first condensed by the LLM, and only a
+    still-oversized result is hard-cut by :func:`enforce_token_cap`.
+    """
+    if not content:
+        return content
+
+    if count_tokens(content=content, language_model=language_model) <= max_tokens:
+        return content
+
+    current_tokens = count_tokens(content=content, language_model=language_model)
+    logger.info(
+        "[user-memory] memory over budget (%d > %d tokens) - condensing via LLM",
+        current_tokens,
+        max_tokens,
+    )
+    condensed = await condense_user_memory(
+        content=content,
+        max_tokens=max_tokens,
+        language_model=language_model,
+        event=event,
+        logger=logger,
+    )
+    if condensed is not None:
+        condensed_tokens = count_tokens(
+            content=condensed, language_model=language_model
+        )
+        if condensed_tokens <= max_tokens:
+            logger.info(
+                "[user-memory] memory condensed from %d to %d tokens (cap=%d)",
+                current_tokens,
+                condensed_tokens,
+                max_tokens,
+            )
+            return condensed
+        logger.info(
+            "[user-memory] still over budget after condense (%d > %d) - "
+            "applying hard cut",
+            condensed_tokens,
+            max_tokens,
+        )
+        content = condensed
+
+    result = enforce_token_cap(
+        content=content,
+        max_tokens=max_tokens,
+        language_model=language_model,
+    )
+    logger.info(
+        "[user-memory] memory condensed from %d to %d tokens (cap=%d)",
+        current_tokens,
+        count_tokens(content=result, language_model=language_model),
+        max_tokens,
+    )
     return result
 
 
@@ -144,10 +306,12 @@ async def load_user_memory(
     )
     return UserMemoryState(
         scope_id=scope_id,
-        text=enforce_token_cap(
+        text=await fit_user_memory(
             content=text,
             max_tokens=config.max_tokens,
             language_model=language_model,
+            event=event,
+            logger=logger,
         ),
     )
 
@@ -495,10 +659,12 @@ async def consolidate_user_memory(
         )
         return safe_current
 
-    capped = enforce_token_cap(
+    capped = await fit_user_memory(
         content=candidate,
         max_tokens=config.max_tokens,
         language_model=language_model,
+        event=event,
+        logger=logger,
     )
     if (
         safe_current
