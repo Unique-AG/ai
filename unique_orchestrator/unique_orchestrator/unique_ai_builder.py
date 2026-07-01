@@ -531,6 +531,7 @@ async def _build_responses(
         builtin_tool_manager=builtin_tool_manager,
         chat_service=common_components.chat_service,
         language_model_service=common_components.llm_service,
+        content_service=common_components.content_service,
     )
     if (
         not config.agent.experimental.open_file_tool_config.enabled
@@ -636,6 +637,7 @@ async def _build_completions(
         a2a_manager=common_components.a2a_manager,
         chat_service=common_components.chat_service,
         language_model_service=common_components.llm_service,
+        content_service=common_components.content_service,
     )
     if force_uploaded_search:
         tool_manager.add_forced_tool(UploadedSearchTool.name)

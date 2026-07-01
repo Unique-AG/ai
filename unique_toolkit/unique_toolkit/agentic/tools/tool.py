@@ -18,6 +18,7 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model import LanguageModelToolDescription
 
 if TYPE_CHECKING:
+    from unique_toolkit.content.service import ContentService
     from unique_toolkit.language_model.service import LanguageModelService
     from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.language_model.schemas import (
@@ -229,6 +230,7 @@ class Tool(ABC, Generic[ConfigType]):
         module_name = "default overwrite for module name"
         self.logger = getLogger(f"{module_name}.{__name__}")
         self.debug_info: dict[str, Any] = {}
+        self._content_service: ContentService | None = None
 
         if (chat_service is None) != (language_model_service is None):
             raise ValueError(
@@ -306,3 +308,6 @@ class Tool(ABC, Generic[ConfigType]):
     )
     def tool_progress_reporter(self) -> ToolProgressReporter | None:
         return getattr(self, "_tool_progress_reporter", None)
+
+    def _on_services_injected(self) -> None:
+        """Hook for tools that defer event/service-derived init until after injection."""

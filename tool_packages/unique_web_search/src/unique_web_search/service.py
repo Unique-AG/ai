@@ -73,19 +73,38 @@ class WebSearchTool(Tool[WebSearchConfig]):
         **kwargs,
     ):
         super().__init__(configuration, *args, **kwargs)
-        # TODO (UN-17100): Propagate orchestrator LLM into tool initialization.
-        # Until then, fall back to the per-tool token-counting model.
         self.language_model_orchestrator = (
             language_model_orchestrator or configuration.token_counting_language_model
         )
+        self._display_name = kwargs.get("display_name", "Web Search")
+        self._deferred_init_done = False
+        if getattr(self, "_event", None) is not None:
+            self._complete_deferred_init()
+
+    @override
+    def _on_services_injected(self) -> None:
+        self._complete_deferred_init()
+
+    def _complete_deferred_init(self) -> None:
+        if self._deferred_init_done:
+            return
+        if not hasattr(self, "_chat_service"):
+            return
 
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
             self.language_model_service,
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
-        self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
-        self.company_id = self.event.company_id
+        if getattr(self, "_event", None) is not None:
+            self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
+            self.company_id = self.event.company_id
+        else:
+            self.chunk_relevancy_sorter = ChunkRelevancySorter(
+                company_id=self._chat_service.company_id,
+                user_id=self._chat_service.user_id,
+            )
+            self.company_id = self._chat_service.company_id
         self.chat_history_token_length = 0
         self.chat_history_chat_messages = self._chat_service.get_full_history()
 
@@ -96,10 +115,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
             decoder=self.language_model_orchestrator.get_decoder(),
         )
         self.debug = self.config.debug
-        self._display_name = kwargs.get("display_name", "Web Search")
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
@@ -110,6 +127,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
         self.content_reducer = content_reducer
+        self._deferred_init_done = True
 
     def _resolve_search_engine_mode(self) -> SearchEngineMode:
         """Derive the search-engine mode, respecting CustomAPI overrides."""

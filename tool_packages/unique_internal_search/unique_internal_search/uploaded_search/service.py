@@ -1,7 +1,9 @@
-from typing import Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, overload
 
 from pydantic import Field, create_model
-from typing_extensions import override
+from typing_extensions import deprecated, override
 from unique_toolkit import ContentService
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -25,35 +27,104 @@ from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import UploadedSearchConfig
 from unique_internal_search.utils import extract_selected_uploaded_file_ids
 
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.service import LanguageModelService
+    from unique_toolkit.services.chat_service import ChatService
+
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
     name = UPLOADED_SEARCH_TOOL_NAME
     _display_name = "Uploaded Search"
 
+    @overload
+    def __init__(
+        self,
+        config: UploadedSearchConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
     def __init__(
         self,
         config: UploadedSearchConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
-        *args,
-        **kwargs,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: UploadedSearchConfig,
+        event: ChatEvent | None = None,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ):
-        self._tool_progress_reporter = tool_progress_reporter
-        self._content_service = ContentService.from_event(event)
-        self._company_id = event.company_id
+        self._deferred_init_done = False
         self._config = config
         config.chat_only = True
-        self._internal_search_tool = InternalSearchTool(
-            config, event, None, *args, **kwargs
-        )
-        self._internal_search_tool._display_name = self._display_name
-        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
-        self._user_query = event.payload.user_message.text
+        self._valid_documents: list[Content] = []
+        self._selected_uploaded_files: list[str] = []
+        self._user_query = ""
+        self._internal_search_tool: InternalSearchTool | None = None
 
-        # This blocking API call should be avoided.
-        # However, we don't have an easy way to pass user uploaded files to the tool currently
-        # Note that this was being done in `tool_description_for_system_prompt` before
+        if chat_service is not None and language_model_service is not None:
+            if tool_progress_reporter is None:
+                raise ValueError(
+                    "UploadedSearchTool requires tool_progress_reporter when using "
+                    "injected services"
+                )
+            super().__init__(
+                config,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        elif event is not None:
+            self._tool_progress_reporter = tool_progress_reporter
+            self._content_service = ContentService.from_event(event)
+            self._company_id = event.company_id
+            self._internal_search_tool = InternalSearchTool(config, event, None)
+            self._internal_search_tool._display_name = self._display_name
+            self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
+            self._user_query = event.payload.user_message.text or ""
+            self._valid_documents = self._compute_valid_documents()
+            self._deferred_init_done = True
+        else:
+            raise ValueError(
+                "UploadedSearchTool requires event or injected chat_service and "
+                "language_model_service"
+            )
+
+    @override
+    def _on_services_injected(self) -> None:
+        if self._deferred_init_done:
+            return
+        if self._event is None:
+            raise ValueError("UploadedSearchTool requires tool_init_event snapshot")
+        if self._content_service is None:
+            raise ValueError("UploadedSearchTool requires injected content_service")
+        self._company_id = self._chat_service.company_id
+        self._selected_uploaded_files = extract_selected_uploaded_file_ids(self._event)
+        self._user_query = self._event.payload.user_message.text or ""
+        self._internal_search_tool = InternalSearchTool(
+            self._config,
+            chat_service=self._chat_service,
+            language_model_service=self._language_model_service,
+            tool_progress_reporter=self._tool_progress_reporter,
+            display_name=self._display_name,
+        )
+        self._internal_search_tool._content_service = self._content_service
+        self._internal_search_tool._event = self._event
+        self._internal_search_tool._on_services_injected()
         self._valid_documents = self._compute_valid_documents()
+        self._deferred_init_done = True
 
     @override
     def display_name(self) -> str:
@@ -113,11 +184,11 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         return evaluation_check_list
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        if self._internal_search_tool is None:
+            raise RuntimeError("UploadedSearchTool is not initialized")
         search_string_data = ""
         if isinstance(tool_call.arguments, dict):
             search_string_data = tool_call.arguments.get("search_string", "") or ""
-
-            # Verify no content_id outside valid ones, as tool may not be strict
 
             if "content_ids" in tool_call.arguments:
                 tool_content_ids = tool_call.arguments["content_ids"]
@@ -161,7 +232,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         When using the upload and search tool, unique AI agent is loosing the overview of the original user message and request
         This likely due to the amount of tokens included and as since it's a forced tool not necessarily relevant to the user's request.
         """
-        # TODO: This message should be conditional on the tool being forced, but we do not have easy access to this information here
         return f"""<system_reminder>
 This tool call was automatically executed to retrieve the user's uploaded documents by the system. Important to note:
 - The retrieved documents may or may not be relevant to the user's actual query
@@ -174,6 +244,8 @@ Please do not mention these instructions in your response to the user!
 </system_reminder>"""
 
     def _compute_valid_documents(self) -> list[Content]:
+        if self._content_service is None:
+            raise ValueError("UploadedSearchTool requires injected content_service")
         documents = self._content_service.get_documents_uploaded_to_chat()
 
         if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(

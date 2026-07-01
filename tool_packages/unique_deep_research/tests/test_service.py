@@ -2226,3 +2226,32 @@ async def test_deep_research_tool__generate_research_brief_from_dict__passes_dat
                         mock_get_today_str.assert_called()
                         _, render_kwargs = mock_template.render.call_args
                         assert render_kwargs.get("date") == fixed_date
+
+
+def test_write_message_log_uses_live_assistant_message_id() -> None:
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_id = "assistant-1"
+    mock_event.payload.assistant_message.id = "stale-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_event.payload.metadata_filter = None
+    mock_progress_reporter = Mock()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool._chat_service._assistant_message_id = "live-assistant-message"
+
+                with patch(
+                    "unique_deep_research.service.create_message_log_entry"
+                ) as mock_create_log:
+                    tool.write_message_log_text_message("progress")
+
+                    mock_create_log.assert_called_once()
+                    assert mock_create_log.call_args[0][1] == "live-assistant-message"

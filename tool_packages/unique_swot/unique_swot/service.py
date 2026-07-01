@@ -52,6 +52,19 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     def __init__(self, configuration: SwotAnalysisToolConfig, *args, **kwargs):
         super().__init__(configuration, *args, **kwargs)
+        self._deferred_init_done = False
+        if getattr(self, "_event", None) is not None:
+            self._complete_deferred_init()
+
+    @override
+    def _on_services_injected(self) -> None:
+        self._complete_deferred_init()
+
+    def _complete_deferred_init(self) -> None:
+        if self._deferred_init_done:
+            return
+        if getattr(self, "_event", None) is None:
+            return
 
         self._metadata_filter = self._event.payload.metadata_filter
 
@@ -63,6 +76,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             chat_id=self._event.payload.chat_id,
             message_id=None,
         )
+        self._deferred_init_done = True
 
     def _get_document_template(self, template_content_id: str | None) -> bytes | None:
         if not template_content_id:

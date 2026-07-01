@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Awaitable, Callable
+from typing import TYPE_CHECKING, Awaitable, Callable, overload
 
 from pydantic import Field, create_model
-from typing_extensions import override
+from typing_extensions import deprecated, override
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
+    from unique_toolkit.language_model.service import LanguageModelService
+    from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -20,7 +24,10 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.agentic.tools.tool_progress_reporter import (
+    ProgressState,
+    ToolProgressReporter,
+)
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import Content, ContentChunk
@@ -358,15 +365,63 @@ class InternalSearchService:
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     name = INTERNAL_SEARCH_TOOL_NAME
 
+    @overload
+    def __init__(
+        self,
+        configuration: InternalSearchConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        display_name: str = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
     def __init__(
         self,
         configuration: InternalSearchConfig,
         event: ChatEvent,
-        *args,
-        **kwargs,
-    ):
-        Tool.__init__(self, configuration, event, *args, **kwargs)
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        *,
+        display_name: str = ...,
+    ) -> None: ...
 
+    def __init__(
+        self,
+        configuration: InternalSearchConfig,
+        event: ChatEvent | None = None,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        display_name: str = "Internal Search",
+    ):
+        self._search_service_initialized = False
+        self._display_name = display_name
+        self._configuration = configuration
+        if chat_service is not None and language_model_service is not None:
+            Tool.__init__(
+                self,
+                configuration,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        elif event is not None:
+            Tool.__init__(self, configuration, event, tool_progress_reporter)
+            self._initialize_search_service_from_event(configuration)
+        else:
+            raise ValueError(
+                "InternalSearchTool requires event or injected chat_service and "
+                "language_model_service"
+            )
+
+    def _initialize_search_service_from_event(
+        self, configuration: InternalSearchConfig
+    ) -> None:
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
         selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self.event)
@@ -374,7 +429,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             chat_id = self.event.payload.correlation.parent_chat_id
         else:
             chat_id = self.event.payload.chat_id
-        self._display_name = kwargs.get("display_name", "Internal Search")
         InternalSearchService.__init__(
             self,
             config=configuration,
@@ -385,6 +439,34 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             logger=self.logger,
             selected_uploaded_file_ids=selected_uploaded_file_ids,
         )
+        self._search_service_initialized = True
+
+    def _initialize_search_service_from_services(self) -> None:
+        if self._search_service_initialized:
+            return
+        if not hasattr(self, "_content_service") or self._content_service is None:
+            raise ValueError("InternalSearchTool requires injected content_service")
+        if self._event is None:
+            raise ValueError("InternalSearchTool requires tool_init_event snapshot")
+        selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self._event)
+        InternalSearchService.__init__(
+            self,
+            config=self._configuration,
+            content_service=self._content_service,
+            chunk_relevancy_sorter=ChunkRelevancySorter(
+                company_id=self._chat_service.company_id,
+                user_id=self._chat_service.user_id,
+            ),
+            chat_id=self._chat_service._content_scope_chat_id,
+            company_id=self._chat_service.company_id,
+            logger=self.logger,
+            selected_uploaded_file_ids=selected_uploaded_file_ids,
+        )
+        self._search_service_initialized = True
+
+    @override
+    def _on_services_injected(self) -> None:
+        self._initialize_search_service_from_services()
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs

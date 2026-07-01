@@ -23,6 +23,7 @@ from unique_toolkit.agentic.tools.tool_manager import ToolManager, ToolManagerCo
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -128,6 +129,55 @@ class _FixedInitTool(Tool[_FixedInitToolConfig]):
         return []
 
 
+class _DeferredInitToolConfig(BaseToolConfig):
+    pass
+
+
+class _DeferredInitTool(Tool[_DeferredInitToolConfig]):
+    """Mirrors package tools that defer event-derived init to _on_services_injected."""
+
+    name = "deferred_init_tool"
+
+    def __init__(
+        self,
+        config: _DeferredInitToolConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+    ) -> None:
+        super().__init__(
+            config,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
+        self.initialized = False
+
+    def _on_services_injected(self) -> None:
+        if self._event is None:
+            raise ValueError("missing event snapshot")
+        if not hasattr(self, "_content_service") or self._content_service is None:
+            raise ValueError("missing content_service")
+        self.initialized = True
+
+    def tool_description(self) -> LanguageModelToolDescription:
+        return LanguageModelToolDescription(
+            name=self.name,
+            description="test",
+            parameters=dict,
+        )
+
+    async def run(self, tool_call: LanguageModelFunction):
+        raise NotImplementedError
+
+    def evaluation_check_list(self) -> list[EvaluationMetricName]:
+        return []
+
+    def get_evaluation_checks_based_on_tool_response(self, tool_response):
+        return []
+
+
 @pytest.fixture
 def chat_event() -> ChatEvent:
     event = Mock(spec=ChatEvent)
@@ -141,6 +191,11 @@ def chat_event() -> ChatEvent:
     event.payload.disabled_tools = []
     event.payload.mcp_servers = []
     return event
+
+
+@pytest.fixture
+def content_service(chat_event: ChatEvent) -> ContentService:
+    return ContentService.from_event(chat_event)
 
 
 @pytest.fixture
@@ -323,3 +378,105 @@ def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
     asyncio.run(wrapper._call_mcp_tool_via_sdk({}))
 
     assert captured["messageId"] == "assistant-msg-updated"
+
+
+def test_tool_manager_registers_skill_tool_with_injected_services(
+    chat_event: ChatEvent,
+    shared_chat_service: ChatService,
+    shared_llm_service: LanguageModelService,
+    content_service: ContentService,
+) -> None:
+    from unique_skill_tool.config import SkillToolConfig
+    from unique_skill_tool.service import SkillTool
+
+    tool_manager = ToolManager(
+        logger=Mock(),
+        config=ToolManagerConfig(
+            tools=[
+                ToolBuildConfig(
+                    name=SkillTool.name,
+                    configuration=SkillToolConfig(),
+                    display_name="Skill",
+                    is_exclusive=False,
+                    is_enabled=True,
+                    icon=ToolIcon.BOOK,
+                    selection_policy=ToolSelectionPolicy.BY_USER,
+                )
+            ]
+        ),
+        event=chat_event,
+        tool_progress_reporter=Mock(spec=ToolProgressReporter),
+        mcp_manager=MCPManager(
+            mcp_servers=[],
+            tool_progress_reporter=Mock(spec=ToolProgressReporter),
+            chat_service=shared_chat_service,
+            language_model_service=shared_llm_service,
+        ),
+        a2a_manager=A2AManager(
+            logger=Mock(),
+            tool_progress_reporter=Mock(spec=ToolProgressReporter),
+            response_watcher=SubAgentResponseWatcher(),
+        ),
+        chat_service=shared_chat_service,
+        language_model_service=shared_llm_service,
+        content_service=content_service,
+    )
+
+    skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
+    assert skill_tool is not None
+    assert skill_tool._chat_service is shared_chat_service
+
+
+def test_tool_manager_calls_on_services_injected_with_content_service(
+    chat_event: ChatEvent,
+    shared_chat_service: ChatService,
+    shared_llm_service: LanguageModelService,
+    content_service: ContentService,
+) -> None:
+    from unique_toolkit.agentic.tools.factory import ToolFactory
+
+    ToolFactory.register_tool(_DeferredInitTool, _DeferredInitToolConfig)
+    chat_event.payload.tool_choices = [_DeferredInitTool.name]
+
+    try:
+        tool_manager = ToolManager(
+            logger=Mock(),
+            config=ToolManagerConfig(
+                tools=[
+                    ToolBuildConfig(
+                        name=_DeferredInitTool.name,
+                        configuration=_DeferredInitToolConfig(),
+                        display_name="Deferred Init Tool",
+                        is_exclusive=False,
+                        is_enabled=True,
+                        icon=ToolIcon.BOOK,
+                        selection_policy=ToolSelectionPolicy.BY_USER,
+                    )
+                ]
+            ),
+            event=chat_event,
+            tool_progress_reporter=Mock(spec=ToolProgressReporter),
+            mcp_manager=MCPManager(
+                mcp_servers=[],
+                tool_progress_reporter=Mock(spec=ToolProgressReporter),
+                chat_service=shared_chat_service,
+                language_model_service=shared_llm_service,
+            ),
+            a2a_manager=A2AManager(
+                logger=Mock(),
+                tool_progress_reporter=Mock(spec=ToolProgressReporter),
+                response_watcher=SubAgentResponseWatcher(),
+            ),
+            chat_service=shared_chat_service,
+            language_model_service=shared_llm_service,
+            content_service=content_service,
+        )
+
+        deferred_tool = tool_manager.get_tool_by_name(_DeferredInitTool.name)
+        assert deferred_tool is not None
+        assert deferred_tool.initialized is True
+        assert deferred_tool._content_service is content_service
+        assert deferred_tool._event is chat_event
+    finally:
+        ToolFactory.tool_map.pop(_DeferredInitTool.name, None)
+        ToolFactory.tool_config_map.pop(_DeferredInitTool.name, None)

@@ -38,6 +38,7 @@ from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -94,6 +95,7 @@ class _ToolManager(Generic[_ApiMode]):
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         self._setup(
             logger=logger,
@@ -106,6 +108,7 @@ class _ToolManager(Generic[_ApiMode]):
             builtin_tool_manager=builtin_tool_manager,
             chat_service=chat_service,
             language_model_service=language_model_service,
+            content_service=content_service,
         )
 
     @classmethod
@@ -122,6 +125,7 @@ class _ToolManager(Generic[_ApiMode]):
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> Self:
         instance = cls.__new__(cls)
         instance._setup(
@@ -135,6 +139,7 @@ class _ToolManager(Generic[_ApiMode]):
             builtin_tool_manager=builtin_tool_manager,
             chat_service=chat_service,
             language_model_service=language_model_service,
+            content_service=content_service,
         )
         return instance
 
@@ -151,12 +156,14 @@ class _ToolManager(Generic[_ApiMode]):
         builtin_tool_manager: OpenAIBuiltInToolManager | None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
         self._chat_service = chat_service
         self._language_model_service = language_model_service
+        self._content_service = content_service
         self._tools: list[Tool[Any] | OpenAIBuiltInTool[Any]] = []
         self._tool_choices = run_context.tool_choices
         self._disabled_tools = run_context.disabled_tools
@@ -198,6 +205,9 @@ class _ToolManager(Generic[_ApiMode]):
         )
         if tool_init_event is not None:
             tool._event = tool_init_event
+        if self._content_service is not None:
+            tool._content_service = self._content_service
+        tool._on_services_injected()
 
     def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
         tool_choices = self._tool_choices
@@ -741,6 +751,7 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         a2a_manager: A2AManager,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         super().__init__(
             logger=logger,
@@ -753,6 +764,7 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             builtin_tool_manager=None,
             chat_service=chat_service,
             language_model_service=language_model_service,
+            content_service=content_service,
         )
 
     @classmethod
@@ -769,6 +781,7 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> Self:
         return super().from_run_context(
             logger=logger,
@@ -781,6 +794,7 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             builtin_tool_manager=builtin_tool_manager,
             chat_service=chat_service,
             language_model_service=language_model_service,
+            content_service=content_service,
         )
 
 
@@ -796,6 +810,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         builtin_tool_manager: OpenAIBuiltInToolManager,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         self._builtin_tool_manager = builtin_tool_manager
         super().__init__(
@@ -809,6 +824,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             builtin_tool_manager=builtin_tool_manager,
             chat_service=chat_service,
             language_model_service=language_model_service,
+            content_service=content_service,
         )
 
     @classmethod
@@ -825,6 +841,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> Self:
         if builtin_tool_manager is None:
             msg = "builtin_tool_manager is required for ResponsesApiToolManager"
@@ -840,6 +857,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             builtin_tool_manager=builtin_tool_manager,
             chat_service=chat_service,
             language_model_service=language_model_service,
+            content_service=content_service,
         )
 
     def get_required_include_params(self) -> list[ResponseIncludable]:
