@@ -11,9 +11,20 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 class UserMemoryConfig(BaseModel):
     model_config = get_configuration_dict()
 
+    use_orchestrator_language_model: bool = Field(
+        default=True,
+        description=(
+            "When true, post-turn memory consolidation uses the orchestrator's "
+            "language model and the configured 'language_model' is ignored. "
+            "When false, the configured 'language_model' is used."
+        ),
+    )
     language_model: LMI = Field(
         default=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
-        description="The language model used for post-turn memory consolidation.",
+        description=(
+            "The language model used for post-turn memory consolidation when "
+            "'Use Orchestrator Language Model' is false."
+        ),
     )
     max_tokens: int = Field(
         default=2000,

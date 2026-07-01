@@ -83,7 +83,8 @@ config = UserMemoryConfig(
 
 | Field | Default | Description |
 | --- | --- | --- |
-| `language_model` | `DEFAULT_GPT_4o` | Model used to consolidate the latest turn into the profile. |
+| `use_orchestrator_language_model` | `True` | When true, consolidation uses the model the orchestrator passes in and `language_model` is ignored. Set to `False` to use the configured `language_model`. |
+| `language_model` | `DEFAULT_GPT_4o` | Model used to consolidate the latest turn when `use_orchestrator_language_model` is `False`. |
 | `max_tokens` | `2000` | Maximum profile size. Must be between 500 and 8000 tokens. |
 | `root_folder` | `user-memory` | Root KB folder that contains per-user memory folders. |
 
@@ -98,6 +99,7 @@ from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 user_memory_state = await load_user_memory(
     event=event,
     config=config.agent.services.user_memory_config,
+    language_model=config.space.language_model,
     logger=logger,
 )
 
@@ -106,6 +108,7 @@ if user_memory_state is not None:
     postprocessor_manager.add_postprocessor(
         UserMemoryPostprocessor(
             config=config.agent.services.user_memory_config,
+            language_model=config.space.language_model,
             event=event,
             state=user_memory_state,
             logger=logger,

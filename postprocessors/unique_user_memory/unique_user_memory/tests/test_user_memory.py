@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
@@ -15,6 +17,8 @@ from unique_user_memory.user_memory import (
 )
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 from unique_user_memory.user_memory_prompts import empty_profile
+
+_TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 
 
 def test_enforce_token_cap_truncates_long_content() -> None:
@@ -58,6 +62,7 @@ async def test_consolidate_user_memory_keeps_existing_on_noop(
         user_message="hello",
         assistant_message="hi",
         config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
         event=MagicMock(),
         logger=MagicMock(),
     )
@@ -85,6 +90,7 @@ async def test_consolidate_user_memory_keeps_existing_on_malformed_output(
         user_message="remember I like concise answers",
         assistant_message="noted",
         config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
         event=MagicMock(),
         logger=MagicMock(),
     )
@@ -381,6 +387,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     logger = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
@@ -422,6 +429,7 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     logger = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,

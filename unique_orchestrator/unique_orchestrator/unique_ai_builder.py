@@ -364,6 +364,7 @@ async def _build_common(
         user_memory_state = await load_user_memory(
             event=event,
             config=config.agent.services.user_memory_config,
+            language_model=config.space.language_model,
             logger=logger,
         )
         if user_memory_state is not None:
@@ -371,6 +372,7 @@ async def _build_common(
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
                     config=config.agent.services.user_memory_config,
+                    language_model=config.space.language_model,
                     event=event,
                     state=user_memory_state,
                     logger=logger,

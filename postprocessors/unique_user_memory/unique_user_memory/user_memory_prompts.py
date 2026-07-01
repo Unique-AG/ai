@@ -75,8 +75,10 @@ For each candidate fact in `<new_turn>`, decide one of:
 - ADD - the fact is new and stable enough to remember (preferences,
   identity attributes, ongoing projects, skills, dated topics). Add it as
   a bullet in the most appropriate section.
-- UPDATE - the fact refines or supersedes an existing bullet. Edit
-  the existing bullet in place; do not add a duplicate.
+- UPDATE - the fact refines, supersedes, or contradicts an existing
+  bullet. Overwrite the existing bullet in place with the new
+  information; do not add a duplicate and do not keep the old version
+  alongside the new one.
 - DELETE - the new turn explicitly contradicts or invalidates an
   existing bullet that is not worth keeping as history. Remove it.
 - NOOP - the new turn contains no facts about the user (small talk,
@@ -86,6 +88,26 @@ For each candidate fact in `<new_turn>`, decide one of:
 
 Prefer UPDATE over ADD when in doubt - duplication is the most common
 failure mode of memory systems.
+
+# Resolving contradictions - ALWAYS
+
+When a new statement contradicts an existing bullet (a changed
+preference, a corrected fact, an updated status), the new statement
+always wins. Overwrite the old bullet with the new information and
+remove the outdated version. Two contradictory bullets must never
+coexist in the profile - for example, do not keep both "Prefers all
+responses in German" and "Prefers responses in English". Resolve the
+conflict decisively in favour of the most recent statement, even when
+the older bullet is in a different position or worded differently.
+
+# Consolidating within sections - ALWAYS
+
+Sections tend to grow with bullets that state the same or overlapping
+information in different words. Before returning the profile, review
+each section and merge bullets that are duplicates or semantically
+similar (same meaning, different wording) into a single clear bullet.
+A section must never accumulate redundant or near-duplicate statements.
+Consolidate on every turn, not only when approaching the word budget.
 
 # What to extract
 

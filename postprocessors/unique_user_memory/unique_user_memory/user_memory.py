@@ -117,6 +117,7 @@ async def load_user_memory(
     *,
     event: ChatEvent,
     config: UserMemoryConfig,
+    language_model: LanguageModelInfo,
     logger: Logger,
 ) -> UserMemoryState | None:
     user_id = event.user_id
@@ -146,7 +147,7 @@ async def load_user_memory(
         text=enforce_token_cap(
             content=text,
             max_tokens=config.max_tokens,
-            language_model=config.language_model,
+            language_model=language_model,
         ),
     )
 
@@ -393,18 +394,19 @@ async def consolidate_user_memory(
     user_message: str,
     assistant_message: str,
     config: UserMemoryConfig,
+    language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
 ) -> str:
     safe_current = enforce_token_cap(
         content=current_memory,
         max_tokens=config.max_tokens,
-        language_model=config.language_model,
+        language_model=language_model,
     )
     logger.info(
         "[user-memory] consolidating turn - existing_memory_tokens=%d | "
         "user_msg_chars=%d | assistant_msg_chars=%d",
-        count_tokens(content=safe_current, language_model=config.language_model),
+        count_tokens(content=safe_current, language_model=language_model),
         len(user_message or ""),
         len(assistant_message or ""),
     )
@@ -413,7 +415,7 @@ async def consolidate_user_memory(
         return safe_current or enforce_token_cap(
             content=empty_profile(user_id),
             max_tokens=config.max_tokens,
-            language_model=config.language_model,
+            language_model=language_model,
         )
 
     if not safe_current.strip():
@@ -450,7 +452,7 @@ async def consolidate_user_memory(
     try:
         response = await llm_service.complete_async(
             messages=messages,
-            model_name=config.language_model.name,
+            model_name=language_model.name,
             other_options={
                 "max_tokens": config.max_tokens + _LLM_OUTPUT_HEADROOM_TOKENS,
             },
@@ -458,7 +460,7 @@ async def consolidate_user_memory(
     except Exception as exc:
         logger.warning(
             "[user-memory] consolidation LLM call failed (model=%s): [%s] %s",
-            config.language_model.name,
+            language_model.name,
             type(exc).__name__,
             exc,
         )
@@ -496,7 +498,7 @@ async def consolidate_user_memory(
     capped = enforce_token_cap(
         content=candidate,
         max_tokens=config.max_tokens,
-        language_model=config.language_model,
+        language_model=language_model,
     )
     if (
         safe_current
@@ -508,7 +510,7 @@ async def consolidate_user_memory(
 
     logger.info(
         "[user-memory] consolidation produced %d tokens (cap=%d)",
-        count_tokens(content=capped, language_model=config.language_model),
+        count_tokens(content=capped, language_model=language_model),
         config.max_tokens,
     )
     return capped
