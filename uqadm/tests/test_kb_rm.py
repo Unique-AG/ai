@@ -194,6 +194,35 @@ def test_missing_file_reports_and_exits_1(
 
 @patch("uqadm.kb.rm.Content")
 @patch("uqadm.kb.rm.Folder")
+def test_dry_run_all_missing_files_exits_1(
+    folder: MagicMock,
+    content: MagicMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A dry run that matches nothing must fail like a real run, so automation
+    # using --dry-run to validate targets doesn't treat a fully missing set as
+    # success.
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+    content.get_infos.return_value = _no_content()
+
+    with pytest.raises(SystemExit) as exc:
+        cmd_rm(
+            _cfg(),
+            folder_path="/X",
+            scope_id=None,
+            files=("nope.txt",),
+            recursive=False,
+            dry_run=True,
+            assume_yes=True,
+        )
+
+    assert exc.value.code == 1
+    content.delete.assert_not_called()
+    assert "not found: nope.txt" in capsys.readouterr().out
+
+
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
 def test_dry_run_folder_deletes_nothing(
     folder: MagicMock,
     content: MagicMock,

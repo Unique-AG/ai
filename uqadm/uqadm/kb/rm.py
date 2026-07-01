@@ -86,6 +86,15 @@ def _rm_files(
 
     matched = [name for name in files if name in by_key]
 
+    # None of the requested files exist: report and fail regardless of dry-run,
+    # so automation validating targets with --dry-run sees the same exit code as
+    # a real run.
+    if not matched:
+        for name in files:
+            typer.echo(f"not found: {name}")
+        typer.echo("No matching files to delete.")
+        sys.exit(1)
+
     if dry_run:
         counts = {"deleted": 0, "not_found": 0, "failed": 0}
         for name in files:
@@ -99,12 +108,6 @@ def _rm_files(
                 counts["deleted"] += 1
         _report(counts)
         return
-
-    if not matched:
-        for name in files:
-            typer.echo(f"not found: {name}")
-        typer.echo("No matching files to delete.")
-        sys.exit(1)
 
     if not assume_yes:
         total = sum(len(by_key[name]) for name in matched)

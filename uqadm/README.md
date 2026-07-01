@@ -453,6 +453,32 @@ uqadm kb download ./out --scope-id scope_abc -r --slot qa
 | `--dry-run` | Show planned downloads without writing anything. |
 | `--slot SLOT` | Credential slot. |
 
+### `kb rm`
+
+Delete a KB folder or specific files within it, using ``Folder.delete`` /
+``Content.delete``. Requires exactly one of ``--folder-path`` or ``--scope-id``.
+With one or more ``--file`` options (matched by key, repeatable) only those
+files are deleted; otherwise the whole folder is removed. Deleting a **non-empty
+folder requires ``--recursive``** (it refuses otherwise). Unless ``--yes`` is
+given you are **prompted to confirm**; ``--dry-run`` prints the plan without
+deleting anything.
+
+```bash
+uqadm kb rm --folder-path /Dept/HR --file old.pdf
+uqadm kb rm --scope-id scope_abc -r --dry-run
+uqadm kb rm --scope-id scope_abc -r --slot qa -y
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Target KB folder path (mutually exclusive with ``--scope-id``). |
+| `--scope-id` | Target folder scope id (mutually exclusive with ``--folder-path``). |
+| `--file` | Delete only this file (matched by key) in the scope; repeatable. |
+| `-r`, `--recursive` | Delete a non-empty folder and everything under it. |
+| `--dry-run` | Show what would be deleted without deleting anything. |
+| `-y`, `--yes` | Skip the interactive confirmation prompt. |
+| `--slot SLOT` | Credential slot. |
+
 ### `kb access grant`
 
 Grant **group** ``READ`` or ``WRITE`` on a folder. By default the change **applies to subfolders** (``applyToSubScopes``); pass ``--no-subfolders`` for this folder only.
