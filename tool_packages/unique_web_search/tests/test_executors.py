@@ -577,10 +577,6 @@ class TestWebSearchV2ExecutorExecuteStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -618,8 +614,6 @@ class TestWebSearchV2ExecutorExecuteStep:
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
             return_value=["content"]
         )
-        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -663,10 +657,6 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -704,14 +694,9 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = True
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
             return_value=["content1", "content2"]
         )
-        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -755,9 +740,6 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             ]
         )
         mock_executor_dependencies["search_service"].requires_scraping = True
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
             side_effect=UrlSafetyService.validate_batch_urls
         )
@@ -797,10 +779,6 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -864,9 +842,6 @@ class TestWebSearchV3ExecutorSearch:
         mock_executor_dependencies["search_service"].search = AsyncMock(
             return_value=serp
         )
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock()
 
         executor = WebSearchV3Executor(
@@ -913,7 +888,6 @@ class TestWebSearchV3ExecutorFetchUrls:
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
             return_value=["content1", "content2"]
         )
-        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
         mock_executor_dependencies["content_processor"].run = AsyncMock(return_value=[])
         mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
         mock_executor_dependencies["content_reducer"].return_value = []
@@ -1081,8 +1055,6 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
             return_value=["Test page content"]
         )
-        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -1119,8 +1091,6 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
             return_value=["content"]
         )
-        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],
@@ -1279,10 +1249,6 @@ class TestWebSearchV2ExecutorDebugInfo:
             return_value=sample_web_search_results
         )
         mock_executor_dependencies["search_service"].requires_scraping = False
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
-
         executor = WebSearchV2Executor(
             services=executor_context_objects["services"],
             config=executor_context_objects["config"],

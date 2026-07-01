@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import TYPE_CHECKING, AsyncIterator, Generic, TypeVar
+from typing import TYPE_CHECKING, Annotated, AsyncIterator, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutput
 from unique_search_proxy_core.schema import (
@@ -47,7 +48,12 @@ class BaseAgentEngineConfig(BaseModel, Generic[T]):
     model_config = camelized_model_config
 
     engine: T
-    generation_instructions: str = Field(
+    generation_instructions: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=10,
+        ),
+    ] = Field(
         default=DEFAULT_GENERATION_INSTRUCTIONS,
         description="Instructions injected into the grounding agent.",
     )

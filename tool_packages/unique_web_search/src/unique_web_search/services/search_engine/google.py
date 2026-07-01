@@ -1,9 +1,14 @@
 import logging
-from typing import Literal, cast, override
+from typing import Any, cast, override
 from urllib.parse import urlparse
 
 from httpx import Response
-from unique_search_proxy_core.search_engines.google.schema import GoogleSiteSearchFilter
+from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
+from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_search_proxy_core.search_engines.google.schema import (
+    GoogleConfig,
+    GoogleSiteSearchFilter,
+)
 
 from unique_web_search.client_settings import get_google_search_settings
 from unique_web_search.services.client.proxy_config import async_client
@@ -11,17 +16,12 @@ from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
 )
 from unique_web_search.services.proxy.mappers import map_search_response
-from unique_web_search.services.search_engine import (
-    BaseSearchEngineConfig,
-    SearchEngine,
-    SearchEngineType,
-)
-from unique_web_search.services.search_engine.base import get_search_engine_model_config
+from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
+from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.services.search_engine.utils.google.schema import (
-    GoogleSearchOptionalQueryParams,
     GoogleSearchQueryParams,
 )
 
@@ -30,24 +30,48 @@ _LOGGER = logging.getLogger(__name__)
 # Pagingation size fixed to 10 because of the Google Search API limit
 PAGINATION_SIZE = 10
 
+_EXPOSABLE_LEGACY_API_KEYS: tuple[tuple[str, str], ...] = (
+    ("gl", "gl"),
+    ("hl", "hl"),
+    ("lr", "lr"),
+    ("date_restrict", "dateRestrict"),
+    ("exact_terms", "exactTerms"),
+    ("exclude_terms", "excludeTerms"),
+    ("file_type", "fileType"),
+    ("site_search", "siteSearch"),
+    ("site_search_filter", "siteSearchFilter"),
+    ("sort", "sort"),
+)
 
-class GoogleConfig(BaseSearchEngineConfig[SearchEngineType.GOOGLE]):
-    model_config = get_search_engine_model_config(SearchEngineType.GOOGLE)
-    search_engine_name: Literal[SearchEngineType.GOOGLE] = SearchEngineType.GOOGLE
 
-    custom_search_config: GoogleSearchOptionalQueryParams = (
-        GoogleSearchOptionalQueryParams()
-    )
+def _exposable_value(param: ExposableParam[Any]) -> Any | None:
+    if param.is_active():
+        return param.value
+    return None
 
 
+def _google_legacy_query_params(config: GoogleConfig) -> dict[str, Any]:
+    params: dict[str, Any] = {"safe": config.safe}
+    for field_name, api_key in _EXPOSABLE_LEGACY_API_KEYS:
+        value = _exposable_value(getattr(config, field_name))
+        if value is not None:
+            params[api_key] = value
+    return params
+
+
+@register_search_engine(
+    name="google",
+    key=SearchEngineType.GOOGLE,
+    config_cls=GoogleConfig,
+    mode=SearchEngineMode.STANDARD,
+    config_display_name="Google Search",
+)
 class GoogleSearch(SearchEngine[GoogleConfig]):
     supports_proxy_search = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._additional_params = self.config.custom_search_config.model_dump(
-            mode="json", exclude_none=True, by_alias=True
-        )
+        self._additional_params = _google_legacy_query_params(self.config)
 
     @property
     def requires_scraping(self) -> bool:
@@ -59,20 +83,20 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
             response = await client.search.google(
                 query=query,
                 fetch_size=self.config.fetch_size,
-                search_engine_id=self.config.custom_search_config.cx,
-                gl=self.config.custom_search_config.gl,
-                hl=self.config.custom_search_config.hl,
-                lr=self.config.custom_search_config.lr,
-                date_restrict=self.config.custom_search_config.date_restrict,
-                exact_terms=self.config.custom_search_config.exact_terms,
-                exclude_terms=self.config.custom_search_config.exclude_terms,
-                file_type=self.config.custom_search_config.file_type,
-                site_search=self.config.custom_search_config.site_search,
+                search_engine_id=self.config.search_engine_id,
+                gl=_exposable_value(self.config.gl),
+                hl=_exposable_value(self.config.hl),
+                lr=_exposable_value(self.config.lr),
+                date_restrict=_exposable_value(self.config.date_restrict),
+                exact_terms=_exposable_value(self.config.exact_terms),
+                exclude_terms=_exposable_value(self.config.exclude_terms),
+                file_type=_exposable_value(self.config.file_type),
+                site_search=_exposable_value(self.config.site_search),
                 site_search_filter=cast(
                     GoogleSiteSearchFilter | None,
-                    self.config.custom_search_config.site_search_filter,
+                    _exposable_value(self.config.site_search_filter),
                 ),
-                sort=self.config.custom_search_config.sort,
+                sort=_exposable_value(self.config.sort),
             )
             return map_search_response(response)
 

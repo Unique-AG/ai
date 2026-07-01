@@ -53,9 +53,13 @@ from unique_sdk.cli.commands.scheduled_tasks import (
 )
 from unique_sdk.cli.commands.search import (
     cmd_search,
+    cmd_uploaded_search,
 )
 from unique_sdk.cli.commands.search import (
     is_error_output as _is_search_error_output,
+)
+from unique_sdk.cli.commands.search import (
+    is_uploaded_search_error_output as _is_uploaded_search_error_output,
 )
 from unique_sdk.cli.commands.subagent import cmd_subagent
 from unique_sdk.cli.commands.subagent import (
@@ -736,6 +740,43 @@ def search(
     )
     click.echo(output)
     if _is_search_error_output(output):
+        ctx.exit(1)
+
+
+@main.command(name="uploaded-search")
+@click.argument("query")
+@click.option(
+    "--limit",
+    "-l",
+    default=200,
+    show_default=True,
+    help="Maximum number of results to return.",
+)
+@click.pass_context
+def uploaded_search(
+    ctx: click.Context,
+    query: str,
+    limit: int,
+) -> None:
+    """Search the documents uploaded for this task (not the knowledge base).
+
+    \b
+    QUERY is the search text. This searches only the files attached to this
+    row/task (e.g. an Agentic Table row's uploaded documents), which are NOT
+    part of the knowledge-base folder scope and therefore never appear in
+    `unique-cli search`. Results are ranked the same way and cite as
+    `[sourceN]`, with numbering continuous across `search` and
+    `uploaded-search` within a turn.
+
+    \b
+    Examples:
+      unique-cli uploaded-search "target asset classes"
+      unique-cli uploaded-search "fee structure" --limit 50
+    """
+    state = LazyState.get(ctx)
+    output = cmd_uploaded_search(state, query, limit=limit)
+    click.echo(output)
+    if _is_uploaded_search_error_output(output):
         ctx.exit(1)
 
 

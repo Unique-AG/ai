@@ -1,5 +1,57 @@
+import pytest
+
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
+from unique_web_search.services.search_engine.schema import (
+    WebSearchResult,
+    WebSearchResults,
+)
+
+_SAMPLE_RESULT_PAYLOAD = {
+    "url": "https://example.com",
+    "title": "Example",
+    "snippet": "An example page",
+    "content": "",
+}
+
+
+class TestWebSearchResults:
+    """Tests for WebSearchResults validation aliases."""
+
+    @pytest.mark.ai
+    @pytest.mark.parametrize("key", ["results", "curated"])
+    def test_model_validate__accepts_results_or_curated_key(self, key: str) -> None:
+        """
+        Purpose: Verify WebSearchResults accepts both `results` and `curated` JSON keys.
+        Why this matters: Custom APIs and the search proxy use different wrapper field names.
+        Setup summary: Validate JSON with one key; assert `.results` is populated correctly.
+        """
+        # Act
+        parsed = WebSearchResults.model_validate({key: [_SAMPLE_RESULT_PAYLOAD]})
+
+        # Assert
+        assert len(parsed.results) == 1
+        assert parsed.results[0] == WebSearchResult.model_validate(
+            _SAMPLE_RESULT_PAYLOAD
+        )
+
+    @pytest.mark.ai
+    def test_model_dump__serializes_as_results_key(self) -> None:
+        """
+        Purpose: Verify serialized output always uses the `results` key.
+        Why this matters: Downstream consumers expect a stable wire format.
+        Setup summary: Build WebSearchResults; assert model_dump keys and values.
+        """
+        # Arrange
+        result = WebSearchResult.model_validate(_SAMPLE_RESULT_PAYLOAD)
+        web_search_results = WebSearchResults(results=[result])
+
+        # Act
+        dumped = web_search_results.model_dump()
+
+        # Assert
+        assert list(dumped.keys()) == ["results"]
+        assert dumped["results"][0] == _SAMPLE_RESULT_PAYLOAD
 
 
 class TestWebSearchToolParameters:

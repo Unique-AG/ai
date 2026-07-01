@@ -173,7 +173,7 @@ class WebSearchConfig(BaseToolConfig):
         default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         title="Search Engine",
         description="Choose and configure which search engine to use for web searches (e.g. Google, Bing, Brave).",
-        discriminator="search_engine_name",
+        discriminator="engine",
     )
 
     crawler_config: ActivatedCrawler = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)

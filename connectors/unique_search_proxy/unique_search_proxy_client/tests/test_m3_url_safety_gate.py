@@ -22,8 +22,8 @@ def _is_example_com_request(request: httpx.Request) -> bool:
     host_header = request.headers.get("host", "")
     if isinstance(host_header, bytes):
         host_header = host_header.decode()
-    url = str(request.url)
-    return "example.com" in host_header or "example.com" in url
+    host_from_header = host_header.split(":", 1)[0]
+    return request.url.host == "example.com" or host_from_header == "example.com"
 
 
 @pytest.fixture

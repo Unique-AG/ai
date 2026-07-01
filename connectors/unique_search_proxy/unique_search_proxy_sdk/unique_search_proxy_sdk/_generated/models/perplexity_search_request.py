@@ -11,11 +11,11 @@ from typing import (
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.perplexity_search_request_search_context_size_type_0 import (
-    PerplexitySearchRequestSearchContextSizeType0,
+from ..models.perplexity_search_request_recency_filter import (
+    PerplexitySearchRequestRecencyFilter,
 )
-from ..models.perplexity_search_request_search_recency_filter_type_0 import (
-    PerplexitySearchRequestSearchRecencyFilterType0,
+from ..models.perplexity_search_request_search_context_size import (
+    PerplexitySearchRequestSearchContextSize,
 )
 from ..types import UNSET, Unset
 
@@ -38,15 +38,15 @@ class PerplexitySearchRequest:
             `max_tokens`.
         country (None | str | Unset): ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters). Set `value`
             for a fixed default; set `expose` so the LLM may override per query.
-        search_context_size (None | PerplexitySearchRequestSearchContextSizeType0 | Unset): Controls how much content is
+        search_context_size (None | PerplexitySearchRequestSearchContextSize | Unset): Controls how much content is
             extracted from result pages: `low`, `medium`, or `high` (API default). Omit when using `max_tokens` or
             `max_tokens_per_page`. `value` + `expose` behave like `country`.
         search_language_filter (list[str] | None | Unset): ISO 639-1 language codes (two characters each, up to 20).
             `value` + `expose` behave like `country`.
         search_domain_filter (list[str] | None | Unset): Limit results to specific domains (up to 20). `value` +
             `expose` behave like `country`.
-        search_recency_filter (None | PerplexitySearchRequestSearchRecencyFilterType0 | Unset): Filter by publication
-            recency: `hour`, `day`, `week`, `month`, or `year`. `value` + `expose` behave like `country`.
+        search_recency_filter (None | PerplexitySearchRequestRecencyFilter | Unset): Filter by publication recency:
+            `hour`, `day`, `week`, `month`, or `year`. `value` + `expose` behave like `country`.
         last_updated_after_filter (None | str | Unset): Return results updated after this date (Perplexity
             `last_updated_after_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`.
         last_updated_before_filter (None | str | Unset): Return results updated before this date (Perplexity
@@ -64,14 +64,10 @@ class PerplexitySearchRequest:
     max_tokens: int | None | Unset = UNSET
     max_tokens_per_page: int | None | Unset = UNSET
     country: None | str | Unset = UNSET
-    search_context_size: (
-        None | PerplexitySearchRequestSearchContextSizeType0 | Unset
-    ) = UNSET
+    search_context_size: None | PerplexitySearchRequestSearchContextSize | Unset = UNSET
     search_language_filter: list[str] | None | Unset = UNSET
     search_domain_filter: list[str] | None | Unset = UNSET
-    search_recency_filter: (
-        None | PerplexitySearchRequestSearchRecencyFilterType0 | Unset
-    ) = UNSET
+    search_recency_filter: None | PerplexitySearchRequestRecencyFilter | Unset = UNSET
     last_updated_after_filter: None | str | Unset = UNSET
     last_updated_before_filter: None | str | Unset = UNSET
     search_after_date_filter: None | str | Unset = UNSET
@@ -109,7 +105,7 @@ class PerplexitySearchRequest:
         if isinstance(self.search_context_size, Unset):
             search_context_size = UNSET
         elif isinstance(
-            self.search_context_size, PerplexitySearchRequestSearchContextSizeType0
+            self.search_context_size, PerplexitySearchRequestSearchContextSize
         ):
             search_context_size = self.search_context_size.value
         else:
@@ -137,7 +133,7 @@ class PerplexitySearchRequest:
         if isinstance(self.search_recency_filter, Unset):
             search_recency_filter = UNSET
         elif isinstance(
-            self.search_recency_filter, PerplexitySearchRequestSearchRecencyFilterType0
+            self.search_recency_filter, PerplexitySearchRequestRecencyFilter
         ):
             search_recency_filter = self.search_recency_filter.value
         else:
@@ -249,7 +245,7 @@ class PerplexitySearchRequest:
 
         def _parse_search_context_size(
             data: object,
-        ) -> None | PerplexitySearchRequestSearchContextSizeType0 | Unset:
+        ) -> None | PerplexitySearchRequestSearchContextSize | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -257,16 +253,14 @@ class PerplexitySearchRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                search_context_size_type_0 = (
-                    PerplexitySearchRequestSearchContextSizeType0(data)
+                search_context_size_search_context_size = (
+                    PerplexitySearchRequestSearchContextSize(data)
                 )
 
-                return search_context_size_type_0
+                return search_context_size_search_context_size
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                None | PerplexitySearchRequestSearchContextSizeType0 | Unset, data
-            )
+            return cast(None | PerplexitySearchRequestSearchContextSize | Unset, data)
 
         search_context_size = _parse_search_context_size(
             d.pop("searchContextSize", UNSET)
@@ -280,9 +274,9 @@ class PerplexitySearchRequest:
             try:
                 if not isinstance(data, list):
                     raise TypeError()
-                search_language_filter_type_0 = cast(list[str], data)
+                search_language_filter_language_filter = cast(list[str], data)
 
-                return search_language_filter_type_0
+                return search_language_filter_language_filter
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(list[str] | None | Unset, data)
@@ -299,9 +293,9 @@ class PerplexitySearchRequest:
             try:
                 if not isinstance(data, list):
                     raise TypeError()
-                search_domain_filter_type_0 = cast(list[str], data)
+                search_domain_filter_domain_filter = cast(list[str], data)
 
-                return search_domain_filter_type_0
+                return search_domain_filter_domain_filter
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(list[str] | None | Unset, data)
@@ -312,7 +306,7 @@ class PerplexitySearchRequest:
 
         def _parse_search_recency_filter(
             data: object,
-        ) -> None | PerplexitySearchRequestSearchRecencyFilterType0 | Unset:
+        ) -> None | PerplexitySearchRequestRecencyFilter | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -320,16 +314,14 @@ class PerplexitySearchRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                search_recency_filter_type_0 = (
-                    PerplexitySearchRequestSearchRecencyFilterType0(data)
+                search_recency_filter_recency_filter = (
+                    PerplexitySearchRequestRecencyFilter(data)
                 )
 
-                return search_recency_filter_type_0
+                return search_recency_filter_recency_filter
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(
-                None | PerplexitySearchRequestSearchRecencyFilterType0 | Unset, data
-            )
+            return cast(None | PerplexitySearchRequestRecencyFilter | Unset, data)
 
         search_recency_filter = _parse_search_recency_filter(
             d.pop("searchRecencyFilter", UNSET)
