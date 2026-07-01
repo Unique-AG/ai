@@ -2723,7 +2723,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
                 )
-            case LanguageModelName.LITELLM_GLM_5_1:
+            case LanguageModelName.LITELLM_GLM_5_2:
                 return cls(
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
