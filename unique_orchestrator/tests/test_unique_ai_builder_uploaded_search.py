@@ -423,6 +423,92 @@ def test_configure_file_payload_preserves_tool_call_persistence_and_language_mod
     assert captured["config"].enable_tool_call_persistence is True
 
 
+def _open_file_payload_config() -> UniqueAIConfig:
+    return UniqueAIConfig(
+        agent={
+            "experimental": {
+                "responses_api_config": {"use_responses_api": True},
+                "open_file_tool_config": OpenFileToolConfig(
+                    enabled=True,
+                    send_files_in_payload=True,
+                ),
+            },
+        }
+    )
+
+
+def test_configure_file_payload_registers_open_file_tool_with_shared_services(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeOpenFileTool:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "unique_orchestrator._builders.open_file_setup.OpenFileTool",
+        _FakeOpenFileTool,
+    )
+
+    chat_service = MagicMock()
+    language_model_service = MagicMock()
+    tool_manager = MagicMock()
+    config = _open_file_payload_config()
+
+    _, agent_file_registry = configure_file_payload(
+        config=config,
+        event=_make_event(tool_choices=[]),
+        logger=MagicMock(),
+        history_manager=MagicMock(),
+        reference_manager=MagicMock(),
+        language_model=config.space.language_model,
+        tool_manager=tool_manager,
+        chat_service=chat_service,
+        language_model_service=language_model_service,
+    )
+
+    assert agent_file_registry == []
+    tool_manager.add_tool.assert_called_once()
+    assert captured["chat_service"] is chat_service
+    assert captured["language_model_service"] is language_model_service
+    assert captured["registry"] is agent_file_registry
+
+
+def test_configure_file_payload_registers_open_file_tool_with_legacy_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeOpenFileTool:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "unique_orchestrator._builders.open_file_setup.OpenFileTool",
+        _FakeOpenFileTool,
+    )
+
+    event = _make_event(tool_choices=[])
+    tool_manager = MagicMock()
+    config = _open_file_payload_config()
+
+    _, agent_file_registry = configure_file_payload(
+        config=config,
+        event=event,
+        logger=MagicMock(),
+        history_manager=MagicMock(),
+        reference_manager=MagicMock(),
+        language_model=config.space.language_model,
+        tool_manager=tool_manager,
+    )
+
+    assert agent_file_registry == []
+    tool_manager.add_tool.assert_called_once()
+    assert captured["event"] is event
+    assert captured["registry"] is agent_file_registry
+
+
 class TestConfigureUploadedSearchToolIngestionFilter:
     def _make_event(self, tool_choices=None):
         event = MagicMock()
