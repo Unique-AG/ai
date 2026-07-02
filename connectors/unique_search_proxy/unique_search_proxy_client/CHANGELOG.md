@@ -1,5 +1,25 @@
 # Changelog
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.26.0...unique-search-proxy-v2026.28.0) (2026-07-02)
+
+
+### Features
+
+* Autogenerate helm-chart from secret settings ([#1913](https://github.com/Unique-AG/ai/issues/1913)) ([13fe002](https://github.com/Unique-AG/ai/commit/13fe0024ee038d10a50b4bad5e65ead6faaa9a6b))
+* Migrate search engine configuration from proxy core ([#1966](https://github.com/Unique-AG/ai/issues/1966)) ([6693d37](https://github.com/Unique-AG/ai/commit/6693d378b1d5626ec881b2f91ed490afb7cf4471))
+
+
+### Bug Fixes
+
+* **search-proxy:** preserve newlines between Cilium egress rules ([#1935](https://github.com/Unique-AG/ai/issues/1935)) ([d9e6527](https://github.com/Unique-AG/ai/commit/d9e652726e4908476ab5c96322079ad499558616))
+* **search-proxy:** use LogSecretStr for Bing agent secret fields ([#1933](https://github.com/Unique-AG/ai/issues/1933)) ([0499a68](https://github.com/Unique-AG/ai/commit/0499a68dea8ab785e2ec54c90600088d8ce3c055))
+* **unique_search_proxy:** exact host match in test URL gate (CodeQL py/incomplete-url-substring-sanitization) ([#1962](https://github.com/Unique-AG/ai/issues/1962)) ([c789571](https://github.com/Unique-AG/ai/commit/c78957170e888a531fb1585fbb5a4262c1e37822))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.24.0...unique-search-proxy-v2026.26.0) (2026-06-22)
 
 

@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.26.0...unique-toolkit-v2026.28.0) (2026-07-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **unique_toolkit:** MagicTableEvent no longer subclasses ChatEvent—use AssistantWebhookEvent for the shared envelope; get_initial_debug_info is ChatEvent-only (AttributeError otherwise). MagicTableBasePayload no longer carries stub user_message/assistant_message defaults.
+
+### Features
+
+* carry MCP reference enrichment fields end to end [UN-22310] ([#1953](https://github.com/Unique-AG/ai/issues/1953)) ([ea4c147](https://github.com/Unique-AG/ai/commit/ea4c1477137fa01ee7c7f6ebc7043cbec37abdd8))
+* **dci:** cite read-method taxonomy + multimodal hallucination context [UN-21765] ([#1895](https://github.com/Unique-AG/ai/issues/1895)) ([b02fdcb](https://github.com/Unique-AG/ai/commit/b02fdcb7eb3b625a9f8da4f006b548428d048542))
+* **mcp:** reference + groundedness support for MCP tool results ([#1896](https://github.com/Unique-AG/ai/issues/1896)) ([84eb29d](https://github.com/Unique-AG/ai/commit/84eb29d309880fdf887be48902a77b46c587287e))
+* Migrate search engine configuration from proxy core ([#1966](https://github.com/Unique-AG/ai/issues/1966)) ([6693d37](https://github.com/Unique-AG/ai/commit/6693d378b1d5626ec881b2f91ed490afb7cf4471))
+* **sdk, toolkit:** allow segment_kind on message modify (UN-22153) ([#1992](https://github.com/Unique-AG/ai/issues/1992)) ([4c62b84](https://github.com/Unique-AG/ai/commit/4c62b84b68f61966784365be1744f564a9e53859))
+* **toolkit:** add segment_kind/response_turn_id params to create_assistant_message_async [UN-22064] ([#1948](https://github.com/Unique-AG/ai/issues/1948)) ([6784095](https://github.com/Unique-AG/ai/commit/6784095781676a034a4d0020b669e366f397e4e6))
+* **toolkit:** adding fable 5, sonnet 5, deepseek v4, glm 5.1 & 5.2 to llm info ([#1985](https://github.com/Unique-AG/ai/issues/1985)) ([9c8037d](https://github.com/Unique-AG/ai/commit/9c8037d578cd6f2ef80623d45840c64ee9cf2b5c))
+* **unique_toolkit:** Implement the `AskUser` tool ([#1653](https://github.com/Unique-AG/ai/issues/1653)) ([b2cec51](https://github.com/Unique-AG/ai/commit/b2cec513c6344e4582bb876384a260c2120ebb6b))
+
+
+### Bug Fixes
+
+* **unique_toolkit:** Fix parsing of tool calls in new streaming imple… ([#1922](https://github.com/Unique-AG/ai/issues/1922)) ([524aaab](https://github.com/Unique-AG/ai/commit/524aaabb8b14c15b3c99ec636acacc08de10d338))
+* **unique_toolkit:** Fix setting of `completedAt` and `stoppedStreamingAt` flags when str… ([#1958](https://github.com/Unique-AG/ai/issues/1958)) ([6b1553d](https://github.com/Unique-AG/ai/commit/6b1553d5c21eec6ca10e12f3245ff8114e898532))
+* **unique-toolkit:** graceful tool initialization [UN-17197] ([#1076](https://github.com/Unique-AG/ai/issues/1076)) ([09fbd91](https://github.com/Unique-AG/ai/commit/09fbd91e4742dbc47028cec7e0a8e43c0c38ab0b))
+* **unique-toolkit:** preserve concrete config for valid disabled tools [UN-17197] ([#1979](https://github.com/Unique-AG/ai/issues/1979)) ([08dda03](https://github.com/Unique-AG/ai/commit/08dda03dad1e2b231e9d3bd42d0442eece621196))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+* **unique_toolkit:** split ChatEvent and MagicTableEvent webhook types ([#1937](https://github.com/Unique-AG/ai/issues/1937)) ([ec75cda](https://github.com/Unique-AG/ai/commit/ec75cda5b3d79c74342f468ed3a9c61a639c76d9))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.24.0...unique-toolkit-v2026.26.0) (2026-06-22)
 
 
