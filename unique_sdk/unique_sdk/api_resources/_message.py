@@ -48,6 +48,11 @@ class Message(APIResource["Message"]):
         debugInfo: dict[str, Any] | None
         completedAt: datetime | None
         correlation: NotRequired["Message.Correlation | None"]
+        segmentKind: NotRequired[
+            Literal["PROCESS", "PREFACE", "ELICITATION", "ANSWER"] | None
+        ]
+        responseTurnId: NotRequired[str | None]
+        segmentIndex: NotRequired[int | None]
 
     class ModifyParams(RequestOptions):
         chatId: str
@@ -59,6 +64,9 @@ class Message(APIResource["Message"]):
         startedStreamingAt: NotRequired[datetime | None]
         stoppedStreamingAt: NotRequired[datetime | None]
         completedAt: NotRequired[datetime | None]
+        segmentKind: NotRequired[
+            Literal["PROCESS", "PREFACE", "ELICITATION", "ANSWER"] | None
+        ]
 
     class DeleteParams(RequestOptions):
         chatId: str

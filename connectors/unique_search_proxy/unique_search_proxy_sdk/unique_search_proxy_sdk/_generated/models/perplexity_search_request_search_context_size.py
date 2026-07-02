@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class PerplexitySearchRequestSearchContextSizeType0(str, Enum):
+class PerplexitySearchRequestSearchContextSize(str, Enum):
     HIGH = "high"
     LOW = "low"
     MEDIUM = "medium"

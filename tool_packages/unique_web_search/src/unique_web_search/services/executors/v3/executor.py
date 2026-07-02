@@ -95,11 +95,9 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             )
         )
 
-        engine = self.search_service.config.search_engine_name.value
+        engine = self.search_service.config.engine.value
         time_start = time()
-        _LOGGER.info(
-            "Company %s Searching with %s", self.company_id, self.search_service
-        )
+        _LOGGER.info(f"Company {self.company_id} Searching with {engine}")
 
         await self._message_log_callback.log_queries([query])
         with metric_scope(search_duration, search_errors, engine=engine):
@@ -112,7 +110,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             StepDebugInfo(
                 step_name="SEARCH.search",
                 execution_time=delta_time,
-                config=self.search_service.config.search_engine_name.name,
+                config=engine,
                 extra={
                     "query": query,
                     "number_of_results": len(results),
@@ -183,7 +181,9 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         urls = list(urls)
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
-        _LOGGER.info("Company %s Crawling %s URLs", self.company_id, len(urls))
+        _LOGGER.info(
+            f"Company {self.company_id} Crawling {len(urls)} URLs with {crawler}"
+        )
         await self._message_log_callback.log_queries(urls)
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
             contents = await self.crawler_service.crawl(urls)
@@ -199,7 +199,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             StepDebugInfo(
                 step_name="FETCH_URLS.crawl",
                 execution_time=delta_time,
-                config=self.crawler_service.config.crawler_type.name,
+                config=crawler,
                 extra={"urls": urls, "number_of_results": len(results)},
             )
         )

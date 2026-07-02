@@ -110,7 +110,7 @@ def cmd_read(
             company_id=state.config.company_id,
             where={"id": {"equals": cont_id}},
         )
-    except unique_sdk.APIError as e:
+    except unique_sdk.UniqueError as e:
         return f"{READ_ERROR_PREFIX} {e}"
 
     if not results:

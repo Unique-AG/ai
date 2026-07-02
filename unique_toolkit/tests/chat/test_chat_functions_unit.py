@@ -229,6 +229,51 @@ def test_modify_message_with_references(mock_sdk, sample_message_data):
     assert isinstance(call_kwargs["references"], list)
 
 
+def test_modify_message_with_segment_kind(mock_sdk, sample_message_data):
+    # Setup
+    mock_sdk.Message.modify.return_value = sample_message_data
+
+    # Execute
+    result = modify_message(
+        user_id="user123",
+        company_id="company123",
+        assistant_message_id="asst123",
+        chat_id="chat123",
+        user_message_id="user123",
+        user_message_text="Hello",
+        assistant=True,
+        content="",
+        segment_kind="PREFACE",
+    )
+
+    # Assert
+    assert isinstance(result, ChatMessage)
+    mock_sdk.Message.modify.assert_called_once()
+    call_kwargs = mock_sdk.Message.modify.call_args[1]
+    assert call_kwargs["segmentKind"] == "PREFACE"
+
+
+def test_modify_message_without_segment_kind_omits_key(mock_sdk, sample_message_data):
+    # Setup
+    mock_sdk.Message.modify.return_value = sample_message_data
+
+    # Execute
+    modify_message(
+        user_id="user123",
+        company_id="company123",
+        assistant_message_id="asst123",
+        chat_id="chat123",
+        user_message_id="user123",
+        user_message_text="Hello",
+        assistant=True,
+        content="Modified content",
+    )
+
+    # Assert
+    call_kwargs = mock_sdk.Message.modify.call_args[1]
+    assert "segmentKind" not in call_kwargs
+
+
 @pytest.mark.asyncio
 async def test_create_message_async(mock_sdk, sample_message_data):
     # Setup
@@ -278,6 +323,34 @@ def test_map_references():
     assert result[0]["sequenceNumber"] == 1
     assert result[0]["sourceId"] == "src123"
     assert result[0]["source"] == "web"
+    # description is always emitted (None when unset; node-chat drops empties).
+    assert result[0]["description"] is None
+
+
+def test_map_references_carries_mcp_description_payload():
+    # UN-22310: MCP references carry an enriched JSON payload in `description`.
+    mcp_description = (
+        '{"mcp": {"connectorName": "Outlook", "title": "Intro Meeting", '
+        '"details": "10/10/2026 - Jamie Dimon"}}'
+    )
+    references = [
+        ContentReference(
+            id="ref123",
+            message_id="msg123",
+            name="Intro Meeting",
+            description=mcp_description,
+            url=None,
+            sequence_number=1,
+            source_id="mcp_aaa_mcp_aaa",
+            source="mcp:outlook",
+        )
+    ]
+
+    result = map_references(references)
+
+    assert result[0]["description"] == mcp_description
+    assert result[0]["source"] == "mcp:outlook"
+    assert result[0]["url"] is None
 
 
 @pytest.mark.asyncio

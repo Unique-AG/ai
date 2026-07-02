@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import requests
 from dotenv import load_dotenv
@@ -76,14 +76,37 @@ auth = OAuthProxy(
 )
 
 
+class RequestHeaderLoggingMiddleware:
+    """ASGI middleware that prints every incoming request's headers (verbatim) before
+    any FastMCP auth or validation runs. Pure pass-through: never inspects, decodes,
+    or buffers the request body.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope.get("type") == "http":
+            method = scope.get("method", "")
+            path = scope.get("path", "")
+            print(f"\n[mcp-demo] >>> {method} {path}")
+            for name, value in scope.get("headers", []):
+                name_str = name.decode("latin-1", errors="replace")
+                value_str = value.decode("latin-1", errors="replace")
+                print(f"[mcp-demo]     {name_str}: {value_str}")
+
+        await self.app(scope, receive, send)
+
+
 custom_middleware = [
+    Middleware(RequestHeaderLoggingMiddleware),
     Middleware(
         CORSMiddleware,
         allow_credentials=True,
         allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
-    )
+    ),
 ]
 
 # mcp = FastMCP.from_fastapi(app=app,auth=auth,debug=True,log_level="debug")

@@ -14,6 +14,7 @@ from unique_sdk.cli.commands._citation_manifest import (
     _append_turn_refs_manifest_entry,
     _locked_turn_refs_manifest,
     _read_turn_refs_manifest,
+    _rewrite_turn_refs_manifest,
 )
 from unique_sdk.cli.formatting import format_mcp_response
 from unique_sdk.cli.state import ShellState
@@ -42,6 +43,41 @@ _MCP_MAX_ITEMS_PER_CALL = 8
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
+
+# Keys an MCP tool's JSON result commonly uses for the optional "details" line
+# (UN-22310) — e.g. a date and an author such as "10/10/2026 - Jamie Dimon".
+# Best-effort: only top-level record keys are inspected for these (nested
+# provenance is too tool-specific to generalize). The values themselves may be
+# nested one level — a date is read as a top-level string, while an author may
+# be a plain string or an object whose name is pulled via `_AUTHOR_NAME_KEYS`
+# (e.g. Atlassian's `{"displayName": "..."}`). The line is omitted when neither
+# a date nor an author is found.
+_DETAILS_DATE_KEYS = (
+    "date",
+    "updated",
+    "updatedAt",
+    "updatedDate",
+    "lastModified",
+    "modified",
+    "created",
+    "createdAt",
+    "createdDate",
+    "timestamp",
+)
+_DETAILS_AUTHOR_KEYS = (
+    "author",
+    "creator",
+    "owner",
+    "createdBy",
+    "updatedBy",
+    "by",
+    "sender",
+    "from",
+)
+# Keys to read a human name out of an author value that is itself an object
+# (e.g. Atlassian's ``{"displayName": "Jamie Dimon"}``).
+_AUTHOR_NAME_KEYS = ("displayName", "name", "fullName", "emailAddress", "email")
+_MCP_DETAILS_CHAR_LIMIT = 200
 
 # Canonical ``toolName`` written to both manifests: the **bare advertised tool
 # name** (the payload ``name`` the agent passes to ``unique-cli mcp``).
@@ -83,6 +119,39 @@ def _title_from_json(obj: dict[str, Any]) -> str | None:
     return None
 
 
+def _first_str_by_keys(obj: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        value = obj.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _author_display(obj: dict[str, Any]) -> str | None:
+    """Read an author name from a record, whether the author value is a plain
+    string or a nested object (e.g. ``{"displayName": "..."}``)."""
+    for key in _DETAILS_AUTHOR_KEYS:
+        value = obj.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, dict):
+            name = _first_str_by_keys(value, _AUTHOR_NAME_KEYS)
+            if name:
+                return name
+    return None
+
+
+def _details_from_json(obj: dict[str, Any]) -> str | None:
+    """Best-effort optional "details" line (UN-22310): a date and/or author
+    composed as "<date> - <author>". Returns ``None`` when neither is found."""
+    date = _first_str_by_keys(obj, _DETAILS_DATE_KEYS)
+    author = _author_display(obj)
+    parts = [part for part in (date, author) if part]
+    if not parts:
+        return None
+    return " - ".join(parts)[:_MCP_DETAILS_CHAR_LIMIT]
+
+
 def _titles_from_json(text: str) -> list[dict[str, Any]]:
     """Best-effort: pull a human title out of a JSON result (object or list of
     objects), e.g. an Atlassian page/issue returned as JSON-in-text. Returns []
@@ -98,7 +167,13 @@ def _titles_from_json(text: str) -> list[dict[str, Any]]:
         if isinstance(entry, dict):
             title = _title_from_json(entry)
             if title:
-                items.append({"title": title, "snippet": None})
+                items.append(
+                    {
+                        "title": title,
+                        "snippet": None,
+                        "details": _details_from_json(entry),
+                    }
+                )
     return items
 
 
@@ -189,6 +264,12 @@ def _annotate_mcp_results_for_citations(
                     numbers_by_key[_item_dedup_key(stored_tool, entry)] = entry[
                         "sourceNumber"
                     ]
+            entries_by_number = {
+                entry["sourceNumber"]: entry
+                for entry in entries
+                if isinstance(entry.get("sourceNumber"), int)
+            }
+            needs_rewrite = False
             for item in items:
                 key = _item_dedup_key(tool_name, item)
                 source_number = numbers_by_key.get(key)
@@ -200,6 +281,7 @@ def _annotate_mcp_results_for_citations(
                         "serverName": server_name,
                         "title": item.get("title"),
                         "snippet": item.get("snippet"),
+                        "details": item.get("details"),
                     }
                     try:
                         _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
@@ -210,7 +292,25 @@ def _annotate_mcp_results_for_citations(
                         break
                     numbers_by_key[key] = source_number
                     entries.append(manifest_entry)
+                    entries_by_number[source_number] = manifest_entry
+                else:
+                    # Deduped: a prior call already claimed this source number.
+                    # Backfill ``details`` the first call may have lacked (the
+                    # runner reads one entry per source number, so enriching it
+                    # in place is sufficient) — only when newly extracted.
+                    stored = entries_by_number.get(source_number)
+                    new_details = item.get("details")
+                    if stored is not None and new_details and not stored.get("details"):
+                        stored["details"] = new_details
+                        needs_rewrite = True
                 annotated.append((source_number, item))
+            if needs_rewrite:
+                try:
+                    _rewrite_turn_refs_manifest(refs_log_path, entries)
+                except (UnsafeRefsLogPathError, OSError) as exc:
+                    _LOGGER.warning(
+                        "mcp: failed to backfill refs manifest details: %s", exc
+                    )
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append refs manifest: %s", exc)
         return []
@@ -224,7 +324,12 @@ def _citation_footer(annotated: list[tuple[int, dict[str, Any]]]) -> str:
     """Tell the agent which marker to cite each retrieved item with."""
     if not annotated:
         return ""
-    lines = ["", "Sources — cite each fact with the marker for the item it came from:"]
+    lines = [
+        "",
+        "Sources — MANDATORY: every fact you take from this result MUST be "
+        "cited inline with its [mcpsourceN] marker below, or it will not be "
+        "referenced in the answer:",
+    ]
     for source_number, item in annotated:
         label = item.get("title") or "this MCP tool result"
         lines.append(f"  [mcpsource{source_number}] {label}")
@@ -232,16 +337,25 @@ def _citation_footer(annotated: list[tuple[int, dict[str, Any]]]) -> str:
 
 
 def _append_mcp_output_manifest(
-    name: str, text: str, *, server_name: str | None = None
+    name: str,
+    text: str,
+    *,
+    server_name: str | None = None,
+    output_path: Path | None = None,
 ) -> None:
     """Best-effort append of one MCP tool result to the per-turn manifest.
 
     Never raises: a manifest failure must not change what the agent sees as
     the tool result. The groundedness check simply does not fire for this
     call when the write fails.
+
+    ``output_path`` is the full path of the ``mcp-output.jsonl`` manifest. It
+    defaults to ``Path.cwd() / .unique / mcp-output.jsonl`` so the CLI flow
+    (where cwd is the agent workspace) is unchanged; callers that run outside
+    the workspace cwd (e.g. the in-process tools-mode proxy) pass it explicitly.
     """
     try:
-        refs_log_path = Path.cwd() / _MCP_OUTPUT_LOG_RELATIVE_PATH
+        refs_log_path = output_path or (Path.cwd() / _MCP_OUTPUT_LOG_RELATIVE_PATH)
         _append_turn_refs_manifest_entry(
             refs_log_path,
             {
@@ -252,6 +366,47 @@ def _append_mcp_output_manifest(
         )
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append output manifest: %s", exc)
+
+
+def record_mcp_citations(
+    response: Any,
+    *,
+    tool_name: str,
+    server_name: str | None,
+    unique_dir: Path,
+    formatted_text: str,
+) -> str:
+    """Write both per-turn MCP manifests under ``unique_dir`` and return the
+    ``[mcpsourceN]`` citation footer for the agent.
+
+    Shared by the ``unique-cli mcp`` skills flow (``cmd_mcp``) and the
+    in-process tools-mode proxy in assistants-core, so both write identical
+    manifests and footers. ``unique_dir`` is the workspace ``.unique`` directory
+    (its filenames are joined directly here — do not pass the workspace root).
+
+    - ``response`` is the raw ``unique_sdk.MCP`` result, used for citation
+      extraction (titles from ``resource_link`` names / JSON bodies).
+    - ``formatted_text`` is the source text the model actually saw for this
+      tool result, recorded as the hallucination groundedness context.
+
+    Best-effort and never raises: the underlying manifest writers swallow their
+    own errors, and ``_annotate_mcp_results_for_citations`` owns the per-turn
+    file lock — this function must stay lock-free to avoid a same-process flock
+    self-deadlock.
+    """
+    _append_mcp_output_manifest(
+        tool_name,
+        formatted_text,
+        server_name=server_name,
+        output_path=unique_dir / _MCP_OUTPUT_LOG_RELATIVE_PATH.name,
+    )
+    annotated = _annotate_mcp_results_for_citations(
+        response,
+        tool_name=tool_name,
+        server_name=server_name,
+        refs_log_path=unique_dir / _MCP_REFS_LOG_RELATIVE_PATH.name,
+    )
+    return _citation_footer(annotated)
 
 
 def _read_payload(
@@ -335,8 +490,11 @@ def cmd_mcp(
         formatted = f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
 
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
-    _append_mcp_output_manifest(name, formatted, server_name=server_name)
-    annotated = _annotate_mcp_results_for_citations(
-        response, tool_name=name, server_name=server_name
+    footer = record_mcp_citations(
+        response,
+        tool_name=name,
+        server_name=server_name,
+        unique_dir=Path.cwd() / ".unique",
+        formatted_text=formatted,
     )
-    return formatted + _citation_footer(annotated)
+    return formatted + footer

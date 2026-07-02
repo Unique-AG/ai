@@ -2,31 +2,34 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from httpx import HTTPError
+from unique_search_proxy_core.agent_engines import AgentEngineType
+from unique_search_proxy_core.search_engines import SearchEngineType
+from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
+from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
 
 from unique_web_search.services.search_engine import (
     BingSearch,
     BingSearchConfig,
     BraveSearch,
-    BraveSearchConfig,
     PerplexitySearch,
-    PerplexitySearchConfig,
     get_default_search_engine_config,
     get_search_engine_config_types_from_names,
     get_search_engine_service,
 )
-from unique_web_search.services.search_engine.base import SearchEngineType
+from unique_web_search.services.search_engine.base import (
+    LocalSearchEngineType,
+)
 from unique_web_search.services.search_engine.custom_api import (
     CustomAPI,
     CustomAPIConfig,
     conditional_type,
 )
-from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
-from unique_web_search.services.search_engine.jina import JinaConfig, JinaSearch
+from unique_web_search.services.search_engine.google import GoogleSearch
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
     WebSearchResults,
 )
-from unique_web_search.services.search_engine.tavily import TavilyConfig, TavilySearch
 from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
     VertexAIConfig,
@@ -41,49 +44,37 @@ class TestSearchEngineFactory:
 
     def test_get_google_search_engine_service(self):
         """Test getting Google search engine service."""
-        config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE)
+        config = GoogleConfig()
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, GoogleSearch)
 
-    def test_get_jina_search_engine_service(self):
-        """Test getting Jina search engine service."""
-        config = JinaConfig(search_engine_name=SearchEngineType.JINA)
-        service = get_search_engine_service(config, Mock())
-        assert isinstance(service, JinaSearch)
-
-    def test_get_tavily_search_engine_service(self):
-        """Test getting Tavily search engine service."""
-        config = TavilyConfig(search_engine_name=SearchEngineType.TAVILY)
-        service = get_search_engine_service(config, Mock())
-        assert isinstance(service, TavilySearch)
-
     def test_get_vertexai_search_engine_service(self):
         """Test getting VertexAI search engine service."""
-        config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
+        config = VertexAIConfig()
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, VertexAI)
 
     def test_get_custom_api_search_engine_service(self):
         """Test getting CustomAPI search engine service."""
-        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        config = CustomAPIConfig()
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, CustomAPI)
 
     def test_get_bing_search_engine_service(self):
         """Test getting Bing search engine service."""
-        config = BingSearchConfig(search_engine_name=SearchEngineType.BING)
+        config = BingSearchConfig()
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, BingSearch)
 
     def test_get_brave_search_engine_service(self):
         """Test getting Brave search engine service."""
-        config = BraveSearchConfig(search_engine_name=SearchEngineType.BRAVE)
+        config = BraveConfig()
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, BraveSearch)
 
     def test_get_perplexity_search_engine_service(self):
         """Test getting Perplexity search engine service."""
-        config = PerplexitySearchConfig(search_engine_name=SearchEngineType.PERPLEXITY)
+        config = PerplexityConfig()
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, PerplexitySearch)
 
@@ -94,7 +85,7 @@ class TestSearchEngineFactory:
 
     def test_get_default_search_engine_config(self):
         """Test getting default search engine config."""
-        config = get_default_search_engine_config(["google", "jina"])
+        config = get_default_search_engine_config(["google", "brave"])
         assert config == GoogleConfig
 
 
@@ -115,7 +106,7 @@ class TestBingSearchInit:
         )
 
         # Arrange
-        config = BingSearchConfig(search_engine_name=SearchEngineType.BING)
+        config = BingSearchConfig()
         mock_lm_service = Mock()
 
         # Act
@@ -140,7 +131,7 @@ class TestGetSearchEngineModelConfig:
         Setup summary: Call with known SearchEngineType, verify title in returned ConfigDict.
         """
         # Arrange
-        from unique_web_search.services.search_engine.base import (
+        from unique_web_search.services.search_engine.registry import (
             get_search_engine_model_config,
         )
 
@@ -155,32 +146,24 @@ class TestGetSearchEngineModelConfig:
         "engine_type, expected_title",
         [
             (SearchEngineType.GOOGLE, "Google Search"),
-            (SearchEngineType.JINA, "Jina Search"),
-            (SearchEngineType.FIRECRAWL, "Firecrawl Search"),
-            (SearchEngineType.TAVILY, "Tavily Search"),
             (SearchEngineType.BRAVE, "Brave Search"),
             (SearchEngineType.PERPLEXITY, "Perplexity Search"),
-            (SearchEngineType.BING, "Grounding with Bing"),
-            (SearchEngineType.DUCKDUCKGO, "DuckDuckGo Search"),
-            (SearchEngineType.VERTEXAI, "Grounding with VertexAI"),
-            (SearchEngineType.CUSTOM_API, "Customized API Search"),
+            (AgentEngineType.BING, "Grounding with Bing"),
+            (AgentEngineType.VERTEXAI, "Grounding with VertexAI"),
+            (LocalSearchEngineType.CUSTOM_API, "Customized API Search"),
         ],
         ids=[
             "google",
-            "jina",
-            "firecrawl",
-            "tavily",
             "brave",
             "perplexity",
             "bing",
-            "duckduckgo",
             "vertexai",
             "custom_api",
         ],
     )
     def test_get_search_engine_model_config__returns_correct_title__for_all_engines(
         self,
-        engine_type: SearchEngineType,
+        engine_type: SearchEngineType | AgentEngineType | LocalSearchEngineType,
         expected_title: str,
     ) -> None:
         """
@@ -189,7 +172,7 @@ class TestGetSearchEngineModelConfig:
         Setup summary: Parametrize all engine types and expected titles.
         """
         # Arrange
-        from unique_web_search.services.search_engine.base import (
+        from unique_web_search.services.search_engine.registry import (
             get_search_engine_model_config,
         )
 
@@ -202,30 +185,32 @@ class TestGetSearchEngineModelConfig:
     @pytest.mark.ai
     def test_model_config_title__set_on_brave_config__when_instantiated(self) -> None:
         """
-        Purpose: Verify BraveSearchConfig has model_config with correct title.
-        Why this matters: Ensures the config class uses get_search_engine_model_config at class level.
-        Setup summary: Check model_config on BraveSearchConfig.
+        Purpose: Verify BraveConfig exposes core flat fields used by the proxy client.
+        Why this matters: Brave is imported directly from unique_search_proxy_core.
+        Setup summary: Instantiate BraveConfig and check representative fields.
         """
         # Arrange & Act
-        config = BraveSearchConfig(search_engine_name=SearchEngineType.BRAVE)
+        config = BraveConfig()
 
         # Assert
-        assert config.model_config.get("title") == "Brave Search"
+        assert config.engine == SearchEngineType.BRAVE
+        assert config.fetch_size == 10
 
     @pytest.mark.ai
     def test_model_config_title__set_on_vertexai_config__when_instantiated(
         self,
     ) -> None:
         """
-        Purpose: Verify VertexAIConfig has model_config with correct title.
-        Why this matters: Ensures the config class uses get_search_engine_model_config at class level.
-        Setup summary: Check model_config on VertexAIConfig.
+        Purpose: Verify VertexAIConfig exposes core engine discriminator from VertexAIAgentConfig.
+        Why this matters: Vertex extends core agent config without redeclaring engine.
+        Setup summary: Instantiate VertexAIConfig and check engine value.
         """
         # Arrange & Act
-        config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
+        config = VertexAIConfig()
 
         # Assert
-        assert config.model_config.get("title") == "Grounding with VertexAI"
+        assert config.engine == AgentEngineType.VERTEXAI
+        assert str(config.engine) == "vertexai"
 
 
 class TestSearchEngineConfigs:
@@ -233,293 +218,65 @@ class TestSearchEngineConfigs:
 
     def test_google_config_creation(self):
         """Test GoogleConfig creation."""
-        config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE)
+        config = GoogleConfig()
 
-        assert config.search_engine_name == SearchEngineType.GOOGLE
+        assert config.engine == SearchEngineType.GOOGLE
         assert hasattr(config, "fetch_size")
-        assert hasattr(config, "custom_search_config")
-        assert config.fetch_size == 5  # default value
+        assert hasattr(config, "search_engine_id")
+        assert hasattr(config, "gl")
+        assert config.fetch_size == 10  # core default
 
     def test_google_config_custom_fetch_size(self):
         """Test GoogleConfig with custom fetch size."""
-        config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE, fetch_size=10)
+        config = GoogleConfig(fetch_size=10)
         assert config.fetch_size == 10
-
-    def test_jina_config_creation(self):
-        """Test JinaConfig creation with flattened optional params."""
-        config = JinaConfig(search_engine_name=SearchEngineType.JINA)
-
-        assert config.search_engine_name == SearchEngineType.JINA
-        assert hasattr(config, "fetch_size")
-        # Optional params are now directly on JinaConfig (flattened from JinaSearchOptionalParams)
-        assert hasattr(config, "gl")
-        assert hasattr(config, "hl")
-        assert hasattr(config, "num")
-        assert config.gl is None
-        assert config.hl is None
-
-    def test_tavily_config_creation(self):
-        """Test TavilyConfig creation with flattened custom search config."""
-        config = TavilyConfig(search_engine_name=SearchEngineType.TAVILY)
-
-        assert config.search_engine_name == SearchEngineType.TAVILY
-        assert hasattr(config, "fetch_size")
-        # Custom search params are now directly on TavilyConfig (flattened from TavilyCustomSearchConfig)
-        assert hasattr(config, "search_depth")
-        assert hasattr(config, "topic")
-        assert config.search_depth == "advanced"
-        assert config.topic is None
 
     def test_vertexai_config_creation_default_value(self):
         """Test VertexAIConfig creation."""
-        config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
+        config = VertexAIConfig()
 
-        assert config.search_engine_name == SearchEngineType.VERTEXAI
+        assert config.engine == AgentEngineType.VERTEXAI
         assert config.vertexai_model_name == "gemini-3-flash-preview"
         assert not config.requires_scraping
-        assert not config.enable_entreprise_search
+        assert not config.enable_enterprise_search
         assert config.enable_redirect_resolution
 
     def test_vertexai_config_custom_values(self):
         """Test VertexAIConfig with custom values."""
         config = VertexAIConfig(
-            search_engine_name=SearchEngineType.VERTEXAI,
             vertexai_model_name="gemini-2.5-pro",
             generation_instructions="Custom instruction",
             requires_scraping=True,
-            enable_entreprise_search=True,
+            enable_enterprise_search=True,
             enable_redirect_resolution=False,
         )
 
         assert config.vertexai_model_name == "gemini-2.5-pro"
         assert config.generation_instructions == "Custom instruction"
         assert config.requires_scraping
-        assert config.enable_entreprise_search
+        assert config.enable_enterprise_search
         assert not config.enable_redirect_resolution
-
-
-class TestJinaFlattenedConfig:
-    """Tests for JinaConfig flattened structure (params inherited from JinaSearchOptionalParams)."""
-
-    @pytest.mark.ai
-    def test_jina_config__inherits_optional_params__on_creation(self) -> None:
-        """
-        Purpose: Verify JinaConfig inherits all optional params from JinaSearchOptionalParams.
-        Why this matters: Flattened config removes nested custom_search_config in favor of direct fields.
-        Setup summary: Create JinaConfig, verify optional params exist as direct attributes.
-        """
-        # Arrange & Act
-        config = JinaConfig(search_engine_name=SearchEngineType.JINA)
-
-        # Assert
-        assert hasattr(config, "gl")
-        assert hasattr(config, "location")
-        assert hasattr(config, "hl")
-        assert hasattr(config, "num")
-        assert hasattr(config, "page")
-        assert hasattr(config, "x_site")
-        assert hasattr(config, "x_no_cache")
-
-    @pytest.mark.ai
-    def test_jina_config__accepts_custom_values__when_flattened_params_set(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify JinaConfig accepts custom values for flattened optional params.
-        Why this matters: Configuration must be settable directly without nested objects.
-        Setup summary: Create JinaConfig with custom params, verify values stored.
-        """
-        # Arrange & Act
-        config = JinaConfig(
-            search_engine_name=SearchEngineType.JINA,
-            gl="US",
-            hl="en",
-            num=10,
-        )
-
-        # Assert
-        assert config.gl == "US"
-        assert config.hl == "en"
-        assert config.num == 10
-
-    @pytest.mark.ai
-    def test_jina_config__model_dump_excludes_search_engine_name__when_used_for_api(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify JinaConfig model_dump with exclude works correctly for API params.
-        Why this matters: API requests use model_dump to extract config, excluding metadata fields.
-        Setup summary: Create JinaConfig, dump excluding search_engine_name, verify output.
-        """
-        # Arrange
-        config = JinaConfig(
-            search_engine_name=SearchEngineType.JINA,
-            gl="US",
-            fetch_size=10,
-        )
-
-        # Act
-        dumped = config.model_dump(
-            mode="json",
-            exclude_none=True,
-            by_alias=True,
-            exclude={"search_engine_name"},
-        )
-
-        # Assert
-        assert "search_engine_name" not in dumped
-        assert dumped["gl"] == "US"
-
-    @pytest.mark.ai
-    def test_jina_config__does_not_have_custom_search_config__after_refactor(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify JinaConfig no longer has the old custom_search_config attribute.
-        Why this matters: Ensures the flattening refactor removed the nested config properly.
-        Setup summary: Create JinaConfig, verify custom_search_config is absent.
-        """
-        # Arrange & Act
-        config = JinaConfig(search_engine_name=SearchEngineType.JINA)
-
-        # Assert
-        assert not hasattr(config, "custom_search_config")
-
-    @pytest.mark.ai
-    def test_jina_config__has_correct_model_config_title__when_instantiated(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify JinaConfig has the correct model_config title.
-        Why this matters: Title is used in the UI to identify the search engine.
-        Setup summary: Create JinaConfig, verify model_config title.
-        """
-        # Arrange & Act
-        config = JinaConfig(search_engine_name=SearchEngineType.JINA)
-
-        # Assert
-        assert config.model_config.get("title") == "Jina Search"
-
-
-class TestTavilyFlattenedConfig:
-    """Tests for TavilyConfig flattened structure (params inherited from TavilyCustomSearchConfig)."""
-
-    @pytest.mark.ai
-    def test_tavily_config__inherits_custom_search_params__on_creation(self) -> None:
-        """
-        Purpose: Verify TavilyConfig inherits search_depth and topic from TavilyCustomSearchConfig.
-        Why this matters: Flattened config removes nested custom_search_config in favor of direct fields.
-        Setup summary: Create TavilyConfig, verify params exist as direct attributes.
-        """
-        # Arrange & Act
-        config = TavilyConfig(search_engine_name=SearchEngineType.TAVILY)
-
-        # Assert
-        assert hasattr(config, "search_depth")
-        assert hasattr(config, "topic")
-        assert config.search_depth == "advanced"
-        assert config.topic is None
-
-    @pytest.mark.ai
-    def test_tavily_config__accepts_custom_values__when_flattened_params_set(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify TavilyConfig accepts custom values for flattened params.
-        Why this matters: Configuration must be settable directly without nested objects.
-        Setup summary: Create TavilyConfig with custom params, verify values stored.
-        """
-        # Arrange & Act
-        config = TavilyConfig(
-            search_engine_name=SearchEngineType.TAVILY,
-            search_depth="basic",
-            topic="news",
-        )
-
-        # Assert
-        assert config.search_depth == "basic"
-        assert config.topic == "news"
-
-    @pytest.mark.ai
-    def test_tavily_config__model_dump_excludes_search_engine_name__when_used_for_api(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify TavilyConfig model_dump with exclude works correctly for API params.
-        Why this matters: API requests use model_dump to extract config, excluding metadata fields.
-        Setup summary: Create TavilyConfig, dump excluding search_engine_name, verify output.
-        """
-        # Arrange
-        config = TavilyConfig(
-            search_engine_name=SearchEngineType.TAVILY,
-            search_depth="basic",
-            topic="finance",
-        )
-
-        # Act
-        dumped = config.model_dump(
-            exclude={"search_engine_name"}, exclude_none=True, by_alias=False
-        )
-
-        # Assert
-        assert "search_engine_name" not in dumped
-        assert dumped["search_depth"] == "basic"
-        assert dumped["topic"] == "finance"
-
-    @pytest.mark.ai
-    def test_tavily_config__does_not_have_custom_search_config__after_refactor(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify TavilyConfig no longer has the old custom_search_config attribute.
-        Why this matters: Ensures the flattening refactor removed the nested config properly.
-        Setup summary: Create TavilyConfig, verify custom_search_config is absent.
-        """
-        # Arrange & Act
-        config = TavilyConfig(search_engine_name=SearchEngineType.TAVILY)
-
-        # Assert
-        assert not hasattr(config, "custom_search_config")
-
-    @pytest.mark.ai
-    def test_tavily_config__has_correct_model_config_title__when_instantiated(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify TavilyConfig has the correct model_config title.
-        Why this matters: Title is used in the UI to identify the search engine.
-        Setup summary: Create TavilyConfig, verify model_config title.
-        """
-        # Arrange & Act
-        config = TavilyConfig(search_engine_name=SearchEngineType.TAVILY)
-
-        # Assert
-        assert config.model_config.get("title") == "Tavily Search"
 
 
 class TestSearchEngineTypes:
     """Test search engine type definitions."""
 
     def test_search_engine_type_values(self):
-        """Test that SearchEngineType enum has expected values."""
-        assert SearchEngineType.GOOGLE == "Google"
-        assert SearchEngineType.JINA == "Jina"
-        assert SearchEngineType.FIRECRAWL == "Firecrawl"
-        assert SearchEngineType.TAVILY == "Tavily"
-        assert SearchEngineType.BRAVE == "Brave"
-        assert SearchEngineType.PERPLEXITY == "Perplexity"
-        assert SearchEngineType.BING == "Bing"
-        assert SearchEngineType.DUCKDUCKGO == "DuckDuckGo"
-        assert SearchEngineType.VERTEXAI == "VertexAI"
-        assert SearchEngineType.CUSTOM_API == "CustomAPI"
+        """Test that search engine enums have expected discriminator values."""
+        assert SearchEngineType.GOOGLE == "google"
+        assert SearchEngineType.BRAVE == "brave"
+        assert SearchEngineType.PERPLEXITY == "perplexity"
+        assert AgentEngineType.BING == "bing"
+        assert AgentEngineType.VERTEXAI == "vertexai"
+        assert LocalSearchEngineType.CUSTOM_API == "custom_api"
 
     def test_search_engine_type_membership(self):
-        """Test SearchEngineType membership."""
-        assert "Google" in SearchEngineType
-        assert "Jina" in SearchEngineType
-        assert "Tavily" in SearchEngineType
-        assert "VertexAI" in SearchEngineType
-        assert "CustomAPI" in SearchEngineType
+        """Test search engine enum membership."""
+        assert "google" in SearchEngineType
+        assert "brave" in SearchEngineType
+        assert "bing" in AgentEngineType
+        assert "vertexai" in AgentEngineType
+        assert "custom_api" in LocalSearchEngineType
         assert "invalid_engine" not in SearchEngineType
 
 
@@ -528,26 +285,8 @@ class TestSearchEngineInstances:
 
     def test_google_search_initialization(self):
         """Test GoogleSearch initializes correctly."""
-        config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE)
+        config = GoogleConfig()
         search = GoogleSearch(config)
-
-        assert search.config == config
-        assert hasattr(search, "requires_scraping")
-        assert hasattr(search, "search")
-
-    def test_jina_search_initialization(self):
-        """Test JinaSearch initializes correctly."""
-        config = JinaConfig(search_engine_name=SearchEngineType.JINA)
-        search = JinaSearch(config)
-
-        assert search.config == config
-        assert hasattr(search, "requires_scraping")
-        assert hasattr(search, "search")
-
-    def test_tavily_search_initialization(self):
-        """Test TavilySearch initializes correctly."""
-        config = TavilyConfig(search_engine_name=SearchEngineType.TAVILY)
-        search = TavilySearch(config)
 
         assert search.config == config
         assert hasattr(search, "requires_scraping")
@@ -555,7 +294,7 @@ class TestSearchEngineInstances:
 
     def test_vertexai_search_initialization(self):
         """Test VertexAI initializes correctly."""
-        config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
+        config = VertexAIConfig()
         search = VertexAI(config, Mock())
 
         assert search.config == config
@@ -569,7 +308,6 @@ class TestVertexAISearch:
     async def test_vertexai_search_with_redirect_resolution(self, mocker):
         """Test VertexAI search with redirect resolution enabled."""
         config = VertexAIConfig(
-            search_engine_name=SearchEngineType.VERTEXAI,
             enable_redirect_resolution=True,
         )
 
@@ -628,7 +366,6 @@ class TestVertexAISearch:
     async def test_vertexai_search_without_redirect_resolution(self, mocker):
         """Test VertexAI search with redirect resolution disabled."""
         config = VertexAIConfig(
-            search_engine_name=SearchEngineType.VERTEXAI,
             enable_redirect_resolution=False,
         )
 
@@ -759,11 +496,9 @@ class TestVertexAISearch:
     def test_vertexai_requires_scraping_property(self):
         """Test VertexAI requires_scraping property."""
         config_no_scraping = VertexAIConfig(
-            search_engine_name=SearchEngineType.VERTEXAI,
             requires_scraping=False,
         )
         config_with_scraping = VertexAIConfig(
-            search_engine_name=SearchEngineType.VERTEXAI,
             requires_scraping=True,
         )
 
@@ -780,9 +515,9 @@ class TestCustomAPISearch:
 
     def test_custom_api_config_creation(self):
         """Test CustomAPIConfig creation with defaults."""
-        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        config = CustomAPIConfig()
 
-        assert config.search_engine_name == SearchEngineType.CUSTOM_API
+        assert config.engine == LocalSearchEngineType.CUSTOM_API
         assert hasattr(config, "api_endpoint")
         assert hasattr(config, "api_headers")
         assert hasattr(config, "api_additional_query_params")
@@ -797,7 +532,6 @@ class TestCustomAPISearch:
     def test_custom_api_config_custom_values(self):
         """Test CustomAPIConfig with custom values."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://custom-api.example.com/search",
             api_headers='{"Authorization": "Bearer token123"}',
             api_additional_query_params='{"max_results": 10, "lang": "en"}',
@@ -818,7 +552,6 @@ class TestCustomAPISearch:
     def test_custom_api_initialization(self):
         """Test CustomAPI initializes correctly."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com",
         )
         search = CustomAPI(config)
@@ -833,7 +566,6 @@ class TestCustomAPISearch:
     async def test_custom_api_search_post_successful(self, mocker):
         """Test CustomAPI search with POST method successful response."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
             api_headers='{"Content-Type": "application/json"}',
             api_additional_body_params='{"max_results": 5}',
@@ -893,7 +625,6 @@ class TestCustomAPISearch:
     async def test_custom_api_search_get_successful(self, mocker):
         """Test CustomAPI search with GET method successful response."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
             api_headers='{"X-API-Key": "secret123"}',
             api_additional_query_params='{"limit": 10, "format": "json"}',
@@ -945,7 +676,6 @@ class TestCustomAPISearch:
     async def test_custom_api_search_with_mixed_params(self, mocker):
         """Test CustomAPI search with both query and body params (POST)."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
             api_headers='{"Authorization": "Bearer token"}',
             api_additional_query_params='{"api_version": "v2", "format": "json"}',
@@ -982,7 +712,6 @@ class TestCustomAPISearch:
     async def test_custom_api_search_with_custom_timeout(self, mocker):
         """Test CustomAPI search respects custom timeout."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
             timeout=30,
         )
@@ -1011,7 +740,6 @@ class TestCustomAPISearch:
     async def test_custom_api_search_handles_http_error(self, mocker):
         """Test CustomAPI search handles HTTP errors gracefully."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
         )
 
@@ -1043,7 +771,6 @@ class TestCustomAPISearch:
         """
         # Arrange
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
         )
 
@@ -1075,7 +802,6 @@ class TestCustomAPISearch:
     async def test_custom_api_search_handles_invalid_response(self, mocker):
         """Test CustomAPI search handles invalid JSON response."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com/search",
         )
 
@@ -1102,11 +828,9 @@ class TestCustomAPISearch:
     def test_custom_api_requires_scraping_property(self):
         """Test CustomAPI requires_scraping property."""
         config_no_scraping = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             requires_scraping=False,
         )
         config_with_scraping = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             requires_scraping=True,
         )
 
@@ -1119,11 +843,9 @@ class TestCustomAPISearch:
     def test_custom_api_request_method_property(self):
         """Test CustomAPI _request_method property."""
         config_get = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
         )
         config_post = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_request_method=CUSTOM_API_REQUEST_METHOD.POST,
         )
 
@@ -1136,7 +858,6 @@ class TestCustomAPISearch:
     def test_custom_api_headers_property(self):
         """Test CustomAPI _headers property."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_headers='{"Authorization": "Bearer token", "X-Custom": "value"}',
         )
 
@@ -1147,7 +868,6 @@ class TestCustomAPISearch:
     def test_custom_api_prepare_request_params_and_body_get(self):
         """Test _prepare_request_params_and_body for GET requests."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_additional_query_params='{"limit": 10, "format": "json"}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.GET,
         )
@@ -1161,7 +881,6 @@ class TestCustomAPISearch:
     def test_custom_api_prepare_request_params_and_body_post(self):
         """Test _prepare_request_params_and_body for POST requests."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_additional_query_params='{"api_version": "v2"}',
             api_additional_body_params='{"lang": "en", "safe": true}',
             api_request_method=CUSTOM_API_REQUEST_METHOD.POST,
@@ -1175,7 +894,7 @@ class TestCustomAPISearch:
 
     def test_get_custom_api_search_engine_service(self):
         """Test getting CustomAPI search engine service via factory."""
-        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        config = CustomAPIConfig()
         service = get_search_engine_service(config, Mock())
         assert isinstance(service, CustomAPI)
 
@@ -1186,7 +905,7 @@ class TestCustomAPISearch:
             None,
         )
 
-        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        config = CustomAPIConfig()
         search = CustomAPI(config)
 
         assert search._client_config == {}
@@ -1199,7 +918,7 @@ class TestCustomAPISearch:
             client_config_json,
         )
 
-        config = CustomAPIConfig(search_engine_name=SearchEngineType.CUSTOM_API)
+        config = CustomAPIConfig()
         search = CustomAPI(config)
 
         assert search._client_config == {
@@ -1211,7 +930,6 @@ class TestCustomAPISearch:
     def test_custom_api_additional_query_params_property(self):
         """Test _additional_query_params property parses JSON."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_additional_query_params='{"limit": 10, "offset": 0}',
         )
 
@@ -1222,7 +940,6 @@ class TestCustomAPISearch:
     def test_custom_api_additional_body_params_property(self):
         """Test _additional_body_params property parses JSON."""
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_additional_body_params='{"filter": "news", "safe": true}',
         )
 
@@ -1240,7 +957,6 @@ class TestCustomAPISearch:
         )
 
         config = CustomAPIConfig(
-            search_engine_name=SearchEngineType.CUSTOM_API,
             api_endpoint="https://api.example.com",
         )
 

@@ -29,6 +29,13 @@ class A2AManager:
             if not tool_config.is_sub_agent:
                 continue
 
+            if not tool_config.is_enabled:
+                self._logger.info(
+                    "Skipping disabled sub-agent '%s'",
+                    tool_config.name,
+                )
+                continue
+
             if not isinstance(tool_config.configuration, SubAgentToolConfig):
                 self._logger.error(
                     "tool_config.configuration must be of type SubAgentToolConfig"
@@ -37,16 +44,23 @@ class A2AManager:
 
             sub_agent_tool_config = tool_config.configuration
 
-            sub_agents.append(
-                SubAgentTool(
-                    configuration=sub_agent_tool_config,
-                    event=event,
-                    tool_progress_reporter=self._tool_progress_reporter,
-                    name=tool_config.name,
-                    display_name=tool_config.display_name,
-                    response_watcher=self._response_watcher,
+            try:
+                sub_agents.append(
+                    SubAgentTool(
+                        configuration=sub_agent_tool_config,
+                        event=event,
+                        tool_progress_reporter=self._tool_progress_reporter,
+                        name=tool_config.name,
+                        display_name=tool_config.display_name,
+                        response_watcher=self._response_watcher,
+                    )
                 )
-            )
+            except Exception:
+                self._logger.warning(
+                    "Skipping sub-agent '%s' due to initialization failure.",
+                    tool_config.name,
+                    exc_info=True,
+                )
 
         filtered_tool_config = [
             tool_config for tool_config in tool_configs if not tool_config.is_sub_agent

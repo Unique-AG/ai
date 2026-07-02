@@ -159,6 +159,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
@@ -202,6 +203,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
@@ -210,6 +212,39 @@ class TestChatServiceUnit:
                 ],
                 debugInfo={},
                 completedAt=None,
+            )
+        ]
+        mock_modify.assert_has_calls(expected_calls)
+
+    @patch.object(unique_sdk.Message, "modify", autospec=True)
+    def test_modify_assistant_message_with_segment_kind(self, mock_modify):
+        mock_modify.return_value = {
+            "id": "test_message",
+            "chatId": "chatId123",
+            "content": "",
+            "role": "assistant",
+        }
+
+        result = self.service.modify_assistant_message(
+            content="",
+            message_id="test_assistant_message",
+            segment_kind="PREFACE",
+        )
+
+        assert isinstance(result, ChatMessage)
+
+        expected_calls = [
+            mock.call(
+                user_id="test_user",
+                company_id="test_company",
+                id="test_assistant_message",
+                chatId="test_chat",
+                text="",
+                originalText=None,
+                references=[],
+                debugInfo=None,
+                completedAt=None,
+                segmentKind="PREFACE",
             )
         ]
         mock_modify.assert_has_calls(expected_calls)
@@ -450,6 +485,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
@@ -493,6 +529,7 @@ class TestChatServiceUnit:
                 references=[
                     {
                         "name": "Document 1",
+                        "description": None,
                         "url": "http://example.com",
                         "sequenceNumber": 1,
                         "sourceId": "source123",
