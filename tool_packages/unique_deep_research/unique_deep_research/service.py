@@ -29,6 +29,7 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
@@ -143,25 +144,27 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         language_model_service: LanguageModelService | None = None,
         content_service: ContentService | None = None,
     ):
-        if chat_service is not None and language_model_service is not None:
-            super().__init__(
-                configuration,
-                tool_progress_reporter=tool_progress_reporter,
-                chat_service=chat_service,
-                language_model_service=language_model_service,
-                event=event,
-                content_service=content_service,
-            )
-            if event is not None:
-                self._initialize_from_event(event)
-        elif event is not None:
-            super().__init__(configuration, event, tool_progress_reporter)
-            self._initialize_from_event(event)
-        else:
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
+        )
+
+        if resolved.event is None:
             raise ValueError(
-                "DeepResearchTool requires event or injected chat_service and "
-                "language_model_service"
+                "DeepResearchTool requires event for research execution context"
             )
+
+        super().__init__(
+            configuration,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+            content_service=resolved.content_service,
+        )
+        self._initialize_from_event(resolved.event)
 
     @property
     def _assistant_message_id(self) -> str:

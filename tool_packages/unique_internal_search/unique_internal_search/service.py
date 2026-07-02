@@ -23,6 +23,7 @@ from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
@@ -405,57 +406,35 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         self._search_service_initialized = False
         self._display_name = display_name
         self._configuration = configuration
-        if chat_service is not None and language_model_service is not None:
-            Tool.__init__(
-                self,
-                configuration,
-                tool_progress_reporter=tool_progress_reporter,
-                chat_service=chat_service,
-                language_model_service=language_model_service,
-                event=event,
-                content_service=content_service,
-            )
-            if event is not None and content_service is not None:
-                self._initialize_search_service_from_services()
-        elif event is not None:
-            Tool.__init__(self, configuration, event, tool_progress_reporter)
-            self._initialize_search_service_from_event(configuration)
-        else:
-            raise ValueError(
-                "InternalSearchTool requires event or injected chat_service and "
-                "language_model_service"
-            )
 
-    def _initialize_search_service_from_event(
-        self, configuration: InternalSearchConfig
-    ) -> None:
-        content_service = ContentService.from_event(self.event)
-        chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
-        selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self.event)
-        if self.event.payload.correlation:
-            chat_id = self.event.payload.correlation.parent_chat_id
-        else:
-            chat_id = self.event.payload.chat_id
-        InternalSearchService.__init__(
-            self,
-            config=configuration,
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
             content_service=content_service,
-            chunk_relevancy_sorter=chunk_relevancy_sorter,
-            chat_id=chat_id,
-            company_id=self.event.company_id,
-            logger=self.logger,
-            selected_uploaded_file_ids=selected_uploaded_file_ids,
         )
-        self._search_service_initialized = True
+        if resolved.content_service is None:
+            raise ValueError("InternalSearchTool requires content_service")
 
-    def _initialize_search_service_from_services(self) -> None:
+        Tool.__init__(
+            self,
+            configuration,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+            content_service=resolved.content_service,
+        )
+        self._initialize_search_service(resolved.event)
+
+    def _initialize_search_service(self, event: ChatEvent | None) -> None:
         if self._search_service_initialized:
             return
-        if not hasattr(self, "_content_service") or self._content_service is None:
-            raise ValueError("InternalSearchTool requires injected content_service")
-        if self._event is None:
-            raise ValueError("InternalSearchTool requires tool_init_event snapshot")
-        selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self._event)
+        if self._content_service is None:
+            raise ValueError("InternalSearchTool requires content_service")
+        selected_uploaded_file_ids = (
+            extract_selected_uploaded_file_ids(event) if event is not None else []
+        )
         InternalSearchService.__init__(
             self,
             config=self._configuration,

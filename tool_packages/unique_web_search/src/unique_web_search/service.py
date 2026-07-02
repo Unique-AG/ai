@@ -77,7 +77,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             language_model_orchestrator or configuration.token_counting_language_model
         )
         self._display_name = kwargs.get("display_name", "Web Search")
-        if getattr(self, "_event", None) is not None and hasattr(self, "_chat_service"):
+        if hasattr(self, "_chat_service"):
             self._initialize_search_dependencies()
 
     def _initialize_search_dependencies(self) -> None:

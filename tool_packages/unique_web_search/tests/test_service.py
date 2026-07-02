@@ -13,21 +13,33 @@ class TestWebSearchToolInit:
     """Test WebSearchTool.__init__() and _initialize_search_dependencies()."""
 
     @pytest.mark.ai
-    def test_init__with_injected_services_only__skips_search_setup(
+    def test_init__with_injected_services_only__initializes_search_setup(
         self,
         mock_web_search_config_v1: Mock,
+        mocker: Any,
     ) -> None:
         """
-        Purpose: Verify __init__ does not build search dependencies when constructed
-        with injected services but no event (config-only listing path).
+        Purpose: Verify __init__ builds search dependencies when constructed with injected
+        services and no event.
         """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        chat_service = Mock()
+        chat_service._company_id = "company-1"
+        chat_service._user_id = "user-1"
+        chat_service.get_full_history.return_value = []
+
         tool = WebSearchTool(
             mock_web_search_config_v1,
-            chat_service=Mock(),
+            chat_service=chat_service,
             language_model_service=Mock(),
         )
 
-        assert not hasattr(tool, "search_engine_service")
+        assert tool.company_id == "company-1"
+        assert hasattr(tool, "search_engine_service")
 
     @pytest.mark.ai
     def test_init__with_event_and_injected_services__completes_init_eagerly(

@@ -16,6 +16,38 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_internal_search.config import InternalSearchConfig
 
 
+@pytest.fixture(autouse=True)
+def autouse_tool_service_bootstrap(mocker: Any) -> dict[str, Mock]:
+    """Bootstrap ChatService/LLM/content for event-only tool construction in tests."""
+    chat_service = Mock()
+    chat_service._company_id = "company_123"
+    chat_service._user_id = "user_123"
+    chat_service._content_scope_chat_id = "chat_123"
+    chat_service._assistant_message_id = "assistant_message_123"
+    chat_service.get_full_history = Mock(return_value=[])
+
+    mocker.patch(
+        "unique_toolkit.services.chat_service.ChatService",
+        return_value=chat_service,
+    )
+    mocker.patch(
+        "unique_toolkit.language_model.service.LanguageModelService.from_event",
+        return_value=Mock(),
+    )
+    default_content_service = Mock(spec=ContentService)
+    default_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
+    default_content_service._metadata_filter = None
+    mocker.patch(
+        "unique_toolkit.content.service.ContentService.from_event",
+        return_value=default_content_service,
+    )
+    mocker.patch(
+        "unique_internal_search.service.ChunkRelevancySorter",
+        return_value=Mock(),
+    )
+    return {"chat_service": chat_service, "content_service": default_content_service}
+
+
 @pytest.fixture
 def mock_logger() -> Logger:
     """Create a mock logger for testing."""

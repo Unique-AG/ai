@@ -1111,120 +1111,98 @@ class TestInternalSearchTool:
     """Tests for InternalSearchTool class."""
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
+    @patch("unique_toolkit.services.chat_service.ChatService")
+    @patch("unique_toolkit.language_model.service.LanguageModelService.from_event")
+    @patch("unique_toolkit.content.service.ContentService.from_event")
     def test_tool__initializes__with_chat_event(
         self,
-        mock_chunk_relevancy_sorter_class: Any,
         mock_content_service_class: Any,
+        mock_llm_from_event: Any,
+        mock_chat_service_class: Any,
+        mock_chunk_relevancy_sorter_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
-        mock_logger: Any,
     ) -> None:
         """
         Purpose: Verify InternalSearchTool initializes correctly with ChatEvent.
-        Why this matters: Ensures proper tool initialization and chat_id extraction from ChatEvent.
-        Setup summary: Mock ContentService and ChunkRelevancySorter from_event, verify initialization.
         """
-        # Arrange
         mock_content_service = Mock(spec=ContentService)
-        mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.return_value = mock_content_service
+
+        mock_chat_service = Mock()
+        mock_chat_service._company_id = "company_123"
+        mock_chat_service._user_id = "user_123"
+        mock_chat_service._content_scope_chat_id = "chat_123"
+        mock_chat_service_class.return_value = mock_chat_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
-        mock_tool_base = Mock()
-        mock_tool_base.logger = mock_logger
-
-        # Act
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            # Set attributes that Tool base class expects
-            setattr(self, "_event", event)
-            setattr(self, "logger", mock_logger)
-            setattr(self, "_message_step_logger", None)
-
-        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-            tool = InternalSearchTool(
-                configuration=base_internal_search_config,
-                event=mock_chat_event,
-            )
-
-        # Assert
-        mock_content_service_class.from_event.assert_called_once_with(mock_chat_event)
-        mock_chunk_relevancy_sorter_class.from_event.assert_called_once_with(
-            mock_chat_event
+        tool = InternalSearchTool(
+            configuration=base_internal_search_config,
+            event=mock_chat_event,
         )
+
+        mock_content_service_class.assert_called_once_with(mock_chat_event)
+        mock_chat_service_class.assert_called_once_with(mock_chat_event)
         assert tool.config == base_internal_search_config
         assert tool.chat_id == "chat_123"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
+    @patch("unique_toolkit.services.chat_service.ChatService")
+    @patch("unique_toolkit.language_model.service.LanguageModelService.from_event")
+    @patch("unique_toolkit.content.service.ContentService.from_event")
     def test_tool__initializes__with_chat_event__uses_parent_chat_id__when_correlation_set(
         self,
-        mock_chunk_relevancy_sorter_class: Any,
         mock_content_service_class: Any,
+        mock_llm_from_event: Any,
+        mock_chat_service_class: Any,
+        mock_chunk_relevancy_sorter_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event_with_correlation: Any,
-        mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify InternalSearchTool uses payload.correlation.parent_chat_id when correlation is set.
-        Why this matters: Ensures correct chat_id extraction for correlated (e.g. subagent) events.
-        Setup summary: ChatEvent with payload.correlation.parent_chat_id set, verify tool.chat_id equals it.
+        Purpose: Verify InternalSearchTool uses ChatService content scope for correlated events.
         """
-        # Arrange
         mock_content_service = Mock(spec=ContentService)
-        mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.return_value = mock_content_service
+
+        mock_chat_service = Mock()
+        mock_chat_service._company_id = "company_123"
+        mock_chat_service._user_id = "user_123"
+        mock_chat_service._content_scope_chat_id = "parent_chat_456"
+        mock_chat_service_class.return_value = mock_chat_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
-        # Act
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            setattr(self, "_event", event)
-            setattr(self, "logger", mock_logger)
-            setattr(self, "_message_step_logger", None)
-
-        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
-            tool = InternalSearchTool(
-                configuration=base_internal_search_config,
-                event=mock_chat_event_with_correlation,
-            )
-
-        # Assert: chat_id comes from correlation.parent_chat_id, not payload.chat_id
-        mock_content_service_class.from_event.assert_called_once_with(
-            mock_chat_event_with_correlation
+        tool = InternalSearchTool(
+            configuration=base_internal_search_config,
+            event=mock_chat_event_with_correlation,
         )
-        mock_chunk_relevancy_sorter_class.from_event.assert_called_once_with(
+
+        mock_content_service_class.assert_called_once_with(
             mock_chat_event_with_correlation
         )
         assert tool.config == base_internal_search_config
         assert tool.chat_id == "parent_chat_456"
 
     @pytest.mark.ai
-    def test_tool__initializes__with_injected_services__defers_without_event_and_content_service(
+    def test_tool__initializes__with_injected_services__raises_without_content_service(
         self,
         base_internal_search_config: InternalSearchConfig,
     ) -> None:
         """
-        Purpose: Verify InternalSearchTool accepts injected services without event/content_service
-            and defers InternalSearchService setup until both are provided.
+        Purpose: Verify InternalSearchTool requires content_service at construction time.
         """
-        chat_service = Mock()
-        language_model_service = Mock()
-
-        tool = InternalSearchTool(
-            configuration=base_internal_search_config,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-        )
-
-        assert tool._chat_service is chat_service
-        assert tool._language_model_service is language_model_service
-        assert tool._search_service_initialized is False
+        with pytest.raises(ValueError, match="requires content_service"):
+            InternalSearchTool(
+                configuration=base_internal_search_config,
+                chat_service=Mock(),
+                language_model_service=Mock(),
+            )
 
     @pytest.mark.ai
     def test_tool__initializes__with_injected_services__builds_search_service(
@@ -1267,77 +1245,75 @@ class TestInternalSearchTool:
             first use instead of failing fast at wiring time.
         Setup summary: Call constructor with only configuration, expect ValueError.
         """
-        with pytest.raises(ValueError, match="requires event or injected chat_service"):
+        with pytest.raises(
+            ValueError,
+            match="event or injected chat_service and language_model_service",
+        ):
             InternalSearchTool(configuration=base_internal_search_config)
 
     @pytest.mark.ai
-    def test_initialize_search_service_from_services__raises__without_content_service(
+    def test_initialize_search_service__raises__without_content_service(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_chat_event: Any,
     ) -> None:
         """
-        Purpose: Verify _initialize_search_service_from_services raises when content_service
-            was never injected.
-        Why this matters: ContentService is required to build InternalSearchService; a missing
-            injection must fail loudly rather than crash later with an AttributeError.
-        Setup summary: Construct tool via service injection, leave _content_service unset, call hook.
+        Purpose: Verify _initialize_search_service raises when content_service is missing.
         """
-        tool = InternalSearchTool(
-            configuration=base_internal_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-        )
+        tool = InternalSearchTool.__new__(InternalSearchTool)
+        tool._search_service_initialized = False
+        tool._configuration = base_internal_search_config
         tool._content_service = None
-        tool._event = mock_chat_event
+        tool._chat_service = Mock()
+        tool.logger = Mock()
 
-        with pytest.raises(ValueError, match="requires injected content_service"):
-            tool._initialize_search_service_from_services()
+        with pytest.raises(ValueError, match="requires content_service"):
+            tool._initialize_search_service(None)
 
     @pytest.mark.ai
-    def test_initialize_search_service_from_services__raises__without_event(
+    def test_initialize_search_service__allows_missing_event(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
     ) -> None:
         """
-        Purpose: Verify _initialize_search_service_from_services raises when no event snapshot
-            has been attached to the tool.
-        Why this matters: extract_selected_uploaded_file_ids needs a ChatEvent; without one the
-            tool cannot resolve which uploaded files are in scope.
-        Setup summary: Construct tool via service injection, leave _event unset, call hook.
+        Purpose: Verify _initialize_search_service works without event when services are injected.
         """
-        tool = InternalSearchTool(
-            configuration=base_internal_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-        )
+        chat_service = Mock()
+        chat_service._company_id = "company_123"
+        chat_service._user_id = "user_123"
+        chat_service._content_scope_chat_id = "chat_123"
+
+        tool = InternalSearchTool.__new__(InternalSearchTool)
+        tool._search_service_initialized = False
+        tool._configuration = base_internal_search_config
         tool._content_service = mock_content_service
-        tool._event = None
+        tool._chat_service = chat_service
+        tool.logger = Mock()
 
-        with pytest.raises(ValueError, match="requires tool_init_event snapshot"):
-            tool._initialize_search_service_from_services()
+        with patch(
+            "unique_internal_search.service.ChunkRelevancySorter"
+        ) as mock_sorter:
+            mock_sorter.return_value = Mock()
+            tool._initialize_search_service(None)
+
+        assert tool._search_service_initialized is True
+        assert tool.selected_uploaded_file_ids == []
 
     @pytest.mark.ai
-    def test_initialize_search_service_from_services__is_idempotent(
+    def test_initialize_search_service__is_idempotent(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
-        mock_chat_event: Any,
     ) -> None:
         """
-        Purpose: Verify _initialize_search_service_from_services is a no-op once already run.
+        Purpose: Verify _initialize_search_service is a no-op once already run.
         """
-        tool = InternalSearchTool(
-            configuration=base_internal_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-        )
+        tool = InternalSearchTool.__new__(InternalSearchTool)
         tool._search_service_initialized = True
         tool._content_service = None
-        tool._event = None
+        tool._chat_service = Mock()
+        tool.logger = Mock()
 
-        tool._initialize_search_service_from_services()
+        tool._initialize_search_service(None)
 
         assert tool._search_service_initialized is True
 
@@ -1359,7 +1335,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1370,9 +1346,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1419,7 +1401,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1430,9 +1412,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1476,7 +1464,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1486,9 +1474,15 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1529,7 +1523,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1539,9 +1533,15 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1582,7 +1582,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1592,9 +1592,15 @@ class TestInternalSearchTool:
             mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1629,7 +1635,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1640,9 +1646,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1683,7 +1695,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1694,8 +1706,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1723,7 +1742,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1734,8 +1753,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1768,7 +1794,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1785,8 +1811,15 @@ class TestInternalSearchTool:
             mock_feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
             mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1830,7 +1863,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1841,9 +1874,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1877,7 +1916,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1888,9 +1927,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1925,7 +1970,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1936,9 +1981,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -1973,7 +2024,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1984,9 +2035,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2024,7 +2081,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2035,9 +2092,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2072,7 +2135,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2083,9 +2146,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2125,7 +2194,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2136,9 +2205,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2180,7 +2255,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2199,9 +2274,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2248,7 +2329,7 @@ class TestInternalSearchTool:
         """
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2267,8 +2348,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2315,7 +2403,7 @@ class TestInternalSearchTool:
         )
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2334,8 +2422,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2381,7 +2476,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2400,9 +2495,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2461,7 +2562,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2480,9 +2581,15 @@ class TestInternalSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
 
-            def setup_tool(self, configuration, event, *args, **kwargs):
-                # Set attributes that Tool base class expects
-                setattr(self, "_event", event)
+            def setup_tool(self, configuration, *args, **kwargs):
+                setattr(self, "_event", kwargs.get("event"))
+                setattr(self, "_chat_service", kwargs.get("chat_service"))
+                setattr(
+                    self,
+                    "_language_model_service",
+                    kwargs.get("language_model_service"),
+                )
+                setattr(self, "_content_service", kwargs.get("content_service"))
                 setattr(self, "logger", mock_logger)
                 setattr(self, "_message_step_logger", None)
 
@@ -2708,7 +2815,7 @@ class TestInternalSearchTool:
         assert len(result) > 0
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_toolkit.content.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__returns_tool_message__with_sources(
         self,
@@ -2733,8 +2840,13 @@ class TestInternalSearchTool:
         mock_sorter = Mock()
         mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
 
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            setattr(self, "_event", event)
+        def setup_tool(self, configuration, *args, **kwargs):
+            setattr(self, "_event", kwargs.get("event"))
+            setattr(self, "_chat_service", kwargs.get("chat_service"))
+            setattr(
+                self, "_language_model_service", kwargs.get("language_model_service")
+            )
+            setattr(self, "_content_service", kwargs.get("content_service"))
             setattr(self, "logger", mock_logger)
             setattr(self, "_message_step_logger", None)
 
@@ -2764,7 +2876,7 @@ class TestInternalSearchTool:
         assert isinstance(result.content, str)
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_toolkit.content.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__handles_empty_chunks__gracefully(
         self,
@@ -2788,8 +2900,13 @@ class TestInternalSearchTool:
         mock_sorter = Mock()
         mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
 
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            setattr(self, "_event", event)
+        def setup_tool(self, configuration, *args, **kwargs):
+            setattr(self, "_event", kwargs.get("event"))
+            setattr(self, "_chat_service", kwargs.get("chat_service"))
+            setattr(
+                self, "_language_model_service", kwargs.get("language_model_service")
+            )
+            setattr(self, "_content_service", kwargs.get("content_service"))
             setattr(self, "logger", mock_logger)
             setattr(self, "_message_step_logger", None)
 
@@ -2818,7 +2935,7 @@ class TestInternalSearchTool:
         assert result.name == "InternalSearch"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_toolkit.content.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__handles_none_chunks__gracefully(
         self,
@@ -2842,8 +2959,13 @@ class TestInternalSearchTool:
         mock_sorter = Mock()
         mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
 
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            setattr(self, "_event", event)
+        def setup_tool(self, configuration, *args, **kwargs):
+            setattr(self, "_event", kwargs.get("event"))
+            setattr(self, "_chat_service", kwargs.get("chat_service"))
+            setattr(
+                self, "_language_model_service", kwargs.get("language_model_service")
+            )
+            setattr(self, "_content_service", kwargs.get("content_service"))
             setattr(self, "logger", mock_logger)
             setattr(self, "_message_step_logger", None)
 
@@ -2872,7 +2994,7 @@ class TestInternalSearchTool:
         assert result.name == "InternalSearch"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_toolkit.content.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__uses_correct_source_numbering(
         self,
@@ -2896,8 +3018,13 @@ class TestInternalSearchTool:
         mock_sorter = Mock()
         mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
 
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            setattr(self, "_event", event)
+        def setup_tool(self, configuration, *args, **kwargs):
+            setattr(self, "_event", kwargs.get("event"))
+            setattr(self, "_chat_service", kwargs.get("chat_service"))
+            setattr(
+                self, "_language_model_service", kwargs.get("language_model_service")
+            )
+            setattr(self, "_content_service", kwargs.get("content_service"))
             setattr(self, "logger", mock_logger)
             setattr(self, "_message_step_logger", None)
 
@@ -2931,7 +3058,7 @@ class TestInternalSearchTool:
         mock_logger.debug.assert_called()
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_toolkit.content.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__preserves_readable_unicode_content(
         self,
@@ -2953,8 +3080,13 @@ class TestInternalSearchTool:
         mock_sorter = Mock()
         mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
 
-        def setup_tool(self, configuration, event, *args, **kwargs):
-            setattr(self, "_event", event)
+        def setup_tool(self, configuration, *args, **kwargs):
+            setattr(self, "_event", kwargs.get("event"))
+            setattr(self, "_chat_service", kwargs.get("chat_service"))
+            setattr(
+                self, "_language_model_service", kwargs.get("language_model_service")
+            )
+            setattr(self, "_content_service", kwargs.get("content_service"))
             setattr(self, "logger", mock_logger)
             setattr(self, "_message_step_logger", None)
 

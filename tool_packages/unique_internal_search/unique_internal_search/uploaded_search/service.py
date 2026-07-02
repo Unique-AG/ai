@@ -11,6 +11,7 @@ from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
@@ -76,45 +77,32 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         self._user_query = ""
         self._internal_search_tool: InternalSearchTool | None = None
 
-        if chat_service is not None and language_model_service is not None:
-            if tool_progress_reporter is None:
-                raise ValueError(
-                    "UploadedSearchTool requires tool_progress_reporter when using "
-                    "injected services"
-                )
-            if event is None:
-                raise ValueError(
-                    "UploadedSearchTool requires event when using injected services"
-                )
-            if content_service is None:
-                raise ValueError(
-                    "UploadedSearchTool requires content_service when using injected services"
-                )
-            super().__init__(
-                config,
-                tool_progress_reporter=tool_progress_reporter,
-                chat_service=chat_service,
-                language_model_service=language_model_service,
-                event=event,
-                content_service=content_service,
-            )
-            self._initialize_from_injected_state(event)
-        elif event is not None:
-            self._tool_progress_reporter = tool_progress_reporter
-            self._content_service = ContentService.from_event(event)
-            self._company_id = event.company_id
-            self._internal_search_tool = InternalSearchTool(config, event, None)
-            self._internal_search_tool._display_name = self._display_name
-            self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
-            self._user_query = event.payload.user_message.text or ""
-            self._valid_documents = self._compute_valid_documents()
-        else:
-            raise ValueError(
-                "UploadedSearchTool requires event or injected chat_service and "
-                "language_model_service"
-            )
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
+        )
 
-    def _initialize_from_injected_state(self, event: ChatEvent) -> None:
+        if resolved.event is None:
+            raise ValueError(
+                "UploadedSearchTool requires event for uploaded-file selection "
+                "and user query"
+            )
+        if resolved.content_service is None:
+            raise ValueError("UploadedSearchTool requires content_service")
+
+        super().__init__(
+            config,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+            content_service=resolved.content_service,
+        )
+        self._initialize_runtime_state(resolved.event)
+
+    def _initialize_runtime_state(self, event: ChatEvent) -> None:
         self._company_id = self._chat_service._company_id
         self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
         self._user_query = event.payload.user_message.text or ""

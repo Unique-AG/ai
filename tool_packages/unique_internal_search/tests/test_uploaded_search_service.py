@@ -92,7 +92,7 @@ class TestUploadedSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -141,7 +141,7 @@ class TestUploadedSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -184,7 +184,7 @@ class TestUploadedSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -227,7 +227,7 @@ class TestUploadedSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -270,7 +270,7 @@ class TestUploadedSearchTool:
 
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -315,7 +315,7 @@ class TestUploadedSearchTool:
 
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -373,7 +373,7 @@ class TestUploadedSearchTool:
 
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -418,7 +418,7 @@ class TestUploadedSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.uploaded_search.service.ContentService"
+                "unique_toolkit.content.service.ContentService"
             ) as mock_content_service_class,
         ):
             mock_content_service = Mock(spec=ContentService)
@@ -463,7 +463,7 @@ class TestUploadedSearchTool:
         """
         # Arrange
         with patch(
-            "unique_internal_search.uploaded_search.service.ContentService"
+            "unique_toolkit.content.service.ContentService"
         ) as mock_content_service_class:
             mock_content_service = Mock(spec=ContentService)
             mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
@@ -493,12 +493,20 @@ class TestUploadedSearchTool:
         Setup summary: Create tool and verify internal search tool has the same display name.
         """
         # Arrange
-        with patch(
-            "unique_internal_search.uploaded_search.service.ContentService"
-        ) as mock_content_service_class:
+        with (
+            patch(
+                "unique_toolkit.content.service.ContentService.from_event",
+            ) as mock_content_service_from_event,
+            patch(
+                "unique_internal_search.uploaded_search.service.InternalSearchTool"
+            ) as mock_internal_search_tool_class,
+        ):
             mock_content_service = Mock(spec=ContentService)
             mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
-            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_content_service_from_event.return_value = mock_content_service
+            mock_internal_search_tool = Mock()
+            mock_internal_search_tool._display_name = "Uploaded Search"
+            mock_internal_search_tool_class.return_value = mock_internal_search_tool
 
             # Act
             tool = UploadedSearchTool(
@@ -508,7 +516,7 @@ class TestUploadedSearchTool:
             )
 
             # Assert
-            assert hasattr(tool._internal_search_tool, "_display_name")
+            assert tool._internal_search_tool is mock_internal_search_tool
             assert tool._internal_search_tool._display_name == "Uploaded Search"
             assert tool._internal_search_tool._display_name == tool._display_name
 
@@ -526,36 +534,14 @@ class TestUploadedSearchTool:
         assert hasattr(UploadedSearchTool, "_display_name")
 
     @pytest.mark.ai
-    def test_init__raises__when_injected_services_missing_tool_progress_reporter(
-        self,
-        uploaded_search_config: UploadedSearchConfig,
-    ) -> None:
-        """
-        Purpose: Verify __init__ rejects service injection without a tool_progress_reporter.
-        Why this matters: run() unconditionally notifies the progress reporter; a missing
-            reporter would only surface as an AttributeError deep inside run().
-        Setup summary: Construct with chat_service/language_model_service but no reporter.
-        """
-        with pytest.raises(ValueError, match="requires tool_progress_reporter"):
-            UploadedSearchTool(
-                config=uploaded_search_config,
-                chat_service=Mock(),
-                language_model_service=Mock(),
-                tool_progress_reporter=None,
-            )
-
-    @pytest.mark.ai
     def test_init__raises__when_neither_event_nor_services_provided(
         self,
         uploaded_search_config: UploadedSearchConfig,
     ) -> None:
         """
         Purpose: Verify __init__ rejects construction with no event and no injected services.
-        Why this matters: Failing fast at wiring time is preferable to a tool that silently
-            has no InternalSearchTool to delegate to.
-        Setup summary: Call constructor with only config, expect ValueError.
         """
-        with pytest.raises(ValueError, match="requires event or injected chat_service"):
+        with pytest.raises(ValueError, match="event or injected chat_service"):
             UploadedSearchTool(config=uploaded_search_config)
 
     @pytest.mark.ai
@@ -565,10 +551,10 @@ class TestUploadedSearchTool:
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify service injection requires event at construction time.
+        Purpose: Verify UploadedSearchTool requires event for domain-specific setup.
         """
         with pytest.raises(
-            ValueError, match="requires event when using injected services"
+            ValueError, match="requires event for uploaded-file selection"
         ):
             UploadedSearchTool(
                 config=uploaded_search_config,
@@ -578,25 +564,39 @@ class TestUploadedSearchTool:
             )
 
     @pytest.mark.ai
-    def test_init__with_injected_services__raises_without_content_service(
+    def test_init__bootstraps_content_service_from_event(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_tool_progress_reporter: ToolProgressReporter,
         mock_chat_event: ChatEvent,
     ) -> None:
         """
-        Purpose: Verify service injection requires content_service at construction time.
+        Purpose: Verify content_service is derived from event when not explicitly injected.
         """
-        with pytest.raises(
-            ValueError, match="requires content_service when using injected services"
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
+        chat_service = Mock()
+        chat_service._company_id = "company_123"
+
+        with (
+            patch(
+                "unique_internal_search.uploaded_search.service.InternalSearchTool"
+            ) as mock_internal_search_tool_class,
+            patch(
+                "unique_toolkit.content.service.ContentService.from_event",
+                return_value=mock_content_service,
+            ) as mock_content_from_event,
         ):
+            mock_internal_search_tool_class.return_value = Mock()
             UploadedSearchTool(
                 config=uploaded_search_config,
-                chat_service=Mock(),
+                chat_service=chat_service,
                 language_model_service=Mock(),
                 tool_progress_reporter=mock_tool_progress_reporter,
                 event=mock_chat_event,
             )
+
+        mock_content_from_event.assert_called_once_with(mock_chat_event)
 
     @pytest.mark.ai
     def test_init__builds_internal_search_tool__from_injected_state(
@@ -689,7 +689,7 @@ class TestUploadedSearchTool:
         """
         # Arrange
         with patch(
-            "unique_internal_search.uploaded_search.service.ContentService"
+            "unique_toolkit.content.service.ContentService"
         ) as mock_content_service_class:
             mock_content_service = Mock(spec=ContentService)
             mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
@@ -733,7 +733,7 @@ class TestUploadedSearchTool:
         # Arrange
         uploaded_search_config.enable_tool_call_system_reminder = False
         with patch(
-            "unique_internal_search.uploaded_search.service.ContentService"
+            "unique_toolkit.content.service.ContentService"
         ) as mock_content_service_class:
             mock_content_service = Mock(spec=ContentService)
             mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
@@ -778,7 +778,7 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
         mock_tool_progress_reporter,
     ) -> UploadedSearchTool:
         with patch(
-            "unique_internal_search.uploaded_search.service.ContentService"
+            "unique_toolkit.content.service.ContentService"
         ) as mock_content_service_class:
             mock_content_service = Mock(spec=ContentService)
             mock_content_service.get_documents_uploaded_to_chat = Mock(
@@ -885,7 +885,7 @@ def _make_uploaded_search_tool(
     tool_progress_reporter=None,
 ) -> UploadedSearchTool:
     with patch(
-        "unique_internal_search.uploaded_search.service.ContentService"
+        "unique_toolkit.content.service.ContentService"
     ) as mock_content_service_class:
         mock_content_service = Mock(spec=ContentService)
         mock_content_service.get_documents_uploaded_to_chat = Mock(
