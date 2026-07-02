@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.26.0...unique-web-search-v2026.28.0) (2026-07-02)
+
+
+### Features
+
+* Migrate search engine configuration from proxy core ([#1966](https://github.com/Unique-AG/ai/issues/1966)) ([6693d37](https://github.com/Unique-AG/ai/commit/6693d378b1d5626ec881b2f91ed490afb7cf4471))
+
+
+### Bug Fixes
+
+* Allow WebSearchResults to validate both results and curated ([#1946](https://github.com/Unique-AG/ai/issues/1946)) ([3b9b0b9](https://github.com/Unique-AG/ai/commit/3b9b0b9d498f95717ff54a2a3a07ffef10984507))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v2026.24.0...unique-web-search-v2026.26.0) (2026-06-22)
 
 
