@@ -471,10 +471,11 @@ def test_configure_file_payload_registers_open_file_tool_with_shared_services(
     language_model_service = MagicMock()
     tool_manager = MagicMock()
     config = _open_file_payload_config()
+    event = _make_event(tool_choices=[])
 
     _, agent_file_registry = configure_file_payload(
         config=config,
-        event=_make_event(tool_choices=[]),
+        event=event,
         logger=MagicMock(),
         history_manager=MagicMock(),
         reference_manager=MagicMock(),
@@ -488,6 +489,7 @@ def test_configure_file_payload_registers_open_file_tool_with_shared_services(
     tool_manager.add_tool.assert_called_once()
     assert captured["chat_service"] is chat_service
     assert captured["language_model_service"] is language_model_service
+    assert captured["event"] is event
     assert captured["registry"] is agent_file_registry
 
 

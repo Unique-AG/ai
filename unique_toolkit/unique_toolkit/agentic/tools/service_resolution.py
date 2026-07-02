@@ -39,7 +39,13 @@ def resolve_tool_services(
     ``run_context`` carries the per-turn snapshot (session config, file selection,
     etc.). When omitted but ``event`` is present it is built via
     ``ToolRunContext.from_chat_event``.
+
+    When ``chat_service`` and ``language_model_service`` are injected, ``event`` may
+    still be supplied for one-time bootstrap (e.g. ``ContentService.from_event``) but
+    is not returned — tools must not retain a live ``ChatEvent`` reference.
     """
+    services_injected = chat_service is not None
+
     if (chat_service is None) != (language_model_service is None):
         raise ValueError(
             "chat_service and language_model_service must be injected together; "
@@ -76,5 +82,5 @@ def resolve_tool_services(
         language_model_service=language_model_service,
         content_service=content_service,
         run_context=run_context,
-        event=event,
+        event=None if services_injected else event,
     )

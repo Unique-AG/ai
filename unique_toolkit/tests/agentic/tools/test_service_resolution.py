@@ -97,6 +97,7 @@ def test_resolve_tool_services__does_not_rebuild__when_services_injected(
     mock_content_from_event.assert_called_once_with(chat_event)
     assert resolved.chat_service is chat_service
     assert resolved.language_model_service is language_model_service
+    assert resolved.event is None
 
 
 def test_resolve_tool_services__raises__when_only_one_service_provided() -> None:
