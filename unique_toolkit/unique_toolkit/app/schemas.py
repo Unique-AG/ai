@@ -114,10 +114,6 @@ class McpReferenceMapping(BaseModel):
         default=None,
         description="Optional dotted path to a details line for each record.",
     )
-    snippet_path: Optional[str] = Field(
-        default=None,
-        description="Optional dotted path to a snippet for each record.",
-    )
     title_from_text: Optional[bool] = Field(
         default=None,
         description="For a non-JSON text result (e.g. a fetched Markdown doc), title the single reference from the leading text line instead of the tool name.",

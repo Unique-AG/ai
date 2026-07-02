@@ -334,7 +334,6 @@ def _extract_with_reference_mapping(
     title_path = mapping.get("titlePath") or mapping.get("title_path")
     title_template = mapping.get("titleTemplate") or mapping.get("title_template")
     details_path = mapping.get("detailsPath") or mapping.get("details_path")
-    snippet_path = mapping.get("snippetPath") or mapping.get("snippet_path")
     title_from_text = mapping.get("titleFromText") or mapping.get("title_from_text")
     try:
         title_max_chars = int(
@@ -357,11 +356,10 @@ def _extract_with_reference_mapping(
         if not title:
             continue
         details = _get_by_dotted_path(record, details_path) if details_path else None
-        snippet = _get_by_dotted_path(record, snippet_path) if snippet_path else None
         items.append(
             {
                 "title": title,
-                "snippet": _snippet(snippet) if snippet is not None else None,
+                "snippet": None,
                 "details": str(details).strip() if details else None,
             }
         )
