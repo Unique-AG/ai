@@ -805,17 +805,11 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        # Mock feature flags to return False (new UI disabled)
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=False,
-        )
-
         with (
             patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
             patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.is_flag_enabled",
+                AsyncMock(return_value=False),
             ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
@@ -872,8 +866,8 @@ class TestMCPToolWrapperRun:
         with (
             patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
             patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.is_flag_enabled",
+                AsyncMock(return_value=True),
             ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
@@ -921,17 +915,11 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        # Mock feature flags to return True (new UI enabled)
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=True,
-        )
-
         with (
             patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
             patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.is_flag_enabled",
+                AsyncMock(return_value=True),
             ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
@@ -978,17 +966,11 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        # Mock feature flags to return False (new UI disabled)
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=False,
-        )
-
         with (
             patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
             patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.is_flag_enabled",
+                AsyncMock(return_value=False),
             ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
@@ -1037,17 +1019,13 @@ class TestMCPToolWrapperRun:
             arguments={"query": "test"},
         )
 
-        # Mock feature flags to track calls
-        mock_feature_flags = Mock()
-        mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled = Mock(
-            return_value=False,
-        )
+        mock_is_flag = AsyncMock(return_value=False)
 
         with (
             patch("unique_sdk.MCP.call_tool_async") as mock_sdk_call,
             patch(
-                "unique_toolkit.agentic.tools.mcp.tool_wrapper.feature_flags",
-                mock_feature_flags,
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.is_flag_enabled",
+                mock_is_flag,
             ),
             patch.object(wrapper, "_create_or_update_message_log"),
         ):
@@ -1057,8 +1035,9 @@ class TestMCPToolWrapperRun:
             await wrapper.run(tool_call)
 
             # Assert - feature flag should be called with the company_id from the event
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.assert_called_with(
-                "company_456"
+            mock_is_flag.assert_awaited_with(
+                "FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411",
+                company_id="company_456",
             )
 
     @pytest.mark.ai

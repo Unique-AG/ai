@@ -257,8 +257,8 @@ class TestSubAgentToolProgressNotifications:
 
         # Mock the FeatureFlag's is_enabled method to return False
         with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-            return_value=False,
+            "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+            new=AsyncMock(return_value=False),
         ):
             # Act
             await tool._notify_progress(
@@ -307,8 +307,8 @@ class TestSubAgentToolProgressNotifications:
 
         # Mock the FeatureFlag's is_enabled method to return True
         with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-            return_value=True,
+            "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+            new=AsyncMock(return_value=True),
         ):
             # Act
             await tool._notify_progress(
@@ -377,12 +377,11 @@ class TestSubAgentToolProgressNotifications:
             arguments={"user_message": "test message"},
         )
 
-        # Mock the FeatureFlag's is_enabled method as a Mock to track calls
+        mock_is_flag = AsyncMock(return_value=False)
         with patch(
-            "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled"
-        ) as mock_is_enabled:
-            mock_is_enabled.return_value = False
-
+            "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+            mock_is_flag,
+        ):
             # Act
             await tool._notify_progress(
                 tool_call=tool_call,
@@ -391,7 +390,10 @@ class TestSubAgentToolProgressNotifications:
             )
 
             # Assert - feature flag should be called with the company_id from the event
-            mock_is_enabled.assert_called_once_with("company_456")
+            mock_is_flag.assert_awaited_once_with(
+                "FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411",
+                company_id="company_456",
+            )
 
 
 class TestSubAgentToolMessageLog:
@@ -534,8 +536,8 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=False,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=False),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
@@ -621,8 +623,8 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=True),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
@@ -692,8 +694,8 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=True),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
@@ -759,8 +761,8 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=True),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
@@ -813,8 +815,8 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=True),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
@@ -880,8 +882,8 @@ class TestSubAgentToolRun:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=True),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
@@ -953,8 +955,8 @@ class TestSubAgentToolDebugInfo:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=True),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
@@ -1032,8 +1034,8 @@ class TestSubAgentToolDebugInfo:
 
         with (
             patch(
-                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
-                return_value=True,
+                "unique_toolkit.agentic.tools.a2a.tool.service.is_flag_enabled",
+                new=AsyncMock(return_value=True),
             ),
             patch(
                 "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
