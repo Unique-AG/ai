@@ -1,12 +1,122 @@
 """Tests for the SwotAnalysisTool service."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model import LanguageModelFunction
 
 from unique_swot.service import SwotAnalysisTool
+
+
+def test_initialize_runtime_state_uses_chat_service_for_identity():
+    """Runtime setup derives identity fields from injected chat_service, not event."""
+    tool = object.__new__(SwotAnalysisTool)
+
+    tool._chat_service = Mock()
+    tool._chat_service._company_id = "company-1"
+    tool._chat_service._user_id = "user-1"
+    tool._chat_service._chat_id = "chat-1"
+    tool._content_service = None
+    tool._run_context = ToolRunContext(metadata_filter={"foo": "bar"})
+
+    with (
+        patch("unique_swot.service.KnowledgeBaseService") as knowledge_base,
+        patch("unique_swot.service.ShortTermMemoryService") as short_term_memory,
+    ):
+        tool._initialize_runtime_state()
+
+    knowledge_base.assert_called_once_with(
+        company_id="company-1",
+        user_id="user-1",
+        metadata_filter={"foo": "bar"},
+    )
+    short_term_memory.assert_called_once_with(
+        company_id="company-1",
+        user_id="user-1",
+        chat_id="chat-1",
+        message_id=None,
+    )
+    assert tool._metadata_filter == {"foo": "bar"}
+    assert tool._knowledge_base_service is knowledge_base.return_value
+    assert tool._short_term_memory_service is short_term_memory.return_value
+
+
+def test_initialize_runtime_state_prefers_content_service_metadata_filter():
+    """Injected content_service metadata_filter wins over run context."""
+    tool = object.__new__(SwotAnalysisTool)
+
+    tool._chat_service = Mock()
+    tool._chat_service._company_id = "company-1"
+    tool._chat_service._user_id = "user-1"
+    tool._chat_service._chat_id = "chat-1"
+    tool._content_service = Mock()
+    tool._content_service._metadata_filter = {"from": "content_service"}
+    tool._run_context = ToolRunContext(metadata_filter={"from": "event"})
+
+    with (
+        patch("unique_swot.service.KnowledgeBaseService") as knowledge_base,
+        patch("unique_swot.service.ShortTermMemoryService"),
+    ):
+        tool._initialize_runtime_state()
+
+    assert tool._metadata_filter == {"from": "content_service"}
+    knowledge_base.assert_called_once_with(
+        company_id="company-1",
+        user_id="user-1",
+        metadata_filter={"from": "content_service"},
+    )
+
+
+def test_init_completes_setup_eagerly_when_event_present():
+    """Test that __init__ runs setup immediately when event is provided."""
+    event = Mock()
+    run_context = ToolRunContext(metadata_filter={"foo": "bar"})
+
+    with (
+        patch("unique_swot.service.Tool.__init__", return_value=None),
+        patch("unique_swot.service.resolve_tool_services") as resolve,
+        patch.object(SwotAnalysisTool, "_initialize_runtime_state") as init_runtime,
+    ):
+        chat_service = Mock()
+        resolve.return_value = Mock(
+            chat_service=chat_service,
+            language_model_service=Mock(),
+            content_service=None,
+            event=event,
+            run_context=run_context,
+        )
+        SwotAnalysisTool(Mock(), event=event)
+
+    init_runtime.assert_called_once_with()
+
+
+def test_init_succeeds_without_event_when_run_context_supplied():
+    """Injected services plus run_context are enough; event is not required."""
+    run_context = ToolRunContext(session_config={"swot_analysis": {}})
+
+    with (
+        patch("unique_swot.service.Tool.__init__", return_value=None),
+        patch("unique_swot.service.resolve_tool_services") as resolve,
+        patch.object(SwotAnalysisTool, "_initialize_runtime_state") as init_runtime,
+    ):
+        chat_service = Mock()
+        resolve.return_value = Mock(
+            chat_service=chat_service,
+            language_model_service=Mock(),
+            content_service=None,
+            event=None,
+            run_context=run_context,
+        )
+        SwotAnalysisTool(
+            Mock(),
+            chat_service=chat_service,
+            language_model_service=Mock(),
+            run_context=run_context,
+        )
+
+    init_runtime.assert_called_once_with()
 
 
 def test_get_evaluation_checks_returns_empty_list():

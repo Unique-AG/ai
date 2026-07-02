@@ -4,10 +4,11 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import override
+from typing import overload, override
 
 import unique_sdk
 from pydantic import Field, TypeAdapter, create_model
+from typing_extensions import deprecated
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
@@ -20,7 +21,6 @@ from unique_toolkit._common.referencing import (
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -36,6 +36,7 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
@@ -53,6 +54,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
     LanguageModelFunction,
+    LanguageModelService,
     LanguageModelToolDescription,
 )
 
@@ -64,22 +66,60 @@ _ContentChunkList = TypeAdapter(list[ContentChunk])
 class SubAgentTool(Tool[SubAgentToolConfig]):
     name: str = "SubAgentTool"
 
+    @overload
+    def __init__(
+        self,
+        configuration: SubAgentToolConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        name: str = ...,
+        display_name: str = ...,
+        response_watcher: SubAgentResponseWatcher | None = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
     def __init__(
         self,
         configuration: SubAgentToolConfig,
         event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        name: str = ...,
+        display_name: str = ...,
+        response_watcher: SubAgentResponseWatcher | None = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        configuration: SubAgentToolConfig,
+        event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(configuration)
-        self._event = event
-        self._tool_progress_reporter = tool_progress_reporter
-        self._chat_service = ChatService(event)
-        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
-        self._user_id = event.user_id
-        self._company_id = event.company_id
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
+        super().__init__(
+            configuration,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+        )
+        self._user_id = resolved.chat_service._user_id
+        self._company_id = resolved.chat_service._company_id
+        chat_id = resolved.chat_service._chat_id
 
         self.name = name
         self._display_name = display_name
@@ -87,7 +127,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         self._short_term_memory_manager = get_sub_agent_short_term_memory_manager(
             company_id=self._company_id,
             user_id=self._user_id,
-            chat_id=event.payload.chat_id,
+            chat_id=chat_id,
             assistant_id=self.config.assistant_id,
         )
         self._should_run_evaluation = False
@@ -483,7 +523,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 stop_condition=self.config.stop_condition,
                 correlation=Space.Correlation(
                     parentMessageId=self._chat_service._assistant_message_id,
-                    parentChatId=self._event.payload.chat_id,
+                    parentChatId=self._chat_service._chat_id,
                     parentAssistantId=self.config.assistant_id,
                 ),
                 on_message_update=on_message_update,

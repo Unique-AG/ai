@@ -73,33 +73,36 @@ class WebSearchTool(Tool[WebSearchConfig]):
         **kwargs,
     ):
         super().__init__(configuration, *args, **kwargs)
-        # TODO (UN-17100): Propagate orchestrator LLM into tool initialization.
-        # Until then, fall back to the per-tool token-counting model.
         self.language_model_orchestrator = (
             language_model_orchestrator or configuration.token_counting_language_model
         )
+        self._display_name = kwargs.get("display_name", "Web Search")
+        if hasattr(self, "_chat_service"):
+            self._initialize_search_dependencies()
 
+    def _initialize_search_dependencies(self) -> None:
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
-            self.language_model_service,
+            self._language_model_service,
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
-        self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
-        self.company_id = self.event.company_id
+        self.chunk_relevancy_sorter = ChunkRelevancySorter(
+            company_id=self._chat_service._company_id,
+            user_id=self._chat_service._user_id,
+        )
+        self.company_id = self._chat_service._company_id
         self.chat_history_token_length = 0
         self.chat_history_chat_messages = self._chat_service.get_full_history()
 
         self.content_processor = ContentProcessor(
-            language_model_service=self.language_model_service,
+            language_model_service=self._language_model_service,
             config=self.config.content_processor_config,
             encoder=self.language_model_orchestrator.get_encoder(),
             decoder=self.language_model_orchestrator.get_decoder(),
         )
         self.debug = self.config.debug
-        self._display_name = kwargs.get("display_name", "Web Search")
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
@@ -305,7 +308,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             search_engine_service=self.search_engine_service,
             crawler_service=self.crawler_service,
             content_processor=self.content_processor,
-            language_model_service=self.language_model_service,
+            language_model_service=self._language_model_service,
             chunk_relevancy_sorter=self.chunk_relevancy_sorter,
         )
 
@@ -383,7 +386,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             self.config.experimental_features.argument_screening_config
         )
         return ArgumentScreeningService(
-            language_model_service=self.language_model_service,
+            language_model_service=self._language_model_service,
             language_model=argument_screening_config.language_model,
             config=argument_screening_config,
         )

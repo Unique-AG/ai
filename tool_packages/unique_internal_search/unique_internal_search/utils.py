@@ -2,6 +2,9 @@ import logging
 import re
 
 from pydantic import BaseModel
+from unique_toolkit.agentic.tools.run_context import (
+    selected_uploaded_file_ids_from_event,
+)
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
 
@@ -10,15 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def extract_selected_uploaded_file_ids(event: ChatEvent) -> list[str]:
     """Extract selected uploaded file IDs from the event's additional parameters."""
-    if (
-        hasattr(event.payload, "additional_parameters")
-        and event.payload.additional_parameters
-    ):
-        # Need to check if the parameter exists, magic table payload does not have this parameter.
-        additional = event.payload.additional_parameters
-        return additional.selected_uploaded_file_ids
-    else:
-        return []  # ToDo [UN-19076]: Additional parameters are never None.
+    return selected_uploaded_file_ids_from_event(event)
 
 
 class SearchStringResult(BaseModel):

@@ -9,6 +9,139 @@ from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 
 
+class TestWebSearchToolInit:
+    """Test WebSearchTool.__init__() and _initialize_search_dependencies()."""
+
+    @pytest.mark.ai
+    def test_init__with_injected_services_only__initializes_search_setup(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify __init__ builds search dependencies when constructed with injected
+        services and no event.
+        """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        chat_service = Mock()
+        chat_service._company_id = "company-1"
+        chat_service._user_id = "user-1"
+        chat_service.get_full_history.return_value = []
+
+        tool = WebSearchTool(
+            mock_web_search_config_v1,
+            chat_service=chat_service,
+            language_model_service=Mock(),
+        )
+
+        assert tool.company_id == "company-1"
+        assert hasattr(tool, "search_engine_service")
+
+    @pytest.mark.ai
+    def test_init__with_event_and_injected_services__completes_init_eagerly(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify __init__ runs search dependency setup immediately when an event
+        is supplied alongside injected services.
+        """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        chat_service = Mock()
+        chat_service._company_id = "company-1"
+        chat_service._user_id = "user-1"
+        chat_service.get_full_history.return_value = []
+        event = Mock()
+        event.company_id = "stale-company"
+
+        tool = WebSearchTool(
+            mock_web_search_config_v1,
+            event=event,
+            chat_service=chat_service,
+            language_model_service=Mock(),
+        )
+
+        assert tool.company_id == "company-1"
+        assert hasattr(tool, "search_engine_service")
+
+    @pytest.mark.ai
+    def test_initialize_search_dependencies__uses_chat_service__even_when_event_present(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify _initialize_search_dependencies always derives company_id and
+        the chunk relevancy sorter from chat_service, not from a stale event snapshot.
+        """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mock_sorter = mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        tool = object.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.language_model_orchestrator = Mock()
+        tool._chat_service = Mock()
+        tool._chat_service._company_id = "company-2"
+        tool._chat_service._user_id = "user-2"
+        tool._chat_service.get_full_history.return_value = []
+        tool._language_model_service = Mock()
+        event = Mock()
+        event.company_id = "company-1"
+        tool._event = event
+
+        tool._initialize_search_dependencies()
+
+        mock_sorter.assert_called_once_with(
+            company_id="company-2",
+            user_id="user-2",
+        )
+        assert tool.company_id == "company-2"
+
+    @pytest.mark.ai
+    def test_initialize_search_dependencies__uses_chat_service__when_no_event(
+        self,
+        mock_web_search_config_v1: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify _initialize_search_dependencies derives company_id and the
+        chunk relevancy sorter from the injected chat_service when no event
+        snapshot is available.
+        """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mock_sorter = mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        tool = object.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.language_model_orchestrator = Mock()
+        tool._chat_service = Mock()
+        tool._chat_service._company_id = "company-2"
+        tool._chat_service._user_id = "user-2"
+        tool._chat_service.get_full_history.return_value = []
+        tool._language_model_service = Mock()
+
+        tool._initialize_search_dependencies()
+
+        mock_sorter.assert_called_once_with(
+            company_id="company-2",
+            user_id="user-2",
+        )
+        assert tool.company_id == "company-2"
+
+
 class TestWebSearchToolDescription:
     """Test WebSearchTool.tool_description() method."""
 

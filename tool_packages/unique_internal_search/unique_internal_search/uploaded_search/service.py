@@ -1,14 +1,18 @@
-from typing import Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, overload
 
 from pydantic import Field, create_model
-from typing_extensions import override
+from typing_extensions import deprecated, override
 from unique_toolkit import ContentService
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
@@ -23,36 +27,93 @@ from unique_toolkit.language_model.schemas import (
 
 from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import UploadedSearchConfig
-from unique_internal_search.utils import extract_selected_uploaded_file_ids
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.service import LanguageModelService
+    from unique_toolkit.services.chat_service import ChatService
 
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
     name = UPLOADED_SEARCH_TOOL_NAME
     _display_name = "Uploaded Search"
+    _internal_search_tool: InternalSearchTool
 
+    @overload
+    def __init__(
+        self,
+        config: UploadedSearchConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter,
+        event: ChatEvent | None = ...,
+        content_service: ContentService | None = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
     def __init__(
         self,
         config: UploadedSearchConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
-        *args,
-        **kwargs,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: UploadedSearchConfig,
+        event: ChatEvent | None = None,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
+        run_context: ToolRunContext | None = None,
     ):
-        self._tool_progress_reporter = tool_progress_reporter
-        self._content_service = ContentService.from_event(event)
-        self._company_id = event.company_id
         self._config = config
         config.chat_only = True
-        self._internal_search_tool = InternalSearchTool(
-            config, event, None, *args, **kwargs
-        )
-        self._internal_search_tool._display_name = self._display_name
-        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
-        self._user_query = event.payload.user_message.text
+        self._valid_documents: list[Content] = []
+        self._selected_uploaded_files: list[str] = []
+        self._user_query = ""
 
-        # This blocking API call should be avoided.
-        # However, we don't have an easy way to pass user uploaded files to the tool currently
-        # Note that this was being done in `tool_description_for_system_prompt` before
+        resolved = resolve_tool_services(
+            event=event,
+            run_context=run_context,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
+        )
+        if resolved.content_service is None:
+            raise ValueError("UploadedSearchTool requires content_service")
+
+        super().__init__(
+            config,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+            content_service=resolved.content_service,
+        )
+        self._run_context = resolved.run_context
+        self._initialize_runtime_state()
+
+    def _initialize_runtime_state(self) -> None:
+        self._company_id = self._chat_service._company_id
+        self._selected_uploaded_files = list(
+            self._run_context.selected_uploaded_file_ids
+        )
+        self._user_query = self._chat_service._user_message_text or ""
+        self._internal_search_tool = InternalSearchTool(
+            self._config,
+            chat_service=self._chat_service,
+            language_model_service=self._language_model_service,
+            tool_progress_reporter=self._tool_progress_reporter,
+            content_service=self._content_service,
+            run_context=self._run_context,
+            display_name=self._display_name,
+        )
         self._valid_documents = self._compute_valid_documents()
 
     @override
@@ -117,8 +178,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         if isinstance(tool_call.arguments, dict):
             search_string_data = tool_call.arguments.get("search_string", "") or ""
 
-            # Verify no content_id outside valid ones, as tool may not be strict
-
             if "content_ids" in tool_call.arguments:
                 tool_content_ids = tool_call.arguments["content_ids"]
 
@@ -161,7 +220,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         When using the upload and search tool, unique AI agent is loosing the overview of the original user message and request
         This likely due to the amount of tokens included and as since it's a forced tool not necessarily relevant to the user's request.
         """
-        # TODO: This message should be conditional on the tool being forced, but we do not have easy access to this information here
         return f"""<system_reminder>
 This tool call was automatically executed to retrieve the user's uploaded documents by the system. Important to note:
 - The retrieved documents may or may not be relevant to the user's actual query

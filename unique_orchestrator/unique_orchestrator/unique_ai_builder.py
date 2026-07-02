@@ -57,6 +57,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
 )
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
     ResponsesApiToolManager,
@@ -317,8 +318,9 @@ async def _build_common(
 
     mcp_manager = MCPManager(
         mcp_servers=event.payload.mcp_servers,
-        event=event,
         tool_progress_reporter=tool_progress_reporter,
+        chat_service=chat_service,
+        language_model_service=llm_service,
     )
     a2a_manager = A2AManager(
         logger=logger,
@@ -520,14 +522,17 @@ async def _build_responses(
         force_auto_container=force_auto_container,
     )
 
-    tool_manager = ResponsesApiToolManager(
+    tool_manager = ResponsesApiToolManager.from_run_context(
         logger=logger,
         config=common_components.tool_manager_config,
-        event=event,
+        run_context=_build_tool_run_context(event),
         tool_progress_reporter=common_components.tool_progress_reporter,
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
+        chat_service=common_components.chat_service,
+        language_model_service=common_components.llm_service,
+        content_service=common_components.content_service,
     )
     if (
         not config.agent.experimental.open_file_tool_config.enabled
@@ -545,6 +550,8 @@ async def _build_responses(
             common_components.reference_manager,
             config.space.language_model,
             tool_manager,
+            chat_service=common_components.chat_service,
+            language_model_service=common_components.llm_service,
         )
         common_components = common_components._replace(
             history_manager=history_manager,
@@ -622,13 +629,16 @@ async def _build_completions(
         config=config.agent.experimental.uploaded_search_tool_config,
     )
 
-    tool_manager = ToolManager(
+    tool_manager = ToolManager.from_run_context(
         logger=logger,
         config=common_components.tool_manager_config,
-        event=event,
+        run_context=_build_tool_run_context(event),
         tool_progress_reporter=common_components.tool_progress_reporter,
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
+        chat_service=common_components.chat_service,
+        language_model_service=common_components.llm_service,
+        content_service=common_components.content_service,
     )
     if force_uploaded_search:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
@@ -728,6 +738,11 @@ def _configure_uploaded_search_tool(
         return False
 
     return config.force
+
+
+def _build_tool_run_context(event: ChatEvent) -> ToolRunContext:
+    """Snapshot per-turn tool config after any event payload adjustments."""
+    return ToolRunContext.from_chat_event(event)
 
 
 def _add_sub_agents_postprocessor(

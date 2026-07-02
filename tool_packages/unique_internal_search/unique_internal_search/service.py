@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Awaitable, Callable
+from typing import TYPE_CHECKING, Awaitable, Callable, overload
 
 from pydantic import Field, create_model
-from typing_extensions import override
+from typing_extensions import deprecated, override
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
+    from unique_toolkit.language_model.service import LanguageModelService
+    from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -18,9 +22,14 @@ from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_str
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.agentic.tools.tool_progress_reporter import (
+    ProgressState,
+    ToolProgressReporter,
+)
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import Content, ContentChunk
@@ -45,7 +54,6 @@ from unique_internal_search.utils import (
     SearchStringResult,
     append_metadata_in_chunks,
     clean_search_string,
-    extract_selected_uploaded_file_ids,
     interleave_search_results_round_robin,
 )
 
@@ -358,33 +366,90 @@ class InternalSearchService:
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     name = INTERNAL_SEARCH_TOOL_NAME
 
+    @overload
+    def __init__(
+        self,
+        configuration: InternalSearchConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        event: ChatEvent | None = ...,
+        content_service: ContentService | None = ...,
+        display_name: str = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
     def __init__(
         self,
         configuration: InternalSearchConfig,
         event: ChatEvent,
-        *args,
-        **kwargs,
-    ):
-        Tool.__init__(self, configuration, event, *args, **kwargs)
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        *,
+        display_name: str = ...,
+    ) -> None: ...
 
-        content_service = ContentService.from_event(self.event)
-        chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
-        selected_uploaded_file_ids = extract_selected_uploaded_file_ids(self.event)
-        if self.event.payload.correlation:
-            chat_id = self.event.payload.correlation.parent_chat_id
-        else:
-            chat_id = self.event.payload.chat_id
-        self._display_name = kwargs.get("display_name", "Internal Search")
+    def __init__(
+        self,
+        configuration: InternalSearchConfig,
+        event: ChatEvent | None = None,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
+        display_name: str = "Internal Search",
+        run_context: ToolRunContext | None = None,
+    ):
+        self._search_service_initialized = False
+        self._display_name = display_name
+        self._configuration = configuration
+
+        resolved = resolve_tool_services(
+            event=event,
+            run_context=run_context,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
+        )
+        if resolved.content_service is None:
+            raise ValueError("InternalSearchTool requires content_service")
+
+        Tool.__init__(
+            self,
+            configuration,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+            content_service=resolved.content_service,
+        )
+        self._run_context = resolved.run_context
+        self._initialize_search_service()
+
+    def _initialize_search_service(self) -> None:
+        if self._search_service_initialized:
+            return
+        if self._content_service is None:
+            raise ValueError("InternalSearchTool requires content_service")
+        selected_uploaded_file_ids = list(self._run_context.selected_uploaded_file_ids)
         InternalSearchService.__init__(
             self,
-            config=configuration,
-            content_service=content_service,
-            chunk_relevancy_sorter=chunk_relevancy_sorter,
-            chat_id=chat_id,
-            company_id=self.event.company_id,
+            config=self._configuration,
+            content_service=self._content_service,
+            chunk_relevancy_sorter=ChunkRelevancySorter(
+                company_id=self._chat_service._company_id,
+                user_id=self._chat_service._user_id,
+            ),
+            chat_id=self._chat_service._content_scope_chat_id,
+            company_id=self._chat_service._company_id,
             logger=self.logger,
             selected_uploaded_file_ids=selected_uploaded_file_ids,
         )
+        self._search_service_initialized = True
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs

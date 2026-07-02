@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections import Counter
 from logging import getLogger
+from typing import overload
+
+from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -16,11 +19,16 @@ from unique_toolkit.agentic.tools.experimental.todo.schemas import (
     TodoWriteInput,
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
-from unique_toolkit.language_model import LanguageModelToolDescription
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import (
+    LanguageModelService,
+    LanguageModelToolDescription,
+)
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -40,17 +48,52 @@ _STATUS_ICON = {
 class TodoWriteTool(Tool[TodoConfig]):
     name: str = "TodoWrite"
 
+    @overload
+    def __init__(
+        self,
+        config: TodoConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
     def __init__(
         self,
         config: TodoConfig,
         event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: TodoConfig,
+        event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(config, event, tool_progress_reporter)
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
+        super().__init__(
+            config,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+        )
         stm_service = ShortTermMemoryService(
-            company_id=event.company_id,
-            user_id=event.user_id,
-            chat_id=event.payload.chat_id,
+            company_id=resolved.chat_service._company_id,
+            user_id=resolved.chat_service._user_id,
+            chat_id=resolved.chat_service._chat_id,
             message_id=None,
         )
         self._memory_manager: PersistentShortMemoryManager[TodoList] = (

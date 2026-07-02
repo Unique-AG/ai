@@ -1,10 +1,20 @@
 from logging import Logger
+from typing import overload
+
+from typing_extensions import deprecated
 
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConfig
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import LanguageModelService
+
+_EVENT_INJECTION_DEPRECATED = (
+    "Passing event is deprecated. Inject chat_service and language_model_service."
+)
 
 
 class A2AManager:
@@ -18,11 +28,36 @@ class A2AManager:
         self._tool_progress_reporter = tool_progress_reporter
         self._response_watcher = response_watcher
 
+    @overload
+    def get_all_sub_agents(
+        self,
+        tool_configs: list[ToolBuildConfig],
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+    ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]: ...
+
+    @overload
+    @deprecated(_EVENT_INJECTION_DEPRECATED)
     def get_all_sub_agents(
         self,
         tool_configs: list[ToolBuildConfig],
         event: ChatEvent,
+    ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]: ...
+
+    def get_all_sub_agents(
+        self,
+        tool_configs: list[ToolBuildConfig],
+        event: ChatEvent | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]:
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
         sub_agents = []
 
         for tool_config in tool_configs:
@@ -45,16 +80,17 @@ class A2AManager:
             sub_agent_tool_config = tool_config.configuration
 
             try:
-                sub_agents.append(
-                    SubAgentTool(
-                        configuration=sub_agent_tool_config,
-                        event=event,
-                        tool_progress_reporter=self._tool_progress_reporter,
-                        name=tool_config.name,
-                        display_name=tool_config.display_name,
-                        response_watcher=self._response_watcher,
-                    )
+                sub_agent = SubAgentTool(
+                    configuration=sub_agent_tool_config,
+                    tool_progress_reporter=self._tool_progress_reporter,
+                    name=tool_config.name,
+                    display_name=tool_config.display_name,
+                    response_watcher=self._response_watcher,
+                    chat_service=resolved.chat_service,
+                    language_model_service=resolved.language_model_service,
+                    event=resolved.event,
                 )
+                sub_agents.append(sub_agent)
             except Exception:
                 self._logger.warning(
                     "Skipping sub-agent '%s' due to initialization failure.",

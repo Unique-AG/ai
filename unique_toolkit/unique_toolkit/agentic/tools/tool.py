@@ -8,6 +8,7 @@ from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
     ToolCallResponse,
@@ -18,6 +19,7 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model import LanguageModelToolDescription
 
 if TYPE_CHECKING:
+    from unique_toolkit.content.service import ContentService
     from unique_toolkit.language_model.service import LanguageModelService
     from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.language_model.schemas import (
@@ -188,6 +190,21 @@ class Tool(ABC, Generic[ConfigType]):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter | None = ...,
+        content_service: ContentService | None = ...,
+        run_context: ToolRunContext | None = ...,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        config: ConfigType,
+        *,
+        event: ChatEvent,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        content_service: ContentService | None = ...,
+        run_context: ToolRunContext | None = ...,
     ) -> None: ...
 
     def __init__(
@@ -198,6 +215,8 @@ class Tool(ABC, Generic[ConfigType]):
         *,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
+        run_context: ToolRunContext | None = None,
     ) -> None:
         """Initialize the tool.
 
@@ -218,6 +237,8 @@ class Tool(ABC, Generic[ConfigType]):
         module_name = "default overwrite for module name"
         self.logger = getLogger(f"{module_name}.{__name__}")
         self.debug_info: dict[str, Any] = {}
+        self._content_service: ContentService | None = None
+        self._run_context = run_context or ToolRunContext()
 
         if (chat_service is None) != (language_model_service is None):
             raise ValueError(
@@ -230,9 +251,12 @@ class Tool(ABC, Generic[ConfigType]):
                 MessageStepLogger,
             )
 
+            if event is not None:
+                self._event = event
             self._tool_progress_reporter = tool_progress_reporter
             self._chat_service = chat_service
             self._language_model_service = language_model_service
+            self._content_service = content_service
             self._message_step_logger = MessageStepLogger(
                 chat_service=self._chat_service,
             )

@@ -69,6 +69,21 @@ def _make_tool(
     return tool
 
 
+def test_skill_tool_accepts_injected_services() -> None:
+    config = SkillToolConfig()
+    chat_service = MagicMock()
+    llm_service = MagicMock()
+
+    tool = SkillTool(
+        config=config,
+        chat_service=chat_service,
+        language_model_service=llm_service,
+    )
+
+    assert tool._chat_service is chat_service
+    assert tool._language_model_service is llm_service
+
+
 def _make_tool_call(
     skill_name: str = "test-skill",
     arguments: str = "",
