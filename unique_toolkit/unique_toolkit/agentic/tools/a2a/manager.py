@@ -6,6 +6,7 @@ from typing_extensions import deprecated
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConfig
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
@@ -52,6 +53,11 @@ class A2AManager:
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]:
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
         sub_agents = []
 
         for tool_config in tool_configs:
@@ -74,30 +80,16 @@ class A2AManager:
             sub_agent_tool_config = tool_config.configuration
 
             try:
-                if chat_service is not None and language_model_service is not None:
-                    sub_agent = SubAgentTool(
-                        configuration=sub_agent_tool_config,
-                        tool_progress_reporter=self._tool_progress_reporter,
-                        name=tool_config.name,
-                        display_name=tool_config.display_name,
-                        response_watcher=self._response_watcher,
-                        chat_service=chat_service,
-                        language_model_service=language_model_service,
-                    )
-                elif event is not None:
-                    sub_agent = SubAgentTool(
-                        configuration=sub_agent_tool_config,
-                        event=event,
-                        tool_progress_reporter=self._tool_progress_reporter,
-                        name=tool_config.name,
-                        display_name=tool_config.display_name,
-                        response_watcher=self._response_watcher,
-                    )
-                else:
-                    raise ValueError(
-                        "get_all_sub_agents requires event or injected "
-                        "chat_service and language_model_service"
-                    )
+                sub_agent = SubAgentTool(
+                    configuration=sub_agent_tool_config,
+                    tool_progress_reporter=self._tool_progress_reporter,
+                    name=tool_config.name,
+                    display_name=tool_config.display_name,
+                    response_watcher=self._response_watcher,
+                    chat_service=resolved.chat_service,
+                    language_model_service=resolved.language_model_service,
+                    event=resolved.event,
+                )
                 sub_agents.append(sub_agent)
             except Exception:
                 self._logger.warning(

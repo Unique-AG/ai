@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
     name = UPLOADED_SEARCH_TOOL_NAME
     _display_name = "Uploaded Search"
+    _internal_search_tool: InternalSearchTool
 
     @overload
     def __init__(
@@ -75,7 +76,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         self._valid_documents: list[Content] = []
         self._selected_uploaded_files: list[str] = []
         self._user_query = ""
-        self._internal_search_tool: InternalSearchTool | None = None
 
         resolved = resolve_tool_services(
             event=event,
@@ -175,8 +175,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         return evaluation_check_list
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        if self._internal_search_tool is None:
-            raise RuntimeError("UploadedSearchTool is not initialized")
         search_string_data = ""
         if isinstance(tool_call.arguments, dict):
             search_string_data = tool_call.arguments.get("search_string", "") or ""

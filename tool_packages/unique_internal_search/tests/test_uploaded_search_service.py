@@ -658,25 +658,6 @@ class TestUploadedSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__raises__when_internal_search_tool_not_initialized(
-        self,
-        uploaded_search_config: UploadedSearchConfig,
-        mock_tool_progress_reporter: ToolProgressReporter,
-        mock_language_model_function,
-    ) -> None:
-        """
-        Purpose: Verify run() raises RuntimeError when the internal InternalSearchTool was
-            never built.
-        """
-        tool = object.__new__(UploadedSearchTool)
-        tool._internal_search_tool = None
-        tool.name = UploadedSearchTool.name
-
-        with pytest.raises(RuntimeError, match="is not initialized"):
-            await tool.run(mock_language_model_function)
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
     async def test_run__overrides_internal_search_system_reminder__when_enabled(
         self,
         uploaded_search_config: UploadedSearchConfig,
