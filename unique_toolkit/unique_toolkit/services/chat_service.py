@@ -387,6 +387,7 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = None,
+        segment_kind: str | None = None,
     ) -> ChatMessage:
         """Modifies a message in the chat session synchronously if parameter is not specified the corresponding field will remain as is.
 
@@ -397,6 +398,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
             message_id (Optional[str]): The message ID. Defaults to None.
             set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+            segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place, e.g. relabeling M0 from PROCESS to PREFACE once content is set. Defaults to None (kind unchanged).
 
         Returns:
             ChatMessage: The modified message.
@@ -420,6 +422,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at or False,
+            segment_kind=segment_kind,
         )
 
     async def modify_assistant_message_async(
@@ -430,6 +433,7 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
+        segment_kind: str | None = None,
     ) -> ChatMessage:
         """Modifies a message in the chat session asynchronously.
 
@@ -440,6 +444,7 @@ class ChatService(ChatServiceDeprecated):
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
             debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
             set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+            segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place, e.g. relabeling M0 from PROCESS to PREFACE once content is set. Defaults to None (kind unchanged).
 
         Returns:
             ChatMessage: The modified message.
@@ -462,6 +467,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at or False,
+            segment_kind=segment_kind,
         )
 
     def create_assistant_message(
