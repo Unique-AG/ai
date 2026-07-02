@@ -41,6 +41,9 @@ from .schemas import (
     EventUserMessage as EventUserMessage,
 )
 from .schemas import (
+    McpReferenceMapping as McpReferenceMapping,
+)
+from .schemas import (
     McpServer as McpServer,
 )
 from .schemas import (

@@ -154,6 +154,59 @@ def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
     assert "url" not in refs[0]
 
 
+def test_json_in_text_unwraps_wrapped_array_into_items(tmp_path: Path) -> None:
+    # Atlassian JQL search: records wrapped under an "issues" key must each
+    # become their own reference (via the top-level "key"), not collapse into
+    # one title-less tool chip.
+    body = json.dumps(
+        {
+            "issues": [
+                {"key": "UN-1", "fields": {"summary": "First"}},
+                {"key": "UN-2", "fields": {"summary": "Second"}},
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__searchJiraIssuesUsingJql", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert {r["title"]: r["sourceNumber"] for r in refs} == {"UN-1": 1, "UN-2": 2}
+
+
+def test_json_in_text_tolerates_non_json_preamble(tmp_path: Path) -> None:
+    # Some servers (Atlassian) prefix a human-readable notice before the JSON;
+    # the whole string is not valid JSON, so the embedded body must be located.
+    body = json.dumps({"issues": [{"key": "UN-9", "fields": {"summary": "X"}}]})
+    text = f"[IMPORTANT: notice with a [bracket] inside]\n{body}"
+    response = _FakeMCPResponse(content=[{"type": "text", "text": text}])
+    _run("mcp__atlassian__searchJiraIssuesUsingJql", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["UN-9"]
+
+
+def test_json_in_text_object_with_dict_container_key_stays_untitled(
+    tmp_path: Path,
+) -> None:
+    # A container key whose value is a dict (not a list) must NOT be unwrapped;
+    # with no top-level title the result falls back to a single tool chip.
+    body = json.dumps({"data": {"users": {"users": []}}})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__lookupJiraAccountId", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs == [
+        {
+            "sourceNumber": 1,
+            "toolName": "mcp__atlassian__lookupJiraAccountId",
+            "serverName": "atlassian",
+            "title": None,
+            "snippet": None,
+            "details": None,
+        }
+    ]
+
+
 # ── Reference enrichment / details line (UN-22310) ───────────────────────────
 
 
@@ -570,3 +623,65 @@ def test_record_mcp_citations_concurrent_monotonic_numbers(
     # collisions despite concurrent writers (the per-turn flock serializes them).
     assert numbers == list(range(1, n + 1))
     assert len(_unique_lines(unique_dir, "mcp-output.jsonl")) == n
+
+
+# ── reference_mapping override (per-tool list destructuring) ──────────────────
+
+
+def test_reference_mapping_destructures_wrapped_list_with_template(
+    tmp_path: Path,
+) -> None:
+    # Atlassian-style: a non-JSON preamble wrapping issues under "issues", each
+    # issue's title composed from key + nested fields.summary via titleTemplate.
+    unique_dir = tmp_path / ".unique"
+    body = json.dumps(
+        {
+            "issues": [
+                {"key": "UN-1", "fields": {"summary": "First"}},
+                {"key": "UN-2", "fields": {"summary": "Second"}},
+            ]
+        }
+    )
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": f"[IMPORTANT: notice]\n{body}"}],
+        mcp_server_id="atlassian",
+    )
+    footer = record_mcp_citations(
+        response,
+        tool_name="searchJiraIssuesUsingJql",
+        server_name="atlassian",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={
+            "listPath": "issues",
+            "titleTemplate": "{key} — {fields.summary}",
+        },
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert {r["title"]: r["sourceNumber"] for r in refs} == {
+        "UN-1 — First": 1,
+        "UN-2 — Second": 2,
+    }
+    assert "[mcpsource1] UN-1 — First" in footer
+
+
+def test_reference_mapping_falls_back_to_heuristic_when_no_match(
+    tmp_path: Path,
+) -> None:
+    # listPath points nowhere → mapping yields nothing → the generic JSON-title
+    # heuristic still extracts the top-level title.
+    unique_dir = tmp_path / ".unique"
+    body = json.dumps({"title": "Lonely Page"})
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": body}], mcp_server_id="atlassian"
+    )
+    record_mcp_citations(
+        response,
+        tool_name="getConfluencePage",
+        server_name="atlassian",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={"listPath": "does_not_exist", "titlePath": "key"},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert [r["title"] for r in refs] == ["Lonely Page"]
