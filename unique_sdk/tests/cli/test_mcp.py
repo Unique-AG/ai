@@ -793,3 +793,27 @@ def test_reference_mapping_title_from_text_does_not_block_list_heuristic(
     )
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
     assert {r["title"]: r["sourceNumber"] for r in refs} == {"UN-1": 1, "UN-2": 2}
+
+
+def test_reference_mapping_empty_structured_content_still_titles_from_text(
+    tmp_path: Path,
+) -> None:
+    # An empty structuredContent object must not count as a located record: it
+    # carries no data, so titleFromText should still title the chip from the
+    # leading Markdown heading instead of falling back to the tool-name chip.
+    unique_dir = tmp_path / ".unique"
+    doc = "# Quarterly Planning Notes\n\nBody..."
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": doc}], mcp_server_id="docs"
+    )
+    response.structured_content = {}
+    record_mcp_citations(
+        response,
+        tool_name="read_doc",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=doc,
+        reference_mapping={"titleFromText": True, "titleMaxChars": 80},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert [r["title"] for r in refs] == ["Quarterly Planning Notes"]

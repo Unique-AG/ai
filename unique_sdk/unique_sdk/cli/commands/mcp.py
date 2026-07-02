@@ -294,7 +294,9 @@ def _mapped_records(response: Any, list_path: str | None) -> list[dict[str, Any]
     """Locate the record list a reference mapping applies to, preferring the
     MCP-native ``structuredContent`` then any JSON-in-text block (preamble
     tolerant). ``list_path`` (dotted) points at the array; when unset the parsed
-    value itself is used."""
+    value itself is used. An empty object/list is ignored (not treated as a
+    record) so the caller can still fall back to ``titleFromText`` / the generic
+    heuristic — e.g. an empty ``structuredContent`` alongside a Markdown doc."""
     sources: list[Any] = []
     structured = getattr(response, "structuredContent", None) or getattr(
         response, "structured_content", None
@@ -313,7 +315,7 @@ def _mapped_records(response: Any, list_path: str | None) -> list[dict[str, Any]
             records = [entry for entry in target if isinstance(entry, dict)]
             if records:
                 return records
-        elif isinstance(target, dict):
+        elif isinstance(target, dict) and target:
             return [target]
     return []
 
