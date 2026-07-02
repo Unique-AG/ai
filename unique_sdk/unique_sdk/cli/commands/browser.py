@@ -327,12 +327,17 @@ def cmd_browser_download(
     dest_path = Path(dest).expanduser()
 
     total = 0
+    # Track whether we actually opened (and therefore truncated/created) the
+    # destination: a failure before open must NOT unlink a pre-existing file
+    # that this command never wrote to.
+    file_opened = False
     try:
         # Parent creation lives inside the try so a permission / filesystem
         # failure surfaces as an ok:false envelope instead of a traceback.
         if dest_path.parent and not dest_path.parent.exists():
             dest_path.parent.mkdir(parents=True, exist_ok=True)
         with dest_path.open("wb") as handle:
+            file_opened = True
             for chunk in resp.iter_content(chunk_size=_DOWNLOAD_CHUNK_BYTES):
                 if chunk:
                     handle.write(chunk)
@@ -340,14 +345,18 @@ def cmd_browser_download(
     except requests.RequestException as exc:
         # Network failures during streaming (timeout, dropped connection,
         # chunked-encoding error) — drop any truncated bytes so a later step
-        # can't mistake the partial file for a complete download.
-        dest_path.unlink(missing_ok=True)
+        # can't mistake the partial file for a complete download. Only unlink
+        # if we actually opened the file; otherwise leave any pre-existing
+        # file untouched.
+        if file_opened:
+            dest_path.unlink(missing_ok=True)
         return _err(
             "browser_bridge_unreachable",
             f"download stream from the browser bridge failed: {exc}",
         )
     except OSError as exc:
-        dest_path.unlink(missing_ok=True)
+        if file_opened:
+            dest_path.unlink(missing_ok=True)
         return _err(
             "browser_download_write_failed",
             f"could not prepare or write {dest_path}: {exc}",
