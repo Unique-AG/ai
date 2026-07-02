@@ -118,6 +118,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter | None = ...,
+        event: ChatEvent | None = ...,
+        content_service: ContentService | None = ...,
     ) -> None: ...
 
     @overload
@@ -139,18 +141,22 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         *,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ):
-        self._deferred_init_done = False
         if chat_service is not None and language_model_service is not None:
             super().__init__(
                 configuration,
                 tool_progress_reporter=tool_progress_reporter,
                 chat_service=chat_service,
                 language_model_service=language_model_service,
+                event=event,
+                content_service=content_service,
             )
+            if event is not None:
+                self._initialize_from_event(event)
         elif event is not None:
             super().__init__(configuration, event, tool_progress_reporter)
-            self._complete_deferred_init()
+            self._initialize_from_event(event)
         else:
             raise ValueError(
                 "DeepResearchTool requires event or injected chat_service and "
@@ -161,17 +167,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
     def _assistant_message_id(self) -> str:
         return self._chat_service._assistant_message_id
 
-    @override
-    def _on_services_injected(self) -> None:
-        self._complete_deferred_init()
-
-    def _complete_deferred_init(self) -> None:
-        if self._deferred_init_done:
-            return
-        if getattr(self, "_event", None) is None:
-            return
-
-        event = self._event
+    def _initialize_from_event(self, event: ChatEvent) -> None:
         self.chat_id = event.payload.chat_id
         self.company_id = event.company_id
         self.user_id = event.user_id
@@ -187,12 +183,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         _LOGGER.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
-        self.content_service = ContentService(
-            company_id=self.company_id,
-            user_id=self.user_id,
-            chat_id=self.chat_id,
-            metadata_filter=event.payload.metadata_filter,
-        )
+        if self._content_service is not None:
+            self.content_service = self._content_service
+        else:
+            self.content_service = ContentService(
+                company_id=self.company_id,
+                user_id=self.user_id,
+                chat_id=self.chat_id,
+                metadata_filter=event.payload.metadata_filter,
+            )
         self.memory_service = PersistentShortMemoryManager(
             short_term_memory_service=ShortTermMemoryService(
                 company_id=self.company_id,
@@ -205,7 +204,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
         self.env = TEMPLATE_ENV
         self.execution_id = event.payload.message_execution_id
-        self._deferred_init_done = True
 
     def takes_control(self) -> bool:
         """

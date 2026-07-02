@@ -373,6 +373,8 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter | None = ...,
+        event: ChatEvent | None = ...,
+        content_service: ContentService | None = ...,
         display_name: str = ...,
     ) -> None: ...
 
@@ -397,6 +399,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         *,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
         display_name: str = "Internal Search",
     ):
         self._search_service_initialized = False
@@ -409,7 +412,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 tool_progress_reporter=tool_progress_reporter,
                 chat_service=chat_service,
                 language_model_service=language_model_service,
+                event=event,
+                content_service=content_service,
             )
+            if event is not None and content_service is not None:
+                self._initialize_search_service_from_services()
         elif event is not None:
             Tool.__init__(self, configuration, event, tool_progress_reporter)
             self._initialize_search_service_from_event(configuration)
@@ -463,10 +470,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             selected_uploaded_file_ids=selected_uploaded_file_ids,
         )
         self._search_service_initialized = True
-
-    @override
-    def _on_services_injected(self) -> None:
-        self._initialize_search_service_from_services()
 
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs

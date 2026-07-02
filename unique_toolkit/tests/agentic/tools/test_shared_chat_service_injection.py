@@ -75,6 +75,8 @@ class _FixedInitTool(Tool[_FixedInitToolConfig]):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter | None = ...,
+        event: ChatEvent | None = ...,
+        content_service: ContentService | None = ...,
     ) -> None: ...
 
     @overload
@@ -96,6 +98,7 @@ class _FixedInitTool(Tool[_FixedInitToolConfig]):
         *,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         if chat_service is not None and language_model_service is not None:
             super().__init__(
@@ -103,6 +106,8 @@ class _FixedInitTool(Tool[_FixedInitToolConfig]):
                 tool_progress_reporter=tool_progress_reporter,
                 chat_service=chat_service,
                 language_model_service=language_model_service,
+                event=event,
+                content_service=content_service,
             )
         elif event is not None:
             super().__init__(config, event, tool_progress_reporter)
@@ -133,8 +138,8 @@ class _DeferredInitToolConfig(BaseToolConfig):
     pass
 
 
-class _DeferredInitTool(Tool[_DeferredInitToolConfig]):
-    """Mirrors package tools that defer event-derived init to _on_services_injected."""
+class _FullyInitializedTool(Tool[_DeferredInitToolConfig]):
+    """Mirrors package tools that require event + content_service at construction."""
 
     name = "deferred_init_tool"
 
@@ -145,21 +150,20 @@ class _DeferredInitTool(Tool[_DeferredInitToolConfig]):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        event: ChatEvent | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         super().__init__(
             config,
             tool_progress_reporter=tool_progress_reporter,
             chat_service=chat_service,
             language_model_service=language_model_service,
+            event=event,
+            content_service=content_service,
         )
         self.initialized = False
-
-    def _on_services_injected(self) -> None:
-        if self._event is None:
-            raise ValueError("missing event snapshot")
-        if not hasattr(self, "_content_service") or self._content_service is None:
-            raise ValueError("missing content_service")
-        self.initialized = True
+        if event is not None and content_service is not None:
+            self.initialized = True
 
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
@@ -380,7 +384,7 @@ def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
     assert captured["messageId"] == "assistant-msg-updated"
 
 
-def test_tool_manager_calls_on_services_injected_with_content_service(
+def test_tool_manager_passes_event_and_content_service_at_construction(
     chat_event: ChatEvent,
     shared_chat_service: ChatService,
     shared_llm_service: LanguageModelService,
@@ -388,8 +392,8 @@ def test_tool_manager_calls_on_services_injected_with_content_service(
 ) -> None:
     from unique_toolkit.agentic.tools.factory import ToolFactory
 
-    ToolFactory.register_tool(_DeferredInitTool, _DeferredInitToolConfig)
-    chat_event.payload.tool_choices = [_DeferredInitTool.name]
+    ToolFactory.register_tool(_FullyInitializedTool, _DeferredInitToolConfig)
+    chat_event.payload.tool_choices = [_FullyInitializedTool.name]
 
     try:
         tool_manager = ToolManager(
@@ -397,9 +401,9 @@ def test_tool_manager_calls_on_services_injected_with_content_service(
             config=ToolManagerConfig(
                 tools=[
                     ToolBuildConfig(
-                        name=_DeferredInitTool.name,
+                        name=_FullyInitializedTool.name,
                         configuration=_DeferredInitToolConfig(),
-                        display_name="Deferred Init Tool",
+                        display_name="Fully Initialized Tool",
                         is_exclusive=False,
                         is_enabled=True,
                         icon=ToolIcon.BOOK,
@@ -425,11 +429,11 @@ def test_tool_manager_calls_on_services_injected_with_content_service(
             content_service=content_service,
         )
 
-        deferred_tool = tool_manager.get_tool_by_name(_DeferredInitTool.name)
-        assert deferred_tool is not None
-        assert deferred_tool.initialized is True
-        assert deferred_tool._content_service is content_service
-        assert deferred_tool._event is chat_event
+        initialized_tool = tool_manager.get_tool_by_name(_FullyInitializedTool.name)
+        assert initialized_tool is not None
+        assert initialized_tool.initialized is True
+        assert initialized_tool._content_service is content_service
+        assert initialized_tool._event is chat_event
     finally:
-        ToolFactory.tool_map.pop(_DeferredInitTool.name, None)
-        ToolFactory.tool_config_map.pop(_DeferredInitTool.name, None)
+        ToolFactory.tool_map.pop(_FullyInitializedTool.name, None)
+        ToolFactory.tool_config_map.pop(_FullyInitializedTool.name, None)

@@ -10,19 +10,16 @@ from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParame
 
 
 class TestWebSearchToolInit:
-    """Test WebSearchTool.__init__(), _on_services_injected(), _complete_deferred_init()."""
+    """Test WebSearchTool.__init__() and _initialize_search_dependencies()."""
 
     @pytest.mark.ai
-    def test_init__with_injected_services_only__defers_init(
+    def test_init__with_injected_services_only__skips_search_setup(
         self,
         mock_web_search_config_v1: Mock,
     ) -> None:
         """
-        Purpose: Verify __init__ defers setup when constructed with injected
-        services but no event, the state ToolManager leaves a tool in before
-        calling _on_services_injected().
-        Why this matters: Deferred init must not run prematurely for tools
-        constructed without an event snapshot.
+        Purpose: Verify __init__ does not build search dependencies when constructed
+        with injected services but no event (config-only listing path).
         """
         tool = WebSearchTool(
             mock_web_search_config_v1,
@@ -30,7 +27,7 @@ class TestWebSearchToolInit:
             language_model_service=Mock(),
         )
 
-        assert tool._deferred_init_done is False
+        assert not hasattr(tool, "search_engine_service")
 
     @pytest.mark.ai
     def test_init__with_event_and_injected_services__completes_init_eagerly(
@@ -39,10 +36,8 @@ class TestWebSearchToolInit:
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify __init__ runs deferred init immediately when an event
-        is supplied alongside injected services (legacy combined construction).
-        Why this matters: Tools built with Tool(config, event=..., chat_service=...)
-        must be fully usable right after construction.
+        Purpose: Verify __init__ runs search dependency setup immediately when an event
+        is supplied alongside injected services.
         """
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -61,48 +56,17 @@ class TestWebSearchToolInit:
             language_model_service=Mock(),
         )
 
-        assert tool._deferred_init_done is True
         assert tool.company_id == "company-1"
+        assert hasattr(tool, "search_engine_service")
 
     @pytest.mark.ai
-    def test_on_services_injected__completes_deferred_init(self) -> None:
-        """Test that _on_services_injected() triggers _complete_deferred_init()."""
-        tool = object.__new__(WebSearchTool)
-        tool._deferred_init_done = False
-        tool._complete_deferred_init = Mock()
-
-        tool._on_services_injected()
-
-        tool._complete_deferred_init.assert_called_once()
-
-    @pytest.mark.ai
-    def test_complete_deferred_init__is_idempotent(self) -> None:
-        """Test that _complete_deferred_init is a no-op once already completed."""
-        tool = object.__new__(WebSearchTool)
-        tool._deferred_init_done = True
-
-        tool._complete_deferred_init()
-
-        assert not hasattr(tool, "search_engine_service")
-
-    @pytest.mark.ai
-    def test_complete_deferred_init__noop_without_chat_service(self) -> None:
-        """Test that _complete_deferred_init defers until chat_service is injected."""
-        tool = object.__new__(WebSearchTool)
-        tool._deferred_init_done = False
-
-        tool._complete_deferred_init()
-
-        assert tool._deferred_init_done is False
-
-    @pytest.mark.ai
-    def test_complete_deferred_init__uses_event__when_event_present(
+    def test_initialize_search_dependencies__uses_event__when_event_present(
         self,
         mock_web_search_config_v1: Mock,
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify _complete_deferred_init derives company_id and the
+        Purpose: Verify _initialize_search_dependencies derives company_id and the
         chunk relevancy sorter from the event when one is present.
         """
         mocker.patch("unique_web_search.service.get_search_engine_service")
@@ -111,7 +75,6 @@ class TestWebSearchToolInit:
         mocker.patch("unique_web_search.service.ContentProcessor")
 
         tool = object.__new__(WebSearchTool)
-        tool._deferred_init_done = False
         tool.config = mock_web_search_config_v1
         tool.language_model_orchestrator = Mock()
         tool._chat_service = Mock()
@@ -121,22 +84,21 @@ class TestWebSearchToolInit:
         event.company_id = "company-1"
         tool._event = event
 
-        tool._complete_deferred_init()
+        tool._initialize_search_dependencies()
 
         mock_sorter.assert_called_once_with(event)
         assert tool.company_id == "company-1"
-        assert tool._deferred_init_done is True
 
     @pytest.mark.ai
-    def test_complete_deferred_init__uses_chat_service__when_no_event(
+    def test_initialize_search_dependencies__uses_chat_service__when_no_event(
         self,
         mock_web_search_config_v1: Mock,
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify _complete_deferred_init derives company_id and the
+        Purpose: Verify _initialize_search_dependencies derives company_id and the
         chunk relevancy sorter from the injected chat_service when no event
-        snapshot is available (pure service-injection path).
+        snapshot is available.
         """
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -144,7 +106,6 @@ class TestWebSearchToolInit:
         mocker.patch("unique_web_search.service.ContentProcessor")
 
         tool = object.__new__(WebSearchTool)
-        tool._deferred_init_done = False
         tool.config = mock_web_search_config_v1
         tool.language_model_orchestrator = Mock()
         tool._chat_service = Mock()
@@ -153,14 +114,13 @@ class TestWebSearchToolInit:
         tool._chat_service.get_full_history.return_value = []
         tool._language_model_service = Mock()
 
-        tool._complete_deferred_init()
+        tool._initialize_search_dependencies()
 
         mock_sorter.assert_called_once_with(
             company_id="company-2",
             user_id="user-2",
         )
         assert tool.company_id == "company-2"
-        assert tool._deferred_init_done is True
 
 
 class TestWebSearchToolDescription:

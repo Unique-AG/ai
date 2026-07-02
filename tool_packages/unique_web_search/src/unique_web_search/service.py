@@ -77,20 +77,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
             language_model_orchestrator or configuration.token_counting_language_model
         )
         self._display_name = kwargs.get("display_name", "Web Search")
-        self._deferred_init_done = False
-        if getattr(self, "_event", None) is not None:
-            self._complete_deferred_init()
+        if getattr(self, "_event", None) is not None and hasattr(self, "_chat_service"):
+            self._initialize_search_dependencies()
 
-    @override
-    def _on_services_injected(self) -> None:
-        self._complete_deferred_init()
-
-    def _complete_deferred_init(self) -> None:
-        if self._deferred_init_done:
-            return
-        if not hasattr(self, "_chat_service"):
-            return
-
+    def _initialize_search_dependencies(self) -> None:
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
             self._language_model_service,
@@ -128,7 +118,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
         self.content_reducer = content_reducer
-        self._deferred_init_done = True
 
     def _resolve_search_engine_mode(self) -> SearchEngineMode:
         """Derive the search-engine mode, respecting CustomAPI overrides."""

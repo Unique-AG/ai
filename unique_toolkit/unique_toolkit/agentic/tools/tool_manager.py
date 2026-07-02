@@ -187,28 +187,6 @@ class _ToolManager(Generic[_ApiMode]):
         ] = []
         self._init__tools(run_context.tool_init_event)
 
-    def _inject_shared_services(
-        self, tool: Tool[Any], tool_init_event: ChatEvent | None = None
-    ) -> None:
-        if self._chat_service is None or self._language_model_service is None:
-            return
-        if not hasattr(tool, "_chat_service"):
-            return
-        from unique_toolkit.agentic.message_log_manager.service import (
-            MessageStepLogger,
-        )
-
-        tool._chat_service = self._chat_service
-        tool._language_model_service = self._language_model_service
-        tool._message_step_logger = MessageStepLogger(
-            chat_service=self._chat_service,
-        )
-        if tool_init_event is not None:
-            tool._event = tool_init_event
-        if self._content_service is not None:
-            tool._content_service = self._content_service
-        tool._on_services_injected()
-
     def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
@@ -279,6 +257,8 @@ class _ToolManager(Generic[_ApiMode]):
                     tool_progress_reporter=self._tool_progress_reporter,
                     chat_service=self._chat_service,
                     language_model_service=self._language_model_service,
+                    event=tool_init_event,
+                    content_service=self._content_service,
                 )
             else:
                 result = safe_executor.execute(
@@ -291,7 +271,6 @@ class _ToolManager(Generic[_ApiMode]):
                 )
             if result.success:
                 tool = result.unpack()
-                self._inject_shared_services(tool, tool_init_event)
                 self._internal_tools.append(tool)
             else:
                 self._logger.warning(

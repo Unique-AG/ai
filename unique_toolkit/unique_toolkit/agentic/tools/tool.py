@@ -189,6 +189,7 @@ class Tool(ABC, Generic[ConfigType]):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter | None = ...,
+        content_service: ContentService | None = ...,
     ) -> None: ...
 
     @overload
@@ -200,6 +201,7 @@ class Tool(ABC, Generic[ConfigType]):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter | None = ...,
+        content_service: ContentService | None = ...,
     ) -> None: ...
 
     def __init__(
@@ -210,6 +212,7 @@ class Tool(ABC, Generic[ConfigType]):
         *,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         """Initialize the tool.
 
@@ -248,6 +251,7 @@ class Tool(ABC, Generic[ConfigType]):
             self._tool_progress_reporter = tool_progress_reporter
             self._chat_service = chat_service
             self._language_model_service = language_model_service
+            self._content_service = content_service
             self._message_step_logger = MessageStepLogger(
                 chat_service=self._chat_service,
             )
@@ -308,6 +312,3 @@ class Tool(ABC, Generic[ConfigType]):
     )
     def tool_progress_reporter(self) -> ToolProgressReporter | None:
         return getattr(self, "_tool_progress_reporter", None)
-
-    def _on_services_injected(self) -> None:
-        """Hook for tools that defer event/service-derived init until after injection."""

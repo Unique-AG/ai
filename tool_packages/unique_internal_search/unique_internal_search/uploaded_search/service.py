@@ -44,6 +44,8 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         chat_service: ChatService,
         language_model_service: LanguageModelService,
         tool_progress_reporter: ToolProgressReporter,
+        event: ChatEvent | None = ...,
+        content_service: ContentService | None = ...,
     ) -> None: ...
 
     @overload
@@ -65,8 +67,8 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         *,
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ):
-        self._deferred_init_done = False
         self._config = config
         config.chat_only = True
         self._valid_documents: list[Content] = []
@@ -80,12 +82,23 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
                     "UploadedSearchTool requires tool_progress_reporter when using "
                     "injected services"
                 )
+            if event is None:
+                raise ValueError(
+                    "UploadedSearchTool requires event when using injected services"
+                )
+            if content_service is None:
+                raise ValueError(
+                    "UploadedSearchTool requires content_service when using injected services"
+                )
             super().__init__(
                 config,
                 tool_progress_reporter=tool_progress_reporter,
                 chat_service=chat_service,
                 language_model_service=language_model_service,
+                event=event,
+                content_service=content_service,
             )
+            self._initialize_from_injected_state(event)
         elif event is not None:
             self._tool_progress_reporter = tool_progress_reporter
             self._content_service = ContentService.from_event(event)
@@ -95,36 +108,26 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
             self._user_query = event.payload.user_message.text or ""
             self._valid_documents = self._compute_valid_documents()
-            self._deferred_init_done = True
         else:
             raise ValueError(
                 "UploadedSearchTool requires event or injected chat_service and "
                 "language_model_service"
             )
 
-    @override
-    def _on_services_injected(self) -> None:
-        if self._deferred_init_done:
-            return
-        if self._event is None:
-            raise ValueError("UploadedSearchTool requires tool_init_event snapshot")
-        if self._content_service is None:
-            raise ValueError("UploadedSearchTool requires injected content_service")
+    def _initialize_from_injected_state(self, event: ChatEvent) -> None:
         self._company_id = self._chat_service._company_id
-        self._selected_uploaded_files = extract_selected_uploaded_file_ids(self._event)
-        self._user_query = self._event.payload.user_message.text or ""
+        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
+        self._user_query = event.payload.user_message.text or ""
         self._internal_search_tool = InternalSearchTool(
             self._config,
             chat_service=self._chat_service,
             language_model_service=self._language_model_service,
             tool_progress_reporter=self._tool_progress_reporter,
+            event=event,
+            content_service=self._content_service,
             display_name=self._display_name,
         )
-        self._internal_search_tool._content_service = self._content_service
-        self._internal_search_tool._event = self._event
-        self._internal_search_tool._on_services_injected()
         self._valid_documents = self._compute_valid_documents()
-        self._deferred_init_done = True
 
     @override
     def display_name(self) -> str:

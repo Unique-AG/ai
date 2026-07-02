@@ -559,106 +559,47 @@ class TestUploadedSearchTool:
             UploadedSearchTool(config=uploaded_search_config)
 
     @pytest.mark.ai
-    def test_init__with_injected_services__defers_internal_search_tool_setup(
+    def test_init__with_injected_services__raises_without_event(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify service injection defers building the internal InternalSearchTool.
-        Why this matters: content_service/event are only known once _on_services_injected()
-            fires; building eagerly would use stale or missing state.
-        Setup summary: Construct via chat_service/language_model_service, assert deferred.
+        Purpose: Verify service injection requires event at construction time.
         """
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-            tool_progress_reporter=mock_tool_progress_reporter,
-        )
-
-        assert tool._deferred_init_done is False
-        assert tool._internal_search_tool is None
+        with pytest.raises(
+            ValueError, match="requires event when using injected services"
+        ):
+            UploadedSearchTool(
+                config=uploaded_search_config,
+                chat_service=Mock(),
+                language_model_service=Mock(),
+                tool_progress_reporter=mock_tool_progress_reporter,
+            )
 
     @pytest.mark.ai
-    def test_on_services_injected__is_idempotent(
-        self,
-        uploaded_search_config: UploadedSearchConfig,
-        mock_tool_progress_reporter: ToolProgressReporter,
-    ) -> None:
-        """
-        Purpose: Verify _on_services_injected() is a no-op once deferred init already ran.
-        Why this matters: ToolManager may call the hook more than once; re-running setup
-            would rebuild the internal search tool and lose accumulated state.
-        Setup summary: Mark deferred init as done, call the hook, assert no ValueError despite
-            missing _event/_content_service (which would otherwise raise).
-        """
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-            tool_progress_reporter=mock_tool_progress_reporter,
-        )
-        tool._deferred_init_done = True
-        tool._event = None
-        tool._content_service = None
-
-        tool._on_services_injected()
-
-        assert tool._internal_search_tool is None
-
-    @pytest.mark.ai
-    def test_on_services_injected__raises__without_event(
-        self,
-        uploaded_search_config: UploadedSearchConfig,
-        mock_tool_progress_reporter: ToolProgressReporter,
-        mock_content_service: ContentService,
-    ) -> None:
-        """
-        Purpose: Verify _on_services_injected() raises when no event snapshot is attached.
-        Why this matters: Building the internal search tool needs the ChatEvent to extract
-            selected uploaded file ids and the user query.
-        Setup summary: Leave _event unset, call the hook, expect ValueError.
-        """
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-            tool_progress_reporter=mock_tool_progress_reporter,
-        )
-        tool._event = None
-        tool._content_service = mock_content_service
-
-        with pytest.raises(ValueError, match="requires tool_init_event snapshot"):
-            tool._on_services_injected()
-
-    @pytest.mark.ai
-    def test_on_services_injected__raises__without_content_service(
+    def test_init__with_injected_services__raises_without_content_service(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_tool_progress_reporter: ToolProgressReporter,
         mock_chat_event: ChatEvent,
     ) -> None:
         """
-        Purpose: Verify _on_services_injected() raises when content_service was never injected.
-        Why this matters: Missing content_service must fail loudly instead of crashing later
-            with an AttributeError inside _compute_valid_documents.
-        Setup summary: Leave _content_service unset, call the hook, expect ValueError.
+        Purpose: Verify service injection requires content_service at construction time.
         """
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-            tool_progress_reporter=mock_tool_progress_reporter,
-        )
-        tool._event = mock_chat_event
-        tool._content_service = None
-
-        with pytest.raises(ValueError, match="requires injected content_service"):
-            tool._on_services_injected()
+        with pytest.raises(
+            ValueError, match="requires content_service when using injected services"
+        ):
+            UploadedSearchTool(
+                config=uploaded_search_config,
+                chat_service=Mock(),
+                language_model_service=Mock(),
+                tool_progress_reporter=mock_tool_progress_reporter,
+                event=mock_chat_event,
+            )
 
     @pytest.mark.ai
-    def test_on_services_injected__builds_internal_search_tool__from_injected_state(
+    def test_init__builds_internal_search_tool__from_injected_state(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_tool_progress_reporter: ToolProgressReporter,
@@ -666,24 +607,12 @@ class TestUploadedSearchTool:
         mock_content_service: ContentService,
     ) -> None:
         """
-        Purpose: Verify _on_services_injected() wires up the internal InternalSearchTool and
-            recomputes valid documents using the injected content_service.
-        Why this matters: This is the hook ToolManager calls after injection; if it fails to
-            build the internal tool, run() would always raise RuntimeError.
-        Setup summary: Patch InternalSearchTool, attach content_service/event, invoke hook.
+        Purpose: Verify __init__ wires up the internal InternalSearchTool when all
+        injected dependencies are provided at construction.
         """
         mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
         chat_service = Mock()
         chat_service._company_id = "company_123"
-
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=chat_service,
-            language_model_service=Mock(),
-            tool_progress_reporter=mock_tool_progress_reporter,
-        )
-        tool._event = mock_chat_event
-        tool._content_service = mock_content_service
 
         with patch(
             "unique_internal_search.uploaded_search.service.InternalSearchTool"
@@ -691,17 +620,25 @@ class TestUploadedSearchTool:
             mock_internal_search_tool = Mock()
             mock_internal_search_tool_class.return_value = mock_internal_search_tool
 
-            tool._on_services_injected()
+            tool = UploadedSearchTool(
+                config=uploaded_search_config,
+                chat_service=chat_service,
+                language_model_service=Mock(),
+                tool_progress_reporter=mock_tool_progress_reporter,
+                event=mock_chat_event,
+                content_service=mock_content_service,
+            )
 
         mock_internal_search_tool_class.assert_called_once_with(
             uploaded_search_config,
             chat_service=chat_service,
             language_model_service=tool._language_model_service,
             tool_progress_reporter=mock_tool_progress_reporter,
+            event=mock_chat_event,
+            content_service=mock_content_service,
             display_name=tool._display_name,
         )
         assert tool._internal_search_tool is mock_internal_search_tool
-        assert tool._deferred_init_done is True
         assert tool._company_id == "company_123"
 
     @pytest.mark.ai
@@ -712,16 +649,9 @@ class TestUploadedSearchTool:
     ) -> None:
         """
         Purpose: Verify _compute_valid_documents raises when content_service is unset.
-        Why this matters: Guards against a NoneType AttributeError deep in the call when
-            invoked before _on_services_injected() has run.
-        Setup summary: Construct via injection (content_service unset), call the method directly.
         """
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-            tool_progress_reporter=mock_tool_progress_reporter,
-        )
+        tool = object.__new__(UploadedSearchTool)
+        tool._content_service = None
 
         with pytest.raises(ValueError, match="requires injected content_service"):
             tool._compute_valid_documents()
@@ -736,17 +666,11 @@ class TestUploadedSearchTool:
     ) -> None:
         """
         Purpose: Verify run() raises RuntimeError when the internal InternalSearchTool was
-            never built (i.e. deferred init has not completed yet).
-        Why this matters: Prevents a confusing AttributeError if run() is invoked before
-            services have been fully injected.
-        Setup summary: Construct via injection so _internal_search_tool stays None, call run().
+            never built.
         """
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=Mock(),
-            language_model_service=Mock(),
-            tool_progress_reporter=mock_tool_progress_reporter,
-        )
+        tool = object.__new__(UploadedSearchTool)
+        tool._internal_search_tool = None
+        tool.name = UploadedSearchTool.name
 
         with pytest.raises(RuntimeError, match="is not initialized"):
             await tool.run(mock_language_model_function)
