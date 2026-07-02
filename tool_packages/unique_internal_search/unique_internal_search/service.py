@@ -454,11 +454,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             config=self._configuration,
             content_service=self._content_service,
             chunk_relevancy_sorter=ChunkRelevancySorter(
-                company_id=self._chat_service.company_id,
-                user_id=self._chat_service.user_id,
+                company_id=self._chat_service._company_id,
+                user_id=self._chat_service._user_id,
             ),
             chat_id=self._chat_service._content_scope_chat_id,
-            company_id=self._chat_service.company_id,
+            company_id=self._chat_service._company_id,
             logger=self.logger,
             selected_uploaded_file_ids=selected_uploaded_file_ids,
         )

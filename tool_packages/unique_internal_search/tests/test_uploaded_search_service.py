@@ -674,7 +674,7 @@ class TestUploadedSearchTool:
         """
         mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
         chat_service = Mock()
-        chat_service.company_id = "company_123"
+        chat_service._company_id = "company_123"
 
         tool = UploadedSearchTool(
             config=uploaded_search_config,

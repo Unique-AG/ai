@@ -93,23 +93,24 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
-            self.language_model_service,
+            self._language_model_service,
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
-        if getattr(self, "_event", None) is not None:
-            self.chunk_relevancy_sorter = ChunkRelevancySorter(self.event)
-            self.company_id = self.event.company_id
+        event = getattr(self, "_event", None)
+        if event is not None:
+            self.chunk_relevancy_sorter = ChunkRelevancySorter(event)
+            self.company_id = event.company_id
         else:
             self.chunk_relevancy_sorter = ChunkRelevancySorter(
-                company_id=self._chat_service.company_id,
-                user_id=self._chat_service.user_id,
+                company_id=self._chat_service._company_id,
+                user_id=self._chat_service._user_id,
             )
-            self.company_id = self._chat_service.company_id
+            self.company_id = self._chat_service._company_id
         self.chat_history_token_length = 0
         self.chat_history_chat_messages = self._chat_service.get_full_history()
 
         self.content_processor = ContentProcessor(
-            language_model_service=self.language_model_service,
+            language_model_service=self._language_model_service,
             config=self.config.content_processor_config,
             encoder=self.language_model_orchestrator.get_encoder(),
             decoder=self.language_model_orchestrator.get_decoder(),
@@ -323,7 +324,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             search_engine_service=self.search_engine_service,
             crawler_service=self.crawler_service,
             content_processor=self.content_processor,
-            language_model_service=self.language_model_service,
+            language_model_service=self._language_model_service,
             chunk_relevancy_sorter=self.chunk_relevancy_sorter,
         )
 
@@ -401,7 +402,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             self.config.experimental_features.argument_screening_config
         )
         return ArgumentScreeningService(
-            language_model_service=self.language_model_service,
+            language_model_service=self._language_model_service,
             language_model=argument_screening_config.language_model,
             config=argument_screening_config,
         )

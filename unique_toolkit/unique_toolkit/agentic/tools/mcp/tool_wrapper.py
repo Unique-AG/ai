@@ -165,7 +165,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         if (
             self._tool_progress_reporter
             and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self._chat_service.company_id
+                self._chat_service._company_id
             )
         ):
             await self._tool_progress_reporter.notify_from_tool_call(
@@ -204,7 +204,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             if (
                 self._tool_progress_reporter
                 and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self._chat_service.company_id
+                    self._chat_service._company_id
                 )
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
@@ -230,7 +230,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             if (
                 self._tool_progress_reporter
                 and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self._chat_service.company_id
+                    self._chat_service._company_id
                 )
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
@@ -392,12 +392,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
         try:
             content = upload_content_from_bytes(
-                user_id=self._chat_service.user_id,
-                company_id=self._chat_service.company_id,
+                user_id=self._chat_service._user_id,
+                company_id=self._chat_service._company_id,
                 content=img_bytes,
                 content_name=f"mcp_tool_{self.name}_image_{uuid.uuid4().hex[:12]}_{index}{ext}",
                 mime_type=mime_type,
-                chat_id=self._chat_service.chat_id,
+                chat_id=self._chat_service._chat_id,
                 skip_ingestion=True,
                 hide_in_chat=True,
             )
@@ -419,11 +419,11 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 f"Calling MCP tool {self.name} with arguments: {arguments}"
             )
             result = await unique_sdk.MCP.call_tool_async(
-                user_id=self._chat_service.user_id,
-                company_id=self._chat_service.company_id,
+                user_id=self._chat_service._user_id,
+                company_id=self._chat_service._company_id,
                 name=self.name,
                 messageId=self._chat_service._assistant_message_id,
-                chatId=self._chat_service.chat_id,
+                chatId=self._chat_service._chat_id,
                 arguments=arguments,
             )
 

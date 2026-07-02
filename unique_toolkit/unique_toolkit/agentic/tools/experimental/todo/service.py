@@ -84,9 +84,9 @@ class TodoWriteTool(Tool[TodoConfig]):
                 chat_service=chat_service,
                 language_model_service=language_model_service,
             )
-            company_id = chat_service.company_id
-            user_id = chat_service.user_id
-            chat_id = chat_service.chat_id
+            company_id = chat_service._company_id
+            user_id = chat_service._user_id
+            chat_id = chat_service._chat_id
         elif event is not None:
             super().__init__(config, event, tool_progress_reporter)
             company_id = event.company_id

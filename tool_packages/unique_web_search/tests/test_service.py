@@ -148,8 +148,8 @@ class TestWebSearchToolInit:
         tool.config = mock_web_search_config_v1
         tool.language_model_orchestrator = Mock()
         tool._chat_service = Mock()
-        tool._chat_service.company_id = "company-2"
-        tool._chat_service.user_id = "user-2"
+        tool._chat_service._company_id = "company-2"
+        tool._chat_service._user_id = "user-2"
         tool._chat_service.get_full_history.return_value = []
         tool._language_model_service = Mock()
 

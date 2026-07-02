@@ -1334,8 +1334,8 @@ class TestInternalSearchTool:
         Setup summary: Construct via service injection, attach content_service/event, invoke hook.
         """
         chat_service = Mock()
-        chat_service.company_id = "company_123"
-        chat_service.user_id = "user_123"
+        chat_service._company_id = "company_123"
+        chat_service._user_id = "user_123"
         chat_service._content_scope_chat_id = "chat_123"
 
         tool = InternalSearchTool(

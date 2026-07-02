@@ -110,7 +110,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             raise ValueError("UploadedSearchTool requires tool_init_event snapshot")
         if self._content_service is None:
             raise ValueError("UploadedSearchTool requires injected content_service")
-        self._company_id = self._chat_service.company_id
+        self._company_id = self._chat_service._company_id
         self._selected_uploaded_files = extract_selected_uploaded_file_ids(self._event)
         self._user_query = self._event.payload.user_message.text or ""
         self._internal_search_tool = InternalSearchTool(

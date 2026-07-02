@@ -111,9 +111,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 chat_service=chat_service,
                 language_model_service=language_model_service,
             )
-            self._user_id = chat_service.user_id
-            self._company_id = chat_service.company_id
-            chat_id = chat_service.chat_id
+            self._user_id = chat_service._user_id
+            self._company_id = chat_service._company_id
+            chat_id = chat_service._chat_id
         elif event is not None:
             super().__init__(configuration, event, tool_progress_reporter)
             self._user_id = event.user_id
@@ -527,7 +527,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 stop_condition=self.config.stop_condition,
                 correlation=Space.Correlation(
                     parentMessageId=self._chat_service._assistant_message_id,
-                    parentChatId=self._chat_service.chat_id,
+                    parentChatId=self._chat_service._chat_id,
                     parentAssistantId=self.config.assistant_id,
                 ),
                 on_message_update=on_message_update,
