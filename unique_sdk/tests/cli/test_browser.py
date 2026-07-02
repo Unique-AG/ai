@@ -448,3 +448,102 @@ def test_cmd_browser_download_mkdir_failure_returns_envelope(
     assert parsed["error"] == "browser_download_write_failed"
     assert "permission denied" in parsed["message"]
     assert not dest.exists()
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cli_browser_click_empty_ref_is_missing_target(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+
+    runner = CliRunner()
+    with patch.dict(
+        "os.environ",
+        {
+            "UNIQUE_USER_ID": "u1",
+            "UNIQUE_COMPANY_ID": "c1",
+            "UNIQUE_BROWSER_CONFIG": str(config_path),
+        },
+    ):
+        result = runner.invoke(cli_main, ["browser", "click", "--ref", ""])
+
+    assert result.exit_code == 1
+    parsed = json.loads(result.output)
+    assert parsed["error"] == "browser_missing_target"
+    mock_post.assert_not_called()
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cli_browser_wait_for_requires_condition(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+
+    runner = CliRunner()
+    with patch.dict(
+        "os.environ",
+        {
+            "UNIQUE_USER_ID": "u1",
+            "UNIQUE_COMPANY_ID": "c1",
+            "UNIQUE_BROWSER_CONFIG": str(config_path),
+        },
+    ):
+        result = runner.invoke(cli_main, ["browser", "wait-for"])
+
+    assert result.exit_code == 1
+    parsed = json.loads(result.output)
+    assert parsed["error"] == "browser_missing_target"
+    assert "--selector or --text" in parsed["message"]
+    mock_post.assert_not_called()
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cli_browser_wait_for_empty_selector_is_missing_target(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+
+    runner = CliRunner()
+    with patch.dict(
+        "os.environ",
+        {
+            "UNIQUE_USER_ID": "u1",
+            "UNIQUE_COMPANY_ID": "c1",
+            "UNIQUE_BROWSER_CONFIG": str(config_path),
+        },
+    ):
+        result = runner.invoke(cli_main, ["browser", "wait-for", "--selector", ""])
+
+    assert result.exit_code == 1
+    parsed = json.loads(result.output)
+    assert parsed["error"] == "browser_missing_target"
+    mock_post.assert_not_called()
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cli_browser_wait_for_with_selector_posts(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+    mock_post.return_value = _mock_response(
+        json_body={"ok": True, "result": {"present": True}}
+    )
+
+    runner = CliRunner()
+    with patch.dict(
+        "os.environ",
+        {
+            "UNIQUE_USER_ID": "u1",
+            "UNIQUE_COMPANY_ID": "c1",
+            "UNIQUE_BROWSER_CONFIG": str(config_path),
+        },
+    ):
+        result = runner.invoke(cli_main, ["browser", "wait-for", "--selector", "#done"])
+
+    assert result.exit_code == 0
+    body = json.loads(mock_post.call_args.kwargs["data"])
+    assert body == {"verb": "wait-for", "args": {"selector": "#done"}}

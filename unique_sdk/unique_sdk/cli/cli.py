@@ -1554,11 +1554,15 @@ Examples:
 
 
 def _browser_target_args(ref: str | None, selector: str | None) -> dict[str, Any]:
-    """Build the {ref|selector} arg map, preferring an explicit ref."""
+    """Build the {ref|selector} arg map, preferring an explicit ref.
+
+    Empty strings are treated as absent so ``--ref ""`` / ``--selector ""``
+    cannot bypass the missing-target guard and reach the bridge.
+    """
     args: dict[str, Any] = {}
-    if ref is not None:
+    if ref:
         args["ref"] = ref
-    if selector is not None:
+    if selector:
         args["selector"] = selector
     return args
 
@@ -1570,6 +1574,18 @@ def _browser_missing_target(verb: str) -> str:
             "ok": False,
             "error": "browser_missing_target",
             "message": f"{verb} requires --ref (from the latest get-dom) or --selector.",
+        },
+        indent=2,
+    )
+
+
+def _browser_missing_condition(verb: str, required: str) -> str:
+    """JSON error envelope for a verb invoked without a required condition."""
+    return json.dumps(
+        {
+            "ok": False,
+            "error": "browser_missing_target",
+            "message": f"{verb} requires {required}.",
         },
         indent=2,
     )
@@ -1638,7 +1654,7 @@ def browser_click(
     ctx: click.Context, ref: str | None, selector: str | None, tab_id: int | None
 ) -> None:
     """Click an element by `--ref` (preferred) or `--selector`."""
-    if ref is None and selector is None:
+    if not ref and not selector:
         emit(
             _browser_missing_target("click"),
             is_error=_is_browser_error_output,
@@ -1667,7 +1683,7 @@ def browser_type(
     tab_id: int | None,
 ) -> None:
     """Append text into a field (does not clear existing value; see `fill`)."""
-    if ref is None and selector is None:
+    if not ref and not selector:
         emit(_browser_missing_target("type"), is_error=_is_browser_error_output)
         return
     args = _browser_target_args(ref, selector)
@@ -1694,7 +1710,7 @@ def browser_fill(
     tab_id: int | None,
 ) -> None:
     """Replace a field's entire value."""
-    if ref is None and selector is None:
+    if not ref and not selector:
         emit(_browser_missing_target("fill"), is_error=_is_browser_error_output)
         return
     args = _browser_target_args(ref, selector)
@@ -1721,7 +1737,7 @@ def browser_select(
     tab_id: int | None,
 ) -> None:
     """Choose a `<select>` option by value."""
-    if ref is None and selector is None:
+    if not ref and not selector:
         emit(_browser_missing_target("select"), is_error=_is_browser_error_output)
         return
     args = _browser_target_args(ref, selector)
@@ -1794,10 +1810,16 @@ def browser_wait_for(
     tab_id: int | None,
 ) -> None:
     """Wait for a selector or text to appear before continuing."""
+    if not selector and not text:
+        emit(
+            _browser_missing_condition("wait-for", "--selector or --text"),
+            is_error=_is_browser_error_output,
+        )
+        return
     args: dict[str, Any] = {}
-    if selector is not None:
+    if selector:
         args["selector"] = selector
-    if text is not None:
+    if text:
         args["text"] = text
     if timeout_ms is not None:
         args["timeoutMs"] = timeout_ms
