@@ -10,6 +10,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
@@ -26,7 +27,6 @@ from unique_toolkit.language_model.schemas import (
 
 from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import UploadedSearchConfig
-from unique_internal_search.utils import extract_selected_uploaded_file_ids
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.service import LanguageModelService
@@ -70,6 +70,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
         content_service: ContentService | None = None,
+        run_context: ToolRunContext | None = None,
     ):
         self._config = config
         config.chat_only = True
@@ -79,16 +80,11 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
 
         resolved = resolve_tool_services(
             event=event,
+            run_context=run_context,
             chat_service=chat_service,
             language_model_service=language_model_service,
             content_service=content_service,
         )
-
-        if resolved.event is None:
-            raise ValueError(
-                "UploadedSearchTool requires event for uploaded-file selection "
-                "and user query"
-            )
         if resolved.content_service is None:
             raise ValueError("UploadedSearchTool requires content_service")
 
@@ -100,19 +96,22 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             event=resolved.event,
             content_service=resolved.content_service,
         )
-        self._initialize_runtime_state(resolved.event)
+        self._run_context = resolved.run_context
+        self._initialize_runtime_state()
 
-    def _initialize_runtime_state(self, event: ChatEvent) -> None:
+    def _initialize_runtime_state(self) -> None:
         self._company_id = self._chat_service._company_id
-        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
+        self._selected_uploaded_files = list(
+            self._run_context.selected_uploaded_file_ids
+        )
         self._user_query = self._chat_service._user_message_text or ""
         self._internal_search_tool = InternalSearchTool(
             self._config,
             chat_service=self._chat_service,
             language_model_service=self._language_model_service,
             tool_progress_reporter=self._tool_progress_reporter,
-            event=event,
             content_service=self._content_service,
+            run_context=self._run_context,
             display_name=self._display_name,
         )
         self._valid_documents = self._compute_valid_documents()

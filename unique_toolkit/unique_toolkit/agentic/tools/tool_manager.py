@@ -109,6 +109,7 @@ class _ToolManager(Generic[_ApiMode]):
             chat_service=chat_service,
             language_model_service=language_model_service,
             content_service=content_service,
+            bootstrap_event=event,
         )
 
     @classmethod
@@ -157,6 +158,7 @@ class _ToolManager(Generic[_ApiMode]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
         content_service: ContentService | None = None,
+        bootstrap_event: ChatEvent | None = None,
     ) -> None:
         self._logger = logger
         self._config = config
@@ -185,11 +187,14 @@ class _ToolManager(Generic[_ApiMode]):
         self.available_tools: list[
             Tool[Any] | OpenAIBuiltInTool[Any] | SubAgentTool
         ] = []
-        self._init__tools(run_context.tool_init_event)
+        self._bootstrap_event = bootstrap_event
+        self._run_context = run_context
+        self._init__tools(run_context)
 
-    def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
+    def _init__tools(self, run_context: ToolRunContext) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
+        bootstrap_event = self._bootstrap_event
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
 
@@ -199,10 +204,10 @@ class _ToolManager(Generic[_ApiMode]):
                 chat_service=self._chat_service,
                 language_model_service=self._language_model_service,
             )
-        elif tool_init_event is not None:
+        elif bootstrap_event is not None:
             tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
                 tool_configs,
-                tool_init_event,
+                bootstrap_event,
             )
         else:
             tool_configs = [
@@ -231,6 +236,9 @@ class _ToolManager(Generic[_ApiMode]):
         # Build internal tools from configurations, skipping disabled and failing tools
         self._internal_tools.clear()
         safe_executor = SafeTaskExecutor(logger=self._logger, log_exceptions=False)
+        has_injected_services = (
+            self._chat_service is not None and self._language_model_service is not None
+        )
         for t in tool_configs:
             if t.name in registered_tool_names:
                 continue
@@ -239,16 +247,13 @@ class _ToolManager(Generic[_ApiMode]):
             if not t.is_enabled:
                 self._logger.info("Skipping disabled tool '%s'", t.name)
                 continue
-            if tool_init_event is None:
+            if not has_injected_services and bootstrap_event is None:
                 self._logger.info(
                     "Skipping internal tool '%s' (requires chat event for initialization)",
                     t.name,
                 )
                 continue
-            if (
-                self._chat_service is not None
-                and self._language_model_service is not None
-            ):
+            if has_injected_services:
                 result = safe_executor.execute(
                     ToolFactory.build_tool_with_settings,
                     t.name,
@@ -257,8 +262,8 @@ class _ToolManager(Generic[_ApiMode]):
                     tool_progress_reporter=self._tool_progress_reporter,
                     chat_service=self._chat_service,
                     language_model_service=self._language_model_service,
-                    event=tool_init_event,
                     content_service=self._content_service,
+                    run_context=run_context,
                 )
             else:
                 result = safe_executor.execute(
@@ -266,8 +271,9 @@ class _ToolManager(Generic[_ApiMode]):
                     t.name,
                     t,
                     t.configuration,
-                    tool_init_event,
+                    bootstrap_event,
                     tool_progress_reporter=self._tool_progress_reporter,
+                    run_context=run_context,
                 )
             if result.success:
                 tool = result.unpack()

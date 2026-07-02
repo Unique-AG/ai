@@ -545,23 +545,28 @@ class TestUploadedSearchTool:
             UploadedSearchTool(config=uploaded_search_config)
 
     @pytest.mark.ai
-    def test_init__with_injected_services__raises_without_event(
+    def test_init__with_injected_services__succeeds_with_run_context(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify UploadedSearchTool requires event for domain-specific setup.
+        Purpose: Verify UploadedSearchTool can init from injected services and run_context.
         """
-        with pytest.raises(
-            ValueError, match="requires event for uploaded-file selection"
-        ):
-            UploadedSearchTool(
-                config=uploaded_search_config,
-                chat_service=Mock(),
-                language_model_service=Mock(),
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+        from unique_toolkit.agentic.tools.run_context import ToolRunContext
+
+        mock_content_service = Mock()
+        mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
+
+        tool = UploadedSearchTool(
+            config=uploaded_search_config,
+            chat_service=Mock(_company_id="company_123"),
+            language_model_service=Mock(),
+            content_service=mock_content_service,
+            tool_progress_reporter=mock_tool_progress_reporter,
+            run_context=ToolRunContext(selected_uploaded_file_ids=["file-1"]),
+        )
+        assert tool._selected_uploaded_files == ["file-1"]
 
     @pytest.mark.ai
     def test_init__bootstraps_content_service_from_event(
@@ -634,8 +639,8 @@ class TestUploadedSearchTool:
             chat_service=chat_service,
             language_model_service=tool._language_model_service,
             tool_progress_reporter=mock_tool_progress_reporter,
-            event=mock_chat_event,
             content_service=mock_content_service,
+            run_context=tool._run_context,
             display_name=tool._display_name,
         )
         assert tool._internal_search_tool is mock_internal_search_tool

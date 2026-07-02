@@ -17,6 +17,7 @@ from unique_toolkit.agentic.tools.config import (
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.mcp.tool_wrapper import MCPToolWrapper
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_manager import ToolManager, ToolManagerConfig
@@ -99,6 +100,7 @@ class _FixedInitTool(Tool[_FixedInitToolConfig]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
         content_service: ContentService | None = None,
+        run_context: ToolRunContext | None = None,
     ) -> None:
         if chat_service is not None and language_model_service is not None:
             super().__init__(
@@ -108,6 +110,7 @@ class _FixedInitTool(Tool[_FixedInitToolConfig]):
                 language_model_service=language_model_service,
                 event=event,
                 content_service=content_service,
+                run_context=run_context,
             )
         elif event is not None:
             super().__init__(config, event, tool_progress_reporter)
@@ -139,7 +142,7 @@ class _DeferredInitToolConfig(BaseToolConfig):
 
 
 class _FullyInitializedTool(Tool[_DeferredInitToolConfig]):
-    """Mirrors package tools that require event + content_service at construction."""
+    """Mirrors package tools that require content_service when services are injected."""
 
     name = "deferred_init_tool"
 
@@ -152,6 +155,7 @@ class _FullyInitializedTool(Tool[_DeferredInitToolConfig]):
         tool_progress_reporter: ToolProgressReporter | None = None,
         event: ChatEvent | None = None,
         content_service: ContentService | None = None,
+        run_context: ToolRunContext | None = None,
     ) -> None:
         super().__init__(
             config,
@@ -160,10 +164,9 @@ class _FullyInitializedTool(Tool[_DeferredInitToolConfig]):
             language_model_service=language_model_service,
             event=event,
             content_service=content_service,
+            run_context=run_context,
         )
-        self.initialized = False
-        if event is not None and content_service is not None:
-            self.initialized = True
+        self.initialized = content_service is not None
 
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
@@ -384,7 +387,7 @@ def test_mcp_tool_wrapper_uses_live_assistant_message_id_for_sdk_call(
     assert captured["messageId"] == "assistant-msg-updated"
 
 
-def test_tool_manager_passes_event_and_content_service_at_construction(
+def test_tool_manager_passes_content_service_without_event_when_services_injected(
     chat_event: ChatEvent,
     shared_chat_service: ChatService,
     shared_llm_service: LanguageModelService,
@@ -433,7 +436,7 @@ def test_tool_manager_passes_event_and_content_service_at_construction(
         assert initialized_tool is not None
         assert initialized_tool.initialized is True
         assert initialized_tool._content_service is content_service
-        assert initialized_tool._event is chat_event
+        assert getattr(initialized_tool, "_event", None) is None
     finally:
         ToolFactory.tool_map.pop(_FullyInitializedTool.name, None)
         ToolFactory.tool_config_map.pop(_FullyInitializedTool.name, None)

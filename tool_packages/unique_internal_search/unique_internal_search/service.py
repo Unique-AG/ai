@@ -22,6 +22,7 @@ from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_str
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
@@ -53,7 +54,6 @@ from unique_internal_search.utils import (
     SearchStringResult,
     append_metadata_in_chunks,
     clean_search_string,
-    extract_selected_uploaded_file_ids,
     interleave_search_results_round_robin,
 )
 
@@ -402,6 +402,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         language_model_service: LanguageModelService | None = None,
         content_service: ContentService | None = None,
         display_name: str = "Internal Search",
+        run_context: ToolRunContext | None = None,
     ):
         self._search_service_initialized = False
         self._display_name = display_name
@@ -409,6 +410,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         resolved = resolve_tool_services(
             event=event,
+            run_context=run_context,
             chat_service=chat_service,
             language_model_service=language_model_service,
             content_service=content_service,
@@ -425,16 +427,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             event=resolved.event,
             content_service=resolved.content_service,
         )
-        self._initialize_search_service(resolved.event)
+        self._run_context = resolved.run_context
+        self._initialize_search_service()
 
-    def _initialize_search_service(self, event: ChatEvent | None) -> None:
+    def _initialize_search_service(self) -> None:
         if self._search_service_initialized:
             return
         if self._content_service is None:
             raise ValueError("InternalSearchTool requires content_service")
-        selected_uploaded_file_ids = (
-            extract_selected_uploaded_file_ids(event) if event is not None else []
-        )
+        selected_uploaded_file_ids = list(self._run_context.selected_uploaded_file_ids)
         InternalSearchService.__init__(
             self,
             config=self._configuration,

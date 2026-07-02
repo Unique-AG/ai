@@ -57,6 +57,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
 )
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
     ResponsesApiToolManager,
@@ -521,10 +522,10 @@ async def _build_responses(
         force_auto_container=force_auto_container,
     )
 
-    tool_manager = ResponsesApiToolManager(
+    tool_manager = ResponsesApiToolManager.from_run_context(
         logger=logger,
         config=common_components.tool_manager_config,
-        event=event,
+        run_context=_build_tool_run_context(event),
         tool_progress_reporter=common_components.tool_progress_reporter,
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
@@ -628,10 +629,10 @@ async def _build_completions(
         config=config.agent.experimental.uploaded_search_tool_config,
     )
 
-    tool_manager = ToolManager(
+    tool_manager = ToolManager.from_run_context(
         logger=logger,
         config=common_components.tool_manager_config,
-        event=event,
+        run_context=_build_tool_run_context(event),
         tool_progress_reporter=common_components.tool_progress_reporter,
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
@@ -737,6 +738,11 @@ def _configure_uploaded_search_tool(
         return False
 
     return config.force
+
+
+def _build_tool_run_context(event: ChatEvent) -> ToolRunContext:
+    """Snapshot per-turn tool config after any event payload adjustments."""
+    return ToolRunContext.from_chat_event(event)
 
 
 def _add_sub_agents_postprocessor(

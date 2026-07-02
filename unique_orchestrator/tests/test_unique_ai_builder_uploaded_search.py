@@ -12,6 +12,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 from unique_toolkit.content.schemas import Content
+from unique_toolkit.test_utilities.events import TestEventFactory
 from unique_user_memory.user_memory import UserMemoryState
 
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
@@ -19,6 +20,7 @@ from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai_builder import (
     _build_common,
     _build_responses,
+    _build_tool_run_context,
     _CommonComponents,
     _configure_uploaded_search_tool,
 )
@@ -48,13 +50,20 @@ def _make_common_components(uploaded_documents):
     )
 
 
+_EVENT_FACTORY = TestEventFactory()
+
+
 def _make_event(tool_choices):
-    event = MagicMock()
-    event.user_id = "user_1"
-    event.company_id = "company_1"
-    event.payload.assistant_id = "assistant_1"
+    event = _EVENT_FACTORY.get_chat_event(
+        name="test-module",
+        description="test",
+        user_message_text="hi",
+        user_id="user_1",
+        company_id="company_1",
+    )
     event.payload.chat_id = "chat_1"
-    event.payload.tool_choices = tool_choices
+    event.payload.assistant_id = "assistant_1"
+    event.payload.tool_choices = list(tool_choices)
     event.payload.mcp_servers = []
     return event
 
@@ -181,6 +190,10 @@ class _FakeResponsesApiToolManager:
         self.kwargs = kwargs
         self.__class__.instances.append(self)
 
+    @classmethod
+    def from_run_context(cls, **kwargs):
+        return cls(**kwargs)
+
     def add_forced_tool(self, tool_name: str) -> None:
         self.forced_tools.append(tool_name)
 
@@ -242,6 +255,9 @@ async def test_build_responses_adds_and_forces_uploaded_search_without_tool_choi
     assert _FakeResponsesApiToolManager.instances[0].forced_tools == [
         UploadedSearchTool.name
     ]
+    tool_manager_kwargs = _FakeResponsesApiToolManager.instances[0].kwargs
+    assert "run_context" in tool_manager_kwargs
+    assert "event" not in tool_manager_kwargs
     assert result["tool_manager"] is _FakeResponsesApiToolManager.instances[0]
 
 
@@ -633,3 +649,25 @@ class TestConfigureUploadedSearchToolForcing:
     def test_tool_not_appended_to_empty_tool_choices(self):
         _, _, event = self._run([self._make_doc()], tool_choices=[], force=True)
         assert event.payload.tool_choices == []
+
+
+class TestBuildToolRunContext:
+    def test_reflects_tool_choices_after_uploaded_search_mutation(self) -> None:
+        doc = MagicMock()
+        doc.is_expired.return_value = False
+        doc.is_ingested.return_value = True
+        common_components = _make_common_components([doc])
+        event = _make_event(tool_choices=["InternalSearch"])
+        _configure_uploaded_search_tool(
+            event=event,
+            logger=MagicMock(),
+            common_components=common_components,
+            config=UploadedSearchToolConfig(force=True),
+        )
+
+        run_context = _build_tool_run_context(event)
+
+        assert run_context.tool_choices == [
+            "InternalSearch",
+            UploadedSearchTool.name,
+        ]

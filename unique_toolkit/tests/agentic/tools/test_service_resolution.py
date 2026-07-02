@@ -4,13 +4,16 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.app.schemas import ChatEvent
 
 
 @pytest.fixture
 def chat_event() -> ChatEvent:
-    return Mock(spec=ChatEvent)
+    event = Mock(spec=ChatEvent)
+    event.payload = Mock()
+    return event
 
 
 def test_resolve_tool_services__returns_injected_instances__when_both_provided() -> (
@@ -31,6 +34,7 @@ def test_resolve_tool_services__returns_injected_instances__when_both_provided()
     assert resolved.language_model_service is language_model_service
     assert resolved.content_service is content_service
     assert resolved.event is None
+    assert resolved.run_context == ToolRunContext()
 
 
 def test_resolve_tool_services__bootstraps_from_event__when_services_missing(
@@ -67,6 +71,7 @@ def test_resolve_tool_services__bootstraps_from_event__when_services_missing(
     assert resolved.language_model_service is language_model_service
     assert resolved.content_service is content_service
     assert resolved.event is chat_event
+    assert resolved.run_context.tool_choices == []
 
 
 def test_resolve_tool_services__does_not_rebuild__when_services_injected(
@@ -101,6 +106,26 @@ def test_resolve_tool_services__raises__when_only_one_service_provided() -> None
             chat_service=Mock(),
             language_model_service=None,
         )
+
+
+def test_resolve_tool_services__uses_explicit_run_context_without_event() -> None:
+    chat_service = Mock()
+    language_model_service = Mock()
+    run_context = ToolRunContext(
+        selected_uploaded_file_ids=["file-1"],
+        session_config={"swot_analysis": {}},
+    )
+
+    resolved = resolve_tool_services(
+        event=None,
+        run_context=run_context,
+        chat_service=chat_service,
+        language_model_service=language_model_service,
+    )
+
+    assert resolved.run_context is run_context
+    assert resolved.event is None
+    assert resolved.run_context.selected_uploaded_file_ids == ["file-1"]
 
 
 def test_resolve_tool_services__raises__when_nothing_provided() -> None:

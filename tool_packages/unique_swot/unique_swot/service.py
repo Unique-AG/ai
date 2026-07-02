@@ -11,6 +11,7 @@ from unique_toolkit._common.docx_generator import DocxGeneratorService
 from unique_toolkit._common.experimental.endpoint_requestor import RequestorType
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import (
@@ -93,16 +94,15 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
         content_service: ContentService | None = None,
+        run_context: ToolRunContext | None = None,
     ):
         resolved = resolve_tool_services(
             event=event,
+            run_context=run_context,
             chat_service=chat_service,
             language_model_service=language_model_service,
             content_service=content_service,
         )
-
-        if resolved.event is None:
-            raise ValueError("SwotAnalysisTool requires event for session_config")
 
         super().__init__(
             configuration,
@@ -112,9 +112,10 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             event=resolved.event,
             content_service=resolved.content_service,
         )
-        self._initialize_runtime_state(resolved.event)
+        self._run_context = resolved.run_context
+        self._initialize_runtime_state()
 
-    def _initialize_runtime_state(self, event: ChatEvent) -> None:
+    def _initialize_runtime_state(self) -> None:
         content_service = getattr(self, "_content_service", None)
         content_metadata_filter = (
             content_service._metadata_filter if content_service is not None else None
@@ -122,7 +123,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         self._metadata_filter = (
             content_metadata_filter
             if content_metadata_filter is not None
-            else event.payload.metadata_filter
+            else self._run_context.metadata_filter
         )
 
         self._knowledge_base_service = KnowledgeBaseService(
@@ -153,10 +154,11 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return file_content
 
     def _try_load_session_config(self):
+        session_config_raw = self._run_context.session_config
+        if session_config_raw is None:
+            return None
         try:
-            return SessionConfig.model_validate(
-                self._event.payload.session_config, by_name=True
-            )
+            return SessionConfig.model_validate(session_config_raw, by_name=True)
         except Exception as e:
             _LOGGER.error(f"Error validating session config: {e}")
             return None

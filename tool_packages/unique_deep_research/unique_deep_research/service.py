@@ -28,6 +28,7 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
 )
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
@@ -143,18 +144,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
         content_service: ContentService | None = None,
+        run_context: ToolRunContext | None = None,
     ):
         resolved = resolve_tool_services(
             event=event,
+            run_context=run_context,
             chat_service=chat_service,
             language_model_service=language_model_service,
             content_service=content_service,
         )
-
-        if resolved.event is None:
-            raise ValueError(
-                "DeepResearchTool requires event for research execution context"
-            )
 
         super().__init__(
             configuration,
@@ -164,13 +162,14 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             event=resolved.event,
             content_service=resolved.content_service,
         )
-        self._initialize_from_event(resolved.event)
+        self._run_context = resolved.run_context
+        self._initialize_runtime()
 
     @property
     def _assistant_message_id(self) -> str:
         return self._chat_service._assistant_message_id
 
-    def _initialize_from_event(self, event: ChatEvent) -> None:
+    def _initialize_runtime(self) -> None:
         self.chat_id = self._chat_service._chat_id
         self.company_id = self._chat_service._company_id
         self.user_id = self._chat_service._user_id
@@ -197,7 +196,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             short_term_memory_name="deep_research:followup_question_message_id",
         )
         self.env = TEMPLATE_ENV
-        self.execution_id = event.payload.message_execution_id
+        self.execution_id = self._run_context.message_execution_id
 
     def takes_control(self) -> bool:
         """
@@ -448,12 +447,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         debug_info_event = {
             "tools": tools,
             "assistant": {
-                "id": self.event.payload.assistant_id,
-                "name": self.event.payload.name,
+                "id": self._chat_service._assistant_id,
+                "name": self._run_context.module_name,
             },
-            "chosenModule": self.event.payload.name,
-            "userMetadata": self.event.payload.user_metadata,
-            "toolParameters": self.event.payload.tool_parameters,
+            "chosenModule": self._run_context.module_name,
+            "userMetadata": self._run_context.user_metadata,
+            "toolParameters": self._run_context.tool_parameters,
         }
         return debug_info_event
 
@@ -530,7 +529,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         additional_openai_proxy_headers = {
             "x-company-id": self.company_id,
             "x-user-id": self.user_id,
-            "x-assistant-id": self.event.payload.assistant_id,
+            "x-assistant-id": self._chat_service._assistant_id,
             "x-chat-id": self.chat_id,
         }
 
@@ -879,8 +878,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Get the user's request.
         """
         return (
-            self.event.payload.user_message.text
-            or self.event.payload.user_message.original_text
+            self._chat_service._user_message_text
+            or self._run_context.user_message_text
             or ""
         )
 
