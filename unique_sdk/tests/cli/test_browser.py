@@ -547,3 +547,55 @@ def test_cli_browser_wait_for_with_selector_posts(
     assert result.exit_code == 0
     body = json.loads(mock_post.call_args.kwargs["data"])
     assert body == {"verb": "wait-for", "args": {"selector": "#done"}}
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cli_browser_press_empty_ref_omitted(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+    mock_post.return_value = _mock_response(json_body={"ok": True, "result": None})
+
+    runner = CliRunner()
+    with patch.dict(
+        "os.environ",
+        {
+            "UNIQUE_USER_ID": "u1",
+            "UNIQUE_COMPANY_ID": "c1",
+            "UNIQUE_BROWSER_CONFIG": str(config_path),
+        },
+    ):
+        result = runner.invoke(
+            cli_main, ["browser", "press", "--key", "Enter", "--ref", ""]
+        )
+
+    assert result.exit_code == 0
+    body = json.loads(mock_post.call_args.kwargs["data"])
+    assert body == {"verb": "press", "args": {"key": "Enter"}}
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cli_browser_scroll_empty_ref_omitted(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+    mock_post.return_value = _mock_response(json_body={"ok": True, "result": None})
+
+    runner = CliRunner()
+    with patch.dict(
+        "os.environ",
+        {
+            "UNIQUE_USER_ID": "u1",
+            "UNIQUE_COMPANY_ID": "c1",
+            "UNIQUE_BROWSER_CONFIG": str(config_path),
+        },
+    ):
+        result = runner.invoke(
+            cli_main, ["browser", "scroll", "--ref", "", "--y", "100"]
+        )
+
+    assert result.exit_code == 0
+    body = json.loads(mock_post.call_args.kwargs["data"])
+    assert body == {"verb": "scroll", "args": {"y": 100}}

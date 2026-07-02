@@ -1760,7 +1760,7 @@ def browser_press(
 ) -> None:
     """Send a key event (optionally after focusing `--ref`)."""
     args: dict[str, Any] = {"key": key}
-    if ref is not None:
+    if ref:
         args["ref"] = ref
     emit(
         cmd_browser_action(LazyState.get(ctx), "press", args, tab_id=tab_id),
@@ -1782,7 +1782,7 @@ def browser_scroll(
 ) -> None:
     """Scroll the page, or to a specific element / y offset."""
     args: dict[str, Any] = {}
-    if ref is not None:
+    if ref:
         args["ref"] = ref
     if y is not None:
         args["y"] = y
