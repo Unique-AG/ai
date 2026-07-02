@@ -22,6 +22,7 @@ class ModelFamily(StrEnum):
     DEEPSEEK = "deepseek"
     QWEN = "qwen"
     MISTRAL = "mistral"
+    ZAI = "zai"
     UNKNOWN = "unknown"
 
 
