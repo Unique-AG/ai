@@ -90,8 +90,6 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
         "alert",
         "chatUpload",
         "languageModel",
-        "allowModelSwitching",
-        "switchableLanguageModels",
         "isExternal",
         "isPinned",
         "uiType",
@@ -100,6 +98,15 @@ def build_create_params(src: dict[str, Any]) -> dict[str, Any]:
     for key in optional_keys:
         if src.get(key) is not None:
             params[key] = src[key]
+    # Model-switching settings must travel together: enabling the toggle
+    # without the accompanying model list would create a space with a null
+    # allowlist. Whenever the toggle is set, forward the list too
+    # (defaulting to an empty list), mirroring build_update_kwargs.
+    if src.get("allowModelSwitching") is not None:
+        params["allowModelSwitching"] = src["allowModelSwitching"]
+        params["switchableLanguageModels"] = src.get("switchableLanguageModels") or []
+    elif "switchableLanguageModels" in src:
+        params["switchableLanguageModels"] = src["switchableLanguageModels"]
     if src.get("assistantPrompts"):
         params["assistantPrompts"] = assistant_prompt_params_from_source(
             src["assistantPrompts"]

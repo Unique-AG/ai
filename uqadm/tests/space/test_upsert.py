@@ -193,6 +193,22 @@ def test_build_create_params_maps_model_switching() -> None:
     ]
 
 
+def test_build_create_params_syncs_model_list_when_toggle_present() -> None:
+    from uqadm.space.migrate import build_create_params
+
+    params = build_create_params(
+        {
+            "name": "S",
+            "fallbackModule": "fm",
+            "modules": [],
+            "allowModelSwitching": True,
+            "switchableLanguageModels": None,
+        }
+    )
+    assert params["allowModelSwitching"] is True
+    assert params["switchableLanguageModels"] == []
+
+
 def test_build_update_kwargs_includes_model_switching_and_allows_false() -> None:
     from uqadm.space.migrate import build_update_kwargs
 
