@@ -65,13 +65,15 @@ def query_all(sql: str, params: tuple = ()) -> list[dict]:
     return _read(lambda cur: (cur.execute(sql, params), cur.fetchall())[1])
 
 
-def execute(sql: str, params: tuple = ()) -> None:
-    """Run a write statement (commit on success). Used by the editable client-memory tables."""
+def execute(sql: str, params: tuple = ()) -> int:
+    """Run a write statement (commit on success); return the affected row count
+    (0 when nothing matched). Used by the editable client-memory tables."""
     conn = get_conn()
     try:
         with conn:
             with conn.cursor() as cur:
                 cur.execute(sql, params)
+                return cur.rowcount
     finally:
         conn.close()
 

@@ -61,8 +61,8 @@ def _delete(table: str, client_id: str, position: int) -> dict:
     cid = resolve_client(client_id)
     if cid is None:
         return unknown(client_id)
-    execute(f"DELETE FROM {table} WHERE client_id = %s AND position = %s", (cid, int(position)))
-    return {"client_id": cid, "position": int(position), "deleted": True}
+    n = execute(f"DELETE FROM {table} WHERE client_id = %s AND position = %s", (cid, int(position)))
+    return {"client_id": cid, "position": int(position), "deleted": bool(n)}
 
 
 _CID = Annotated[str, Field(description="Client name or client_id.")]

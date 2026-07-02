@@ -62,8 +62,15 @@ def test_upsert_rejects_position_over_max(monkeypatch):
 
 def test_delete_shape(monkeypatch):
     monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1")
-    monkeypatch.setattr(cm, "execute", lambda sql, params=(): None)
+    monkeypatch.setattr(cm, "execute", lambda sql, params=(): 1)  # one row removed
     assert cm._delete("rm_talking_points", "x", 2) == {"client_id": "PTY-1", "position": 2, "deleted": True}
+
+
+def test_delete_noop_reports_false(monkeypatch):
+    # A delete that matches no row must report deleted=False, not a false success.
+    monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1")
+    monkeypatch.setattr(cm, "execute", lambda sql, params=(): 0)  # nothing matched
+    assert cm._delete("rm_talking_points", "x", 99) == {"client_id": "PTY-1", "position": 99, "deleted": False}
 
 
 def test_get_returns_top_level_array(monkeypatch):
@@ -94,7 +101,7 @@ def test_write_tools_accept_input_alias(fake_mcp, monkeypatch):
     # upsert/delete must resolve a client name passed via `input`, like the getters.
     seen = {}
     monkeypatch.setattr(cm, "resolve_client", lambda v: "PTY-1" if v else None)
-    monkeypatch.setattr(cm, "execute", lambda sql, params=(): seen.update(params=params))
+    monkeypatch.setattr(cm, "execute", lambda sql, params=(): (seen.update(params=params), 1)[1])
     cm.register(fake_mcp)
     r = json.loads(fake_mcp.tools["upsert_talking_point"](input="Brunner", position=2, text="hi"))
     assert r == {"client_id": "PTY-1", "position": 2, "updated": True, "text": "hi"}
