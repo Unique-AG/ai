@@ -7,10 +7,7 @@ description: >-
   platform. Use whenever the user asks to find, search, or query documents
   or content on Unique, including filtering by folder or metadata.
   Also covers `unique-cli read <cont_id>` for reading the full indexed text
-  of a document when its content ID is already known, and
-  `unique-cli uploaded-search "<query>"` for searching documents uploaded for
-  the current task/row, which are NOT in the knowledge-base scope and never
-  appear in `unique-cli search`.
+  of a document when its content ID is already known.
   NOTE: This search uses combined vector + full-text indexing. Excel
   (.xlsx/.xls), CSV (.csv), and image files are NOT full-text indexed,
   so they will not appear in search results. To locate these file types,
@@ -95,43 +92,10 @@ unique-cli search "audit" -m department=Legal -m year=2025
 unique-cli search "regulatory" -f /Legal -m year=2025 -l 50
 ```
 
-## Searching Uploaded Documents (`uploaded-search`)
-
-Documents **uploaded for the current task** (e.g. an Agentic Table row's
-attached files) are **not** part of the knowledge-base folder scope. They will
-**never** appear in `unique-cli search` results, no matter the folder or
-metadata filters — uploaded files are scoped to the chat, not to a KB folder.
-Use `uploaded-search` to retrieve them:
-
-```bash
-# Search the documents uploaded for this row/task
-unique-cli uploaded-search "target asset classes and investment strategy"
-
-# Limit results
-unique-cli uploaded-search "fee structure" --limit 50
-```
-
-When to use which:
-
-| You want to search… | Command |
-|---------------------|---------|
-| The knowledge base (folders the task scope grants) | `unique-cli search "<query>"` |
-| Documents uploaded for **this** row/task | `unique-cli uploaded-search "<query>"` |
-
-`uploaded-search` returns the same `<sourceN>...</sourceN>` blocks as `search`
-and shares the **same per-turn citation manifest**, so `[sourceN]` numbering is
-continuous across both commands within a turn — cite an uploaded-document fact
-exactly the same way (`[sourceN]`). If no documents were uploaded for the task,
-the command reports that and you should fall back to `unique-cli search`.
-
-> **Note:** there is no `--folder`/`--metadata` for `uploaded-search` — the set
-> of uploaded documents is fixed by what was attached to the task.
-
 ## Command Reference
 
 ```
 unique-cli search <query> [--folder <path|scope_id>] [--metadata <key=value>]... [--limit <N>]
-unique-cli uploaded-search <query> [--limit <N>]
 ```
 
 | Option | Short | Default | Description |
