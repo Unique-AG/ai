@@ -9,7 +9,7 @@ Persistent per-user memory for Unique AI agents.
 The package provides:
 
 - `UserMemoryConfig` - Pydantic configuration for the consolidation model, profile token budget, and memory folder.
-- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget.
+- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget. The `language_model` argument is used to tokenize `memory.md` when capping it, so it must be the same effective model the postprocessor uses for consolidation (see Integration below).
 - `UserMemoryPostprocessor` - runs after the assistant response, consolidates the latest turn into the profile, and uploads the updated `memory.md`.
 
 The memory file is intentionally small and structured. It is rewritten as a full Markdown profile rather than appended to as an event log.
@@ -83,21 +83,35 @@ config = UserMemoryConfig(
 
 | Field | Default | Description |
 | --- | --- | --- |
-| `language_model` | `DEFAULT_GPT_4o` | Model used to consolidate the latest turn into the profile. |
+| `use_orchestrator_language_model` | `True` | When true, consolidation and load-time token capping use the model the orchestrator passes in and `language_model` is ignored. Set to `False` to use the configured `language_model` for both. |
+| `language_model` | `DEFAULT_GPT_4o` | Model used to consolidate the latest turn and to tokenize `memory.md` at load time when `use_orchestrator_language_model` is `False`. |
 | `max_tokens` | `2000` | Maximum profile size. Must be between 500 and 8000 tokens. |
 | `root_folder` | `user-memory` | Root KB folder that contains per-user memory folders. |
 
 ## Integration
 
-Typical orchestration code loads memory before the agent loop and registers the postprocessor for the same turn:
+Typical orchestration code loads memory before the agent loop and registers the postprocessor for the same turn.
+
+`load_user_memory` and `UserMemoryPostprocessor` must be given the **same** effective language model: the postprocessor consolidates memory with either the orchestrator model or the configured one depending on `use_orchestrator_language_model`, and load-time token capping must use that same model so the loaded baseline is tokenized the way consolidation expects. Resolve the effective model once and pass it to both:
 
 ```python
 from unique_user_memory.user_memory import load_user_memory
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
+user_memory_config = config.agent.services.user_memory_config
+
+# Resolve the effective model once and reuse it for load-time capping and
+# consolidation so both use the same tokenizer.
+memory_language_model = (
+    config.space.language_model
+    if user_memory_config.use_orchestrator_language_model
+    else user_memory_config.language_model
+)
+
 user_memory_state = await load_user_memory(
     event=event,
-    config=config.agent.services.user_memory_config,
+    config=user_memory_config,
+    language_model=memory_language_model,
     logger=logger,
 )
 
@@ -105,10 +119,13 @@ if user_memory_state is not None:
     user_memory_text = user_memory_state.text
     postprocessor_manager.add_postprocessor(
         UserMemoryPostprocessor(
-            config=config.agent.services.user_memory_config,
+            config=user_memory_config,
+            language_model=memory_language_model,
             event=event,
             state=user_memory_state,
             logger=logger,
         )
     )
 ```
+
+Note that `UserMemoryPostprocessor` re-derives the effective model internally from `use_orchestrator_language_model`, so passing `memory_language_model` (rather than the raw orchestrator model) keeps its behavior identical while ensuring `load_user_memory` caps with the matching tokenizer.

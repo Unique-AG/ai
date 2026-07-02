@@ -166,6 +166,8 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         cls, tools: list[ToolBuildConfig], info: ValidationInfo
     ) -> list[ToolBuildConfig]:
         for tool in tools:
+            if not tool.is_enabled:
+                continue
             if tool.name in (
                 InternalSearchTool.name,
                 WebSearchTool.name,

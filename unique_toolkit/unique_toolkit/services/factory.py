@@ -138,7 +138,8 @@ class UniqueServiceFactory:
     def register_known_services(cls) -> None:
         """Register the stable toolkit services with the factory.
 
-        Currently registers :class:`KnowledgeBaseService` and :class:`ChatService`.
+        Currently registers :class:`KnowledgeBaseService`, :class:`ChatService`,
+        :class:`ContentService`, and :class:`LanguageModelService`.
         :class:`ChunkRelevancySorter` is intentionally excluded to avoid circular
         imports at package init time — use the ``chunk_relevancy_sorter()``
         convenience method instead.
@@ -149,10 +150,17 @@ class UniqueServiceFactory:
         example, :meth:`Identity.from_settings`) so that the experimental
         dependency is visible at every call site.
         """
+        from unique_toolkit.content.service import ContentService
+        from unique_toolkit.language_model.service import LanguageModelService
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [KnowledgeBaseService, ChatService]:
+        for service_class in [
+            KnowledgeBaseService,
+            ChatService,
+            ContentService,
+            LanguageModelService,
+        ]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 

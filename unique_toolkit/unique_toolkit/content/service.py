@@ -4,12 +4,12 @@ from typing import Any, overload
 
 import unique_sdk
 from requests import Response
-from typing_extensions import deprecated
+from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Correlation, Event
-from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent, Correlation
+from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
@@ -46,7 +46,7 @@ class ContentService:
         "Use __init__ with company_id, user_id and chat_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
+    def __init__(self, event: BaseEvent[Any]): ...
 
     """
         Initialize the ContentService with an event (deprecated)
@@ -68,7 +68,7 @@ class ContentService:
 
     def __init__(
         self,
-        event: Event | BaseEvent[Any] | None = None,
+        event: BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
@@ -78,23 +78,32 @@ class ContentService:
         Initialize the ContentService with a company_id, user_id and chat_id.
         """
 
-        self._event = event  # Changed to protected attribute
+        if event is not None:
+            if isinstance(event, AssistantWebhookEvent):
+                delegated = type(self).from_event(event)
+                self._event = event
+                self._company_id = delegated._company_id
+                self._user_id = delegated._user_id
+                self._chat_id = delegated._chat_id
+                self._metadata_filter = delegated._metadata_filter
+                return
+
+            self._event = event
+            self._metadata_filter = None
+            self._company_id = event.company_id
+            self._user_id = event.user_id
+            return
+
+        self._event = None
         self._metadata_filter = None
-        if event:
-            self._company_id: str = event.company_id
-            self._user_id: str = event.user_id
-            if isinstance(event, (ChatEvent, Event)):
-                self._metadata_filter = event.payload.metadata_filter
-                self._chat_id: str | None = event.payload.chat_id
-        else:
-            [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._company_id = company_id
-            self._user_id = user_id
-            self._chat_id = chat_id
-            self._metadata_filter = metadata_filter
+        [company_id, user_id] = validate_required_values([company_id, user_id])
+        self._company_id = company_id
+        self._user_id = user_id
+        self._chat_id = chat_id
+        self._metadata_filter = metadata_filter
 
     @classmethod
-    def from_event(cls, event: Event | ChatEvent | BaseEvent[Any]):
+    def from_event(cls, event: BaseEvent[Any]):
         """Initialize the ContentService with an event.
 
         When the event has a correlation (e.g. subagent run), delegates to
@@ -109,32 +118,26 @@ class ContentService:
             ContentService: Instance scoped to the event's chat or, when
                 correlation is present, the parent chat.
         """
-        if (
-            isinstance(event, (ChatEvent, Event))
-            and getattr(event.payload, "correlation", None) is not None
-        ):
-            if event.payload.correlation is None:
-                raise ValueError(
-                    "correlation attribute is not defined in the event payload"
+        if isinstance(event, AssistantWebhookEvent):
+            payload = event.payload
+            if payload.correlation is not None:
+                return cls.from_correlation(
+                    event.company_id,
+                    event.user_id,
+                    payload.correlation,
+                    metadata_filter=payload.metadata_filter,
                 )
-            return cls.from_correlation(
-                event.company_id,
-                event.user_id,
-                event.payload.correlation,
-                metadata_filter=getattr(event.payload, "metadata_filter", None),
-            )
-        chat_id = None
-        metadata_filter = None
 
-        if isinstance(event, (ChatEvent | Event)):
-            chat_id = event.payload.chat_id
-            metadata_filter = event.payload.metadata_filter
+            return cls(
+                company_id=event.company_id,
+                user_id=event.user_id,
+                chat_id=payload.chat_id,
+                metadata_filter=payload.metadata_filter,
+            )
 
         return cls(
             company_id=event.company_id,
             user_id=event.user_id,
-            chat_id=chat_id,
-            metadata_filter=metadata_filter,
         )
 
     @classmethod
@@ -168,10 +171,40 @@ class ContentService:
         )
 
     @classmethod
+    def from_context(
+        cls,
+        context: UniqueContext,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> Self:
+        """Create a ContentService from a :class:`UniqueContext`.
+
+        When ``context.chat.parent_chat_id`` is set (subagent correlation),
+        content operations are scoped to the parent chat.
+        """
+        if context.chat is None:
+            msg = "ContentService requires chat context (context.chat is None)"
+            raise ValueError(msg)
+        chat = context.chat
+        effective_filter = (
+            metadata_filter if metadata_filter is not None else chat.metadata_filter
+        )
+        chat_id = (
+            chat.parent_chat_id if chat.parent_chat_id is not None else chat.chat_id
+        )
+        return cls(
+            company_id=context.auth.get_confidential_company_id(),
+            user_id=context.auth.get_confidential_user_id(),
+            chat_id=chat_id,
+            metadata_filter=effective_filter,
+        )
+
+    @classmethod
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
         metadata_filter: dict[str, Any] | None = None,
+        **kwargs: Any,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
@@ -181,6 +214,12 @@ class ContentService:
             settings = UniqueSettings.from_env_auto_with_sdk_init()
         elif isinstance(settings, str):
             settings = UniqueSettings.from_env_auto_with_sdk_init(filename=settings)
+
+        if settings.context.chat is not None:
+            return cls.from_context(
+                settings.context,
+                metadata_filter=metadata_filter,
+            )
 
         return cls(
             company_id=settings.auth.company_id.get_secret_value(),
@@ -192,7 +231,7 @@ class ContentService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent[Any] | None:
+    def event(self) -> BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 

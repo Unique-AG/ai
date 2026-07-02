@@ -773,6 +773,9 @@
                   "type": "string"
                 },
                 "type": "array"
+              },
+              {
+                "type": "null"
               }
             ],
             "title": "Goggles",
@@ -781,7 +784,13 @@
           "country": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -793,7 +802,13 @@
           "freshness": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -805,7 +820,13 @@
           "searchLang": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -822,7 +843,13 @@
                   "off",
                   "moderate",
                   "strict"
-                ]
+                ],
+                "title": "Brave Safe Search"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -837,7 +864,13 @@
                 "items": {
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "title": "Result Filter"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1174,7 +1207,13 @@
           "gl": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1186,7 +1225,13 @@
           "hl": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1198,7 +1243,13 @@
           "lr": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1210,7 +1261,13 @@
           "dateRestrict": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1222,7 +1279,13 @@
           "exactTerms": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1234,7 +1297,13 @@
           "excludeTerms": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1246,7 +1315,13 @@
           "fileType": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1258,7 +1333,13 @@
           "siteSearch": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1274,7 +1355,13 @@
                 "enum": [
                   "e",
                   "i"
-                ]
+                ],
+                "title": "Site Search Filter"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1286,7 +1373,13 @@
           "sort": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1597,7 +1690,13 @@
           "country": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1614,7 +1713,13 @@
                   "low",
                   "medium",
                   "high"
-                ]
+                ],
+                "title": "Search Context Size"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1629,7 +1734,13 @@
                 "items": {
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "title": "Language Filter"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1644,7 +1755,13 @@
                 "items": {
                   "type": "string"
                 },
-                "type": "array"
+                "type": "array",
+                "title": "Domain Filter"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1663,7 +1780,13 @@
                   "week",
                   "month",
                   "year"
-                ]
+                ],
+                "title": "Recency Filter"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1675,7 +1798,13 @@
           "lastUpdatedAfterFilter": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1687,7 +1816,13 @@
           "lastUpdatedBeforeFilter": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1699,7 +1834,13 @@
           "searchAfterDateFilter": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"
@@ -1711,7 +1852,13 @@
           "searchBeforeDateFilter": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "title": "String"
+              },
+              {
+                "type": "null",
+                "title": "Deactivated",
+                "description": "None"
               },
               {
                 "type": "null"

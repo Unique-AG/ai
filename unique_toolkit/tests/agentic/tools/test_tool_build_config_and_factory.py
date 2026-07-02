@@ -11,6 +11,7 @@ This test demonstrates the complete lifecycle of tool configuration and factory 
 
 import json
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 from pydantic import RootModel
@@ -24,6 +25,7 @@ from unique_toolkit.agentic.tools.config import (
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -43,7 +45,18 @@ class TestTool(Tool[TestToolConfig]):
     name = "test_tool"
 
     def __init__(self, configuration: TestToolConfig, *args, **kwargs):
-        super().__init__(configuration)
+        mock_event = Mock(spec=ChatEvent)
+        mock_event.company_id = "test_company"
+        mock_event.user_id = "test_user"
+        mock_event.chat_id = "test_chat"
+        mock_event.assistant_id = "test_assistant"
+
+        mock_payload = Mock()
+        mock_payload.assistant_message = Mock()
+        mock_payload.assistant_message.id = "test_assistant_message_id"
+        mock_event.payload = mock_payload
+
+        super().__init__(configuration, mock_event)
         self.settings.configuration = configuration
         # settings will be set by factory, but we need to initialize it properly
         self.settings = ToolBuildConfig(name=self.name, configuration=configuration)
@@ -282,31 +295,28 @@ class TestToolBuildConfigAndFactory:
             ToolFactory.build_tool("unregistered_tool", None)
 
     def test_tool_build_config_validation_with_unregistered_tool(self):
-        """Test ToolBuildConfig validation with unregistered tool."""
-        # Try to create config for unregistered tool
+        """Test ToolBuildConfig marks unregistered tool as disabled."""
         config_data = {
             "name": "unregistered_tool",
             "configuration": {"test_param": "test"},
         }
 
-        # This should raise an error during validation
-        with pytest.raises((ValueError, KeyError)):
-            ToolBuildConfig(**config_data)
+        config = ToolBuildConfig(**config_data)
+        assert config.is_enabled is False
+        assert isinstance(config.configuration, BaseToolConfig)
 
     def test_tool_build_config_with_invalid_configuration_type(self):
-        """Test ToolBuildConfig with invalid configuration type."""
-        # Register the tool
+        """Test ToolBuildConfig marks tool with invalid config type as disabled."""
         ToolFactory.register_tool(TestTool, TestToolConfig)
 
-        # Create config with wrong configuration type
         config_data = {
             "name": "test_tool",
-            "configuration": "invalid_config_type",  # Should be dict or TestToolConfig
+            "configuration": "invalid_config_type",
         }
 
-        # This should raise an error during validation
-        with pytest.raises((TypeError, ValueError, AssertionError)):
-            ToolBuildConfig(**config_data)
+        config = ToolBuildConfig(**config_data)
+        assert config.is_enabled is False
+        assert isinstance(config.configuration, BaseToolConfig)
 
     def test_tool_build_config_model_rebuild(self):
         """Test model rebuild functionality."""
@@ -379,7 +389,18 @@ class TestToolBuildConfigAndFactory:
             name = "another_test_tool"
 
             def __init__(self, configuration: AnotherTestToolConfig, *args, **kwargs):
-                super().__init__(configuration)
+                mock_event = Mock(spec=ChatEvent)
+                mock_event.company_id = "test_company"
+                mock_event.user_id = "test_user"
+                mock_event.chat_id = "test_chat"
+                mock_event.assistant_id = "test_assistant"
+
+                mock_payload = Mock()
+                mock_payload.assistant_message = Mock()
+                mock_payload.assistant_message.id = "test_assistant_message_id"
+                mock_event.payload = mock_payload
+
+                super().__init__(configuration, mock_event)
                 self.settings.configuration = configuration
                 # settings will be set by factory, but we need to initialize it properly
                 self.settings = ToolBuildConfig(

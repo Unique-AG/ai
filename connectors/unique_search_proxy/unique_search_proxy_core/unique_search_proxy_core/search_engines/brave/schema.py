@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.projection import build_request_model
@@ -15,9 +16,22 @@ from unique_search_proxy_core.search_engines.base import (
 BraveSafesearch: TypeAlias = Literal["off", "moderate", "strict"]
 BraveUnits: TypeAlias = Literal["metric", "imperial"]
 
-StrOrNone: TypeAlias = Annotated[str | None, DeactivatedNone]
-SafesearchOrNone: TypeAlias = Annotated[BraveSafesearch | None, DeactivatedNone]
-ResultFilterOrNone: TypeAlias = Annotated[list[str] | None, DeactivatedNone]
+GogglesOrNone: TypeAlias = (
+    Annotated[str, Field(title="String")]
+    | Annotated[list[str], Field(title="Array")]
+    | DeactivatedNone
+)
+
+BraveUnitsOrNone: TypeAlias = (
+    Annotated[BraveUnits, Field(title="Brave Units")] | DeactivatedNone
+)
+StrOrNone: TypeAlias = Annotated[str, Field(title="String")] | DeactivatedNone
+SafesearchOrNone: TypeAlias = (
+    Annotated[BraveSafesearch, Field(title="Brave Safe Search")] | DeactivatedNone
+)
+ResultFilterOrNone: TypeAlias = (
+    Annotated[list[str], Field(title="Result Filter")] | DeactivatedNone
+)
 
 ExposableStrOrNone = ExposableParam[StrOrNone]
 ExposableSafesearch = ExposableParam[SafesearchOrNone]
@@ -39,7 +53,9 @@ def _default_safesearch_exposable() -> ExposableSafesearch:
 class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
     """Single source of truth for Brave deployment + derived request/LLM surfaces."""
 
-    engine: Literal[SearchEngineType.BRAVE] = Field(
+    engine: Annotated[
+        Literal[SearchEngineType.BRAVE], RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
         default=SearchEngineType.BRAVE,
         title="Search engine",
         description="Provider discriminator; must be `brave` for this config.",
@@ -75,7 +91,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
             "e.g. `en-US`. Distinct from `search_lang`."
         ),
     )
-    units: BraveUnits | None = Field(
+    units: BraveUnitsOrNone = Field(
         default=None,
         title="Measurement units",
         description="Measurement units for location-rich results: `metric` or `imperial`.",
@@ -90,7 +106,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
         title="Include fetch metadata",
         description="Include fetch metadata in the Brave response.",
     )
-    goggles: str | list[str] | None = Field(
+    goggles: GogglesOrNone = Field(
         default=None,
         title="Goggles",
         description=(
@@ -99,7 +115,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
     )
 
     country: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         title="Country",
         description=(
             "Two-letter ISO 3166-1 alpha-2 country code for result origin (Brave `country`). "
@@ -107,7 +123,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
         ),
     )
     freshness: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         title="Freshness",
         description=(
             "Recency filter: `pd`, `pw`, `pm`, `py`, or `YYYY-MM-DDtoYYYY-MM-DD`. "
@@ -115,7 +131,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
         ),
     )
     search_lang: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="searchLang",
         title="Search language",
         description=(
@@ -124,7 +140,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
         ),
     )
     safesearch: ExposableSafesearch = Field(
-        default_factory=_default_safesearch_exposable,
+        default=_default_safesearch_exposable(),
         title="Safe search",
         description=(
             "Adult content filter: `off`, `moderate` (API default), or `strict`. "
@@ -132,7 +148,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
         ),
     )
     result_filter: ExposableResultFilter = Field(
-        default_factory=_inactive_result_filter_exposable,
+        default=_inactive_result_filter_exposable(),
         alias="resultFilter",
         title="Result filter",
         description=(

@@ -135,7 +135,6 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
         "alert",
         "chatUpload",
         "languageModel",
-        "allowModelSwitching",
         "isPinned",
         "settings",
         "allowEndUserSpace",
@@ -144,7 +143,14 @@ def build_update_kwargs(src: dict[str, Any]) -> dict[str, Any]:
     for key in simple:
         if src.get(key) is not None:
             kwargs[key] = src[key]
-    if "switchableLanguageModels" in src:
+    # Model-switching settings must travel together: forwarding the toggle
+    # without the accompanying model list would leave a stale/partial
+    # switchable-model list on the destination. Whenever the toggle is
+    # migrated, sync the list too (defaulting to an empty list).
+    if src.get("allowModelSwitching") is not None:
+        kwargs["allowModelSwitching"] = src["allowModelSwitching"]
+        kwargs["switchableLanguageModels"] = src.get("switchableLanguageModels") or []
+    elif "switchableLanguageModels" in src:
         kwargs["switchableLanguageModels"] = src["switchableLanguageModels"]
     if "assistantPrompts" in src:
         kwargs["assistantPrompts"] = assistant_prompt_params_from_source(

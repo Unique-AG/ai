@@ -14,7 +14,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
     ToolProgressReporter,
 )
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content import Content
 from unique_toolkit.language_model.schemas import (
@@ -33,7 +33,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     def __init__(
         self,
         config: UploadedSearchConfig,
-        event: BaseEvent,
+        event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
         *args,
         **kwargs,
@@ -48,10 +48,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         )
         self._internal_search_tool._display_name = self._display_name
         self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
-        if isinstance(event, ChatEvent):
-            self._user_query = event.payload.user_message.text
-        else:
-            self._user_query = None
+        self._user_query = event.payload.user_message.text
 
         # This blocking API call should be avoided.
         # However, we don't have an easy way to pass user uploaded files to the tool currently

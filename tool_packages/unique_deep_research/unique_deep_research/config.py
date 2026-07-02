@@ -74,7 +74,7 @@ class WebToolsConfig(BaseModel):
     search_engine: ActivatedSearchEngine = Field(  # pyright: ignore[reportInvalidTypeForm]
         default_factory=DefaultSearchEngine,  # pyright: ignore[reportArgumentType]
         description="Search Engine Configuration",
-        discriminator="search_engine_name",
+        discriminator="engine",
         title="Search Engine Configuration",
     )
     enable_web_fetch: bool = Field(
@@ -100,7 +100,7 @@ class Tools(BaseModel):
         description="Allow agent to use web search tools to access the web",
     )
     web_tools_config: WebToolsConfig = Field(
-        default=WebToolsConfig(),
+        default_factory=WebToolsConfig,
         description="Configuration for web search tools",
     )
     internal_tools: bool = Field(

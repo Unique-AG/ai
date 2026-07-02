@@ -11,8 +11,8 @@ from typing import (
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.brave_search_request_safesearch_type_0 import (
-    BraveSearchRequestSafesearchType0,
+from ..models.brave_search_request_brave_safe_search import (
+    BraveSearchRequestBraveSafeSearch,
 )
 from ..models.brave_search_request_units_type_0 import BraveSearchRequestUnitsType0
 from ..types import UNSET, Unset
@@ -40,15 +40,15 @@ class BraveSearchRequest:
             `imperial`.
         summary (bool | Unset): Enable summary key generation in web search results (Brave summarizer). Default: True.
         include_fetch_metadata (bool | Unset): Include fetch metadata in the Brave response. Default: False.
-        goggles (list[str] | str | Unset): Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles per
-            request.
+        goggles (list[str] | None | str | Unset): Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles
+            per request.
         country (None | str | Unset): Two-letter ISO 3166-1 alpha-2 country code for result origin (Brave `country`).
             Set `value` for a fixed default; set `expose` so the LLM may override per query.
         freshness (None | str | Unset): Recency filter: `pd`, `pw`, `pm`, `py`, or `YYYY-MM-DDtoYYYY-MM-DD`. `value` +
             `expose` behave like `country`.
         search_lang (None | str | Unset): Language code for result documents (Brave `search_lang`). `value` + `expose`
             behave like `country`.
-        safesearch (BraveSearchRequestSafesearchType0 | None | Unset): Adult content filter: `off`, `moderate` (API
+        safesearch (BraveSearchRequestBraveSafeSearch | None | Unset): Adult content filter: `off`, `moderate` (API
             default), or `strict`. Usually set via admin `value`; enable `expose` only if the LLM may tune per query.
         result_filter (list[str] | None | Unset): Result types to include, e.g. `web`, `news`, `videos`. Omit (`null`)
             for all subscribed types. `value` + `expose` behave like `country`.
@@ -66,11 +66,11 @@ class BraveSearchRequest:
     units: BraveSearchRequestUnitsType0 | None | Unset = UNSET
     summary: bool | Unset = True
     include_fetch_metadata: bool | Unset = False
-    goggles: list[str] | str | Unset = UNSET
+    goggles: list[str] | None | str | Unset = UNSET
     country: None | str | Unset = UNSET
     freshness: None | str | Unset = UNSET
     search_lang: None | str | Unset = UNSET
-    safesearch: BraveSearchRequestSafesearchType0 | None | Unset = UNSET
+    safesearch: BraveSearchRequestBraveSafeSearch | None | Unset = UNSET
     result_filter: list[str] | None | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -105,7 +105,7 @@ class BraveSearchRequest:
 
         include_fetch_metadata = self.include_fetch_metadata
 
-        goggles: list[str] | str | Unset
+        goggles: list[str] | None | str | Unset
         if isinstance(self.goggles, Unset):
             goggles = UNSET
         elif isinstance(self.goggles, list):
@@ -135,7 +135,7 @@ class BraveSearchRequest:
         safesearch: None | str | Unset
         if isinstance(self.safesearch, Unset):
             safesearch = UNSET
-        elif isinstance(self.safesearch, BraveSearchRequestSafesearchType0):
+        elif isinstance(self.safesearch, BraveSearchRequestBraveSafeSearch):
             safesearch = self.safesearch.value
         else:
             safesearch = self.safesearch
@@ -237,7 +237,9 @@ class BraveSearchRequest:
 
         include_fetch_metadata = d.pop("includeFetchMetadata", UNSET)
 
-        def _parse_goggles(data: object) -> list[str] | str | Unset:
+        def _parse_goggles(data: object) -> list[str] | None | str | Unset:
+            if data is None:
+                return data
             if isinstance(data, Unset):
                 return data
             try:
@@ -248,7 +250,7 @@ class BraveSearchRequest:
                 return goggles_type_1
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(list[str] | str | Unset, data)
+            return cast(list[str] | None | str | Unset, data)
 
         goggles = _parse_goggles(d.pop("goggles", UNSET))
 
@@ -281,7 +283,7 @@ class BraveSearchRequest:
 
         def _parse_safesearch(
             data: object,
-        ) -> BraveSearchRequestSafesearchType0 | None | Unset:
+        ) -> BraveSearchRequestBraveSafeSearch | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -289,12 +291,12 @@ class BraveSearchRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                safesearch_type_0 = BraveSearchRequestSafesearchType0(data)
+                safesearch_brave_safe_search = BraveSearchRequestBraveSafeSearch(data)
 
-                return safesearch_type_0
+                return safesearch_brave_safe_search
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(BraveSearchRequestSafesearchType0 | None | Unset, data)
+            return cast(BraveSearchRequestBraveSafeSearch | None | Unset, data)
 
         safesearch = _parse_safesearch(d.pop("safesearch", UNSET))
 
@@ -306,9 +308,9 @@ class BraveSearchRequest:
             try:
                 if not isinstance(data, list):
                     raise TypeError()
-                result_filter_type_0 = cast(list[str], data)
+                result_filter_result_filter = cast(list[str], data)
 
-                return result_filter_type_0
+                return result_filter_result_filter
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
             return cast(list[str] | None | Unset, data)

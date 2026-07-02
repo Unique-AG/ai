@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.browser import (
+    cmd_browser_action,
+    cmd_browser_control,
+    cmd_browser_download,
+    cmd_browser_status,
+)
+from unique_sdk.cli.commands.browser import (
+    is_error_output as _is_browser_error_output,
+)
 from unique_sdk.cli.commands.cite_file import cmd_cite_file
 from unique_sdk.cli.commands.cite_file import (
     is_error_output as _is_cite_error_output,
@@ -53,9 +63,13 @@ from unique_sdk.cli.commands.scheduled_tasks import (
 )
 from unique_sdk.cli.commands.search import (
     cmd_search,
+    cmd_uploaded_search,
 )
 from unique_sdk.cli.commands.search import (
     is_error_output as _is_search_error_output,
+)
+from unique_sdk.cli.commands.search import (
+    is_uploaded_search_error_output as _is_uploaded_search_error_output,
 )
 from unique_sdk.cli.commands.subagent import cmd_subagent
 from unique_sdk.cli.commands.subagent import (
@@ -125,6 +139,7 @@ Examples:
   unique-cli web-search search "x"  Search the web via the public API
   unique-cli web-search crawl URL   Crawl a URL via the public API
   unique-cli dynamic-frontend list  List manageable Dynamic Frontend spaces
+  unique-cli browser get-dom        Read the user's live Chrome tab (a11y tree)
 """
 
 
@@ -736,6 +751,43 @@ def search(
     )
     click.echo(output)
     if _is_search_error_output(output):
+        ctx.exit(1)
+
+
+@main.command(name="uploaded-search")
+@click.argument("query")
+@click.option(
+    "--limit",
+    "-l",
+    default=200,
+    show_default=True,
+    help="Maximum number of results to return.",
+)
+@click.pass_context
+def uploaded_search(
+    ctx: click.Context,
+    query: str,
+    limit: int,
+) -> None:
+    """Search the documents uploaded for this task (not the knowledge base).
+
+    \b
+    QUERY is the search text. This searches only the files attached to this
+    row/task (e.g. an Agentic Table row's uploaded documents), which are NOT
+    part of the knowledge-base folder scope and therefore never appear in
+    `unique-cli search`. Results are ranked the same way and cite as
+    `[sourceN]`, with numbering continuous across `search` and
+    `uploaded-search` within a turn.
+
+    \b
+    Examples:
+      unique-cli uploaded-search "target asset classes"
+      unique-cli uploaded-search "fee structure" --limit 50
+    """
+    state = LazyState.get(ctx)
+    output = cmd_uploaded_search(state, query, limit=limit)
+    click.echo(output)
+    if _is_uploaded_search_error_output(output):
         ctx.exit(1)
 
 
@@ -1506,6 +1558,398 @@ def elicit_respond(
             action=action,
             content=content,
         )
+    )
+
+
+# -- Browser Steering ------------------------------------------------------
+
+
+_BROWSER_HELP = """\
+Steer the user's live, signed-in Chrome tab via the Unique browser extension.
+
+\b
+Commands talk to the browser-bridge relay, which forwards each action to the
+extension over the user's outbound WebSocket. You never see the page directly —
+work from the DOM snapshot `get-dom` returns.
+
+\b
+Core loop:
+  1. read   unique-cli browser get-dom          (pruned a11y tree + `ref`s)
+  2. act    unique-cli browser click --ref e42   (use a ref from the latest DOM)
+  3. re-read after anything that changes the page; refs are per-snapshot only.
+
+\b
+Every subcommand prints a JSON envelope: {"ok": true, "result": ...} or
+{"ok": false, "error": "<code>", ...}. On `browser_not_connected`, relay the
+remediation to the user and stop until the extension is installed and signed in.
+
+\b
+Examples:
+  unique-cli browser status
+  unique-cli browser get-dom
+  unique-cli browser navigate --url https://example.com
+  unique-cli browser click --ref e42
+  unique-cli browser fill --ref e10 --text "hello@unique.ch"
+  unique-cli browser download "https://portal/report.pdf" ./output/report.pdf
+"""
+
+
+def _browser_target_args(ref: str | None, selector: str | None) -> dict[str, Any]:
+    """Build the {ref|selector} arg map, preferring an explicit ref.
+
+    Empty strings are treated as absent so ``--ref ""`` / ``--selector ""``
+    cannot bypass the missing-target guard and reach the bridge.
+    """
+    args: dict[str, Any] = {}
+    if ref:
+        args["ref"] = ref
+    if selector:
+        args["selector"] = selector
+    return args
+
+
+def _browser_missing_target(verb: str) -> str:
+    """JSON error envelope for a verb invoked without --ref or --selector."""
+    return json.dumps(
+        {
+            "ok": False,
+            "error": "browser_missing_target",
+            "message": f"{verb} requires --ref (from the latest get-dom) or --selector.",
+        },
+        indent=2,
+    )
+
+
+def _browser_missing_condition(verb: str, required: str) -> str:
+    """JSON error envelope for a verb invoked without a required condition."""
+    return json.dumps(
+        {
+            "ok": False,
+            "error": "browser_missing_target",
+            "message": f"{verb} requires {required}.",
+        },
+        indent=2,
+    )
+
+
+@main.group(help=_BROWSER_HELP)
+def browser() -> None:
+    pass
+
+
+@browser.command(name="status")
+@click.pass_context
+def browser_status(ctx: click.Context) -> None:
+    """Check whether a browser extension is connected for this user."""
+    emit(cmd_browser_status(LazyState.get(ctx)), is_error=_is_browser_error_output)
+
+
+@browser.command(name="get-dom")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_get_dom(ctx: click.Context, tab_id: int | None) -> None:
+    """Return a pruned accessibility tree with `ref` handles for the active tab."""
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "get-dom", {}, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="screenshot")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_screenshot(ctx: click.Context, tab_id: int | None) -> None:
+    """Capture a PNG of the visible tab (returned as a data URL). Costs tokens."""
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "screenshot", {}, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="navigate")
+@click.option("--url", required=True, help="URL to load in the active tab.")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_navigate(ctx: click.Context, url: str, tab_id: int | None) -> None:
+    """Load a URL in the active tab and wait for load."""
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "navigate", {"url": url}, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="click")
+@click.option("--ref", default=None, help="Element ref from the latest get-dom.")
+@click.option("--selector", default=None, help="CSS selector (fallback when no ref).")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_click(
+    ctx: click.Context, ref: str | None, selector: str | None, tab_id: int | None
+) -> None:
+    """Click an element by `--ref` (preferred) or `--selector`."""
+    if not ref and not selector:
+        emit(
+            _browser_missing_target("click"),
+            is_error=_is_browser_error_output,
+        )
+        return
+    args = _browser_target_args(ref, selector)
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "click", args, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="type")
+@click.option("--text", required=True, help="Text to append into the field.")
+@click.option("--ref", default=None, help="Element ref from the latest get-dom.")
+@click.option("--selector", default=None, help="CSS selector (fallback when no ref).")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_type(
+    ctx: click.Context,
+    text: str,
+    ref: str | None,
+    selector: str | None,
+    tab_id: int | None,
+) -> None:
+    """Append text into a field (does not clear existing value; see `fill`)."""
+    if not ref and not selector:
+        emit(_browser_missing_target("type"), is_error=_is_browser_error_output)
+        return
+    args = _browser_target_args(ref, selector)
+    args["text"] = text
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "type", args, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="fill")
+@click.option("--text", required=True, help="Replacement value for the field.")
+@click.option("--ref", default=None, help="Element ref from the latest get-dom.")
+@click.option("--selector", default=None, help="CSS selector (fallback when no ref).")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_fill(
+    ctx: click.Context,
+    text: str,
+    ref: str | None,
+    selector: str | None,
+    tab_id: int | None,
+) -> None:
+    """Replace a field's entire value."""
+    if not ref and not selector:
+        emit(_browser_missing_target("fill"), is_error=_is_browser_error_output)
+        return
+    args = _browser_target_args(ref, selector)
+    args["text"] = text
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "fill", args, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="select")
+@click.option("--value", required=True, help="Option value to select.")
+@click.option("--ref", default=None, help="Element ref from the latest get-dom.")
+@click.option("--selector", default=None, help="CSS selector (fallback when no ref).")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_select(
+    ctx: click.Context,
+    value: str,
+    ref: str | None,
+    selector: str | None,
+    tab_id: int | None,
+) -> None:
+    """Choose a `<select>` option by value."""
+    if not ref and not selector:
+        emit(_browser_missing_target("select"), is_error=_is_browser_error_output)
+        return
+    args = _browser_target_args(ref, selector)
+    args["value"] = value
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "select", args, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="press")
+@click.option("--key", required=True, help="Key to send, e.g. Enter, Tab, Escape.")
+@click.option("--ref", default=None, help="Focus this element first (optional).")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_press(
+    ctx: click.Context, key: str, ref: str | None, tab_id: int | None
+) -> None:
+    """Send a key event (optionally after focusing `--ref`)."""
+    args: dict[str, Any] = {"key": key}
+    if ref:
+        args["ref"] = ref
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "press", args, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="scroll")
+@click.option("--ref", default=None, help="Scroll this element into view (optional).")
+@click.option(
+    "--y", type=int, default=None, help="Absolute vertical scroll position (px)."
+)
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_scroll(
+    ctx: click.Context, ref: str | None, y: int | None, tab_id: int | None
+) -> None:
+    """Scroll the page, or to a specific element / y offset."""
+    args: dict[str, Any] = {}
+    if ref:
+        args["ref"] = ref
+    if y is not None:
+        args["y"] = y
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "scroll", args, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="wait-for")
+@click.option(
+    "--selector", default=None, help="Wait until this CSS selector is present."
+)
+@click.option("--text", default=None, help="Wait until this text appears on the page.")
+@click.option("--timeout-ms", type=int, default=None, help="Max wait in milliseconds.")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_wait_for(
+    ctx: click.Context,
+    selector: str | None,
+    text: str | None,
+    timeout_ms: int | None,
+    tab_id: int | None,
+) -> None:
+    """Wait for a selector or text to appear before continuing."""
+    if not selector and not text:
+        emit(
+            _browser_missing_condition("wait-for", "--selector or --text"),
+            is_error=_is_browser_error_output,
+        )
+        return
+    args: dict[str, Any] = {}
+    if selector:
+        args["selector"] = selector
+    if text:
+        args["text"] = text
+    if timeout_ms is not None:
+        args["timeoutMs"] = timeout_ms
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "wait-for", args, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="list-tabs")
+@click.pass_context
+def browser_list_tabs(ctx: click.Context) -> None:
+    """List open tabs (tabId, title, url)."""
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "list-tabs", {}),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="open-tab")
+@click.option("--url", required=True, help="URL to open in a new tab.")
+@click.pass_context
+def browser_open_tab(ctx: click.Context, url: str) -> None:
+    """Open a new tab at the given URL."""
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "open-tab", {"url": url}),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="extract-links")
+@click.option(
+    "--tab-id", type=int, default=None, help="Target tab id (default: active tab)."
+)
+@click.pass_context
+def browser_extract_links(ctx: click.Context, tab_id: int | None) -> None:
+    """Return all visible links on the active tab."""
+    emit(
+        cmd_browser_action(LazyState.get(ctx), "extract-links", {}, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="download")
+@click.argument("url")
+@click.argument("dest")
+@click.option("--tab-id", type=int, default=None, help="Tab whose session to use.")
+@click.pass_context
+def browser_download(
+    ctx: click.Context, url: str, dest: str, tab_id: int | None
+) -> None:
+    """Download URL using the page session and save it to workspace path DEST.
+
+    \b
+    Fetches the resource with the tab's existing login/session (essential for
+    files behind a sign-in) and writes the bytes to DEST. It does NOT upload to
+    the knowledge base or attach to the chat — do that as a separate follow-up
+    (e.g. `unique-cli upload <file> <folder>`).
+
+    \b
+    Examples:
+      unique-cli browser download "https://portal/report.pdf" ./output/report.pdf
+    """
+    emit(
+        cmd_browser_download(LazyState.get(ctx), url, dest, tab_id=tab_id),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="open-panel")
+@click.pass_context
+def browser_open_panel(ctx: click.Context) -> None:
+    """Open the Unique side panel in the user's browser (extension shell)."""
+    emit(
+        cmd_browser_control(LazyState.get(ctx), "open-panel", {}),
+        is_error=_is_browser_error_output,
+    )
+
+
+@browser.command(name="focus-tab")
+@click.option(
+    "--tab-id", type=int, required=True, help="Tab id to bring to the foreground."
+)
+@click.pass_context
+def browser_focus_tab(ctx: click.Context, tab_id: int) -> None:
+    """Bring a specific tab to the foreground (extension shell control)."""
+    emit(
+        cmd_browser_control(LazyState.get(ctx), "focus-tab", {"tabId": tab_id}),
+        is_error=_is_browser_error_output,
     )
 
 

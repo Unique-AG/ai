@@ -75,8 +75,10 @@ For each candidate fact in `<new_turn>`, decide one of:
 - ADD - the fact is new and stable enough to remember (preferences,
   identity attributes, ongoing projects, skills, dated topics). Add it as
   a bullet in the most appropriate section.
-- UPDATE - the fact refines or supersedes an existing bullet. Edit
-  the existing bullet in place; do not add a duplicate.
+- UPDATE - the fact refines, supersedes, or contradicts an existing
+  bullet. Overwrite the existing bullet in place with the new
+  information; do not add a duplicate and do not keep the old version
+  alongside the new one.
 - DELETE - the new turn explicitly contradicts or invalidates an
   existing bullet that is not worth keeping as history. Remove it.
 - NOOP - the new turn contains no facts about the user (small talk,
@@ -86,6 +88,26 @@ For each candidate fact in `<new_turn>`, decide one of:
 
 Prefer UPDATE over ADD when in doubt - duplication is the most common
 failure mode of memory systems.
+
+# Resolving contradictions - ALWAYS
+
+When a new statement contradicts an existing bullet (a changed
+preference, a corrected fact, an updated status), the new statement
+always wins. Overwrite the old bullet with the new information and
+remove the outdated version. Two contradictory bullets must never
+coexist in the profile - for example, do not keep both "Prefers all
+responses in German" and "Prefers responses in English". Resolve the
+conflict decisively in favour of the most recent statement, even when
+the older bullet is in a different position or worded differently.
+
+# Consolidating within sections - ALWAYS
+
+Sections tend to grow with bullets that state the same or overlapping
+information in different words. Before returning the profile, review
+each section and merge bullets that are duplicates or semantically
+similar (same meaning, different wording) into a single clear bullet.
+A section must never accumulate redundant or near-duplicate statements.
+Consolidate on every turn, not only when approaching the word budget.
 
 # What to extract
 
@@ -111,9 +133,9 @@ NEVER extract:
   error messages, file contents, search results.
 - Anything stated as third-party information or retrieved context.
 
-# Token budget - STRICT
+# Word budget - STRICT
 
-The complete file MUST be <= {{ max_tokens }} tokens.
+The complete file MUST be <= {{ max_words }} words (corresponding to {{ max_tokens }} tokens).
 When approaching the budget, drop content in this priority order:
 
 1. Oldest entries in Recent Topics.
@@ -148,10 +170,96 @@ def consolidation_system_prompt(max_tokens: int) -> str:
     section_list = "\n".join(f"- ## {heading}" for heading in SECTION_HEADINGS)
     now = datetime.now(timezone.utc)
     return Template(_CONSOLIDATION_SYSTEM_PROMPT_TEMPLATE).render(
+        max_words=max_tokens * 0.75,
         max_tokens=max_tokens,
         section_list=section_list,
         now_datetime=now.strftime("%Y-%m-%d %H:%M UTC"),
     )
+
+
+_CONDENSATION_SYSTEM_PROMPT_TEMPLATE = """\
+You are a memory-compaction engine for the Unique AI platform.
+
+You are given an existing user-memory profile (Markdown with YAML
+frontmatter) that is OVER its size budget. Your job is to rewrite it so
+it becomes materially SHORTER while preserving every durable, high-signal
+fact about the user. This is lossy compression, not deletion of meaning.
+
+# Size target - STRICT
+
+- The current profile is about {{ current_tokens }} tokens.
+- You MUST bring it down to at most {{ target_tokens }} tokens
+  (roughly {{ target_words }} words) - about a {{ reduction_pct }}%
+  reduction. Aim comfortably under the target; do not stop early.
+
+# How to shrink (in priority order)
+
+1. Merge duplicate and near-duplicate bullets that state the same or
+   overlapping information into a single clear bullet. Redundancy is the
+   main reason this profile is oversized - collapse it aggressively.
+2. Delete outdated, stale, resolved, or superseded entries: old
+   "Recent Topics", answered "Open Questions / Follow-ups", and facts a
+   later bullet already contradicts or refines.
+3. Tighten verbose, flowery, or repetitive prose into short factual
+   bullets. Remove hedging and filler.
+4. Fold low-signal "Work Context" and "Skills & Expertise" bullets into
+   broader summary bullets.
+5. "Identity" and "Communication Preferences" carry the most durable
+   signal - tighten and de-duplicate them, but never drop a genuinely
+   distinct fact or preference.
+
+# Hard rules
+
+- NEVER invent, embellish, or add facts that are not already present.
+- Preserve the YAML frontmatter. Keep `user_id` and `schema_version`
+  exactly; keep `last_updated` and `turn_count` as they are.
+- Keep exactly these section headings, in this order, even if a section
+  becomes empty (use the literal string `_(empty)_`):
+
+{{ section_list }}
+
+- Resolve contradictions in favour of the most recent statement; never
+  keep two conflicting bullets.
+- Use `-` markdown bullets, no nesting beyond two levels, no emojis.
+
+# Output
+
+Return ONLY the complete rewritten profile file - frontmatter followed by
+the body. Do NOT emit a diff, do NOT wrap the output in ``` fences, and
+do NOT add any commentary before or after the file.
+"""
+
+
+def condensation_system_prompt(
+    *,
+    max_tokens: int,
+    current_tokens: int,
+    target_tokens: int,
+) -> str:
+    section_list = "\n".join(f"- ## {heading}" for heading in SECTION_HEADINGS)
+    safe_current = max(current_tokens, target_tokens + 1)
+    reduction_pct = int(round((1 - target_tokens / safe_current) * 100))
+    return Template(_CONDENSATION_SYSTEM_PROMPT_TEMPLATE).render(
+        section_list=section_list,
+        current_tokens=current_tokens,
+        target_tokens=target_tokens,
+        target_words=int(target_tokens * 0.75),
+        reduction_pct=max(reduction_pct, 1),
+        max_tokens=max_tokens,
+    )
+
+
+_CONDENSATION_USER_PROMPT_TEMPLATE = """\
+<profile_to_condense>
+{{ profile }}
+</profile_to_condense>
+
+Return the complete, condensed profile file now.
+"""
+
+
+def condensation_user_prompt(profile: str) -> str:
+    return Template(_CONDENSATION_USER_PROMPT_TEMPLATE).render(profile=profile)
 
 
 _CONSOLIDATION_USER_PROMPT_TEMPLATE = """\

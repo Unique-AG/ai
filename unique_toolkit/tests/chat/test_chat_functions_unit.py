@@ -278,6 +278,34 @@ def test_map_references():
     assert result[0]["sequenceNumber"] == 1
     assert result[0]["sourceId"] == "src123"
     assert result[0]["source"] == "web"
+    # description is always emitted (None when unset; node-chat drops empties).
+    assert result[0]["description"] is None
+
+
+def test_map_references_carries_mcp_description_payload():
+    # UN-22310: MCP references carry an enriched JSON payload in `description`.
+    mcp_description = (
+        '{"mcp": {"connectorName": "Outlook", "title": "Intro Meeting", '
+        '"details": "10/10/2026 - Jamie Dimon"}}'
+    )
+    references = [
+        ContentReference(
+            id="ref123",
+            message_id="msg123",
+            name="Intro Meeting",
+            description=mcp_description,
+            url=None,
+            sequence_number=1,
+            source_id="mcp_aaa_mcp_aaa",
+            source="mcp:outlook",
+        )
+    ]
+
+    result = map_references(references)
+
+    assert result[0]["description"] == mcp_description
+    assert result[0]["source"] == "mcp:outlook"
+    assert result[0]["url"] is None
 
 
 @pytest.mark.asyncio

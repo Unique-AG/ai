@@ -7,8 +7,6 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.language_model.schemas import (
     REASONING_EFFORT_ORDER,
@@ -39,12 +37,15 @@ class SkillTool(Tool[SkillToolConfig]):
     def __init__(
         self,
         config: SkillToolConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = None,
         *args: object,
         **kwargs: object,
     ) -> None:
-        super().__init__(config, event, tool_progress_reporter)
+        # Forward any positional/keyword context (event, services,
+        # tool_progress_reporter) to the base without naming the deprecated
+        # ``Tool(config, event, ...)`` overload — SkillTool itself needs none of
+        # it. Keeps every existing call form working at runtime while letting the
+        # base resolve to the non-deprecated ``Tool(config)`` constructor.
+        super().__init__(config, *args, **kwargs)
         self._skill_registry: dict[str, SkillDefinition] = {}
         self._activated_skills: list[SkillDefinition] = []
 

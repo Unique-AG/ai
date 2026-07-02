@@ -272,9 +272,9 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
     async def _search(
         self, query: str, date_restrict: str | None
     ) -> list[WebSearchResult]:
-        engine = self.search_service.config.search_engine_name.value
+        engine = self.search_service.config.engine.value
         start_time = time()
-        _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
+        _LOGGER.info(f"Company {self.company_id} Searching with {engine}")
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
             search_results = await self.search_service.search(
@@ -282,14 +282,12 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
             )
         end_time = time()
         delta_time = end_time - start_time
-        _LOGGER.info(
-            f"Searched with {self.search_service} completed in {delta_time} seconds"
-        )
+        _LOGGER.info(f"Searched with {engine} completed in {delta_time} seconds")
         self.debug_info.steps.append(
             StepDebugInfo(
                 step_name="search",
                 execution_time=delta_time,
-                config=self.search_service.config.search_engine_name.name,
+                config=self.search_service.config.engine.name,
                 extra={
                     "query": query,
                     "date_restrict": date_restrict,

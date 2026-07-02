@@ -205,3 +205,11 @@ def test_build_update_kwargs_includes_model_switching_and_allows_false() -> None
     )
     assert kwargs["allowModelSwitching"] is False
     assert kwargs["switchableLanguageModels"] == []
+
+
+def test_build_update_kwargs_syncs_model_list_when_toggle_present() -> None:
+    from uqadm.space.migrate import build_update_kwargs
+
+    kwargs = build_update_kwargs({"name": "S", "allowModelSwitching": True})
+    assert kwargs["allowModelSwitching"] is True
+    assert kwargs["switchableLanguageModels"] == []

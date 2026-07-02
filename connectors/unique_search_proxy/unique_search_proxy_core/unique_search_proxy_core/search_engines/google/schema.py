@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.projection import build_request_model
@@ -15,10 +16,11 @@ from unique_search_proxy_core.search_engines.base import (
 GoogleSafeDefault: TypeAlias = Literal["active", "off"]
 GoogleSiteSearchFilter: TypeAlias = Literal["e", "i"]
 
-StrOrNone: TypeAlias = Annotated[str | None, DeactivatedNone]
-SiteSearchFilterOrNone: TypeAlias = Annotated[
-    GoogleSiteSearchFilter | None, DeactivatedNone
-]
+StrOrNone: TypeAlias = Annotated[str, Field(title="String")] | DeactivatedNone
+SiteSearchFilterOrNone: TypeAlias = (
+    Annotated[GoogleSiteSearchFilter, Field(title="Site Search Filter")]
+    | DeactivatedNone
+)
 
 ExposableStrOrNone = ExposableParam[StrOrNone]
 ExposableSiteSearchFilter = ExposableParam[SiteSearchFilterOrNone]
@@ -35,7 +37,9 @@ def _inactive_site_search_filter_exposable() -> ExposableSiteSearchFilter:
 class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
     """Single source of truth for Google deployment + derived request/LLM surfaces."""
 
-    engine: Literal[SearchEngineType.GOOGLE] = Field(
+    engine: Annotated[
+        Literal[SearchEngineType.GOOGLE], RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
         default=SearchEngineType.GOOGLE,
         title="Search engine",
         description="Provider discriminator; must be `google` for this config.",
@@ -61,7 +65,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
     )
 
     gl: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         title="Geolocation (gl)",
         description=(
             "Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). "
@@ -69,7 +73,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     hl: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         title="Interface language (hl)",
         description=(
             "Language for snippets/UI (Google `hl`). "
@@ -77,7 +81,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     lr: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         title="Language restrict (lr)",
         description=(
             "Document language restrict (Google `lr`), e.g. `lang_en`. "
@@ -85,7 +89,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     date_restrict: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="dateRestrict",
         title="Date restrict",
         description=(
@@ -94,7 +98,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     exact_terms: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="exactTerms",
         title="Exact terms",
         description=(
@@ -103,7 +107,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     exclude_terms: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="excludeTerms",
         title="Exclude terms",
         description=(
@@ -112,7 +116,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     file_type: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="fileType",
         title="File type",
         description=(
@@ -121,7 +125,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     site_search: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="siteSearch",
         title="Site search",
         description=(
@@ -130,7 +134,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     site_search_filter: ExposableSiteSearchFilter = Field(
-        default_factory=_inactive_site_search_filter_exposable,
+        default=_inactive_site_search_filter_exposable(),
         alias="siteSearchFilter",
         title="Site search filter",
         description=(
@@ -139,7 +143,7 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
         ),
     )
     sort: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         title="Sort",
         description=(
             "Sort expression (Google `sort`), e.g. `date`. "

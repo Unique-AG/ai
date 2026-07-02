@@ -83,6 +83,9 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `isPinned` (bool, optional) - Whether the space is pinned
     - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type
     - `settings` (Dict, optional) - Space settings
+    - `isSubAgent` (bool, optional) - Set to `True` to create the space as a sub-agent
+    - `subAgentSettings` (Dict, optional) - Tool settings for a sub-agent. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
+    - `subAgentIds` (List[str], optional) - Full list of sub-agent assistant IDs to link to this parent space
 
     **Returns:**
 
@@ -128,6 +131,50 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     )
     ```
 
+    **Example - Create a Sub-Agent:**
+
+    ```python
+    sub_agent = unique_sdk.Space.create_space(
+        user_id=user_id,
+        company_id=company_id,
+        name="Research Assistant",
+        fallbackModule="UniqueAi",
+        modules=[
+            {
+                "name": "UniqueAi",
+                "weight": 10000
+            }
+        ],
+        isSubAgent=True,
+        subAgentSettings={
+            "icon": "search",
+            "name": "research",
+            "displayName": "Research",
+            "selectionPolicy": "AUTO",
+            "isExclusive": False,
+            "configuration": {"depth": "high"}
+        }
+    )
+    ```
+
+    **Example - Link Sub-Agents on Creation:**
+
+    ```python
+    parent_space = unique_sdk.Space.create_space(
+        user_id=user_id,
+        company_id=company_id,
+        name="Customer Support Assistant",
+        fallbackModule="UniqueAi",
+        modules=[
+            {
+                "name": "UniqueAi",
+                "weight": 10000
+            }
+        ],
+        subAgentIds=["assistant_hjcdga64bkcjnhu4", "assistant_l9sv3d2q8bmnxk4p"]
+    )
+    ```
+
 ??? example "`unique_sdk.Space.update_space` - Update a space"
 
     !!! info "Compatibility"
@@ -156,6 +203,9 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `switchableLanguageModels` (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when `allowModelSwitching` is True. Pass an empty list to clear the allowlist. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `allowEndUserSpace` (bool, optional) - Allow end users to create custom spaces from this assistant
     - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.
+    - `isSubAgent` (bool, optional) - Whether the space is a sub-agent
+    - `subAgentSettings` (Dict, optional) - Tool settings for a sub-agent. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
+    - `subAgentIds` (List[str], optional) - Full replacement list of caller-visible linked sub-agent assistant IDs. Pass `[]` to remove all caller-visible linked sub-agents. Omit the field to keep existing links unchanged. Linked sub-agents hidden from the caller because they lack Use access are preserved by the API.
 
     **Returns:**
 
@@ -191,6 +241,47 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
                 "weight": 5000
             }
         ]
+    )
+    ```
+
+    **Example - Update Sub-Agent Settings:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_research",
+        subAgentSettings={
+            "icon": "search",
+            "name": "research",
+            "displayName": "Research",
+            "selectionPolicy": "MANUAL",
+            "isUserInitiatedOnly": True,
+            "isExclusive": True,
+            "configuration": {"depth": "medium"}
+        }
+    )
+    ```
+
+    **Example - Replace Linked Sub-Agents:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_parent",
+        subAgentIds=["assistant_hjcdga64bkcjnhu4", "assistant_l9sv3d2q8bmnxk4p"]
+    )
+    ```
+
+    **Example - Remove All Linked Sub-Agents:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_parent",
+        subAgentIds=[]
     )
     ```
 
@@ -305,6 +396,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `toolChoices` (List[str], optional) - List of tools to use (e.g., `["WebSearch", "InternalSearch"]`)
     - `scopeRules` (Dict[str, Any], optional) - UniqueQL filter for document scope
     - `correlation` ([`Space.Correlation`](#spacecorrelation), optional) - Correlation data to link this message to a parent message in another chat
+    - `autoApproveElicitation` (bool, optional) - When `true`, automatically approves elicitation requests during the assistant run. Use for non-interactive SDK/automation flows where no user is present to respond. Requires `unique_sdk.api_version = "2026-03-01"`.
 
     **Returns:**
 
@@ -370,6 +462,20 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
             "parentChatId": "chat_abc123",
             "parentAssistantId": "assistant_def456",
         }
+    )
+    ```
+
+    **Example - Non-interactive automation (auto-approve elicitations):**
+
+    ```python
+    unique_sdk.api_version = "2026-03-01"
+
+    message = unique_sdk.Space.create_message(
+        user_id=user_id,
+        company_id=company_id,
+        assistantId="assistant_abc123",
+        text="Run the scheduled report workflow",
+        autoApproveElicitation=True,
     )
     ```
 
@@ -725,8 +831,11 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `access` (List[str]) - Access control list
     - `isExternal` (bool) - Whether space is external
     - `isPinned` (bool) - Whether space is pinned
+    - `isSubAgent` (bool, optional) - Whether the space is a sub-agent
     - `uiType` (str) - UI type identifier
     - `settings` (Dict[str, Any] | None) - Space settings
+    - `subAgentSettings` (SubAgentSettings | None) - This space's own sub-agent tool settings. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
+    - `subAgents` (List[SubAgent], optional) - Linked sub-agents. See [`Space.SubAgent`](#spacesubagent) for structure.
     - `assistantMcpServers` (List[AssistantMcpServer]) - List of MCP servers. See [`Space.AssistantMcpServer`](#spaceassistantmcpserver) for structure.
     - `modules` (List[Module]) - List of configured modules. See [`Space.Module`](#spacemodule) for structure.
     - `scopeRules` (List[ScopeRule]) - List of scope rules. See [`Space.ScopeRule`](#spacescoperule) for structure.
@@ -735,6 +844,54 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `updatedAt` (str) - Last update timestamp (ISO 8601)
 
     **Returned by:** `Space.get_space()`, `Space.create_space()`, `Space.update_space()`
+
+#### Space.SubAgentSettings {#spacesubagentsettings}
+
+??? note "The `Space.SubAgentSettings` type defines tool settings for a sub-agent"
+
+    **Fields:**
+
+    - `icon` (str) - Icon identifier
+    - `name` (str) - Internal tool name
+    - `displayName` (str) - Display name shown to users
+    - `selectionPolicy` (str) - Tool selection policy
+    - `isUserInitiatedOnly` (bool | None, optional) - Whether the sub-agent can only be invoked explicitly by the user
+    - `isExclusive` (bool) - Whether this sub-agent is exclusive
+    - `configuration` (Dict[str, Any]) - Sub-agent configuration
+
+    **Used in:** `Space.create_space()`, `Space.update_space()`
+
+#### Space.SubAgent {#spacesubagent}
+
+??? note "The `Space.SubAgent` object represents a linked sub-agent"
+
+    **Fields:**
+
+    - `id` (str) - Sub-agent assistant ID
+    - `name` (str) - Sub-agent name
+    - `title` (str | None) - Sub-agent title
+    - `subtitle` (str | None) - Sub-agent subtitle
+    - `explanation` (str | None) - Sub-agent explanation
+    - `isSubAgent` (bool) - Whether the linked space is a sub-agent
+    - `settingsOverride` (SubAgentSettingsOverride | None, optional) - Settings override for this linked sub-agent. See [`Space.SubAgentSettingsOverride`](#spacesubagentsettingsoverride) for structure.
+
+    **Used in:** `Space.subAgents`
+
+#### Space.SubAgentSettingsOverride {#spacesubagentsettingsoverride}
+
+??? note "The `Space.SubAgentSettingsOverride` type uses the same structure as `Space.SubAgentSettings`"
+
+    **Fields:**
+
+    - `icon` (str) - Icon identifier
+    - `name` (str) - Internal tool name
+    - `displayName` (str) - Display name shown to users
+    - `selectionPolicy` (str) - Tool selection policy
+    - `isUserInitiatedOnly` (bool | None, optional) - Whether the sub-agent can only be invoked explicitly by the user
+    - `isExclusive` (bool) - Whether this sub-agent is exclusive
+    - `configuration` (Dict[str, Any]) - Sub-agent configuration
+
+    **Used in:** `Space.SubAgent.settingsOverride`
 
 #### SpaceAccessResponse {#spaceaccessresponse}
 

@@ -2,6 +2,10 @@ from logging import Logger
 
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_LANGUAGE_MODEL,
+)
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 from unique_user_memory.config import UserMemoryConfig
@@ -17,12 +21,20 @@ class UserMemoryPostprocessor(Postprocessor):
         self,
         *,
         config: UserMemoryConfig,
+        language_model: LanguageModelInfo = LanguageModelInfo.from_name(
+            DEFAULT_LANGUAGE_MODEL
+        ),
         event: ChatEvent,
         state: UserMemoryState,
         logger: Logger,
     ) -> None:
         super().__init__(name="UserMemoryPostprocessor")
         self._config = config
+        self._language_model = (
+            language_model
+            if config.use_orchestrator_language_model
+            else config.language_model
+        )
         self._event = event
         self._state = state
         self._logger = logger
@@ -41,6 +53,7 @@ class UserMemoryPostprocessor(Postprocessor):
             user_message=self._event.payload.user_message.text or "",
             assistant_message=loop_response.message.text or "",
             config=self._config,
+            language_model=self._language_model,
             event=self._event,
             logger=self._logger,
         )

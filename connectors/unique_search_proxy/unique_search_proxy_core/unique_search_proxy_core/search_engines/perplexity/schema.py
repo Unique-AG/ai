@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 from unique_search_proxy_core.projection import build_request_model
@@ -15,19 +16,23 @@ from unique_search_proxy_core.search_engines.base import (
 PerplexitySearchContextSize: TypeAlias = Literal["low", "medium", "high"]
 PerplexityRecencyFilter: TypeAlias = Literal["hour", "day", "week", "month", "year"]
 
-
-IntOrNone: TypeAlias = Annotated[int | None, DeactivatedNone]
-
-StrOrNone: TypeAlias = Annotated[str | None, DeactivatedNone]
-SearchContextSizeOrNone: TypeAlias = Annotated[
-    PerplexitySearchContextSize | None,
-    DeactivatedNone,
-]
-RecencyFilterOrNone: TypeAlias = Annotated[
-    PerplexityRecencyFilter | None, DeactivatedNone
-]
-LanguageFilterOrNone: TypeAlias = Annotated[list[str] | None, DeactivatedNone]
-DomainFilterOrNone: TypeAlias = Annotated[list[str] | None, DeactivatedNone]
+IntOrNone: TypeAlias = (
+    Annotated[int, Field(title="Integer", ge=1, le=1_000_000)] | DeactivatedNone
+)
+StrOrNone: TypeAlias = Annotated[str, Field(title="String")] | DeactivatedNone
+SearchContextSizeOrNone: TypeAlias = (
+    Annotated[PerplexitySearchContextSize, Field(title="Search Context Size")]
+    | DeactivatedNone
+)
+RecencyFilterOrNone: TypeAlias = (
+    Annotated[PerplexityRecencyFilter, Field(title="Recency Filter")] | DeactivatedNone
+)
+LanguageFilterOrNone: TypeAlias = (
+    Annotated[list[str], Field(title="Language Filter")] | DeactivatedNone
+)
+DomainFilterOrNone: TypeAlias = (
+    Annotated[list[str], Field(title="Domain Filter")] | DeactivatedNone
+)
 
 ExposableStrOrNone = ExposableParam[StrOrNone]
 ExposableSearchContextSize = ExposableParam[SearchContextSizeOrNone]
@@ -63,7 +68,9 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
     (``POST https://api.perplexity.ai/search``).
     """
 
-    engine: Literal[SearchEngineType.PERPLEXITY] = Field(
+    engine: Annotated[
+        Literal[SearchEngineType.PERPLEXITY], RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
         default=SearchEngineType.PERPLEXITY,
         title="Search engine",
         description="Provider discriminator; must be `perplexity` for this config.",
@@ -71,8 +78,6 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
 
     max_tokens: IntOrNone = Field(
         default=None,
-        ge=1,
-        le=1_000_000,
         title="Max tokens",
         description=(
             "Maximum total webpage content tokens across all results "
@@ -82,8 +87,6 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
     )
     max_tokens_per_page: IntOrNone = Field(
         default=None,
-        ge=1,
-        le=1_000_000,
         alias="maxTokensPerPage",
         title="Max tokens per page",
         description=(
@@ -94,7 +97,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
     )
 
     country: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         title="Country",
         description=(
             "ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters). "
@@ -102,7 +105,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     search_context_size: ExposableSearchContextSize = Field(
-        default_factory=_inactive_search_context_size_exposable,
+        default=_inactive_search_context_size_exposable(),
         alias="searchContextSize",
         title="Search context size",
         description=(
@@ -113,7 +116,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     search_language_filter: ExposableLanguageFilter = Field(
-        default_factory=_inactive_language_filter_exposable,
+        default=_inactive_language_filter_exposable(),
         alias="searchLanguageFilter",
         title="Search language filter",
         description=(
@@ -122,7 +125,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     search_domain_filter: ExposableDomainFilter = Field(
-        default_factory=_inactive_domain_filter_exposable,
+        default=_inactive_domain_filter_exposable(),
         alias="searchDomainFilter",
         title="Search domain filter",
         description=(
@@ -131,7 +134,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     search_recency_filter: ExposableRecencyFilter = Field(
-        default_factory=_inactive_recency_filter_exposable,
+        default=_inactive_recency_filter_exposable(),
         alias="searchRecencyFilter",
         title="Search recency filter",
         description=(
@@ -140,7 +143,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     last_updated_after_filter: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="lastUpdatedAfterFilter",
         title="Last updated after",
         description=(
@@ -149,7 +152,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     last_updated_before_filter: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="lastUpdatedBeforeFilter",
         title="Last updated before",
         description=(
@@ -158,7 +161,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     search_after_date_filter: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="searchAfterDateFilter",
         title="Search after date",
         description=(
@@ -167,7 +170,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
         ),
     )
     search_before_date_filter: ExposableStrOrNone = Field(
-        default_factory=_inactive_str_exposable,
+        default=_inactive_str_exposable(),
         alias="searchBeforeDateFilter",
         title="Search before date",
         description=(

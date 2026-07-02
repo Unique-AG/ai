@@ -1,8 +1,7 @@
-import logging
-from typing import Literal, override
+from typing import override
 
-from httpx import AsyncClient, Response
-from pydantic import BaseModel
+from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_search_proxy_core.search_engines.brave.schema import BraveConfig
 
 from unique_web_search.client_settings import get_brave_search_settings
 from unique_web_search.services.proxy.bridge import (
@@ -10,47 +9,21 @@ from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
 from unique_web_search.services.proxy.mappers import map_search_response
-from unique_web_search.services.search_engine import (
-    BaseSearchEngineConfig,
-    SearchEngine,
-    SearchEngineType,
-)
-from unique_web_search.services.search_engine.base import get_search_engine_model_config
+from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
+from unique_web_search.services.search_engine.registry import register_search_engine
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 
-_LOGGER = logging.getLogger(__name__)
 
-HEADERS = {
-    "Accept": "application/json",
-    "Accept-Encoding": "gzip",
-}
-
-PAGINATION_SIZE = (
-    20  # Brave Search API only supports a maximum of 20 results per request
+@register_search_engine(
+    name="brave",
+    key=SearchEngineType.BRAVE,
+    config_cls=BraveConfig,
+    mode=SearchEngineMode.STANDARD,
+    config_display_name="Brave Search",
 )
-
-
-def get_headers(api_key: str) -> dict[str, str]:
-    return HEADERS.copy() | {"X-Subscription-Token": api_key}
-
-
-class BraveSearchParameters(BaseModel):
-    q: str
-    count: int
-    offset: int
-    safesearch: Literal["strict", "moderate", "off"] = "strict"
-    extra_snippets: bool = True
-
-
-class BraveSearchConfig(BaseSearchEngineConfig[SearchEngineType.BRAVE]):
-    model_config = get_search_engine_model_config(SearchEngineType.BRAVE)
-    search_engine_name: Literal[SearchEngineType.BRAVE] = SearchEngineType.BRAVE
-    requires_scraping: bool = False
-
-
-class BraveSearch(SearchEngine[BraveSearchConfig]):
+class BraveSearch(SearchEngine[BraveConfig]):
     supports_proxy_search = True
 
     def __init__(
@@ -63,78 +36,29 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
             search_proxy_client_enabled or get_brave_search_settings().is_configured
         )
 
-    @property
-    def requires_scraping(self) -> bool:
-        return self.config.requires_scraping
-
     @override
     async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         async with open_search_proxy_client(timeout=30.0) as client:
             response = await client.search.brave(
                 query=query,
                 fetch_size=self.config.fetch_size,
+                extra_snippets=self.config.extra_snippets,
+                spellcheck=self.config.spellcheck,
+                text_decorations=self.config.text_decorations,
+                operators=self.config.operators,
+                ui_lang=self.config.ui_lang,
+                units=self.config.units,
+                summary=self.config.summary,
+                include_fetch_metadata=self.config.include_fetch_metadata,
+                goggles=self.config.goggles,
+                country=self.config.country.value,
+                freshness=self.config.freshness.value,
+                search_lang=self.config.search_lang.value,
+                safesearch=self.config.safesearch.value,
+                result_filter=self.config.result_filter.value,
             )
             return map_search_response(response)
 
     @override
     async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        search_results = []
-        fetch_size = self.config.fetch_size
-
-        for page in range(0, (fetch_size + PAGINATION_SIZE - 1) // PAGINATION_SIZE):
-            params = BraveSearchParameters(q=query, count=PAGINATION_SIZE, offset=page)
-
-            response = await self._perform_web_search_request(params=params)
-            search_results.extend(self._extract_urls(response.json()))
-
-        return search_results[:fetch_size]
-
-    async def _perform_web_search_request(
-        self, params: BraveSearchParameters
-    ) -> Response:
-        """Send a request to the search engine.
-
-        Args:
-            query: The query.
-            start_index: The start index.
-
-        Returns:
-            list[dict]: The search results.
-
-        """
-        api_endpoint = get_brave_search_settings().api_endpoint
-        api_key = get_brave_search_settings().api_key
-        assert api_key is not None and api_endpoint is not None
-
-        async with AsyncClient() as client:
-            response = await client.get(
-                api_endpoint,
-                params=params.model_dump(exclude_none=True),
-                headers=get_headers(api_key),
-            )
-        return response
-
-    def _extract_urls(self, brave_response: dict) -> list[WebSearchResult]:
-        search_results: list[dict] = []
-        if "web" in brave_response and brave_response["web"] is not None:
-            search_results.extend(brave_response["web"]["results"])
-        if "news" in brave_response and brave_response["news"] is not None:
-            search_results.extend(brave_response["news"]["results"])
-        if not search_results:
-            _LOGGER.warning("No search results found in Brave search response")
-            return []
-
-        return [
-            WebSearchResult(
-                url=item["url"],
-                title=item["title"],
-                snippet=_build_snippet(item),
-            )
-            for item in search_results
-        ]
-
-
-def _build_snippet(item: dict) -> str:
-    main_snippet = item.get("description", "No Snippet Found")
-    extra_snippets = item.get("extra_snippets", [])
-    return "\n".join([main_snippet, *extra_snippets])
+        raise NotImplementedError("Brave search is not supported in the legacy mode")

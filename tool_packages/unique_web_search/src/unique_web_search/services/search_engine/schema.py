@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 from unique_toolkit.content import ContentReference
 
 from unique_web_search.services.helpers import extract_root_domain
@@ -37,4 +37,8 @@ class WebSearchResult(BaseModel):
 
 
 class WebSearchResults(BaseModel):
-    results: list[WebSearchResult]
+    results: list[WebSearchResult] = Field(
+        validation_alias=AliasChoices("results", "curated"),
+        serialization_alias="results",
+        description="Normalized search results (accepts `results` or `curated` in input JSON).",
+    )
