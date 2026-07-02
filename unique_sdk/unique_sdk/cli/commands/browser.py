@@ -10,7 +10,13 @@ Unlike the knowledge-base commands (which hit the platform ``api_base`` via
 the Swappable Intelligence runner in ``.unique-browser.json``:
 
     {"bridgeUrl": "https://gateway.<cluster>/browser-bridge",
-     "installUrl": "https://..."}
+     "installUrl": "https://...",
+     "chatId": "chat_...",   # optional — the conversation driving this turn
+     "spaceId": "..."}       # optional — the assistant/space the chat belongs to
+
+``chatId`` / ``spaceId`` are forwarded as ``x-chat-id`` / ``x-space-id`` so the
+bridge can tell the extension which conversation a steering command belongs to,
+letting the side panel mirror that chat.
 
 The command therefore issues plain HTTP requests to
 ``{bridgeUrl}/public/browser/{status,action,control,download}`` with the same
@@ -103,23 +109,41 @@ def _bridge_endpoint(bridge_url: str, endpoint: str) -> str:
     return f"{bridge_url.rstrip('/')}/{_BRIDGE_API_PREFIX}/{endpoint}"
 
 
-def _auth_headers(state: ShellState, *, json_body: bool) -> dict[str, str]:
+def _auth_headers(
+    state: ShellState,
+    *,
+    json_body: bool,
+    config: dict[str, Any] | None = None,
+) -> dict[str, str]:
     """Identity headers mirroring ``unique_sdk`` request headers.
 
     On a secured cluster / localhost the gateway injects identity from the
     request context and ``api_key`` / ``app_id`` may be empty; we still send
     ``x-user-id`` / ``x-company-id`` so the bridge can key the connection.
+
+    ``chatId`` / ``spaceId`` from ``.unique-browser.json`` are forwarded as
+    ``x-chat-id`` / ``x-space-id`` so the bridge can stamp the relayed
+    ``RequestFrame`` with the conversation the agent turn belongs to — the
+    extension then mirrors that chat in its side panel. Absent on older
+    configs; the bridge treats a missing header as "unknown chat".
     """
     headers: dict[str, str] = {"Accept": "application/json"}
-    config = state.config
-    if config.api_key:
-        headers["Authorization"] = f"Bearer {config.api_key}"
-    if config.user_id:
-        headers["x-user-id"] = config.user_id
-    if config.company_id:
-        headers["x-company-id"] = config.company_id
-    if config.app_id:
-        headers["x-app-id"] = config.app_id
+    config_state = state.config
+    if config_state.api_key:
+        headers["Authorization"] = f"Bearer {config_state.api_key}"
+    if config_state.user_id:
+        headers["x-user-id"] = config_state.user_id
+    if config_state.company_id:
+        headers["x-company-id"] = config_state.company_id
+    if config_state.app_id:
+        headers["x-app-id"] = config_state.app_id
+    if config:
+        chat_id = config.get("chatId")
+        if isinstance(chat_id, str) and chat_id:
+            headers["x-chat-id"] = chat_id
+        space_id = config.get("spaceId")
+        if isinstance(space_id, str) and space_id:
+            headers["x-space-id"] = space_id
     if json_body:
         headers["Content-Type"] = "application/json"
     return headers
@@ -179,7 +203,7 @@ def cmd_browser_status(state: ShellState, *, config_path: str | None = None) -> 
     try:
         resp = requests.get(
             url,
-            headers=_auth_headers(state, json_body=False),
+            headers=_auth_headers(state, json_body=False, config=config),
             timeout=_ACTION_TIMEOUT_SECONDS,
         )
     except requests.RequestException as exc:
@@ -211,7 +235,7 @@ def _post_verb(
     try:
         resp = requests.post(
             url,
-            headers=_auth_headers(state, json_body=True),
+            headers=_auth_headers(state, json_body=True, config=config),
             data=json.dumps(payload),
             timeout=_ACTION_TIMEOUT_SECONDS,
         )
@@ -286,7 +310,7 @@ def cmd_browser_download(
     try:
         resp = requests.post(
             endpoint,
-            headers=_auth_headers(state, json_body=True),
+            headers=_auth_headers(state, json_body=True, config=config),
             data=json.dumps(payload),
             timeout=_DOWNLOAD_TIMEOUT_SECONDS,
             stream=True,
