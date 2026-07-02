@@ -6,6 +6,7 @@ import inspect
 import client_memory
 import crm
 import meetings
+import person_lookup
 
 CONTRACT = {
     # identity / relationship (per-client): name or client_id
@@ -31,11 +32,15 @@ CONTRACT = {
     "delete_talking_point": {"client_id", "input", "position"},
     "delete_open_question": {"client_id", "input", "position"},
     "delete_document": {"client_id", "input", "position"},
+    # person screening (WorldCheck)
+    "screen_person": {"name", "country", "nationality", "date_of_birth", "dob_tolerance_years",
+                      "place_of_birth", "gender", "entity_type", "passport_number", "national_id",
+                      "tax_id", "wc_uid", "threshold", "max_results"},
 }
 
 
 def _all_tools(fake_mcp):
-    for mod in (crm, client_memory, meetings):
+    for mod in (crm, client_memory, meetings, person_lookup):
         mod.register(fake_mcp)
     return fake_mcp.tools
 

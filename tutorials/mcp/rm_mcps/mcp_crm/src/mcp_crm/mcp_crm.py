@@ -38,6 +38,7 @@ import client_memory
 import crm
 import dashboard
 import meetings
+import person_lookup
 from common.db import RESET_DEMO_DATA_DESCRIPTION, reset_demo_data
 from common.tool_prompts import tool_meta
 
@@ -121,6 +122,7 @@ crm.register(mcp)
 client_memory.register(mcp)
 meetings.register(mcp)
 dashboard.register(mcp)
+person_lookup.register(mcp)
 
 # --- demo reset ----------------------------------------------------------------
 _SQL_DIR = str(Path(__file__).parent / "sql")

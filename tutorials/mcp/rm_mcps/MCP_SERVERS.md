@@ -1,6 +1,6 @@
 # RM Agent — MCP Servers Reference (2-connector build)
 
-_From the deployed Advisory + CRM MCP servers · 2 servers · 39 tools · as-of 2026-06-26._
+_From the deployed Advisory + CRM MCP servers · 2 servers · 40 tools · as-of 2026-06-26._
 
 This is the **consolidated** layout: the nine n8n workflows are replaced by **two**
 standalone MCP servers. Connector names below are the exact server names — use them
@@ -16,7 +16,7 @@ legacy numeric id; all resolve to the same client. Unknown input returns an `Unk
 ## Servers
 
 - **RM Agent - Advisory** (`https://rm-advisory-mcp.azurewebsites.net/mcp`) — 18 tools — _consolidates n8n: House Views, Client Portfolios, Transactions, Model Portfolios, Lombard Coverage_
-- **RM Agent - CRM** (`https://rm-crm-mcp.azurewebsites.net/mcp`) — 21 tools — _consolidates n8n: CRM, Client Memory, Calendar; + server-side dashboard-section editor_
+- **RM Agent - CRM** (`https://rm-crm-mcp.azurewebsites.net/mcp`) — 22 tools — _consolidates n8n: CRM, Client Memory, Calendar; + server-side dashboard-section editor + WorldCheck person screening_
 
 > The n8n **Portfolio Optimizer** (`propose_rebalance` / `check_suitability`) is **not** in this build — it was the Phase-2 advice engine and has no port yet.
 
@@ -265,7 +265,7 @@ Reset this server's demo data to its baseline. DESTRUCTIVE: truncates the Adviso
 
 ## RM Agent - CRM
 
-**Endpoint:** `https://rm-crm-mcp.azurewebsites.net/mcp`  ·  **Tools:** 21
+**Endpoint:** `https://rm-crm-mcp.azurewebsites.net/mcp`  ·  **Tools:** 22
 
 **Description**
 
@@ -492,6 +492,19 @@ Reset this server's demo data to its baseline. DESTRUCTIVE: truncates the CRM ta
 **System Prompt: Tool Response Format Instructions**
 
 > Returns `{reset:true, tables:{...row counts...}, total_rows, note}`. Confirm the reset succeeded; do not surface to the client.
+
+#### `screen_person`
+
+Screens a person or entity against the WorldCheck (LSEG) SYNTHETIC watchlist and returns partial + exact matches. Required: `name` (Latin or original script). Optional refinements: `country`, `nationality`, `date_of_birth` (+`dob_tolerance_years`), `place_of_birth`, `gender`, `entity_type` (Individual/Entity), identifiers `passport_number` / `national_id` / `tax_id`, `wc_uid` (direct fetch), `threshold` (default 0.45), `max_results` (default 25). SYNTHETIC data — KYC/AML tool testing only.
+
+**System Prompt: Tool Usage Instructions**
+
+> Screen a party against the synthetic WorldCheck watchlist for KYC/AML/PEP/sanctions checks — NOT the client system of record (that's `get_party_identity`). Pass at least `name` (or a `wc_uid` to fetch one record). Add whatever refinements you have: `country`/`nationality` (name, ISO or abbrev), `date_of_birth` (many formats; `dob_tolerance_years` for approximate years), and identifiers `passport_number`/`national_id`/`tax_id` — an exact identifier hit is near-conclusive even if the name spelling differs. SYNTHETIC data: always flag that a hit must be verified before any decision.
+
+**System Prompt: Tool Response Format Instructions**
+
+> Returns `{source, searched{…echoed inputs…}, records_screened, match_count, matches:[{match_score (0-1), name_score, match_type (uid_lookup|exact_identifier|exact_name|partial), matched_on[], record{wc_uid, primary_name, aliases, is_pep, pep_class, is_sanctioned, sanctions_lists, adverse_media_topics, risk_rating, nationalities, identifiers, linked_associates, sources, …}}], message}`. Lead with the highest `match_score` + its `match_type`; surface PEP / sanctions / adverse-media flags. Empty `matches` = no hit in the synthetic set.
+
 #### `upsert_document`
 
 Create or update one pinned document (title + contentId) at a position for a client.
