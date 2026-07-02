@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
+
 if TYPE_CHECKING:
-    from unique_toolkit.agentic.tools.run_context import ToolRunContext
     from unique_toolkit.app.schemas import ChatEvent
     from unique_toolkit.content.service import ContentService
     from unique_toolkit.language_model.service import LanguageModelService
@@ -39,8 +40,6 @@ def resolve_tool_services(
     etc.). When omitted but ``event`` is present it is built via
     ``ToolRunContext.from_chat_event``.
     """
-    from unique_toolkit.agentic.tools.run_context import ToolRunContext
-
     if (chat_service is None) != (language_model_service is None):
         raise ValueError(
             "chat_service and language_model_service must be injected together; "

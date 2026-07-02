@@ -8,6 +8,7 @@ from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
+from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
     ToolCallResponse,
@@ -18,7 +19,6 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model import LanguageModelToolDescription
 
 if TYPE_CHECKING:
-    from unique_toolkit.agentic.tools.run_context import ToolRunContext
     from unique_toolkit.content.service import ContentService
     from unique_toolkit.language_model.service import LanguageModelService
     from unique_toolkit.services.chat_service import ChatService
@@ -228,8 +228,6 @@ class Tool(ABC, Generic[ConfigType]):
         deprecated chat_service, language_model_service, message_step_logger for
         legacy subclasses.
         """
-        from unique_toolkit.agentic.tools.run_context import ToolRunContext
-
         self.settings = ToolBuildConfig(
             name=self.name,
             configuration=config,
