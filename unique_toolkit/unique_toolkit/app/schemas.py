@@ -118,6 +118,14 @@ class McpReferenceMapping(BaseModel):
         default=None,
         description="Optional dotted path to a snippet for each record.",
     )
+    title_from_text: Optional[bool] = Field(
+        default=None,
+        description="For a non-JSON text result (e.g. a fetched Markdown doc), title the single reference from the leading text line instead of the tool name.",
+    )
+    title_max_chars: Optional[int] = Field(
+        default=None,
+        description="Max length of the title derived via title_from_text (default 120).",
+    )
 
 
 class McpTool(BaseModel):

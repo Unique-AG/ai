@@ -92,7 +92,11 @@ def test_cmd_mcp_writes_output_manifest(tmp_path: Path) -> None:
         _FakeMCPResponse(),
         formatted="ACME revenue: 1M",
     )
-    assert out.startswith("ACME revenue: 1M")
+    # Sources block leads so markers survive harness-side spilling of large
+    # results (UN-22309); the formatted tool output follows it.
+    assert out.startswith("Sources — MANDATORY")
+    assert "ACME revenue: 1M" in out
+    assert out.index("Sources — MANDATORY") < out.index("ACME revenue: 1M")
     entries = _lines(tmp_path, _OUTPUT_MANIFEST)
     assert entries[0]["toolName"] == "mcp__crm__get_account"
     assert entries[0]["serverName"] == "crm"
@@ -138,7 +142,7 @@ def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
         }
     ]
     assert "[mcpsource1] RAG Retrieval Baseline" in out
-    assert "https://" not in out.split("result", 1)[1]  # no URL leaked into footer
+    assert "https://" not in out  # no URL leaked into the Sources block or body
 
 
 def test_json_in_text_yields_title_no_url(tmp_path: Path) -> None:
@@ -691,6 +695,28 @@ def test_reference_mapping_writes_all_items_no_cap(tmp_path: Path) -> None:
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
     assert len(refs) == n
     assert {r["sourceNumber"] for r in refs} == set(range(1, n + 1))
+
+
+def test_reference_mapping_title_from_text_for_markdown_doc(tmp_path: Path) -> None:
+    # A fetched Markdown doc (non-JSON) titles its single chip from the leading
+    # heading line when titleFromText is set, instead of the tool-name fallback.
+    unique_dir = tmp_path / ".unique"
+    doc = "# Retrieval Performance and Scalability Evaluation\n\nhttps://docs.unique.ai/x\n\nBody..."
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": doc}], mcp_server_id="docs"
+    )
+    record_mcp_citations(
+        response,
+        tool_name="read_doc",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=doc,
+        reference_mapping={"titleFromText": True, "titleMaxChars": 80},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert [r["title"] for r in refs] == [
+        "Retrieval Performance and Scalability Evaluation"
+    ]
 
 
 def test_reference_mapping_falls_back_to_heuristic_when_no_match(

@@ -28,8 +28,13 @@ _LOGGER = logging.getLogger(__name__)
 # (referencing is UN-21285, tracked separately).
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
 # Writer-side cap so a single huge/raw tool result cannot bloat the manifest.
-# The evaluator applies its own per-source cap as well.
-_MCP_OUTPUT_TEXT_CHAR_LIMIT = 50_000
+# This manifest is the groundedness check's source of truth, so the cap is
+# sized against the eval model's context window rather than kept minimal:
+# GPT-4o's 128k-token input fits ~400k chars, and the runner bounds the
+# combined per-turn payload separately (UN-22309). At the previous 50k, a
+# large list result (e.g. a 115k-char Jira search) lost most of its items
+# before the judge saw them, flagging well-grounded answers as hallucinations.
+_MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
@@ -300,17 +305,45 @@ def _mapped_records(response: Any, list_path: str | None) -> list[dict[str, Any]
     return []
 
 
+_MCP_TEXT_TITLE_DEFAULT_CHARS = 120
+
+
+def _first_text_title(response: Any, max_chars: int) -> str | None:
+    """Title from the first non-empty line of the first text block — for a
+    non-JSON result such as a fetched Markdown document (e.g. ``read_doc``),
+    whose first line is the doc's ``# heading``. Strips leading Markdown
+    heading/list markers and caps the length."""
+    for block in getattr(response, "content", None) or []:
+        if isinstance(block, dict) and block.get("type") == "text":
+            for line in (block.get("text") or "").splitlines():
+                stripped = line.strip().lstrip("#*->").strip()
+                if stripped:
+                    return stripped[:max_chars]
+    return None
+
+
 def _extract_with_reference_mapping(
     response: Any, mapping: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Destructure a list result into ``{title, snippet, details}`` items using
-    an admin-configured reference mapping. Returns [] when the mapping locates
-    nothing, so the caller can fall back to the generic heuristic."""
+    """Destructure a result into ``{title, snippet, details}`` items using an
+    admin-configured reference mapping. For a list result, one item per record;
+    for a non-JSON text result with ``titleFromText`` set, a single item titled
+    from the leading text. Returns [] when the mapping locates nothing, so the
+    caller can fall back to the generic heuristic."""
     list_path = mapping.get("listPath") or mapping.get("list_path")
     title_path = mapping.get("titlePath") or mapping.get("title_path")
     title_template = mapping.get("titleTemplate") or mapping.get("title_template")
     details_path = mapping.get("detailsPath") or mapping.get("details_path")
     snippet_path = mapping.get("snippetPath") or mapping.get("snippet_path")
+    title_from_text = mapping.get("titleFromText") or mapping.get("title_from_text")
+    try:
+        title_max_chars = int(
+            mapping.get("titleMaxChars")
+            or mapping.get("title_max_chars")
+            or _MCP_TEXT_TITLE_DEFAULT_CHARS
+        )
+    except (TypeError, ValueError):
+        title_max_chars = _MCP_TEXT_TITLE_DEFAULT_CHARS
 
     items: list[dict[str, Any]] = []
     for record in _mapped_records(response, list_path):
@@ -332,6 +365,14 @@ def _extract_with_reference_mapping(
                 "details": str(details).strip() if details else None,
             }
         )
+    if items:
+        return items
+    # Non-list / non-JSON result (e.g. a fetched Markdown doc): title the single
+    # chip from the leading text when the tool opts in via ``titleFromText``.
+    if title_from_text:
+        title = _first_text_title(response, title_max_chars)
+        if title:
+            return [{"title": title, "snippet": None, "details": None}]
     return items
 
 
@@ -408,11 +449,11 @@ def _annotate_mcp_results_for_citations(
     reference_mapping: dict[str, Any] | None = None,
 ) -> list[tuple[int, dict[str, Any]]]:
     """Assign per-turn ``[mcpsourceN]`` numbers to each retrieved item and append
-    the refs manifest. Returns ``[(sourceNumber, item)]`` for the footer.
+    the refs manifest. Returns ``[(sourceNumber, item)]`` for the Sources block.
 
     Items dedup by title across the turn (same item keeps one number), or by
     tool for the title-less fallback. Best-effort — returns ``[]`` on any failure
-    (the tool result is unaffected; only the citation footer is skipped).
+    (the tool result is unaffected; only the citation Sources block is skipped).
     """
     refs_log_path = refs_log_path or (Path.cwd() / _MCP_REFS_LOG_RELATIVE_PATH)
     annotated: list[tuple[int, dict[str, Any]]] = []
@@ -490,15 +531,20 @@ def _annotate_mcp_results_for_citations(
     return annotated
 
 
-def _citation_footer(annotated: list[tuple[int, dict[str, Any]]]) -> str:
-    """Tell the agent which marker to cite each retrieved item with."""
+def _citation_sources_block(annotated: list[tuple[int, dict[str, Any]]]) -> str:
+    """Tell the agent which marker to cite each retrieved item with.
+
+    Rendered *before* the tool output (leading block, not a trailing footer):
+    the agent harness spills oversized tool results to a file wholesale, and a
+    partial or programmatic read of that file only reliably sees the head — a
+    trailing marker list would be exactly what such reads miss (UN-22309).
+    """
     if not annotated:
         return ""
     lines = [
-        "",
         "Sources — MANDATORY: every fact you take from this result MUST be "
-        "cited inline with its [mcpsourceN] marker below, or it will not be "
-        "referenced in the answer:",
+        "cited inline with its [mcpsourceN] marker from this list, or it "
+        "will not be referenced in the answer:",
     ]
     for source_number, item in annotated:
         label = item.get("title") or "this MCP tool result"
@@ -548,12 +594,15 @@ def record_mcp_citations(
     reference_mapping: dict[str, Any] | None = None,
 ) -> str:
     """Write both per-turn MCP manifests under ``unique_dir`` and return the
-    ``[mcpsourceN]`` citation footer for the agent.
+    ``[mcpsourceN]`` citation Sources block for the agent.
 
-    Shared by the ``unique-cli mcp`` skills flow (``cmd_mcp``) and the
-    in-process tools-mode proxy in assistants-core, so both write identical
-    manifests and footers. ``unique_dir`` is the workspace ``.unique`` directory
-    (its filenames are joined directly here — do not pass the workspace root).
+    Callers must place the block *before* the tool output (leading block, not
+    a trailing footer) so the markers survive harness-side spilling/truncation
+    of large results (UN-22309). Shared by the ``unique-cli mcp`` skills flow
+    (``cmd_mcp``) and the in-process tools-mode proxy in assistants-core, so
+    both write identical manifests and blocks. ``unique_dir`` is the workspace
+    ``.unique`` directory (its filenames are joined directly here — do not
+    pass the workspace root).
 
     - ``response`` is the raw ``unique_sdk.MCP`` result, used for citation
       extraction (titles from ``resource_link`` names / JSON bodies).
@@ -578,7 +627,7 @@ def record_mcp_citations(
         refs_log_path=unique_dir / _MCP_REFS_LOG_RELATIVE_PATH.name,
         reference_mapping=reference_mapping,
     )
-    return _citation_footer(annotated)
+    return _citation_sources_block(annotated)
 
 
 def _read_payload(
@@ -662,7 +711,7 @@ def cmd_mcp(
         formatted = f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
 
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
-    footer = record_mcp_citations(
+    sources_block = record_mcp_citations(
         response,
         tool_name=name,
         server_name=server_name,
@@ -670,4 +719,8 @@ def cmd_mcp(
         formatted_text=formatted,
         reference_mapping=state.mcp_tool_reference_mappings.get(name),
     )
-    return formatted + footer
+    # Sources block FIRST: large outputs get spilled/truncated tail-first by
+    # the agent harness, and a trailing block is what partial reads miss.
+    if sources_block:
+        return sources_block + "\n\n" + formatted
+    return formatted
