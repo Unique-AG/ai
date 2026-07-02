@@ -301,11 +301,13 @@ def cmd_browser_download(
         return _error_from_response(resp)
 
     dest_path = Path(dest).expanduser()
-    if dest_path.parent and not dest_path.parent.exists():
-        dest_path.parent.mkdir(parents=True, exist_ok=True)
 
     total = 0
     try:
+        # Parent creation lives inside the try so a permission / filesystem
+        # failure surfaces as an ok:false envelope instead of a traceback.
+        if dest_path.parent and not dest_path.parent.exists():
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
         with dest_path.open("wb") as handle:
             for chunk in resp.iter_content(chunk_size=_DOWNLOAD_CHUNK_BYTES):
                 if chunk:
@@ -323,7 +325,8 @@ def cmd_browser_download(
     except OSError as exc:
         dest_path.unlink(missing_ok=True)
         return _err(
-            "browser_download_write_failed", f"could not write {dest_path}: {exc}"
+            "browser_download_write_failed",
+            f"could not prepare or write {dest_path}: {exc}",
         )
 
     file_name_header = resp.headers.get("X-Browser-File-Name")
