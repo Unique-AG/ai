@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from logging import getLogger
+from typing import TYPE_CHECKING, overload
 
-from typing_extensions import override
+from typing_extensions import deprecated, override
 from unique_quartr.service import QuartrService
 from unique_toolkit import ShortTermMemoryService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
@@ -9,10 +12,18 @@ from unique_toolkit._common.experimental.endpoint_requestor import RequestorType
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import (
     EvaluationMetricName,
     Tool,
 )
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.content.service import ContentService
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.service import LanguageModelService
+    from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -50,20 +61,80 @@ _LOGGER = getLogger(__name__)
 class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
     name = "SwotAnalysis"
 
-    def __init__(self, configuration: SwotAnalysisToolConfig, *args, **kwargs):
-        super().__init__(configuration, *args, **kwargs)
-        if getattr(self, "_event", None) is not None:
-            self._initialize_from_event()
+    @overload
+    def __init__(
+        self,
+        configuration: SwotAnalysisToolConfig,
+        *,
+        chat_service: ChatService,
+        language_model_service: LanguageModelService,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+        event: ChatEvent | None = ...,
+        content_service: ContentService | None = ...,
+    ) -> None: ...
 
-    def _initialize_from_event(self) -> None:
-        self._metadata_filter = self._event.payload.metadata_filter
+    @overload
+    @deprecated(
+        "Passing event is deprecated. Inject chat_service and language_model_service."
+    )
+    def __init__(
+        self,
+        configuration: SwotAnalysisToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
 
-        self._knowledge_base_service = KnowledgeBaseService.from_event(self._event)
+    def __init__(
+        self,
+        configuration: SwotAnalysisToolConfig,
+        event: ChatEvent | None = None,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
+    ):
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
+        )
+
+        if resolved.event is None:
+            raise ValueError("SwotAnalysisTool requires event for session_config")
+
+        super().__init__(
+            configuration,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+            content_service=resolved.content_service,
+        )
+        self._initialize_runtime_state(resolved.event)
+
+    def _initialize_runtime_state(self, event: ChatEvent) -> None:
+        content_service = getattr(self, "_content_service", None)
+        content_metadata_filter = (
+            content_service._metadata_filter if content_service is not None else None
+        )
+        self._metadata_filter = (
+            content_metadata_filter
+            if content_metadata_filter is not None
+            else event.payload.metadata_filter
+        )
+
+        self._knowledge_base_service = KnowledgeBaseService(
+            company_id=self._chat_service._company_id,
+            user_id=self._chat_service._user_id,
+            metadata_filter=self._metadata_filter,
+        )
 
         self._short_term_memory_service = ShortTermMemoryService(
-            company_id=self._event.company_id,
-            user_id=self._event.user_id,
-            chat_id=self._event.payload.chat_id,
+            company_id=self._chat_service._company_id,
+            user_id=self._chat_service._user_id,
+            chat_id=self._chat_service._chat_id,
             message_id=None,
         )
 
@@ -333,7 +404,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return SourceCollectionManager(
             context=collection_context,
             knowledge_base_service=knowledge_base_service,
-            quartr_service=self._get_quartr_service(self._event.company_id),
+            quartr_service=self._get_quartr_service(self._chat_service._company_id),
             earnings_call_docx_generator_service=earnings_call_docx_generator_service,
         )
 

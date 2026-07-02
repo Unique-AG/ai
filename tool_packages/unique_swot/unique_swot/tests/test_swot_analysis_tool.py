@@ -9,24 +9,33 @@ from unique_toolkit.language_model import LanguageModelFunction
 from unique_swot.service import SwotAnalysisTool
 
 
-def test_initialize_from_event_sets_up_services_from_event():
-    """Test that _initialize_from_event derives dependent services from the event."""
+def test_initialize_runtime_state_uses_chat_service_for_identity():
+    """Runtime setup derives identity fields from injected chat_service, not event."""
     tool = object.__new__(SwotAnalysisTool)
 
     event = Mock()
     event.payload.metadata_filter = {"foo": "bar"}
-    event.company_id = "company-1"
-    event.user_id = "user-1"
-    event.payload.chat_id = "chat-1"
-    tool._event = event
+    event.company_id = "stale-company"
+    event.user_id = "stale-user"
+    event.payload.chat_id = "stale-chat"
+
+    tool._chat_service = Mock()
+    tool._chat_service._company_id = "company-1"
+    tool._chat_service._user_id = "user-1"
+    tool._chat_service._chat_id = "chat-1"
+    tool._content_service = None
 
     with (
-        patch("unique_swot.service.KnowledgeBaseService.from_event") as from_event,
+        patch("unique_swot.service.KnowledgeBaseService") as knowledge_base,
         patch("unique_swot.service.ShortTermMemoryService") as short_term_memory,
     ):
-        tool._initialize_from_event()
+        tool._initialize_runtime_state(event)
 
-    from_event.assert_called_once_with(event)
+    knowledge_base.assert_called_once_with(
+        company_id="company-1",
+        user_id="user-1",
+        metadata_filter={"foo": "bar"},
+    )
     short_term_memory.assert_called_once_with(
         company_id="company-1",
         user_id="user-1",
@@ -34,43 +43,80 @@ def test_initialize_from_event_sets_up_services_from_event():
         message_id=None,
     )
     assert tool._metadata_filter == {"foo": "bar"}
-    assert tool._knowledge_base_service is from_event.return_value
+    assert tool._knowledge_base_service is knowledge_base.return_value
     assert tool._short_term_memory_service is short_term_memory.return_value
 
 
-def test_init_completes_setup_eagerly_when_event_already_present():
-    """Test that __init__ runs setup immediately for the legacy event path."""
+def test_initialize_runtime_state_prefers_content_service_metadata_filter():
+    """Injected content_service metadata_filter wins over event payload."""
+    tool = object.__new__(SwotAnalysisTool)
+
+    event = Mock()
+    event.payload.metadata_filter = {"from": "event"}
+
+    tool._chat_service = Mock()
+    tool._chat_service._company_id = "company-1"
+    tool._chat_service._user_id = "user-1"
+    tool._chat_service._chat_id = "chat-1"
+    tool._content_service = Mock()
+    tool._content_service._metadata_filter = {"from": "content_service"}
+
+    with (
+        patch("unique_swot.service.KnowledgeBaseService") as knowledge_base,
+        patch("unique_swot.service.ShortTermMemoryService"),
+    ):
+        tool._initialize_runtime_state(event)
+
+    assert tool._metadata_filter == {"from": "content_service"}
+    knowledge_base.assert_called_once_with(
+        company_id="company-1",
+        user_id="user-1",
+        metadata_filter={"from": "content_service"},
+    )
+
+
+def test_init_completes_setup_eagerly_when_event_present():
+    """Test that __init__ runs setup immediately when event is provided."""
     event = Mock()
     event.payload.metadata_filter = {"foo": "bar"}
     event.company_id = "company-1"
     event.user_id = "user-1"
     event.payload.chat_id = "chat-1"
 
-    def fake_tool_init(self, configuration, *args, **kwargs) -> None:
-        self._event = event
-
     with (
-        patch("unique_swot.service.Tool.__init__", fake_tool_init),
-        patch("unique_swot.service.KnowledgeBaseService.from_event") as from_event,
-        patch("unique_swot.service.ShortTermMemoryService") as short_term_memory,
+        patch("unique_swot.service.Tool.__init__", return_value=None),
+        patch("unique_swot.service.resolve_tool_services") as resolve,
+        patch.object(SwotAnalysisTool, "_initialize_runtime_state") as init_runtime,
     ):
-        tool = SwotAnalysisTool(Mock())
+        chat_service = Mock()
+        resolve.return_value = Mock(
+            chat_service=chat_service,
+            language_model_service=Mock(),
+            content_service=None,
+            event=event,
+        )
+        SwotAnalysisTool(Mock(), event=event)
 
-    from_event.assert_called_once_with(event)
-    short_term_memory.assert_called_once()
-    assert hasattr(tool, "_knowledge_base_service")
+    init_runtime.assert_called_once_with(event)
 
 
-def test_init_skips_setup_when_no_event_present():
-    """Test that __init__ leaves setup pending when constructed without an event."""
-
-    def fake_tool_init(self, configuration, *args, **kwargs) -> None:
-        pass
-
-    with patch("unique_swot.service.Tool.__init__", fake_tool_init):
-        tool = SwotAnalysisTool(Mock())
-
-    assert not hasattr(tool, "_knowledge_base_service")
+def test_init_requires_event_for_session_config():
+    """Test that __init__ fails without event (session_config lives on payload)."""
+    with (
+        patch("unique_swot.service.Tool.__init__", return_value=None),
+        patch("unique_swot.service.resolve_tool_services") as resolve,
+    ):
+        chat_service = Mock()
+        resolve.return_value = Mock(
+            chat_service=chat_service,
+            language_model_service=Mock(),
+            content_service=None,
+            event=None,
+        )
+        with pytest.raises(ValueError, match="requires event for session_config"):
+            SwotAnalysisTool(
+                Mock(), chat_service=chat_service, language_model_service=Mock()
+            )
 
 
 def test_get_evaluation_checks_returns_empty_list():

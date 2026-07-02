@@ -105,7 +105,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     def _initialize_runtime_state(self, event: ChatEvent) -> None:
         self._company_id = self._chat_service._company_id
         self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
-        self._user_query = event.payload.user_message.text or ""
+        self._user_query = self._chat_service._user_message_text or ""
         self._internal_search_tool = InternalSearchTool(
             self._config,
             chat_service=self._chat_service,

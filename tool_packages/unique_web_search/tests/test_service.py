@@ -57,9 +57,11 @@ class TestWebSearchToolInit:
         mocker.patch("unique_web_search.service.ContentProcessor")
 
         chat_service = Mock()
+        chat_service._company_id = "company-1"
+        chat_service._user_id = "user-1"
         chat_service.get_full_history.return_value = []
         event = Mock()
-        event.company_id = "company-1"
+        event.company_id = "stale-company"
 
         tool = WebSearchTool(
             mock_web_search_config_v1,
@@ -72,14 +74,14 @@ class TestWebSearchToolInit:
         assert hasattr(tool, "search_engine_service")
 
     @pytest.mark.ai
-    def test_initialize_search_dependencies__uses_event__when_event_present(
+    def test_initialize_search_dependencies__uses_chat_service__even_when_event_present(
         self,
         mock_web_search_config_v1: Mock,
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify _initialize_search_dependencies derives company_id and the
-        chunk relevancy sorter from the event when one is present.
+        Purpose: Verify _initialize_search_dependencies always derives company_id and
+        the chunk relevancy sorter from chat_service, not from a stale event snapshot.
         """
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -90,6 +92,8 @@ class TestWebSearchToolInit:
         tool.config = mock_web_search_config_v1
         tool.language_model_orchestrator = Mock()
         tool._chat_service = Mock()
+        tool._chat_service._company_id = "company-2"
+        tool._chat_service._user_id = "user-2"
         tool._chat_service.get_full_history.return_value = []
         tool._language_model_service = Mock()
         event = Mock()
@@ -98,8 +102,11 @@ class TestWebSearchToolInit:
 
         tool._initialize_search_dependencies()
 
-        mock_sorter.assert_called_once_with(event)
-        assert tool.company_id == "company-1"
+        mock_sorter.assert_called_once_with(
+            company_id="company-2",
+            user_id="user-2",
+        )
+        assert tool.company_id == "company-2"
 
     @pytest.mark.ai
     def test_initialize_search_dependencies__uses_chat_service__when_no_event(

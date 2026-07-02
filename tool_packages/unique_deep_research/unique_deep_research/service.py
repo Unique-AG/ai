@@ -171,28 +171,21 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         return self._chat_service._assistant_message_id
 
     def _initialize_from_event(self, event: ChatEvent) -> None:
-        self.chat_id = event.payload.chat_id
-        self.company_id = event.company_id
-        self.user_id = event.user_id
+        self.chat_id = self._chat_service._chat_id
+        self.company_id = self._chat_service._company_id
+        self.user_id = self._chat_service._user_id
 
         self.client = get_async_openai_client(
             additional_headers={
                 "x-company-id": self.company_id,
                 "x-user-id": self.user_id,
-                "x-assistant-id": event.payload.assistant_id,
+                "x-assistant-id": self._chat_service._assistant_id,
                 "x-chat-id": self.chat_id,
             }
         )
 
         _LOGGER.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
-        if self._content_service is None:
-            self._content_service = ContentService(
-                company_id=self.company_id,
-                user_id=self.user_id,
-                chat_id=self.chat_id,
-                metadata_filter=event.payload.metadata_filter,
-            )
         self.memory_service = PersistentShortMemoryManager(
             short_term_memory_service=ShortTermMemoryService(
                 company_id=self.company_id,

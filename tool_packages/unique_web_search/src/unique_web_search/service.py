@@ -86,16 +86,11 @@ class WebSearchTool(Tool[WebSearchConfig]):
             self._language_model_service,
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
-        event = getattr(self, "_event", None)
-        if event is not None:
-            self.chunk_relevancy_sorter = ChunkRelevancySorter(event)
-            self.company_id = event.company_id
-        else:
-            self.chunk_relevancy_sorter = ChunkRelevancySorter(
-                company_id=self._chat_service._company_id,
-                user_id=self._chat_service._user_id,
-            )
-            self.company_id = self._chat_service._company_id
+        self.chunk_relevancy_sorter = ChunkRelevancySorter(
+            company_id=self._chat_service._company_id,
+            user_id=self._chat_service._user_id,
+        )
+        self.company_id = self._chat_service._company_id
         self.chat_history_token_length = 0
         self.chat_history_chat_messages = self._chat_service.get_full_history()
 

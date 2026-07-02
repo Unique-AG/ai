@@ -11,6 +11,7 @@ from unique_toolkit.agentic.tools.experimental.ask_user_tool.config import (
     AskUserToolConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
@@ -72,20 +73,18 @@ class AskUserTool(Tool[AskUserToolConfig]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
-        if chat_service is not None and language_model_service is not None:
-            super().__init__(
-                config,
-                tool_progress_reporter=tool_progress_reporter,
-                chat_service=chat_service,
-                language_model_service=language_model_service,
-            )
-        elif event is not None:
-            super().__init__(config, event, tool_progress_reporter)
-        else:
-            raise ValueError(
-                "AskUserTool requires event or injected chat_service and "
-                "language_model_service"
-            )
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
+        super().__init__(
+            config,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+        )
         self._lock = asyncio.Lock()
 
     @override

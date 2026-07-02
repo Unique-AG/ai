@@ -19,6 +19,7 @@ from unique_toolkit.agentic.tools.experimental.todo.schemas import (
     TodoWriteInput,
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
@@ -77,30 +78,22 @@ class TodoWriteTool(Tool[TodoConfig]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
-        if chat_service is not None and language_model_service is not None:
-            super().__init__(
-                config,
-                tool_progress_reporter=tool_progress_reporter,
-                chat_service=chat_service,
-                language_model_service=language_model_service,
-            )
-            company_id = chat_service._company_id
-            user_id = chat_service._user_id
-            chat_id = chat_service._chat_id
-        elif event is not None:
-            super().__init__(config, event, tool_progress_reporter)
-            company_id = event.company_id
-            user_id = event.user_id
-            chat_id = event.payload.chat_id
-        else:
-            raise ValueError(
-                "TodoWriteTool requires event or injected chat_service and "
-                "language_model_service"
-            )
+        resolved = resolve_tool_services(
+            event=event,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
+        super().__init__(
+            config,
+            tool_progress_reporter=tool_progress_reporter,
+            chat_service=resolved.chat_service,
+            language_model_service=resolved.language_model_service,
+            event=resolved.event,
+        )
         stm_service = ShortTermMemoryService(
-            company_id=company_id,
-            user_id=user_id,
-            chat_id=chat_id,
+            company_id=resolved.chat_service._company_id,
+            user_id=resolved.chat_service._user_id,
+            chat_id=resolved.chat_service._chat_id,
             message_id=None,
         )
         self._memory_manager: PersistentShortMemoryManager[TodoList] = (
