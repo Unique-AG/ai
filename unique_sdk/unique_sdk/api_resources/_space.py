@@ -44,6 +44,10 @@ class Space(APIResource["Space"]):
         id: NotRequired[str | None]
         order: NotRequired[int | None]
 
+    class SwitchableLanguageModel(TypedDict):
+        displayName: str
+        languageModel: str | dict[str, Any]
+
     class CreateSpaceParams(RequestOptions):
         name: str
         fallbackModule: str
@@ -55,7 +59,9 @@ class Space(APIResource["Space"]):
         isExternal: NotRequired[bool | None]
         isPinned: NotRequired[bool | None]
         allowModelSwitching: NotRequired[bool | None]
-        switchableLanguageModels: NotRequired[list[dict[str, Any]] | None]
+        switchableLanguageModels: NotRequired[
+            list["Space.SwitchableLanguageModel"] | None
+        ]
         uiType: NotRequired["Space.UiType | None"]
         settings: NotRequired[dict[str, Any] | None]
         assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
@@ -71,7 +77,9 @@ class Space(APIResource["Space"]):
         isPinned: NotRequired[bool | None]
         settings: NotRequired[dict[str, Any] | None]
         allowModelSwitching: NotRequired[bool | None]
-        switchableLanguageModels: NotRequired[list[dict[str, Any]] | None]
+        switchableLanguageModels: NotRequired[
+            list["Space.SwitchableLanguageModel"] | None
+        ]
         allowEndUserSpace: NotRequired[bool | None]
         uiType: NotRequired["Space.UiType | None"]
         assistantPrompts: NotRequired[list["Space.AssistantPromptParams"] | None]
@@ -287,7 +295,7 @@ class Space(APIResource["Space"]):
     goals: list[str]
     languageModel: str | None
     allowModelSwitching: bool
-    switchableLanguageModels: list[dict[str, Any]] | None
+    switchableLanguageModels: list["Space.SwitchableLanguageModel"] | None
     fallbackModule: str
     access: list[str]
     isExternal: bool
