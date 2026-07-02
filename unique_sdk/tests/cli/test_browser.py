@@ -268,6 +268,76 @@ def test_cmd_browser_download_error_before_stream(
     assert not dest.exists()
 
 
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cmd_browser_download_stream_error_removes_partial_file(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    import requests
+
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+    resp = _mock_response(headers={"X-Browser-File-Name": "report.pdf"})
+
+    def _dropping_stream():
+        yield b"partial"
+        raise requests.ConnectionError("dropped")
+
+    resp.iter_content.return_value = _dropping_stream()
+    mock_post.return_value = resp
+
+    dest = tmp_path / "out" / "report.pdf"
+    output = cmd_browser_download(
+        _state(), "https://portal/report.pdf", str(dest), config_path=str(config_path)
+    )
+
+    parsed = json.loads(output)
+    assert parsed["ok"] is False
+    assert parsed["error"] == "browser_bridge_unreachable"
+    # The truncated bytes must not survive a failed stream.
+    assert not dest.exists()
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cmd_browser_download_write_error_removes_partial_file(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+    resp = _mock_response(headers={"X-Browser-File-Name": "report.pdf"})
+    resp.iter_content.return_value = [b"1234", b"5678"]
+    mock_post.return_value = resp
+
+    dest = tmp_path / "out" / "report.pdf"
+    dest.parent.mkdir(parents=True)
+    # Force an OSError on the second write by revoking the writable handle.
+    real_open = Path.open
+
+    def _flaky_open(self: Path, *args: Any, **kwargs: Any) -> Any:
+        handle = real_open(self, *args, **kwargs)
+        original_write = handle.write
+
+        def _write(data: bytes) -> int:
+            if handle.tell() > 0:
+                raise OSError("disk full")
+            return original_write(data)
+
+        handle.write = _write  # type: ignore[method-assign]
+        return handle
+
+    with patch.object(Path, "open", _flaky_open):
+        output = cmd_browser_download(
+            _state(),
+            "https://portal/report.pdf",
+            str(dest),
+            config_path=str(config_path),
+        )
+
+    parsed = json.loads(output)
+    assert parsed["ok"] is False
+    assert parsed["error"] == "browser_download_write_failed"
+    assert not dest.exists()
+
+
 # ── Click wiring ──────────────────────────────────────────────────────────────
 
 

@@ -36,6 +36,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import requests
 
@@ -310,15 +311,23 @@ def cmd_browser_download(
                 if chunk:
                     handle.write(chunk)
                     total += len(chunk)
+    except requests.RequestException as exc:
+        # Network failures during streaming (timeout, dropped connection,
+        # chunked-encoding error) — drop any truncated bytes so a later step
+        # can't mistake the partial file for a complete download.
+        dest_path.unlink(missing_ok=True)
+        return _err(
+            "browser_bridge_unreachable",
+            f"download stream from the browser bridge failed: {exc}",
+        )
     except OSError as exc:
+        dest_path.unlink(missing_ok=True)
         return _err(
             "browser_download_write_failed", f"could not write {dest_path}: {exc}"
         )
 
     file_name_header = resp.headers.get("X-Browser-File-Name")
-    file_name = (
-        requests.utils.unquote(file_name_header) if file_name_header else dest_path.name
-    )
+    file_name = unquote(file_name_header) if file_name_header else dest_path.name
     result = {
         "path": str(dest_path),
         "bytes": total,
