@@ -113,8 +113,11 @@ def test_cmd_mcp_truncates_large_output(tmp_path: Path) -> None:
 # ── Refs manifest / citations (UN-21285) ─────────────────────────────────────
 #
 # One source per retrieved item — a *title* describing what was retrieved (no
-# URL). Titles come from resource_link names or a JSON-title heuristic; falls
-# back to a title-less tool chip when the result has no recognizable title.
+# URL). Titles come from (in order) a per-tool ``reference_mapping``, then
+# resource_link names, then a JSON-title heuristic over text blocks — the
+# heuristic tolerates a non-JSON preamble and unwraps a container key
+# (``{"issues": [...]}``) so each record becomes its own reference; falls back
+# to a title-less tool chip when the result has no recognizable title.
 
 
 def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
@@ -209,6 +212,23 @@ def test_json_in_text_object_with_dict_container_key_stays_untitled(
             "details": None,
         }
     ]
+
+
+def test_json_in_text_titled_record_not_split_by_content_key(tmp_path: Path) -> None:
+    # A single page/document payload that carries its own top-level title plus a
+    # ``content`` body (an ambiguous container key) must keep the page title
+    # rather than being split into title-less inner blocks.
+    body = json.dumps(
+        {
+            "title": "Retrieval Design Doc",
+            "content": [{"block": "intro"}, {"block": "body"}],
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__getConfluencePage", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Retrieval Design Doc"]
 
 
 # ── Reference enrichment / details line (UN-22310) ───────────────────────────
@@ -739,3 +759,37 @@ def test_reference_mapping_falls_back_to_heuristic_when_no_match(
     )
     refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
     assert [r["title"] for r in refs] == ["Lonely Page"]
+
+
+def test_reference_mapping_title_from_text_does_not_block_list_heuristic(
+    tmp_path: Path,
+) -> None:
+    # A mapping that finds list records but resolves no per-record title must not
+    # fall through to titleFromText (a bogus single text chip). It should defer
+    # to the generic heuristic so each issue still becomes its own reference.
+    unique_dir = tmp_path / ".unique"
+    body = json.dumps(
+        {
+            "issues": [
+                {"key": "UN-1", "fields": {"summary": "First"}},
+                {"key": "UN-2", "fields": {"summary": "Second"}},
+            ]
+        }
+    )
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": body}], mcp_server_id="atlassian"
+    )
+    record_mcp_citations(
+        response,
+        tool_name="searchJiraIssuesUsingJql",
+        server_name="atlassian",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={
+            "listPath": "issues",
+            "titlePath": "nonexistent",
+            "titleFromText": True,
+        },
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert {r["title"]: r["sourceNumber"] for r in refs} == {"UN-1": 1, "UN-2": 2}

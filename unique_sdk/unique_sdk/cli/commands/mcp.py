@@ -174,6 +174,13 @@ _CONTAINER_KEYS = (
     "content",
 )
 
+# Subset of ``_CONTAINER_KEYS`` that are also plausible fields of a *single*
+# titled record — e.g. a page/document payload ``{"title": ..., "content": [...]}``
+# whose ``content`` is the body, not a list of separate results. When one of
+# these matches on an object that carries its own top-level title, we keep the
+# object as one record rather than splitting it into title-less inner rows.
+_AMBIGUOUS_CONTAINER_KEYS = ("data", "content")
+
 
 def _loads_embedded_json(text: str) -> Any:
     """Parse a JSON value from a tool-result string, tolerating a non-JSON
@@ -210,6 +217,12 @@ def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
             if isinstance(value, list):
                 records = [entry for entry in value if isinstance(entry, dict)]
                 if records:
+                    # A single titled record must not be split apart by an
+                    # incidental ambiguous key (a page body under ``content`` /
+                    # ``data``) — keep the object as one record so its title
+                    # survives instead of collapsing to a title-less chip.
+                    if key in _AMBIGUOUS_CONTAINER_KEYS and _title_from_json(parsed):
+                        return [parsed]
                     return records
         return [parsed]
     return []
@@ -344,8 +357,9 @@ def _extract_with_reference_mapping(
     except (TypeError, ValueError):
         title_max_chars = _MCP_TEXT_TITLE_DEFAULT_CHARS
 
+    records = _mapped_records(response, list_path)
     items: list[dict[str, Any]] = []
-    for record in _mapped_records(response, list_path):
+    for record in records:
         if title_template:
             title = _render_title_template(title_template, record)
         elif title_path:
@@ -367,7 +381,10 @@ def _extract_with_reference_mapping(
         return items
     # Non-list / non-JSON result (e.g. a fetched Markdown doc): title the single
     # chip from the leading text when the tool opts in via ``titleFromText``.
-    if title_from_text:
+    # Only when *no* records were located — if list records were found but
+    # yielded no usable title, defer to the generic heuristic (e.g. per-issue
+    # references) instead of a bogus text-derived chip.
+    if not records and title_from_text:
         title = _first_text_title(response, title_max_chars)
         if title:
             return [{"title": title, "snippet": None, "details": None}]
