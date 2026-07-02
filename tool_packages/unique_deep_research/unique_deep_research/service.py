@@ -183,10 +183,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         _LOGGER.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
-        if self._content_service is not None:
-            self.content_service = self._content_service
-        else:
-            self.content_service = ContentService(
+        if self._content_service is None:
+            self._content_service = ContentService(
                 company_id=self.company_id,
                 user_id=self.user_id,
                 chat_id=self.chat_id,
@@ -546,7 +544,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "language_model_service": self.language_model_service,
                 "openai_client": self.client,
                 "chat_service": self.chat_service,
-                "content_service": self.content_service,
+                "content_service": self._content_service,
                 "message_id": self._assistant_message_id,
                 "citation_manager": citation_manager,
                 "additional_openai_proxy_headers": additional_openai_proxy_headers,
@@ -577,7 +575,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 report=processed_result,
                 references=references,
                 config=self.config.engine.report_export,
-                content_service=self.content_service,
+                content_service=self._content_service,
                 chat_service=self.chat_service,
             )
             if docx_result.success:
