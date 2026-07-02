@@ -106,21 +106,13 @@ class ToolBuildConfig(BaseModel, Generic[T]):
     ) -> Any:
         """Validate and resolve tool configuration based on tool type and name.
 
-        Disabled tools skip validation entirely.
-        Enabled tools that fail validation are demoted to disabled.
+        Both enabled and disabled tools resolve to their concrete config type when
+        the stored configuration is valid, so downstream consumers that key off the
+        tool name keep seeing the expected config type regardless of the enabled
+        flag. A tool whose configuration is invalid is demoted to disabled with a
+        BaseToolConfig fallback instead of raising.
         """
         if not isinstance(value, dict):
-            return value
-
-        if "isEnabled" in value:
-            is_enabled = bool(value["isEnabled"])
-        elif "is_enabled" in value:
-            is_enabled = bool(value["is_enabled"])
-        else:
-            is_enabled = True
-
-        if not is_enabled:
-            _ensure_base_tool_config(value)
             return value
 
         is_mcp_tool = _is_mcp_tool_payload(value)

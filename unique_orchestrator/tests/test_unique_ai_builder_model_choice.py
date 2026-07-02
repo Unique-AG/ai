@@ -18,6 +18,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolNa
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
 )
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -447,3 +448,34 @@ def test_model_choice_refreshes_search_tool_token_limits() -> None:
         WebSearchTool.name: 4_000,
         RetrieveSearchScopeTool.name: 4_000,
     }
+
+
+@pytest.mark.ai
+def test_set_input_context_size_skips_disabled_search_tool_with_base_config() -> None:
+    """
+    Purpose: Verify a disabled search tool demoted to BaseToolConfig does not crash config load.
+    Why this matters: A search tool with an invalid stored config is demoted (is_enabled=False,
+    BaseToolConfig); set_input_context_size must skip it instead of raising AttributeError.
+    Setup summary: Provide a disabled WebSearch tool that demotes to BaseToolConfig; assert no crash.
+    """
+    web_search_tool = ToolBuildConfig(
+        name=WebSearchTool.name,
+        is_enabled=False,
+        configuration=BaseToolConfig(),
+    )
+    # The wrong config type for a WebSearch tool demotes it to disabled + BaseToolConfig.
+    assert web_search_tool.is_enabled is False
+    assert not hasattr(web_search_tool.configuration, "language_model_max_input_tokens")
+
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            language_model=_make_model("default-model"),
+            tools=[web_search_tool],
+        )
+    )
+
+    disabled_tool = next(
+        tool for tool in config.space.tools if tool.name == WebSearchTool.name
+    )
+    assert disabled_tool.is_enabled is False
+    assert not hasattr(disabled_tool.configuration, "language_model_max_input_tokens")

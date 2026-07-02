@@ -361,16 +361,28 @@ async def _build_common(
 
     user_memory_text = ""
     if config.space.allow_user_memory:
+        user_memory_config = config.agent.services.user_memory_config
+        # The postprocessor consolidates memory with the orchestrator model or the
+        # configured one depending on this flag. Token capping at load time must use
+        # the same model so the loaded baseline matches what consolidation expects;
+        # otherwise a mismatched tokenizer can truncate memory.md differently.
+        memory_language_model = (
+            config.space.language_model
+            if user_memory_config.use_orchestrator_language_model
+            else user_memory_config.language_model
+        )
         user_memory_state = await load_user_memory(
             event=event,
-            config=config.agent.services.user_memory_config,
+            config=user_memory_config,
+            language_model=memory_language_model,
             logger=logger,
         )
         if user_memory_state is not None:
             user_memory_text = user_memory_state.text
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
-                    config=config.agent.services.user_memory_config,
+                    config=user_memory_config,
+                    language_model=memory_language_model,
                     event=event,
                     state=user_memory_state,
                     logger=logger,
