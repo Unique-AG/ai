@@ -40,7 +40,6 @@ _MCP_OUTPUT_TEXT_CHAR_LIMIT = 50_000
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 _MCP_SNIPPET_CHAR_LIMIT = 300
-_MCP_MAX_ITEMS_PER_CALL = 8
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
@@ -356,7 +355,7 @@ def _extract_mcp_citation_items(
     if reference_mapping:
         mapped = _extract_with_reference_mapping(response, reference_mapping)
         if mapped:
-            return mapped[:_MCP_MAX_ITEMS_PER_CALL]
+            return mapped
 
     content = getattr(response, "content", None) or []
     items: list[dict[str, Any]] = []
@@ -380,7 +379,7 @@ def _extract_mcp_citation_items(
         # No recognizable title — one chip named after the tool itself.
         items.append({"title": None, "snippet": None})
 
-    return items[:_MCP_MAX_ITEMS_PER_CALL]
+    return items
 
 
 def _next_mcp_source_number(entries: list[dict[str, Any]]) -> int:

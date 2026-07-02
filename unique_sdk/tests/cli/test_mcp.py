@@ -665,6 +665,34 @@ def test_reference_mapping_destructures_wrapped_list_with_template(
     assert "[mcpsource1] UN-1 — First" in footer
 
 
+def test_reference_mapping_writes_all_items_no_cap(tmp_path: Path) -> None:
+    # Every retrieved record must get its own reference — the extractor no
+    # longer caps the number of items per call.
+    unique_dir = tmp_path / ".unique"
+    n = 25
+    body = json.dumps(
+        {
+            "issues": [
+                {"key": f"UN-{i}", "fields": {"summary": f"s{i}"}} for i in range(n)
+            ]
+        }
+    )
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": body}], mcp_server_id="atlassian"
+    )
+    record_mcp_citations(
+        response,
+        tool_name="searchJiraIssuesUsingJql",
+        server_name="atlassian",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={"listPath": "issues", "titlePath": "key"},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert len(refs) == n
+    assert {r["sourceNumber"] for r in refs} == set(range(1, n + 1))
+
+
 def test_reference_mapping_falls_back_to_heuristic_when_no_match(
     tmp_path: Path,
 ) -> None:
