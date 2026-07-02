@@ -89,6 +89,41 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT]):
 ###
 
 
+class McpReferenceMapping(BaseModel):
+    """Optional per-tool rule for destructuring a list-returning MCP result into
+    individual citation references. A Unique-specific override; when unset the
+    generic citation heuristic is used. Paths are dotted (dict keys and numeric
+    list indices), e.g. ``"issues"`` or ``"fields.summary"``.
+    """
+
+    model_config = model_config
+
+    list_path: Optional[str] = Field(
+        default=None,
+        description="Dotted path to the array of records, e.g. 'issues' or 'result.items'.",
+    )
+    title_path: Optional[str] = Field(
+        default=None,
+        description="Dotted path to each record's title, e.g. 'key' or 'fields.summary'.",
+    )
+    title_template: Optional[str] = Field(
+        default=None,
+        description="Optional title template with {dotted.path} tokens, e.g. '{key} — {fields.summary}'. Takes precedence over title_path.",
+    )
+    details_path: Optional[str] = Field(
+        default=None,
+        description="Optional dotted path to a details line for each record.",
+    )
+    title_from_text: Optional[bool] = Field(
+        default=None,
+        description="For a non-JSON text result (e.g. a fetched Markdown doc), title the single reference from the leading text line instead of the tool name.",
+    )
+    title_max_chars: Optional[int] = Field(
+        default=None,
+        description="Max length of the title derived via title_from_text (default 120).",
+    )
+
+
 class McpTool(BaseModel):
     model_config = model_config
 
@@ -116,6 +151,10 @@ class McpTool(BaseModel):
     tool_format_information: Optional[str] = Field(
         default=None,
         description="An optional tool format information. This is a Unique specific field.",
+    )
+    reference_mapping: Optional[McpReferenceMapping] = Field(
+        default=None,
+        description="Optional rule for destructuring a list-returning result into individual citation references. This is a Unique specific field.",
     )
     is_connected: bool = Field(
         description="Whether the tool is connected to the MCP server. This is a Unique specific field.",

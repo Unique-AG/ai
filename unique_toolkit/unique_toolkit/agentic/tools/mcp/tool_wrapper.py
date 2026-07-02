@@ -81,13 +81,14 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     def tool_description_for_system_prompt(self) -> str:
         """Return tool description for system prompt"""
         # Not using jinja here to keep it simple and not import new packages.
-        description = (
-            f"**MCP Server**: {self._mcp_server.name}\n"
-            f"**Tool Name**: {self.name}\n"
-            f"{self._mcp_tool.system_prompt}"
-        )
+        lines = [
+            f"**MCP Server**: {self._mcp_server.name}",
+            f"**Tool Name**: {self.name}",
+        ]
+        if self._mcp_tool.system_prompt:
+            lines.append(self._mcp_tool.system_prompt)
 
-        return description
+        return "\n".join(lines)
 
     def tool_description_for_user_prompt(self) -> str:
         return self._mcp_tool.user_prompt or ""

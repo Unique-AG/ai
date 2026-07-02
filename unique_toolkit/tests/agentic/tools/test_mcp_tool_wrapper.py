@@ -248,6 +248,40 @@ class TestMCPToolWrapperToolDescription:
         assert "System prompt for test tool" in system_prompt
 
     @pytest.mark.ai
+    def test_tool_description_for_system_prompt__omits_none_system_prompt__AI(
+        self,
+        mock_mcp_server: McpServer,
+        mock_mcp_tool_config: MCPToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify a missing per-tool system_prompt is not rendered as "None".
+        Why this matters: A literal "None" leaking into the system prompt is noise
+        that can mislead the model.
+        Setup summary: Create a tool without system_prompt, verify output is clean.
+        """
+        # Arrange
+        tool_no_system_prompt = McpTool(
+            name="tool_no_system",
+            input_schema={"type": "object"},
+            system_prompt=None,
+            is_connected=True,
+        )
+        wrapper = MCPToolWrapper(
+            mcp_server=mock_mcp_server,
+            mcp_tool=tool_no_system_prompt,
+            config=mock_mcp_tool_config,
+            event=mock_chat_event,
+        )
+
+        # Act
+        system_prompt = wrapper.tool_description_for_system_prompt()
+
+        # Assert
+        assert "None" not in system_prompt
+        assert "**Tool Name**: tool_no_system" in system_prompt
+
+    @pytest.mark.ai
     def test_tool_description_for_user_prompt__returns_user_prompt__AI(
         self,
         mcp_tool_wrapper: MCPToolWrapper,
