@@ -64,6 +64,9 @@ class Message(APIResource["Message"]):
         startedStreamingAt: NotRequired[datetime | None]
         stoppedStreamingAt: NotRequired[datetime | None]
         completedAt: NotRequired[datetime | None]
+        segmentKind: NotRequired[
+            Literal["PROCESS", "PREFACE", "ELICITATION", "ANSWER"] | None
+        ]
 
     class DeleteParams(RequestOptions):
         chatId: str
