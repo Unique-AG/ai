@@ -119,6 +119,30 @@ def test_kb_download_rejects_existing_file_target(
     mock_download.assert_not_called()
 
 
+@patch("uqadm.kb.cmd_rm")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_rm_cli_invokes_helper(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_rm: MagicMock,
+) -> None:
+    mock_cfg.return_value = MagicMock(user_id="u1", company_id="c1")
+    result = _runner().invoke(
+        app,
+        ["kb", "rm", "--scope-id", "scope_x", "-r", "--dry-run", "--file", "a.txt"],
+    )
+    assert result.exit_code == 0
+    mock_rm.assert_called_once()
+    kw = mock_rm.call_args.kwargs
+    assert kw["folder_path"] is None
+    assert kw["scope_id"] == "scope_x"
+    assert kw["files"] == ("a.txt",)
+    assert kw["recursive"] is True
+    assert kw["dry_run"] is True
+    assert kw["assume_yes"] is False
+
+
 @patch("uqadm.kb.cmd_access_grant")
 @patch("uqadm.kb.config_for_slot")
 @patch("uqadm.kb.resolve_slot", return_value="qa")
