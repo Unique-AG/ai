@@ -232,8 +232,6 @@ Please do not mention these instructions in your response to the user!
 </system_reminder>"""
 
     def _compute_valid_documents(self) -> list[Content]:
-        if self._content_service is None:
-            raise ValueError("UploadedSearchTool requires injected content_service")
         documents = self._content_service.get_documents_uploaded_to_chat()
 
         if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(

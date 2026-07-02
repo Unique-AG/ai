@@ -647,21 +647,6 @@ class TestUploadedSearchTool:
         assert tool._company_id == "company_123"
 
     @pytest.mark.ai
-    def test_compute_valid_documents__raises__without_content_service(
-        self,
-        uploaded_search_config: UploadedSearchConfig,
-        mock_tool_progress_reporter: ToolProgressReporter,
-    ) -> None:
-        """
-        Purpose: Verify _compute_valid_documents raises when content_service is unset.
-        """
-        tool = object.__new__(UploadedSearchTool)
-        tool._content_service = None
-
-        with pytest.raises(ValueError, match="requires injected content_service"):
-            tool._compute_valid_documents()
-
-    @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_run__overrides_internal_search_system_reminder__when_enabled(
         self,
