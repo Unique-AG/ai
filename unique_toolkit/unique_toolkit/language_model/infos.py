@@ -130,6 +130,7 @@ class LanguageModelName(StrEnum):
     LITELLM_DEEPSEEK_V4_PRO = "litellm:deepseek-v4-pro"
     LITELLM_GLM_5_1 = "litellm:glm-5.1"
     LITELLM_GLM_5_2 = "litellm:glm-5.2"
+    LITELLM_KIMI_K2_6 = "litellm:kimi-k2.6"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
     VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
@@ -2738,6 +2739,25 @@ class LanguageModelInfo(BaseModel):
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=1_000_000, token_limit_output=128_000
+                    ),
+                    published_at=date(2026, 1, 1),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_KIMI_K2_6:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.KIMI,
+                    version="kimi-k2.6",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=256_000, token_limit_output=32_000
                     ),
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
