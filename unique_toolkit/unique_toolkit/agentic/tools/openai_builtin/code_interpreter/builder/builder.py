@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 
 from openai import AsyncOpenAI
@@ -55,6 +53,8 @@ class CodeInterpreterBuilder:
         company_id: str,
         user_id: str,
         chat_id: str,
+        is_exclusive: bool = False,
+        force_auto_container: bool = False,
     ) -> None:
         self._config = config
         self._uploaded_files = uploaded_files
@@ -63,12 +63,12 @@ class CodeInterpreterBuilder:
         self._company_id = company_id
         self._user_id = user_id
         self._chat_id = chat_id
+        self._is_exclusive = is_exclusive
+        self._force_auto_container = force_auto_container
 
-    async def build(
-        self,
-        is_exclusive: bool = False,
-        force_auto_container: bool = False,
-    ) -> OpenAICodeInterpreterTool:
+    async def build(self) -> OpenAICodeInterpreterTool:
+        is_exclusive = self._is_exclusive
+        force_auto_container = self._force_auto_container
         config = self._config
         uploaded_files = self._uploaded_files
         client = self._client
