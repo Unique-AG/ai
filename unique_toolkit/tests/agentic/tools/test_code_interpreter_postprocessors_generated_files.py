@@ -3,7 +3,7 @@
 import logging
 import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -38,25 +38,21 @@ from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
-GEN_FILES_FF = (
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter."
-    "postprocessors.generated_files.is_flag_enabled"
-)
 
-
-def _patch_gen_files_feature_flags(
+def _set_gen_files_feature_flags(
+    proc: DisplayCodeInterpreterFilesPostProcessor,
     *,
     fence_ff_on: bool = False,
     html_fence_ff_on: bool = False,
-):
-    def side_effect(flag: str, *, company_id: str) -> bool:
-        if "17972" in flag:
-            return fence_ff_on
-        if "17927" in flag:
-            return html_fence_ff_on
-        return False
+) -> None:
+    """Seed flag state on the instance, as `run()` would after awaiting it.
 
-    return patch(GEN_FILES_FF, MagicMock(side_effect=side_effect))
+    Production resolves both flags asynchronously in `run()` (always awaited
+    before `apply_postprocessing_to_response`), so unit tests exercising
+    `apply_postprocessing_to_response` directly seed the post-`run()` state.
+    """
+    proc._fence_ff_on = fence_ff_on
+    proc._html_fence_ff_on = html_fence_ff_on
 
 
 class _MockStreamResponse:
@@ -1777,8 +1773,8 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string() -
         references=[],
     )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
-    with _patch_gen_files_feature_flags():
-        proc.apply_postprocessing_to_response(loop)
+    _set_gen_files_feature_flags(proc)
+    proc.apply_postprocessing_to_response(loop)
     assert msg.text == ""
 
 
@@ -1810,8 +1806,8 @@ def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_fi
         container_files=[],
         code_interpreter_calls=[],
     )
-    with _patch_gen_files_feature_flags(fence_ff_on=True):
-        proc.apply_postprocessing_to_response(loop_response)
+    _set_gen_files_feature_flags(proc, fence_ff_on=True)
+    proc.apply_postprocessing_to_response(loop_response)
     assert message.references == []
 
 
@@ -1840,8 +1836,8 @@ def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file() ->
         container_files=[],
         code_interpreter_calls=[],
     )
-    with _patch_gen_files_feature_flags():
-        proc.apply_postprocessing_to_response(loop_response)
+    _set_gen_files_feature_flags(proc)
+    proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 1
     ref = message.references[0]
     assert ref.source_id == "cid-pdf-1"
@@ -1882,8 +1878,8 @@ def test_apply_postprocessing__ff_off__existing_citation_refs_preserved() -> Non
         container_files=[],
         code_interpreter_calls=[],
     )
-    with _patch_gen_files_feature_flags():
-        proc.apply_postprocessing_to_response(loop_response)
+    _set_gen_files_feature_flags(proc)
+    proc.apply_postprocessing_to_response(loop_response)
     assert len(message.references) == 2
     source_ids = {r.source_id for r in message.references}
     assert "existing-sid" in source_ids
@@ -1913,8 +1909,8 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
         code_interpreter_calls=[],
     )
 
-    with _patch_gen_files_feature_flags():
-        changed = proc.apply_postprocessing_to_response(loop_response)
+    _set_gen_files_feature_flags(proc)
+    changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
     assert "HtmlRendering" in message.text
@@ -1948,8 +1944,8 @@ def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_f
         code_interpreter_calls=[call],
     )
 
-    with _patch_gen_files_feature_flags(fence_ff_on=True):
-        changed = proc.apply_postprocessing_to_response(loop_response)
+    _set_gen_files_feature_flags(proc, fence_ff_on=True)
+    changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
     assert len(refs) == 0
@@ -1983,8 +1979,8 @@ def test_apply_postprocessing_to_response__html_uses_htmlWithSource__when_both_f
         code_interpreter_calls=[call],
     )
 
-    with _patch_gen_files_feature_flags(fence_ff_on=True, html_fence_ff_on=True):
-        changed = proc.apply_postprocessing_to_response(loop_response)
+    _set_gen_files_feature_flags(proc, fence_ff_on=True, html_fence_ff_on=True)
+    changed = proc.apply_postprocessing_to_response(loop_response)
 
     assert changed is True
     assert len(refs) == 0
