@@ -38,11 +38,19 @@ def _state() -> ShellState:
     return ShellState(_config())
 
 
-def _write_browser_config(path: Path, *, bridge_url: str = _BRIDGE_URL) -> None:
-    path.write_text(
-        json.dumps({"bridgeUrl": bridge_url, "installUrl": None}),
-        encoding="utf-8",
-    )
+def _write_browser_config(
+    path: Path,
+    *,
+    bridge_url: str = _BRIDGE_URL,
+    chat_id: str | None = None,
+    space_id: str | None = None,
+) -> None:
+    data: dict[str, Any] = {"bridgeUrl": bridge_url, "installUrl": None}
+    if chat_id is not None:
+        data["chatId"] = chat_id
+    if space_id is not None:
+        data["spaceId"] = space_id
+    path.write_text(json.dumps(data), encoding="utf-8")
 
 
 def _mock_response(
@@ -189,6 +197,53 @@ def test_cmd_browser_action_not_configured(tmp_path: Path) -> None:
     parsed = json.loads(output)
     assert parsed["ok"] is False
     assert parsed["error"] == "browser_not_configured"
+
+
+# ── chat / space context headers ─────────────────────────────────────────────
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cmd_browser_action_forwards_chat_and_space_headers(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path, chat_id="chat_abc", space_id="space_1")
+    mock_post.return_value = _mock_response(json_body={"ok": True, "result": None})
+
+    cmd_browser_action(_state(), "get-dom", {}, config_path=str(config_path))
+
+    headers = mock_post.call_args.kwargs["headers"]
+    assert headers["x-chat-id"] == "chat_abc"
+    assert headers["x-space-id"] == "space_1"
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cmd_browser_action_omits_context_headers_when_absent(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+    mock_post.return_value = _mock_response(json_body={"ok": True, "result": None})
+
+    cmd_browser_action(_state(), "get-dom", {}, config_path=str(config_path))
+
+    headers = mock_post.call_args.kwargs["headers"]
+    assert "x-chat-id" not in headers
+    assert "x-space-id" not in headers
+
+
+@patch("unique_sdk.cli.commands.browser.requests.get")
+def test_cmd_browser_status_forwards_chat_header(
+    mock_get: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path, chat_id="chat_xyz")
+    mock_get.return_value = _mock_response(json_body={"connected": True})
+
+    cmd_browser_status(_state(), config_path=str(config_path))
+
+    headers = mock_get.call_args.kwargs["headers"]
+    assert headers["x-chat-id"] == "chat_xyz"
 
 
 # ── status ──────────────────────────────────────────────────────────────────
@@ -599,3 +654,42 @@ def test_cli_browser_scroll_empty_ref_omitted(
     assert result.exit_code == 0
     body = json.loads(mock_post.call_args.kwargs["data"])
     assert body == {"verb": "scroll", "args": {"y": 100}}
+
+
+@patch("unique_sdk.cli.commands.browser.requests.post")
+def test_cmd_browser_download_open_failure_preserves_existing_file(
+    mock_post: MagicMock, tmp_path: Path
+) -> None:
+    config_path = tmp_path / ".unique-browser.json"
+    _write_browser_config(config_path)
+    resp = _mock_response(headers={"X-Browser-File-Name": "report.pdf"})
+    resp.iter_content.return_value = [b"1234"]
+    mock_post.return_value = resp
+
+    dest = tmp_path / "out" / "report.pdf"
+    dest.parent.mkdir(parents=True)
+    # A pre-existing file at the destination that this command must NOT touch.
+    dest.write_bytes(b"pre-existing-content")
+
+    real_open = Path.open
+
+    def _open_raising(self: Path, *args: Any, **kwargs: Any) -> Any:
+        # Only the destination open fails; the config read must still work.
+        if self == dest:
+            raise OSError("permission denied")
+        return real_open(self, *args, **kwargs)
+
+    with patch.object(Path, "open", _open_raising):
+        output = cmd_browser_download(
+            _state(),
+            "https://portal/report.pdf",
+            str(dest),
+            config_path=str(config_path),
+        )
+
+    parsed = json.loads(output)
+    assert parsed["ok"] is False
+    assert parsed["error"] == "browser_download_write_failed"
+    # The pre-existing file is untouched: the failure happened before we opened
+    # the destination, so the partial-file cleanup must not delete it.
+    assert dest.read_bytes() == b"pre-existing-content"

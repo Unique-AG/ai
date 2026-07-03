@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.26.0...unique-orchestrator-v2026.28.0) (2026-07-03)
+
+
+### Features
+
+* **skills:** triggered skills in debug info ([#1920](https://github.com/Unique-AG/ai/issues/1920)) ([a779839](https://github.com/Unique-AG/ai/commit/a77983985c2cb2ded1bbb8444f2f8f5dd5ee241c))
+* **unique_toolkit:** Implement the `AskUser` tool ([#1653](https://github.com/Unique-AG/ai/issues/1653)) ([b2cec51](https://github.com/Unique-AG/ai/commit/b2cec513c6344e4582bb876384a260c2120ebb6b))
+* **user-memory:** update config user memory ([#1916](https://github.com/Unique-AG/ai/issues/1916)) ([5ff1d46](https://github.com/Unique-AG/ai/commit/5ff1d46a9ebcf32ea58088fa9439c8fec6f7e51b))
+* **user-memory:** update user memory ([#1980](https://github.com/Unique-AG/ai/issues/1980)) ([a461fbc](https://github.com/Unique-AG/ai/commit/a461fbc21344ab9a91d744f9f566daaf135f9235))
+
+
+### Bug Fixes
+
+* **toolkit:** inject shared ChatService into tools at construction ([#2000](https://github.com/Unique-AG/ai/issues/2000)) ([695697f](https://github.com/Unique-AG/ai/commit/695697f0ef487a3ccae4d1afea6c22944a1ccf7e))
+* **unique-toolkit:** preserve concrete config for valid disabled tools [UN-17197] ([#1979](https://github.com/Unique-AG/ai/issues/1979)) ([08dda03](https://github.com/Unique-AG/ai/commit/08dda03dad1e2b231e9d3bd42d0442eece621196))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.24.0...unique-orchestrator-v2026.26.0) (2026-06-22)
 
 

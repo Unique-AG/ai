@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.26.0...unique-deep-research-v2026.28.0) (2026-07-03)
+
+
+### Features
+
+* Migrate search engine configuration from proxy core ([#1966](https://github.com/Unique-AG/ai/issues/1966)) ([6693d37](https://github.com/Unique-AG/ai/commit/6693d378b1d5626ec881b2f91ed490afb7cf4471))
+
+
+### Bug Fixes
+
+* **toolkit:** inject shared ChatService into tools at construction ([#2000](https://github.com/Unique-AG/ai/issues/2000)) ([695697f](https://github.com/Unique-AG/ai/commit/695697f0ef487a3ccae4d1afea6c22944a1ccf7e))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-deep-research-v2026.24.0...unique-deep-research-v2026.26.0) (2026-06-22)
 
 

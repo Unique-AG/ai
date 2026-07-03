@@ -171,3 +171,61 @@ def test_build_create_params_maps_assistant_prompts() -> None:
     assert params["assistantPrompts"] == [
         {"title": "T", "prompt": "P", "order": 1},
     ]
+
+
+def test_build_create_params_maps_model_switching() -> None:
+    from uqadm.space.migrate import build_create_params
+
+    params = build_create_params(
+        {
+            "name": "S",
+            "fallbackModule": "fm",
+            "modules": [],
+            "allowModelSwitching": True,
+            "switchableLanguageModels": [
+                {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+            ],
+        }
+    )
+    assert params["allowModelSwitching"] is True
+    assert params["switchableLanguageModels"] == [
+        {"displayName": "GPT-4o", "languageModel": "AZURE_GPT_4o_2024_0806"},
+    ]
+
+
+def test_build_create_params_syncs_model_list_when_toggle_present() -> None:
+    from uqadm.space.migrate import build_create_params
+
+    params = build_create_params(
+        {
+            "name": "S",
+            "fallbackModule": "fm",
+            "modules": [],
+            "allowModelSwitching": True,
+            "switchableLanguageModels": None,
+        }
+    )
+    assert params["allowModelSwitching"] is True
+    assert params["switchableLanguageModels"] == []
+
+
+def test_build_update_kwargs_includes_model_switching_and_allows_false() -> None:
+    from uqadm.space.migrate import build_update_kwargs
+
+    kwargs = build_update_kwargs(
+        {
+            "name": "S",
+            "allowModelSwitching": False,
+            "switchableLanguageModels": [],
+        }
+    )
+    assert kwargs["allowModelSwitching"] is False
+    assert kwargs["switchableLanguageModels"] == []
+
+
+def test_build_update_kwargs_syncs_model_list_when_toggle_present() -> None:
+    from uqadm.space.migrate import build_update_kwargs
+
+    kwargs = build_update_kwargs({"name": "S", "allowModelSwitching": True})
+    assert kwargs["allowModelSwitching"] is True
+    assert kwargs["switchableLanguageModels"] == []

@@ -77,6 +77,8 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `alert` (str, optional) - Alert message for the space
     - `chatUpload` (Literal["ENABLED", "DISABLED"], optional) - Chat upload setting
     - `languageModel` (str, optional) - Language model to use
+    - `allowModelSwitching` (bool, optional) - Whether end users may switch the language model in chat (default: False)
+    - `switchableLanguageModels` (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when `allowModelSwitching` is True. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `isExternal` (bool, optional) - Whether the space is external
     - `isPinned` (bool, optional) - Whether the space is pinned
     - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type
@@ -197,6 +199,8 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `languageModel` (str, optional) - Language model to use
     - `isPinned` (bool, optional) - Whether the space is pinned
     - `settings` (Dict, optional) - Space settings
+    - `allowModelSwitching` (bool, optional) - Whether end users may switch the language model in chat
+    - `switchableLanguageModels` (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when `allowModelSwitching` is True. Pass an empty list to clear the allowlist. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `allowEndUserSpace` (bool, optional) - Allow end users to create custom spaces from this assistant
     - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.
     - `isSubAgent` (bool, optional) - Whether the space is a sub-agent
@@ -821,6 +825,8 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `chatUpload` (str) - Chat upload configuration
     - `goals` (List[str]) - List of space goals
     - `languageModel` (str | None) - Language model identifier
+    - `allowModelSwitching` (bool) - Whether end users may switch the language model in chat
+    - `switchableLanguageModels` (List[SwitchableLanguageModel] | None) - Admin-defined list of models end users may switch to. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `fallbackModule` (str) - Fallback module identifier
     - `access` (List[str]) - Access control list
     - `isExternal` (bool) - Whether space is external
@@ -983,6 +989,17 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `type` (str) - Access type ("USE", "MANAGE", or "UPLOAD")
 
     **Used in:** `Space.assistantAccess`, `SpaceAccessResponse.access`, `AddSpaceAccessResponse.access`
+
+#### Space.SwitchableLanguageModel {#spaceswitchablelanguagemodel}
+
+??? note "The `Space.SwitchableLanguageModel` type defines a language model end users may switch to"
+
+    **Fields:**
+
+    - `displayName` (str, required) - Human-readable label shown in the chat model picker
+    - `languageModel` (str | Dict[str, Any], required) - Model identifier (e.g. `"AZURE_GPT_4o_2024_0806"`) or a language-model-info object
+
+    **Used in:** `Space.switchableLanguageModels`, `Space.create_space()`, `Space.update_space()`
 
 #### Space.Correlation {#spacecorrelation}
 

@@ -66,6 +66,7 @@ def modify_message(
     debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
+    segment_kind: str | None = None,
 ) -> ChatMessage:
     """Modifies a chat message synchronously.
 
@@ -83,6 +84,7 @@ def modify_message(
         references (list[ContentReference]): list of ContentReference objects. Defaults to None.
         debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
         set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+        segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place. Defaults to None (kind unchanged).
 
     Returns:
         ChatMessage: The modified message.
@@ -106,6 +108,7 @@ def modify_message(
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at,
+            segment_kind=segment_kind,
         )
         message = unique_sdk.Message.modify(**params)
         return ChatMessage(**message)
@@ -128,6 +131,7 @@ async def modify_message_async(
     debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
+    segment_kind: str | None = None,
 ) -> ChatMessage:
     """Modifies a chat message asynchronously.
 
@@ -145,6 +149,7 @@ async def modify_message_async(
         references (list[ContentReference]): list of ContentReference objects. Defaults to None.
         debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
         set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+        segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place. Defaults to None (kind unchanged).
 
     Returns:
         ChatMessage: The modified message.
@@ -168,6 +173,7 @@ async def modify_message_async(
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at,
+            segment_kind=segment_kind,
         )
         message = await unique_sdk.Message.modify_async(**params)
         return ChatMessage(**message)
@@ -225,6 +231,7 @@ def _construct_message_modify_params(
     debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
+    segment_kind: str | None = None,
 ) -> dict[str, Any]:
     completed_at_datetime = None
 
@@ -242,7 +249,7 @@ def _construct_message_modify_params(
     if set_completed_at:
         completed_at_datetime = _time_utils.get_datetime_now()
 
-    params = {
+    params: dict[str, Any] = {
         "user_id": user_id,
         "company_id": company_id,
         "id": message_id,
@@ -253,6 +260,8 @@ def _construct_message_modify_params(
         "debugInfo": debug_info,
         "completedAt": completed_at_datetime,
     }
+    if segment_kind is not None:
+        params["segmentKind"] = segment_kind
     return params
 
 
