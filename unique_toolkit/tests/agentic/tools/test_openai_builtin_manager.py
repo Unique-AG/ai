@@ -70,7 +70,7 @@ async def test_build_tool_code_interpreter_passes_tool_config_not_extended_confi
 ):
     """
     Purpose: Verify _build_tool passes configuration.tool_config (OpenAICodeInterpreterConfig)
-    to OpenAICodeInterpreterTool.build_tool, not the full CodeInterpreterExtendedConfig.
+    to CodeInterpreterBuilder, not the full CodeInterpreterExtendedConfig.
     Why this matters: Fix for bug where manager expected OpenAICodeInterpreterConfig in
     ToolBuildConfig but tool config was refactored to CodeInterpreterExtendedConfig.
     """
@@ -86,11 +86,12 @@ async def test_build_tool_code_interpreter_passes_tool_config_not_extended_confi
         }
     )
     mock_built_tool = MagicMock(spec=OpenAIBuiltInTool)
-    build_tool_async = AsyncMock(return_value=mock_built_tool)
+    mock_builder_cls = MagicMock()
+    mock_builder_cls.return_value.build = AsyncMock(return_value=mock_built_tool)
 
     with patch(
-        "unique_toolkit.agentic.tools.openai_builtin.manager.OpenAICodeInterpreterTool",
-        build_tool=build_tool_async,
+        "unique_toolkit.agentic.tools.openai_builtin.manager.CodeInterpreterBuilder",
+        mock_builder_cls,
     ):
         result = await OpenAIBuiltInToolManager._build_tool(
             uploaded_files=[],
@@ -103,12 +104,13 @@ async def test_build_tool_code_interpreter_passes_tool_config_not_extended_confi
         )
 
     assert result is mock_built_tool
-    build_tool_async.assert_called_once()
-    call_kwargs = build_tool_async.call_args.kwargs
-    assert call_kwargs["config"] is tool_config.configuration.tool_config
-    assert isinstance(call_kwargs["config"], OpenAICodeInterpreterConfig)
-    assert call_kwargs["config"].expires_after_minutes == 15
-    assert call_kwargs["is_exclusive"] is True
+    mock_builder_cls.assert_called_once()
+    ctor_kwargs = mock_builder_cls.call_args.kwargs
+    assert ctor_kwargs["config"] is tool_config.configuration.tool_config
+    assert isinstance(ctor_kwargs["config"], OpenAICodeInterpreterConfig)
+    assert ctor_kwargs["config"].expires_after_minutes == 15
+    build_kwargs = mock_builder_cls.return_value.build.call_args.kwargs
+    assert build_kwargs["is_exclusive"] is True
 
 
 @pytest.mark.ai
@@ -137,7 +139,9 @@ async def test_build_tool_unknown_name_raises() -> None:
 async def test_build_manager_only_includes_enabled_builtin_tools() -> None:
     """build_manager only builds tools that are enabled and have name in OpenAIBuiltInToolName."""
     mock_tool = MagicMock(spec=OpenAIBuiltInTool)
-    build_tool_async = AsyncMock(return_value=mock_tool)
+    mock_tool.activator.return_value = None
+    mock_builder_cls = MagicMock()
+    mock_builder_cls.return_value.build = AsyncMock(return_value=mock_tool)
 
     default_extended = CodeInterpreterExtendedConfig()
     enabled_config = ToolBuildConfig.model_validate(
@@ -156,8 +160,8 @@ async def test_build_manager_only_includes_enabled_builtin_tools() -> None:
     )
 
     with patch(
-        "unique_toolkit.agentic.tools.openai_builtin.manager.OpenAICodeInterpreterTool",
-        build_tool=build_tool_async,
+        "unique_toolkit.agentic.tools.openai_builtin.manager.CodeInterpreterBuilder",
+        mock_builder_cls,
     ):
         manager = await OpenAIBuiltInToolManager.build_manager(
             uploaded_files=[],
@@ -169,7 +173,7 @@ async def test_build_manager_only_includes_enabled_builtin_tools() -> None:
             tool_configs=[enabled_config, disabled_config],
         )
 
-    assert build_tool_async.call_count == 1
+    assert mock_builder_cls.call_count == 1
     tools = manager.get_all_openai_builtin_tools()
     assert len(tools) == 1
     assert tools[0] is mock_tool
@@ -179,14 +183,14 @@ async def test_build_manager_only_includes_enabled_builtin_tools() -> None:
 @pytest.mark.asyncio
 async def test_build_manager_skips_non_builtin_tool_names() -> None:
     """build_manager skips tool configs whose name is not in OpenAIBuiltInToolName."""
-    build_tool_async = AsyncMock()
+    mock_builder_cls = MagicMock()
     non_builtin_config = MagicMock()
     non_builtin_config.name = "some_other_tool"
     non_builtin_config.is_enabled = True
 
     with patch(
-        "unique_toolkit.agentic.tools.openai_builtin.manager.OpenAICodeInterpreterTool",
-        build_tool=build_tool_async,
+        "unique_toolkit.agentic.tools.openai_builtin.manager.CodeInterpreterBuilder",
+        mock_builder_cls,
     ):
         manager = await OpenAIBuiltInToolManager.build_manager(
             uploaded_files=[],
@@ -198,7 +202,7 @@ async def test_build_manager_skips_non_builtin_tool_names() -> None:
             tool_configs=[non_builtin_config],
         )
 
-    build_tool_async.assert_not_called()
+    mock_builder_cls.assert_not_called()
     assert len(manager.get_all_openai_builtin_tools()) == 0
 
 

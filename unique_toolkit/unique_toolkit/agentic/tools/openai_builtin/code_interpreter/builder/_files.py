@@ -14,7 +14,7 @@ from unique_toolkit._common.execution import (
     SafeTaskExecutor,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._memory import (
-    _CodeExecutionShortTermMemorySchema,
+    CodeExecutionShortTermMemorySchema,
 )
 from unique_toolkit.content.schemas import (
     Content,
@@ -22,29 +22,29 @@ from unique_toolkit.content.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_UPLOAD_MAX_RETRIES = 2
-_UPLOAD_RETRY_BASE_DELAY = 0.5
+UPLOAD_MAX_RETRIES = 2
+UPLOAD_RETRY_BASE_DELAY = 0.5
 
 
-def _build_upload_retry() -> AsyncRetrying:
+def build_upload_retry() -> AsyncRetrying:
     """Exponential-backoff retry policy for transient upload/download failures.
 
     Matches the pattern used in the ``DisplayCodeInterpreterFilesPostProcessor``
     so that every outbound I/O call gets the same behaviour: up to
-    ``_UPLOAD_MAX_RETRIES`` extra attempts, doubling the wait each time,
+    ``UPLOAD_MAX_RETRIES`` extra attempts, doubling the wait each time,
     with a WARNING log before each sleep.
     """
     return AsyncRetrying(
-        stop=stop_after_attempt(1 + _UPLOAD_MAX_RETRIES),
-        wait=wait_exponential(multiplier=_UPLOAD_RETRY_BASE_DELAY),
+        stop=stop_after_attempt(1 + UPLOAD_MAX_RETRIES),
+        wait=wait_exponential(multiplier=UPLOAD_RETRY_BASE_DELAY),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
 
 
-def _check_file_already_uploaded(
+def check_file_already_uploaded(
     content_id: str,
-    memory: _CodeExecutionShortTermMemorySchema,
+    memory: CodeExecutionShortTermMemorySchema,
 ) -> bool:
     if content_id not in memory.file_paths:
         logger.info("File with id %s not in short term memory", content_id)
@@ -53,7 +53,7 @@ def _check_file_already_uploaded(
     return True
 
 
-async def _upload_file_to_container(
+async def upload_file_to_container(
     client: AsyncOpenAI,
     content_id: str,
     filename: str,
@@ -67,7 +67,7 @@ async def _upload_file_to_container(
         container_id,
     )
 
-    file_content = await _build_upload_retry()(
+    file_content = await build_upload_retry()(
         content_service.download_content_to_bytes_async,
         content_id=content_id,
     )
@@ -78,7 +78,7 @@ async def _upload_file_to_container(
         container_id,
     )
 
-    openai_file = await _build_upload_retry()(
+    openai_file = await build_upload_retry()(
         client.containers.files.create,
         container_id=container_id,
         file=(filename, file_content),
@@ -93,17 +93,17 @@ async def _upload_file_to_container(
     return openai_file.path
 
 
-async def _upload_files_to_container(
+async def upload_files_to_container(
     client: AsyncOpenAI,
     uploaded_files: list[Content],
-    memory: _CodeExecutionShortTermMemorySchema,
+    memory: CodeExecutionShortTermMemorySchema,
     content_service: ContentService,
-) -> tuple[_CodeExecutionShortTermMemorySchema, bool]:
+) -> tuple[CodeExecutionShortTermMemorySchema, bool]:
     async def _check_and_upload(content: Content) -> str | None:
-        if _check_file_already_uploaded(content_id=content.id, memory=memory):
+        if check_file_already_uploaded(content_id=content.id, memory=memory):
             return None
 
-        return await _upload_file_to_container(
+        return await upload_file_to_container(
             client=client,
             content_id=content.id,
             filename=content.key,
@@ -132,7 +132,7 @@ async def _upload_files_to_container(
     return memory, updated
 
 
-async def _resolve_kb_contents(
+async def resolve_kb_contents(
     content_service: ContentService,
     content_ids: list[str],
 ) -> list[Content]:

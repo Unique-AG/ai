@@ -5,20 +5,20 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 
-_SHORT_TERM_MEMORY_NAME = "container_code_execution"
+SHORT_TERM_MEMORY_NAME = "container_code_execution"
 
 
-class _CodeExecutionShortTermMemorySchema(BaseModel):
+class CodeExecutionShortTermMemorySchema(BaseModel):
     container_id: str
     file_paths: dict[str, str] = {}
 
 
 CodeExecutionMemoryManager = PersistentShortMemoryManager[
-    _CodeExecutionShortTermMemorySchema
+    CodeExecutionShortTermMemorySchema
 ]
 
 
-def _get_container_code_execution_short_term_memory_manager(
+def get_container_code_execution_short_term_memory_manager(
     company_id: str, user_id: str, chat_id: str
 ) -> CodeExecutionMemoryManager:
     short_term_memory_service = ShortTermMemoryService(
@@ -29,7 +29,7 @@ def _get_container_code_execution_short_term_memory_manager(
     )
     short_term_memory_manager = PersistentShortMemoryManager(
         short_term_memory_service=short_term_memory_service,
-        short_term_memory_schema=_CodeExecutionShortTermMemorySchema,
-        short_term_memory_name=_SHORT_TERM_MEMORY_NAME,
+        short_term_memory_schema=CodeExecutionShortTermMemorySchema,
+        short_term_memory_name=SHORT_TERM_MEMORY_NAME,
     )
     return short_term_memory_manager

@@ -1,3 +1,6 @@
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder import (
+    CodeInterpreterBuilder,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     OpenAICodeInterpreterConfig,
 )
@@ -12,6 +15,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import
 )
 
 __all__ = [
+    "CodeInterpreterBuilder",
     "OpenAICodeInterpreterConfig",
     "OpenAICodeInterpreterTool",
     "ShowExecutedCodePostprocessor",

@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from openai.types.responses import ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
+
+if TYPE_CHECKING:
+    from unique_toolkit.agentic.tools.tool import Tool
 
 
 class OpenAIBuiltInToolName(StrEnum):
@@ -52,6 +55,18 @@ class OpenAIBuiltInTool(ABC, Generic[ToolType]):
         Default: False.
         """
         return False
+
+    def activator(self) -> "Tool[Any] | None":
+        """Return the activator function tool for a lazy built-in tool.
+
+        If non-None, this built-in is *lazy*: the tool manager advertises the
+        returned function ``Tool`` instead of the built-in spec, and the
+        built-in's resources (e.g. a container) are provisioned only when the
+        activator is called. A lazy built-in must be a non-exclusive
+        capability tool (enforced by ``OpenAIBuiltInToolManager``).
+        Default: None (eager built-in).
+        """
+        return None
 
     def get_required_include_params(self) -> list[ResponseIncludable]:
         """Return Responses API `include` values required by this tool.

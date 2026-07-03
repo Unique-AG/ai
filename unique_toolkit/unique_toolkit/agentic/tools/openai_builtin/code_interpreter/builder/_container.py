@@ -3,15 +3,15 @@ import logging
 from openai import AsyncOpenAI
 
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._memory import (
-    _CodeExecutionShortTermMemorySchema,
+    CodeExecutionShortTermMemorySchema,
 )
 
 logger = logging.getLogger(__name__)
 
 
-async def _check_container_exists(
+async def check_container_exists(
     client: AsyncOpenAI,
-    memory: _CodeExecutionShortTermMemorySchema,
+    memory: CodeExecutionShortTermMemorySchema,
 ) -> bool:
     try:
         container = await client.containers.retrieve(memory.container_id)
@@ -32,7 +32,7 @@ async def _check_container_exists(
     return True
 
 
-async def _create_container(
+async def create_container(
     client: AsyncOpenAI,
     chat_id: str,
     user_id: str,

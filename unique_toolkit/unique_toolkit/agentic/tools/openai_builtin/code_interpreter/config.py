@@ -232,6 +232,15 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=[],
         description="Documents (content_ids) to always upload to the container from the Knowledge Base. Useful for example for templates.",
     )
+    lazy: bool = Field(
+        default=False,
+        description=(
+            "If set, the tool is advertised to the model as a regular function tool "
+            "and the container is only provisioned when the model first calls it. "
+            "Saves container cost/latency when code execution is not used and keeps "
+            "parallel tool calls available until first use."
+        ),
+    )
 
 
 @register_config()
