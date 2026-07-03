@@ -137,6 +137,33 @@ def test_single_file_delete(
 
 @patch("uqadm.kb.rm.Content")
 @patch("uqadm.kb.rm.Folder")
+def test_repeated_file_flag_deletes_once(
+    folder: MagicMock,
+    content: MagicMock,
+) -> None:
+    # The same --file value passed twice must not call Content.delete again.
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+    content.get_infos.return_value = {
+        "contentInfos": [{"id": "c_del", "key": "gone.txt"}],
+        "totalCount": 1,
+    }
+
+    cmd_rm(
+        _cfg(),
+        folder_path="/X",
+        scope_id=None,
+        files=("gone.txt", "gone.txt"),
+        recursive=False,
+        dry_run=False,
+        assume_yes=True,
+    )
+
+    content.delete.assert_called_once()
+    assert content.delete.call_args.kwargs["contentId"] == "c_del"
+
+
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
 def test_file_delete_deletes_all_matching_keys(
     folder: MagicMock,
     content: MagicMock,

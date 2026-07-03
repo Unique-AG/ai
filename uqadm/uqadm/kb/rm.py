@@ -94,6 +94,10 @@ def _rm_files(
     dry_run: bool,
     assume_yes: bool,
 ) -> None:
+    # Repeated --file flags for the same key should not trigger a second delete
+    # attempt (Content.delete would fail on already-removed IDs).
+    files = list(dict.fromkeys(files))
+
     try:
         infos = _list_content_infos(cfg, scope_id)
     except Exception as exc:
