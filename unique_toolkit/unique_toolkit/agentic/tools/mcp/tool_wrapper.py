@@ -392,7 +392,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 user_id=self._event.user_id,
                 company_id=self._event.company_id,
                 name=self.name,
-                messageId=self._chat_service._assistant_message_id,
+                messageId=self._chat_service.assistant_message_id,
                 chatId=self._event.payload.chat_id,
                 arguments=arguments,
             )
