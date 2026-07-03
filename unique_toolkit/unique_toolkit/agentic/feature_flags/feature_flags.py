@@ -1,9 +1,35 @@
+from enum import StrEnum
 from typing import Any
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from unique_toolkit._common.config_checker import register_config
+
+
+class FeatureFlagNames(StrEnum):
+    """Flag name constants used by unique_toolkit's own agentic features.
+
+    Values match both the env-var fallback names (``FeatureFlags`` below) and
+    the configuration-backend registry keys used by
+    ``unique_toolkit.experimental.resources.feature_flags.FeatureFlagClient``.
+    """
+
+    enable_selected_uploaded_files_un_18215 = (
+        "FEATURE_FLAG_ENABLE_SELECTED_UPLOADED_FILES_UN_18215"
+    )
+    enable_mcp_metadata_fallback_un_19145 = (
+        "FEATURE_FLAG_ENABLE_MCP_METADATA_FALLBACK_UN_19145"
+    )
+    enable_html_rendering_un_15131 = "FEATURE_FLAG_ENABLE_HTML_RENDERING_UN_15131"
+    enable_code_execution_fence_un_17972 = (
+        "FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972"
+    )
+    enable_html_with_fence_un_17927 = "FEATURE_FLAG_ENABLE_HTML_WITH_FENCE_UN_17927"
+    enable_web_search_argument_screening_un_18741 = (
+        "FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741"
+    )
+    enable_new_answers_ui_un_14411 = "FEATURE_FLAG_ENABLE_NEW_ANSWERS_UI_UN_14411"
 
 
 class FeatureFlag:

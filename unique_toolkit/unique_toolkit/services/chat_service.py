@@ -22,6 +22,7 @@ from unique_toolkit._common.metadata_filter_scope import (
     merge_scope_clause_into_metadata_filter,
 )
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.message_log_order import next_message_log_order
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
@@ -99,10 +100,7 @@ from unique_toolkit.content.schemas import (
     ContentSearchType,
 )
 from unique_toolkit.elicitation.service import ElicitationService
-from unique_toolkit.experimental.resources.feature_flags import (
-    FeatureFlagNames,
-    is_flag_enabled,
-)
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
