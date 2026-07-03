@@ -6,7 +6,6 @@ from openai import AsyncOpenAI
 
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import (
-    ActivatorTool,
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
@@ -27,7 +26,7 @@ class OpenAIBuiltInToolManager:
     def __init__(
         self,
         builtin_tools: list[OpenAIBuiltInTool[Any]],
-        activator_tools: list[ActivatorTool[Any]] | None = None,
+        activator_tools: list[CodeInterpreterActivatorTool] | None = None,
     ):
         self._builtin_tools = builtin_tools
         self._activator_tools = activator_tools or []
@@ -43,7 +42,7 @@ class OpenAIBuiltInToolManager:
         client: AsyncOpenAI,
         tool_config: ToolBuildConfig,
         force_auto_container: bool = False,
-    ) -> OpenAIBuiltInTool | ActivatorTool:
+    ) -> OpenAIBuiltInTool[Any] | CodeInterpreterActivatorTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
 
@@ -91,7 +90,7 @@ class OpenAIBuiltInToolManager:
         force_auto_container: bool = False,
     ) -> OpenAIBuiltInToolManager:
         builtin_tools: list[OpenAIBuiltInTool[Any]] = []
-        activator_tools: list[ActivatorTool[Any, Any]] = []
+        activator_tools: list[CodeInterpreterActivatorTool] = []
         for tool_config in tool_configs:
             if tool_config.name in OpenAIBuiltInToolName and tool_config.is_enabled:
                 tool = await cls._build_tool(
@@ -104,7 +103,7 @@ class OpenAIBuiltInToolManager:
                     tool_config,
                     force_auto_container,
                 )
-                if isinstance(tool, ActivatorTool):
+                if isinstance(tool, CodeInterpreterActivatorTool):
                     activator_tools.append(tool)
                 else:
                     builtin_tools.append(tool)
@@ -114,5 +113,5 @@ class OpenAIBuiltInToolManager:
     def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool[Any]]:
         return self._builtin_tools.copy()
 
-    def get_activator_tools(self) -> list[ActivatorTool[Any, Any]]:
+    def get_activator_tools(self) -> list[CodeInterpreterActivatorTool]:
         return self._activator_tools.copy()

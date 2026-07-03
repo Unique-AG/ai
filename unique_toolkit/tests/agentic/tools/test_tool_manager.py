@@ -15,9 +15,11 @@ from unique_toolkit.agentic.tools.config import (
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import (
-    ActivatorTool,
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator import (
+    CodeInterpreterActivatorTool,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAIBuiltInToolManager,
@@ -2868,7 +2870,7 @@ def test_responses_manager__surfaces_activator_tool(
     mocker,
 ) -> None:
     """Activator tools from the builtin manager are offered as regular tools."""
-    activator = mocker.Mock(spec=ActivatorTool)
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
     activator.name = "ActivatePython"
     activator.is_enabled.return_value = True
     activator.is_exclusive.return_value = False
@@ -2901,7 +2903,7 @@ def test_activate_deferred_tools__swaps_activator_for_builtin(
 ) -> None:
     """Once activated, the activator is replaced by its provisioned built-in tool."""
     built = mocker.Mock(spec=OpenAIBuiltInTool)
-    activator = mocker.Mock(spec=ActivatorTool)
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
     activator.is_activated = True
     activator.get_activated_tool.return_value = built
 
@@ -2937,7 +2939,7 @@ def test_activate_deferred_tools__is_idempotent(
 ) -> None:
     """Calling activation twice does not add the built-in tool more than once."""
     built = mocker.Mock(spec=OpenAIBuiltInTool)
-    activator = mocker.Mock(spec=ActivatorTool)
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
     activator.is_activated = True
     activator.get_activated_tool.return_value = built
 
@@ -2972,7 +2974,7 @@ def test_activate_deferred_tools__noop_when_not_activated(
     mocker,
 ) -> None:
     """An activator that has not been activated is left untouched."""
-    activator = mocker.Mock(spec=ActivatorTool)
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
     activator.is_activated = False
 
     tm = _make_responses_manager_with_activators(

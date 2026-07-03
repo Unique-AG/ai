@@ -27,9 +27,11 @@ from unique_toolkit.agentic.tools.names import (
     UPLOADED_SEARCH_TOOL_NAME,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import (
-    ActivatorTool,
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator import (
+    CodeInterpreterActivatorTool,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToolManager
 from unique_toolkit.agentic.tools.run_context import ToolRunContext
@@ -502,10 +504,10 @@ class _ToolManager(Generic[_ApiMode]):
     def _activate_deferred_tools(self) -> None:
         """Swap any activated activator for its provisioned built-in tool.
 
-        Runs after tool execution. When an ``ActivatorTool`` has been activated
-        (its ``run`` provisioned the built-in), replace it in the active tool
-        set with the built-in so subsequent loop iterations offer the real tool
-        (e.g. ``code_interpreter``) instead of the activator function.
+        Runs after tool execution. When a ``CodeInterpreterActivatorTool`` has
+        been activated (its ``run`` provisioned the built-in), replace it in the
+        active tool set with the built-in so subsequent loop iterations offer the
+        real ``code_interpreter`` tool instead of the activator function.
 
         Idempotent by construction: the activator is removed from ``_tools``
         once handled, so later passes over ``_tools`` cannot process it again.
@@ -513,7 +515,7 @@ class _ToolManager(Generic[_ApiMode]):
         if self._api_mode != "responses":
             return
         for tool in list(self._tools):
-            if isinstance(tool, ActivatorTool) and tool.is_activated:
+            if isinstance(tool, CodeInterpreterActivatorTool) and tool.is_activated:
                 built_tool = tool.get_activated_tool()
                 self._tools.remove(tool)
                 self._tools.append(built_tool)
