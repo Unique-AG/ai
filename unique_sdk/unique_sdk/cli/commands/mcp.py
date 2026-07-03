@@ -290,13 +290,15 @@ def _render_title_template(template: str, record: dict[str, Any]) -> str | None:
     return rendered or None
 
 
-def _mapped_records(response: Any, list_path: str | None) -> list[dict[str, Any]]:
-    """Locate the record list a reference mapping applies to, preferring the
+def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
+    """Locate the records a reference mapping applies to, preferring the
     MCP-native ``structuredContent`` then any JSON-in-text block (preamble
     tolerant). ``list_path`` (dotted) points at the array; when unset the parsed
-    value itself is used. An empty object/list is ignored (not treated as a
-    record) so the caller can still fall back to ``titleFromText`` / the generic
-    heuristic — e.g. an empty ``structuredContent`` alongside a Markdown doc."""
+    value itself is used. List entries may be objects (field/template titles) or
+    plain strings (text titles), so both are kept; a single object is wrapped.
+    An empty object/list is ignored (not treated as a record) so the caller can
+    still fall back to ``titleFromText`` / the generic heuristic — e.g. an empty
+    ``structuredContent`` alongside a Markdown doc."""
     sources: list[Any] = []
     structured = getattr(response, "structuredContent", None) or getattr(
         response, "structured_content", None
@@ -312,7 +314,7 @@ def _mapped_records(response: Any, list_path: str | None) -> list[dict[str, Any]
     for parsed in sources:
         target = _get_by_dotted_path(parsed, list_path) if list_path else parsed
         if isinstance(target, list):
-            records = [entry for entry in target if isinstance(entry, dict)]
+            records = [entry for entry in target if isinstance(entry, (dict, str))]
             if records:
                 return records
         elif isinstance(target, dict) and target:
@@ -323,17 +325,28 @@ def _mapped_records(response: Any, list_path: str | None) -> list[dict[str, Any]
 _MCP_TEXT_TITLE_DEFAULT_CHARS = 120
 
 
+def _leading_title_line(text: str | None, max_chars: int) -> str | None:
+    """First non-empty line of ``text`` with leading Markdown heading/list
+    markers (``# * - >``) stripped, capped at ``max_chars``. Used to title a
+    plain-text document (or a plain-text list item) by its heading. ``None``
+    when ``text`` is not a non-empty string."""
+    if not isinstance(text, str):
+        return None
+    for line in text.splitlines():
+        stripped = line.strip().lstrip("#*->").strip()
+        if stripped:
+            return stripped[:max_chars]
+    return None
+
+
 def _first_text_title(response: Any, max_chars: int) -> str | None:
     """Title from the first non-empty line of the first text block — for a
-    non-JSON result such as a fetched Markdown document (e.g. ``read_doc``),
-    whose first line is the doc's ``# heading``. Strips leading Markdown
-    heading/list markers and caps the length."""
+    non-JSON result such as a fetched Markdown document (e.g. ``read_doc``)."""
     for block in getattr(response, "content", None) or []:
         if isinstance(block, dict) and block.get("type") == "text":
-            for line in (block.get("text") or "").splitlines():
-                stripped = line.strip().lstrip("#*->").strip()
-                if stripped:
-                    return stripped[:max_chars]
+            title = _leading_title_line(block.get("text"), max_chars)
+            if title:
+                return title
     return None
 
 
@@ -350,6 +363,10 @@ def _extract_with_reference_mapping(
     title_template = mapping.get("titleTemplate") or mapping.get("title_template")
     details_path = mapping.get("detailsPath") or mapping.get("details_path")
     title_from_text = mapping.get("titleFromText") or mapping.get("title_from_text")
+    # When titling from text and the list items are objects, this dotted path
+    # points at the text field within each item (e.g. ``content``); leave unset
+    # when each item is itself a plain string.
+    title_text_path = mapping.get("titleTextPath") or mapping.get("title_text_path")
     try:
         title_max_chars = int(
             mapping.get("titleMaxChars")
@@ -362,16 +379,31 @@ def _extract_with_reference_mapping(
     records = _mapped_records(response, list_path)
     items: list[dict[str, Any]] = []
     for record in records:
-        if title_template:
+        is_dict = isinstance(record, dict)
+        if title_from_text:
+            # Title from the item's text: the item itself when it's a plain
+            # string, else its ``title_text_path`` field.
+            if isinstance(record, str):
+                text = record
+            elif is_dict and title_text_path:
+                text = _get_by_dotted_path(record, title_text_path)
+            else:
+                text = None
+            title = _leading_title_line(text, title_max_chars)
+        elif title_template and is_dict:
             title = _render_title_template(title_template, record)
-        elif title_path:
+        elif title_path and is_dict:
             value = _get_by_dotted_path(record, title_path)
             title = str(value).strip() if isinstance(value, (str, int, float)) else None
         else:
             title = None
         if not title:
             continue
-        details = _get_by_dotted_path(record, details_path) if details_path else None
+        details = (
+            _get_by_dotted_path(record, details_path)
+            if details_path and is_dict
+            else None
+        )
         items.append(
             {
                 "title": title,

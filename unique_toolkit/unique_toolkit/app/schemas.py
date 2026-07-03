@@ -116,7 +116,11 @@ class McpReferenceMapping(BaseModel):
     )
     title_from_text: Optional[bool] = Field(
         default=None,
-        description="For a non-JSON text result (e.g. a fetched Markdown doc), title the single reference from the leading text line instead of the tool name.",
+        description="Title from the leading text line instead of a field/template: for a single plain-text document (e.g. a fetched Markdown doc) or each plain-text item of a list.",
+    )
+    title_text_path: Optional[str] = Field(
+        default=None,
+        description="When titling a list of objects from text, the dotted path to the text field within each item (e.g. 'content'); leave unset when each list item is itself a plain string.",
     )
     title_max_chars: Optional[int] = Field(
         default=None,

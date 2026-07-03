@@ -739,6 +739,61 @@ def test_reference_mapping_title_from_text_for_markdown_doc(tmp_path: Path) -> N
     ]
 
 
+def test_reference_mapping_list_of_plain_strings_titled_from_text(
+    tmp_path: Path,
+) -> None:
+    # A JSON array of plain-text documents: each item's title is its leading
+    # line (Markdown heading markers stripped, capped).
+    unique_dir = tmp_path / ".unique"
+    body = json.dumps({"docs": ["# Alpha Guide\nbody", "## Beta Notes\nmore"]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    record_mcp_citations(
+        response,
+        tool_name="list_docs",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={"listPath": "docs", "titleFromText": True},
+    )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["title"] for r in refs] == ["Alpha Guide", "Beta Notes"]
+
+
+def test_reference_mapping_list_of_objects_titled_from_text_field(
+    tmp_path: Path,
+) -> None:
+    # A JSON array of objects whose title comes from a text body field, with a
+    # separate details field per item.
+    unique_dir = tmp_path / ".unique"
+    body = json.dumps(
+        {
+            "results": [
+                {"content": "# Gamma\nx", "updated": "2026-01-01"},
+                {"content": "Delta\ny", "updated": "2026-02-02"},
+            ]
+        }
+    )
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    record_mcp_citations(
+        response,
+        tool_name="search_text_docs",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={
+            "listPath": "results",
+            "titleFromText": True,
+            "titleTextPath": "content",
+            "detailsPath": "updated",
+        },
+    )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert {r["title"]: r["details"] for r in refs} == {
+        "Gamma": "2026-01-01",
+        "Delta": "2026-02-02",
+    }
+
+
 def test_reference_mapping_falls_back_to_heuristic_when_no_match(
     tmp_path: Path,
 ) -> None:
