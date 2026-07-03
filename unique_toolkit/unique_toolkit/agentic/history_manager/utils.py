@@ -3,13 +3,11 @@ import logging
 from copy import deepcopy
 from typing import Any
 
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.tools.schemas import Source
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.experimental.resources.feature_flags import (
-    FeatureFlagNames,
-    is_flag_enabled,
-)
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelMessage,
