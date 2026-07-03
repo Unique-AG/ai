@@ -1,6 +1,6 @@
 [project]
 name = "unique_orchestrator"
-version = "2026.28.0.dev5"
+version = "2026.28.0"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
