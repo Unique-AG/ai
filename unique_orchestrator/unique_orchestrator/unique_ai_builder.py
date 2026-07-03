@@ -319,11 +319,15 @@ async def _build_common(
         mcp_servers=event.payload.mcp_servers,
         event=event,
         tool_progress_reporter=tool_progress_reporter,
+        chat_service=chat_service,
+        language_model_service=llm_service,
     )
     a2a_manager = A2AManager(
         logger=logger,
         tool_progress_reporter=tool_progress_reporter,
         response_watcher=response_watcher,
+        chat_service=chat_service,
+        language_model_service=llm_service,
     )
 
     tool_manager_config = ToolManagerConfig(
@@ -528,6 +532,8 @@ async def _build_responses(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
+        chat_service=common_components.chat_service,
+        language_model_service=common_components.llm_service,
     )
     if (
         not config.agent.experimental.open_file_tool_config.enabled
@@ -629,6 +635,8 @@ async def _build_completions(
         tool_progress_reporter=common_components.tool_progress_reporter,
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
+        chat_service=common_components.chat_service,
+        language_model_service=common_components.llm_service,
     )
     if force_uploaded_search:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
