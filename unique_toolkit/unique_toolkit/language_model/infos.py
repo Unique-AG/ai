@@ -2737,7 +2737,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                     ],
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=1_000_000, token_limit_output=128_000
+                        token_limit_input=256_000, token_limit_output=128_000
                     ),
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
