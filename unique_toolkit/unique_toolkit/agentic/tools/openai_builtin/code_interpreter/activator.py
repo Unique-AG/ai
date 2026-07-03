@@ -32,7 +32,7 @@ _DEFAULT_TOOL_DESCRIPTION = """
 Use this tool in order to activate the code interpreter tool in this environment, which allows you to execute python code in a secure environment.
 """.strip()
 
-_DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = ""
+_DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = _DEFAULT_TOOL_DESCRIPTION
 
 
 class CodeInterpreterActivatorConfig(BaseToolConfig):
@@ -102,20 +102,11 @@ class CodeInterpreterActivatorTool(Tool[CodeInterpreterActivatorConfig]):
     ) -> list[EvaluationMetricName]:
         return []
 
-    async def _activate(self) -> OpenAICodeInterpreterTool:
-        """Provision the code interpreter via the builder.
-
-        Idempotent and concurrency-safe: parallel activator calls in one
-        batch provision exactly once.
-        """
+    @override
+    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         async with self._activation_lock:
             if self._built_tool is None:
                 self._built_tool = await self._builder.build()
-            return self._built_tool
-
-    @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        await self._activate()
 
         return ToolCallResponse(
             id=tool_call.id,
