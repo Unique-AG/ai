@@ -24,7 +24,6 @@ from unique_toolkit._common.execution import (
     failsafe_async,
 )
 from unique_toolkit._common.utils.jinja.render import render_template
-from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
@@ -41,6 +40,10 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
 from unique_toolkit.content.schemas import (
     Content,
+)
+from unique_toolkit.experimental.resources.feature_flags import (
+    FeatureFlagNames,
+    is_flag_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -434,8 +437,9 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
 
     @override
     def get_required_include_params(self) -> list[ResponseIncludable]:
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
+        if is_flag_enabled(
+            FeatureFlagNames.enable_code_execution_fence_un_17972,
+            company_id=self._company_id or "",
         ):
             return ["code_interpreter_call.outputs"]
         return []

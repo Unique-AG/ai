@@ -21,7 +21,6 @@ from tenacity import (
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
-from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -39,6 +38,10 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
 )
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.experimental.resources.feature_flags import (
+    FeatureFlagNames,
+    is_flag_enabled,
+)
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
@@ -488,8 +491,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._log.info(
             "apply_postprocessing started — %d file(s) in content_map, fence_ff=%s",
             len(self._content_map),
-            feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                self._company_id
+            is_flag_enabled(
+                FeatureFlagNames.enable_code_execution_fence_un_17972,
+                company_id=self._company_id or "",
             ),
         )
 
@@ -500,17 +504,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         ref_number = _get_next_ref_number(loop_response.message.references)
         changed = False
-        fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
+        fence_ff_on = is_flag_enabled(
+            FeatureFlagNames.enable_code_execution_fence_un_17972,
+            company_id=self._company_id or "",
         )
         # HTML uses htmlWithSource only when BOTH the code-execution fence FF AND the
         # dedicated HTML-fence FF are on. Default (FF off) keeps HtmlRendering so
         # existing deployments are unaffected.
-        html_fence_ff_on = (
-            fence_ff_on
-            and feature_flags.enable_html_with_fence_un_17927.is_enabled(
-                self._company_id
-            )
+        html_fence_ff_on = is_flag_enabled(
+            FeatureFlagNames.enable_html_with_fence_un_17927,
+            company_id=self._company_id or "",
         )
 
         replaced_files: list[str] = []
