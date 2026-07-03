@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.26.0...unique-user-memory-v2026.28.0) (2026-07-03)
+
+
+### Features
+
+* **user-memory:** update config user memory ([#1916](https://github.com/Unique-AG/ai/issues/1916)) ([5ff1d46](https://github.com/Unique-AG/ai/commit/5ff1d46a9ebcf32ea58088fa9439c8fec6f7e51b))
+* **user-memory:** update user memory ([#1980](https://github.com/Unique-AG/ai/issues/1980)) ([a461fbc](https://github.com/Unique-AG/ai/commit/a461fbc21344ab9a91d744f9f566daaf135f9235))
+
+
+### Bug Fixes
+
+* **user-memory:** Fix word max user memory ([#1944](https://github.com/Unique-AG/ai/issues/1944)) ([faeb9e2](https://github.com/Unique-AG/ai/commit/faeb9e22074cdfa71565f7dff54b564accbfae3f))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.24.0...unique-user-memory-v2026.26.0) (2026-06-22)
 
 

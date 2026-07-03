@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.26.0...unique-internal-search-v2026.28.0) (2026-07-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **unique_toolkit:** MagicTableEvent no longer subclasses ChatEvent—use AssistantWebhookEvent for the shared envelope; get_initial_debug_info is ChatEvent-only (AttributeError otherwise). MagicTableBasePayload no longer carries stub user_message/assistant_message defaults.
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+* **unique_toolkit:** split ChatEvent and MagicTableEvent webhook types ([#1937](https://github.com/Unique-AG/ai/issues/1937)) ([ec75cda](https://github.com/Unique-AG/ai/commit/ec75cda5b3d79c74342f468ed3a9c61a639c76d9))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-internal-search-v2026.24.0...unique-internal-search-v2026.26.0) (2026-06-22)
 
 
