@@ -232,23 +232,29 @@ class _ToolManager(Generic[_ApiMode]):
                     t.name,
                 )
                 continue
-            build_kwargs: dict[str, object] = {
-                "tool_progress_reporter": self._tool_progress_reporter,
-            }
             if (
                 self._chat_service is not None
                 and self._language_model_service is not None
             ):
-                build_kwargs["chat_service"] = self._chat_service
-                build_kwargs["language_model_service"] = self._language_model_service
-            result = safe_executor.execute(
-                ToolFactory.build_tool_with_settings,
-                t.name,
-                t,
-                t.configuration,
-                tool_init_event,
-                **build_kwargs,
-            )
+                result = safe_executor.execute(
+                    ToolFactory.build_tool_with_settings,
+                    t.name,
+                    t,
+                    t.configuration,
+                    tool_init_event,
+                    tool_progress_reporter=self._tool_progress_reporter,
+                    chat_service=self._chat_service,
+                    language_model_service=self._language_model_service,
+                )
+            else:
+                result = safe_executor.execute(
+                    ToolFactory.build_tool_with_settings,
+                    t.name,
+                    t,
+                    t.configuration,
+                    tool_init_event,
+                    tool_progress_reporter=self._tool_progress_reporter,
+                )
             if result.success:
                 self._internal_tools.append(result.unpack())
             else:
@@ -735,6 +741,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         a2a_manager: A2AManager,
         api_mode: Literal["completions"] = "completions",
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> Self:
         return super().from_run_context(
             logger=logger,
@@ -745,6 +753,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
 
 
@@ -787,6 +797,8 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         a2a_manager: A2AManager,
         api_mode: Literal["responses"] = "responses",
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> Self:
         if builtin_tool_manager is None:
             msg = "builtin_tool_manager is required for ResponsesApiToolManager"
@@ -800,6 +812,8 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
 
     def get_required_include_params(self) -> list[ResponseIncludable]:

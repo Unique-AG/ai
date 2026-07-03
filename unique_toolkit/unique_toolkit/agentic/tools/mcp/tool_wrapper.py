@@ -45,13 +45,16 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         language_model_service: LanguageModelService | None = None,
     ) -> None:
         self.name = mcp_tool.name
-        init_kwargs: dict[str, object] = {
-            "tool_progress_reporter": tool_progress_reporter,
-        }
         if chat_service is not None and language_model_service is not None:
-            init_kwargs["chat_service"] = chat_service
-            init_kwargs["language_model_service"] = language_model_service
-        super().__init__(config, event, **init_kwargs)
+            super().__init__(
+                config,
+                event,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            super().__init__(config, event, tool_progress_reporter)
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 

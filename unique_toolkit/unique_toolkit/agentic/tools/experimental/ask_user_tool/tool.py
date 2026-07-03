@@ -13,12 +13,14 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
 from unique_toolkit.elicitation import (
     ElicitationCancelledException,
     ElicitationDeclinedException,
     ElicitationExpiredException,
     ElicitationMode,
 )
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -44,10 +46,24 @@ class AskUserTool(Tool[AskUserToolConfig]):
         config: AskUserToolConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(
-            config=config, event=event, tool_progress_reporter=tool_progress_reporter
-        )
+        if chat_service is not None and language_model_service is not None:
+            super().__init__(
+                config=config,
+                event=event,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            super().__init__(
+                config=config,
+                event=event,
+                tool_progress_reporter=tool_progress_reporter,
+            )
         self._lock = asyncio.Lock()
 
     @override

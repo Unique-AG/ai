@@ -76,13 +76,16 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         chat_service: ChatService | None = None,
         language_model_service: LanguageModelService | None = None,
     ) -> None:
-        init_kwargs: dict[str, object] = {
-            "tool_progress_reporter": tool_progress_reporter,
-        }
         if chat_service is not None and language_model_service is not None:
-            init_kwargs["chat_service"] = chat_service
-            init_kwargs["language_model_service"] = language_model_service
-        super().__init__(configuration, event, **init_kwargs)
+            super().__init__(
+                configuration,
+                event,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            super().__init__(configuration, event, tool_progress_reporter)
         self._user_id = event.user_id
         self._company_id = event.company_id
 

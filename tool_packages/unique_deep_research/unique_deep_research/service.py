@@ -28,6 +28,7 @@ from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.schemas import (
@@ -38,10 +39,11 @@ from unique_toolkit.chat.schemas import (
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
-from unique_toolkit.chat.service import LanguageModelToolDescription
+from unique_toolkit.chat.service import ChatService, LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -107,9 +109,21 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self,
         configuration: DeepResearchToolConfig,
         event: ChatEvent,
-        tool_progress_reporter,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ):
-        super().__init__(configuration, event, tool_progress_reporter)
+        if chat_service is not None and language_model_service is not None:
+            super().__init__(
+                configuration,
+                event,
+                tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            super().__init__(configuration, event, tool_progress_reporter)
         self.chat_id = event.payload.chat_id
         self.company_id = event.company_id
         self.user_id = event.user_id

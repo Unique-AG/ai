@@ -54,22 +54,27 @@ class MCPManager:
                         server_user_prompt=server.user_prompt,
                         mcp_source_id=server.id,
                     )
-                    wrapper_kwargs: dict[str, object] = {
-                        "mcp_server": server,
-                        "mcp_tool": tool,
-                        "config": config,
-                        "event": self._event,
-                        "tool_progress_reporter": self._tool_progress_reporter,
-                    }
                     if (
                         self._chat_service is not None
                         and self._language_model_service is not None
                     ):
-                        wrapper_kwargs["chat_service"] = self._chat_service
-                        wrapper_kwargs["language_model_service"] = (
-                            self._language_model_service
+                        wrapper = MCPToolWrapper(
+                            mcp_server=server,
+                            mcp_tool=tool,
+                            config=config,
+                            event=self._event,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                            chat_service=self._chat_service,
+                            language_model_service=self._language_model_service,
                         )
-                    wrapper = MCPToolWrapper(**wrapper_kwargs)
+                    else:
+                        wrapper = MCPToolWrapper(
+                            mcp_server=server,
+                            mcp_tool=tool,
+                            config=config,
+                            event=self._event,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                        )
                     wrapper.settings = ToolBuildConfig(  # TODO: this must be refactored to behave like the other tools.
                         name=tool.name,
                         configuration=config,

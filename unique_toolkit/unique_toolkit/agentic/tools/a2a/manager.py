@@ -52,23 +52,33 @@ class A2AManager:
             sub_agent_tool_config = tool_config.configuration
 
             try:
-                sub_agent_kwargs: dict[str, object] = {
-                    "configuration": sub_agent_tool_config,
-                    "event": event,
-                    "tool_progress_reporter": self._tool_progress_reporter,
-                    "name": tool_config.name,
-                    "display_name": tool_config.display_name,
-                    "response_watcher": self._response_watcher,
-                }
                 if (
                     self._chat_service is not None
                     and self._language_model_service is not None
                 ):
-                    sub_agent_kwargs["chat_service"] = self._chat_service
-                    sub_agent_kwargs["language_model_service"] = (
-                        self._language_model_service
+                    sub_agents.append(
+                        SubAgentTool(
+                            configuration=sub_agent_tool_config,
+                            event=event,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                            name=tool_config.name,
+                            display_name=tool_config.display_name,
+                            response_watcher=self._response_watcher,
+                            chat_service=self._chat_service,
+                            language_model_service=self._language_model_service,
+                        )
                     )
-                sub_agents.append(SubAgentTool(**sub_agent_kwargs))
+                else:
+                    sub_agents.append(
+                        SubAgentTool(
+                            configuration=sub_agent_tool_config,
+                            event=event,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                            name=tool_config.name,
+                            display_name=tool_config.display_name,
+                            response_watcher=self._response_watcher,
+                        )
+                    )
             except Exception:
                 self._logger.warning(
                     "Skipping sub-agent '%s' due to initialization failure.",
