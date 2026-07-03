@@ -19,6 +19,7 @@ from unique_toolkit._common.referencing import (
 )
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
@@ -50,10 +51,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk, ContentReference
-from unique_toolkit.experimental.resources.feature_flags import (
-    FeatureFlagNames,
-    is_flag_enabled,
-)
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 from unique_toolkit.language_model import (
     LanguageModelFunction,
     LanguageModelToolDescription,
