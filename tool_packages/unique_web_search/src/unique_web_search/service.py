@@ -10,6 +10,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags.feature_flags import (
     feature_flags,
 )
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
@@ -77,25 +78,23 @@ class WebSearchTool(Tool[WebSearchConfig]):
             language_model_orchestrator or configuration.token_counting_language_model
         )
         self._display_name = kwargs.get("display_name", "Web Search")
-        if hasattr(self, "_chat_service"):
-            self._initialize_search_dependencies()
 
-    def _initialize_search_dependencies(self) -> None:
+    def _initialize_search_dependencies(self, ctx: ToolExecutionContext) -> None:
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
-            self._language_model_service,
+            ctx.language_model_service,
         )
         self.crawler_service = get_crawler_service(self.config.crawler_config)
         self.chunk_relevancy_sorter = ChunkRelevancySorter(
-            company_id=self._chat_service._company_id,
-            user_id=self._chat_service._user_id,
+            company_id=ctx.chat_service._company_id,
+            user_id=ctx.chat_service._user_id,
         )
-        self.company_id = self._chat_service._company_id
+        self.company_id = ctx.chat_service._company_id
         self.chat_history_token_length = 0
-        self.chat_history_chat_messages = self._chat_service.get_full_history()
+        self.chat_history_chat_messages = ctx.chat_service.get_full_history()
 
         self.content_processor = ContentProcessor(
-            language_model_service=self._language_model_service,
+            language_model_service=ctx.language_model_service,
             config=self.config.content_processor_config,
             encoder=self.language_model_orchestrator.get_encoder(),
             decoder=self.language_model_orchestrator.get_decoder(),
@@ -116,7 +115,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     def _resolve_search_engine_mode(self) -> SearchEngineMode:
         """Derive the search-engine mode, respecting CustomAPI overrides."""
-        cfg = self.search_engine_service.config
+        cfg = self.config.search_engine_config
         override = cfg.search_engine_mode if isinstance(cfg, CustomAPIConfig) else None
         return get_search_engine_mode(cfg.engine, override=override)
 
@@ -196,27 +195,32 @@ class WebSearchTool(Tool[WebSearchConfig]):
         return self.config.evaluation_check_list
 
     @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         _LOGGER.info("Running the WebSearch tool")
+        self._initialize_search_dependencies(ctx)
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
         )
 
-        screening_service = await self._get_argument_screening_service_if_ff_enabled()
+        screening_service = await self._get_argument_screening_service_if_ff_enabled(
+            ctx
+        )
 
         parameters_dump = parameters.model_dump()
         debug_info = WebSearchDebugInfo(parameters=parameters_dump)
 
         web_search_message_logger = WebSearchMessageLogger(
-            message_step_logger=self._message_step_logger,
+            message_step_logger=ctx.message_step_logger,
             tool_display_name=self._build_display_name(parameters),
         )
         executor = self._get_executor(
-            tool_call, parameters, debug_info, web_search_message_logger
+            tool_call, parameters, debug_info, web_search_message_logger, ctx
         )
 
-        notify_from_tool_call = self._ff_tool_progress_reporter_callback()
+        notify_from_tool_call = self._ff_tool_progress_reporter_callback(ctx)
         executor_version = self.config.web_search_mode_config.mode.value
 
         try:
@@ -295,10 +299,11 @@ class WebSearchTool(Tool[WebSearchConfig]):
         parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
         debug_info: WebSearchDebugInfo,
         web_search_message_logger: WebSearchMessageLogger,
+        ctx: ToolExecutionContext,
     ) -> WebSearchV1Executor | WebSearchV2Executor | WebSearchV3Executor:
         # Initialize query elicitation service and get callbacks
         elicitation_service = QueryElicitationService(
-            chat_service=self._chat_service,
+            chat_service=ctx.chat_service,
             display_name=self.display_name(),
             config=self.config.query_elicitation_config,
         )
@@ -308,7 +313,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             search_engine_service=self.search_engine_service,
             crawler_service=self.crawler_service,
             content_processor=self.content_processor,
-            language_model_service=self._language_model_service,
+            language_model_service=ctx.language_model_service,
             chunk_relevancy_sorter=self.chunk_relevancy_sorter,
         )
 
@@ -322,7 +327,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             message_log_callback=web_search_message_logger,
             content_reducer=self.content_reducer,
             query_elicitation=elicitation_service,
-            tool_progress_reporter=self._ff_tool_progress_reporter(),
+            tool_progress_reporter=self._ff_tool_progress_reporter(ctx),
         )
 
         search_config = self.config.web_search_mode_config
@@ -376,6 +381,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     async def _get_argument_screening_service_if_ff_enabled(
         self,
+        ctx: ToolExecutionContext,
     ) -> ArgumentScreeningService | None:
         if not feature_flags.enable_web_search_argument_screening_un_18741.is_enabled(
             self.company_id
@@ -386,17 +392,17 @@ class WebSearchTool(Tool[WebSearchConfig]):
             self.config.experimental_features.argument_screening_config
         )
         return ArgumentScreeningService(
-            language_model_service=self._language_model_service,
+            language_model_service=ctx.language_model_service,
             language_model=argument_screening_config.language_model,
             config=argument_screening_config,
         )
 
-    def _ff_tool_progress_reporter(self):
+    def _ff_tool_progress_reporter(self, ctx: ToolExecutionContext):
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
-            return self.tool_progress_reporter
+            return ctx.tool_progress_reporter
         return None
 
-    def _ff_tool_progress_reporter_callback(self):
+    def _ff_tool_progress_reporter_callback(self, ctx: ToolExecutionContext):
         async def notify_from_tool_call(
             tool_call: LanguageModelFunction,
             name: str,
@@ -407,9 +413,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
                     self.company_id
                 )
-                and self.tool_progress_reporter is not None
+                and ctx.tool_progress_reporter is not None
             ):
-                await self.tool_progress_reporter.notify_from_tool_call(
+                await ctx.tool_progress_reporter.notify_from_tool_call(
                     tool_call, name, message, state
                 )
 

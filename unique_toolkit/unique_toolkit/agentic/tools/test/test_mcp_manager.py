@@ -168,13 +168,9 @@ class TestMCPManager:
         return [internal_tool_config]
 
     @pytest.fixture
-    def mcp_manager(self, mcp_servers, tool_progress_reporter):
+    def mcp_manager(self, mcp_servers):
         """Create MCP manager fixture"""
-        return MCPManager(
-            mcp_servers=mcp_servers,
-            event=self.event,
-            tool_progress_reporter=tool_progress_reporter,
-        )
+        return MCPManager(mcp_servers=mcp_servers)
 
     @pytest.fixture
     def a2a_manager(self, tool_progress_reporter):

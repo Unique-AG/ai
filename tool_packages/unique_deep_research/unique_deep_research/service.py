@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import traceback
-from typing import TYPE_CHECKING, Any, Optional, overload
+from typing import TYPE_CHECKING, Any, Optional
 
 from httpx import AsyncClient
 from langchain_core.messages import HumanMessage
@@ -20,20 +20,17 @@ from openai.types.responses.response_output_text import (
     AnnotationURLCitation,
 )
 from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import deprecated, override
+from typing_extensions import override
 from unique_toolkit._common.execution import safe_execute_async
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.factory import ToolFactory
-from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
@@ -45,7 +42,6 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.content.service import ContentService
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -112,73 +108,39 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
     name = "DeepResearch"
 
-    @overload
-    def __init__(
-        self,
-        configuration: DeepResearchToolConfig,
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        event: ChatEvent | None = ...,
-        content_service: ContentService | None = ...,
-    ) -> None: ...
-
-    @overload
-    @deprecated(
-        "Passing event is deprecated. Inject chat_service and language_model_service."
-    )
-    def __init__(
-        self,
-        configuration: DeepResearchToolConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None,
-    ) -> None: ...
+    _ctx: ToolExecutionContext
 
     def __init__(
         self,
         configuration: DeepResearchToolConfig,
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
-        content_service: ContentService | None = None,
-        run_context: ToolRunContext | None = None,
-    ):
-        resolved = resolve_tool_services(
-            event=event,
-            run_context=run_context,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-            content_service=content_service,
-        )
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(configuration, *args, **kwargs)
 
-        super().__init__(
-            configuration,
-            tool_progress_reporter=tool_progress_reporter,
-            chat_service=resolved.chat_service,
-            language_model_service=resolved.language_model_service,
-            event=resolved.event,
-            content_service=resolved.content_service,
-        )
-        self._run_context = resolved.run_context
-        self._initialize_runtime()
+    @property
+    def chat_service(self) -> "ChatService":
+        return self._ctx.chat_service
+
+    @property
+    def language_model_service(self) -> "LanguageModelService":
+        return self._ctx.language_model_service
 
     @property
     def _assistant_message_id(self) -> str:
-        return self._chat_service._assistant_message_id
+        return self.chat_service._assistant_message_id
 
-    def _initialize_runtime(self) -> None:
-        self.chat_id = self._chat_service._chat_id
-        self.company_id = self._chat_service._company_id
-        self.user_id = self._chat_service._user_id
+    def _initialize_runtime(self, ctx: ToolExecutionContext) -> None:
+        self._ctx = ctx
+        self.chat_id = self.chat_service._chat_id
+        self.company_id = self.chat_service._company_id
+        self.user_id = self.chat_service._user_id
 
         self.client = get_async_openai_client(
             additional_headers={
                 "x-company-id": self.company_id,
                 "x-user-id": self.user_id,
-                "x-assistant-id": self._chat_service._assistant_id,
+                "x-assistant-id": self.chat_service._assistant_id,
                 "x-chat-id": self.chat_id,
             }
         )
@@ -196,7 +158,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             short_term_memory_name="deep_research:followup_question_message_id",
         )
         self.env = TEMPLATE_ENV
-        self.execution_id = self._run_context.message_execution_id
+        self.execution_id = ctx.message_execution_id
 
     def takes_control(self) -> bool:
         """
@@ -300,7 +262,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             content="Research was stopped.",
         )
 
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
+        self._initialize_runtime(ctx)
         sub = self.chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
         )
@@ -447,12 +412,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         debug_info_event = {
             "tools": tools,
             "assistant": {
-                "id": self._chat_service._assistant_id,
-                "name": self._run_context.module_name,
+                "id": self.chat_service._assistant_id,
+                "name": self._ctx.module_name,
             },
-            "chosenModule": self._run_context.module_name,
-            "userMetadata": self._run_context.user_metadata,
-            "toolParameters": self._run_context.tool_parameters,
+            "chosenModule": self._ctx.module_name,
+            "userMetadata": self._ctx.user_metadata,
+            "toolParameters": self._ctx.tool_parameters,
         }
         return debug_info_event
 
@@ -529,7 +494,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         additional_openai_proxy_headers = {
             "x-company-id": self.company_id,
             "x-user-id": self.user_id,
-            "x-assistant-id": self._chat_service._assistant_id,
+            "x-assistant-id": self.chat_service._assistant_id,
             "x-chat-id": self.chat_id,
         }
 
@@ -539,7 +504,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "language_model_service": self.language_model_service,
                 "openai_client": self.client,
                 "chat_service": self.chat_service,
-                "content_service": self._content_service,
+                "content_service": self._ctx.content_service,
                 "message_id": self._assistant_message_id,
                 "citation_manager": citation_manager,
                 "additional_openai_proxy_headers": additional_openai_proxy_headers,
@@ -570,7 +535,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 report=processed_result,
                 references=references,
                 config=self.config.engine.report_export,
-                content_service=self._content_service,
+                content_service=self._ctx.content_service,
                 chat_service=self.chat_service,
             )
             if docx_result.success:
@@ -877,11 +842,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         """
         Get the user's request.
         """
-        return (
-            self._chat_service._user_message_text
-            or self._run_context.user_message_text
-            or ""
-        )
+        return self.chat_service._user_message_text or self._ctx.user_message_text or ""
 
     async def clarify_user_request(self) -> str:
         """

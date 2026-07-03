@@ -2,25 +2,21 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from logging import getLogger
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING
 
-from typing_extensions import deprecated, override
+from typing_extensions import override
 from unique_quartr.service import QuartrService
 from unique_toolkit import ShortTermMemoryService
 from unique_toolkit._common.docx_generator import DocxGeneratorService
 from unique_toolkit._common.experimental.endpoint_requestor import RequestorType
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.factory import ToolFactory
-from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import (
     EvaluationMetricName,
     Tool,
 )
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.content.service import ContentService
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.service import LanguageModelService
@@ -62,80 +58,47 @@ _LOGGER = getLogger(__name__)
 class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
     name = "SwotAnalysis"
 
-    @overload
-    def __init__(
-        self,
-        configuration: SwotAnalysisToolConfig,
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        event: ChatEvent | None = ...,
-        content_service: ContentService | None = ...,
-    ) -> None: ...
-
-    @overload
-    @deprecated(
-        "Passing event is deprecated. Inject chat_service and language_model_service."
-    )
-    def __init__(
-        self,
-        configuration: SwotAnalysisToolConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-    ) -> None: ...
+    _ctx: ToolExecutionContext
 
     def __init__(
         self,
         configuration: SwotAnalysisToolConfig,
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
-        content_service: ContentService | None = None,
-        run_context: ToolRunContext | None = None,
-    ):
-        resolved = resolve_tool_services(
-            event=event,
-            run_context=run_context,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-            content_service=content_service,
-        )
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(configuration, *args, **kwargs)
 
-        super().__init__(
-            configuration,
-            tool_progress_reporter=tool_progress_reporter,
-            chat_service=resolved.chat_service,
-            language_model_service=resolved.language_model_service,
-            event=resolved.event,
-            content_service=resolved.content_service,
-        )
-        self._run_context = resolved.run_context
-        self._initialize_runtime_state()
+    @property
+    def chat_service(self) -> "ChatService":
+        return self._ctx.chat_service
 
-    def _initialize_runtime_state(self) -> None:
-        content_service = getattr(self, "_content_service", None)
+    @property
+    def language_model_service(self) -> "LanguageModelService":
+        return self._ctx.language_model_service
+
+    def _initialize_runtime_state(self, ctx: ToolExecutionContext) -> None:
+        self._ctx = ctx
         content_metadata_filter = (
-            content_service._metadata_filter if content_service is not None else None
+            ctx.content_service._metadata_filter
+            if ctx.content_service is not None
+            else None
         )
         self._metadata_filter = (
             content_metadata_filter
             if content_metadata_filter is not None
-            else self._run_context.metadata_filter
+            else ctx.metadata_filter
         )
 
         self._knowledge_base_service = KnowledgeBaseService(
-            company_id=self._chat_service._company_id,
-            user_id=self._chat_service._user_id,
+            company_id=self.chat_service._company_id,
+            user_id=self.chat_service._user_id,
             metadata_filter=self._metadata_filter,
         )
 
         self._short_term_memory_service = ShortTermMemoryService(
-            company_id=self._chat_service._company_id,
-            user_id=self._chat_service._user_id,
-            chat_id=self._chat_service._chat_id,
+            company_id=self.chat_service._company_id,
+            user_id=self.chat_service._user_id,
+            chat_id=self.chat_service._chat_id,
             message_id=None,
         )
 
@@ -154,7 +117,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return file_content
 
     def _try_load_session_config(self):
-        session_config_raw = self._run_context.session_config
+        session_config_raw = self._ctx.session_config
         if session_config_raw is None:
             return None
         try:
@@ -192,10 +155,13 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return self.config.tool_format_reminder_for_user_prompt
 
     @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
+        self._initialize_runtime_state(ctx)
         session_config = self._try_load_session_config()
         if not session_config:
-            await self._chat_service.modify_assistant_message_async(
+            await self.chat_service.modify_assistant_message_async(
                 content="Please make sure to provide the mandatory fields in the SWOT Analysis side bar configuration.",
                 set_completed_at=True,
             )
@@ -262,7 +228,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 reporting_agent=reporting_agent,
                 memory_service=memory_service,
                 source_registry=content_chunk_registry,
-                chat_service=self._chat_service,
+                chat_service=self.chat_service,
                 progress_notifier=progress_notifier,
             )
 
@@ -271,7 +237,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
             if result.is_empty():
                 await progress_notifier.finish()
-                await self._chat_service.modify_assistant_message_async(
+                await self.chat_service.modify_assistant_message_async(
                     content=f"No SWOT analysis results found for the {company_name} with the selected sources. Please make sure to select the correct sources and try again.",
                     set_completed_at=True,
                 )
@@ -324,7 +290,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         except Exception as e:
             await progress_notifier.finish(failed=True)
 
-            await self._chat_service.modify_assistant_message_async(
+            await self.chat_service.modify_assistant_message_async(
                 content=f"Error running SWOT Analysis for {company_name}: {e}",
             )
             _LOGGER.exception(f"Error running SWOT plan: {e}")
@@ -336,7 +302,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
         finally:
-            await self._chat_service.modify_assistant_message_async(
+            await self.chat_service.modify_assistant_message_async(
                 set_completed_at=True,
             )
 
@@ -406,20 +372,20 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         return SourceCollectionManager(
             context=collection_context,
             knowledge_base_service=knowledge_base_service,
-            quartr_service=self._get_quartr_service(self._chat_service._company_id),
+            quartr_service=self._get_quartr_service(self.chat_service._company_id),
             earnings_call_docx_generator_service=earnings_call_docx_generator_service,
         )
 
     def _get_source_selector(self) -> SourceSelectionAgent:
         return SourceSelectionAgent(
-            llm_service=self._language_model_service,
+            llm_service=self.language_model_service,
             llm=self.config.language_model,
             source_selection_config=self.config.source_management_config.source_selection_config,
         )
 
     def _get_source_iterator(self) -> SourceIterationAgent:
         return SourceIterationAgent(
-            llm_service=self._language_model_service,
+            llm_service=self.language_model_service,
             llm=self.config.language_model,
             source_iteration_config=self.config.source_management_config.source_iteration_config,
         )
@@ -450,7 +416,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             ),
         )
         return ReportDeliveryService(
-            chat_service=self._chat_service,
+            chat_service=self.chat_service,
             docx_renderer=report_docx_renderer,
             citation_manager=citation_manager,
             renderer_config=report_renderer_config,
@@ -458,7 +424,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
 
     def _get_step_notifier(self) -> StepNotifier:
         return StepNotifier(
-            chat_service=self._chat_service,
+            chat_service=self.chat_service,
         )
 
     def _get_reporting_agent(self, *, company_name: str) -> GenerationAgent:
@@ -468,7 +434,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
         )
         return GenerationAgent(
             llm=self.config.report_generation_config.language_model,
-            llm_service=self._language_model_service,
+            llm_service=self.language_model_service,
             registry=SWOTReportRegistry(),
             company_name=company_name,
             executor=executor,
@@ -479,13 +445,13 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
     def _get_summarization_agent(self) -> SummarizationAgent:
         return SummarizationAgent(
             llm=self.config.report_summarization_config.language_model,
-            llm_service=self._language_model_service,
+            llm_service=self.language_model_service,
             summarization_config=self.config.report_summarization_config,
         )
 
     def _get_progress_notifier(self, *, company_name: str) -> ProgressNotifier:
         return ProgressNotifier(
-            chat_service=self._chat_service,
+            chat_service=self.chat_service,
             company_name=company_name,
         )
 

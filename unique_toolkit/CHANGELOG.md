@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Breaking Changes
+
+* **toolkit:** `Tool.run()` now requires a per-turn `ToolExecutionContext` as its second argument. Constructor injection of `chat_service`, `language_model_service`, and `tool_progress_reporter` is removed; use `Tool(config)` and read services from `ctx` inside `run()` / `prepare()`. `ToolRunContext` and `resolve_tool_services` are removed — `ToolManager.from_execution_context()` builds the shared context instead.
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.24.0...unique-toolkit-v2026.26.0) (2026-06-22)
 
 

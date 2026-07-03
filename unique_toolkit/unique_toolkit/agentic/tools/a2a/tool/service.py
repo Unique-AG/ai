@@ -4,11 +4,10 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import overload, override
+from typing import override
 
 import unique_sdk
 from pydantic import Field, TypeAdapter, create_model
-from typing_extensions import deprecated
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
@@ -21,6 +20,9 @@ from unique_toolkit._common.referencing import (
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -34,15 +36,11 @@ from unique_toolkit.agentic.tools.a2a.tool.config import (
     SubAgentToolConfig,
     SystemReminderConfigType,
 )
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
-from unique_toolkit.app import ChatEvent
+from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
     ChatMessageAssessmentStatus,
@@ -50,11 +48,9 @@ from unique_toolkit.chat.schemas import (
     MessageLog,
     MessageLogStatus,
 )
-from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
     LanguageModelFunction,
-    LanguageModelService,
     LanguageModelToolDescription,
 )
 
@@ -66,70 +62,18 @@ _ContentChunkList = TypeAdapter(list[ContentChunk])
 class SubAgentTool(Tool[SubAgentToolConfig]):
     name: str = "SubAgentTool"
 
-    @overload
     def __init__(
         self,
         configuration: SubAgentToolConfig,
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        name: str = ...,
-        display_name: str = ...,
-        response_watcher: SubAgentResponseWatcher | None = ...,
-    ) -> None: ...
-
-    @overload
-    @deprecated(
-        "Passing event is deprecated. Inject chat_service and language_model_service."
-    )
-    def __init__(
-        self,
-        configuration: SubAgentToolConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        name: str = ...,
-        display_name: str = ...,
-        response_watcher: SubAgentResponseWatcher | None = ...,
-    ) -> None: ...
-
-    def __init__(
-        self,
-        configuration: SubAgentToolConfig,
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
+        *args,
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
+        **kwargs,
     ) -> None:
-        resolved = resolve_tool_services(
-            event=event,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-        )
-        super().__init__(
-            configuration,
-            tool_progress_reporter=tool_progress_reporter,
-            chat_service=resolved.chat_service,
-            language_model_service=resolved.language_model_service,
-            event=resolved.event,
-        )
-        self._user_id = resolved.chat_service._user_id
-        self._company_id = resolved.chat_service._company_id
-        chat_id = resolved.chat_service._chat_id
-
+        super().__init__(configuration, *args, **kwargs)
         self.name = name
         self._display_name = display_name
-
-        self._short_term_memory_manager = get_sub_agent_short_term_memory_manager(
-            company_id=self._company_id,
-            user_id=self._user_id,
-            chat_id=chat_id,
-            assistant_id=self.config.assistant_id,
-        )
         self._should_run_evaluation = False
 
         self._response_watcher = response_watcher
@@ -137,6 +81,16 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         # Synchronization state
         self._sequence_number = 1
         self._lock = asyncio.Lock()
+
+    def _get_short_term_memory_manager(
+        self, ctx: ToolExecutionContext
+    ) -> PersistentShortMemoryManager[SubAgentShortTermMemorySchema]:
+        return get_sub_agent_short_term_memory_manager(
+            company_id=ctx.chat_service._company_id,
+            user_id=ctx.chat_service._user_id,
+            chat_id=ctx.chat_service._chat_id,
+            assistant_id=self.config.assistant_id,
+        )
 
     @staticmethod
     def get_sub_agent_reference_format(
@@ -209,8 +163,13 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         return []
 
     @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self,
+        tool_call: LanguageModelFunction,
+        ctx: ToolExecutionContext,
+    ) -> ToolCallResponse:
         active_message_log: MessageLog | None = None
+        short_term_memory_manager = self._get_short_term_memory_manager(ctx)
 
         try:
             if self.config.tool_input_json_schema:
@@ -224,12 +183,14 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
             if self._lock.locked():
                 await self._notify_progress(
+                    ctx,
                     tool_call=tool_call,
                     message=f"Waiting for another run of `{self.display_name()}` to finish",
                     state=ProgressState.STARTED,
                 )
 
                 active_message_log = self._create_or_update_message_log(
+                    ctx,
                     progress_message="_Waiting for another run of this sub agent to finish_",
                     active_message_log=active_message_log,
                 )
@@ -243,20 +204,23 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 self._sequence_number += 1
 
                 await self._notify_progress(
+                    ctx,
                     tool_call=tool_call,
                     message=tool_input,
                     state=ProgressState.RUNNING,
                 )
 
                 active_message_log = self._create_or_update_message_log(
+                    ctx,
                     progress_message=f"<em>Executing sub agent with input: {tool_input}</em>",
                     active_message_log=active_message_log,
                 )
 
                 # Check if there is a saved chat id in short term memory
-                chat_id = await self._get_chat_id()
+                chat_id = await self._get_chat_id(short_term_memory_manager)
 
                 response = await self._execute_and_handle_timeout(
+                    ctx,
                     tool_user_message=tool_input,
                     chat_id=chat_id,
                     tool_call=tool_call,
@@ -272,7 +236,9 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 self._notify_watcher(response, sequence_number, timestamp)
 
                 if chat_id is None:
-                    await self._save_chat_id(response["chatId"])
+                    await self._save_chat_id(
+                        short_term_memory_manager, response["chatId"]
+                    )
 
                 if response["text"] is None:
                     raise ValueError("No response returned from sub agent")
@@ -313,6 +279,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     )
 
                 await self._notify_progress(
+                    ctx,
                     tool_call=tool_call,
                     message=tool_input,
                     state=ProgressState.FINISHED,
@@ -320,13 +287,14 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
                 # Update message log entry to completed
                 active_message_log = self._create_or_update_message_log(
+                    ctx,
                     progress_message=f"<em>Completed sub agent with input: {tool_input}</em>",
                     status=MessageLogStatus.COMPLETED,
                     active_message_log=active_message_log,
                 )
 
                 if self.config.passthrough_config.enabled:
-                    await self._display_sub_agent_response(response)
+                    await self._display_sub_agent_response(ctx, response)
 
                 return ToolCallResponse(
                     id=tool_call.id,
@@ -347,30 +315,35 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise e
         except Exception as e:
             await self._notify_progress(
+                ctx,
                 tool_call=tool_call,
                 message="Error while running sub agent",
                 state=ProgressState.FAILED,
             )
             active_message_log = self._create_or_update_message_log(
+                ctx,
                 progress_message="_Error while running sub agent_",
                 status=MessageLogStatus.FAILED,
                 active_message_log=active_message_log,
             )
             raise e
 
-    async def _display_sub_agent_response(self, response: Space.Message) -> None:
-        await self._publish_sub_agent_response(response, set_completed_at=True)
+    async def _display_sub_agent_response(
+        self, ctx: ToolExecutionContext, response: Space.Message
+    ) -> None:
+        await self._publish_sub_agent_response(ctx, response, set_completed_at=True)
 
         if self.config.passthrough_config.include_assessments:
-            await self._forward_sub_agent_assessments(response["assessment"] or [])
+            await self._forward_sub_agent_assessments(ctx, response["assessment"] or [])
 
     async def _publish_sub_agent_response(
         self,
+        ctx: ToolExecutionContext,
         response: Space.Message,
         *,
         set_completed_at: bool,
     ) -> None:
-        await self._chat_service.modify_assistant_message_async(
+        await ctx.chat_service.modify_assistant_message_async(
             content=response["text"],
             original_content=response["originalText"],
             references=[
@@ -382,10 +355,13 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     async def _publish_sub_agent_response_update(
         self,
+        ctx: ToolExecutionContext,
         response: Space.Message,
     ) -> None:
         try:
-            await self._publish_sub_agent_response(response, set_completed_at=False)
+            await self._publish_sub_agent_response(
+                ctx, response, set_completed_at=False
+            )
         except Exception:
             logger.warning(
                 "Failed to publish streaming sub agent passthrough update",
@@ -394,13 +370,14 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     async def _forward_sub_agent_assessments(
         self,
+        ctx: ToolExecutionContext,
         assessments: list[unique_sdk.Space.Assessment],
     ) -> None:
         async def _create_one_assessment(
             assessment: unique_sdk.Space.Assessment,
         ) -> None:
-            await self._chat_service.create_message_assessment_async(
-                assistant_message_id=self._chat_service._assistant_message_id,
+            await ctx.chat_service.create_message_assessment_async(
+                assistant_message_id=ctx.chat_service._assistant_message_id,
                 status=ChatMessageAssessmentStatus(assessment["status"]),
                 type=ChatMessageAssessmentType(assessment["type"]),
                 title=assessment["title"],
@@ -420,7 +397,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             ),
         )
 
-    async def _get_chat_id(self) -> str | None:
+    async def _get_chat_id(
+        self,
+        short_term_memory_manager: PersistentShortMemoryManager[
+            SubAgentShortTermMemorySchema
+        ],
+    ) -> str | None:
         if not self.config.reuse_chat:
             return None
 
@@ -428,34 +410,41 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             return self.config.chat_id
 
         # Check if there is a saved chat id in short term memory
-        short_term_memory = await self._short_term_memory_manager.load_async()
+        short_term_memory = await short_term_memory_manager.load_async()
 
         if short_term_memory is not None:
             return short_term_memory.chat_id
 
         return None
 
-    async def _save_chat_id(self, chat_id: str) -> None:
+    async def _save_chat_id(
+        self,
+        short_term_memory_manager: PersistentShortMemoryManager[
+            SubAgentShortTermMemorySchema
+        ],
+        chat_id: str,
+    ) -> None:
         if not self.config.reuse_chat:
             return
 
-        await self._short_term_memory_manager.save_async(
+        await short_term_memory_manager.save_async(
             SubAgentShortTermMemorySchema(chat_id=chat_id)
         )
 
     async def _notify_progress(
         self,
+        ctx: ToolExecutionContext,
         tool_call: LanguageModelFunction,
         message: str,
         state: ProgressState,
     ) -> None:
         if (
-            self._tool_progress_reporter is not None
+            ctx.tool_progress_reporter is not None
             and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self._company_id
+                ctx.chat_service._company_id
             )
         ):
-            await self._tool_progress_reporter.notify_from_tool_call(
+            await ctx.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=self._display_name,
                 message=message,
@@ -464,12 +453,13 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     def _create_or_update_message_log(
         self,
+        ctx: ToolExecutionContext,
         *,
         progress_message: str | None = None,
         status: MessageLogStatus = MessageLogStatus.RUNNING,
         active_message_log: MessageLog | None = None,
     ) -> MessageLog | None:
-        return self._message_step_logger.create_or_update_message_log(
+        return ctx.message_step_logger.create_or_update_message_log(
             active_message_log=active_message_log,
             header=self._display_name,
             progress_message=progress_message,
@@ -499,6 +489,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     async def _execute_and_handle_timeout(
         self,
+        ctx: ToolExecutionContext,
         tool_user_message: str,
         chat_id: str | None,
         tool_call: LanguageModelFunction,
@@ -506,15 +497,19 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
     ) -> unique_sdk.Space.Message:
         try:
             on_message_update = (
-                self._publish_sub_agent_response_update
+                (
+                    lambda response: self._publish_sub_agent_response_update(
+                        ctx, response
+                    )
+                )
                 if self.config.passthrough_config.enabled
                 else None
             )
 
             return await send_message_and_wait_for_completion(
-                user_id=self._user_id,
+                user_id=ctx.chat_service._user_id,
                 assistant_id=self.config.assistant_id,
-                company_id=self._company_id,
+                company_id=ctx.chat_service._company_id,
                 text=tool_user_message,
                 chat_id=chat_id,
                 poll_interval=self.config.poll_interval,
@@ -522,19 +517,21 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 max_wait=self.config.max_wait,
                 stop_condition=self.config.stop_condition,
                 correlation=Space.Correlation(
-                    parentMessageId=self._chat_service._assistant_message_id,
-                    parentChatId=self._chat_service._chat_id,
+                    parentMessageId=ctx.chat_service._assistant_message_id,
+                    parentChatId=ctx.chat_service._chat_id,
                     parentAssistantId=self.config.assistant_id,
                 ),
                 on_message_update=on_message_update,
             )
         except TimeoutError as e:
             await self._notify_progress(
+                ctx,
                 tool_call=tool_call,
                 message="Timeout while waiting for response from sub agent.",
                 state=ProgressState.FAILED,
             )
             active_message_log = self._create_or_update_message_log(
+                ctx,
                 progress_message="_Timeout while waiting for response from sub agent_",
                 status=MessageLogStatus.FAILED,
                 active_message_log=active_message_log,

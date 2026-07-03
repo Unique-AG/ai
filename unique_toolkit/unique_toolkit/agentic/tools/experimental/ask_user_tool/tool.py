@@ -1,28 +1,23 @@
 import asyncio
 import json
 import logging
-from typing import Annotated, overload, override
+from typing import Annotated, override
 
 from pydantic import BaseModel, Field, JsonValue, StringConstraints
-from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.experimental.ask_user_tool.config import (
     AskUserToolConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.service import ChatService
 from unique_toolkit.elicitation import (
     ElicitationCancelledException,
     ElicitationDeclinedException,
     ElicitationExpiredException,
     ElicitationMode,
 )
-from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -43,48 +38,13 @@ class AskUserTool(Tool[AskUserToolConfig]):
     name = "AskUser"
     DISPLAY_NAME = "Ask User"
 
-    @overload
     def __init__(
         self,
         config: AskUserToolConfig,
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-    ) -> None: ...
-
-    @overload
-    @deprecated(
-        "Passing event is deprecated. Inject chat_service and language_model_service."
-    )
-    def __init__(
-        self,
-        config: AskUserToolConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-    ) -> None: ...
-
-    def __init__(
-        self,
-        config: AskUserToolConfig,
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
+        *args,
+        **kwargs,
     ) -> None:
-        resolved = resolve_tool_services(
-            event=event,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-        )
-        super().__init__(
-            config,
-            tool_progress_reporter=tool_progress_reporter,
-            chat_service=resolved.chat_service,
-            language_model_service=resolved.language_model_service,
-            event=resolved.event,
-        )
+        super().__init__(config, *args, **kwargs)
         self._lock = asyncio.Lock()
 
     @override
@@ -125,17 +85,21 @@ class AskUserTool(Tool[AskUserToolConfig]):
         return []
 
     @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         # When multiple elicitation calls are created, the frontend will render them one by one
         # We need to lock the execution of the tool so that the timeout starts when the user
         # actually sees the elicitation call
         async with self._lock:
-            return await self._run(tool_call)
+            return await self._run(tool_call, ctx)
 
-    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def _run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         params = AskUserToolInput.model_validate(tool_call.arguments)
 
-        service = self.chat_service.elicitation
+        service = ctx.chat_service.elicitation
 
         _LOGGER.info("Creating elicitation request")
 

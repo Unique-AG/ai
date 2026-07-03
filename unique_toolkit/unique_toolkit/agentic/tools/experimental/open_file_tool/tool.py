@@ -1,19 +1,11 @@
-from typing import overload
-
-from typing_extensions import deprecated
-
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.service import ChatService
-from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -31,51 +23,14 @@ class OpenFileTool(Tool[OpenFileToolConfig]):
 
     name = "OpenFile"
 
-    @overload
     def __init__(
         self,
         config: OpenFileToolConfig,
         registry: list[str],
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-    ) -> None: ...
-
-    @overload
-    @deprecated(
-        "Passing event is deprecated. Inject chat_service and language_model_service."
-    )
-    def __init__(
-        self,
-        config: OpenFileToolConfig,
-        registry: list[str],
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-    ) -> None: ...
-
-    def __init__(
-        self,
-        config: OpenFileToolConfig,
-        registry: list[str],
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
+        *args,
+        **kwargs,
     ) -> None:
-        resolved = resolve_tool_services(
-            event=event,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-        )
-        super().__init__(
-            config,
-            tool_progress_reporter=tool_progress_reporter,
-            chat_service=resolved.chat_service,
-            language_model_service=resolved.language_model_service,
-            event=resolved.event,
-        )
+        super().__init__(config, *args, **kwargs)
         self._registry = registry
 
     def display_name(self) -> str:
@@ -101,7 +56,9 @@ class OpenFileTool(Tool[OpenFileToolConfig]):
     def tool_description_for_system_prompt(self) -> str:
         return self.config.tool_description_for_system_prompt
 
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         args = tool_call.arguments or {}
         content_ids: list[str] = args.get("content_ids", [])
 

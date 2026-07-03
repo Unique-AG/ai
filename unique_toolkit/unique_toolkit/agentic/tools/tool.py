@@ -8,7 +8,7 @@ from typing_extensions import deprecated
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import ToolBuildConfig, ToolSelectionPolicy
-from unique_toolkit.agentic.tools.run_context import ToolRunContext
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.schemas import (
     BaseToolConfig,
     ToolCallResponse,
@@ -17,11 +17,6 @@ from unique_toolkit.agentic.tools.schemas import (
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model import LanguageModelToolDescription
-
-if TYPE_CHECKING:
-    from unique_toolkit.content.service import ContentService
-    from unique_toolkit.language_model.service import LanguageModelService
-    from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
 )
@@ -139,8 +134,15 @@ class Tool(ABC, Generic[ConfigType]):
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         raise NotImplementedError
 
+    def prepare(self, ctx: ToolExecutionContext) -> None:
+        """One-time per-turn setup before prompt collection or execution."""
+
     @abstractmethod
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self,
+        tool_call: LanguageModelFunction,
+        ctx: ToolExecutionContext,
+    ) -> ToolCallResponse:
         raise NotImplementedError
 
     @deprecated(
@@ -182,51 +184,20 @@ class Tool(ABC, Generic[ConfigType]):
         tool_progress_reporter: ToolProgressReporter | None = ...,
     ) -> None: ...
 
-    @overload
-    def __init__(
-        self,
-        config: ConfigType,
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        content_service: ContentService | None = ...,
-        run_context: ToolRunContext | None = ...,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        config: ConfigType,
-        *,
-        event: ChatEvent,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        content_service: ContentService | None = ...,
-        run_context: ToolRunContext | None = ...,
-    ) -> None: ...
-
     def __init__(
         self,
         config: ConfigType,
         event: ChatEvent | None = None,
         tool_progress_reporter: ToolProgressReporter | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
-        content_service: ContentService | None = None,
-        run_context: ToolRunContext | None = None,
     ) -> None:
         """Initialize the tool.
 
-        Preferred (decoupled): ``Tool(config)`` — configuration only.
+        Preferred: ``Tool(config)`` — configuration only; services arrive via
+        ``run(tool_call, ctx)``.
 
-        Service injection: ``Tool(config, chat_service=..., language_model_service=...)``.
-
-        Backward compatible: ``Tool(config, event, tool_progress_reporter)`` — creates
-        deprecated chat_service, language_model_service, message_step_logger for
-        legacy subclasses.
+        Backward compatible: ``Tool(config, event, tool_progress_reporter)`` —
+        deprecated; still bootstraps legacy ``self._chat_service`` etc. for
+        subclasses that have not migrated to ``ctx`` yet.
         """
         self.settings = ToolBuildConfig(
             name=self.name,
@@ -237,30 +208,6 @@ class Tool(ABC, Generic[ConfigType]):
         module_name = "default overwrite for module name"
         self.logger = getLogger(f"{module_name}.{__name__}")
         self.debug_info: dict[str, Any] = {}
-        self._content_service: ContentService | None = None
-        self._run_context = run_context or ToolRunContext()
-
-        if (chat_service is None) != (language_model_service is None):
-            raise ValueError(
-                "chat_service and language_model_service must be injected together; "
-                "supplying only one is not supported."
-            )
-
-        if chat_service is not None and language_model_service is not None:
-            from unique_toolkit.agentic.message_log_manager.service import (
-                MessageStepLogger,
-            )
-
-            if event is not None:
-                self._event = event
-            self._tool_progress_reporter = tool_progress_reporter
-            self._chat_service = chat_service
-            self._language_model_service = language_model_service
-            self._content_service = content_service
-            self._message_step_logger = MessageStepLogger(
-                chat_service=self._chat_service,
-            )
-            return
 
         if event is not None:
             from unique_toolkit.agentic.message_log_manager.service import (

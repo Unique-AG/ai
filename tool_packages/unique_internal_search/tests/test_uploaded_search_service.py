@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
@@ -10,6 +11,19 @@ from unique_toolkit.content.service import ContentService
 
 from unique_internal_search.uploaded_search.config import UploadedSearchConfig
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
+
+
+def _make_ctx(
+    event: ChatEvent,
+    tool_progress_reporter: ToolProgressReporter | None = None,
+) -> ToolExecutionContext:
+    """Build a real ToolExecutionContext from the event, reusing whichever
+    ChatService/LanguageModelService/ContentService patches are active for the
+    surrounding test (see ``autouse_tool_service_bootstrap`` in fixtures.py).
+    """
+    return ToolExecutionContext.from_event(
+        event, tool_progress_reporter=tool_progress_reporter
+    )
 
 
 @pytest.fixture
@@ -102,11 +116,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -151,11 +162,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -194,11 +202,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -235,11 +240,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -280,11 +282,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -325,11 +324,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -383,11 +379,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -428,11 +421,8 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Create tool
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
 
             # Act
             result = tool.tool_description_for_system_prompt()
@@ -470,11 +460,7 @@ class TestUploadedSearchTool:
             mock_content_service_class.from_event.return_value = mock_content_service
 
             # Act
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
 
             # Assert
             assert tool.display_name() == "Uploaded Search"
@@ -493,29 +479,21 @@ class TestUploadedSearchTool:
         Setup summary: Create tool and verify internal search tool has the same display name.
         """
         # Arrange
-        with (
-            patch(
-                "unique_toolkit.content.service.ContentService.from_event",
-            ) as mock_content_service_from_event,
-            patch(
-                "unique_internal_search.uploaded_search.service.InternalSearchTool"
-            ) as mock_internal_search_tool_class,
-        ):
-            mock_content_service = Mock(spec=ContentService)
-            mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
-            mock_content_service_from_event.return_value = mock_content_service
+        with patch(
+            "unique_internal_search.uploaded_search.service.InternalSearchTool"
+        ) as mock_internal_search_tool_class:
             mock_internal_search_tool = Mock()
             mock_internal_search_tool._display_name = "Uploaded Search"
             mock_internal_search_tool_class.return_value = mock_internal_search_tool
 
             # Act
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
 
             # Assert
+            mock_internal_search_tool_class.assert_called_once_with(
+                uploaded_search_config,
+                display_name=tool._display_name,
+            )
             assert tool._internal_search_tool is mock_internal_search_tool
             assert tool._internal_search_tool._display_name == "Uploaded Search"
             assert tool._internal_search_tool._display_name == tool._display_name
@@ -534,117 +512,100 @@ class TestUploadedSearchTool:
         assert hasattr(UploadedSearchTool, "_display_name")
 
     @pytest.mark.ai
-    def test_init__raises__when_neither_event_nor_services_provided(
+    def test_init__succeeds__with_config_only(
         self,
         uploaded_search_config: UploadedSearchConfig,
     ) -> None:
         """
-        Purpose: Verify __init__ rejects construction with no event and no injected services.
+        Purpose: Verify __init__ succeeds with only a config, deferring all service
+        wiring to prepare(ctx).
+        Why this matters: With ToolExecutionContext, tools are constructed once from
+        config alone; live services are only available via ctx passed to prepare()/run().
         """
-        with pytest.raises(ValueError, match="event or injected chat_service"):
-            UploadedSearchTool(config=uploaded_search_config)
+        tool = UploadedSearchTool(config=uploaded_search_config)
+
+        assert tool._valid_documents == []
+        assert tool._selected_uploaded_files == []
+        assert tool._company_id is None
 
     @pytest.mark.ai
-    def test_init__with_injected_services__succeeds_with_run_context(
+    def test_prepare__sets_selected_uploaded_files_from_ctx(
         self,
         uploaded_search_config: UploadedSearchConfig,
         mock_tool_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify UploadedSearchTool can init from injected services and run_context.
-        """
-        from unique_toolkit.agentic.tools.run_context import ToolRunContext
-
-        mock_content_service = Mock()
-        mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
-
-        tool = UploadedSearchTool(
-            config=uploaded_search_config,
-            chat_service=Mock(_company_id="company_123"),
-            language_model_service=Mock(),
-            content_service=mock_content_service,
-            tool_progress_reporter=mock_tool_progress_reporter,
-            run_context=ToolRunContext(selected_uploaded_file_ids=["file-1"]),
-        )
-        assert tool._selected_uploaded_files == ["file-1"]
-
-    @pytest.mark.ai
-    def test_init__bootstraps_content_service_from_event(
-        self,
-        uploaded_search_config: UploadedSearchConfig,
-        mock_tool_progress_reporter: ToolProgressReporter,
-        mock_chat_event: ChatEvent,
-    ) -> None:
-        """
-        Purpose: Verify content_service is derived from event when not explicitly injected.
+        Purpose: Verify prepare() populates _selected_uploaded_files from
+        ctx.selected_uploaded_file_ids.
+        Why this matters: Selected-file scoping must flow from the per-turn context,
+        not from constructor-time state.
         """
         mock_content_service = Mock(spec=ContentService)
         mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
-        chat_service = Mock()
-        chat_service._company_id = "company_123"
 
-        with (
-            patch(
-                "unique_internal_search.uploaded_search.service.InternalSearchTool"
-            ) as mock_internal_search_tool_class,
-            patch(
-                "unique_toolkit.content.service.ContentService.from_event",
-                return_value=mock_content_service,
-            ) as mock_content_from_event,
-        ):
-            mock_internal_search_tool_class.return_value = Mock()
-            UploadedSearchTool(
-                config=uploaded_search_config,
-                chat_service=chat_service,
-                language_model_service=Mock(),
-                tool_progress_reporter=mock_tool_progress_reporter,
-                event=mock_chat_event,
-            )
+        tool = UploadedSearchTool(config=uploaded_search_config)
 
-        mock_content_from_event.assert_called_once_with(mock_chat_event)
+        ctx = Mock()
+        ctx.chat_service = Mock(_company_id="company_123", _user_message_text="hi")
+        ctx.content_service = mock_content_service
+        ctx.selected_uploaded_file_ids = ["file-1"]
+        ctx.tool_progress_reporter = mock_tool_progress_reporter
+
+        tool.prepare(ctx)
+
+        assert tool._selected_uploaded_files == ["file-1"]
+        assert tool._company_id == "company_123"
 
     @pytest.mark.ai
-    def test_init__builds_internal_search_tool__from_injected_state(
+    def test_prepare__computes_valid_documents_from_ctx_content_service(
         self,
         uploaded_search_config: UploadedSearchConfig,
-        mock_tool_progress_reporter: ToolProgressReporter,
-        mock_chat_event: ChatEvent,
-        mock_content_service: ContentService,
     ) -> None:
         """
-        Purpose: Verify __init__ wires up the internal InternalSearchTool when all
-        injected dependencies are provided at construction.
+        Purpose: Verify prepare() sources valid documents from ctx.content_service
+        rather than any service constructed at __init__ time.
+        Why this matters: With deferred injection, the content service used for a
+        given turn must come from the live ToolExecutionContext.
         """
+        mock_content_service = Mock(spec=ContentService)
         mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
-        chat_service = Mock()
-        chat_service._company_id = "company_123"
 
+        tool = UploadedSearchTool(config=uploaded_search_config)
+
+        ctx = Mock()
+        ctx.chat_service = Mock(_company_id="company_123", _user_message_text="hi")
+        ctx.content_service = mock_content_service
+        ctx.selected_uploaded_file_ids = []
+        ctx.tool_progress_reporter = None
+
+        tool.prepare(ctx)
+
+        mock_content_service.get_documents_uploaded_to_chat.assert_called_once()
+
+    @pytest.mark.ai
+    def test_init__builds_internal_search_tool__from_config(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+    ) -> None:
+        """
+        Purpose: Verify __init__ wires up the internal InternalSearchTool from
+        config and display_name alone.
+        Why this matters: InternalSearchTool no longer accepts services at
+        construction time; only config/display_name are passed eagerly.
+        """
         with patch(
             "unique_internal_search.uploaded_search.service.InternalSearchTool"
         ) as mock_internal_search_tool_class:
             mock_internal_search_tool = Mock()
             mock_internal_search_tool_class.return_value = mock_internal_search_tool
 
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                chat_service=chat_service,
-                language_model_service=Mock(),
-                tool_progress_reporter=mock_tool_progress_reporter,
-                event=mock_chat_event,
-                content_service=mock_content_service,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
 
         mock_internal_search_tool_class.assert_called_once_with(
             uploaded_search_config,
-            chat_service=chat_service,
-            language_model_service=tool._language_model_service,
-            tool_progress_reporter=mock_tool_progress_reporter,
-            content_service=mock_content_service,
-            run_context=tool._run_context,
             display_name=tool._display_name,
         )
         assert tool._internal_search_tool is mock_internal_search_tool
-        assert tool._company_id == "company_123"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -666,11 +627,9 @@ class TestUploadedSearchTool:
             mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
             mock_content_service_class.from_event.return_value = mock_content_service
 
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=None,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            ctx = _make_ctx(mock_chat_event)
+            tool.prepare(ctx)
             tool._internal_search_tool.run = AsyncMock(
                 return_value=ToolCallResponse(
                     id="tool_call_123",
@@ -682,7 +641,7 @@ class TestUploadedSearchTool:
             tool_call.arguments = {"search_string": "test query"}
 
             # Act
-            result = await tool.run(tool_call)
+            result = await tool.run(tool_call, ctx)
 
             # Assert
             assert result.name == "UploadedSearch"
@@ -710,11 +669,9 @@ class TestUploadedSearchTool:
             mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
             mock_content_service_class.from_event.return_value = mock_content_service
 
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=None,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            ctx = _make_ctx(mock_chat_event)
+            tool.prepare(ctx)
             tool._internal_search_tool.run = AsyncMock(
                 return_value=ToolCallResponse(
                     id="tool_call_123",
@@ -726,7 +683,7 @@ class TestUploadedSearchTool:
             tool_call.arguments = {"search_string": "test query"}
 
             # Act
-            result = await tool.run(tool_call)
+            result = await tool.run(tool_call, ctx)
 
             # Assert
             assert result.name == "UploadedSearch"
@@ -756,11 +713,8 @@ class TestToolDescriptionForSystemPromptIngestionFilter:
                 return_value=documents
             )
             mock_content_service_class.from_event.return_value = mock_content_service
-            tool = UploadedSearchTool(
-                config=uploaded_search_config,
-                event=mock_chat_event,
-                tool_progress_reporter=mock_tool_progress_reporter,
-            )
+            tool = UploadedSearchTool(config=uploaded_search_config)
+            tool.prepare(_make_ctx(mock_chat_event, mock_tool_progress_reporter))
         return tool
 
     @pytest.mark.ai
@@ -853,8 +807,8 @@ def _make_uploaded_search_tool(
     documents: list[Content],
     config: UploadedSearchConfig,
     event: ChatEvent,
-    tool_progress_reporter=None,
-) -> UploadedSearchTool:
+    tool_progress_reporter: ToolProgressReporter | None = None,
+) -> tuple[UploadedSearchTool, ToolExecutionContext]:
     with patch(
         "unique_toolkit.content.service.ContentService"
     ) as mock_content_service_class:
@@ -863,12 +817,10 @@ def _make_uploaded_search_tool(
             return_value=documents
         )
         mock_content_service_class.from_event.return_value = mock_content_service
-        tool = UploadedSearchTool(
-            config=config,
-            event=event,
-            tool_progress_reporter=tool_progress_reporter,
-        )
-    return tool
+        tool = UploadedSearchTool(config=config)
+        ctx = _make_ctx(event, tool_progress_reporter)
+        tool.prepare(ctx)
+    return tool, ctx
 
 
 @pytest.mark.ai
@@ -889,7 +841,7 @@ class TestUploadedSearchToolContentIdFilter:
                        content_ids is not a field in the returned model.
         """
         config = UploadedSearchConfig(enable_content_id_filter=False)
-        tool = _make_uploaded_search_tool(
+        tool, _ = _make_uploaded_search_tool(
             mock_uploaded_documents_valid,
             config,
             mock_chat_event,
@@ -916,7 +868,7 @@ class TestUploadedSearchToolContentIdFilter:
                        content_ids is present, optional (default None), and typed as a Literal of known IDs.
         """
         config = UploadedSearchConfig(enable_content_id_filter=True)
-        tool = _make_uploaded_search_tool(
+        tool, _ = _make_uploaded_search_tool(
             mock_uploaded_documents_valid,
             config,
             mock_chat_event,
@@ -944,7 +896,7 @@ class TestUploadedSearchToolContentIdFilter:
                        assert content_ids is not in the schema and no exception is raised.
         """
         config = UploadedSearchConfig(enable_content_id_filter=True)
-        tool = _make_uploaded_search_tool(
+        tool, _ = _make_uploaded_search_tool(
             [], config, mock_chat_event, mock_tool_progress_reporter
         )
 
@@ -968,7 +920,7 @@ class TestUploadedSearchToolContentIdFilter:
                        assert only the valid ID is forwarded in tool_call.arguments.
         """
         config = UploadedSearchConfig(enable_content_id_filter=True)
-        tool = _make_uploaded_search_tool(
+        tool, ctx = _make_uploaded_search_tool(
             mock_uploaded_documents_valid, config, mock_chat_event
         )
         tool._internal_search_tool.run = AsyncMock(
@@ -982,7 +934,7 @@ class TestUploadedSearchToolContentIdFilter:
             "content_ids": ["doc_1", "doc_unknown_xyz"],
         }
 
-        await tool.run(tool_call)
+        await tool.run(tool_call, ctx)
 
         assert tool_call.arguments["content_ids"] == ["doc_1"]
 
@@ -1000,7 +952,7 @@ class TestUploadedSearchToolContentIdFilter:
         Setup summary: Create tool with two valid docs, run with two unknown IDs, assert ValueError.
         """
         config = UploadedSearchConfig(enable_content_id_filter=True)
-        tool = _make_uploaded_search_tool(
+        tool, ctx = _make_uploaded_search_tool(
             mock_uploaded_documents_valid, config, mock_chat_event
         )
 
@@ -1012,4 +964,4 @@ class TestUploadedSearchToolContentIdFilter:
         }
 
         with pytest.raises(ValueError, match="content_ids"):
-            await tool.run(tool_call)
+            await tool.run(tool_call, ctx)

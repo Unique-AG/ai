@@ -51,6 +51,21 @@ def mock_chat_event() -> ChatEvent:
     return event
 
 
+def _make_ctx() -> Mock:
+    chat_service = Mock()
+    chat_service._company_id = "company_123"
+    chat_service._user_id = "user_123"
+    chat_service._chat_id = "chat_123"
+    chat_service._assistant_id = "assistant_123"
+    chat_service._assistant_message_id = "assistant_msg_123"
+    chat_service._user_message_id = "user_msg_123"
+    chat_service._user_message_text = "hi"
+    chat_service.get_full_history_async = AsyncMock(return_value=[])
+    ctx = Mock()
+    ctx.chat_service = chat_service
+    return ctx
+
+
 @pytest.fixture
 def tool(mock_chat_event: ChatEvent, mocker: MockerFixture) -> RetrieveSearchScopeTool:
     config = RetrieveSearchScopeConfig(
@@ -69,7 +84,9 @@ def tool(mock_chat_event: ChatEvent, mocker: MockerFixture) -> RetrieveSearchSco
         setattr(self, "settings", settings_mock)
 
     mocker.patch(f"{_TOOL_MODULE}.Tool.__init__", setup_tool)
-    return RetrieveSearchScopeTool(config, mock_chat_event)
+    instance = RetrieveSearchScopeTool(config, mock_chat_event)
+    instance._test_ctx = _make_ctx()  # pyright: ignore[reportAttributeAccessIssue]
+    return instance
 
 
 @pytest.fixture
@@ -113,7 +130,7 @@ class TestRetrieveSearchScopeToolRun:
         mocker: MockerFixture,
     ):
         _stub_kb(mocker, [])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.successful
         assert "No files found" in response.content
@@ -130,7 +147,7 @@ class TestRetrieveSearchScopeToolRun:
             _make_content_info("other.pdf"),
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert "3 of 3 files" in response.content
         assert "report.pdf (id_1)" in response.content
@@ -149,7 +166,7 @@ class TestRetrieveSearchScopeToolRun:
             "path": ["department"],
         }
         mock_kb = _stub_kb(mocker, [], space_metadata_filter=space_filter)
-        await tool.run(mock_tool_call)
+        await tool.run(mock_tool_call, tool._test_ctx)
 
         mock_kb.get_content_infos_async.assert_called_once_with(
             metadata_filter=space_filter,
@@ -166,7 +183,7 @@ class TestRetrieveSearchScopeToolRun:
             _make_content_info("report.pdf", id="cont_1"),
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.content.count("report.pdf (cont_1)") == 1
         assert "Listing 1 of 2" in response.content
@@ -182,7 +199,7 @@ class TestRetrieveSearchScopeToolRun:
             _make_content_info("page.html", mime_type="text/html", id="cont_4"),
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.content.count("page.html") == 1
         assert "Listing 1 of 2" in response.content
@@ -194,7 +211,7 @@ class TestRetrieveSearchScopeToolRun:
         mocker: MockerFixture,
     ):
         mocker.patch(_SETTINGS_PATH, side_effect=RuntimeError("connection failed"))
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert not response.successful
         assert "Failed to retrieve" in response.error_message
@@ -230,7 +247,7 @@ class TestContentIdForOpenableFiles:
             _make_content_info(filename, mime_type=mime_type, id="cont_123")
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
         assert f"{filename} (cont_123)" in response.content
 
     async def test_openable_file_without_id_does_not_append_content_id(
@@ -243,7 +260,7 @@ class TestContentIdForOpenableFiles:
             _make_content_info("doc.pdf", mime_type="application/pdf", id="")
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
         file_section = response.content.split("\n\n", 1)[1]
         assert file_section.strip() == "doc.pdf"
 
@@ -271,7 +288,7 @@ class TestContentIdForOpenableFiles:
             )
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
         file_section = response.content.split("\n\n", 1)[1]
         assert file_section.strip() == filename
 
@@ -292,7 +309,7 @@ class TestTokenTruncation:
             for i in range(100)
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.successful
         assert "omitted due to token budget" in response.content
@@ -306,7 +323,7 @@ class TestTokenTruncation:
     ):
         tool.config.language_model_max_input_tokens = None
         _stub_kb(mocker, [_make_content_info("file.txt", mime_type="text/plain")])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert not response.successful
         assert "Max_input_tokens not set" in response.error_message
@@ -326,7 +343,7 @@ class TestTokenTruncation:
                 )
             ],
         )
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.successful
         assert "Token limit to low to display search scope" in response.content
@@ -341,7 +358,7 @@ class TestTokenTruncation:
             _make_content_info("small.txt", mime_type="text/plain"),
         ]
         _stub_kb(mocker, content_infos)
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.successful
         assert "1 of 1 files" in response.content
@@ -357,11 +374,11 @@ class TestHistoryGuard:
         prior_msg.role = "tool"
         prior_msg.name = "RetrieveSearchScope"
 
-        mock_chat_service = Mock()
-        mock_chat_service.get_full_history_async = AsyncMock(return_value=[prior_msg])
-        tool._chat_service = mock_chat_service
+        tool._test_ctx.chat_service.get_full_history_async = AsyncMock(
+            return_value=[prior_msg]
+        )
 
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.successful
         assert "already been called" in response.content
@@ -376,12 +393,12 @@ class TestHistoryGuard:
         user_msg.role = "user"
         user_msg.name = None
 
-        mock_chat_service = Mock()
-        mock_chat_service.get_full_history_async = AsyncMock(return_value=[user_msg])
-        tool._chat_service = mock_chat_service
+        tool._test_ctx.chat_service.get_full_history_async = AsyncMock(
+            return_value=[user_msg]
+        )
 
         _stub_kb(mocker, [])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.successful
         assert "No files found" in response.content
@@ -392,14 +409,12 @@ class TestHistoryGuard:
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
-        mock_chat_service = Mock()
-        mock_chat_service.get_full_history_async = AsyncMock(
+        tool._test_ctx.chat_service.get_full_history_async = AsyncMock(
             side_effect=RuntimeError("service unavailable")
         )
-        tool._chat_service = mock_chat_service
 
         _stub_kb(mocker, [])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert response.successful
         assert "No files found" in response.content
@@ -411,18 +426,16 @@ class TestHistoryGuard:
         mocker: MockerFixture,
         caplog: pytest.LogCaptureFixture,
     ):
-        mock_chat_service = Mock()
-        mock_chat_service.get_full_history_async = AsyncMock(
+        tool._test_ctx.chat_service.get_full_history_async = AsyncMock(
             side_effect=RuntimeError("service unavailable")
         )
-        tool._chat_service = mock_chat_service
 
         _stub_kb(mocker, [])
         with caplog.at_level(
             logging.DEBUG,
             logger="unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool",
         ):
-            await tool.run(mock_tool_call)
+            await tool.run(mock_tool_call, tool._test_ctx)
 
         assert "Could not check history for prior tool response" in caplog.text
 
@@ -438,7 +451,7 @@ class TestTreeMode:
         tool.config.display_mode = DisplayMode.tree
         ci = _make_content_info("report.pdf", id="cont_1")
         _stub_kb(mocker, resolved_paths=[(ci, ["Documents", "Reports", "report.pdf"])])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert "Documents/Reports/report.pdf (cont_1)" in response.content
 
@@ -451,7 +464,7 @@ class TestTreeMode:
         tool.config.display_mode = DisplayMode.tree
         ci = _make_content_info("orphan.txt", mime_type="text/plain")
         _stub_kb(mocker, resolved_paths=[(ci, ["_no_folder_path", "orphan.txt"])])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         file_section = response.content.split("\n\n", 1)[1]
         assert file_section.strip() == "orphan.txt"
@@ -466,7 +479,7 @@ class TestTreeMode:
         tool.config.display_mode = DisplayMode.tree
         ci = _make_content_info("doc.pdf", id="cont_123")
         _stub_kb(mocker, resolved_paths=[(ci, ["Folder", "doc.pdf"])])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert "Folder/doc.pdf (cont_123)" in response.content
 
@@ -479,7 +492,7 @@ class TestTreeMode:
         tool.config.display_mode = DisplayMode.tree
         ci = _make_content_info("lonely.txt", mime_type="text/plain")
         _stub_kb(mocker, resolved_paths=[(ci, ["lonely.txt"])])
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         file_section = response.content.split("\n\n", 1)[1]
         assert file_section.strip() == "lonely.txt"
@@ -501,7 +514,7 @@ class TestTreeMode:
                 (ci_2, ["Docs", "report.pdf"]),
             ],
         )
-        response = await tool.run(mock_tool_call)
+        response = await tool.run(mock_tool_call, tool._test_ctx)
 
         assert "Docs/report.pdf (cont_1)" in response.content
         assert "Docs/report.pdf (cont_2)" in response.content
@@ -517,7 +530,7 @@ class TestTreeMode:
         mock_kb = _stub_kb(
             mocker, resolved_paths=[], space_metadata_filter=space_filter
         )
-        await tool.run(mock_tool_call)
+        await tool.run(mock_tool_call, tool._test_ctx)
 
         mock_kb.resolve_visible_file_paths_async.assert_called_once_with(
             metadata_filter=space_filter,
@@ -536,7 +549,7 @@ class TestModeBranching:
         tool.config.display_mode = DisplayMode.flat
         space_filter = {"key": {"eq": "val"}}
         mock_kb = _stub_kb(mocker, content_infos=[], space_metadata_filter=space_filter)
-        await tool.run(mock_tool_call)
+        await tool.run(mock_tool_call, tool._test_ctx)
 
         mock_kb.get_content_infos_async.assert_called_once_with(
             metadata_filter=space_filter,

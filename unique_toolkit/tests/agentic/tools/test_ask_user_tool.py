@@ -126,30 +126,37 @@ def test_parameter_descriptions_come_from_config() -> None:
     assert custom_props["message"]["description"] == "custom"
 
 
+def _make_ctx(chat_service: MagicMock) -> MagicMock:
+    ctx = MagicMock()
+    ctx.chat_service = chat_service
+    return ctx
+
+
 def _tool_with_service(
     config: AskUserToolConfig | None = None,
     *,
     wait_return: object = None,
     wait_side_effect: object = None,
-) -> tuple[AskUserTool, MagicMock]:
+) -> tuple[AskUserTool, MagicMock, MagicMock]:
     service = MagicMock()
     service.create_async = AsyncMock(return_value=SimpleNamespace(id="elic_1"))
     service.wait_for_response_async = AsyncMock(
         return_value=wait_return, side_effect=wait_side_effect
     )
     tool = AskUserTool(config or AskUserToolConfig(), _chat_event())
-    tool._chat_service = MagicMock(elicitation=service)
-    return tool, service
+    ctx = _make_ctx(MagicMock(elicitation=service))
+    return tool, service, ctx
 
 
 @pytest.mark.asyncio
 async def test_ask_user_success() -> None:
-    tool, service = _tool_with_service(
+    tool, service, ctx = _tool_with_service(
         wait_return=SimpleNamespace(response_content={"answer": "Q1"})
     )
 
     resp = await tool.run(
-        _tool_call(message="Which quarter?", response_schema=_MINIMAL_ANSWER_SCHEMA)
+        _tool_call(message="Which quarter?", response_schema=_MINIMAL_ANSWER_SCHEMA),
+        ctx,
     )
 
     assert resp.error_message == ""
@@ -163,7 +170,7 @@ async def test_ask_user_success() -> None:
 
 @pytest.mark.asyncio
 async def test_ask_user_confirm_schema_sent_to_platform() -> None:
-    tool, service = _tool_with_service(
+    tool, service, ctx = _tool_with_service(
         wait_return=SimpleNamespace(response_content={"confirm": True})
     )
 
@@ -171,7 +178,8 @@ async def test_ask_user_confirm_schema_sent_to_platform() -> None:
         _tool_call(
             message="Confirm permanent deletion?",
             response_schema=_MINIMAL_CONFIRM_SCHEMA,
-        )
+        ),
+        ctx,
     )
 
     assert (
@@ -183,25 +191,28 @@ async def test_ask_user_confirm_schema_sent_to_platform() -> None:
 async def test_ask_user_missing_response_schema_raises() -> None:
     tool = AskUserTool(AskUserToolConfig(), _chat_event())
     with pytest.raises(ValidationError):
-        await tool.run(_tool_call(message="Which quarter?"))
+        await tool.run(_tool_call(message="Which quarter?"), MagicMock())
 
 
 @pytest.mark.asyncio
 async def test_ask_user_empty_message_raises() -> None:
     tool = AskUserTool(AskUserToolConfig(), _chat_event())
     with pytest.raises(ValidationError):
-        await tool.run(_tool_call(message="  ", response_schema=_MINIMAL_ANSWER_SCHEMA))
+        await tool.run(
+            _tool_call(message="  ", response_schema=_MINIMAL_ANSWER_SCHEMA),
+            MagicMock(),
+        )
 
 
 @pytest.mark.asyncio
 async def test_ask_user_declined_returns_configured_message() -> None:
     config = AskUserToolConfig(declined_message="custom declined")
-    tool, _ = _tool_with_service(
+    tool, _, ctx = _tool_with_service(
         config, wait_side_effect=ElicitationDeclinedException()
     )
 
     resp = await tool.run(
-        _tool_call(message="Sure?", response_schema=_MINIMAL_ANSWER_SCHEMA)
+        _tool_call(message="Sure?", response_schema=_MINIMAL_ANSWER_SCHEMA), ctx
     )
 
     assert resp.error_message == ""
@@ -210,10 +221,10 @@ async def test_ask_user_declined_returns_configured_message() -> None:
 
 @pytest.mark.asyncio
 async def test_ask_user_expired_returns_default_message() -> None:
-    tool, _ = _tool_with_service(wait_side_effect=ElicitationExpiredException())
+    tool, _, ctx = _tool_with_service(wait_side_effect=ElicitationExpiredException())
 
     resp = await tool.run(
-        _tool_call(message="Slow user", response_schema=_MINIMAL_ANSWER_SCHEMA)
+        _tool_call(message="Slow user", response_schema=_MINIMAL_ANSWER_SCHEMA), ctx
     )
 
     assert resp.error_message == ""
@@ -225,12 +236,12 @@ async def test_ask_user_cancelled_returns_configured_message() -> None:
     from unique_toolkit.elicitation import ElicitationCancelledException
 
     config = AskUserToolConfig(cancelled_message="custom cancelled")
-    tool, _ = _tool_with_service(
+    tool, _, ctx = _tool_with_service(
         config, wait_side_effect=ElicitationCancelledException()
     )
 
     resp = await tool.run(
-        _tool_call(message="Sure?", response_schema=_MINIMAL_ANSWER_SCHEMA)
+        _tool_call(message="Sure?", response_schema=_MINIMAL_ANSWER_SCHEMA), ctx
     )
 
     assert resp.error_message == ""

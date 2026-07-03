@@ -14,6 +14,7 @@ from unique_toolkit.agentic.tools.config import (
     ToolIcon,
     ToolSelectionPolicy,
 )
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.language_model.schemas import (
@@ -52,7 +53,9 @@ class MockTool(Tool[MockToolConfig]):
             parameters=TestParameters,
         )
 
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext | None = None
+    ) -> ToolCallResponse:
         """Mock implementation of the run method."""
         return ToolCallResponse(
             id=tool_call.id or "test_id",

@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
+from unique_toolkit.agentic.tools.execution_context import tool_choices_from_event
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -20,7 +21,7 @@ from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai_builder import (
     _build_common,
     _build_responses,
-    _build_tool_run_context,
+    _build_tool_execution_context,
     _CommonComponents,
     _configure_uploaded_search_tool,
 )
@@ -191,7 +192,7 @@ class _FakeResponsesApiToolManager:
         self.__class__.instances.append(self)
 
     @classmethod
-    def from_run_context(cls, **kwargs):
+    def from_execution_context(cls, **kwargs):
         return cls(**kwargs)
 
     def add_forced_tool(self, tool_name: str) -> None:
@@ -256,7 +257,7 @@ async def test_build_responses_adds_and_forces_uploaded_search_without_tool_choi
         UploadedSearchTool.name
     ]
     tool_manager_kwargs = _FakeResponsesApiToolManager.instances[0].kwargs
-    assert "run_context" in tool_manager_kwargs
+    assert "execution_context" in tool_manager_kwargs
     assert "event" not in tool_manager_kwargs
     assert result["tool_manager"] is _FakeResponsesApiToolManager.instances[0]
 
@@ -653,7 +654,7 @@ class TestConfigureUploadedSearchToolForcing:
         assert event.payload.tool_choices == []
 
 
-class TestBuildToolRunContext:
+class TestBuildToolExecutionContext:
     def test_reflects_tool_choices_after_uploaded_search_mutation(self) -> None:
         doc = MagicMock()
         doc.is_expired.return_value = False
@@ -667,9 +668,16 @@ class TestBuildToolRunContext:
             config=UploadedSearchToolConfig(force=True),
         )
 
-        run_context = _build_tool_run_context(event)
+        execution_context = _build_tool_execution_context(
+            event,
+            tool_progress_reporter=MagicMock(),
+            chat_service=MagicMock(),
+            language_model_service=MagicMock(),
+            content_service=MagicMock(),
+        )
 
-        assert run_context.tool_choices == [
+        assert execution_context is not None
+        assert tool_choices_from_event(event) == [
             "InternalSearch",
             UploadedSearchTool.name,
         ]

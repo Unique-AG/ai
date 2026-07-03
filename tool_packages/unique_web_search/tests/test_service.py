@@ -9,115 +9,53 @@ from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 
 
+def _make_ctx(
+    *,
+    chat_service: Any = None,
+    language_model_service: Any = None,
+    tool_progress_reporter: Any = None,
+    message_step_logger: Any = None,
+) -> Mock:
+    """Build a Mock standing in for ToolExecutionContext with the attributes
+    WebSearchTool reads off of it.
+    """
+    ctx = Mock()
+    ctx.chat_service = chat_service if chat_service is not None else Mock()
+    ctx.language_model_service = (
+        language_model_service if language_model_service is not None else Mock()
+    )
+    ctx.tool_progress_reporter = tool_progress_reporter
+    ctx.message_step_logger = (
+        message_step_logger if message_step_logger is not None else Mock()
+    )
+    return ctx
+
+
 class TestWebSearchToolInit:
     """Test WebSearchTool.__init__() and _initialize_search_dependencies()."""
 
     @pytest.mark.ai
-    def test_init__with_injected_services_only__initializes_search_setup(
+    def test_init__with_config_only__does_not_eagerly_initialize_search_setup(
         self,
         mock_web_search_config_v1: Mock,
-        mocker: Any,
     ) -> None:
         """
-        Purpose: Verify __init__ builds search dependencies when constructed with injected
-        services and no event.
+        Purpose: Verify __init__ no longer eagerly builds search dependencies;
+        they are lazily built from ToolExecutionContext inside run().
         """
-        mocker.patch("unique_web_search.service.get_search_engine_service")
-        mocker.patch("unique_web_search.service.get_crawler_service")
-        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
-        mocker.patch("unique_web_search.service.ContentProcessor")
+        tool = WebSearchTool(mock_web_search_config_v1)
 
-        chat_service = Mock()
-        chat_service._company_id = "company-1"
-        chat_service._user_id = "user-1"
-        chat_service.get_full_history.return_value = []
-
-        tool = WebSearchTool(
-            mock_web_search_config_v1,
-            chat_service=chat_service,
-            language_model_service=Mock(),
-        )
-
-        assert tool.company_id == "company-1"
-        assert hasattr(tool, "search_engine_service")
+        assert not hasattr(tool, "search_engine_service")
 
     @pytest.mark.ai
-    def test_init__with_event_and_injected_services__completes_init_eagerly(
-        self,
-        mock_web_search_config_v1: Mock,
-        mocker: Any,
-    ) -> None:
-        """
-        Purpose: Verify __init__ runs search dependency setup immediately when an event
-        is supplied alongside injected services.
-        """
-        mocker.patch("unique_web_search.service.get_search_engine_service")
-        mocker.patch("unique_web_search.service.get_crawler_service")
-        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
-        mocker.patch("unique_web_search.service.ContentProcessor")
-
-        chat_service = Mock()
-        chat_service._company_id = "company-1"
-        chat_service._user_id = "user-1"
-        chat_service.get_full_history.return_value = []
-        event = Mock()
-        event.company_id = "stale-company"
-
-        tool = WebSearchTool(
-            mock_web_search_config_v1,
-            event=event,
-            chat_service=chat_service,
-            language_model_service=Mock(),
-        )
-
-        assert tool.company_id == "company-1"
-        assert hasattr(tool, "search_engine_service")
-
-    @pytest.mark.ai
-    def test_initialize_search_dependencies__uses_chat_service__even_when_event_present(
-        self,
-        mock_web_search_config_v1: Mock,
-        mocker: Any,
-    ) -> None:
-        """
-        Purpose: Verify _initialize_search_dependencies always derives company_id and
-        the chunk relevancy sorter from chat_service, not from a stale event snapshot.
-        """
-        mocker.patch("unique_web_search.service.get_search_engine_service")
-        mocker.patch("unique_web_search.service.get_crawler_service")
-        mock_sorter = mocker.patch("unique_web_search.service.ChunkRelevancySorter")
-        mocker.patch("unique_web_search.service.ContentProcessor")
-
-        tool = object.__new__(WebSearchTool)
-        tool.config = mock_web_search_config_v1
-        tool.language_model_orchestrator = Mock()
-        tool._chat_service = Mock()
-        tool._chat_service._company_id = "company-2"
-        tool._chat_service._user_id = "user-2"
-        tool._chat_service.get_full_history.return_value = []
-        tool._language_model_service = Mock()
-        event = Mock()
-        event.company_id = "company-1"
-        tool._event = event
-
-        tool._initialize_search_dependencies()
-
-        mock_sorter.assert_called_once_with(
-            company_id="company-2",
-            user_id="user-2",
-        )
-        assert tool.company_id == "company-2"
-
-    @pytest.mark.ai
-    def test_initialize_search_dependencies__uses_chat_service__when_no_event(
+    def test_initialize_search_dependencies__uses_chat_service_from_ctx(
         self,
         mock_web_search_config_v1: Mock,
         mocker: Any,
     ) -> None:
         """
         Purpose: Verify _initialize_search_dependencies derives company_id and the
-        chunk relevancy sorter from the injected chat_service when no event
-        snapshot is available.
+        chunk relevancy sorter from ctx.chat_service.
         """
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -127,13 +65,14 @@ class TestWebSearchToolInit:
         tool = object.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.language_model_orchestrator = Mock()
-        tool._chat_service = Mock()
-        tool._chat_service._company_id = "company-2"
-        tool._chat_service._user_id = "user-2"
-        tool._chat_service.get_full_history.return_value = []
-        tool._language_model_service = Mock()
 
-        tool._initialize_search_dependencies()
+        chat_service = Mock()
+        chat_service._company_id = "company-2"
+        chat_service._user_id = "user-2"
+        chat_service.get_full_history.return_value = []
+        ctx = _make_ctx(chat_service=chat_service)
+
+        tool._initialize_search_dependencies(ctx)
 
         mock_sorter.assert_called_once_with(
             company_id="company-2",
@@ -199,6 +138,7 @@ class TestWebSearchToolDescription:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        tool.config.search_engine_config.engine = SearchEngineType.GOOGLE
         tool.tool_parameter_calls = None  # type: ignore
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
@@ -266,6 +206,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        tool.config.search_engine_config.engine = SearchEngineType.GOOGLE
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -303,6 +244,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        tool.config.search_engine_config.engine = SearchEngineType.GOOGLE
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -492,9 +434,14 @@ class TestWebSearchToolGetExecutor:
         )
         debug_info = Mock()
         web_search_message_logger = Mock()
+        ctx = _make_ctx(
+            chat_service=tool._chat_service,
+            language_model_service=tool._language_model_service,
+            tool_progress_reporter=tool._tool_progress_reporter,
+        )
 
         result = tool._get_executor(
-            tool_call, parameters, debug_info, web_search_message_logger
+            tool_call, parameters, debug_info, web_search_message_logger, ctx
         )
 
         assert isinstance(result, WebSearchV2Executor)
@@ -550,9 +497,14 @@ class TestWebSearchToolGetExecutor:
         parameters = WebSearchToolParameters(query="test", date_restrict=None)
         debug_info = Mock()
         web_search_message_logger = Mock()
+        ctx = _make_ctx(
+            chat_service=tool._chat_service,
+            language_model_service=tool._language_model_service,
+            tool_progress_reporter=tool._tool_progress_reporter,
+        )
 
         result = tool._get_executor(
-            tool_call, parameters, debug_info, web_search_message_logger
+            tool_call, parameters, debug_info, web_search_message_logger, ctx
         )
 
         assert isinstance(result, WebSearchV1Executor)
@@ -603,10 +555,15 @@ class TestWebSearchToolGetExecutor:
         parameters = "invalid"  # type: ignore
         debug_info = Mock()
         web_search_message_logger = Mock()
+        ctx = _make_ctx(
+            chat_service=tool._chat_service,
+            language_model_service=tool._language_model_service,
+            tool_progress_reporter=tool._tool_progress_reporter,
+        )
 
         with pytest.raises(ValueError) as exc_info:
             tool._get_executor(
-                tool_call, parameters, debug_info, web_search_message_logger
+                tool_call, parameters, debug_info, web_search_message_logger, ctx
             )  # type: ignore
 
         assert isinstance(exc_info.value, ValueError)
@@ -757,6 +714,7 @@ class TestWebSearchToolRun:
         tool.config = mock_web_search_config_v1
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
+        tool.language_model_orchestrator = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
         tool._display_name = "WebSearch"
@@ -772,8 +730,13 @@ class TestWebSearchToolRun:
         tool_call = Mock()
         tool_call.id = "test-id"
         tool_call.arguments = {"query": "test", "date_restrict": None}
+        chat_service = Mock()
+        chat_service._company_id = "test-company"
+        chat_service._user_id = "test-user"
+        chat_service.get_full_history.return_value = []
+        ctx = _make_ctx(chat_service=chat_service)
 
-        result = await tool.run(tool_call)
+        result = await tool.run(tool_call, ctx)
 
         assert hasattr(result, "id")
         assert result.id == "test-id"
@@ -851,6 +814,7 @@ class TestWebSearchToolRun:
         tool.config = mock_web_search_config_v1
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
+        tool.language_model_orchestrator = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
         tool._display_name = "WebSearch"
@@ -866,8 +830,13 @@ class TestWebSearchToolRun:
         tool_call = Mock()
         tool_call.id = "test-id"
         tool_call.arguments = {"query": "test", "date_restrict": None}
+        chat_service = Mock()
+        chat_service._company_id = "test-company"
+        chat_service._user_id = "test-user"
+        chat_service.get_full_history.return_value = []
+        ctx = _make_ctx(chat_service=chat_service)
 
-        result = await tool.run(tool_call)
+        result = await tool.run(tool_call, ctx)
 
         assert result.system_reminder == ""
 
@@ -927,6 +896,7 @@ class TestWebSearchToolRun:
         tool.config = mock_web_search_config_v3
         tool.tool_parameter_calls = WebSearchV3ToolParameters
         tool.logger = Mock()
+        tool.language_model_orchestrator = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
         tool._display_name = "WebSearch"
@@ -946,8 +916,13 @@ class TestWebSearchToolRun:
             "phase": "target",
             "payload": {"gap": "Test gap to fill", "query": "test"},
         }
+        chat_service = Mock()
+        chat_service._company_id = "test-company"
+        chat_service._user_id = "test-user"
+        chat_service.get_full_history.return_value = []
+        ctx = _make_ctx(chat_service=chat_service)
 
-        result = await tool.run(tool_call)
+        result = await tool.run(tool_call, ctx)
 
         assert "Test format info" in result.system_reminder
         assert "Domain Diversity Requirement" in result.system_reminder
@@ -1002,6 +977,7 @@ class TestWebSearchToolRun:
         tool.config = mock_web_search_config_v1
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
+        tool.language_model_orchestrator = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
         tool._display_name = "WebSearch"
@@ -1017,8 +993,13 @@ class TestWebSearchToolRun:
         tool_call = Mock()
         tool_call.id = "test-id"
         tool_call.arguments = {"query": "test", "date_restrict": None}
+        chat_service = Mock()
+        chat_service._company_id = "test-company"
+        chat_service._user_id = "test-user"
+        chat_service.get_full_history.return_value = []
+        ctx = _make_ctx(chat_service=chat_service)
 
-        result = await tool.run(tool_call)
+        result = await tool.run(tool_call, ctx)
 
         assert hasattr(result, "id")
         assert result.id == "test-id"
@@ -1086,6 +1067,7 @@ class TestWebSearchToolRun:
         tool.config = mock_web_search_config_v1
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
+        tool.language_model_orchestrator = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = mock_tool_progress_reporter
         tool._display_name = "WebSearch"
@@ -1107,8 +1089,16 @@ class TestWebSearchToolRun:
         tool_call = Mock()
         tool_call.id = "test-id"
         tool_call.arguments = {"query": "test", "date_restrict": None}
+        chat_service = Mock()
+        chat_service._company_id = "test-company"
+        chat_service._user_id = "test-user"
+        chat_service.get_full_history.return_value = []
+        ctx = _make_ctx(
+            chat_service=chat_service,
+            tool_progress_reporter=mock_tool_progress_reporter,
+        )
 
-        await tool.run(tool_call)
+        await tool.run(tool_call, ctx)
 
         assert mock_tool_progress_reporter.notify_from_tool_call.called
         call_args = mock_tool_progress_reporter.notify_from_tool_call.call_args

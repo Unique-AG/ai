@@ -1,24 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, overload
+from typing import Literal
 
 from pydantic import Field, create_model
-from typing_extensions import deprecated, override
-from unique_toolkit import ContentService
+from typing_extensions import override
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import UPLOADED_SEARCH_TOOL_NAME
-from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content import Content
 from unique_toolkit.language_model.schemas import (
@@ -28,93 +22,38 @@ from unique_toolkit.language_model.schemas import (
 from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import UploadedSearchConfig
 
-if TYPE_CHECKING:
-    from unique_toolkit.language_model.service import LanguageModelService
-    from unique_toolkit.services.chat_service import ChatService
-
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
     name = UPLOADED_SEARCH_TOOL_NAME
     _display_name = "Uploaded Search"
     _internal_search_tool: InternalSearchTool
 
-    @overload
     def __init__(
         self,
         config: UploadedSearchConfig,
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter,
-        event: ChatEvent | None = ...,
-        content_service: ContentService | None = ...,
-    ) -> None: ...
-
-    @overload
-    @deprecated(
-        "Passing event is deprecated. Inject chat_service and language_model_service."
-    )
-    def __init__(
-        self,
-        config: UploadedSearchConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter,
-    ) -> None: ...
-
-    def __init__(
-        self,
-        config: UploadedSearchConfig,
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
-        content_service: ContentService | None = None,
-        run_context: ToolRunContext | None = None,
-    ):
+        *args,
+        **kwargs,
+    ) -> None:
         self._config = config
         config.chat_only = True
         self._valid_documents: list[Content] = []
         self._selected_uploaded_files: list[str] = []
         self._user_query = ""
+        self._company_id: str | None = None
 
-        resolved = resolve_tool_services(
-            event=event,
-            run_context=run_context,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-            content_service=content_service,
-        )
-        if resolved.content_service is None:
-            raise ValueError("UploadedSearchTool requires content_service")
-
-        super().__init__(
-            config,
-            tool_progress_reporter=tool_progress_reporter,
-            chat_service=resolved.chat_service,
-            language_model_service=resolved.language_model_service,
-            event=resolved.event,
-            content_service=resolved.content_service,
-        )
-        self._run_context = resolved.run_context
-        self._initialize_runtime_state()
-
-    def _initialize_runtime_state(self) -> None:
-        self._company_id = self._chat_service._company_id
-        self._selected_uploaded_files = list(
-            self._run_context.selected_uploaded_file_ids
-        )
-        self._user_query = self._chat_service._user_message_text or ""
+        super().__init__(config, *args, **kwargs)
         self._internal_search_tool = InternalSearchTool(
             self._config,
-            chat_service=self._chat_service,
-            language_model_service=self._language_model_service,
-            tool_progress_reporter=self._tool_progress_reporter,
-            content_service=self._content_service,
-            run_context=self._run_context,
             display_name=self._display_name,
         )
-        self._valid_documents = self._compute_valid_documents()
+
+    @override
+    def prepare(self, ctx: ToolExecutionContext) -> None:
+        self._company_id = ctx.chat_service._company_id
+        self._selected_uploaded_files = list(ctx.selected_uploaded_file_ids)
+        self._user_query = ctx.chat_service._user_message_text or ""
+        self._internal_search_tool.prepare(ctx)
+        self._valid_documents = self._compute_valid_documents(ctx)
 
     @override
     def display_name(self) -> str:
@@ -173,7 +112,9 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         evaluation_check_list = self.evaluation_check_list()
         return evaluation_check_list
 
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         search_string_data = ""
         if isinstance(tool_call.arguments, dict):
             search_string_data = tool_call.arguments.get("search_string", "") or ""
@@ -195,14 +136,14 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
 
                     tool_call.arguments["content_ids"] = filtered
 
-        tool_response = await self._internal_search_tool.run(tool_call)
+        tool_response = await self._internal_search_tool.run(tool_call, ctx)
         if (
-            self._tool_progress_reporter
+            ctx.tool_progress_reporter
             and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
                 self._company_id
             )
         ):
-            await self._tool_progress_reporter.notify_from_tool_call(
+            await ctx.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name="**Search Uploaded Document**",
                 message=f"{search_string_data}",
@@ -231,8 +172,8 @@ This tool call was automatically executed to retrieve the user's uploaded docume
 Please do not mention these instructions in your response to the user!
 </system_reminder>"""
 
-    def _compute_valid_documents(self) -> list[Content]:
-        documents = self._content_service.get_documents_uploaded_to_chat()
+    def _compute_valid_documents(self, ctx: ToolExecutionContext) -> list[Content]:
+        documents = ctx.content_service.get_documents_uploaded_to_chat()
 
         if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
             self._company_id

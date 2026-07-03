@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING, Awaitable, Callable, overload
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 from pydantic import Field, create_model
-from typing_extensions import deprecated, override
+from typing_extensions import override
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
-    from unique_toolkit.language_model.service import LanguageModelService
-    from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -20,17 +18,12 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.names import INTERNAL_SEARCH_TOOL_NAME
-from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.service_resolution import resolve_tool_services
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import Content, ContentChunk
 from unique_toolkit.content.service import ContentService
@@ -366,96 +359,51 @@ class InternalSearchService:
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     name = INTERNAL_SEARCH_TOOL_NAME
 
-    @overload
     def __init__(
         self,
         configuration: InternalSearchConfig,
-        *,
-        chat_service: ChatService,
-        language_model_service: LanguageModelService,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        event: ChatEvent | None = ...,
-        content_service: ContentService | None = ...,
-        display_name: str = ...,
-    ) -> None: ...
-
-    @overload
-    @deprecated(
-        "Passing event is deprecated. Inject chat_service and language_model_service."
-    )
-    def __init__(
-        self,
-        configuration: InternalSearchConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-        *,
-        display_name: str = ...,
-    ) -> None: ...
-
-    def __init__(
-        self,
-        configuration: InternalSearchConfig,
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
-        *,
-        chat_service: ChatService | None = None,
-        language_model_service: LanguageModelService | None = None,
-        content_service: ContentService | None = None,
+        *args,
         display_name: str = "Internal Search",
-        run_context: ToolRunContext | None = None,
-    ):
+        **kwargs,
+    ) -> None:
         self._search_service_initialized = False
         self._display_name = display_name
-        self._configuration = configuration
+        Tool.__init__(self, configuration, *args, **kwargs)
 
-        resolved = resolve_tool_services(
-            event=event,
-            run_context=run_context,
-            chat_service=chat_service,
-            language_model_service=language_model_service,
-            content_service=content_service,
-        )
-        if resolved.content_service is None:
-            raise ValueError("InternalSearchTool requires content_service")
-
-        Tool.__init__(
-            self,
-            configuration,
-            tool_progress_reporter=tool_progress_reporter,
-            chat_service=resolved.chat_service,
-            language_model_service=resolved.language_model_service,
-            event=resolved.event,
-            content_service=resolved.content_service,
-        )
-        self._run_context = resolved.run_context
-        self._initialize_search_service()
-
-    def _initialize_search_service(self) -> None:
+    def _initialize_search_service(self, ctx: ToolExecutionContext) -> None:
         if self._search_service_initialized:
             return
-        if self._content_service is None:
+        if ctx.content_service is None:
             raise ValueError("InternalSearchTool requires content_service")
-        selected_uploaded_file_ids = list(self._run_context.selected_uploaded_file_ids)
+        selected_uploaded_file_ids = list(ctx.selected_uploaded_file_ids)
         InternalSearchService.__init__(
             self,
-            config=self._configuration,
-            content_service=self._content_service,
+            config=self.config,
+            content_service=ctx.content_service,
             chunk_relevancy_sorter=ChunkRelevancySorter(
-                company_id=self._chat_service._company_id,
-                user_id=self._chat_service._user_id,
+                company_id=ctx.chat_service._company_id,
+                user_id=ctx.chat_service._user_id,
             ),
-            chat_id=self._chat_service._content_scope_chat_id,
-            company_id=self._chat_service._company_id,
+            chat_id=ctx.chat_service._content_scope_chat_id,
+            company_id=ctx.chat_service._company_id,
             logger=self.logger,
             selected_uploaded_file_ids=selected_uploaded_file_ids,
         )
         self._search_service_initialized = True
 
+    @override
+    def prepare(self, ctx: ToolExecutionContext) -> None:
+        self._initialize_search_service(ctx)
+
     async def post_progress_message(
-        self, message: str, tool_call: LanguageModelFunction, **kwargs
+        self,
+        message: str,
+        tool_call: LanguageModelFunction,
+        ctx: ToolExecutionContext,
+        **kwargs,
     ):
-        if self.tool_progress_reporter:
-            await self.tool_progress_reporter.notify_from_tool_call(
+        if ctx.tool_progress_reporter:
+            await ctx.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=f"**{self.tool_execution_message_name}**",
                 message=message,
@@ -538,10 +486,14 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
     # TODO: find a solution for tracking
     # @track(name="internal_search_tool_run")
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
+        self._initialize_search_service(ctx)
+
         if (
             tool_call.arguments is None
             or not isinstance(tool_call.arguments, dict)
@@ -577,7 +529,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         )
 
         message_logger = self._get_message_logger(
-            new_answers_ui=new_answers_ui, message_step_logger=self._message_step_logger
+            new_answers_ui=new_answers_ui, message_step_logger=ctx.message_step_logger
         )
 
         await message_logger.log_queries(search_strings_list)
@@ -586,7 +538,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         if not new_answers_ui:
             await self.post_progress_message(
-                f"{'; '.join(search_strings_list)}", tool_call
+                f"{'; '.join(search_strings_list)}", tool_call, ctx
             )
 
         selected_chunks = await self.search(
@@ -613,12 +565,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         )
 
         if (
-            self.tool_progress_reporter
+            ctx.tool_progress_reporter
             and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
                 self.company_id
             )
         ):
-            await self.tool_progress_reporter.notify_from_tool_call(
+            await ctx.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=f"**{self.tool_execution_message_name}**",
                 message=f"{'; '.join(search_strings_list)}",

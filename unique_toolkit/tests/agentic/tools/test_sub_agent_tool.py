@@ -31,6 +31,19 @@ def ensure_sub_agent_tool_registered():
     yield
 
 
+def _make_ctx(tool: SubAgentTool) -> Mock:
+    """Build a ToolExecutionContext-like mock from the legacy services
+    bootstrapped on the tool by the deprecated
+    ``Tool(config, event, tool_progress_reporter)`` constructor path used
+    throughout this test module.
+    """
+    ctx = Mock()
+    ctx.chat_service = tool._chat_service  # pyright: ignore[reportAttributeAccessIssue]
+    ctx.message_step_logger = tool._message_step_logger  # pyright: ignore[reportAttributeAccessIssue]
+    ctx.tool_progress_reporter = getattr(tool, "_tool_progress_reporter", None)
+    return ctx
+
+
 @pytest.fixture
 def mock_chat_event() -> ChatEvent:
     """Create a mock ChatEvent for testing."""
@@ -108,8 +121,8 @@ class TestSubAgentToolInitialization:
         # Assert
         assert tool.name == "TestSubAgent"
         assert tool._display_name == "Test Sub Agent"
-        assert tool._user_id == "user_123"
-        assert tool._company_id == "company_456"
+        assert tool._chat_service._user_id == "user_123"  # pyright: ignore[reportAttributeAccessIssue]
+        assert tool._chat_service._company_id == "company_456"  # pyright: ignore[reportAttributeAccessIssue]
 
     @pytest.mark.ai
     def test_init__accepts_optional_progress_reporter__with_reporter_AI(
@@ -262,6 +275,7 @@ class TestSubAgentToolProgressNotifications:
         ):
             # Act
             await tool._notify_progress(
+                _make_ctx(tool),
                 tool_call=tool_call,
                 message="Test progress message",
                 state=ProgressState.RUNNING,
@@ -312,6 +326,7 @@ class TestSubAgentToolProgressNotifications:
         ):
             # Act
             await tool._notify_progress(
+                _make_ctx(tool),
                 tool_call=tool_call,
                 message="Test progress message",
                 state=ProgressState.RUNNING,
@@ -340,6 +355,7 @@ class TestSubAgentToolProgressNotifications:
 
         # Act - should not raise any exception
         await sub_agent_tool._notify_progress(
+            _make_ctx(sub_agent_tool),
             tool_call=tool_call,
             message="Test progress message",
             state=ProgressState.RUNNING,
@@ -385,6 +401,7 @@ class TestSubAgentToolProgressNotifications:
 
             # Act
             await tool._notify_progress(
+                _make_ctx(tool),
                 tool_call=tool_call,
                 message="Test progress message",
                 state=ProgressState.RUNNING,
@@ -424,6 +441,7 @@ class TestSubAgentToolMessageLog:
 
         # Act
         result = tool._create_or_update_message_log(
+            _make_ctx(tool),
             progress_message="_Running sub agent_",
             status=MessageLogStatus.RUNNING,
             active_message_log=None,
@@ -466,6 +484,7 @@ class TestSubAgentToolMessageLog:
 
         # Act
         result = tool._create_or_update_message_log(
+            _make_ctx(tool),
             progress_message="_Finished_",
             status=MessageLogStatus.COMPLETED,
             active_message_log=existing_log,
@@ -550,7 +569,7 @@ class TestSubAgentToolRun:
             ),
         ):
             # Act
-            await tool.run(tool_call)
+            await tool.run(tool_call, _make_ctx(tool))
 
             # Assert - progress reporter should have been called at least twice (RUNNING and FINISHED)
             assert mock_progress_reporter.notify_from_tool_call.call_count >= 2
@@ -637,7 +656,7 @@ class TestSubAgentToolRun:
             ),
         ):
             # Act
-            response = await tool.run(tool_call)
+            response = await tool.run(tool_call, _make_ctx(tool))
 
             # Assert - tool should still execute successfully
             assert response.name == "TestSubAgent"
@@ -708,7 +727,7 @@ class TestSubAgentToolRun:
             ),
         ):
             # Act
-            await tool.run(tool_call)
+            await tool.run(tool_call, _make_ctx(tool))
 
             # Assert - message log should have been updated with COMPLETED status
             calls = (
@@ -773,7 +792,7 @@ class TestSubAgentToolRun:
             pytest.raises(TimeoutError),
         ):
             # Act
-            await tool.run(tool_call)
+            await tool.run(tool_call, _make_ctx(tool))
 
         # Assert - progress reporter should NOT be called even on error
         mock_progress_reporter.notify_from_tool_call.assert_not_called()
@@ -827,7 +846,7 @@ class TestSubAgentToolRun:
             pytest.raises(TimeoutError),
         ):
             # Act
-            await tool.run(tool_call)
+            await tool.run(tool_call, _make_ctx(tool))
 
         # Assert - message log should have been updated with FAILED status
         calls = tool._message_step_logger.create_or_update_message_log.call_args_list
@@ -895,15 +914,23 @@ class TestSubAgentToolRun:
                 tool, "_save_chat_id", new_callable=AsyncMock, return_value=None
             ),
         ):
-            await tool.run(tool_call)
+            await tool.run(tool_call, _make_ctx(tool))
 
-        assert (
-            mock_send.await_args.kwargs["on_message_update"]
-            == tool._publish_sub_agent_response_update
-        )
         final_update = tool._chat_service.modify_assistant_message_async.await_args
         assert final_update.kwargs["content"] == "Sub agent response"
         assert final_update.kwargs["set_completed_at"] is True
+
+        on_message_update = mock_send.await_args.kwargs["on_message_update"]
+        assert on_message_update is not None
+
+        streaming_response = {
+            **mock_response,
+            "text": "Streaming update",
+        }
+        await on_message_update(streaming_response)
+        streaming_update = tool._chat_service.modify_assistant_message_async.await_args
+        assert streaming_update.kwargs["content"] == "Streaming update"
+        assert streaming_update.kwargs["set_completed_at"] is False
 
 
 class TestSubAgentToolDebugInfo:
@@ -969,7 +996,7 @@ class TestSubAgentToolDebugInfo:
             ),
         ):
             # Act
-            response = await tool.run(tool_call)
+            response = await tool.run(tool_call, _make_ctx(tool))
 
             # Assert
             assert response.debug_info is not None
@@ -1042,7 +1069,7 @@ class TestSubAgentToolDebugInfo:
             ),
         ):
             # Act
-            response = await tool.run(tool_call)
+            response = await tool.run(tool_call, _make_ctx(tool))
 
             # Assert
             assert response.debug_info is not None

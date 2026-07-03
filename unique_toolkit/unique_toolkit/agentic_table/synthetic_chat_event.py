@@ -25,7 +25,7 @@ def build_synthetic_chat_event(
     """Build a :class:`ChatEvent` for evaluators/tools that still require chat typing.
 
     Discouraged for new code: prefer :meth:`UniqueContext.from_magic_table_event`
-    and ``Service.from_context(...)`` / :meth:`ToolManager.from_run_context`
+    and ``Service.from_context(...)`` / :meth:`ToolManager.from_execution_context`
     so callers do not depend on a fabricated chat envelope.
 
     Magic-table runs create messages dynamically; placeholder message ids are

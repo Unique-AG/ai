@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -97,6 +98,18 @@ def mock_chat_event() -> ChatEvent:
     event.payload = mock_payload
 
     return event
+
+
+def _make_ctx(wrapper: MCPToolWrapper) -> ToolExecutionContext:
+    """Build a ToolExecutionContext from the legacy services bootstrapped on
+    the wrapper by the deprecated ``Tool(config, event, tool_progress_reporter)``
+    constructor path used throughout this test module.
+    """
+    return ToolExecutionContext.from_services(
+        chat_service=wrapper._chat_service,  # pyright: ignore[reportPrivateUsage]
+        language_model_service=wrapper._language_model_service,  # pyright: ignore[reportPrivateUsage]
+        tool_progress_reporter=getattr(wrapper, "_tool_progress_reporter", None),
+    )
 
 
 @pytest.fixture
@@ -633,7 +646,9 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.return_value = {"result": "success", "data": [1, 2, 3]}
 
             # Act
-            response: ToolCallResponse = await mcp_tool_wrapper.run(tool_call)
+            response: ToolCallResponse = await mcp_tool_wrapper.run(
+                tool_call, _make_ctx(mcp_tool_wrapper)
+            )
 
             # Assert
             assert isinstance(response, ToolCallResponse)
@@ -675,7 +690,7 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
-            await mcp_tool_wrapper.run(tool_call)
+            await mcp_tool_wrapper.run(tool_call, _make_ctx(mcp_tool_wrapper))
 
             # Assert
             mock_sdk_call.assert_called_once_with(
@@ -727,7 +742,9 @@ class TestMCPToolWrapperRun:
             mock_upload.return_value = mock_content
 
             # Act
-            response: ToolCallResponse = await mcp_tool_wrapper.run(tool_call)
+            response: ToolCallResponse = await mcp_tool_wrapper.run(
+                tool_call, _make_ctx(mcp_tool_wrapper)
+            )
 
             # Assert
             assert response.image_data_urls
@@ -762,7 +779,9 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.side_effect = Exception("SDK error occurred")
 
             # Act
-            response = await mcp_tool_wrapper.run(tool_call)
+            response = await mcp_tool_wrapper.run(
+                tool_call, _make_ctx(mcp_tool_wrapper)
+            )
 
             # Assert
             assert isinstance(response, ToolCallResponse)
@@ -822,7 +841,7 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
-            await wrapper.run(tool_call)
+            await wrapper.run(tool_call, _make_ctx(wrapper))
 
             # Assert
             assert mock_progress_reporter.notify_from_tool_call.call_count == 2
@@ -880,7 +899,7 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
-            response = await wrapper.run(tool_call)
+            response = await wrapper.run(tool_call, _make_ctx(wrapper))
 
             # Assert - tool should still execute successfully
             assert response.error_message == ""
@@ -938,7 +957,7 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.side_effect = Exception("Test error")
 
             # Act
-            response = await wrapper.run(tool_call)
+            response = await wrapper.run(tool_call, _make_ctx(wrapper))
 
             # Assert - error should still be captured in response
             assert response.error_message == "Test error"
@@ -995,7 +1014,7 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.side_effect = Exception("Test error")
 
             # Act
-            await wrapper.run(tool_call)
+            await wrapper.run(tool_call, _make_ctx(wrapper))
 
             # Assert
             assert mock_progress_reporter.notify_from_tool_call.call_count == 2
@@ -1054,7 +1073,7 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
-            await wrapper.run(tool_call)
+            await wrapper.run(tool_call, _make_ctx(wrapper))
 
             # Assert - feature flag should be called with the company_id from the event
             mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.assert_called_with(
@@ -1086,7 +1105,9 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
-            response = await mcp_tool_wrapper.run(tool_call)
+            response = await mcp_tool_wrapper.run(
+                tool_call, _make_ctx(mcp_tool_wrapper)
+            )
 
             # Assert
             assert response.error_message == ""
@@ -1117,7 +1138,9 @@ class TestMCPToolWrapperRun:
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
-            response = await mcp_tool_wrapper.run(tool_call)
+            response = await mcp_tool_wrapper.run(
+                tool_call, _make_ctx(mcp_tool_wrapper)
+            )
 
             # Assert
             assert response.id == "unique_call_id_789"
@@ -1144,7 +1167,9 @@ class TestMCPToolWrapperCallSDK:
             mock_sdk_call.return_value = {"status": "success", "items": []}
 
             # Act
-            result = await mcp_tool_wrapper._call_mcp_tool_via_sdk(arguments)
+            result = await mcp_tool_wrapper._call_mcp_tool_via_sdk(
+                _make_ctx(mcp_tool_wrapper), arguments
+            )
 
             # Assert
             assert result == {"status": "success", "items": []}
@@ -1168,7 +1193,9 @@ class TestMCPToolWrapperCallSDK:
 
             # Act & Assert
             with pytest.raises(Exception) as exc_info:
-                await mcp_tool_wrapper._call_mcp_tool_via_sdk(arguments)
+                await mcp_tool_wrapper._call_mcp_tool_via_sdk(
+                    _make_ctx(mcp_tool_wrapper), arguments
+                )
 
             assert "Connection timeout" in str(exc_info.value)
 
@@ -1201,7 +1228,9 @@ class TestMCPToolWrapperEdgeCases:
             mock_sdk_call.return_value = {}
 
             # Act
-            response = await mcp_tool_wrapper.run(tool_call)
+            response = await mcp_tool_wrapper.run(
+                tool_call, _make_ctx(mcp_tool_wrapper)
+            )
 
             # Assert
             assert response.error_message == ""
@@ -1240,7 +1269,9 @@ class TestMCPToolWrapperEdgeCases:
             mock_sdk_call.return_value = {"result": "ok"}
 
             # Act
-            response = await mcp_tool_wrapper.run(tool_call)
+            response = await mcp_tool_wrapper.run(
+                tool_call, _make_ctx(mcp_tool_wrapper)
+            )
 
             # Assert
             assert response.error_message == ""

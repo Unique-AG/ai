@@ -22,6 +22,12 @@ from unique_toolkit.chat.schemas import (
 )
 
 
+def _make_ctx(tool: SubAgentTool) -> MagicMock:
+    ctx = MagicMock()
+    ctx.chat_service = tool._chat_service  # pyright: ignore[reportAttributeAccessIssue]
+    return ctx
+
+
 @pytest.fixture
 def assessment_dict() -> dict[str, Any]:
     """A well-formed Space.Assessment-like dict with all required keys."""
@@ -81,7 +87,9 @@ async def test_forward_sub_agent_assessments__no_op__when_list_empty(
     chat_service = passthrough_tool._chat_service
 
     # Act
-    await passthrough_tool._forward_sub_agent_assessments([])
+    await passthrough_tool._forward_sub_agent_assessments(
+        _make_ctx(passthrough_tool), []
+    )
 
     # Assert
     chat_service.create_message_assessment_async.assert_not_called()
@@ -114,7 +122,8 @@ async def test_forward_sub_agent_assessments__forwards_each_assessment__on_happy
 
     # Act
     await passthrough_tool._forward_sub_agent_assessments(
-        [assessment_dict, red_assessment]  # type: ignore[list-item]
+        _make_ctx(passthrough_tool),
+        [assessment_dict, red_assessment],  # type: ignore[list-item]
     )
 
     # Assert
@@ -164,7 +173,8 @@ async def test_forward_sub_agent_assessments__continues_other_assessments__when_
 
     # Act
     await passthrough_tool._forward_sub_agent_assessments(
-        [bad_assessment, assessment_dict]  # type: ignore[list-item]
+        _make_ctx(passthrough_tool),
+        [bad_assessment, assessment_dict],  # type: ignore[list-item]
     )
 
     # Assert
@@ -205,7 +215,10 @@ async def test_display_sub_agent_response__skips_assessment_forwarding__when_fla
     }
 
     # Act
-    await passthrough_tool._display_sub_agent_response(response)  # type: ignore[arg-type]
+    await passthrough_tool._display_sub_agent_response(
+        _make_ctx(passthrough_tool),
+        response,  # type: ignore[arg-type]
+    )
 
     # Assert
     chat_service.modify_assistant_message_async.assert_awaited_once()
@@ -236,7 +249,10 @@ async def test_display_sub_agent_response__forwards_assessments__when_flag_on(
     }
 
     # Act
-    await passthrough_tool._display_sub_agent_response(response)  # type: ignore[arg-type]
+    await passthrough_tool._display_sub_agent_response(
+        _make_ctx(passthrough_tool),
+        response,  # type: ignore[arg-type]
+    )
 
     # Assert
     chat_service.modify_assistant_message_async.assert_awaited_once()
