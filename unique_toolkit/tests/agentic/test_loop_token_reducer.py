@@ -107,6 +107,20 @@ def language_model_info() -> LanguageModelInfo:
     return LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
 
 
+@pytest.fixture(autouse=True)
+def _default_selected_uploaded_files_ff_off():
+    """`get_history_from_db` now awaits the selected-uploaded-files flag lazily
+    (previously the coroutine was silently dropped — see UN-19522 bugbot fix).
+    Default it to disabled so tests that don't care about this flag don't need
+    live `CONFIGURATION_BACKEND_URL` / `FEATURE_FLAG_SERVICE_ID` env vars.
+    """
+    with patch(
+        "unique_toolkit.agentic.history_manager.utils.is_flag_enabled",
+        AsyncMock(return_value=False),
+    ):
+        yield
+
+
 @pytest.fixture
 def loop_token_reducer(
     mock_logger: Logger,

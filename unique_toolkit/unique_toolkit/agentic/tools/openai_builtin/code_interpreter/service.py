@@ -24,6 +24,7 @@ from unique_toolkit._common.execution import (
     failsafe_async,
 )
 from unique_toolkit._common.utils.jinja.render import render_template
+from unique_toolkit.agentic.feature_flags import FeatureFlagNames
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
@@ -41,10 +42,7 @@ from unique_toolkit.agentic.tools.schemas import ToolPrompts
 from unique_toolkit.content.schemas import (
     Content,
 )
-from unique_toolkit.experimental.resources.feature_flags import (
-    FeatureFlagNames,
-    is_flag_enabled,
-)
+from unique_toolkit.experimental.resources.feature_flags import is_flag_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +259,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         user_uploaded_files: list[str] | None = None,
         kb_uploaded_files: list[str] | None = None,
         code_execution_files: list[str] | None = None,
+        fence_enabled: bool = False,
     ) -> None:
         self._config = config
 
@@ -274,6 +273,9 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         self._user_uploaded_files = user_uploaded_files
         self._kb_uploaded_files = kb_uploaded_files
         self._code_interpreter_artifacts = code_execution_files
+        # Resolved once in `build_tool` (async) since flag evaluation is async
+        # but this instance is used from sync call-sites (get_required_include_params).
+        self._fence_enabled = fence_enabled
 
     @property
     @override
@@ -325,6 +327,11 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         if force_auto_container:
             config = config.model_copy(update={"use_auto_container": True})
 
+        fence_enabled = await is_flag_enabled(
+            FeatureFlagNames.enable_code_execution_fence_un_17972,
+            company_id=company_id,
+        )
+
         if config.use_auto_container:
             logger.info("Using `auto` container setting")
             return cls(
@@ -332,6 +339,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
                 container_id=None,
                 company_id=company_id,
                 is_exclusive=is_exclusive,
+                fence_enabled=fence_enabled,
             )
 
         memory_manager = _get_container_code_execution_short_term_memory_manager(
@@ -410,6 +418,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             user_uploaded_files=_extract_paths(user_uploaded_files),
             kb_uploaded_files=_extract_paths(kb_files),
             code_execution_files=_extract_paths(code_execution_files),
+            fence_enabled=fence_enabled,
         )
 
     @override
@@ -437,10 +446,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
 
     @override
     def get_required_include_params(self) -> list[ResponseIncludable]:
-        if is_flag_enabled(
-            FeatureFlagNames.enable_code_execution_fence_un_17972,
-            company_id=self._company_id or "",
-        ):
+        if self._fence_enabled:
             return ["code_interpreter_call.outputs"]
         return []
 
