@@ -642,8 +642,8 @@ class UniqueSettings:
         self.init_sdk()
         try:
             return await self.api.check_connection(
-                self.auth.user_id.get_secret_value(),
-                self.auth.company_id.get_secret_value(),
+                self.authcontext.get_confidential_user_id(),
+                self.authcontext.get_confidential_company_id(),
             )
         finally:
             # Re-sync api_base with sdk_url() which may have just fallen back.

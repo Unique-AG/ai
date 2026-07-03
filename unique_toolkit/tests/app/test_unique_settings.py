@@ -854,6 +854,35 @@ async def test_unique_settings__check_connection__inits_sdk_and_delegates_with_a
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_unique_settings__check_connection__uses_authcontext_for_request_scoped_auth(
+    mocker,
+) -> None:
+    """
+    Purpose: Verify check_connection reads credentials via authcontext, not the deprecated auth property.
+    Why this matters: UniqueSettings accepts AuthContext from requests; check_connection must work with it.
+    Setup summary: Build settings with AuthContext; patch UniqueApi.check_connection; assert delegation.
+    """
+    settings = UniqueSettings(
+        auth=AuthContext(company_id=SecretStr("co"), user_id=SecretStr("user")),
+        app=UniqueApp(id=SecretStr("id"), key=SecretStr("key")),
+        api=UniqueApi(base_url="http://localhost:8096/"),
+    )
+    mocker.patch.object(UniqueSettings, "init_sdk")
+    mock_check = mocker.patch.object(
+        UniqueApi,
+        "check_connection",
+        new_callable=mocker.AsyncMock,
+        return_value=True,
+    )
+
+    result = await settings.check_connection()
+
+    assert result is True
+    mock_check.assert_awaited_once_with("user", "co")
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_unique_settings__check_connection__resets_probe_flag_so_retry_uses_computed_url(
     mocker,
 ) -> None:
