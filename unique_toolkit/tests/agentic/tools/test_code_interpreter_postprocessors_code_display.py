@@ -1,7 +1,7 @@
 """Tests for code interpreter ShowExecutedCode postprocessor (config and behavior)."""
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -19,9 +19,16 @@ def _build_code_display_postprocessor(
     *,
     is_flag_enabled_return: bool = True,
 ) -> ShowExecutedCodePostprocessor:
-    """Patch ``is_flag_enabled`` with a sync bool (production assigns its return value to ``_is_enabled``)."""
-    with patch(CODE_DISPLAY_FF, MagicMock(return_value=is_flag_enabled_return)):
-        return ShowExecutedCodePostprocessor(config=config, company_id=company_id)
+    """Build a postprocessor with `_is_enabled` pre-seeded, as `run()` would set it.
+
+    Production resolves the flag asynchronously in `run()` (always awaited by
+    `PostprocessorManager` before `apply_postprocessing_to_response`), so unit
+    tests exercising `apply_postprocessing_to_response` directly seed the
+    post-`run()` state instead of re-patching `is_flag_enabled` per call.
+    """
+    postprocessor = ShowExecutedCodePostprocessor(config=config, company_id=company_id)
+    postprocessor._is_enabled = is_flag_enabled_return
+    return postprocessor
 
 
 @pytest.mark.ai
@@ -194,7 +201,7 @@ async def test_show_executed_code_postprocessor__run__no_op__when_fence_ff_on() 
     config = ShowExecutedCodePostprocessorConfig()
 
     with (
-        patch(CODE_DISPLAY_FF, MagicMock(return_value=False)),
+        patch(CODE_DISPLAY_FF, AsyncMock(return_value=False)),
         patch.object(asyncio, "sleep") as mock_sleep,
     ):
         postprocessor = ShowExecutedCodePostprocessor(
@@ -248,12 +255,13 @@ async def test_show_executed_code_postprocessor__run__no_op__when_enable_false()
     import asyncio
 
     config = ShowExecutedCodePostprocessorConfig(enable=False)
-    postprocessor = _build_code_display_postprocessor(
-        config=config, is_flag_enabled_return=False
-    )
+    postprocessor = ShowExecutedCodePostprocessor(config=config)
     loop_response = SimpleNamespace(code_interpreter_calls=[])
 
-    with patch.object(asyncio, "sleep") as mock_sleep:
+    with (
+        patch(CODE_DISPLAY_FF, AsyncMock(return_value=False)),
+        patch.object(asyncio, "sleep") as mock_sleep,
+    ):
         await postprocessor.run(loop_response)
 
     mock_sleep.assert_not_called()

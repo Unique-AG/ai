@@ -109,7 +109,21 @@ class LoopTokenReducer:
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
-        self._selected_content_ids = get_selected_uploaded_content_ids(event)
+        self._event = event
+        # Resolved lazily on first async use (`get_history_from_db`) since
+        # evaluating the underlying feature flag is async; `_resolved` tracks
+        # whether resolution has happened yet, distinct from a resolved `None`
+        # (flag off — include all uploaded content).
+        self._selected_content_ids: set[str] | None = None
+        self._selected_content_ids_resolved = False
+
+    async def _get_selected_content_ids(self) -> set[str] | None:
+        if not self._selected_content_ids_resolved:
+            self._selected_content_ids = await get_selected_uploaded_content_ids(
+                self._event
+            )
+            self._selected_content_ids_resolved = True
+        return self._selected_content_ids
 
     @property
     def max_db_source_number(self) -> int:
@@ -354,6 +368,7 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
+        selected_content_ids = await self._get_selected_content_ids()
         if self._enable_tool_call_persistence:
             (
                 full_history,
@@ -365,7 +380,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serializer=self._file_content_serializer,
-                selected_content_ids=self._selected_content_ids,
+                selected_content_ids=selected_content_ids,
             )
             self._max_db_source_number = max_src
             self._db_source_map = src_map
@@ -376,7 +391,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serializer=self._file_content_serializer,
-                selected_content_ids=self._selected_content_ids,
+                selected_content_ids=selected_content_ids,
             )
 
         if remove_from_text is not None:
