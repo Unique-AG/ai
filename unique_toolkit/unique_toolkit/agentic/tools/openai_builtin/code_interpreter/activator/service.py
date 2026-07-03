@@ -69,6 +69,10 @@ class CodeInterpreterActivatorTool(Tool[CodeInterpreterActivatorConfig]):
         return self.DISPLAY_NAME
 
     @override
+    def is_enabled(self) -> bool:
+        return True
+
+    @override
     def is_exclusive(self) -> bool:
         return False
 
