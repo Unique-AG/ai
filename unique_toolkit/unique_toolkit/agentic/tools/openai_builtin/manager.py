@@ -43,7 +43,7 @@ class OpenAIBuiltInToolManager:
         client: AsyncOpenAI,
         tool_config: ToolBuildConfig,
         force_auto_container: bool = False,
-    ) -> OpenAIBuiltInTool[Any] | ActivatorTool[Any]:
+    ) -> OpenAIBuiltInTool | ActivatorTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
 
@@ -91,7 +91,7 @@ class OpenAIBuiltInToolManager:
         force_auto_container: bool = False,
     ) -> OpenAIBuiltInToolManager:
         builtin_tools: list[OpenAIBuiltInTool[Any]] = []
-        activator_tools: list[ActivatorTool[Any]] = []
+        activator_tools: list[ActivatorTool[Any, Any]] = []
         for tool_config in tool_configs:
             if tool_config.name in OpenAIBuiltInToolName and tool_config.is_enabled:
                 tool = await cls._build_tool(
@@ -114,5 +114,5 @@ class OpenAIBuiltInToolManager:
     def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool[Any]]:
         return self._builtin_tools.copy()
 
-    def get_activator_tools(self) -> list[ActivatorTool[Any]]:
+    def get_activator_tools(self) -> list[ActivatorTool[Any, Any]]:
         return self._activator_tools.copy()

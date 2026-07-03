@@ -4,8 +4,8 @@ from typing import Any, Generic, TypeVar
 
 from openai.types.responses.tool_param import CodeInterpreter
 
-from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolPrompts
-from unique_toolkit.agentic.tools.tool import Tool
+from unique_toolkit.agentic.tools.schemas import ToolPrompts
+from unique_toolkit.agentic.tools.tool import ConfigType, Tool
 
 
 class OpenAIBuiltInToolName(StrEnum):
@@ -54,10 +54,10 @@ class OpenAIBuiltInTool(ABC, Generic[ToolType]):
         return False
 
 
-ActivatorConfigType = TypeVar("ActivatorConfigType", bound=BaseToolConfig)
+BuiltinTool = TypeVar("BuiltinTool", bound=OpenAIBuiltInTool[Any])
 
 
-class ActivatorTool(Tool[ActivatorConfigType], ABC):
+class ActivatorTool(Generic[ConfigType, BuiltinTool], Tool[ConfigType], ABC):
     """A regular function tool that lazily provisions a built-in tool.
 
     The activator is offered to the model as a cheap function tool. When the
@@ -75,10 +75,5 @@ class ActivatorTool(Tool[ActivatorConfigType], ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_activated_tool(self) -> OpenAIBuiltInTool[Any]:
-        """The provisioned built-in tool.
-
-        Raises if called before activation (i.e. when ``is_activated`` is
-        False); guard with ``is_activated`` first.
-        """
+    def get_activated_tool(self) -> BuiltinTool:
         raise NotImplementedError()

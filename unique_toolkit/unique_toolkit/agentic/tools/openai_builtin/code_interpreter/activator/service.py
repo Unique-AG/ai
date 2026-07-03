@@ -39,7 +39,9 @@ Use this tool in order to activate the code interpreter tool in this environment
 _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = _DEFAULT_TOOL_DESCRIPTION
 
 
-class CodeInterpreterActivatorTool(ActivatorTool[CodeInterpreterActivatorConfig]):
+class CodeInterpreterActivatorTool(
+    ActivatorTool[CodeInterpreterActivatorConfig, OpenAICodeInterpreterTool]
+):
     NAME = "ActivatePython"
     DISPLAY_NAME = "Activate Python"
 
@@ -107,6 +109,7 @@ class CodeInterpreterActivatorTool(ActivatorTool[CodeInterpreterActivatorConfig]
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         async with self._activation_lock:
             if self._built_tool is None:
+                logger.info("Building code interpreter tool")
                 self._built_tool = await self._builder.build()
 
         return ToolCallResponse(
