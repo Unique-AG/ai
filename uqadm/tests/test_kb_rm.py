@@ -229,14 +229,27 @@ def test_dry_run_folder_deletes_nothing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     folder.resolve_scope_id_from_folder_path.return_value = "scope1"
-    content.get_infos.return_value = {
-        "contentInfos": [{"id": "c1", "key": "a.txt"}],
-        "totalCount": 1,
-    }
-    folder.get_infos.return_value = {
-        "folderInfos": [{"id": "scope_sub", "name": "sub"}],
-        "totalCount": 1,
-    }
+
+    def content_side_effect(
+        user_id: str, company_id: str, **kwargs: object
+    ) -> dict[str, object]:
+        if kwargs.get("parentId") == "scope1":
+            return {"contentInfos": [{"id": "c1", "key": "a.txt"}], "totalCount": 1}
+        return _no_content()
+
+    content.get_infos.side_effect = content_side_effect
+
+    def folder_side_effect(
+        user_id: str, company_id: str, **kwargs: object
+    ) -> dict[str, object]:
+        if kwargs.get("parentId") == "scope1":
+            return {
+                "folderInfos": [{"id": "scope_sub", "name": "sub"}],
+                "totalCount": 1,
+            }
+        return _no_folders()
+
+    folder.get_infos.side_effect = folder_side_effect
 
     cmd_rm(
         _cfg(),
@@ -252,6 +265,65 @@ def test_dry_run_folder_deletes_nothing(
     content.delete.assert_not_called()
     out = capsys.readouterr().out
     assert "[dry-run] deleted file: a.txt" in out
+    assert "[dry-run] deleted subfolder: sub" in out
+    assert "[dry-run] deleted folder: /X" in out
+
+
+@patch("uqadm.kb.rm.Content")
+@patch("uqadm.kb.rm.Folder")
+def test_dry_run_recursive_walks_nested_subtree(
+    folder: MagicMock,
+    content: MagicMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # A recursive dry-run must list files nested in child scopes, since
+    # Folder.delete(recursive=True) removes the whole subtree.
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+
+    def content_side_effect(
+        user_id: str, company_id: str, **kwargs: object
+    ) -> dict[str, object]:
+        parent = kwargs.get("parentId")
+        if parent == "scope1":
+            return {
+                "contentInfos": [{"id": "c_top", "key": "top.txt"}],
+                "totalCount": 1,
+            }
+        if parent == "scope_sub":
+            return {
+                "contentInfos": [{"id": "c_nested", "key": "nested.txt"}],
+                "totalCount": 1,
+            }
+        return _no_content()
+
+    content.get_infos.side_effect = content_side_effect
+
+    def folder_side_effect(
+        user_id: str, company_id: str, **kwargs: object
+    ) -> dict[str, object]:
+        if kwargs.get("parentId") == "scope1":
+            return {
+                "folderInfos": [{"id": "scope_sub", "name": "sub"}],
+                "totalCount": 1,
+            }
+        return _no_folders()
+
+    folder.get_infos.side_effect = folder_side_effect
+
+    cmd_rm(
+        _cfg(),
+        folder_path="/X",
+        scope_id=None,
+        files=(),
+        recursive=True,
+        dry_run=True,
+        assume_yes=True,
+    )
+
+    folder.delete.assert_not_called()
+    out = capsys.readouterr().out
+    assert "[dry-run] deleted file: top.txt" in out
+    assert "[dry-run] deleted file: sub/nested.txt" in out
     assert "[dry-run] deleted subfolder: sub" in out
     assert "[dry-run] deleted folder: /X" in out
 

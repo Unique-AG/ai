@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from collections import deque
 
 import typer
 from unique_sdk import Content, Folder
@@ -51,6 +52,28 @@ def _list_child_folders(cfg: Config, scope_id: str) -> list[Folder.FolderInfo]:
         if not batch or skip >= page.get("totalCount", 0):
             break
     return folders
+
+
+def _collect_subtree(cfg: Config, scope_id: str) -> tuple[list[str], list[str]]:
+    """Return ``(file_paths, folder_paths)`` for the whole subtree under a scope.
+
+    Both lists hold display paths relative to the root scope (the root folder
+    itself is excluded). Used to render an accurate ``--recursive`` delete plan,
+    since ``Folder.delete(recursive=True)`` removes the entire subtree, not just
+    the top level.
+    """
+    files: list[str] = []
+    folders: list[str] = []
+    queue: deque[tuple[str, str]] = deque([(scope_id, "")])
+    while queue:
+        current_scope_id, rel = queue.popleft()
+        for info in _list_content_infos(cfg, current_scope_id):
+            files.append(f"{rel}/{info['key']}" if rel else info["key"])
+        for folder_info in _list_child_folders(cfg, current_scope_id):
+            child_rel = f"{rel}/{folder_info['name']}" if rel else folder_info["name"]
+            folders.append(child_rel)
+            queue.append((folder_info["id"], child_rel))
+    return files, folders
 
 
 def _report(counts: dict[str, int]) -> None:
@@ -168,10 +191,24 @@ def _rm_folder(
         sys.exit(2)
 
     if dry_run:
-        for info in contents:
-            typer.echo(f"[dry-run] deleted file: {info['key']}")
-        for folder_info in child_folders:
-            typer.echo(f"[dry-run] deleted subfolder: {folder_info['name']}")
+        if recursive:
+            # Walk the full subtree so the plan reflects everything
+            # Folder.delete(recursive=True) will remove, not just the top level.
+            try:
+                files, subfolders = _collect_subtree(cfg, scope_id)
+            except Exception as exc:
+                typer.echo(
+                    f"failed to inspect folder {target_label!r}: {exc}", err=True
+                )
+                echo_credential_debug_if_auth_failure(cfg, exc, label="kb rm")
+                sys.exit(1)
+        else:
+            files = [info["key"] for info in contents]
+            subfolders = [folder_info["name"] for folder_info in child_folders]
+        for display in files:
+            typer.echo(f"[dry-run] deleted file: {display}")
+        for display in subfolders:
+            typer.echo(f"[dry-run] deleted subfolder: {display}")
         typer.echo(f"[dry-run] deleted folder: {target_label}")
         return
 
