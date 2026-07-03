@@ -7,7 +7,6 @@ from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
 )
 from openai.types.responses import (
-    ResponseIncludable,
     ToolParam,
     response_create_params,
 )
@@ -28,6 +27,7 @@ from unique_toolkit.agentic.tools.names import (
     UPLOADED_SEARCH_TOOL_NAME,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import (
+    ActivatorTool,
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
@@ -264,6 +264,14 @@ class _ToolManager(Generic[_ApiMode]):
                     exc_info=result.exception,
                 )
 
+        # Activator tools are regular function tools that lazily provision a
+        # built-in tool when the model calls them. They are offered up front and
+        # swapped for the provisioned built-in in `_activate_deferred_tools`.
+        if self._builtin_tool_manager is not None and self._api_mode == "responses":
+            self._internal_tools.extend(
+                self._builtin_tool_manager.get_activator_tools()
+            )
+
         # Combine all types of tools
         self.available_tools = (
             self._internal_tools
@@ -488,7 +496,28 @@ class _ToolManager(Generic[_ApiMode]):
                 ]
 
         tool_call_responses = await self._execute_parallelized(tool_calls)
+        self._activate_deferred_tools()
         return tool_call_responses
+
+    def _activate_deferred_tools(self) -> None:
+        """Swap any activated activator for its provisioned built-in tool.
+
+        Runs after tool execution. When an ``ActivatorTool`` has been activated
+        (its ``run`` provisioned the built-in), replace it in the active tool
+        set with the built-in so subsequent loop iterations offer the real tool
+        (e.g. ``code_interpreter``) instead of the activator function.
+
+        Idempotent by construction: the activator is removed from ``_tools``
+        once handled, so later passes over ``_tools`` cannot process it again.
+        """
+        if self._api_mode != "responses":
+            return
+        for tool in list(self._tools):
+            if isinstance(tool, ActivatorTool) and tool.is_activated:
+                built_tool = tool.get_activated_tool()
+                self._tools.remove(tool)
+                self._tools.append(built_tool)
+                self._builtin_tools.append(built_tool)
 
     async def _execute_parallelized(
         self,
@@ -819,7 +848,3 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             chat_service=chat_service,
             language_model_service=language_model_service,
         )
-
-    def get_required_include_params(self) -> list[ResponseIncludable]:
-        """Return Responses API include params required by all active built-in tools."""
-        return self._builtin_tool_manager.get_required_include_params()

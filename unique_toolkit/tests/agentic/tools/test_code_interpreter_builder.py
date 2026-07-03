@@ -10,6 +10,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from unique_toolkit.agentic.tools.openai_builtin import (
+    OpenAICodeInterpreterConfig,
+    OpenAICodeInterpreterTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder import (
     CodeInterpreterBuilder,
 )
@@ -25,12 +29,6 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._files
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._memory import (
     CodeExecutionShortTermMemorySchema,
-)
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    OpenAICodeInterpreterConfig,
-)
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
-    OpenAICodeInterpreterTool,
 )
 from unique_toolkit.content.schemas import Content
 
@@ -404,7 +402,9 @@ async def test_build_tool__uploads_kb_documents__when_additional_uploaded_docume
     memory_manager.load_async = AsyncMock(return_value=None)
     memory_manager.save_async = AsyncMock()
 
-    builder_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    builder_mod = (
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    )
     with (
         patch(
             f"{builder_mod}.get_container_code_execution_short_term_memory_manager",
@@ -468,7 +468,9 @@ async def test_build_tool__skips_upload__when_no_sources_enabled() -> None:
     memory_manager.load_async = AsyncMock(return_value=None)
     memory_manager.save_async = AsyncMock()
 
-    builder_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    builder_mod = (
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    )
     with (
         patch(
             f"{builder_mod}.get_container_code_execution_short_term_memory_manager",
@@ -727,7 +729,9 @@ async def test_build_tool__skips_save_async__when_container_and_files_unchanged(
     memory_manager.load_async = AsyncMock(return_value=memory_loaded)
     memory_manager.save_async = AsyncMock()
 
-    builder_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    builder_mod = (
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    )
     with (
         patch(
             f"{builder_mod}.get_container_code_execution_short_term_memory_manager",
@@ -789,7 +793,9 @@ async def test_build_tool__saves_when_files_updated__even_if_container_unchanged
     memory_manager.load_async = AsyncMock(return_value=memory_loaded)
     memory_manager.save_async = AsyncMock()
 
-    builder_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    builder_mod = (
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    )
     with (
         patch(
             f"{builder_mod}.get_container_code_execution_short_term_memory_manager",
@@ -859,7 +865,9 @@ async def test_build_tool__deduplicates_chat_and_kb_overlap__uploads_each_conten
     memory_manager.load_async = AsyncMock(return_value=memory_loaded)
     memory_manager.save_async = AsyncMock()
 
-    builder_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    builder_mod = (
+        "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder.builder"
+    )
     with (
         patch(
             f"{builder_mod}.get_container_code_execution_short_term_memory_manager",

@@ -5,17 +5,21 @@ from typing import override
 from pydantic import BaseModel, Field
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.openai_builtin.base import (
+    ActivatorTool,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator.config import (
+    CodeInterpreterActivatorConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder import (
     CodeInterpreterBuilder,
 )
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool import (
     OpenAICodeInterpreterTool,
 )
 from unique_toolkit.agentic.tools.schemas import (
-    BaseToolConfig,
     ToolCallResponse,
 )
-from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -35,14 +39,7 @@ Use this tool in order to activate the code interpreter tool in this environment
 _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = _DEFAULT_TOOL_DESCRIPTION
 
 
-class CodeInterpreterActivatorConfig(BaseToolConfig):
-    tool_description: str = Field(default=_DEFAULT_TOOL_DESCRIPTION)
-    tool_description_for_system_prompt: str = (
-        _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
-    )
-
-
-class CodeInterpreterActivatorTool(Tool[CodeInterpreterActivatorConfig]):
+class CodeInterpreterActivatorTool(ActivatorTool[CodeInterpreterActivatorConfig]):
     NAME = "ActivatePython"
     DISPLAY_NAME = "Activate Python"
 
@@ -59,12 +56,16 @@ class CodeInterpreterActivatorTool(Tool[CodeInterpreterActivatorConfig]):
         self._activation_lock = asyncio.Lock()
 
     @property
+    @override
     def is_activated(self) -> bool:
         return self._built_tool is not None
 
-    @property
-    def built_tool(self) -> OpenAICodeInterpreterTool | None:
-        """The provisioned code interpreter tool, or None before activation."""
+    @override
+    def get_activated_tool(self) -> OpenAICodeInterpreterTool:
+        if self._built_tool is None:
+            raise RuntimeError(
+                "Code interpreter tool is not activated yet; call `run` first."
+            )
         return self._built_tool
 
     @override

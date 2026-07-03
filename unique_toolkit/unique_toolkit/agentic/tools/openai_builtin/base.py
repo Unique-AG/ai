@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
-from openai.types.responses import ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
 
-from unique_toolkit.agentic.tools.schemas import ToolPrompts
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolPrompts
+from unique_toolkit.agentic.tools.tool import Tool
 
 
 class OpenAIBuiltInToolName(StrEnum):
@@ -53,11 +53,32 @@ class OpenAIBuiltInTool(ABC, Generic[ToolType]):
         """
         return False
 
-    def get_required_include_params(self) -> list[ResponseIncludable]:
-        """Return Responses API `include` values required by this tool.
 
-        Subclasses override this when they need additional data attached to the
-        response (e.g. code interpreter execution logs).  The default is an
-        empty list, meaning no extra includes are needed.
+ActivatorConfigType = TypeVar("ActivatorConfigType", bound=BaseToolConfig)
+
+
+class ActivatorTool(Tool[ActivatorConfigType], ABC):
+    """A regular function tool that lazily provisions a built-in tool.
+
+    The activator is offered to the model as a cheap function tool. When the
+    model calls it, ``run`` provisions the underlying built-in tool; from then
+    on ``is_activated`` is True and ``get_activated_tool`` returns the built
+    tool. The tool manager uses this contract to swap the activator for the
+    real built-in tool once activation has happened, without knowing about any
+    specific built-in.
+    """
+
+    @property
+    @abstractmethod
+    def is_activated(self) -> bool:
+        """Whether the underlying built-in tool has been provisioned yet."""
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_activated_tool(self) -> OpenAIBuiltInTool[Any]:
+        """The provisioned built-in tool.
+
+        Raises if called before activation (i.e. when ``is_activated`` is
+        False); guard with ``is_activated`` first.
         """
-        return []
+        raise NotImplementedError()

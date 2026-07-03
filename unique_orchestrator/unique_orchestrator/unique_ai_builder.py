@@ -2,6 +2,7 @@ from logging import Logger
 from typing import Any, NamedTuple, cast
 
 from openai import AsyncOpenAI
+from openai.types.responses import ResponseIncludable
 from typing_extensions import override
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
@@ -115,37 +116,24 @@ def _configure_follow_up_questions(
 
 
 class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
-    """Streaming handler for Responses API runs.
+    """Streaming handler for Responses API runs."""
 
-    Injects `include` params from the tool manager on every call so the
-    orchestrator loop stays generic (no isinstance checks in UniqueAI).
-
-    Delegates the actual streaming to an injected
-    `ResponsesSupportCompleteWithReferences` (the event-routing
-    `ResponsesCompleteWithReferences` orchestrator), so this class only owns
-    the `include` injection.
-    """
+    _INCLUDE: list[ResponseIncludable] = ["code_interpreter_call.outputs"]
 
     def __init__(
         self,
         inner: ResponsesSupportCompleteWithReferences,
-        tool_manager: ResponsesApiToolManager,
     ) -> None:
         self._inner: ResponsesSupportCompleteWithReferences = inner
-        self._tool_manager: ResponsesApiToolManager = tool_manager
 
     @override
     def complete_with_references(self, *args: Any, **kwargs: Any) -> Any:
-        include = self._tool_manager.get_required_include_params()
-        if include:
-            kwargs["include"] = include
+        kwargs["include"] = self._INCLUDE
         return self._inner.complete_with_references(*args, **kwargs)
 
     @override
     async def complete_with_references_async(self, *args: Any, **kwargs: Any) -> Any:
-        include = self._tool_manager.get_required_include_params()
-        if include:
-            kwargs["include"] = include
+        kwargs["include"] = self._INCLUDE
         return await self._inner.complete_with_references_async(*args, **kwargs)
 
 
@@ -602,7 +590,6 @@ async def _build_responses(
 
     streaming_handler = ResponsesStreamingHandler(
         inner=inner,
-        tool_manager=tool_manager,
     )
 
     _add_sub_agents_postprocessor(

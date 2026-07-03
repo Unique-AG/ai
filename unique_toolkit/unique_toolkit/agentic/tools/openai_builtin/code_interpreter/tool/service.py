@@ -3,16 +3,15 @@ from __future__ import annotations
 import logging
 from typing import Any, override
 
-from openai.types.responses import ResponseCodeInterpreterToolCall, ResponseIncludable
+from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit._common.utils.jinja.render import render_template
-from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool.config import (
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
@@ -102,14 +101,6 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     @override
     def display_name(self) -> str:
         return self.DISPLAY_NAME
-
-    @override
-    def get_required_include_params(self) -> list[ResponseIncludable]:
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        ):
-            return ["code_interpreter_call.outputs"]
-        return []
 
     @classmethod
     def get_debug_info(cls, call: ResponseCodeInterpreterToolCall) -> dict[str, Any]:

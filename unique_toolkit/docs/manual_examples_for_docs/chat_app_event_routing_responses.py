@@ -16,10 +16,8 @@
 import json
 
 from unique_toolkit import LanguageModelName
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+from unique_toolkit.agentic.tools.openai_builtin import (
     OpenAICodeInterpreterConfig,
-)
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
     OpenAICodeInterpreterTool,
 )
 from unique_toolkit.app.dev_util import get_event_generator

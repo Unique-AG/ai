@@ -4,13 +4,15 @@ import pytest
 
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
-    OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
     ShowExecutedCodePostprocessorConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
     DisplayCodeInterpreterFilesPostProcessorConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool import (
+    OpenAICodeInterpreterConfig,
 )
 
 

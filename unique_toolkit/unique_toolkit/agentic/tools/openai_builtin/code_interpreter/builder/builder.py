@@ -19,13 +19,11 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._memor
     CodeExecutionShortTermMemorySchema,
     get_container_code_execution_short_term_memory_manager,
 )
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    OpenAICodeInterpreterConfig,
-)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.artifacts import (
     load_code_execution_metadata,
 )
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool import (
+    OpenAICodeInterpreterConfig,
     OpenAICodeInterpreterTool,
 )
 from unique_toolkit.content.schemas import (

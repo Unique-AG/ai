@@ -3,55 +3,24 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.openai_builtin import (
+    OpenAICodeInterpreterConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator import (
+    CodeInterpreterActivatorConfig,
+    CodeInterpreterActivatorTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
-    OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToolManager
-from unique_toolkit.agentic.tools.schemas import ToolPrompts
-
-
-class _BuiltinWithDefaultIncludes(OpenAIBuiltInTool):
-    """Concrete tool using the base-class default for get_required_include_params."""
-
-    @property
-    def name(self) -> OpenAIBuiltInToolName:
-        return OpenAIBuiltInToolName.CODE_INTERPRETER
-
-    def tool_description(self) -> CodeInterpreter:
-        return {"type": "code_interpreter", "container": {"type": "auto"}}
-
-    def get_tool_prompts(self) -> ToolPrompts:
-        return ToolPrompts(
-            name="n",
-            display_name="d",
-            tool_system_prompt="",
-            tool_format_information_for_system_prompt="",
-            tool_user_prompt="",
-            tool_format_information_for_user_prompt="",
-            tool_description="",
-            input_model={},
-        )
-
-    def is_enabled(self) -> bool:
-        return True
-
-    def is_exclusive(self) -> bool:
-        return False
-
-    def takes_control(self) -> bool:
-        return False
-
-    def display_name(self) -> str:
-        return "Test Builtin"
 
 
 @pytest.fixture(autouse=True)
@@ -109,8 +78,10 @@ async def test_build_tool_code_interpreter_passes_tool_config_not_extended_confi
     assert ctor_kwargs["config"] is tool_config.configuration.tool_config
     assert isinstance(ctor_kwargs["config"], OpenAICodeInterpreterConfig)
     assert ctor_kwargs["config"].expires_after_minutes == 15
-    build_kwargs = mock_builder_cls.return_value.build.call_args.kwargs
-    assert build_kwargs["is_exclusive"] is True
+    # is_exclusive / force_auto_container are constructor args on the builder;
+    # build() takes no arguments.
+    assert ctor_kwargs["is_exclusive"] is True
+    mock_builder_cls.return_value.build.assert_called_once_with()
 
 
 @pytest.mark.ai
@@ -139,7 +110,6 @@ async def test_build_tool_unknown_name_raises() -> None:
 async def test_build_manager_only_includes_enabled_builtin_tools() -> None:
     """build_manager only builds tools that are enabled and have name in OpenAIBuiltInToolName."""
     mock_tool = MagicMock(spec=OpenAIBuiltInTool)
-    mock_tool.activator.return_value = None
     mock_builder_cls = MagicMock()
     mock_builder_cls.return_value.build = AsyncMock(return_value=mock_tool)
 
@@ -207,15 +177,6 @@ async def test_build_manager_skips_non_builtin_tool_names() -> None:
 
 
 @pytest.mark.ai
-def test_openai_built_in_tool__default_get_required_include_params__returns_empty_list() -> (
-    None
-):
-    """Base OpenAIBuiltInTool.get_required_include_params defaults to []."""
-    tool = _BuiltinWithDefaultIncludes()
-    assert tool.get_required_include_params() == []
-
-
-@pytest.mark.ai
 def test_get_all_openai_builtin_tools_returns_copy() -> None:
     """get_all_openai_builtin_tools returns a copy so caller cannot mutate internal list."""
     tool = MagicMock(spec=OpenAIBuiltInTool)
@@ -231,53 +192,106 @@ def test_get_all_openai_builtin_tools_returns_copy() -> None:
 
 
 # ============================================================================
-# Tests for get_required_include_params
+# Tests for deferred (activator) code interpreter
 # ============================================================================
 
 
-@pytest.mark.ai
-def test_get_required_include_params__returns_empty_list__when_no_tools() -> None:
-    """
-    Purpose: Verify get_required_include_params returns [] when no built-in tools are active.
-    Why this matters: No tools means no include params should be forwarded to the Responses API.
-    """
-    manager = OpenAIBuiltInToolManager(builtin_tools=[])
-    assert manager.get_required_include_params() == []
+def _deferred_tool_config(*, is_exclusive: bool = False) -> ToolBuildConfig:
+    extended = CodeInterpreterExtendedConfig(
+        deferred_execution_config=CodeInterpreterActivatorConfig(),
+    )
+    return ToolBuildConfig.model_validate(
+        {
+            "name": OpenAIBuiltInToolName.CODE_INTERPRETER.value,
+            "configuration": extended,
+            "is_enabled": True,
+            "is_exclusive": is_exclusive,
+        }
+    )
 
 
 @pytest.mark.ai
-def test_get_required_include_params__aggregates_params__from_all_tools() -> None:
+@pytest.mark.asyncio
+async def test_build_tool_deferred_returns_activator_without_provisioning() -> None:
     """
-    Purpose: Verify get_required_include_params merges params returned by each tool.
-    Why this matters: Future tools may request different include values; the manager must
-    collect all of them without duplicates.
+    Purpose: A deferred config yields a CodeInterpreterActivatorTool and does NOT
+    call builder.build() (no container is provisioned up front).
     """
-    tool_a = MagicMock(spec=OpenAIBuiltInTool)
-    tool_a.get_required_include_params.return_value = ["code_interpreter_call.outputs"]
-    tool_b = MagicMock(spec=OpenAIBuiltInTool)
-    tool_b.get_required_include_params.return_value = []
+    tool_config = _deferred_tool_config()
+    mock_builder_cls = MagicMock()
+    mock_builder_cls.return_value.build = AsyncMock()
 
-    manager = OpenAIBuiltInToolManager(builtin_tools=[tool_a, tool_b])
-    result = manager.get_required_include_params()
+    with patch(
+        "unique_toolkit.agentic.tools.openai_builtin.manager.CodeInterpreterBuilder",
+        mock_builder_cls,
+    ):
+        result = await OpenAIBuiltInToolManager._build_tool(
+            uploaded_files=[],
+            content_service=MagicMock(),
+            user_id="user-1",
+            company_id="company-1",
+            chat_id="chat-1",
+            client=MagicMock(),
+            tool_config=tool_config,
+        )
 
-    assert result == ["code_interpreter_call.outputs"]
+    assert isinstance(result, CodeInterpreterActivatorTool)
+    assert result.is_activated is False
+    mock_builder_cls.assert_called_once()
+    mock_builder_cls.return_value.build.assert_not_called()
 
 
 @pytest.mark.ai
-def test_get_required_include_params__deduplicates_params__when_multiple_tools_return_same_value() -> (
-    None
-):
-    """
-    Purpose: Verify get_required_include_params deduplicates identical params from multiple tools.
-    Why this matters: The Responses API would reject duplicate include values; the manager must
-    guarantee uniqueness regardless of how many tools request the same param.
-    """
-    tool_a = MagicMock(spec=OpenAIBuiltInTool)
-    tool_a.get_required_include_params.return_value = ["code_interpreter_call.outputs"]
-    tool_b = MagicMock(spec=OpenAIBuiltInTool)
-    tool_b.get_required_include_params.return_value = ["code_interpreter_call.outputs"]
+@pytest.mark.asyncio
+async def test_build_tool_deferred_and_exclusive_raises() -> None:
+    """A deferred code interpreter tool cannot also be exclusive."""
+    tool_config = _deferred_tool_config(is_exclusive=True)
 
-    manager = OpenAIBuiltInToolManager(builtin_tools=[tool_a, tool_b])
-    result = manager.get_required_include_params()
+    with pytest.raises(ValueError, match="cannot be exclusive"):
+        await OpenAIBuiltInToolManager._build_tool(
+            uploaded_files=[],
+            content_service=MagicMock(),
+            user_id="user-1",
+            company_id="company-1",
+            chat_id="chat-1",
+            client=MagicMock(),
+            tool_config=tool_config,
+        )
 
-    assert result == ["code_interpreter_call.outputs"]
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_manager_sorts_activators_and_builtins() -> None:
+    """Deferred configs land in get_activator_tools; eager ones in get_all_openai_builtin_tools."""
+    mock_builtin = MagicMock(spec=OpenAIBuiltInTool)
+    mock_builder_cls = MagicMock()
+    mock_builder_cls.return_value.build = AsyncMock(return_value=mock_builtin)
+
+    eager_config = ToolBuildConfig.model_validate(
+        {
+            "name": OpenAIBuiltInToolName.CODE_INTERPRETER.value,
+            "configuration": CodeInterpreterExtendedConfig(),
+            "is_enabled": True,
+        }
+    )
+    deferred_config = _deferred_tool_config()
+
+    with patch(
+        "unique_toolkit.agentic.tools.openai_builtin.manager.CodeInterpreterBuilder",
+        mock_builder_cls,
+    ):
+        manager = await OpenAIBuiltInToolManager.build_manager(
+            uploaded_files=[],
+            content_service=MagicMock(),
+            user_id="user-1",
+            company_id="company-1",
+            chat_id="chat-1",
+            client=MagicMock(),
+            tool_configs=[eager_config, deferred_config],
+        )
+
+    builtins = manager.get_all_openai_builtin_tools()
+    activators = manager.get_activator_tools()
+    assert builtins == [mock_builtin]
+    assert len(activators) == 1
+    assert isinstance(activators[0], CodeInterpreterActivatorTool)
