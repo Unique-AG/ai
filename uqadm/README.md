@@ -3,7 +3,7 @@
 Admin CLI for the Unique platform. It groups these command families:
 
 - **`space`** — list, export, diff, migrate, upsert, access grants, ingestion settings, and delete assistant spaces.
-- **`kb`** — knowledge-base folders: create paths, sync/download files, grant group access, set folder ingestion config.
+- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, set folder ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -379,7 +379,9 @@ uqadm space delete space_old123 --dry-run
 
 ## `uqadm kb`
 
-Manage **knowledge-base folder** paths and metadata via ``unique_sdk.Folder``.
+Manage **knowledge-base folders**: create paths, sync/download/remove files and
+folders, grant group access, and set folder ingestion config (via
+``unique_sdk.Folder`` and ``Content.delete`` for targeted file removal).
 
 ```bash
 uqadm kb --help
