@@ -13,13 +13,15 @@ from uqadm.kb.access import cmd_access_grant
 from uqadm.kb.download import cmd_download
 from uqadm.kb.ingestion import cmd_ingestion_set
 from uqadm.kb.mkdir import cmd_mkdir
+from uqadm.kb.rm import cmd_rm
 from uqadm.kb.sync import cmd_sync
 
 kb_app = typer.Typer(
     name="kb",
     help=(
         "Knowledge-base folder administration: create paths (Folder.create_paths), "
-        "sync/download files, grant group access (Folder.add_access), set ingestion "
+        "sync/download files, remove folders/files (Folder.delete, Content.delete), "
+        "grant group access (Folder.add_access), set ingestion "
         "(Folder.update_ingestion_config)."
     ),
     no_args_is_help=True,
@@ -262,6 +264,83 @@ def kb_download(
         scope_id=scope_id,
         recursive=recursive,
         dry_run=dry_run,
+    )
+
+
+@kb_app.command("rm", short_help="Delete KB folders or individual files.")
+def kb_rm(
+    ctx: typer.Context,
+    slot: Annotated[Optional[str], typer.Option("--slot", help=_SLOT_HELP)] = None,
+    folder_path: Annotated[
+        Optional[str],
+        typer.Option(
+            "--folder-path",
+            help="Target KB folder path (mutually exclusive with --scope-id).",
+        ),
+    ] = None,
+    scope_id: Annotated[
+        Optional[str],
+        typer.Option(
+            "--scope-id",
+            help="Target folder scope id (mutually exclusive with --folder-path).",
+        ),
+    ] = None,
+    file: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "--file",
+            help="Delete only this file (matched by key) in the scope; repeatable.",
+        ),
+    ] = None,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            "-r",
+            help="Delete a non-empty folder and everything under it.",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help="Show what would be deleted without deleting anything.",
+        ),
+    ] = False,
+    assume_yes: Annotated[
+        bool,
+        typer.Option(
+            "--yes",
+            "-y",
+            help="Skip the interactive confirmation prompt.",
+        ),
+    ] = False,
+) -> None:
+    """Delete a knowledge-base folder or specific files within it.
+
+    Requires exactly one of ``--folder-path`` or ``--scope-id`` to name the
+    target scope. With one or more ``--file`` options only those files are
+    deleted (Content.delete); otherwise the whole folder is deleted
+    (Folder.delete). Deleting a non-empty folder requires ``--recursive``.
+    Unless ``--yes`` is given you are prompted to confirm; ``--dry-run`` prints
+    the plan without deleting.
+
+    Examples:
+
+      uqadm kb rm --folder-path /Dept/HR --file old.pdf
+      uqadm kb rm --scope-id scope_abc -r --dry-run
+      uqadm kb rm --scope-id scope_abc -r --slot qa -y
+    """
+    resolved_slot = _resolve(slot)
+    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    cmd_rm(
+        cfg,
+        folder_path=folder_path,
+        scope_id=scope_id,
+        files=tuple(file or []),
+        recursive=recursive,
+        dry_run=dry_run,
+        assume_yes=assume_yes,
     )
 
 

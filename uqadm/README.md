@@ -3,7 +3,7 @@
 Admin CLI for the Unique platform. It groups these command families:
 
 - **`space`** — list, export, diff, migrate, upsert, access grants, ingestion settings, and delete assistant spaces.
-- **`kb`** — knowledge-base folders: create paths, sync/download files, grant group access, set folder ingestion config.
+- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, set folder ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -381,7 +381,9 @@ uqadm space delete space_old123 --dry-run
 
 ## `uqadm kb`
 
-Manage **knowledge-base folder** paths and metadata via ``unique_sdk.Folder``.
+Manage **knowledge-base folders**: create paths, sync/download/remove files and
+folders, grant group access, and set folder ingestion config (via
+``unique_sdk.Folder`` and ``Content.delete`` for targeted file removal).
 
 ```bash
 uqadm kb --help
@@ -453,6 +455,32 @@ uqadm kb download ./out --scope-id scope_abc -r --slot qa
 | `--scope-id` | Source folder scope id (mutually exclusive with ``--folder-path``). |
 | `-r`, `--recursive` | Recurse into subfolders, mirroring them as local subdirectories. |
 | `--dry-run` | Show planned downloads without writing anything. |
+| `--slot SLOT` | Credential slot. |
+
+### `kb rm`
+
+Delete a KB folder or specific files within it, using ``Folder.delete`` /
+``Content.delete``. Requires exactly one of ``--folder-path`` or ``--scope-id``.
+With one or more ``--file`` options (matched by key, repeatable) only those
+files are deleted; otherwise the whole folder is removed. Deleting a **non-empty
+folder requires ``--recursive``** (it refuses otherwise). Unless ``--yes`` is
+given you are **prompted to confirm**; ``--dry-run`` prints the plan without
+deleting anything.
+
+```bash
+uqadm kb rm --folder-path /Dept/HR --file old.pdf
+uqadm kb rm --scope-id scope_abc -r --dry-run
+uqadm kb rm --scope-id scope_abc -r --slot qa -y
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Target KB folder path (mutually exclusive with ``--scope-id``). |
+| `--scope-id` | Target folder scope id (mutually exclusive with ``--folder-path``). |
+| `--file` | Delete only this file (matched by key) in the scope; repeatable. |
+| `-r`, `--recursive` | Delete a non-empty folder and everything under it. |
+| `--dry-run` | Show what would be deleted without deleting anything. |
+| `-y`, `--yes` | Skip the interactive confirmation prompt. |
 | `--slot SLOT` | Credential slot. |
 
 ### `kb access grant`
