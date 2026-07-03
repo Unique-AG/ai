@@ -308,6 +308,20 @@ class TestTodoWriteInput:
         assert inp.merge is True
 
 
+def _make_ctx(tool: TodoWriteTool) -> MagicMock:
+    """Create a ToolExecutionContext-like mock wired to the tool's mocked
+    message step logger, so that assertions on
+    ``tool._message_step_logger.create_or_update_message_log_async`` still
+    observe calls made via ``ctx.message_step_logger``.
+    """
+    ctx = MagicMock()
+    ctx.message_step_logger = tool._message_step_logger
+    ctx.chat_service._company_id = "test-company"
+    ctx.chat_service._user_id = "test-user"
+    ctx.chat_service._chat_id = "test-chat"
+    return ctx
+
+
 def _make_tool(
     config: TodoConfig | None = None,
 ) -> TodoWriteTool:
@@ -324,6 +338,7 @@ def _make_tool(
     tool._memory_manager.save_async = AsyncMock()
     tool._message_step_logger = MagicMock()
     tool._message_step_logger.create_or_update_message_log_async = AsyncMock()
+    tool._test_ctx = _make_ctx(tool)
     return tool
 
 
@@ -363,7 +378,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert response.name == "TodoWrite"
         assert "Research APIs" in response.content
@@ -391,7 +406,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert "[x] Research APIs" in response.content
 
@@ -408,7 +423,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert response.system_reminder == ""
 
@@ -424,7 +439,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert response.system_reminder != ""
         assert "EXECUTION PHASE" in response.system_reminder
@@ -441,7 +456,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert response.debug_info is not None
         assert "input" in response.debug_info
@@ -456,7 +471,7 @@ class TestTodoWriteTool:
         tool = _make_tool()
         tc = _make_tool_call({"invalid": "data"})
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert "Error" in response.content
         assert response.system_reminder == ""
@@ -467,7 +482,7 @@ class TestTodoWriteTool:
         items = [_tc_item(f"t{i}", "pending", content=f"Task {i}") for i in range(100)]
         tc = _make_tool_call({"todos": items, "merge": False})
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert "0/100 completed" in response.content
         assert response.debug_info is not None
@@ -487,7 +502,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert "Task" in response.content
         assert response.system_reminder != ""
@@ -511,7 +526,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert "[x] Cached" in response.content
 
@@ -542,7 +557,7 @@ class TestTodoWriteTool:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert "[x] Cached" in response.content
         assert "Stale" not in response.content
@@ -561,7 +576,7 @@ class TestLogStep:
             }
         )
 
-        await tool.run(tc)
+        await tool.run(tc, tool._test_ctx)
 
         calls = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list
@@ -584,7 +599,7 @@ class TestLogStep:
             }
         )
 
-        await tool.run(tc)
+        await tool.run(tc, tool._test_ctx)
 
         plan_kwargs = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list[
@@ -615,7 +630,7 @@ class TestLogStep:
                 "merge": False,
             }
         )
-        await tool.run(tc1)
+        await tool.run(tc1, tool._test_ctx)
 
         tc2 = _make_tool_call(
             {
@@ -626,7 +641,7 @@ class TestLogStep:
                 "merge": True,
             }
         )
-        await tool.run(tc2)
+        await tool.run(tc2, tool._test_ctx)
 
         plan_kwargs = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list[
@@ -649,7 +664,7 @@ class TestLogStep:
             }
         )
 
-        await tool.run(tc)
+        await tool.run(tc, tool._test_ctx)
 
         calls = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list
@@ -670,7 +685,7 @@ class TestLogStep:
             }
         )
 
-        await tool.run(tc)
+        await tool.run(tc, tool._test_ctx)
 
         calls = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list
@@ -692,7 +707,7 @@ class TestLogStep:
             }
         )
 
-        await tool.run(tc)
+        await tool.run(tc, tool._test_ctx)
 
         plan_kwargs = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list[
@@ -717,7 +732,7 @@ class TestLogStep:
                 "merge": False,
             }
         )
-        await tool.run(tc1)
+        await tool.run(tc1, tool._test_ctx)
 
         tc2 = _make_tool_call(
             {
@@ -725,7 +740,7 @@ class TestLogStep:
                 "merge": True,
             }
         )
-        await tool.run(tc2)
+        await tool.run(tc2, tool._test_ctx)
 
         calls = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list
@@ -748,7 +763,7 @@ class TestLogStep:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert "Task" in response.content
         assert response.debug_info is not None
@@ -789,7 +804,7 @@ class TestTodoWriteToolConfig:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
 
         assert response.system_reminder == "Custom reminder"
 
@@ -823,7 +838,7 @@ class TestMultiStepWorkflow:
                 "merge": False,
             }
         )
-        r1 = await tool.run(tc1)
+        r1 = await tool.run(tc1, tool._test_ctx)
         assert r1.debug_info["state"]["pending"] == 3
         assert r1.system_reminder != ""
 
@@ -834,7 +849,7 @@ class TestMultiStepWorkflow:
                 "merge": True,
             }
         )
-        r2 = await tool.run(tc2)
+        r2 = await tool.run(tc2, tool._test_ctx)
         assert r2.debug_info["state"]["in_progress"] == 1
         assert r2.debug_info["state"]["pending"] == 2
 
@@ -848,7 +863,7 @@ class TestMultiStepWorkflow:
                 "merge": True,
             }
         )
-        r3 = await tool.run(tc3)
+        r3 = await tool.run(tc3, tool._test_ctx)
         assert r3.debug_info["state"]["completed"] == 1
         assert r3.debug_info["state"]["in_progress"] == 1
 
@@ -862,7 +877,7 @@ class TestMultiStepWorkflow:
                 "merge": True,
             }
         )
-        r4 = await tool.run(tc4)
+        r4 = await tool.run(tc4, tool._test_ctx)
         assert r4.debug_info["state"]["completed"] == 3
         assert r4.system_reminder == ""
 
@@ -879,7 +894,7 @@ class TestMultiStepWorkflow:
                 "merge": False,
             }
         )
-        await tool.run(tc1)
+        await tool.run(tc1, tool._test_ctx)
 
         tc2 = _make_tool_call(
             {
@@ -890,7 +905,7 @@ class TestMultiStepWorkflow:
                 "merge": True,
             }
         )
-        r2 = await tool.run(tc2)
+        r2 = await tool.run(tc2, tool._test_ctx)
         assert len(r2.debug_info["state"]["items"]) == 2
         assert "Step 2 (added later)" in r2.content
 
@@ -907,7 +922,7 @@ class TestMultiStepWorkflow:
                 "merge": False,
             }
         )
-        await tool.run(tc1)
+        await tool.run(tc1, tool._test_ctx)
 
         tc2 = _make_tool_call(
             {
@@ -917,7 +932,7 @@ class TestMultiStepWorkflow:
                 "merge": False,
             }
         )
-        r2 = await tool.run(tc2)
+        r2 = await tool.run(tc2, tool._test_ctx)
         assert len(r2.debug_info["state"]["items"]) == 1
         assert "New task" in r2.content
         assert "Old task" not in r2.content
@@ -932,7 +947,7 @@ class TestMultiStepWorkflow:
                 "merge": False,
             }
         )
-        r1 = await tool.run(tc1)
+        r1 = await tool.run(tc1, tool._test_ctx)
         assert r1.debug_info["iteration"] == 1
 
         tc2 = _make_tool_call(
@@ -941,7 +956,7 @@ class TestMultiStepWorkflow:
                 "merge": True,
             }
         )
-        r2 = await tool.run(tc2)
+        r2 = await tool.run(tc2, tool._test_ctx)
         assert r2.debug_info["iteration"] == 2
 
 
@@ -962,7 +977,7 @@ class TestVerificationNudge:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
         assert "[Checkpoint" not in response.content
 
     @pytest.mark.asyncio
@@ -979,7 +994,7 @@ class TestVerificationNudge:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
         assert "[Checkpoint: 2 tasks completed" in response.content
 
     @pytest.mark.asyncio
@@ -996,7 +1011,7 @@ class TestVerificationNudge:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
         assert "[Checkpoint" not in response.content
 
     @pytest.mark.asyncio
@@ -1013,7 +1028,7 @@ class TestVerificationNudge:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
         assert "[Checkpoint" not in response.content
 
 
@@ -1072,7 +1087,7 @@ class TestParallelModeConfig:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
         expected = render_template(EXECUTION_REMINDER_TEMPLATE, parallel_mode=True)
         assert response.system_reminder == expected
 
@@ -1106,5 +1121,5 @@ class TestParallelModeConfig:
             }
         )
 
-        response = await tool.run(tc)
+        response = await tool.run(tc, tool._test_ctx)
         assert response.system_reminder == custom

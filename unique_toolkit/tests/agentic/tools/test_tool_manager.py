@@ -67,7 +67,7 @@ class MockTool(Tool[MockToolConfig]):
     def get_evaluation_checks_based_on_tool_response(self, tool_response):
         return []
 
-    async def run(self, tool_call):
+    async def run(self, tool_call, ctx=None):
         return ToolCallResponse(
             id=tool_call.id,
             name=tool_call.name,
@@ -98,7 +98,7 @@ class MockExclusiveTool(Tool[MockToolConfig]):
     def get_evaluation_checks_based_on_tool_response(self, tool_response):
         return []
 
-    async def run(self, tool_call):
+    async def run(self, tool_call, ctx=None):
         return ToolCallResponse(
             id=tool_call.id,
             name=tool_call.name,
@@ -132,7 +132,7 @@ class MockControlTool(Tool[MockToolConfig]):
     def get_evaluation_checks_based_on_tool_response(self, tool_response):
         return []
 
-    async def run(self, tool_call):
+    async def run(self, tool_call, ctx=None):
         return ToolCallResponse(
             id=tool_call.id,
             name=tool_call.name,
@@ -163,7 +163,7 @@ class MockUploadedSearchTool(Tool[MockToolConfig]):
     def get_evaluation_checks_based_on_tool_response(self, tool_response):
         return []
 
-    async def run(self, tool_call):
+    async def run(self, tool_call, ctx=None):
         return ToolCallResponse(
             id=tool_call.id,
             name=tool_call.name,
@@ -194,7 +194,7 @@ class MockInternalSearchExclusiveTool(Tool[MockToolConfig]):
     def get_evaluation_checks_based_on_tool_response(self, tool_response):
         return []
 
-    async def run(self, tool_call):
+    async def run(self, tool_call, ctx=None):
         return ToolCallResponse(
             id=tool_call.id,
             name=tool_call.name,
@@ -254,13 +254,9 @@ def a2a_manager(logger, tool_progress_reporter):
 
 
 @pytest.fixture
-def mcp_manager(base_event, tool_progress_reporter):
+def mcp_manager():
     """Create MCP manager fixture with no servers."""
-    return MCPManager(
-        mcp_servers=[],
-        event=base_event,
-        tool_progress_reporter=tool_progress_reporter,
-    )
+    return MCPManager(mcp_servers=[])
 
 
 @pytest.fixture
@@ -2380,8 +2376,8 @@ async def test_tool_manager__execute_tool_call__initializes_debug_info_when_none
     mock_tool = tool_manager.get_tool_by_name("mock_tool")
     original_run = mock_tool.run
 
-    async def run_returning_none_debug(tool_call):
-        resp = await original_run(tool_call)
+    async def run_returning_none_debug(tool_call, ctx=None):
+        resp = await original_run(tool_call, ctx)
         resp.debug_info = None
         return resp
 
@@ -2439,8 +2435,8 @@ async def test_tool_manager__execute_tool_call__preserves_existing_debug_info(
     mock_tool = tool_manager.get_tool_by_name("mock_tool")
     original_run = mock_tool.run
 
-    async def run_with_custom_debug(tool_call):
-        resp = await original_run(tool_call)
+    async def run_with_custom_debug(tool_call, ctx=None):
+        resp = await original_run(tool_call, ctx)
         resp.debug_info = {"custom_key": "custom_value", "chunks_found": 5}
         return resp
 
@@ -2639,7 +2635,7 @@ class FailingTool(Tool[FailingToolConfig]):
     def get_evaluation_checks_based_on_tool_response(self, tool_response):
         return []
 
-    async def run(self, tool_call):
+    async def run(self, tool_call, ctx=None):
         raise NotImplementedError
 
 
@@ -2841,7 +2837,6 @@ def test_a2a_manager__skips_disabled_sub_agent__does_not_initialize(
     with caplog.at_level(logging.INFO):
         filtered_configs, sub_agents = manager.get_all_sub_agents(
             [disabled_sub_agent],
-            base_event,
         )
 
     assert sub_agents == []

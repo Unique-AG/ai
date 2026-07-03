@@ -305,7 +305,7 @@ async def preload_invoked_skills(
             name=SkillTool.name,
             arguments={"skill_name": skill.name},
         )
-        response = await skill_tool.run(tool_call)
+        response = await skill_tool.run(tool_call, tool_manager.execution_context)
         tool_calls.append(tool_call)
         responses.append(response)
         history_manager.add_tool_call(tool_call)

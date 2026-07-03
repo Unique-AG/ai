@@ -9,20 +9,12 @@ from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.mcp.tool_wrapper import MCPToolWrapper
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.app.schemas import McpServer
 
 
 class MCPManager:
-    def __init__(
-        self,
-        mcp_servers: list[McpServer],
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter,
-    ):
+    def __init__(self, mcp_servers: list[McpServer]) -> None:
         self._mcp_servers = mcp_servers
-        self._event = event
-        self._tool_progress_reporter = tool_progress_reporter
 
     def get_mcp_servers(self):
         return self._mcp_servers
@@ -51,8 +43,6 @@ class MCPManager:
                         mcp_server=server,
                         mcp_tool=tool,
                         config=config,
-                        event=self._event,
-                        tool_progress_reporter=self._tool_progress_reporter,
                     )
                     wrapper.settings = ToolBuildConfig(  # TODO: this must be refactored to behave like the other tools.
                         name=tool.name,

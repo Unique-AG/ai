@@ -1,11 +1,11 @@
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -25,11 +25,12 @@ class OpenFileTool(Tool[OpenFileToolConfig]):
 
     def __init__(
         self,
-        event: ChatEvent,
-        registry: list[str],
         config: OpenFileToolConfig,
+        registry: list[str],
+        *args,
+        **kwargs,
     ) -> None:
-        super().__init__(config, event)
+        super().__init__(config, *args, **kwargs)
         self._registry = registry
 
     def display_name(self) -> str:
@@ -55,7 +56,9 @@ class OpenFileTool(Tool[OpenFileToolConfig]):
     def tool_description_for_system_prompt(self) -> str:
         return self.config.tool_description_for_system_prompt
 
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         args = tool_call.arguments or {}
         content_ids: list[str] = args.get("content_ids", [])
 

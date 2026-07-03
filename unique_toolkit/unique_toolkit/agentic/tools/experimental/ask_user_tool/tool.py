@@ -6,13 +6,12 @@ from typing import Annotated, override
 from pydantic import BaseModel, Field, JsonValue, StringConstraints
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.experimental.ask_user_tool.config import (
     AskUserToolConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.elicitation import (
     ElicitationCancelledException,
     ElicitationDeclinedException,
@@ -42,12 +41,10 @@ class AskUserTool(Tool[AskUserToolConfig]):
     def __init__(
         self,
         config: AskUserToolConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = None,
+        *args,
+        **kwargs,
     ) -> None:
-        super().__init__(
-            config=config, event=event, tool_progress_reporter=tool_progress_reporter
-        )
+        super().__init__(config, *args, **kwargs)
         self._lock = asyncio.Lock()
 
     @override
@@ -88,17 +85,21 @@ class AskUserTool(Tool[AskUserToolConfig]):
         return []
 
     @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         # When multiple elicitation calls are created, the frontend will render them one by one
         # We need to lock the execution of the tool so that the timeout starts when the user
         # actually sees the elicitation call
         async with self._lock:
-            return await self._run(tool_call)
+            return await self._run(tool_call, ctx)
 
-    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def _run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         params = AskUserToolInput.model_validate(tool_call.arguments)
 
-        service = self.chat_service.elicitation
+        service = ctx.chat_service.elicitation
 
         _LOGGER.info("Creating elicitation request")
 

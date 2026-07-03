@@ -98,43 +98,31 @@ def mock_mcp_servers(mock_mcp_tools: list[McpTool]) -> list[McpServer]:
 @pytest.fixture
 def mcp_manager(
     mock_mcp_servers: list[McpServer],
-    mock_chat_event: ChatEvent,
-    mock_progress_reporter: ToolProgressReporter,
 ) -> MCPManager:
     """Create an MCPManager instance for testing."""
-    return MCPManager(
-        mcp_servers=mock_mcp_servers,
-        event=mock_chat_event,
-        tool_progress_reporter=mock_progress_reporter,
-    )
+    return MCPManager(mcp_servers=mock_mcp_servers)
 
 
 class TestMCPManagerInitialization:
     """Test suite for MCPManager initialization."""
 
     @pytest.mark.ai
-    def test_init__stores_servers_event_and_reporter__with_valid_inputs_AI(
+    def test_init__stores_servers__with_valid_inputs_AI(
         self,
         mock_mcp_servers: list[McpServer],
-        mock_chat_event: ChatEvent,
-        mock_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
         Purpose: Verify MCPManager initializes with correct attributes.
         Why this matters: Proper initialization ensures manager has access to all necessary data.
-        Setup summary: Create manager, verify all attributes are stored correctly.
+        Setup summary: Create manager, verify servers are stored correctly. Event and
+        progress reporter are no longer owned by MCPManager — they are supplied
+        per-call via ToolExecutionContext at tool run() time.
         """
         # Act
-        manager = MCPManager(
-            mcp_servers=mock_mcp_servers,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
-        )
+        manager = MCPManager(mcp_servers=mock_mcp_servers)
 
         # Assert
         assert manager._mcp_servers == mock_mcp_servers
-        assert manager._event == mock_chat_event
-        assert manager._tool_progress_reporter == mock_progress_reporter
 
 
 class TestMCPManagerServerRetrieval:
@@ -348,8 +336,6 @@ class TestMCPManagerToolCreation:
 
         manager = MCPManager(
             mcp_servers=[server_without_tools],
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
         )
 
         # Act
@@ -390,8 +376,6 @@ class TestMCPManagerToolCreation:
         # Arrange
         manager = MCPManager(
             mcp_servers=[],
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
         )
 
         # Act
@@ -436,8 +420,6 @@ class TestMCPManagerToolCreation:
 
         manager = MCPManager(
             mcp_servers=[server],
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
         )
 
         # Act
@@ -467,22 +449,24 @@ class TestMCPManagerToolCreation:
         assert tools[0].name != tools[1].name
 
     @pytest.mark.ai
-    def test_get_all_mcp_tools__preserves_progress_reporter__in_wrappers_AI(
+    def test_get_all_mcp_tools__wrappers_have_no_bound_progress_reporter__AI(
         self,
         mcp_manager: MCPManager,
-        mock_progress_reporter: ToolProgressReporter,
     ) -> None:
         """
-        Purpose: Verify tool wrappers receive the progress reporter.
-        Why this matters: Progress reporting should work for all MCP tools.
-        Setup summary: Get all tools, verify they have progress reporter set.
+        Purpose: Verify tool wrappers do not carry a progress reporter at
+        construction time.
+        Why this matters: The progress reporter is no longer owned by
+        MCPManager/MCPToolWrapper — it is supplied per-call via
+        ToolExecutionContext when the tool's run() is invoked.
+        Setup summary: Get all tools, verify none have a bound progress reporter.
         """
         # Act
         tools = mcp_manager.get_all_mcp_tools()
 
         # Assert
         for tool in tools:
-            assert tool._tool_progress_reporter == mock_progress_reporter
+            assert getattr(tool, "_tool_progress_reporter", None) is None
 
 
 class TestMCPManagerMultipleServersWithTools:
@@ -533,8 +517,6 @@ class TestMCPManagerMultipleServersWithTools:
 
         manager = MCPManager(
             mcp_servers=servers,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
         )
 
         # Act
@@ -581,8 +563,6 @@ class TestMCPManagerMultipleServersWithTools:
 
         manager = MCPManager(
             mcp_servers=servers,
-            event=mock_chat_event,
-            tool_progress_reporter=mock_progress_reporter,
         )
 
         # Act

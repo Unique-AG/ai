@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
@@ -63,10 +64,26 @@ def _make_tool(
     if config is None:
         config = SkillToolConfig()
 
-    event = MagicMock()
-    tool = SkillTool(config=config, event=event)
+    tool = SkillTool(config=config)
     tool.skill_registry = skill_registry
     return tool
+
+
+def _make_ctx(
+    *,
+    message_step_logger: MagicMock | None = None,
+) -> ToolExecutionContext:
+    return ToolExecutionContext(
+        chat_service=MagicMock(),
+        language_model_service=MagicMock(),
+        message_step_logger=message_step_logger or MagicMock(),
+    )
+
+
+def test_skill_tool_accepts_config_only() -> None:
+    config = SkillToolConfig()
+    tool = SkillTool(config=config)
+    assert tool.skill_registry == {}
 
 
 def _make_tool_call(
@@ -108,7 +125,7 @@ class TestSkillToolRun:
         skill = _make_skill(content="Step 1: Do the thing.\nStep 2: Done.")
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
 
-        result = await tool.run(_make_tool_call("test-skill"))
+        result = await tool.run(_make_tool_call("test-skill"), _make_ctx())
 
         assert result.successful
         assert "Step 1: Do the thing." in result.content
@@ -117,14 +134,16 @@ class TestSkillToolRun:
 
     async def test_valid_skill_with_arguments(self) -> None:
         tool = _make_tool()
-        result = await tool.run(_make_tool_call("test-skill", arguments="focus on X"))
+        result = await tool.run(
+            _make_tool_call("test-skill", arguments="focus on X"), _make_ctx()
+        )
 
         assert result.successful
         assert "focus on X" in result.content
 
     async def test_unknown_skill_returns_error(self) -> None:
         tool = _make_tool()
-        result = await tool.run(_make_tool_call("nonexistent"))
+        result = await tool.run(_make_tool_call("nonexistent"), _make_ctx())
 
         assert not result.successful
         assert "Unknown skill" in result.error_message
@@ -132,21 +151,21 @@ class TestSkillToolRun:
 
     async def test_empty_skill_name_returns_error(self) -> None:
         tool = _make_tool()
-        result = await tool.run(_make_tool_call(""))
+        result = await tool.run(_make_tool_call(""), _make_ctx())
 
         assert not result.successful
         assert "non-empty" in result.error_message
 
     async def test_whitespace_only_skill_name_returns_error(self) -> None:
         tool = _make_tool()
-        result = await tool.run(_make_tool_call("   "))
+        result = await tool.run(_make_tool_call("   "), _make_ctx())
 
         assert not result.successful
         assert "non-empty" in result.error_message
 
     async def test_leading_slash_is_normalized(self) -> None:
         tool = _make_tool()
-        result = await tool.run(_make_tool_call("/test-skill"))
+        result = await tool.run(_make_tool_call("/test-skill"), _make_ctx())
 
         assert result.successful
 
@@ -154,7 +173,7 @@ class TestSkillToolRun:
         skills = [_make_skill("alpha"), _make_skill("beta")]
         tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
-        result = await tool.run(_make_tool_call("gamma"))
+        result = await tool.run(_make_tool_call("gamma"), _make_ctx())
 
         assert "alpha" in result.error_message
         assert "beta" in result.error_message
@@ -174,9 +193,9 @@ class TestSkillToolMessageLog:
         mock_logger.create_or_update_message_log_async = AsyncMock(
             return_value=MagicMock()
         )
-        tool._message_step_logger = mock_logger
+        ctx = _make_ctx(message_step_logger=mock_logger)
 
-        result = await tool.run(_make_tool_call("my-skill"))
+        result = await tool.run(_make_tool_call("my-skill"), ctx)
 
         assert result.successful
         mock_logger.create_or_update_message_log_async.assert_awaited_once()
@@ -188,9 +207,9 @@ class TestSkillToolMessageLog:
         tool = _make_tool()
         mock_logger = MagicMock()
         mock_logger.create_or_update_message_log_async = AsyncMock()
-        tool._message_step_logger = mock_logger
+        ctx = _make_ctx(message_step_logger=mock_logger)
 
-        result = await tool.run(_make_tool_call("nonexistent"))
+        result = await tool.run(_make_tool_call("nonexistent"), ctx)
 
         assert not result.successful
         mock_logger.create_or_update_message_log_async.assert_not_called()
@@ -202,9 +221,9 @@ class TestSkillToolMessageLog:
         mock_logger.create_or_update_message_log_async = AsyncMock(
             side_effect=RuntimeError("backend down")
         )
-        tool._message_step_logger = mock_logger
+        ctx = _make_ctx(message_step_logger=mock_logger)
 
-        result = await tool.run(_make_tool_call("my-skill"))
+        result = await tool.run(_make_tool_call("my-skill"), ctx)
 
         assert result.successful
         assert "skill_loaded" in result.content
@@ -456,7 +475,7 @@ class TestActivatedSkillsTracking:
         skill = _make_skill("alpha")
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
 
-        await tool.run(_make_tool_call("alpha"))
+        await tool.run(_make_tool_call("alpha"), _make_ctx())
 
         assert len(tool.activated_skills) == 1
         assert tool.activated_skills[0].name == "alpha"
@@ -464,7 +483,7 @@ class TestActivatedSkillsTracking:
     async def test_not_appended_on_unknown_skill_error(self) -> None:
         tool = _make_tool()
 
-        await tool.run(_make_tool_call("nonexistent"))
+        await tool.run(_make_tool_call("nonexistent"), _make_ctx())
 
         assert tool.activated_skills == []
 
@@ -472,8 +491,8 @@ class TestActivatedSkillsTracking:
         skills = [_make_skill("alpha"), _make_skill("beta")]
         tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
-        await tool.run(_make_tool_call("alpha"))
-        await tool.run(_make_tool_call("beta"))
+        await tool.run(_make_tool_call("alpha"), _make_ctx())
+        await tool.run(_make_tool_call("beta"), _make_ctx())
 
         assert [s.name for s in tool.activated_skills] == ["alpha", "beta"]
 
@@ -491,7 +510,7 @@ class TestMaxThinkingLevel:
         )
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
 
-        await tool.run(_make_tool_call("plain"))
+        await tool.run(_make_tool_call("plain"), _make_ctx())
 
         assert tool.max_thinking_level is None
 
@@ -505,7 +524,7 @@ class TestMaxThinkingLevel:
         )
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
 
-        await tool.run(_make_tool_call("deep"))
+        await tool.run(_make_tool_call("deep"), _make_ctx())
 
         assert tool.max_thinking_level == "high"
 
@@ -526,8 +545,8 @@ class TestMaxThinkingLevel:
         )
         tool = _make_tool(skill_registry=_make_skill_registry(low_skill, high_skill))
 
-        await tool.run(_make_tool_call("low-skill"))
-        await tool.run(_make_tool_call("high-skill"))
+        await tool.run(_make_tool_call("low-skill"), _make_ctx())
+        await tool.run(_make_tool_call("high-skill"), _make_ctx())
 
         assert tool.max_thinking_level == "high"
 
@@ -544,8 +563,8 @@ class TestMaxThinkingLevel:
         )
         tool = _make_tool(skill_registry=_make_skill_registry(hint_skill, plain_skill))
 
-        await tool.run(_make_tool_call("hint-skill"))
-        await tool.run(_make_tool_call("plain-skill"))
+        await tool.run(_make_tool_call("hint-skill"), _make_ctx())
+        await tool.run(_make_tool_call("plain-skill"), _make_ctx())
 
         assert tool.max_thinking_level == "medium"
 
@@ -566,8 +585,8 @@ class TestMaxThinkingLevel:
         )
         tool = _make_tool(skill_registry=_make_skill_registry(none_skill, min_skill))
 
-        await tool.run(_make_tool_call("none-skill"))
-        await tool.run(_make_tool_call("min-skill"))
+        await tool.run(_make_tool_call("none-skill"), _make_ctx())
+        await tool.run(_make_tool_call("min-skill"), _make_ctx())
 
         assert tool.max_thinking_level == "minimal"
 

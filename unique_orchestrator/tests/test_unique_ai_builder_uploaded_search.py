@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
+from unique_toolkit.agentic.tools.execution_context import tool_choices_from_event
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -12,6 +13,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 from unique_toolkit.content.schemas import Content
+from unique_toolkit.test_utilities.events import TestEventFactory
 from unique_user_memory.user_memory import UserMemoryState
 
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
@@ -19,6 +21,7 @@ from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai_builder import (
     _build_common,
     _build_responses,
+    _build_tool_execution_context,
     _CommonComponents,
     _configure_uploaded_search_tool,
 )
@@ -48,13 +51,20 @@ def _make_common_components(uploaded_documents):
     )
 
 
+_EVENT_FACTORY = TestEventFactory()
+
+
 def _make_event(tool_choices):
-    event = MagicMock()
-    event.user_id = "user_1"
-    event.company_id = "company_1"
-    event.payload.assistant_id = "assistant_1"
+    event = _EVENT_FACTORY.get_chat_event(
+        name="test-module",
+        description="test",
+        user_message_text="hi",
+        user_id="user_1",
+        company_id="company_1",
+    )
     event.payload.chat_id = "chat_1"
-    event.payload.tool_choices = tool_choices
+    event.payload.assistant_id = "assistant_1"
+    event.payload.tool_choices = list(tool_choices)
     event.payload.mcp_servers = []
     return event
 
@@ -181,6 +191,10 @@ class _FakeResponsesApiToolManager:
         self.kwargs = kwargs
         self.__class__.instances.append(self)
 
+    @classmethod
+    def from_execution_context(cls, **kwargs):
+        return cls(**kwargs)
+
     def add_forced_tool(self, tool_name: str) -> None:
         self.forced_tools.append(tool_name)
 
@@ -242,6 +256,9 @@ async def test_build_responses_adds_and_forces_uploaded_search_without_tool_choi
     assert _FakeResponsesApiToolManager.instances[0].forced_tools == [
         UploadedSearchTool.name
     ]
+    tool_manager_kwargs = _FakeResponsesApiToolManager.instances[0].kwargs
+    assert "execution_context" in tool_manager_kwargs
+    assert "event" not in tool_manager_kwargs
     assert result["tool_manager"] is _FakeResponsesApiToolManager.instances[0]
 
 
@@ -423,6 +440,94 @@ def test_configure_file_payload_preserves_tool_call_persistence_and_language_mod
     assert captured["config"].enable_tool_call_persistence is True
 
 
+def _open_file_payload_config() -> UniqueAIConfig:
+    return UniqueAIConfig(
+        agent={
+            "experimental": {
+                "responses_api_config": {"use_responses_api": True},
+                "open_file_tool_config": OpenFileToolConfig(
+                    enabled=True,
+                    send_files_in_payload=True,
+                ),
+            },
+        }
+    )
+
+
+def test_configure_file_payload_registers_open_file_tool_with_shared_services(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeOpenFileTool:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "unique_orchestrator._builders.open_file_setup.OpenFileTool",
+        _FakeOpenFileTool,
+    )
+
+    chat_service = MagicMock()
+    language_model_service = MagicMock()
+    tool_manager = MagicMock()
+    config = _open_file_payload_config()
+    event = _make_event(tool_choices=[])
+
+    _, agent_file_registry = configure_file_payload(
+        config=config,
+        event=event,
+        logger=MagicMock(),
+        history_manager=MagicMock(),
+        reference_manager=MagicMock(),
+        language_model=config.space.language_model,
+        tool_manager=tool_manager,
+        chat_service=chat_service,
+        language_model_service=language_model_service,
+    )
+
+    assert agent_file_registry == []
+    tool_manager.add_tool.assert_called_once()
+    assert captured["chat_service"] is chat_service
+    assert captured["language_model_service"] is language_model_service
+    assert captured["event"] is event
+    assert captured["registry"] is agent_file_registry
+
+
+def test_configure_file_payload_registers_open_file_tool_with_legacy_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class _FakeOpenFileTool:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "unique_orchestrator._builders.open_file_setup.OpenFileTool",
+        _FakeOpenFileTool,
+    )
+
+    event = _make_event(tool_choices=[])
+    tool_manager = MagicMock()
+    config = _open_file_payload_config()
+
+    _, agent_file_registry = configure_file_payload(
+        config=config,
+        event=event,
+        logger=MagicMock(),
+        history_manager=MagicMock(),
+        reference_manager=MagicMock(),
+        language_model=config.space.language_model,
+        tool_manager=tool_manager,
+    )
+
+    assert agent_file_registry == []
+    tool_manager.add_tool.assert_called_once()
+    assert captured["event"] is event
+    assert captured["registry"] is agent_file_registry
+
+
 class TestConfigureUploadedSearchToolIngestionFilter:
     def _make_event(self, tool_choices=None):
         event = MagicMock()
@@ -547,3 +652,32 @@ class TestConfigureUploadedSearchToolForcing:
     def test_tool_not_appended_to_empty_tool_choices(self):
         _, _, event = self._run([self._make_doc()], tool_choices=[], force=True)
         assert event.payload.tool_choices == []
+
+
+class TestBuildToolExecutionContext:
+    def test_reflects_tool_choices_after_uploaded_search_mutation(self) -> None:
+        doc = MagicMock()
+        doc.is_expired.return_value = False
+        doc.is_ingested.return_value = True
+        common_components = _make_common_components([doc])
+        event = _make_event(tool_choices=["InternalSearch"])
+        _configure_uploaded_search_tool(
+            event=event,
+            logger=MagicMock(),
+            common_components=common_components,
+            config=UploadedSearchToolConfig(force=True),
+        )
+
+        execution_context = _build_tool_execution_context(
+            event,
+            tool_progress_reporter=MagicMock(),
+            chat_service=MagicMock(),
+            language_model_service=MagicMock(),
+            content_service=MagicMock(),
+        )
+
+        assert execution_context is not None
+        assert tool_choices_from_event(event) == [
+            "InternalSearch",
+            UploadedSearchTool.name,
+        ]

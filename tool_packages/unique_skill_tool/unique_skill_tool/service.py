@@ -4,6 +4,7 @@ from typing import cast, override
 
 from jinja2.sandbox import SandboxedEnvironment
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -151,7 +152,9 @@ class SkillTool(Tool[SkillToolConfig]):
         return True
 
     @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
         args = tool_call.arguments or {}
         raw_skill_name: str = args.get("skill_name", "")
         arguments: str = args.get("arguments", "")
@@ -177,7 +180,9 @@ class SkillTool(Tool[SkillToolConfig]):
             )
 
         self._activated_skills.append(skill)
-        self._active_message_log = await self._log_skill_loaded(skill_name=skill_name)
+        self._active_message_log = await self._log_skill_loaded(
+            skill_name=skill_name, ctx=ctx
+        )
 
         content_parts = [
             f"<skill_loaded>{skill_name}</skill_loaded>",
@@ -199,12 +204,14 @@ class SkillTool(Tool[SkillToolConfig]):
             ),
         )
 
-    async def _log_skill_loaded(self, *, skill_name: str) -> MessageLog | None:
+    async def _log_skill_loaded(
+        self, *, skill_name: str, ctx: ToolExecutionContext
+    ) -> MessageLog | None:
         """Emit a completed message log entry for the loaded skill."""
         progress_message = f"Using /{skill_name} skill"
 
         try:
-            return await self._message_step_logger.create_or_update_message_log_async(
+            return await ctx.message_step_logger.create_or_update_message_log_async(
                 active_message_log=None,
                 header=progress_message,
                 status=MessageLogStatus.COMPLETED,

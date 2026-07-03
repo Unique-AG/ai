@@ -4,7 +4,6 @@ from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWa
 from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConfig
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
 
 
 class A2AManager:
@@ -21,7 +20,6 @@ class A2AManager:
     def get_all_sub_agents(
         self,
         tool_configs: list[ToolBuildConfig],
-        event: ChatEvent,
     ) -> tuple[list[ToolBuildConfig], list[SubAgentTool]]:
         sub_agents = []
 
@@ -45,16 +43,13 @@ class A2AManager:
             sub_agent_tool_config = tool_config.configuration
 
             try:
-                sub_agents.append(
-                    SubAgentTool(
-                        configuration=sub_agent_tool_config,
-                        event=event,
-                        tool_progress_reporter=self._tool_progress_reporter,
-                        name=tool_config.name,
-                        display_name=tool_config.display_name,
-                        response_watcher=self._response_watcher,
-                    )
+                sub_agent = SubAgentTool(
+                    configuration=sub_agent_tool_config,
+                    name=tool_config.name,
+                    display_name=tool_config.display_name,
+                    response_watcher=self._response_watcher,
                 )
+                sub_agents.append(sub_agent)
             except Exception:
                 self._logger.warning(
                     "Skipping sub-agent '%s' due to initialization failure.",

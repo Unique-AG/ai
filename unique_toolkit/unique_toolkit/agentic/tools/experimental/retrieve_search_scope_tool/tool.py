@@ -1,9 +1,12 @@
 from logging import getLogger
+from typing import TYPE_CHECKING
 
+from pydantic import SecretStr
 from typing_extensions import override
 
 from unique_toolkit._common.token import count_tokens
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
     _RETURNS_FLAT,
     _RETURNS_TREE,
@@ -13,12 +16,21 @@ from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.app.unique_settings import (
+    AuthContext,
+    ChatContext,
+    UniqueApi,
+    UniqueApp,
+    UniqueSettings,
+)
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentInfo
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.services.factory import UniqueServiceFactory
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
+
+if TYPE_CHECKING:
+    from unique_toolkit.services.chat_service import ChatService
 
 _LOGGER = getLogger(__name__)
 
@@ -30,6 +42,26 @@ _OPENABLE_MIME_PREFIXES = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml",
     "application/vnd.openxmlformats-officedocument.presentationml",
 )
+
+
+def _build_unique_settings(chat_service: "ChatService") -> UniqueSettings:
+    """Build UniqueSettings from a live ChatService, mirroring
+    UniqueSettings.from_chat_event without requiring the raw ChatEvent."""
+    return UniqueSettings(
+        auth=AuthContext(
+            company_id=SecretStr(chat_service._company_id),
+            user_id=SecretStr(chat_service._user_id),
+        ),
+        app=UniqueApp(),
+        api=UniqueApi(),
+        chat=ChatContext(
+            chat_id=chat_service._chat_id,
+            assistant_id=chat_service._assistant_id,
+            last_assistant_message_id=chat_service._assistant_message_id,
+            last_user_message_id=chat_service._user_message_id,
+            last_user_message_text=chat_service._user_message_text,
+        ),
+    )
 
 
 class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
@@ -63,13 +95,13 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
     ) -> list[EvaluationMetricName]:
         return []
 
-    async def _has_prior_response_in_history(self) -> bool:
+    async def _has_prior_response_in_history(self, ctx: ToolExecutionContext) -> bool:
         """Check chat history for an existing RetrieveSearchScope tool response."""
         # TODO(UN-18756 #6): When tool-call persistence is introduced, verify
         # that the persisted response carries role="tool" and name="RetrieveSearchScope",
         # then replace getattr with direct attribute access or adapt to the actual schema.
         try:
-            history = await self._chat_service.get_full_history_async()
+            history = await ctx.chat_service.get_full_history_async()
             for msg in history:
                 if str(msg.role) == "tool" and getattr(msg, "name", None) == self.name:
                     return True
@@ -106,8 +138,10 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         return entries
 
     @override
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        if await self._has_prior_response_in_history():
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
+        if await self._has_prior_response_in_history(ctx):
             return ToolCallResponse(
                 id=tool_call.id or "unknown_id",
                 name=self.name,
@@ -116,7 +150,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             )
 
         try:
-            settings = UniqueSettings.from_chat_event(self.event)
+            settings = _build_unique_settings(ctx.chat_service)
             kb_service = UniqueServiceFactory(
                 settings=settings
             ).knowledge_base_service()

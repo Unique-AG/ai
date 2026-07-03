@@ -21,6 +21,11 @@ from unique_toolkit._common.execution import (
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.a2a import A2AManager, SubAgentTool
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.execution_context import (
+    ToolExecutionContext,
+    disabled_tools_from_event,
+    tool_choices_from_event,
+)
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.names import (
@@ -32,11 +37,13 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToolManager
-from unique_toolkit.agentic.tools.run_context import ToolRunContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -90,25 +97,35 @@ class _ToolManager(Generic[_ApiMode]):
         a2a_manager: A2AManager,
         api_mode: _ApiMode,
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         self._setup(
             logger=logger,
             config=config,
-            run_context=ToolRunContext.from_chat_event(event),
+            tool_choices=tool_choices_from_event(event),
+            disabled_tools=disabled_tools_from_event(event),
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
+            bootstrap_event=event,
         )
 
     @classmethod
-    def from_run_context(
+    def from_execution_context(
         cls,
         logger: Logger,
         config: ToolManagerConfig,
         *,
-        run_context: ToolRunContext,
+        execution_context: ToolExecutionContext,
+        tool_choices: list[str],
+        disabled_tools: list[str],
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
@@ -119,12 +136,14 @@ class _ToolManager(Generic[_ApiMode]):
         instance._setup(
             logger=logger,
             config=config,
-            run_context=run_context,
+            tool_choices=tool_choices,
+            disabled_tools=disabled_tools,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            execution_context=execution_context,
         )
         return instance
 
@@ -133,19 +152,25 @@ class _ToolManager(Generic[_ApiMode]):
         *,
         logger: Logger,
         config: ToolManagerConfig,
-        run_context: ToolRunContext,
+        tool_choices: list[str],
+        disabled_tools: list[str],
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
         api_mode: _ApiMode,
         builtin_tool_manager: OpenAIBuiltInToolManager | None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
+        bootstrap_event: ChatEvent | None = None,
+        execution_context: ToolExecutionContext | None = None,
     ) -> None:
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
         self._tools: list[Tool[Any] | OpenAIBuiltInTool[Any]] = []
-        self._tool_choices = run_context.tool_choices
-        self._disabled_tools = run_context.disabled_tools
+        self._tool_choices = tool_choices
+        self._disabled_tools = disabled_tools
         self._exclusive_tools = [
             tool.name
             for tool in self._config.tools
@@ -164,27 +189,40 @@ class _ToolManager(Generic[_ApiMode]):
         self.available_tools: list[
             Tool[Any] | OpenAIBuiltInTool[Any] | SubAgentTool
         ] = []
-        self._init__tools(run_context.tool_init_event)
+        self._bootstrap_event = bootstrap_event
+        if execution_context is not None:
+            self._execution_context = execution_context
+        elif bootstrap_event is not None:
+            self._execution_context = ToolExecutionContext.from_event(
+                bootstrap_event,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+                content_service=content_service,
+            )
+        else:
+            raise ValueError(
+                "execution_context or bootstrap_event with services is required"
+            )
+        self._init__tools()
 
-    def _init__tools(self, tool_init_event: ChatEvent | None) -> None:
+    @property
+    def execution_context(self) -> ToolExecutionContext:
+        return self._execution_context
+
+    def _prepare_tool(self, tool: Tool[Any]) -> None:
+        tool.prepare(self._execution_context)
+
+    def _init__tools(self) -> None:
         tool_choices = self._tool_choices
         tool_configs = self._config.tools
         self._logger.info("Initializing tool definitions...")
         self._logger.info(f"Tool choices: {tool_choices}")
 
-        if tool_init_event is not None:
-            tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
-                tool_configs,
-                tool_init_event,
-            )
-        else:
-            tool_configs = [
-                tool_config
-                for tool_config in tool_configs
-                if not tool_config.is_sub_agent
-            ]
-            sub_agents = []
+        tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(tool_configs)
         self._sub_agents = sub_agents
+        for sub_agent in self._sub_agents:
+            self._prepare_tool(sub_agent)
 
         registered_tool_names = set(t.name for t in self._sub_agents)
 
@@ -198,6 +236,8 @@ class _ToolManager(Generic[_ApiMode]):
 
         # Get MCP tools (these are already properly instantiated)
         self._mcp_tools = self._mcp_manager.get_all_mcp_tools()
+        for mcp_tool in self._mcp_tools:
+            self._prepare_tool(mcp_tool)
 
         registered_tool_names.update(t.name for t in self._mcp_tools)
 
@@ -212,22 +252,16 @@ class _ToolManager(Generic[_ApiMode]):
             if not t.is_enabled:
                 self._logger.info("Skipping disabled tool '%s'", t.name)
                 continue
-            if tool_init_event is None:
-                self._logger.info(
-                    "Skipping internal tool '%s' (requires chat event for initialization)",
-                    t.name,
-                )
-                continue
             result = safe_executor.execute(
                 ToolFactory.build_tool_with_settings,
                 t.name,
                 t,
                 t.configuration,
-                tool_init_event,
-                tool_progress_reporter=self._tool_progress_reporter,
             )
             if result.success:
-                self._internal_tools.append(result.unpack())
+                tool = result.unpack()
+                self._prepare_tool(tool)
+                self._internal_tools.append(tool)
             else:
                 self._logger.warning(
                     "Skipping tool '%s' due to initialization failure.",
@@ -349,6 +383,7 @@ class _ToolManager(Generic[_ApiMode]):
         self._internal_tools.append(tool)
         self.available_tools.append(tool)
         self._tools.append(tool)
+        self._prepare_tool(tool)
 
     def exclude_tool(self, name: str) -> bool:
         """Exclude a tool by name from the active tool set.
@@ -515,7 +550,8 @@ class _ToolManager(Generic[_ApiMode]):
         if tool_instance:
             tool_start = time.perf_counter()
             tool_response: ToolCallResponse = await tool_instance.run(
-                tool_call=tool_call
+                tool_call=tool_call,
+                ctx=self._execution_context,
             )
             tool_execution_time = round(time.perf_counter() - tool_start, 3)
 
@@ -684,6 +720,9 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         super().__init__(
             logger=logger,
@@ -694,25 +733,32 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             a2a_manager=a2a_manager,
             api_mode="completions",
             builtin_tool_manager=None,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
         )
 
     @classmethod
-    def from_run_context(
+    def from_execution_context(
         cls,
         logger: Logger,
         config: ToolManagerConfig,
         *,
-        run_context: ToolRunContext,
+        execution_context: ToolExecutionContext,
+        tool_choices: list[str],
+        disabled_tools: list[str],
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
         api_mode: Literal["completions"] = "completions",
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
     ) -> Self:
-        return super().from_run_context(
+        return super().from_execution_context(
             logger=logger,
             config=config,
-            run_context=run_context,
+            execution_context=execution_context,
+            tool_choices=tool_choices,
+            disabled_tools=disabled_tools,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,
@@ -731,6 +777,9 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
         builtin_tool_manager: OpenAIBuiltInToolManager,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+        content_service: ContentService | None = None,
     ) -> None:
         self._builtin_tool_manager = builtin_tool_manager
         super().__init__(
@@ -742,15 +791,20 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             a2a_manager=a2a_manager,
             api_mode="responses",
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+            content_service=content_service,
         )
 
     @classmethod
-    def from_run_context(
+    def from_execution_context(
         cls,
         logger: Logger,
         config: ToolManagerConfig,
         *,
-        run_context: ToolRunContext,
+        execution_context: ToolExecutionContext,
+        tool_choices: list[str],
+        disabled_tools: list[str],
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
@@ -760,10 +814,12 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         if builtin_tool_manager is None:
             msg = "builtin_tool_manager is required for ResponsesApiToolManager"
             raise ValueError(msg)
-        return super().from_run_context(
+        return super().from_execution_context(
             logger=logger,
             config=config,
-            run_context=run_context,
+            execution_context=execution_context,
+            tool_choices=tool_choices,
+            disabled_tools=disabled_tools,
             tool_progress_reporter=tool_progress_reporter,
             mcp_manager=mcp_manager,
             a2a_manager=a2a_manager,

@@ -33,6 +33,10 @@ def _make_skill(
 class _FakeToolManager:
     def __init__(self, skill_tool: SkillTool | None) -> None:
         self._skill_tool = skill_tool
+        ctx = MagicMock()
+        if skill_tool is not None:
+            ctx.message_step_logger = skill_tool._message_step_logger  # type: ignore[attr-defined]
+        self.execution_context = ctx
 
     def get_tool_by_name(self, name: str) -> SkillTool | None:
         if self._skill_tool is not None and name == self._skill_tool.name:

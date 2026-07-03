@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 import unique_toolkit.agentic.tools.tool as _unique_toolkit_tool
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.chat.schemas import MessageExecutionUpdateStatus
 
@@ -17,6 +18,49 @@ from unique_deep_research.service import (
     DeepResearchToolInput,
     MemorySchema,
 )
+
+
+def _make_ctx(
+    tool: DeepResearchTool,
+    event,
+    tool_progress_reporter=None,
+) -> ToolExecutionContext:
+    """Build a ToolExecutionContext reusing the chat/language-model services that the
+    deprecated ``Tool(config, event, tool_progress_reporter)`` constructor already
+    bootstrapped on ``tool``, so tests can keep mutating ``tool.chat_service``.
+    """
+    user_message = getattr(event.payload, "user_message", None)
+    user_message_text = None
+    if user_message is not None:
+        text = getattr(user_message, "text", None)
+        original_text = getattr(user_message, "original_text", None)
+        user_message_text = text if isinstance(text, str) and text else original_text
+
+    return ToolExecutionContext.from_services(
+        chat_service=tool._chat_service,
+        language_model_service=tool._language_model_service,
+        tool_progress_reporter=tool_progress_reporter,
+        message_execution_id=getattr(event.payload, "message_execution_id", None),
+        user_message_text=user_message_text,
+        module_name=getattr(event.payload, "name", "") or "",
+        user_metadata=getattr(event.payload, "user_metadata", None),
+        tool_parameters=getattr(event.payload, "tool_parameters", None) or {},
+    )
+
+
+def _make_tool(
+    config: DeepResearchToolConfig,
+    event,
+    tool_progress_reporter=None,
+) -> DeepResearchTool:
+    """Build a DeepResearchTool via the legacy event-based constructor, then run
+    ``_initialize_runtime`` so ``tool.chat_service``/``tool.client``/``tool.memory_service``
+    etc. are populated the same way the orchestrator would via ``run(tool_call, ctx)``.
+    """
+    tool = DeepResearchTool(config, event, tool_progress_reporter)
+    ctx = _make_ctx(tool, event, tool_progress_reporter)
+    tool._initialize_runtime(ctx)
+    return tool
 
 
 @contextmanager
@@ -76,10 +120,10 @@ def test_deep_research_tool__is_message_execution__returns_false__when_no_execut
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 result = tool.is_message_execution()
 
                 # Assert
@@ -108,10 +152,10 @@ def test_deep_research_tool__is_message_execution__returns_true__when_execution_
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 result = tool.is_message_execution()
 
                 # Assert
@@ -138,10 +182,10 @@ def test_deep_research_tool__get_user_request__returns_user_message_text() -> No
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 result = tool.get_user_request()
 
                 # Assert
@@ -170,10 +214,10 @@ def test_deep_research_tool__get_user_request__returns_original_text__when_text_
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 result = tool.get_user_request()
 
                 # Assert
@@ -202,10 +246,10 @@ def test_deep_research_tool__get_user_request__returns_empty_string__when_both_t
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 result = tool.get_user_request()
 
                 # Assert
@@ -232,10 +276,10 @@ def test_deep_research_tool__tool_description__returns_correct_description() -> 
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 description = tool.tool_description()
 
                 # Assert
@@ -267,9 +311,9 @@ async def test_deep_research_tool__get_followup_question_message_id__returns_non
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.memory_service.load_async = AsyncMock(return_value=None)
 
                 # Act
@@ -302,9 +346,9 @@ async def test_deep_research_tool__get_followup_question_message_id__returns_mes
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 mock_memory = MemorySchema(message_id="followup-msg-123")
                 tool.memory_service.load_async = AsyncMock(return_value=mock_memory)
 
@@ -338,9 +382,9 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(return_value=None)
 
                 # Act
@@ -373,9 +417,9 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(
                     return_value="followup-msg-123"
                 )
@@ -411,9 +455,9 @@ async def test_deep_research_tool__is_followup_question_answer__returns_true__wh
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(
                     return_value="followup-msg-123"
                 )
@@ -454,9 +498,9 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.get_followup_question_message_id = AsyncMock(
                     return_value="followup-msg-123"
                 )
@@ -497,9 +541,9 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.chat_service.update_message_execution_async = AsyncMock()
 
                 # Act
@@ -538,9 +582,9 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.chat_service.update_message_execution_async = AsyncMock()
 
                 # Act
@@ -578,12 +622,12 @@ def test_deep_research_tool__write_message_log_text_message__calls_create_messag
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch(
                     "unique_deep_research.service.create_message_log_entry"
                 ) as mock_create_log:
-                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                     # Act
                     tool.write_message_log_text_message("Test log message")
@@ -618,9 +662,9 @@ def test_deep_research_tool__get_visible_history_messages__returns_formatted_mes
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 mock_user_msg = Mock()
                 mock_user_msg.role = MockRole("user")
@@ -670,9 +714,9 @@ def test_deep_research_tool__get_visible_history_messages__returns_formatted_mes
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 mock_msg1 = Mock()
                 mock_msg1.role = MockRole("user")
@@ -726,10 +770,10 @@ def test_deep_research_tool__tool_description_for_system_prompt__returns_correct
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 description = tool.tool_description_for_system_prompt()
 
                 # Assert
@@ -761,10 +805,10 @@ def test_deep_research_tool__evaluation_check_list__returns_hallucination_check(
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 # Act
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 checks = tool.evaluation_check_list()
 
                 # Assert
@@ -794,9 +838,9 @@ def test_deep_research_tool__get_evaluation_checks_based_on_tool_response__retur
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool_response = ToolCallResponse(
                     id="test-id",
                     name="DeepResearch",
@@ -835,9 +879,9 @@ def test_deep_research_tool__get_evaluation_checks_based_on_tool_response__retur
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 # Create mock ContentChunk objects
                 from unique_toolkit.content.schemas import ContentChunk
 
@@ -888,9 +932,9 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
                 tool.chat_service.update_debug_info_async = AsyncMock()
                 tool.chat_service.modify_assistant_message_async = AsyncMock()
@@ -900,7 +944,7 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
                 mock_tool_call.id = "test-tool-call-id"
 
                 # Act
-                result = await tool.run(mock_tool_call)
+                result = await tool.run(mock_tool_call, tool._ctx)
 
                 # Assert
                 assert isinstance(result, ToolCallResponse)
@@ -943,9 +987,9 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
                 tool._update_execution_status = AsyncMock()
                 tool.chat_service.update_debug_info_async = AsyncMock()
@@ -956,7 +1000,7 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
                 mock_tool_call.id = "test-tool-call-id"
 
                 # Act
-                result = await tool.run(mock_tool_call)
+                result = await tool.run(mock_tool_call, tool._ctx)
 
                 # Assert
                 assert isinstance(result, ToolCallResponse)
@@ -993,9 +1037,9 @@ async def test_deep_research_tool__run_research__calls_openai_research__when_eng
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.openai_research = AsyncMock(
                     return_value=("research result", ["chunk1"])
                 )
@@ -1035,9 +1079,9 @@ async def test_deep_research_tool__run_research__calls_custom_research__when_eng
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.custom_research = AsyncMock(
                     return_value=("custom result", ["chunk1"])
                 )
@@ -1079,9 +1123,9 @@ async def test_deep_research_tool__run_research__propagates_exception__when_exce
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
                 tool.openai_research = AsyncMock(
                     side_effect=Exception("Research failed")
                 )
@@ -1118,7 +1162,7 @@ async def test_deep_research_tool__custom_research__returns_processed_result__wh
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch("unique_deep_research.service.custom_agent") as mock_agent:
                     with patch(
@@ -1127,7 +1171,7 @@ async def test_deep_research_tool__custom_research__returns_processed_result__wh
                         with patch(
                             "unique_deep_research.service.validate_and_map_citations"
                         ) as mock_validate:
-                            tool = DeepResearchTool(
+                            tool = _make_tool(
                                 config, mock_event, mock_progress_reporter
                             )
 
@@ -1183,15 +1227,13 @@ async def test_deep_research_tool__custom_research__returns_empty_result__when_n
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch("unique_deep_research.service.custom_agent") as mock_agent:
                     with patch(
                         "unique_deep_research.service.GlobalCitationManager"
                     ) as mock_citation_manager:
-                        tool = DeepResearchTool(
-                            config, mock_event, mock_progress_reporter
-                        )
+                        tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                         # Mock agent result with empty final_report
                         mock_agent.ainvoke = AsyncMock(
@@ -1232,15 +1274,13 @@ async def test_deep_research_tool__custom_research__propagates_exception__when_e
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch("unique_deep_research.service.custom_agent") as mock_agent:
                     with patch(
                         "unique_deep_research.service.GlobalCitationManager"
                     ) as mock_citation_manager:
-                        tool = DeepResearchTool(
-                            config, mock_event, mock_progress_reporter
-                        )
+                        tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                         # Mock agent to raise exception
                         mock_agent.ainvoke = AsyncMock(
@@ -1280,15 +1320,13 @@ async def test_deep_research_tool__openai_research__returns_processed_result__wh
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch(
                     "unique_deep_research.service.postprocess_research_result_with_chunks"
                 ) as mock_postprocess:
                     with patch("unique_deep_research.service.crawl_url"):
-                        tool = DeepResearchTool(
-                            config, mock_event, mock_progress_reporter
-                        )
+                        tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                         # Mock OpenAI client responses
                         mock_stream = AsyncMock()
@@ -1352,9 +1390,9 @@ async def test_deep_research_tool__openai_research__returns_empty_result__when_n
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Mock OpenAI client responses
                 mock_stream = AsyncMock()
@@ -1394,9 +1432,9 @@ async def test_deep_research_tool__postprocess_report_with_gpt__returns_formatte
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Mock GPT completion
                 mock_response = Mock()
@@ -1446,9 +1484,9 @@ async def test_deep_research_tool__postprocess_report_with_gpt__returns_original
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Mock GPT completion with empty content
                 mock_response = Mock()
@@ -1494,9 +1532,9 @@ async def test_deep_research_tool__clarify_user_request__returns_clarifying_ques
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Mock chat service completion
                 mock_response = Mock()
@@ -1552,9 +1590,9 @@ async def test_deep_research_tool__generate_research_brief_from_dict__returns_re
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Mock OpenAI client completion
                 mock_response = Mock()
@@ -1603,9 +1641,9 @@ async def test_deep_research_tool__generate_research_brief__returns_research_ins
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Mock generate_research_brief_from_dict
                 tool.generate_research_brief_from_dict = AsyncMock(
@@ -1654,9 +1692,9 @@ async def test_deep_research_tool__generate_research_brief__handles_role_without
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Mock generate_research_brief_from_dict
                 tool.generate_research_brief_from_dict = AsyncMock(
@@ -1700,9 +1738,9 @@ def test_deep_research_tool__convert_annotations_to_references__returns_content_
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Create mock annotations that pass isinstance check
                 from openai.types.responses.response_output_text import (
@@ -1763,9 +1801,9 @@ def test_deep_research_tool__convert_annotations_to_references__returns_content_
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Create mock annotation that passes isinstance check
                 from openai.types.responses.response_output_text import (
@@ -1810,9 +1848,9 @@ def test_deep_research_tool__convert_annotations_to_references__skips_non_url_ci
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Create mock annotations with different types
                 from openai.types.responses.response_output_text import (
@@ -1861,9 +1899,9 @@ def test_deep_research_tool__get_tool_debug_info__returns_correct_debug_info() -
     mock_progress_reporter = Mock()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                 # Act
                 debug_info = tool._get_tool_debug_info()
@@ -1912,9 +1950,9 @@ def test_deep_research_tool__cancelled_response__returns_stopped_response():
     config, mock_event, mock_reporter = _create_tool_with_mocks()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool = _make_tool(config, mock_event, mock_reporter)
 
                 mock_tool_call = Mock()
                 mock_tool_call.id = "tc-1"
@@ -1933,9 +1971,9 @@ async def test_deep_research_tool__on_cancellation__logs_and_updates_message():
     config, mock_event, mock_reporter = _create_tool_with_mocks()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool = _make_tool(config, mock_event, mock_reporter)
                 tool.write_message_log_text_message = Mock()
                 tool._update_execution_status = AsyncMock()
                 tool.chat_service.modify_assistant_message_async = AsyncMock()
@@ -1971,9 +2009,9 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
     config, mock_event, mock_reporter = _create_tool_with_mocks()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool = _make_tool(config, mock_event, mock_reporter)
                 tool.chat_service._cancellation_watcher = _mock_cancellation(
                     check_returns=True
                 )
@@ -1996,9 +2034,9 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
     config, mock_event, mock_reporter = _create_tool_with_mocks()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool = _make_tool(config, mock_event, mock_reporter)
 
                 call_count = 0
 
@@ -2035,9 +2073,9 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
     config, mock_event, mock_reporter = _create_tool_with_mocks()
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
-                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool = _make_tool(config, mock_event, mock_reporter)
                 tool.chat_service._cancellation_watcher = _mock_cancellation(
                     is_cancelled=True, check_returns=False
                 )
@@ -2083,13 +2121,13 @@ async def test_deep_research_tool__postprocess_report_with_gpt__passes_date__to_
     fixed_date = "Thu Mar 5, 2026"
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch(
                     "unique_deep_research.service.get_today_str",
                     return_value=fixed_date,
                 ) as mock_get_today_str:
-                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool = _make_tool(config, mock_event, mock_progress_reporter)
                     tool.write_message_log_text_message = Mock()
 
                     mock_response = Mock()
@@ -2140,13 +2178,13 @@ async def test_deep_research_tool__clarify_user_request__passes_date__to_templat
     fixed_date = "Thu Mar 5, 2026"
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch(
                     "unique_deep_research.service.get_today_str",
                     return_value=fixed_date,
                 ) as mock_get_today_str:
-                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool = _make_tool(config, mock_event, mock_progress_reporter)
                     tool.get_visible_history_messages = Mock(return_value=[])
 
                     mock_response = Mock()
@@ -2196,13 +2234,13 @@ async def test_deep_research_tool__generate_research_brief_from_dict__passes_dat
     fixed_date = "Thu Mar 5, 2026"
 
     with patch("unique_deep_research.service.get_async_openai_client"):
-        with patch("unique_deep_research.service.ContentService"):
+        with patch("unique_deep_research.service.ContentService", create=True):
             with _patch_language_model_service_for_tool():
                 with patch(
                     "unique_deep_research.service.get_today_str",
                     return_value=fixed_date,
                 ) as mock_get_today_str:
-                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool = _make_tool(config, mock_event, mock_progress_reporter)
 
                     mock_response = Mock()
                     mock_response.choices = [Mock()]
@@ -2226,3 +2264,32 @@ async def test_deep_research_tool__generate_research_brief_from_dict__passes_dat
                         mock_get_today_str.assert_called()
                         _, render_kwargs = mock_template.render.call_args
                         assert render_kwargs.get("date") == fixed_date
+
+
+def test_write_message_log_uses_live_assistant_message_id() -> None:
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_id = "assistant-1"
+    mock_event.payload.assistant_message.id = "stale-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_event.payload.metadata_filter = None
+    mock_progress_reporter = Mock()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService", create=True):
+            with _patch_language_model_service_for_tool():
+                tool = _make_tool(config, mock_event, mock_progress_reporter)
+                tool._chat_service._assistant_message_id = "live-assistant-message"
+
+                with patch(
+                    "unique_deep_research.service.create_message_log_entry"
+                ) as mock_create_log:
+                    tool.write_message_log_text_message("progress")
+
+                    mock_create_log.assert_called_once()
+                    assert mock_create_log.call_args[0][1] == "live-assistant-message"

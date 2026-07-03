@@ -8,6 +8,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
+from unique_toolkit.agentic.tools.execution_context import ToolExecutionContext
 from unique_toolkit.agentic.tools.experimental.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.experimental.todo.schemas import (
     TodoItem,
@@ -17,10 +18,10 @@ from unique_toolkit.agentic.tools.experimental.todo.schemas import (
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
-from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
-from unique_toolkit.language_model import LanguageModelToolDescription
+from unique_toolkit.language_model import (
+    LanguageModelToolDescription,
+)
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -43,25 +44,30 @@ class TodoWriteTool(Tool[TodoConfig]):
     def __init__(
         self,
         config: TodoConfig,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = None,
+        *args,
+        **kwargs,
     ) -> None:
-        super().__init__(config, event, tool_progress_reporter)
-        stm_service = ShortTermMemoryService(
-            company_id=event.company_id,
-            user_id=event.user_id,
-            chat_id=event.payload.chat_id,
-            message_id=None,
-        )
-        self._memory_manager: PersistentShortMemoryManager[TodoList] = (
-            PersistentShortMemoryManager(
+        super().__init__(config, *args, **kwargs)
+        self._memory_manager: PersistentShortMemoryManager[TodoList] | None = None
+        self._cached_state: TodoList | None = None
+        self._plan_log: MessageLog | None = None
+
+    def _get_memory_manager(
+        self, ctx: ToolExecutionContext
+    ) -> PersistentShortMemoryManager[TodoList]:
+        if self._memory_manager is None:
+            stm_service = ShortTermMemoryService(
+                company_id=ctx.chat_service._company_id,
+                user_id=ctx.chat_service._user_id,
+                chat_id=ctx.chat_service._chat_id,
+                message_id=None,
+            )
+            self._memory_manager = PersistentShortMemoryManager(
                 short_term_memory_service=stm_service,
                 short_term_memory_schema=TodoList,
                 short_term_memory_name=MEMORY_KEY,
             )
-        )
-        self._cached_state: TodoList | None = None
-        self._plan_log: MessageLog | None = None
+        return self._memory_manager
 
     def display_name(self) -> str:
         return self.config.display_name
@@ -82,7 +88,10 @@ class TodoWriteTool(Tool[TodoConfig]):
             parallel_mode=self.config.parallel_mode,
         )
 
-    async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+    async def run(
+        self, tool_call: LanguageModelFunction, ctx: ToolExecutionContext
+    ) -> ToolCallResponse:
+        memory_manager = self._get_memory_manager(ctx)
         try:
             input_data = TodoWriteInput.model_validate(tool_call.arguments)
         except Exception as e:
@@ -104,7 +113,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             ],
         )
 
-        current_state = await self._load_state()
+        current_state = await self._load_state(memory_manager)
 
         if input_data.merge:
             current_state = current_state.update(input_data.todos)
@@ -126,7 +135,7 @@ class TodoWriteTool(Tool[TodoConfig]):
         self._cached_state = current_state
 
         try:
-            await self._memory_manager.save_async(current_state)
+            await memory_manager.save_async(current_state)
         except Exception:
             logger.warning(
                 "TodoWriteTool: failed to persist state, continuing with in-memory state",
@@ -141,7 +150,7 @@ class TodoWriteTool(Tool[TodoConfig]):
         )
 
         counts = current_state.status_counter()
-        await self._log_step(current_state)
+        await self._log_step(current_state, ctx)
 
         content = current_state.format()
         content = self._maybe_add_verification_nudge(content, counts)
@@ -169,7 +178,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             },
         )
 
-    async def _log_step(self, state: TodoList) -> None:
+    async def _log_step(self, state: TodoList, ctx: ToolExecutionContext) -> None:
         """Write a single Steps panel entry summarising the current todo state.
 
         Shows a numbered list of all items with status indicators (✓/→/○)
@@ -197,7 +206,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             plan_text = "\n".join(lines)
 
             self._plan_log = (
-                await self._message_step_logger.create_or_update_message_log_async(
+                await ctx.message_step_logger.create_or_update_message_log_async(
                     active_message_log=self._plan_log,
                     header=self.display_name(),
                     progress_message=f"{completed}/{total} completed\n{plan_text}",
@@ -222,7 +231,9 @@ class TodoWriteTool(Tool[TodoConfig]):
             content += f"\n\n{nudge}"
         return content
 
-    async def _load_state(self) -> TodoList:
+    async def _load_state(
+        self, memory_manager: PersistentShortMemoryManager[TodoList]
+    ) -> TodoList:
         """Load state from persistence, falling back to in-memory cache.
 
         When both persisted and cached state exist, prefer whichever has the
@@ -231,7 +242,7 @@ class TodoWriteTool(Tool[TodoConfig]):
         """
         persisted: TodoList | None = None
         try:
-            persisted = await self._memory_manager.load_async()
+            persisted = await memory_manager.load_async()
         except Exception:
             logger.warning(
                 "TodoWriteTool: failed to load persisted state",
