@@ -11,6 +11,8 @@ from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import LanguageModelService
 
 
 class MCPManager:
@@ -19,10 +21,15 @@ class MCPManager:
         mcp_servers: list[McpServer],
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter,
-    ):
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
+    ) -> None:
         self._mcp_servers = mcp_servers
         self._event = event
         self._tool_progress_reporter = tool_progress_reporter
+        self._chat_service = chat_service
+        self._language_model_service = language_model_service
 
     def get_mcp_servers(self):
         return self._mcp_servers
@@ -47,13 +54,22 @@ class MCPManager:
                         server_user_prompt=server.user_prompt,
                         mcp_source_id=server.id,
                     )
-                    wrapper = MCPToolWrapper(
-                        mcp_server=server,
-                        mcp_tool=tool,
-                        config=config,
-                        event=self._event,
-                        tool_progress_reporter=self._tool_progress_reporter,
-                    )
+                    wrapper_kwargs: dict[str, object] = {
+                        "mcp_server": server,
+                        "mcp_tool": tool,
+                        "config": config,
+                        "event": self._event,
+                        "tool_progress_reporter": self._tool_progress_reporter,
+                    }
+                    if (
+                        self._chat_service is not None
+                        and self._language_model_service is not None
+                    ):
+                        wrapper_kwargs["chat_service"] = self._chat_service
+                        wrapper_kwargs["language_model_service"] = (
+                            self._language_model_service
+                        )
+                    wrapper = MCPToolWrapper(**wrapper_kwargs)
                     wrapper.settings = ToolBuildConfig(  # TODO: this must be refactored to behave like the other tools.
                         name=tool.name,
                         configuration=config,

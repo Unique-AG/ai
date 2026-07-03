@@ -290,7 +290,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         if await self.is_followup_question_answer() and not self.is_message_execution():
             _LOGGER.info("This is a follow-up question answer")
             self.chat_service.create_message_execution(
-                message_id=self.event.payload.assistant_message.id,
+                message_id=self.chat_service.assistant_message_id,
                 type=MessageExecutionType.DEEP_RESEARCH,
             )
             self.write_message_log_text_message(
@@ -347,7 +347,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         # put message in short term memory to remember that we asked the followup questions
         await self.memory_service.save_async(
-            MemorySchema(message_id=self.event.payload.assistant_message.id),
+            MemorySchema(message_id=self.chat_service.assistant_message_id),
         )
         return ToolCallResponse(
             id=tool_call.id or "",
@@ -369,7 +369,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             percentage = 100 if status == MessageExecutionUpdateStatus.COMPLETED else 0
 
         await self.chat_service.update_message_execution_async(
-            message_id=self.event.payload.assistant_message.id,
+            message_id=self.chat_service.assistant_message_id,
             status=status,
             percentage_completed=percentage,
         )
@@ -405,7 +405,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
     def write_message_log_text_message(self, text: str):
         create_message_log_entry(
             self.chat_service,
-            self.event.payload.assistant_message.id,
+            self.chat_service.assistant_message_id,
             text,
             MessageLogStatus.COMPLETED,
             details=MessageLogDetails(data=[]),
@@ -468,7 +468,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             "notes": [],
             "final_report": "",
             "chat_service": self.chat_service,
-            "message_id": self.event.payload.assistant_message.id,
+            "message_id": self.chat_service.assistant_message_id,
         }
 
         # Prepare configuration for LangGraph
@@ -486,7 +486,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "openai_client": self.client,
                 "chat_service": self.chat_service,
                 "content_service": self.content_service,
-                "message_id": self.event.payload.assistant_message.id,
+                "message_id": self.chat_service.assistant_message_id,
                 "citation_manager": citation_manager,
                 "additional_openai_proxy_headers": additional_openai_proxy_headers,
             },
@@ -652,11 +652,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         if isinstance(event.item, ResponseReasoningItem):
                             for summary in event.item.summary:
                                 self.chat_service.create_message_log(
-                                    message_id=self.event.payload.assistant_message.id,
+                                    message_id=self.chat_service.assistant_message_id,
                                     text=summary.text,
                                     status=MessageLogStatus.COMPLETED,
                                     order=get_next_message_order(
-                                        self.event.payload.assistant_message.id
+                                        self.chat_service.assistant_message_id
                                     ),
                                     uncited_references=MessageLogUncitedReferences(
                                         data=[],
@@ -671,11 +671,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                             ) and isinstance(event.item.action.query, str):
                                 _LOGGER.info("OpenAI web search")
                                 self.chat_service.create_message_log(
-                                    message_id=self.event.payload.assistant_message.id,
+                                    message_id=self.chat_service.assistant_message_id,
                                     text="**Searching the web**",
                                     status=MessageLogStatus.COMPLETED,
                                     order=get_next_message_order(
-                                        self.event.payload.assistant_message.id
+                                        self.chat_service.assistant_message_id
                                     ),
                                     uncited_references=MessageLogUncitedReferences(
                                         data=[],
@@ -718,11 +718,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     )
                                     continue
                                 self.chat_service.create_message_log(
-                                    message_id=self.event.payload.assistant_message.id,
+                                    message_id=self.chat_service.assistant_message_id,
                                     text="**Reading website**",
                                     status=MessageLogStatus.COMPLETED,
                                     order=get_next_message_order(
-                                        self.event.payload.assistant_message.id
+                                        self.chat_service.assistant_message_id
                                     ),
                                     uncited_references=MessageLogUncitedReferences(
                                         data=[
@@ -745,11 +745,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                 )
                     case "response.failed":
                         self.chat_service.create_message_log(
-                            message_id=self.event.payload.assistant_message.id,
+                            message_id=self.chat_service.assistant_message_id,
                             text=f"Failed to complete research: {event.response.error}",
                             status=MessageLogStatus.FAILED,
                             order=get_next_message_order(
-                                self.event.payload.assistant_message.id
+                                self.chat_service.assistant_message_id
                             ),
                             uncited_references=MessageLogUncitedReferences(
                                 data=[],

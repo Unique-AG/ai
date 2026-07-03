@@ -230,6 +230,8 @@ class Tool(ABC, Generic[ConfigType]):
                 MessageStepLogger,
             )
 
+            if event is not None:
+                self._event = event
             self._tool_progress_reporter = tool_progress_reporter
             self._chat_service = chat_service
             self._language_model_service = language_model_service

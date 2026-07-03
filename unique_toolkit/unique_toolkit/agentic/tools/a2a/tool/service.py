@@ -20,7 +20,6 @@ from unique_toolkit._common.referencing import (
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -53,6 +52,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
     LanguageModelFunction,
+    LanguageModelService,
     LanguageModelToolDescription,
 )
 
@@ -72,12 +72,17 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
-        super().__init__(configuration)
-        self._event = event
-        self._tool_progress_reporter = tool_progress_reporter
-        self._chat_service = ChatService(event)
-        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
+        init_kwargs: dict[str, object] = {
+            "tool_progress_reporter": tool_progress_reporter,
+        }
+        if chat_service is not None and language_model_service is not None:
+            init_kwargs["chat_service"] = chat_service
+            init_kwargs["language_model_service"] = language_model_service
+        super().__init__(configuration, event, **init_kwargs)
         self._user_id = event.user_id
         self._company_id = event.company_id
 

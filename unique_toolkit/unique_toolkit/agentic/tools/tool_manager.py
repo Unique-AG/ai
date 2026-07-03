@@ -37,6 +37,8 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -90,6 +92,8 @@ class _ToolManager(Generic[_ApiMode]):
         a2a_manager: A2AManager,
         api_mode: _ApiMode,
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         self._setup(
             logger=logger,
@@ -100,6 +104,8 @@ class _ToolManager(Generic[_ApiMode]):
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
 
     @classmethod
@@ -114,6 +120,8 @@ class _ToolManager(Generic[_ApiMode]):
         a2a_manager: A2AManager,
         api_mode: _ApiMode,
         builtin_tool_manager: OpenAIBuiltInToolManager | None = None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> Self:
         instance = cls.__new__(cls)
         instance._setup(
@@ -125,6 +133,8 @@ class _ToolManager(Generic[_ApiMode]):
             a2a_manager=a2a_manager,
             api_mode=api_mode,
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
         return instance
 
@@ -139,10 +149,14 @@ class _ToolManager(Generic[_ApiMode]):
         a2a_manager: A2AManager,
         api_mode: _ApiMode,
         builtin_tool_manager: OpenAIBuiltInToolManager | None,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
+        self._chat_service = chat_service
+        self._language_model_service = language_model_service
         self._tools: list[Tool[Any] | OpenAIBuiltInTool[Any]] = []
         self._tool_choices = run_context.tool_choices
         self._disabled_tools = run_context.disabled_tools
@@ -218,13 +232,22 @@ class _ToolManager(Generic[_ApiMode]):
                     t.name,
                 )
                 continue
+            build_kwargs: dict[str, object] = {
+                "tool_progress_reporter": self._tool_progress_reporter,
+            }
+            if (
+                self._chat_service is not None
+                and self._language_model_service is not None
+            ):
+                build_kwargs["chat_service"] = self._chat_service
+                build_kwargs["language_model_service"] = self._language_model_service
             result = safe_executor.execute(
                 ToolFactory.build_tool_with_settings,
                 t.name,
                 t,
                 t.configuration,
                 tool_init_event,
-                tool_progress_reporter=self._tool_progress_reporter,
+                **build_kwargs,
             )
             if result.success:
                 self._internal_tools.append(result.unpack())
@@ -684,6 +707,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
         tool_progress_reporter: ToolProgressReporter,
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         super().__init__(
             logger=logger,
@@ -694,6 +719,8 @@ class ToolManager(_ToolManager[Literal["completions"]]):
             a2a_manager=a2a_manager,
             api_mode="completions",
             builtin_tool_manager=None,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
 
     @classmethod
@@ -731,6 +758,8 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         mcp_manager: MCPManager,
         a2a_manager: A2AManager,
         builtin_tool_manager: OpenAIBuiltInToolManager,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         self._builtin_tool_manager = builtin_tool_manager
         super().__init__(
@@ -742,6 +771,8 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             a2a_manager=a2a_manager,
             api_mode="responses",
             builtin_tool_manager=builtin_tool_manager,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
         )
 
     @classmethod

@@ -10,7 +10,6 @@ import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -22,6 +21,7 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.functions import upload_content_from_bytes
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -40,13 +40,18 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         config: MCPToolConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         self.name = mcp_tool.name
-        super().__init__(config)
-        self._event = event
-        self._tool_progress_reporter = tool_progress_reporter
-        self._chat_service = ChatService(event)
-        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
+        init_kwargs: dict[str, object] = {
+            "tool_progress_reporter": tool_progress_reporter,
+        }
+        if chat_service is not None and language_model_service is not None:
+            init_kwargs["chat_service"] = chat_service
+            init_kwargs["language_model_service"] = language_model_service
+        super().__init__(config, event, **init_kwargs)
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 
@@ -384,7 +389,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 user_id=self._event.user_id,
                 company_id=self._event.company_id,
                 name=self.name,
-                messageId=self._event.payload.assistant_message.id,
+                messageId=self._chat_service._assistant_message_id,
                 chatId=self._event.payload.chat_id,
                 arguments=arguments,
             )
