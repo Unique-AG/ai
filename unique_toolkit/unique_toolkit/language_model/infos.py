@@ -2738,7 +2738,7 @@ class LanguageModelInfo(BaseModel):
                     ],
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=256_000, token_limit_output=128_000
-                    ), # GLM-5.2 supports up to a 1_000_000 token context window. Together AI is supporting however only up to 256_000 tokens.
+                    ),  # GLM-5.2 supports up to a 1_000_000 token context window. Together AI is supporting however only up to 256_000 tokens.
                     published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
                 )
