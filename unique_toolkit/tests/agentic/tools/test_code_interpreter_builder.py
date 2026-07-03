@@ -37,12 +37,7 @@ from unique_toolkit.content.schemas import Content
 
 async def _build_via_builder(**kwargs) -> OpenAICodeInterpreterTool:
     """Call CodeInterpreterBuilder with build_tool's historical signature."""
-    is_exclusive = kwargs.pop("is_exclusive", False)
-    force_auto_container = kwargs.pop("force_auto_container", False)
-    return await CodeInterpreterBuilder(**kwargs).build(
-        is_exclusive=is_exclusive,
-        force_auto_container=force_auto_container,
-    )
+    return await CodeInterpreterBuilder(**kwargs).build()
 
 
 @pytest.mark.ai
