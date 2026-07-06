@@ -126,6 +126,16 @@ class ToolBuildConfig(BaseModel, Generic[T]):
         if not isinstance(value, dict):
             return value
 
+        # config_error must only ever be set by this validator's own demotion
+        # path below. Since this is a plain field on a model with
+        # populate_by_name + a camelCase alias generator, an externally
+        # supplied config_error/configError (e.g. a stray key on a stored
+        # payload) would otherwise pass straight through untouched on every
+        # non-demotion return path and make a perfectly healthy tool look
+        # misconfigured to collect_tool_configuration_errors.
+        value.pop("config_error", None)
+        value.pop("configError", None)
+
         is_mcp_tool = _is_mcp_tool_payload(value)
         mcp_configuration = value.get("configuration", {})
 

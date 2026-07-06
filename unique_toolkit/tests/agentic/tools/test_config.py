@@ -1621,6 +1621,112 @@ def test_collect_tool_configuration_errors__returns_messages__for_demoted_tools(
 
 
 @pytest.mark.ai
+def test_tool_build_config__ignores_externally_supplied_config_error__when_valid(
+    register_simple_tool,
+) -> None:
+    """
+    Purpose: Verify a spoofed config_error on a valid, healthy tool payload is ignored.
+    Why this matters: config_error is a plain field on a model with
+    populate_by_name + camelCase alias generation, so a stray or malicious
+    config_error/configError key on the input payload could otherwise make a
+    perfectly healthy tool look "misconfigured" to
+    collect_tool_configuration_errors and wrongly fail an otherwise working
+    chat request.
+    Setup summary: Valid, registered tool config with an externally supplied
+    config_error string; assert it is stripped and not carried onto the model.
+    """
+    config_data = {
+        "name": "test_tool",
+        "configuration": {"param_one": "ok", "param_two": 1},
+        "config_error": "fabricated error injected by caller",
+    }
+
+    config = ToolBuildConfig(**config_data)
+
+    assert config.is_enabled is True
+    assert isinstance(config.configuration, SimpleToolConfig)
+    assert config.config_error is None
+
+
+@pytest.mark.ai
+def test_tool_build_config__ignores_externally_supplied_camel_case_config_error__when_valid(
+    register_simple_tool,
+) -> None:
+    """
+    Purpose: Verify a spoofed configError (camelCase) on a valid tool payload is ignored.
+    Why this matters: Backend payloads commonly use the camelCase alias; the
+    spoofing guard must strip both spellings.
+    Setup summary: Valid, registered, disabled tool config with configError set
+    externally; assert it does not leak onto the resolved model.
+    """
+    config_data = {
+        "name": "test_tool",
+        "isEnabled": False,
+        "configuration": {"param_one": "ok", "param_two": 1},
+        "configError": "fabricated error injected by caller",
+    }
+
+    config = ToolBuildConfig(**config_data)
+
+    assert config.is_enabled is False
+    assert isinstance(config.configuration, SimpleToolConfig)
+    assert config.config_error is None
+
+
+@pytest.mark.ai
+def test_tool_build_config__ignores_externally_supplied_config_error__for_mcp_tool() -> (
+    None
+):
+    """
+    Purpose: Verify a spoofed config_error on an MCP tool payload (early-return path) is ignored.
+    Why this matters: MCP tools skip ToolFactory validation and return early;
+    the spoofing guard must run before that early return, not just before the
+    demotion path.
+    Setup summary: MCP tool payload (has mcp_source_id) with a fabricated
+    config_error; assert it does not survive onto the model.
+    """
+    config_data = {
+        "name": "mcp_test_tool",
+        "mcp_source_id": "mcp-server-123",
+        "configuration": {
+            "server_id": "server-123",
+            "server_name": "Test Server",
+            "mcp_source_id": "mcp-server-123",
+        },
+        "config_error": "fabricated error injected by caller",
+    }
+
+    config = ToolBuildConfig(**config_data)
+
+    assert config.config_error is None
+
+
+@pytest.mark.ai
+def test_tool_build_config__demotion_path__overrides_any_externally_supplied_config_error() -> (
+    None
+):
+    """
+    Purpose: Verify a real demotion always sets its own config_error, regardless of input.
+    Why this matters: The spoofing guard must not accidentally suppress genuine
+    error reporting for tools that really are misconfigured.
+    Setup summary: Unregistered tool name (triggers demotion) with an
+    externally supplied config_error; assert the validator's own message wins.
+    """
+    config_data = {
+        "name": "totally_unknown_tool_spoof_test",
+        "configuration": {"some_param": "value"},
+        "config_error": "this should be overridden",
+    }
+
+    config = ToolBuildConfig(**config_data)
+
+    assert config.is_enabled is False
+    assert config.config_error == (
+        "Tool 'totally_unknown_tool_spoof_test' has invalid configuration."
+    )
+
+
+@pytest.mark.ai
 def test_collect_tool_configuration_errors__returns_empty_list__with_no_errors(
     register_simple_tool,
 ) -> None:
