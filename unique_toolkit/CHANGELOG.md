@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.1](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.28.0...unique-toolkit-v2026.28.1) (2026-07-06)
+
+
+### Features
+
+* **toolkit:** kimi k2.6 to llm info ([#2007](https://github.com/Unique-AG/ai/issues/2007)) ([3834281](https://github.com/Unique-AG/ai/commit/38342819f069229f3eef0174f9d1be0d2349f38c))
+
+
+### Bug Fixes
+
+* **toolkit:** correct input token glm52 ([#2006](https://github.com/Unique-AG/ai/issues/2006)) ([b639434](https://github.com/Unique-AG/ai/commit/b6394340a13953a5d95785c2e05344ad00326e4a))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.26.0...unique-toolkit-v2026.28.0) (2026-07-03)
 
 
