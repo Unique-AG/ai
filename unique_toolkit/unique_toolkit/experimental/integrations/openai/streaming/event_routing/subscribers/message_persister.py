@@ -139,8 +139,8 @@ class MessagePersistingSubscriber:
         # written again in :meth:`on_ended`, so a dropped delta degrades
         # to a slightly coarser UI update rather than data loss.
         try:
-            await unique_sdk.Message.modify_async(
-                id=event.message_id,
+            await unique_sdk.Message.create_event_async(
+                messageId=event.message_id,
                 chatId=event.chat_id,
                 user_id=self._settings.context.auth.user_id.get_secret_value(),
                 company_id=self._settings.context.auth.company_id.get_secret_value(),
