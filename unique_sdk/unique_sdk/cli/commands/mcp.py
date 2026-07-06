@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -27,8 +28,13 @@ _LOGGER = logging.getLogger(__name__)
 # (referencing is UN-21285, tracked separately).
 _MCP_OUTPUT_LOG_RELATIVE_PATH = Path(".unique") / "mcp-output.jsonl"
 # Writer-side cap so a single huge/raw tool result cannot bloat the manifest.
-# The evaluator applies its own per-source cap as well.
-_MCP_OUTPUT_TEXT_CHAR_LIMIT = 50_000
+# This manifest is the groundedness check's source of truth, so the cap is
+# sized against the eval model's context window rather than kept minimal:
+# GPT-4o's 128k-token input fits ~400k chars, and the runner bounds the
+# combined per-turn payload separately (UN-22309). At the previous 50k, a
+# large list result (e.g. a 115k-char Jira search) lost most of its items
+# before the judge saw them, flagging well-grounded answers as hallucinations.
+_MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
 
 # Per-turn manifest of citable MCP sources, consumed by the runner to stitch
 # ``[mcpsourceN]`` markers into ``<sup>N</sup>`` footnotes + reference chips
@@ -39,7 +45,6 @@ _MCP_OUTPUT_TEXT_CHAR_LIMIT = 50_000
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 _MCP_SNIPPET_CHAR_LIMIT = 300
-_MCP_MAX_ITEMS_PER_CALL = 8
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
@@ -152,28 +157,271 @@ def _details_from_json(obj: dict[str, Any]) -> str | None:
     return " - ".join(parts)[:_MCP_DETAILS_CHAR_LIMIT]
 
 
-def _titles_from_json(text: str) -> list[dict[str, Any]]:
-    """Best-effort: pull a human title out of a JSON result (object or list of
-    objects), e.g. an Atlassian page/issue returned as JSON-in-text. Returns []
-    when the text is not JSON or carries no recognizable title.
+# Keys under which a JSON object commonly wraps the actual list of retrieved
+# records, e.g. Jira's ``{"issues": [...]}`` or a generic ``{"results": [...]}``.
+# When a result wraps its records this way, we iterate the list so each record
+# becomes its own reference instead of collapsing to one title-less chip.
+_CONTAINER_KEYS = (
+    "issues",
+    "results",
+    "items",
+    "values",
+    "data",
+    "hits",
+    "records",
+    "entries",
+    "elements",
+    "content",
+)
+
+# Subset of ``_CONTAINER_KEYS`` that are also plausible fields of a *single*
+# titled record — e.g. a page/document payload ``{"title": ..., "content": [...]}``
+# whose ``content`` is the body, not a list of separate results. When one of
+# these matches on an object that carries its own top-level title, we keep the
+# object as one record rather than splitting it into title-less inner rows.
+_AMBIGUOUS_CONTAINER_KEYS = ("data", "content")
+
+
+def _loads_embedded_json(text: str) -> Any:
+    """Parse a JSON value from a tool-result string, tolerating a non-JSON
+    preamble.
+
+    Some MCP servers (e.g. Atlassian) prefix the JSON body with a human-readable
+    notice like ``[IMPORTANT: ...]\\n{...}``, so a direct ``json.loads`` of the
+    whole string fails. Try a direct parse first, then fall back to decoding the
+    first JSON object/array that appears. Returns ``None`` when no JSON is found.
     """
     try:
-        parsed = json.loads(text)
+        return json.loads(text)
     except (ValueError, TypeError):
+        pass
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(text):
+        if char in "{[":
+            try:
+                value, _ = decoder.raw_decode(text, index)
+            except ValueError:
+                continue
+            return value
+    return None
+
+
+def _records_from_parsed(parsed: Any) -> list[dict[str, Any]]:
+    """Normalize a parsed JSON value to a flat list of record dicts, unwrapping
+    a single container key (``{"issues": [...]}``) when present."""
+    if isinstance(parsed, list):
+        return [entry for entry in parsed if isinstance(entry, dict)]
+    if isinstance(parsed, dict):
+        for key in _CONTAINER_KEYS:
+            value = parsed.get(key)
+            if isinstance(value, list):
+                records = [entry for entry in value if isinstance(entry, dict)]
+                if records:
+                    # A single titled record must not be split apart by an
+                    # incidental ambiguous key (a page body under ``content`` /
+                    # ``data``) — keep the object as one record so its title
+                    # survives instead of collapsing to a title-less chip.
+                    if key in _AMBIGUOUS_CONTAINER_KEYS and _title_from_json(parsed):
+                        return [parsed]
+                    return records
+        return [parsed]
+    return []
+
+
+def _titles_from_json(text: str) -> list[dict[str, Any]]:
+    """Best-effort: pull a human title out of a JSON result, e.g. an Atlassian
+    page/issue returned as JSON-in-text. Tolerates a non-JSON preamble before
+    the JSON body and unwraps a container key (``{"issues": [...]}``) so each
+    retrieved record yields its own item. Returns [] when the text carries no
+    JSON or no record has a recognizable title.
+    """
+    parsed = _loads_embedded_json(text)
+    if parsed is None:
         return []
-    candidates = parsed if isinstance(parsed, list) else [parsed]
     items: list[dict[str, Any]] = []
-    for entry in candidates:
-        if isinstance(entry, dict):
-            title = _title_from_json(entry)
+    for entry in _records_from_parsed(parsed):
+        title = _title_from_json(entry)
+        if title:
+            items.append(
+                {
+                    "title": title,
+                    "snippet": None,
+                    "details": _details_from_json(entry),
+                }
+            )
+    return items
+
+
+def _get_by_dotted_path(obj: Any, path: str) -> Any:
+    """Walk a dotted path over dicts and lists (numeric segments index lists),
+    e.g. ``"issues"``, ``"fields.summary"``, ``"result.items.0.key"``. Returns
+    ``None`` when any segment is missing."""
+    current = obj
+    for segment in path.split("."):
+        if isinstance(current, dict):
+            current = current.get(segment)
+        elif isinstance(current, list) and segment.lstrip("-").isdigit():
+            index = int(segment)
+            try:
+                current = current[index]
+            except IndexError:
+                return None
+        else:
+            return None
+        if current is None:
+            return None
+    return current
+
+
+_TEMPLATE_TOKEN = re.compile(r"\{([^{}]+)\}")
+
+
+def _render_title_template(template: str, record: dict[str, Any]) -> str | None:
+    """Substitute ``{dotted.path}`` tokens from ``record`` into ``template``.
+    Missing tokens render empty; returns ``None`` if the result is blank."""
+
+    def _sub(match: re.Match[str]) -> str:
+        value = _get_by_dotted_path(record, match.group(1).strip())
+        return str(value).strip() if value is not None else ""
+
+    rendered = _TEMPLATE_TOKEN.sub(_sub, template).strip()
+    # Collapse artifacts left by empty tokens (e.g. a dangling " — ").
+    rendered = rendered.strip(" -—–|:").strip()
+    return rendered or None
+
+
+def _mapped_records(response: Any, list_path: str | None) -> list[Any]:
+    """Locate the records a reference mapping applies to, preferring the
+    MCP-native ``structuredContent`` then any JSON-in-text block (preamble
+    tolerant). ``list_path`` (dotted) points at the array; when unset the parsed
+    value itself is used. List entries may be objects (field/template titles) or
+    plain strings (text titles), so both are kept; a single object is wrapped.
+    An empty object/list is ignored (not treated as a record) so the caller can
+    still fall back to ``titleFromText`` / the generic heuristic — e.g. an empty
+    ``structuredContent`` alongside a Markdown doc."""
+    sources: list[Any] = []
+    structured = getattr(response, "structuredContent", None) or getattr(
+        response, "structured_content", None
+    )
+    if structured is not None:
+        sources.append(structured)
+    for block in getattr(response, "content", None) or []:
+        if isinstance(block, dict) and block.get("type") == "text":
+            parsed = _loads_embedded_json(block.get("text") or "")
+            if parsed is not None:
+                sources.append(parsed)
+
+    for parsed in sources:
+        target = _get_by_dotted_path(parsed, list_path) if list_path else parsed
+        if isinstance(target, list):
+            records = [entry for entry in target if isinstance(entry, (dict, str))]
+            if records:
+                return records
+        elif isinstance(target, dict) and target:
+            return [target]
+    return []
+
+
+_MCP_TEXT_TITLE_DEFAULT_CHARS = 120
+
+
+def _leading_title_line(text: str | None, max_chars: int) -> str | None:
+    """First non-empty line of ``text`` with leading Markdown heading/list
+    markers (``# * - >``) stripped, capped at ``max_chars``. Used to title a
+    plain-text document (or a plain-text list item) by its heading. ``None``
+    when ``text`` is not a non-empty string."""
+    if not isinstance(text, str):
+        return None
+    for line in text.splitlines():
+        stripped = line.strip().lstrip("#*->").strip()
+        if stripped:
+            return stripped[:max_chars]
+    return None
+
+
+def _first_text_title(response: Any, max_chars: int) -> str | None:
+    """Title from the first non-empty line of the first text block — for a
+    non-JSON result such as a fetched Markdown document (e.g. ``read_doc``)."""
+    for block in getattr(response, "content", None) or []:
+        if isinstance(block, dict) and block.get("type") == "text":
+            title = _leading_title_line(block.get("text"), max_chars)
             if title:
-                items.append(
-                    {
-                        "title": title,
-                        "snippet": None,
-                        "details": _details_from_json(entry),
-                    }
-                )
+                return title
+    return None
+
+
+def _extract_with_reference_mapping(
+    response: Any, mapping: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Destructure a result into ``{title, snippet, details}`` items using an
+    admin-configured reference mapping. For a list result, one item per record;
+    for a non-JSON text result with ``titleFromText`` set, a single item titled
+    from the leading text. Returns [] when the mapping locates nothing, so the
+    caller can fall back to the generic heuristic."""
+    list_path = mapping.get("listPath") or mapping.get("list_path")
+    title_path = mapping.get("titlePath") or mapping.get("title_path")
+    title_template = mapping.get("titleTemplate") or mapping.get("title_template")
+    details_path = mapping.get("detailsPath") or mapping.get("details_path")
+    title_from_text = mapping.get("titleFromText") or mapping.get("title_from_text")
+    # When titling from text and the list items are objects, this dotted path
+    # points at the text field within each item (e.g. ``content``); leave unset
+    # when each item is itself a plain string.
+    title_text_path = mapping.get("titleTextPath") or mapping.get("title_text_path")
+    try:
+        title_max_chars = int(
+            mapping.get("titleMaxChars")
+            or mapping.get("title_max_chars")
+            or _MCP_TEXT_TITLE_DEFAULT_CHARS
+        )
+    except (TypeError, ValueError):
+        title_max_chars = _MCP_TEXT_TITLE_DEFAULT_CHARS
+
+    records = _mapped_records(response, list_path)
+    items: list[dict[str, Any]] = []
+    for record in records:
+        is_dict = isinstance(record, dict)
+        if title_from_text:
+            # Title from the item's text: the item itself when it's a plain
+            # string, else its ``title_text_path`` field.
+            if isinstance(record, str):
+                text = record
+            elif is_dict and title_text_path:
+                text = _get_by_dotted_path(record, title_text_path)
+            else:
+                text = None
+            title = _leading_title_line(text, title_max_chars)
+        elif title_template and is_dict:
+            title = _render_title_template(title_template, record)
+        elif title_path and is_dict:
+            value = _get_by_dotted_path(record, title_path)
+            title = str(value).strip() if isinstance(value, (str, int, float)) else None
+        else:
+            title = None
+        if not title:
+            continue
+        details = (
+            _get_by_dotted_path(record, details_path)
+            if details_path and is_dict
+            else None
+        )
+        items.append(
+            {
+                "title": title,
+                "snippet": None,
+                "details": str(details).strip() if details else None,
+            }
+        )
+    if items:
+        return items
+    # Non-list / non-JSON result (e.g. a fetched Markdown doc): title the single
+    # chip from the leading text when the tool opts in via ``titleFromText``.
+    # Only when *no* records were located — if list records were found but
+    # yielded no usable title, defer to the generic heuristic (e.g. per-issue
+    # references) instead of a bogus text-derived chip.
+    if not records and title_from_text:
+        title = _first_text_title(response, title_max_chars)
+        if title:
+            return [{"title": title, "snippet": None, "details": None}]
     return items
 
 
@@ -182,15 +430,23 @@ def _extract_mcp_citation_items(
     *,
     tool_name: str,
     server_name: str | None,
+    reference_mapping: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Context for what the tool retrieved: ``{title, snippet}`` per item.
 
-    Titles come from MCP ``resource_link`` names (spec-native) or a best-effort
+    An optional admin ``reference_mapping`` is applied first (deterministic
+    destructuring of a list result); when it yields nothing we fall back to the
+    generic heuristic: MCP ``resource_link`` names (spec-native) or a best-effort
     JSON-title heuristic over text blocks (for tools like Atlassian that return
     JSON-in-text). No URLs are extracted — the chip is display-only. Falls back
     to a single title-less item (the runner names it after the tool) when the
     result carries no recognizable title.
     """
+    if reference_mapping:
+        mapped = _extract_with_reference_mapping(response, reference_mapping)
+        if mapped:
+            return mapped
+
     content = getattr(response, "content", None) or []
     items: list[dict[str, Any]] = []
 
@@ -213,7 +469,7 @@ def _extract_mcp_citation_items(
         # No recognizable title — one chip named after the tool itself.
         items.append({"title": None, "snippet": None})
 
-    return items[:_MCP_MAX_ITEMS_PER_CALL]
+    return items
 
 
 def _next_mcp_source_number(entries: list[dict[str, Any]]) -> int:
@@ -239,19 +495,23 @@ def _annotate_mcp_results_for_citations(
     tool_name: str,
     server_name: str | None,
     refs_log_path: Path | None = None,
+    reference_mapping: dict[str, Any] | None = None,
 ) -> list[tuple[int, dict[str, Any]]]:
     """Assign per-turn ``[mcpsourceN]`` numbers to each retrieved item and append
-    the refs manifest. Returns ``[(sourceNumber, item)]`` for the footer.
+    the refs manifest. Returns ``[(sourceNumber, item)]`` for the Sources block.
 
     Items dedup by title across the turn (same item keeps one number), or by
     tool for the title-less fallback. Best-effort — returns ``[]`` on any failure
-    (the tool result is unaffected; only the citation footer is skipped).
+    (the tool result is unaffected; only the citation Sources block is skipped).
     """
     refs_log_path = refs_log_path or (Path.cwd() / _MCP_REFS_LOG_RELATIVE_PATH)
     annotated: list[tuple[int, dict[str, Any]]] = []
     try:
         items = _extract_mcp_citation_items(
-            response, tool_name=tool_name, server_name=server_name
+            response,
+            tool_name=tool_name,
+            server_name=server_name,
+            reference_mapping=reference_mapping,
         )
         with _locked_turn_refs_manifest(
             refs_log_path, lock_filename=_MCP_REFS_LOCK_FILENAME
@@ -320,15 +580,20 @@ def _annotate_mcp_results_for_citations(
     return annotated
 
 
-def _citation_footer(annotated: list[tuple[int, dict[str, Any]]]) -> str:
-    """Tell the agent which marker to cite each retrieved item with."""
+def _citation_sources_block(annotated: list[tuple[int, dict[str, Any]]]) -> str:
+    """Tell the agent which marker to cite each retrieved item with.
+
+    Rendered *before* the tool output (leading block, not a trailing footer):
+    the agent harness spills oversized tool results to a file wholesale, and a
+    partial or programmatic read of that file only reliably sees the head — a
+    trailing marker list would be exactly what such reads miss (UN-22309).
+    """
     if not annotated:
         return ""
     lines = [
-        "",
         "Sources — MANDATORY: every fact you take from this result MUST be "
-        "cited inline with its [mcpsourceN] marker below, or it will not be "
-        "referenced in the answer:",
+        "cited inline with its [mcpsourceN] marker from this list, or it "
+        "will not be referenced in the answer:",
     ]
     for source_number, item in annotated:
         label = item.get("title") or "this MCP tool result"
@@ -375,14 +640,18 @@ def record_mcp_citations(
     server_name: str | None,
     unique_dir: Path,
     formatted_text: str,
+    reference_mapping: dict[str, Any] | None = None,
 ) -> str:
     """Write both per-turn MCP manifests under ``unique_dir`` and return the
-    ``[mcpsourceN]`` citation footer for the agent.
+    ``[mcpsourceN]`` citation Sources block for the agent.
 
-    Shared by the ``unique-cli mcp`` skills flow (``cmd_mcp``) and the
-    in-process tools-mode proxy in assistants-core, so both write identical
-    manifests and footers. ``unique_dir`` is the workspace ``.unique`` directory
-    (its filenames are joined directly here — do not pass the workspace root).
+    Callers must place the block *before* the tool output (leading block, not
+    a trailing footer) so the markers survive harness-side spilling/truncation
+    of large results (UN-22309). Shared by the ``unique-cli mcp`` skills flow
+    (``cmd_mcp``) and the in-process tools-mode proxy in assistants-core, so
+    both write identical manifests and blocks. ``unique_dir`` is the workspace
+    ``.unique`` directory (its filenames are joined directly here — do not
+    pass the workspace root).
 
     - ``response`` is the raw ``unique_sdk.MCP`` result, used for citation
       extraction (titles from ``resource_link`` names / JSON bodies).
@@ -405,8 +674,9 @@ def record_mcp_citations(
         tool_name=tool_name,
         server_name=server_name,
         refs_log_path=unique_dir / _MCP_REFS_LOG_RELATIVE_PATH.name,
+        reference_mapping=reference_mapping,
     )
-    return _citation_footer(annotated)
+    return _citation_sources_block(annotated)
 
 
 def _read_payload(
@@ -490,11 +760,16 @@ def cmd_mcp(
         formatted = f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
 
     server_name = _server_name_from_tool(name) or getattr(response, "mcpServerId", None)
-    footer = record_mcp_citations(
+    sources_block = record_mcp_citations(
         response,
         tool_name=name,
         server_name=server_name,
         unique_dir=Path.cwd() / ".unique",
         formatted_text=formatted,
+        reference_mapping=state.mcp_tool_reference_mappings.get(name),
     )
-    return formatted + footer
+    # Sources block FIRST: large outputs get spilled/truncated tail-first by
+    # the agent harness, and a trailing block is what partial reads miss.
+    if sources_block:
+        return sources_block + "\n\n" + formatted
+    return formatted

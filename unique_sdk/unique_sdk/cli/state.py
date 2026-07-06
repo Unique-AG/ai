@@ -13,6 +13,7 @@ from unique_sdk.cli.metadata_filter import MetadataFilter
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
 _UPLOADED_CONFIG_FILENAME = ".unique-uploaded.json"
+_MCP_TOOLS_CONFIG_FILENAME = ".unique-mcp-tools.json"
 _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
@@ -46,6 +47,33 @@ def _load_uploaded_config() -> dict[str, Any]:
     except (json.JSONDecodeError, OSError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _load_mcp_tool_configs() -> dict[str, dict[str, Any]]:
+    """Load per-MCP-tool reference mappings from ``.unique-mcp-tools.json``.
+
+    Written by the Swappable Intelligence runner from each configured tool's
+    ``referenceMapping`` (a Unique admin override describing how to destructure
+    a list-returning result into individual citations). Shape:
+    ``{"toolConfigs": {<toolName>: {listPath, titlePath, titleTemplate, ...}}}``.
+    Keyed by the same namespaced tool name the agent passes to ``unique-cli
+    mcp``. Returns ``{}`` when absent or invalid.
+    """
+    config_path = Path.cwd() / _MCP_TOOLS_CONFIG_FILENAME
+    if not config_path.is_file():
+        return {}
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    configs = data.get("toolConfigs") if isinstance(data, dict) else None
+    if not isinstance(configs, dict):
+        return {}
+    return {
+        name: mapping
+        for name, mapping in configs.items()
+        if isinstance(name, str) and isinstance(mapping, dict)
+    }
 
 
 def _load_uploaded_content_ids(data: dict[str, Any]) -> list[str]:
@@ -144,6 +172,12 @@ class ShellState:
         )
         self.uploaded_search_content_ids: list[str] = _load_uploaded_content_ids(
             _uploaded_config
+        )
+        # Per-MCP-tool reference mappings (``.unique-mcp-tools.json``), keyed by
+        # the namespaced tool name the agent passes to ``unique-cli mcp``. Used
+        # by ``cmd_mcp`` to destructure list results into individual citations.
+        self.mcp_tool_reference_mappings: dict[str, dict[str, Any]] = (
+            _load_mcp_tool_configs()
         )
 
     @property
