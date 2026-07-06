@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Sequence
 from enum import StrEnum
 from typing import Annotated, Any, Generic
 
@@ -98,6 +99,16 @@ class ToolBuildConfig(BaseModel, Generic[T]):
 
     is_enabled: bool = Field(default=True)
 
+    config_error: str | None = Field(
+        default=None,
+        exclude=True,
+        description=(
+            "Set when this tool's stored configuration failed to resolve and was "
+            "demoted to a disabled BaseToolConfig fallback. None for tools that are "
+            "valid, including tools that are deliberately disabled."
+        ),
+    )
+
     @model_validator(mode="before")
     def initialize_config_based_on_tool_name(
         cls,
@@ -168,8 +179,23 @@ class ToolBuildConfig(BaseModel, Generic[T]):
             )
             value["is_enabled"] = False
             value["isEnabled"] = False
+            value["config_error"] = f"Tool '{tool_name}' has invalid configuration."
             _ensure_base_tool_config(value)
             return value
 
         value["configuration"] = config
         return value
+
+
+def collect_tool_configuration_errors(
+    tools: Sequence["ToolBuildConfig[Any]"],
+) -> list[str]:
+    """Return the config_error message for every tool demoted due to an invalid config.
+
+    `initialize_config_based_on_tool_name` never raises: a tool whose stored
+    configuration is invalid is silently disabled with a BaseToolConfig fallback so
+    that one broken tool cannot take down the whole space. Callers that need to
+    surface these failures instead of ignoring them (e.g. to fail a chat request the
+    way an invalid configuration used to) can use this helper to recover the list.
+    """
+    return [tool.config_error for tool in tools if tool.config_error]
