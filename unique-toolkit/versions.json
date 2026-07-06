@@ -1,6 +1,7 @@
 [
-  {"version": "2026.28.0.dev12", "title": "2026.28.0.dev12", "aliases": ["latest"]},
+  {"version": "2026.28.0.dev12", "title": "2026.28.0.dev12", "aliases": []},
   {"version": "2026.28.0.dev2", "title": "2026.28.0.dev2", "aliases": []},
+  {"version": "2026.28.0", "title": "2026.28.0", "aliases": ["latest"]},
   {"version": "2026.26.0", "title": "2026.26.0", "aliases": []},
   {"version": "2026.24.0", "title": "2026.24.0", "aliases": []},
   {"version": "2026.22.0", "title": "2026.22.0", "aliases": []},
