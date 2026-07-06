@@ -457,6 +457,10 @@ class ExperimentalConfig(BaseToolConfig):
         description="If set, the main agent will use the Responses API from OpenAI",
     )
 
+    use_experimental_python_streaming: bool = Field(
+        default=False,
+    )
+
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
