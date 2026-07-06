@@ -1,9 +1,12 @@
 """Subscriber that persists assistant messages in response to stream events.
 
-Single responsibility: owns every ``unique_sdk.Message.modify_async`` call
-related to a streaming response (``startedStreamingAt``, incremental text
-+ references, and ``stoppedStreamingAt``), plus the ``content_chunks`` used
-to filter references down to what was actually cited.
+Single responsibility: owns every SDK write related to a streaming
+response. Stream boundaries go through ``unique_sdk.Message.modify_async``
+(``startedStreamingAt`` on start, final text + ``stoppedStreamingAt`` on
+end); incremental text deltas go through
+``unique_sdk.Message.create_event_async`` on the hot path. It also owns
+the ``content_chunks`` used to filter references down to what was actually
+cited.
 
 The same message is streamed into once per agent round, and this subscriber
 only sees per-request boundaries (never end-of-turn). It therefore stamps
@@ -66,7 +69,10 @@ def _now_utc_iso() -> str:
 
 
 class MessagePersistingSubscriber:
-    """Translates text lifecycle events into ``unique_sdk.Message.modify_async`` calls.
+    """Translates text lifecycle events into ``unique_sdk.Message`` SDK writes.
+
+    Stream start/end are persisted via ``Message.modify_async``; incremental
+    :class:`TextUpdate` deltas are persisted via ``Message.create_event_async``.
 
     Holds the retrieved chunks for the currently active stream (keyed by
     ``message_id``) so reference filtering on :class:`TextUpdate` and
