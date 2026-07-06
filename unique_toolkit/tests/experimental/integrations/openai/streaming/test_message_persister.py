@@ -1,7 +1,9 @@
 """Tests for ``MessagePersistingSubscriber`` — the default StreamEvent subscriber.
 
-Verifies the subscriber owns every ``unique_sdk.Message.modify_async`` call
-that used to live in text event handlers / event routing, and correctly filters
+Verifies the subscriber owns every SDK write that used to live in text
+event handlers / event routing: stream start/end go through
+``unique_sdk.Message.modify_async`` while incremental text deltas go through
+``unique_sdk.Message.create_event_async``. Also verifies it correctly filters
 references using the chunks carried on :class:`StreamStarted`.
 """
 
@@ -37,6 +39,10 @@ from unique_toolkit.experimental.integrations.openai.streaming.event_routing.sub
 _MODIFY = (
     "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
     "subscribers.message_persister.unique_sdk.Message.modify_async"
+)
+_CREATE_EVENT = (
+    "unique_toolkit.experimental.integrations.openai.streaming.event_routing."
+    "subscribers.message_persister.unique_sdk.Message.create_event_async"
 )
 
 # Wire format the SDK's HTTP layer can transport: ISO-8601, millisecond
@@ -106,16 +112,17 @@ async def test_AI_persister__stream_started__marks_message_as_streaming():
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_persister__text_delta__modifies_message_with_text_and_references():
+async def test_AI_persister__text_delta__creates_event_with_text_and_references():
     """
     Purpose: Each ``TextUpdate`` persists normalised text + cited references via the SDK.
     Why this matters: Users see incremental updates; references must reflect what the
       model *cited*, not the full retrieval set seeded at stream start.
     Setup summary: Pre-seed chunks via StreamStarted; publish TextUpdate that cites <sup>1</sup>;
-      assert modify was called with text + non-empty references.
+      assert ``create_event_async`` was called with text + references. Deltas go through
+      the message-event endpoint (``messageId``), not ``modify_async`` (``id``).
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
-    with patch(_MODIFY, new_callable=AsyncMock) as modify:
+    with patch(_MODIFY, new_callable=AsyncMock):
         await persister.on_started(
             StreamStarted(
                 message_id="amsg-1",
@@ -123,8 +130,8 @@ async def test_AI_persister__text_delta__modifies_message_with_text_and_referenc
                 content_chunks=(_chunk(0), _chunk(1)),
             )
         )
-        modify.reset_mock()
 
+    with patch(_CREATE_EVENT, new_callable=AsyncMock) as create_event:
         await persister.on_text_delta(
             TextUpdate(
                 message_id="amsg-1",
@@ -134,9 +141,10 @@ async def test_AI_persister__text_delta__modifies_message_with_text_and_referenc
             )
         )
 
-    modify.assert_called_once()
-    kwargs = modify.call_args.kwargs
-    assert kwargs["id"] == "amsg-1"
+    create_event.assert_called_once()
+    kwargs = create_event.call_args.kwargs
+    assert kwargs["messageId"] == "amsg-1"
+    assert kwargs["chatId"] == "chat-1"
     assert kwargs["text"] == "Hello <sup>1</sup>"
     assert kwargs["originalText"] == "Hello [source0]"
     # references is whatever filter_cited_sdk_references produced — just ensure key is present
@@ -188,16 +196,16 @@ async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunk
         assert final_kwargs["debugInfo"] == {"trace_id": "trace-1"}
 
         # chunks released: a further TextUpdate for the same message gets empty chunk set
-        modify.reset_mock()
-        await persister.on_text_delta(
-            TextUpdate(
-                message_id="amsg-1",
-                chat_id="chat-1",
-                full_text="late <sup>1</sup>",
-                original_text="late",
+        with patch(_CREATE_EVENT, new_callable=AsyncMock) as create_event:
+            await persister.on_text_delta(
+                TextUpdate(
+                    message_id="amsg-1",
+                    chat_id="chat-1",
+                    full_text="late <sup>1</sup>",
+                    original_text="late",
+                )
             )
-        )
-    second_kwargs = modify.call_args.kwargs
+    second_kwargs = create_event.call_args.kwargs
     assert second_kwargs["references"] == []
 
 
@@ -276,14 +284,16 @@ async def test_AI_persister__text_delta_sdk_failure__is_swallowed_and_logged(cap
       published — leaving the UI stuck. The authoritative final text is
       written again in ``on_ended`` so a dropped delta is acceptable; a
       killed stream is not.
-    Setup summary: Patch ``Message.modify_async`` to raise; await
+    Setup summary: Patch ``Message.create_event_async`` to raise; await
       ``on_text_delta``; assert no exception propagates and the failure is
       logged.
     """
     import logging
 
     persister = MessagePersistingSubscriber(_settings_with_chat())
-    with patch(_MODIFY, new_callable=AsyncMock, side_effect=RuntimeError("sdk down")):
+    with patch(
+        _CREATE_EVENT, new_callable=AsyncMock, side_effect=RuntimeError("sdk down")
+    ):
         with caplog.at_level(
             logging.WARNING,
             logger=(
@@ -312,16 +322,21 @@ async def test_AI_persister__register__subscribes_to_text_lifecycle_channels_onl
     Why this matters: The new typed-channel bus replaces runtime ``isinstance``
       filtering with compile-time channel selection — this test locks in that
       the persister listens on exactly the channels it can handle, so
-      :class:`ActivityProgress` events never reach ``Message.modify_async``.
+      :class:`ActivityProgress` events never reach the SDK.
     Setup summary: Build a fresh :class:`StreamEventBus`, ``register`` the
-      persister, publish one event per channel, and assert that only the three
-      text-lifecycle channels produce ``modify_async`` calls.
+      persister, publish one event per channel, and assert that ``stream_started``
+      / ``stream_ended`` produce two ``modify_async`` calls and ``text_delta``
+      produces one ``create_event_async`` call, while ``activity_progress``
+      produces neither.
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
     bus = StreamEventBus()
     persister.register(bus)
 
-    with patch(_MODIFY, new_callable=AsyncMock) as modify:
+    with (
+        patch(_MODIFY, new_callable=AsyncMock) as modify,
+        patch(_CREATE_EVENT, new_callable=AsyncMock) as create_event,
+    ):
         await bus.stream_started.publish_and_wait_async(
             StreamStarted(message_id="m", chat_id="c", content_chunks=())
         )
@@ -331,8 +346,8 @@ async def test_AI_persister__register__subscribes_to_text_lifecycle_channels_onl
         await bus.stream_ended.publish_and_wait_async(
             StreamEnded(message_id="m", chat_id="c", full_text="hi", original_text="hi")
         )
-        # activity_progress must NOT produce a Message.modify_async call — the
-        # persister deliberately does not subscribe to that channel.
+        # activity_progress must NOT produce any SDK call — the persister
+        # deliberately does not subscribe to that channel.
         await bus.activity_progress.publish_and_wait_async(
             ActivityProgress(
                 correlation_id="cid",
@@ -343,7 +358,9 @@ async def test_AI_persister__register__subscribes_to_text_lifecycle_channels_onl
             )
         )
 
-    assert modify.await_count == 3
+    # stream_started + stream_ended → modify_async; text_delta → create_event_async
+    assert modify.await_count == 2
+    assert create_event.await_count == 1
 
 
 @pytest.mark.ai
@@ -358,13 +375,16 @@ async def test_AI_persister__persist_every_n_deltas__throttles_intermediate_writ
       the final write always runs.
     Setup summary: Construct the persister with ``persist_every_n_deltas=3``,
       drive five :class:`TextUpdate` events, and assert only the 3rd fires
-      a ``modify_async``; then drive :class:`StreamEnded` and assert the
-      final authoritative write still runs.
+      a ``create_event_async``; then drive :class:`StreamEnded` and assert the
+      final authoritative ``modify_async`` write still runs.
     """
     persister = MessagePersistingSubscriber(
         _settings_with_chat(), persist_every_n_deltas=3
     )
-    with patch(_MODIFY, new_callable=AsyncMock) as modify:
+    with (
+        patch(_MODIFY, new_callable=AsyncMock) as modify,
+        patch(_CREATE_EVENT, new_callable=AsyncMock) as create_event,
+    ):
         await persister.on_started(
             StreamStarted(
                 message_id="amsg-1",
@@ -372,7 +392,6 @@ async def test_AI_persister__persist_every_n_deltas__throttles_intermediate_writ
                 content_chunks=(),
             )
         )
-        modify.reset_mock()
 
         for i in range(5):
             await persister.on_text_delta(
@@ -384,8 +403,9 @@ async def test_AI_persister__persist_every_n_deltas__throttles_intermediate_writ
                 )
             )
 
-        assert modify.await_count == 1
-        assert modify.call_args.kwargs["text"] == "t2"
+        # Only the 3rd delta clears the throttle → single create_event_async write.
+        assert create_event.await_count == 1
+        assert create_event.call_args.kwargs["text"] == "t2"
 
         modify.reset_mock()
         await persister.on_ended(
