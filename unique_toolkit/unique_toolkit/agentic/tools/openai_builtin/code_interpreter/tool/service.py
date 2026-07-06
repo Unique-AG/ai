@@ -11,7 +11,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.tool.config import (
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts

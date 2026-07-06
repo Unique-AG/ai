@@ -32,6 +32,9 @@ class _CodeParams(BaseModel):
 
 _DEFAULT_TOOL_DESCRIPTION = """
 Use this tool in order to activate the code interpreter tool in this environment, which allows you to execute python code in a secure environment.
+Do NOT mention to the user that you need to activate the python tool, always simply do it!
+After activation you will get more instructions on how to use the python tool.
+Again: Assume you HAVE access to the python tool! just activate it.
 """.strip()
 
 _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = _DEFAULT_TOOL_DESCRIPTION
