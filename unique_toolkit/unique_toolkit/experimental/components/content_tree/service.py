@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueContext
 
 
-_FUZZY_SEPARATORS_RE = re.compile(r"[\s_\-/]+")
+_NON_ALNUM_RE = re.compile(r"[^a-zA-Z0-9]+")
 _TRAILING_EXTENSION_RE = re.compile(r"\.[A-Za-z0-9]{1,8}$")
 
 
@@ -55,15 +55,21 @@ def _tokenize_for_fuzzy_scoring(
 ) -> str:
     """Normalize ``value`` into whitespace-separated tokens for
     :func:`rapidfuzz.fuzz.token_set_ratio`, which only tokenizes on
-    whitespace — filenames/paths use ``_``/``-``/``/`` as their real word
-    separators, so those need converting to spaces first or every candidate
-    is scored as a single opaque token (no better than a plain char-ratio).
+    whitespace — filenames/paths use ``_``/``-``/``/`` (and other
+    punctuation) as their real word separators, so those need converting to
+    spaces first or every candidate is scored as a single opaque token (no
+    better than a plain char-ratio). Mirrors what
+    :func:`rapidfuzz.utils.default_process` does, minus the unconditional
+    lowercasing it bundles in — kept as a local regex rather than that
+    helper (via ``fuzz.token_set_ratio``'s ``processor=`` argument) so
+    ``case_sensitive=True`` can still skip lowercasing while keeping
+    separator normalization.
     """
     if strip_extension:
         value = _TRAILING_EXTENSION_RE.sub("", value)
     if not case_sensitive:
         value = value.lower()
-    return _FUZZY_SEPARATORS_RE.sub(" ", value).strip()
+    return _NON_ALNUM_RE.sub(" ", value).strip()
 
 
 class _CachedResolveTaskFactory(Protocol):
