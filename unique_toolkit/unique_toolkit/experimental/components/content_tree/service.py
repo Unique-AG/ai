@@ -19,11 +19,13 @@ on its own.
 from __future__ import annotations
 
 import asyncio
-import difflib
 import functools
 import json
+import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol, Self, overload
+
+from rapidfuzz import fuzz
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -42,6 +44,26 @@ from unique_toolkit.experimental.components.content_tree.schemas import (
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueContext
+
+
+_FUZZY_SEPARATORS_RE = re.compile(r"[\s_\-/]+")
+_TRAILING_EXTENSION_RE = re.compile(r"\.[A-Za-z0-9]{1,8}$")
+
+
+def _tokenize_for_fuzzy_scoring(
+    value: str, case_sensitive: bool, *, strip_extension: bool = False
+) -> str:
+    """Normalize ``value`` into whitespace-separated tokens for
+    :func:`rapidfuzz.fuzz.token_set_ratio`, which only tokenizes on
+    whitespace — filenames/paths use ``_``/``-``/``/`` as their real word
+    separators, so those need converting to spaces first or every candidate
+    is scored as a single opaque token (no better than a plain char-ratio).
+    """
+    if strip_extension:
+        value = _TRAILING_EXTENSION_RE.sub("", value)
+    if not case_sensitive:
+        value = value.lower()
+    return _FUZZY_SEPARATORS_RE.sub(" ", value).strip()
 
 
 class _CachedResolveTaskFactory(Protocol):
@@ -340,16 +362,24 @@ class ContentTree:
     ) -> list[FuzzyMatch]:
         """Fuzzy-match ``query`` against visible file names and/or paths.
 
-        Scoring uses :class:`difflib.SequenceMatcher` (stdlib), which returns a
-        ratio in ``[0.0, 1.0]``. Matching is case-insensitive by default since
-        file names in a knowledge base tend to be noisy.
+        Scoring uses :func:`rapidfuzz.fuzz.token_set_ratio` over each string's
+        tokens (split on whitespace, ``_``, ``-``, and ``/``, extension
+        stripped), scaled to ``[0.0, 1.0]``. Token-set scoring means a short
+        query that's a complete word inside a much longer filename scores
+        highly (ideally ``1.0`` for an exact token match) instead of being
+        penalized for the filename's unrelated length — a plain character-level
+        ratio (e.g. :class:`difflib.SequenceMatcher`, used here previously)
+        scores "alpensys" vs. "alpensys_budget_vs_actual_q3_2024.docx" at only
+        ~0.35, indistinguishable from genuinely unrelated files, because it
+        penalizes every unmatched character in the (much longer) candidate.
+        Matching is case-insensitive by default since file names in a
+        knowledge base tend to be noisy.
 
         Args:
             query: The search string (typically a fragment of a filename or path).
             limit: Maximum number of matches to return, after sorting by score
                 descending.
-            min_score: Drop matches scoring below this threshold. ``0.6`` is
-                :mod:`difflib`'s own rule of thumb for "reasonably close".
+            min_score: Drop matches scoring below this threshold.
             match_on: Score against the basename (``"key"``), the joined folder
                 path (``"path"``), or take the max of both (``"both"``).
             case_sensitive: If ``False`` (default) both sides are lowercased
@@ -369,25 +399,26 @@ class ContentTree:
             metadata_filter=metadata_filter,
             max_concurrent_scope_lookups=max_concurrent_scope_lookups,
         )
-        normalized_query = query if case_sensitive else query.lower()
+        normalized_query = _tokenize_for_fuzzy_scoring(query, case_sensitive)
 
         matches: list[FuzzyMatch] = []
         for content_info, segments in rows:
-            key_candidate = content_info.key
-            path_candidate = "/".join(segments)
-            if not case_sensitive:
-                key_candidate = key_candidate.lower()
-                path_candidate = path_candidate.lower()
+            key_candidate = _tokenize_for_fuzzy_scoring(
+                content_info.key, case_sensitive, strip_extension=True
+            )
+            path_candidate = _tokenize_for_fuzzy_scoring(
+                "/".join(segments), case_sensitive
+            )
 
             score_key = match_on in ("key", "both")
             score_path = match_on in ("path", "both")
             key_score = (
-                difflib.SequenceMatcher(None, normalized_query, key_candidate).ratio()
+                fuzz.token_set_ratio(normalized_query, key_candidate) / 100.0
                 if score_key
                 else 0.0
             )
             path_score = (
-                difflib.SequenceMatcher(None, normalized_query, path_candidate).ratio()
+                fuzz.token_set_ratio(normalized_query, path_candidate) / 100.0
                 if score_path
                 else 0.0
             )

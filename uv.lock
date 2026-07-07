@@ -12,13 +12,13 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-06-19T14:07:06.628215984Z"
+exclude-newer = "2026-06-23T13:35:58.334235Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-crawl4ai = "2026-06-20T00:00:00Z"
+crawl4ai = "2026-06-19T22:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
@@ -26,9 +26,9 @@ unique-mcp = false
 unique-orchestrator = false
 unique-follow-up-questions = false
 unique-user-memory = false
-langsmith = "2026-06-21T00:00:00Z"
+langsmith = "2026-06-20T22:00:00Z"
 unique-six = false
-pydantic-settings = "2026-06-21T00:00:00Z"
+pydantic-settings = "2026-06-20T22:00:00Z"
 unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
@@ -6234,6 +6234,7 @@ dependencies = [
     { name = "pyhumps" },
     { name = "pypandoc" },
     { name = "python-docx" },
+    { name = "rapidfuzz" },
     { name = "requests" },
     { name = "sseclient" },
     { name = "tenacity" },
@@ -6292,6 +6293,7 @@ requires-dist = [
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
     { name = "python-docx", specifier = ">=1.1.0,<2" },
+    { name = "rapidfuzz", specifier = ">=3.0,<4" },
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
     { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
