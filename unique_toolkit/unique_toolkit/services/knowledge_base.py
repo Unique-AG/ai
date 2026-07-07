@@ -230,7 +230,7 @@ class KnowledgeBaseService:
             searches = search_content_chunks(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id="",
+                chat_id=None,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -327,7 +327,7 @@ class KnowledgeBaseService:
             searches = await search_content_chunks_async(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id="",
+                chat_id=None,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -363,7 +363,7 @@ class KnowledgeBaseService:
         return search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id="",
+            chat_id=None,
             where=where,
             include_failed_content=include_failed_content,
         )
@@ -387,7 +387,7 @@ class KnowledgeBaseService:
         return await search_contents_async(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id="",
+            chat_id=None,
             where=where,
             include_failed_content=include_failed_content,
         )
@@ -429,7 +429,7 @@ class KnowledgeBaseService:
             content_name=content_name,
             mime_type=mime_type,
             scope_id=scope_id,
-            chat_id="",
+            chat_id=None,
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
@@ -470,7 +470,7 @@ class KnowledgeBaseService:
             content_name=content_name,
             mime_type=mime_type,
             scope_id=scope_id,
-            chat_id="",
+            chat_id=None,
             skip_ingestion=skip_ingestion,
             ingestion_config=ingestion_config,
             metadata=metadata,
@@ -511,7 +511,7 @@ class KnowledgeBaseService:
             content_name=content_name,
             mime_type=mime_type,
             scope_id=scope_id,
-            chat_id="",
+            chat_id=None,
             skip_ingestion=skip_ingestion,
             skip_excel_ingestion=skip_excel_ingestion,
             ingestion_config=ingestion_config,
@@ -544,7 +544,7 @@ class KnowledgeBaseService:
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
-            chat_id="",
+            chat_id=None,
             filename=output_filename,
             tmp_dir_path=output_dir_path,
         )
