@@ -200,6 +200,11 @@ class ChatService(ChatServiceDeprecated):
         """Cancellation watcher for this chat session."""
         return self._cancellation_watcher
 
+    def _set_assistant_message_id(self, message_id: str) -> None:
+        """Point active assistant operations and cancellation polling at *message_id*."""
+        self._assistant_message_id = message_id
+        self._cancellation_watcher.set_assistant_message_id(message_id)
+
     @property
     def elicitation(self) -> ElicitationService:
         """Get the ElicitationService for this chat session."""
@@ -515,8 +520,7 @@ class ChatService(ChatServiceDeprecated):
             response_turn_id=response_turn_id,
             segment_index=segment_index,
         )
-        # Update the assistant message id
-        self._assistant_message_id = chat_message.id or "unknown"
+        self._set_assistant_message_id(chat_message.id or "unknown")
         return chat_message
 
     async def create_assistant_message_async(
@@ -564,8 +568,7 @@ class ChatService(ChatServiceDeprecated):
             response_turn_id=response_turn_id,
             segment_index=segment_index,
         )
-        # Update the assistant message id
-        self._assistant_message_id = chat_message.id or "unknown"
+        self._set_assistant_message_id(chat_message.id or "unknown")
         return chat_message
 
     def create_user_message(
