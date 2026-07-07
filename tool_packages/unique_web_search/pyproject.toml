@@ -23,7 +23,7 @@ dependencies = [
     "unidecode>=1.4.0,<2",
     "azure-ai-projects>=1.0.0,<2",
     "azure-identity>=1.25.0,<2",
-    "unique-toolkit[monitoring]>=2026.28.1",
+    "unique-toolkit[monitoring]>=2026.28.2",
     "azure-core>=1.36.0,<2",
     "google-cloud-aiplatform>=1.128.0,<2",
     "google-auth>=2.43.0,<3",
@@ -33,8 +33,8 @@ dependencies = [
     "certifi>=2025.11.12",
     "jinja2>=3.1.6",
     "playwright>=1.58.0",
-    "unique-search-proxy-core>=2026.28.1",
-    "unique-search-proxy-sdk>=2026.28.1",
+    "unique-search-proxy-core>=2026.28.2",
+    "unique-search-proxy-sdk>=2026.28.2",
 ]
 
 [build-system]
