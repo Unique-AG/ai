@@ -171,6 +171,13 @@ def kb_sync(
             help="Show planned uploads without writing anything.",
         ),
     ] = False,
+    no_version: Annotated[
+        bool,
+        typer.Option(
+            "--no-version",
+            help="Upload without archiving prior blobs.",
+        ),
+    ] = False,
 ) -> None:
     """Upload the contents of LOCAL_DIR into a knowledge-base folder.
 
@@ -181,11 +188,17 @@ def kb_sync(
     ``--recursive`` only top-level files are synced; with it, subdirectories are
     recreated as child folders under the target.
 
+    By default, replaced files archive prior blobs (restorable via
+    ``unique-cli versions`` / ``restore-version``). Pass ``--no-version`` to
+    skip archiving (legacy overwrite behavior). Content ids are unchanged on
+    replace (upsert by filename key).
+
     Examples:
 
       uqadm kb sync ./docs --folder-path /Dept/HR
       uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
       uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
+      uqadm kb sync ./docs --scope-id scope_abc --no-version
     """
     resolved_slot = _resolve(slot)
     cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
@@ -196,6 +209,7 @@ def kb_sync(
         scope_id=scope_id,
         recursive=recursive,
         dry_run=dry_run,
+        versioning=not no_version,
     )
 
 
