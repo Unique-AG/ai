@@ -25,6 +25,42 @@ class TestProperties:
         w = _make_watcher()
         assert w.on_cancellation is w._bus
 
+    def test_assistant_message_id__returns_initial_value(self):
+        w = _make_watcher()
+        assert w.assistant_message_id == "msg1"
+
+
+class TestSetAssistantMessageId:
+    def test_updates_polled_message_id(self):
+        w = _make_watcher()
+        w.set_assistant_message_id("msg2")
+        assert w.assistant_message_id == "msg2"
+
+    def test_no_op_after_cancelled(self):
+        w = _make_watcher()
+        w._cancelled = True
+        w.set_assistant_message_id("msg2")
+        assert w.assistant_message_id == "msg1"
+
+    @pytest.mark.asyncio
+    @patch("unique_sdk.Message.retrieve_async", new_callable=AsyncMock)
+    async def test_check_uses_retargeted_message_id(self, mock_retrieve):
+        mock_retrieve.return_value = SimpleNamespace(
+            userAbortedAt="2025-01-01T00:00:00Z"
+        )
+        w = _make_watcher()
+        w.set_assistant_message_id("msg2")
+
+        result = await w.check_cancellation_async()
+
+        assert result is True
+        mock_retrieve.assert_awaited_once_with(
+            user_id="u1",
+            company_id="c1",
+            id="msg2",
+            chatId="chat1",
+        )
+
 
 class TestCheckCancellationAsync:
     @pytest.mark.asyncio

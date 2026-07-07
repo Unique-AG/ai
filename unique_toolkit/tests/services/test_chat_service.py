@@ -1,5 +1,7 @@
 """Unit tests for ChatService.from_settings."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from pydantic import SecretStr
 
@@ -226,3 +228,31 @@ class TestChatServiceFromContext:
         )
         with pytest.raises(ValueError):
             ChatService.from_context(UniqueContext(auth=auth, chat=chat_no_user_msg))
+
+
+class TestAssistantMessageIdRetargeting:
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.services.chat_service.create_message_async",
+        new_callable=AsyncMock,
+    )
+    @pytest.mark.asyncio
+    async def test_create_assistant_message_async__retargets_cancellation_watcher(
+        self,
+        mock_create_message_async: AsyncMock,
+        context: UniqueContext,
+    ) -> None:
+        from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+
+        mock_create_message_async.return_value = ChatMessage(
+            id="segment-2",
+            role=ChatMessageRole.ASSISTANT,
+            content="",
+            chat_id="chat-1",
+        )
+        svc = ChatService.from_context(context)
+
+        await svc.create_assistant_message_async(content="")
+
+        assert svc._assistant_message_id == "segment-2"
+        assert svc._cancellation_watcher.assistant_message_id == "segment-2"
