@@ -111,7 +111,7 @@ class TestBuildExposedToolFieldDefs:
     def test_brave_literal_enum_exposed_fields_emit_enum_schema(self) -> None:
         config = BraveConfig(
             country=ExposableCountry(expose=True, value="US"),
-            search_lang=ExposableSearchLang(expose=True, value="en"),
+            searchLang=ExposableSearchLang(expose=True, value="en"),
         )
         schema = exposed_tool_fields_json_schema(config)
         country_prop = schema["properties"]["country"]
@@ -119,7 +119,7 @@ class TestBuildExposedToolFieldDefs:
         assert country_string["type"] == "string"
         assert "enum" in country_string
         assert "US" in country_string["enum"]
-        search_lang_prop = schema["properties"]["search_lang"]
+        search_lang_prop = schema["properties"]["searchLang"]
         search_lang_string = search_lang_prop["anyOf"][0]
         assert "enum" in search_lang_string
         assert "en" in search_lang_string["enum"]
