@@ -45,6 +45,13 @@ _MCP_OUTPUT_TEXT_CHAR_LIMIT = 200_000
 _MCP_REFS_LOG_RELATIVE_PATH = Path(".unique") / "mcp-refs.jsonl"
 _MCP_REFS_LOCK_FILENAME = "mcp-refs.lock"
 _MCP_SNIPPET_CHAR_LIMIT = 300
+# Writer-side cap on the per-item ``text`` recorded in the refs manifest — the
+# cited item's underlying text, consumed by the runner's hallucination check to
+# ground each ``[mcpsourceN]`` citation on what was actually retrieved
+# (UN-22762). Half the flat-output cap (``_MCP_OUTPUT_TEXT_CHAR_LIMIT``): one
+# cited item (a page, an issue record) rarely exceeds it, and the eval side
+# bounds the combined cited-text payload separately.
+_MCP_REF_TEXT_CHAR_LIMIT = 100_000
 
 # Keys an MCP tool's JSON result commonly uses for a record's human title.
 _TITLE_KEYS = ("title", "name", "displayName", "subject", "summary", "key")
@@ -247,6 +254,7 @@ def _titles_from_json(text: str) -> list[dict[str, Any]]:
                     "title": title,
                     "snippet": None,
                     "details": _details_from_json(entry),
+                    "text": _record_text(entry),
                 }
             )
     return items
@@ -350,6 +358,32 @@ def _first_text_title(response: Any, max_chars: int) -> str | None:
     return None
 
 
+def _all_text_blocks(response: Any) -> str | None:
+    """Concatenation of every text block — the underlying text of a single-item
+    result (e.g. a fetched document) recorded as that item's ground truth."""
+    texts = [
+        block.get("text")
+        for block in getattr(response, "content", None) or []
+        if isinstance(block, dict)
+        and block.get("type") == "text"
+        and isinstance(block.get("text"), str)
+        and block.get("text").strip()
+    ]
+    return "\n\n".join(texts) or None
+
+
+def _record_text(record: Any) -> str | None:
+    """A record's underlying text for citation grounding: the record itself
+    when it is a plain string, else the serialized record — which carries the
+    titled field plus all metadata the agent may cite."""
+    if isinstance(record, str):
+        return record or None
+    try:
+        return json.dumps(record, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        return None
+
+
 def _extract_with_reference_mapping(
     response: Any, mapping: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -409,6 +443,7 @@ def _extract_with_reference_mapping(
                 "title": title,
                 "snippet": None,
                 "details": str(details).strip() if details else None,
+                "text": _record_text(record),
             }
         )
     if items:
@@ -421,7 +456,14 @@ def _extract_with_reference_mapping(
     if not records and title_from_text:
         title = _first_text_title(response, title_max_chars)
         if title:
-            return [{"title": title, "snippet": None, "details": None}]
+            return [
+                {
+                    "title": title,
+                    "snippet": None,
+                    "details": None,
+                    "text": _all_text_blocks(response),
+                }
+            ]
     return items
 
 
@@ -431,8 +473,9 @@ def _extract_mcp_citation_items(
     tool_name: str,
     server_name: str | None,
     reference_mapping: dict[str, Any] | None = None,
+    fallback_text: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Context for what the tool retrieved: ``{title, snippet}`` per item.
+    """Context for what the tool retrieved: ``{title, snippet, text}`` per item.
 
     An optional admin ``reference_mapping`` is applied first (deterministic
     destructuring of a list result); when it yields nothing we fall back to the
@@ -441,6 +484,12 @@ def _extract_mcp_citation_items(
     JSON-in-text). No URLs are extracted — the chip is display-only. Falls back
     to a single title-less item (the runner names it after the tool) when the
     result carries no recognizable title.
+
+    ``text`` is the item's underlying retrieved text (the serialized record, a
+    fetched document body, or — for the title-less fallback — ``fallback_text``,
+    the whole formatted output). The runner grounds the hallucination check for
+    each cited ``[mcpsourceN]`` on it. A ``resource_link`` carries no body, so
+    its ``text`` is the link description only.
     """
     if reference_mapping:
         mapped = _extract_with_reference_mapping(response, reference_mapping)
@@ -457,7 +506,11 @@ def _extract_mcp_citation_items(
             name = (block.get("name") or "").strip()
             if name:
                 items.append(
-                    {"title": name, "snippet": _snippet(block.get("description"))}
+                    {
+                        "title": name,
+                        "snippet": _snippet(block.get("description")),
+                        "text": block.get("description") or None,
+                    }
                 )
 
     if not items:
@@ -467,7 +520,7 @@ def _extract_mcp_citation_items(
 
     if not items:
         # No recognizable title — one chip named after the tool itself.
-        items.append({"title": None, "snippet": None})
+        items.append({"title": None, "snippet": None, "text": fallback_text})
 
     return items
 
@@ -489,6 +542,16 @@ def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
     return f"tool:{tool_name}"
 
 
+def _ref_text(item: dict[str, Any]) -> str | None:
+    """The item's underlying text for the manifest, capped at
+    ``_MCP_REF_TEXT_CHAR_LIMIT`` (single write-side cap shared by all
+    extraction modes)."""
+    text = item.get("text")
+    if not isinstance(text, str) or not text:
+        return None
+    return text[:_MCP_REF_TEXT_CHAR_LIMIT]
+
+
 def _annotate_mcp_results_for_citations(
     response: Any,
     *,
@@ -496,6 +559,7 @@ def _annotate_mcp_results_for_citations(
     server_name: str | None,
     refs_log_path: Path | None = None,
     reference_mapping: dict[str, Any] | None = None,
+    fallback_text: str | None = None,
 ) -> list[tuple[int, dict[str, Any]]]:
     """Assign per-turn ``[mcpsourceN]`` numbers to each retrieved item and append
     the refs manifest. Returns ``[(sourceNumber, item)]`` for the Sources block.
@@ -512,6 +576,7 @@ def _annotate_mcp_results_for_citations(
             tool_name=tool_name,
             server_name=server_name,
             reference_mapping=reference_mapping,
+            fallback_text=fallback_text,
         )
         with _locked_turn_refs_manifest(
             refs_log_path, lock_filename=_MCP_REFS_LOCK_FILENAME
@@ -542,6 +607,7 @@ def _annotate_mcp_results_for_citations(
                         "title": item.get("title"),
                         "snippet": item.get("snippet"),
                         "details": item.get("details"),
+                        "text": _ref_text(item),
                     }
                     try:
                         _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
@@ -563,13 +629,26 @@ def _annotate_mcp_results_for_citations(
                     if stored is not None and new_details and not stored.get("details"):
                         stored["details"] = new_details
                         needs_rewrite = True
+                    # ``text`` upgrades to the longer capture: the common turn
+                    # is a search (small per-record JSON) followed by a full
+                    # fetch of the same titled item — the later, richer text is
+                    # the better ground truth for the hallucination check.
+                    new_text = _ref_text(item)
+                    if stored is not None and new_text:
+                        stored_text = stored.get("text")
+                        stored_len = (
+                            len(stored_text) if isinstance(stored_text, str) else 0
+                        )
+                        if len(new_text) > stored_len:
+                            stored["text"] = new_text
+                            needs_rewrite = True
                 annotated.append((source_number, item))
             if needs_rewrite:
                 try:
                     _rewrite_turn_refs_manifest(refs_log_path, entries)
                 except (UnsafeRefsLogPathError, OSError) as exc:
                     _LOGGER.warning(
-                        "mcp: failed to backfill refs manifest details: %s", exc
+                        "mcp: failed to backfill refs manifest enrichment: %s", exc
                     )
     except (UnsafeRefsLogPathError, OSError) as exc:
         _LOGGER.warning("mcp: failed to append refs manifest: %s", exc)
@@ -656,7 +735,10 @@ def record_mcp_citations(
     - ``response`` is the raw ``unique_sdk.MCP`` result, used for citation
       extraction (titles from ``resource_link`` names / JSON bodies).
     - ``formatted_text`` is the source text the model actually saw for this
-      tool result, recorded as the hallucination groundedness context.
+      tool result, recorded as the hallucination groundedness context. It also
+      serves as the per-item ``text`` of the title-less fallback chip, so a
+      cited ``[mcpsourceN]`` without extractable records still grounds on the
+      whole output.
 
     Best-effort and never raises: the underlying manifest writers swallow their
     own errors, and ``_annotate_mcp_results_for_citations`` owns the per-turn
@@ -675,6 +757,7 @@ def record_mcp_citations(
         server_name=server_name,
         refs_log_path=unique_dir / _MCP_REFS_LOG_RELATIVE_PATH.name,
         reference_mapping=reference_mapping,
+        fallback_text=formatted_text,
     )
     return _citation_sources_block(annotated)
 

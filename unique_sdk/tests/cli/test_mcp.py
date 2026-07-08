@@ -142,6 +142,7 @@ def test_resource_link_item_has_title_no_url(tmp_path: Path) -> None:
             "title": "RAG Retrieval Baseline",
             "snippet": "Why retrieval fails",
             "details": None,
+            "text": "Why retrieval fails",
         }
     ]
     assert "[mcpsource1] RAG Retrieval Baseline" in out
@@ -210,6 +211,9 @@ def test_json_in_text_object_with_dict_container_key_stays_untitled(
             "title": None,
             "snippet": None,
             "details": None,
+            # Title-less fallback grounds on the whole formatted output
+            # (`_run` formats every response as "result").
+            "text": "result",
         }
     ]
 
@@ -347,6 +351,164 @@ def test_dedup_does_not_clobber_existing_details(tmp_path: Path) -> None:
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert len(refs) == 1
     assert refs[0]["details"] == "01/01/2026"
+
+
+# ── Per-item text ground truth (UN-22762) ────────────────────────────────────
+#
+# Each refs-manifest entry records the cited item's underlying ``text`` so the
+# runner's hallucination check grounds every ``[mcpsourceN]`` on what was
+# actually retrieved, instead of only the head-truncated flat output manifest.
+
+
+def test_json_in_text_records_serialized_record_as_text(tmp_path: Path) -> None:
+    # JSON-title heuristic: each record's text is the serialized record — the
+    # titled field plus all metadata the agent may cite.
+    record = {"key": "UN-1", "fields": {"summary": "First"}}
+    body = json.dumps({"issues": [record]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    _run("mcp__atlassian__searchJiraIssuesUsingJql", response)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert json.loads(refs[0]["text"]) == record
+
+
+def test_reference_mapping_record_text_is_serialized_record(tmp_path: Path) -> None:
+    unique_dir = tmp_path / ".unique"
+    record = {"key": "UN-7", "fields": {"summary": "Deep"}, "status": "Done"}
+    body = json.dumps({"issues": [record]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    record_mcp_citations(
+        response,
+        tool_name="searchJiraIssuesUsingJql",
+        server_name="atlassian",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={"listPath": "issues", "titlePath": "key"},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert json.loads(refs[0]["text"]) == record
+
+
+def test_reference_mapping_plain_string_record_text_is_the_string(
+    tmp_path: Path,
+) -> None:
+    unique_dir = tmp_path / ".unique"
+    doc = "# Alpha Guide\nbody with the cited fact"
+    body = json.dumps({"docs": [doc]})
+    response = _FakeMCPResponse(content=[{"type": "text", "text": body}])
+    record_mcp_citations(
+        response,
+        tool_name="list_docs",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=body,
+        reference_mapping={"listPath": "docs", "titleFromText": True},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert refs[0]["text"] == doc
+
+
+def test_reference_mapping_text_doc_records_full_text(tmp_path: Path) -> None:
+    # titleFromText on a fetched Markdown doc: the chip's text is the whole
+    # document body, not just the heading line used for the title.
+    unique_dir = tmp_path / ".unique"
+    doc = "# Retrieval Evaluation\n\n" + "Deep fact far into the document. " * 50
+    response = _FakeMCPResponse(
+        content=[{"type": "text", "text": doc}], mcp_server_id="docs"
+    )
+    record_mcp_citations(
+        response,
+        tool_name="read_doc",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=doc,
+        reference_mapping={"titleFromText": True},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert refs[0]["text"] == doc
+
+
+def test_titleless_fallback_records_formatted_text(tmp_path: Path) -> None:
+    # The title-less tool chip grounds on the whole formatted output the agent
+    # saw, so citing it still reaches the hallucination check with real text.
+    unique_dir = tmp_path / ".unique"
+    response = _FakeMCPResponse(content=[{"type": "text", "text": "status: ok"}])
+    record_mcp_citations(
+        response,
+        tool_name="update",
+        server_name="crm",
+        unique_dir=unique_dir,
+        formatted_text="status: ok — record 42 updated",
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert refs[0]["title"] is None
+    assert refs[0]["text"] == "status: ok — record 42 updated"
+
+
+def test_resource_link_text_is_none_when_no_description(tmp_path: Path) -> None:
+    response = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", response)
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert refs[0]["text"] is None
+
+
+def test_ref_text_truncated_to_writer_cap(tmp_path: Path) -> None:
+    unique_dir = tmp_path / ".unique"
+    doc = "# Big Doc\n" + "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 500)
+    response = _FakeMCPResponse(content=[{"type": "text", "text": doc}])
+    record_mcp_citations(
+        response,
+        tool_name="read_doc",
+        server_name="docs",
+        unique_dir=unique_dir,
+        formatted_text=doc,
+        reference_mapping={"titleFromText": True},
+    )
+    refs = _unique_lines(unique_dir, "mcp-refs.jsonl")
+    assert len(refs[0]["text"]) == mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT
+
+
+def test_dedup_backfills_longer_text_from_later_call(tmp_path: Path) -> None:
+    # Search first (small serialized record), then a full fetch of the same
+    # titled item: the dedup reuses source 1 and upgrades its text to the
+    # longer capture — the richer ground truth for the hallucination check.
+    search_body = json.dumps({"results": [{"title": "Doc A"}]})
+    first = _FakeMCPResponse(content=[{"type": "text", "text": search_body}])
+    _run("mcp__kb__search", first, formatted=search_body)
+    short_text = _lines(tmp_path, _REFS_MANIFEST)[0]["text"]
+
+    full_record = {"title": "Doc A", "body": "Full page body. " * 100}
+    second = _FakeMCPResponse(
+        content=[{"type": "text", "text": json.dumps(full_record)}]
+    )
+    _run("mcp__kb__search", second, formatted=json.dumps(full_record))
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1  # still deduped — one entry, one source number
+    assert refs[0]["sourceNumber"] == 1
+    assert len(refs[0]["text"]) > len(short_text)
+    assert json.loads(refs[0]["text"]) == full_record
+
+
+def test_dedup_keeps_longer_existing_text(tmp_path: Path) -> None:
+    # A later, poorer capture of the same item must not downgrade the stored
+    # text (prefer-longer, never clobber with shorter).
+    full_record = {"title": "Doc A", "body": "Full page body. " * 100}
+    first = _FakeMCPResponse(
+        content=[{"type": "text", "text": json.dumps(full_record)}]
+    )
+    _run("mcp__kb__search", first, formatted=json.dumps(full_record))
+
+    second = _FakeMCPResponse(
+        content=[{"type": "text", "text": json.dumps({"title": "Doc A"})}]
+    )
+    _run("mcp__kb__search", second)
+
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert json.loads(refs[0]["text"]) == full_record
 
 
 def test_different_tools_same_title_get_distinct_numbers(tmp_path: Path) -> None:
@@ -570,6 +732,7 @@ def test_record_mcp_citations_writes_both_manifests_under_unique_dir(
             "title": "RAG Retrieval Baseline",
             "snippet": "Why retrieval fails",
             "details": None,
+            "text": "Why retrieval fails",
         }
     ]
     assert output == [
