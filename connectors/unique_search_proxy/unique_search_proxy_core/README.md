@@ -33,7 +33,7 @@ flowchart TB
     subgraph core["unique_search_proxy_core"]
         Contracts["Response & error models"]
         Config["*Config deployment models"]
-        Project["Schema projection & merge"]
+        Project["ConfigRequestResolver\n(request / call-schema / merge)"]
     end
 
     AC --> Config
@@ -55,38 +55,40 @@ Core uses **three different config patterns** depending on provider kind. Only s
 
 ### 3.1 Three provider patterns (search vs agent vs crawl)
 
+All three kinds share one owner — `param_policy.resolver.ConfigRequestResolver` — which derives the request model (leading `query`/`urls` injected via `SearchRequestBase`/`AgentRequestBase`/`CrawlRequestBase`), resolves `ExposableParam` values, merges deployment defaults with caller overrides, and projects the LLM call schema.
+
 | Kind | Config → request | `ExposableParam` | LLM call schema | Config/invocation merge |
 |------|------------------|------------------|-----------------|-------------------------|
-| **Search engines** | `GoogleConfig` → `GoogleSearchRequest` via `projection.build_request_model` | Yes | `build_llm_call_model` + `call_schema.resolve_*` | `merge_config_and_invocation` |
-| **Agent engines** | `BingAgentConfig` → `BingAgentSearchRequest` via `agent_engines/projection.build_agent_request_model` | No (plain fields) | Not implemented in core | Not implemented in core |
-| **Crawlers** | `BasicConfig` → `BasicCrawlRequest` via `crawlers/projection.build_crawl_request_model` | No | Not implemented in core | `merge_crawler_config_and_invocation` |
+| **Search engines** | `GoogleConfig` → `GoogleSearchRequest` via `ConfigRequestResolver.request_model` | Yes | `ConfigRequestResolver.call_schema` + `call_schema.resolve_*` | `ConfigRequestResolver.merge` |
+| **Agent engines** | `BingAgentConfig` → `BingAgentSearchRequest` via `ConfigRequestResolver.agent_request_model` | No (plain fields) | Not implemented in core | Not implemented in core |
+| **Crawlers** | `BasicConfig` → `BasicCrawlRequest` via `ConfigRequestResolver.crawl_request_model` | No | Not implemented in core | `merge_crawler_config_and_invocation` |
 
 ```mermaid
 flowchart TB
-    subgraph search["Search engines only"]
+    subgraph resolver["param_policy/resolver.py — ConfigRequestResolver"]
+        RM["request_model / agent_request_model / crawl_request_model"]
+        CS["call_schema"]
+        MG["merge / resolve_values"]
+    end
+
+    subgraph search["Search engines"]
         GC["GoogleConfig\n(ExposableParam knobs)"]
-        Proj["projection.py\nbuild_request_model\nbuild_llm_call_model"]
         GSR["GoogleSearchRequest"]
         LLM["LLM call schema"]
-        GC --> Proj
-        Proj --> GSR
-        Proj --> LLM
+        GC --> RM --> GSR
+        GC --> CS --> LLM
     end
 
     subgraph agent["Agent engines"]
         BC["BingAgentConfig\n(plain fields)"]
-        AProj["agent_engines/projection.py\nbuild_agent_request_model"]
         BSR["BingAgentSearchRequest"]
-        BC --> AProj
-        AProj -->|"via model_derivation"| BSR
+        BC --> RM --> BSR
     end
 
     subgraph crawl["Crawlers"]
         BCrawl["BasicConfig\n(no urls)"]
-        CProj["crawlers/projection.py\nbuild_crawl_request_model"]
         BCR["BasicCrawlRequest\n(urls injected)"]
-        BCrawl --> CProj
-        CProj -->|"via model_derivation"| BCR
+        BCrawl --> RM --> BCR
     end
 ```
 
@@ -100,7 +102,7 @@ Search is the only kind where a single `*Config` fans out into three derived sur
 | **LLM call schema** | Tool manifest shown to the model | `{ "query", "gl" }` — only fields where `expose: true` |
 | **HTTP request body** | `POST /v1/search` wire format | `{ "engine": "google", "query": "…", "gl": "de", "fetchSize": 10 }` |
 
-`projection.py` and `search_engines/params.py` derive the latter two from the first. Agent and crawl use `model_derivation.derive_request_model` via per-kind projection modules to inject `query` or `urls`.
+`ConfigRequestResolver` derives the latter two from the first. Every kind builds its request model the same way: config fields (with `ExposableParam[T]` unwrapped to plain `T`) plus the required leading field (`query` for search/agent, `urls` for crawl) supplied by the shared request base classes.
 
 ### 3.3 ExposableParam — search-engine only
 
@@ -116,12 +118,12 @@ gl: ExposableParam[str | None] = ExposableParam(expose=True, value=None)   # LLM
 
 No agent or crawler schema imports `ExposableParam` today.
 
-### 3.4 merge_config_and_invocation — search-engine only
+### 3.4 ConfigRequestResolver.merge — search-engine only
 
 ```python
-from unique_search_proxy_core.search_engines import merge_config_and_invocation
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
-request = merge_config_and_invocation(google_config, {"query": "EU AI Act"})
+request = ConfigRequestResolver.merge(google_config, {}, query="EU AI Act")
 # → validated GoogleSearchRequest ready for POST /v1/search
 ```
 
@@ -145,25 +147,16 @@ flowchart TB
     subgraph core_pkg["unique_search_proxy_core"]
         Schema["schema.py"]
         Errors["errors.py"]
-        MD["model_derivation/"]
-        PP["param_policy/"]
-        Proj["projection.py\n(search + LLM projection)"]
-        AProj["agent_engines/projection.py"]
-        CProj["crawlers/projection.py"]
+        PP["param_policy/\nExposableParam + annotations + resolver"]
         Prov["providers/schema.py"]
         SE["search_engines/"]
         AE["agent_engines/"]
         CR["crawlers/"]
     end
 
-    PP --> Proj
     PP --> SE
-    MD --> Proj
-    MD --> AProj
-    MD --> CProj
-    Proj --> SE
-    AProj --> AE
-    CProj --> CR
+    PP --> AE
+    PP --> CR
     Prov --> SE
     Prov --> CR
     SE --> Schema
@@ -176,13 +169,9 @@ flowchart TB
 |--------|----------------|
 | `schema.py` | Shared API models: `SearchResponse`, `AgentSearchResponse`, `CrawlResponse`, `WebSearchResult`, `ErrorResponse`, SSE events |
 | `errors.py` | `ProxyError` hierarchy and stable `ProxyErrorCode` enum |
-| `model_derivation/` | Shared `derive_request_model` + field/annotation helpers used by all three provider kinds |
-| `param_policy/` | `ExposableParam` — used by **search engine** config models only |
-| `projection.py` | Search-only: `build_request_model`, `build_llm_call_model`, `project_call_schema` |
-| `agent_engines/projection.py` | Agent-only: `build_agent_request_model` (injects `query`; excludes `output_schema`) |
-| `crawlers/projection.py` | Crawler-only: `build_crawl_request_model` (injects `urls`) |
+| `param_policy/` | `ExposableParam` policy, `annotations.py` (field/annotation plumbing: `plain_annotation_*`, `field_definition_from_info`, `resolve_field_name`), **plus** `resolver.ConfigRequestResolver` — the single owner of config → request/call-schema/value resolution for all three kinds |
 | `providers/schema.py` | JSON Schema + defaults for deployment UIs (`provider_config_json_schema`, …) |
-| `search_engines/` | Config models, request union, `merge_config_and_invocation`, call-schema resolution |
+| `search_engines/` | Config models (with per-config `provider_param_exclude_fields` override), request union, call-schema resolution |
 | `agent_engines/` | Agent config/request models, output schema |
 | `crawlers/` | `*Config` deployment models + derived `*CrawlRequest` HTTP bodies |
 
@@ -228,9 +217,9 @@ descriptor = resolve_search_call_schema("google", config=google_config, strict=F
 ### Runtime — build flat request before HTTP call
 
 ```python
-from unique_search_proxy_core.search_engines import merge_config_and_invocation
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
-body = merge_config_and_invocation(config, llm_invocation_dict)
+body = ConfigRequestResolver.merge(config, llm_invocation_dict, query="EU AI Act")
 ```
 
 ### Shared types and errors
@@ -249,9 +238,10 @@ from unique_search_proxy_core import (
 ## 7. Features summary
 
 - Discriminated provider configs (`engine`, `crawler` Literal discriminators)
-- **Search-only:** `ExposableParam` policy, three-surface projection, LLM call schema, `merge_config_and_invocation`
-- **Agent:** config → request derivation via `model_derivation` + `build_agent_request_model`
-- **Crawl:** `*Config` + `build_crawl_request_model` (injects `urls`); `merge_crawler_config_and_invocation`
+- One resolver (`ConfigRequestResolver`) owns config → request/call-schema/value resolution for all kinds
+- **Search-only:** `ExposableParam` policy, three-surface projection, LLM call schema
+- **Agent:** config → request derivation via `ConfigRequestResolver.agent_request_model`
+- **Crawl:** `ConfigRequestResolver.crawl_request_model` (injects `urls`); `merge_crawler_config_and_invocation`
 - CamelCase JSON aliases on all models
 - Zero server dependencies (import-linter enforced in the client package)
 

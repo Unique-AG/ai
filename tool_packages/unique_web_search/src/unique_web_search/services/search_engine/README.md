@@ -694,10 +694,12 @@ class NewSearchEngine(SearchEngine[NewSearchEngineConfig]):
     @property
     def requires_scraping(self) -> bool:
         return False  # or True, depending on your implementation
-    
-    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        ...
 
+    # Only the direct (non-proxy) implementation lives in the engine file.
+    # The search-proxy path is handled entirely by the ``SearchEngine`` base
+    # class: engines whose ``engine`` id is a ``SearchEngineType`` or
+    # ``AgentEngineType`` are served by the proxy when it is enabled, and every
+    # other engine is routed here to ``_legacy_search``.
     async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
         ...
 ```

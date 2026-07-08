@@ -10,11 +10,13 @@ Part of [Unique Search Proxy](../README.md) · PyPI: `unique-search-proxy` · He
 
 Platform services do not talk to Google or Tavily directly. They call this server's HTTP API (usually via the [SDK](../unique_search_proxy_sdk/README.md)). Shared types and config models come from [core](../unique_search_proxy_core/README.md).
 
-| Package | Question it answers |
-|---------|---------------------|
+
+| Package                                       | Question it answers                                                          |
+| --------------------------------------------- | ---------------------------------------------------------------------------- |
 | [Core](../unique_search_proxy_core/README.md) | *What* can be configured and *what* does a valid request/response look like? |
-| **Client** (this) | *How* are provider calls executed at runtime? |
-| [SDK](../unique_search_proxy_sdk/README.md) | *How* do callers reach the proxy over HTTP? |
+| **Client** (this)                             | *How* are provider calls executed at runtime?                                |
+| [SDK](../unique_search_proxy_sdk/README.md)   | *How* do callers reach the proxy over HTTP?                                  |
+
 
 ---
 
@@ -34,6 +36,8 @@ flowchart LR
     Pool --> Providers
     Client --> Providers
 ```
+
+
 
 System overview → [../README.md](../README.md)
 
@@ -65,16 +69,20 @@ flowchart TB
     API --> Mon
 ```
 
-| Layer | Path | Responsibility |
-|-------|------|----------------|
-| **Entry** | `app.py` | App factory, lifespan (start/stop pool), router mount |
-| **API** | `api/health.py`, `api/v1/*.py` | Validate body via core models, dispatch, record metrics |
-| **Registry** | `core/registry.py`, `core/providers.py` | Register built-in engines/crawlers at startup |
-| **Services** | `core/search_engines/`, `core/agent_engines/`, `core/crawlers/` | Provider-specific HTTP/SDK calls, response curation |
-| **Egress** | `core/client/service.py` | Shared httpx client (optional corporate proxy / mTLS) |
-| **Settings** | `settings/providers/*`, `settings/client.py` | Per-provider credentials; unset → `NOT_PROVIDED` → 503 |
-| **Monitoring** | `monitoring/` | Search / agent / crawl latency and error counters |
-| **Deploy** | `deploy/` | Dockerfile, Helm chart, uvicorn entrypoint |
+
+
+
+| Layer          | Path                                                            | Responsibility                                          |
+| -------------- | --------------------------------------------------------------- | ------------------------------------------------------- |
+| **Entry**      | `app.py`                                                        | App factory, lifespan (start/stop pool), router mount   |
+| **API**        | `api/health.py`, `api/v1/*.py`                                  | Validate body via core models, dispatch, record metrics |
+| **Registry**   | `core/registry.py`, `core/providers.py`                         | Register built-in engines/crawlers at startup           |
+| **Services**   | `core/search_engines/`, `core/agent_engines/`, `core/crawlers/` | Provider-specific HTTP/SDK calls, response curation     |
+| **Egress**     | `core/client/service.py`                                        | Shared httpx client (optional corporate proxy / mTLS)   |
+| **Settings**   | `settings/providers/`*, `settings/client.py`                    | Per-provider credentials; unset → `NOT_PROVIDED` → 503  |
+| **Monitoring** | `monitoring/`                                                   | Search / agent / crawl latency and error counters       |
+| **Deploy**     | `deploy/`                                                       | Dockerfile, Helm chart, uvicorn entrypoint              |
+
 
 Built-in providers register in `register_builtin_providers()` during `create_app()`.
 
@@ -82,17 +90,19 @@ Built-in providers register in `register_builtin_providers()` during `create_app
 
 ## 4. HTTP API
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Liveness |
-| `GET /ready` | Readiness (httpx pool + registered providers) |
-| `GET /v1/configuration/providers` | Registered search engine, agent engine, and crawler ids |
-| `POST /v1/search` | Standard search (flat body: `engine`, `query`, provider params, `timeout`) |
-| `POST /v1/agent-search` | Grounded agent search — opaque `answer` + `raw` |
-| `POST /v1/agent-search/stream` | Same, streamed as SSE (`delta` + `done`) |
-| `POST /v1/crawl` | Crawl URLs (flat body: `crawler`, `urls`, `timeout`, …) |
-| `GET /metrics` | Prometheus (when enabled) |
-| `/docs` | Swagger UI with preset examples |
+
+| Endpoint                          | Description                                                                |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| `GET /health`                     | Liveness                                                                   |
+| `GET /ready`                      | Readiness (httpx pool + registered providers)                              |
+| `GET /v1/configuration/providers` | Registered search engine, agent engine, and crawler ids                    |
+| `POST /v1/search`                 | Standard search (flat body: `engine`, `query`, provider params, `timeout`) |
+| `POST /v1/agent-search`           | Grounded agent search — opaque `answer` + `raw`                            |
+| `POST /v1/agent-search/stream`    | Same, streamed as SSE (`delta` + `done`)                                   |
+| `POST /v1/crawl`                  | Crawl URLs (flat body: `crawler`, `urls`, `timeout`, …)                    |
+| `GET /metrics`                    | Prometheus (when enabled)                                                  |
+| `/docs`                           | Swagger UI with preset examples                                            |
+
 
 OpenAPI spec: `openapi.json` (input for [SDK codegen](../unique_search_proxy_sdk/README.md)).
 
@@ -102,17 +112,19 @@ OpenAPI spec: `openapi.json` (input for [SDK codegen](../unique_search_proxy_sdk
 
 ### 5.1 Summary
 
-| Provider | Type | Upstream | Credentials |
-|----------|------|----------|-------------|
-| Google | Search | Custom Search JSON API | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
-| Brave | Search | Brave Search API | `BRAVE_SEARCH_API_KEY` |
-| Perplexity | Search | Perplexity API | `PERPLEXITY_SEARCH_API_KEY` |
-| Bing | Agent | Azure AI Projects grounding | `BING_AGENT_*` |
-| VertexAI | Agent | Google GenAI + grounding | `VERTEXAI_AGENT_*` or ADC |
-| Basic | Crawl | Direct httpx + HTML/PDF processors | (none) |
-| Tavily | Crawl | Tavily extract API | `TAVILY_API_KEY` |
-| Jina | Crawl | Jina Reader API | `JINA_API_KEY` |
-| Firecrawl | Crawl | Firecrawl scrape (with polling) | `FIRECRAWL_API_KEY` |
+
+| Provider   | Type   | Upstream                           | Credentials                                        |
+| ---------- | ------ | ---------------------------------- | -------------------------------------------------- |
+| Google     | Search | Custom Search JSON API             | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
+| Brave      | Search | Brave Search API                   | `BRAVE_SEARCH_API_KEY`                             |
+| Perplexity | Search | Perplexity API                     | `PERPLEXITY_SEARCH_API_KEY`                        |
+| Bing       | Agent  | Azure AI Projects grounding        | `BING_AGENT_`*                                     |
+| VertexAI   | Agent  | Google GenAI + grounding           | `VERTEXAI_AGENT_*` or ADC                          |
+| Basic      | Crawl  | Direct httpx + HTML/PDF processors | (none)                                             |
+| Tavily     | Crawl  | Tavily extract API                 | `TAVILY_API_KEY`                                   |
+| Jina       | Crawl  | Jina Reader API                    | `JINA_API_KEY`                                     |
+| Firecrawl  | Crawl  | Firecrawl scrape (with polling)    | `FIRECRAWL_API_KEY`                                |
+
 
 Unconfigured providers return **503** `ENGINE_NOT_CONFIGURED` with missing env var names. `GET /v1/configuration/providers` lists what is registered in the running pod.
 
@@ -196,19 +208,21 @@ Error types are defined in [core](../unique_search_proxy_core/README.md) and rai
 
 Settings use pydantic-settings with per-provider env vars. Copy `.env.example` to `.env` for an annotated template.
 
-| Component | Prefix / vars | Example |
-|-----------|---------------|---------|
-| Google search | (none) | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID` |
-| Brave search | (none) | `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_API_ENDPOINT` |
-| Perplexity | (none) | `PERPLEXITY_SEARCH_API_KEY` |
-| Tavily | `TAVILY_` | `TAVILY_API_KEY` |
-| Jina | `JINA_` | `JINA_API_KEY`, `JINA_DEPLOYMENT` |
-| Firecrawl | `FIRECRAWL_` | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_VERSION` |
-| Bing agent | `BING_AGENT_` | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING` |
-| VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional) |
-| HTTP client | `HTTP_CLIENT_` | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS` |
-| Prometheus | `PROMETHEUS_` | `PROMETHEUS_ENABLED` |
-| Container | (shell) | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL` |
+
+| Component      | Prefix / vars     | Example                                                             |
+| -------------- | ----------------- | ------------------------------------------------------------------- |
+| Google search  | (none)            | `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`                  |
+| Brave search   | (none)            | `BRAVE_SEARCH_API_KEY`, `BRAVE_SEARCH_API_ENDPOINT`                 |
+| Perplexity     | (none)            | `PERPLEXITY_SEARCH_API_KEY`                                         |
+| Tavily         | `TAVILY`_         | `TAVILY_API_KEY`                                                    |
+| Jina           | `JINA_`           | `JINA_API_KEY`, `JINA_DEPLOYMENT`                                   |
+| Firecrawl      | `FIRECRAWL_`      | `FIRECRAWL_API_KEY`, `FIRECRAWL_API_VERSION`                        |
+| Bing agent     | `BING_AGENT_`     | `BING_AGENT_ENDPOINT`, `BING_AGENT_BING_RESOURCE_CONNECTION_STRING` |
+| VertexAI agent | `VERTEXAI_AGENT_` | `VERTEXAI_AGENT_SERVICE_ACCOUNT_CREDENTIALS` (optional)             |
+| HTTP client    | `HTTP_CLIENT_`    | `HTTP_CLIENT_PROXY_HOST`, `HTTP_CLIENT_POOL_TIMEOUT_SECONDS`        |
+| Prometheus     | `PROMETHEUS_`     | `PROMETHEUS_ENABLED`                                                |
+| Container      | (shell)           | `HOST`, `PORT`, `WORKERS`, `LOG_LEVEL`                              |
+
 
 With `WORKERS > 1`, the entrypoint sets `PROMETHEUS_MULTIPROC_DIR` for correct metric aggregation.
 
@@ -227,7 +241,8 @@ cp .env.example .env
 ```bash
 uv run python -m unique_search_proxy_client.web.app
 # or
-uv run uvicorn unique_search_proxy_client.web.app:app --reload --port 2349
+
+
 ```
 
 Call from Python via the [SDK](../unique_search_proxy_sdk/README.md):
