@@ -44,6 +44,7 @@ dependencies = [
     "tenacity>=9.1.4",
     "pydantic-core>=2.41.5",
     "cachetools>=5.0,<6",
+    "rapidfuzz>=3.0,<4",
 ]
 
 [project.optional-dependencies]
