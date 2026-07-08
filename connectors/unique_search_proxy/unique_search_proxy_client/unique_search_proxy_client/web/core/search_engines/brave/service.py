@@ -166,13 +166,11 @@ class BraveSearchService(SearchEngineService[BraveSearchRequest]):
         *,
         strict_required: bool = True,
     ) -> type[Any]:
-        from unique_search_proxy_core.projection import build_llm_call_model
-
-        return build_llm_call_model(
-            BraveConfig,
-            config,
-            strict_required=strict_required,
+        from unique_search_proxy_core.param_policy.resolver import (
+            ConfigRequestResolver,
         )
+
+        return ConfigRequestResolver.call_schema(config, strict=strict_required)
 
 
 def _brave_headers(api_key: str) -> dict[str, str]:

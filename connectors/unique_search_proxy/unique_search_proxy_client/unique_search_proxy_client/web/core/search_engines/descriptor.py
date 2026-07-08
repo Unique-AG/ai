@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
-from unique_search_proxy_core.projection import build_request_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 if TYPE_CHECKING:
     from unique_search_proxy_core.search_engines.base import SearchEngine
@@ -20,4 +20,4 @@ class SearchEngineDescriptor:
     @property
     def request_model(self) -> type[BaseModel]:
         """``POST /v1/search`` body derived from ``config_model``."""
-        return build_request_model(self.config_model)
+        return ConfigRequestResolver.request_model(self.config_model)

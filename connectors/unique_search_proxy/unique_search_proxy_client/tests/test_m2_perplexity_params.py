@@ -1,21 +1,15 @@
 import pytest
-from unique_search_proxy_core.projection import build_llm_call_model
-from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 from unique_search_proxy_core.search_engines.config_types import parse_search_request
-from unique_search_proxy_core.search_engines.params import (
-    config_defaults,
-    llm_exposed_field_names,
-    merge_config_and_invocation,
-)
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     ExposableDomainFilter,
     ExposableRecencyFilter,
-    ExposableSearchContextSize,
     ExposableStrOrNone,
     PerplexityConfig,
     PerplexitySearchRequest,
 )
 
+from unique_search_proxy_client.web.core.search_engines import resolve_engine_call
 from unique_search_proxy_client.web.core.search_engines.perplexity.request_body import (
     build_perplexity_request_body,
 )
@@ -26,18 +20,17 @@ class TestPerplexityMergeConfigAndInvocation:
     def test_merges_plain_defaults_and_exposable_values(self) -> None:
         config = PerplexityConfig(
             country=ExposableStrOrNone(expose=False, value="US"),
-            search_context_size=ExposableSearchContextSize(expose=True, value="high"),
+            search_context_size="high",
             fetch_size=5,
         )
-        request = merge_config_and_invocation(
+        request = resolve_engine_call(
             config,
-            {"query": "hello", "search_context_size": "low"},
-            engine=SearchEngineType.PERPLEXITY,
+            {"query": "hello"},
         )
         assert isinstance(request, PerplexitySearchRequest)
         assert request.query == "hello"
         assert request.country == "US"
-        assert request.search_context_size == "low"
+        assert request.search_context_size == "high"
         assert request.fetch_size == 5
 
 
@@ -50,10 +43,9 @@ class TestPerplexityProviderParams:
             max_tokens=512,
             max_tokens_per_page=128,
         )
-        request = merge_config_and_invocation(
+        request = resolve_engine_call(
             config,
             {"query": "hello", "fetch_size": 3},
-            engine=SearchEngineType.PERPLEXITY,
         )
         body = build_perplexity_request_body(query="hello", request=request)
         assert body == {
@@ -90,7 +82,7 @@ class TestPerplexityConfigExposure:
     @pytest.mark.ai
     def test_query_only_when_nothing_exposed(self) -> None:
         config = PerplexityConfig()
-        assert llm_exposed_field_names(config) == ["query"]
+        assert ConfigRequestResolver.exposed_field_names(config) == ["query"]
 
     @pytest.mark.ai
     def test_exposed_country_appears_on_llm_schema(self) -> None:
@@ -100,25 +92,33 @@ class TestPerplexityConfigExposure:
                 expose=False, value=["example.com"]
             ),
         )
-        exposed = llm_exposed_field_names(config)
+        exposed = ConfigRequestResolver.exposed_field_names(config)
         assert "country" in exposed
         assert "search_domain_filter" not in exposed
-        projected = build_llm_call_model(PerplexityConfig, config)
+        projected = ConfigRequestResolver.call_schema(config)
         assert "country" in projected.model_fields
         assert "search_domain_filter" not in projected.model_fields
+
+    @pytest.mark.ai
+    def test_search_context_size_not_exposable(self) -> None:
+        config = PerplexityConfig(
+            country=ExposableStrOrNone(expose=True, value="US"),
+        )
+        exposed = ConfigRequestResolver.exposed_field_names(config)
+        assert "search_context_size" not in exposed
+        projected = ConfigRequestResolver.call_schema(config)
+        assert "search_context_size" not in projected.model_fields
 
     @pytest.mark.ai
     def test_config_defaults_collects_plain_and_exposable_values(self) -> None:
         config = PerplexityConfig(
             country=ExposableStrOrNone(expose=False, value="CH"),
-            search_context_size=ExposableSearchContextSize(
-                expose=False, value="medium"
-            ),
+            search_context_size="medium",
             max_tokens=256,
             max_tokens_per_page=64,
             fetch_size=8,
         )
-        defaults = config_defaults(config)
+        defaults = ConfigRequestResolver.resolve_values(config)
         assert defaults["country"] == "CH"
         assert defaults["search_context_size"] == "medium"
         assert defaults["max_tokens"] == 256

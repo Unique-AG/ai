@@ -1,6 +1,6 @@
 import pytest
 from pydantic import BaseModel, Field
-from unique_search_proxy_core.projection import (
+from unique_search_proxy_core.param_policy.resolver import (
     project_call_schema,
     project_json_schema,
 )

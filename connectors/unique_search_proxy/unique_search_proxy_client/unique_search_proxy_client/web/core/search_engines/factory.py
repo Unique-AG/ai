@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
+from unique_search_proxy_core.param_policy import QUERY_FIELD
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 from unique_search_proxy_core.search_engines.base import SearchEngine, SearchEngineType
 from unique_search_proxy_core.search_engines.config_types import SearchEngineConfigTypes
-from unique_search_proxy_core.search_engines.params import merge_config_and_invocation
 
 from unique_search_proxy_client.web.core.search_engines.brave.service import (
     BraveSearchService,
@@ -43,27 +44,9 @@ def resolve_engine_request(
     invocation: dict[str, object],
 ) -> BaseModel:
     """Merge deployment config defaults with a partial request dict (callers / tests)."""
-    match config.engine:
-        case SearchEngineType.GOOGLE:
-            return merge_config_and_invocation(
-                config,
-                dict(invocation),
-                engine=SearchEngineType.GOOGLE,
-            )
-        case SearchEngineType.BRAVE:
-            return merge_config_and_invocation(
-                config,
-                dict(invocation),
-                engine=SearchEngineType.BRAVE,
-            )
-        case SearchEngineType.PERPLEXITY:
-            return merge_config_and_invocation(
-                config,
-                dict(invocation),
-                engine=SearchEngineType.PERPLEXITY,
-            )
-        case _:
-            raise ValueError(f"Unsupported search engine: {config.engine}")
+    overrides = dict(invocation)
+    query = str(overrides.pop(QUERY_FIELD, ""))
+    return ConfigRequestResolver.merge(config, overrides, query=query)
 
 
 def get_request_model_for_engine(engine_id: str) -> type[BaseModel]:
