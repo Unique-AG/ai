@@ -19,6 +19,8 @@ class Operator(str, Enum):
     LESS_THAN_OR_EQUAL = "lessThanOrEqual"
     IN = "in"
     NOT_IN = "notIn"
+    OVERLAPS = "overlaps"
+    NOT_OVERLAPS = "notOverlaps"
     CONTAINS = "contains"
     NOT_CONTAINS = "notContains"
     IS_NULL = "isNull"
@@ -148,7 +150,12 @@ def eval_operator(
         return empty_operator(query.operator, user_metadata, tool_parameters)
     elif query.operator == Operator.NESTED:
         return eval_nested_operator(query.value, user_metadata, tool_parameters)
-    elif query.operator in [Operator.IN, Operator.NOT_IN]:
+    elif query.operator in [
+        Operator.IN,
+        Operator.NOT_IN,
+        Operator.OVERLAPS,
+        Operator.NOT_OVERLAPS,
+    ]:
         return array_operator(query.value, user_metadata, tool_parameters)
     else:
         raise ValueError(f"Operator {query.operator} not supported")
