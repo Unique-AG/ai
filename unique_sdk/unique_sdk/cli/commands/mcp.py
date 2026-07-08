@@ -361,14 +361,13 @@ def _first_text_title(response: Any, max_chars: int) -> str | None:
 def _all_text_blocks(response: Any) -> str | None:
     """Concatenation of every text block — the underlying text of a single-item
     result (e.g. a fetched document) recorded as that item's ground truth."""
-    texts = [
-        block.get("text")
-        for block in getattr(response, "content", None) or []
-        if isinstance(block, dict)
-        and block.get("type") == "text"
-        and isinstance(block.get("text"), str)
-        and block.get("text").strip()
-    ]
+    texts: list[str] = []
+    for block in getattr(response, "content", None) or []:
+        if not isinstance(block, dict) or block.get("type") != "text":
+            continue
+        text = block.get("text")
+        if isinstance(text, str) and text.strip():
+            texts.append(text)
     return "\n\n".join(texts) or None
 
 
