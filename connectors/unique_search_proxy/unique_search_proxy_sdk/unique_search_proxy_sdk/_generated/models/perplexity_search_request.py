@@ -36,25 +36,24 @@ class PerplexitySearchRequest:
         max_tokens_per_page (int | None | Unset): Maximum webpage content tokens extracted from each result page
             (Perplexity `max_tokens_per_page`). Omitted when unset. Omit `search_context_size` when using this or
             `max_tokens`.
-        country (None | str | Unset): ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters). Set `value`
-            for a fixed default; set `expose` so the LLM may override per query.
-        search_context_size (None | PerplexitySearchRequestSearchContextSize | Unset): Controls how much content is
-            extracted from result pages: `low`, `medium`, or `high` (API default). Omit when using `max_tokens` or
-            `max_tokens_per_page`. `value` + `expose` behave like `country`.
-        search_language_filter (list[str] | None | Unset): ISO 639-1 language codes (two characters each, up to 20).
-            `value` + `expose` behave like `country`.
-        search_domain_filter (list[str] | None | Unset): Limit results to specific domains (up to 20). `value` +
-            `expose` behave like `country`.
-        search_recency_filter (None | PerplexitySearchRequestRecencyFilter | Unset): Filter by publication recency:
-            `hour`, `day`, `week`, `month`, or `year`. `value` + `expose` behave like `country`.
+        search_context_size (PerplexitySearchRequestSearchContextSize | Unset): How much content is extracted from
+            result pages (Perplexity `search_context_size`): `low`, `medium`, or `high` (API default). Omit when using
+            `max_tokens` or `max_tokens_per_page`. Default: PerplexitySearchRequestSearchContextSize.MEDIUM.
+        country (None | str | Unset): ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters).
+        search_language_filter (list[str] | None | Unset): ISO 639-1 language codes to include (Perplexity
+            `search_language_filter`; two characters each, up to 20).
+        search_domain_filter (list[str] | None | Unset): Domains to limit results to (Perplexity `search_domain_filter`;
+            up to 20).
+        search_recency_filter (None | PerplexitySearchRequestRecencyFilter | Unset): Publication recency filter
+            (Perplexity `search_recency_filter`): `hour`, `day`, `week`, `month`, or `year`.
         last_updated_after_filter (None | str | Unset): Return results updated after this date (Perplexity
-            `last_updated_after_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`.
+            `last_updated_after_filter`; format `MM/DD/YYYY`).
         last_updated_before_filter (None | str | Unset): Return results updated before this date (Perplexity
-            `last_updated_before_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`.
+            `last_updated_before_filter`; format `MM/DD/YYYY`).
         search_after_date_filter (None | str | Unset): Return results published after this date (Perplexity
-            `search_after_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`.
+            `search_after_date_filter`; format `MM/DD/YYYY`).
         search_before_date_filter (None | str | Unset): Return results published before this date (Perplexity
-            `search_before_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`.
+            `search_before_date_filter`; format `MM/DD/YYYY`).
     """
 
     query: str
@@ -63,8 +62,10 @@ class PerplexitySearchRequest:
     timeout: int | Unset = 30
     max_tokens: int | None | Unset = UNSET
     max_tokens_per_page: int | None | Unset = UNSET
+    search_context_size: PerplexitySearchRequestSearchContextSize | Unset = (
+        PerplexitySearchRequestSearchContextSize.MEDIUM
+    )
     country: None | str | Unset = UNSET
-    search_context_size: None | PerplexitySearchRequestSearchContextSize | Unset = UNSET
     search_language_filter: list[str] | None | Unset = UNSET
     search_domain_filter: list[str] | None | Unset = UNSET
     search_recency_filter: None | PerplexitySearchRequestRecencyFilter | Unset = UNSET
@@ -95,21 +96,15 @@ class PerplexitySearchRequest:
         else:
             max_tokens_per_page = self.max_tokens_per_page
 
+        search_context_size: str | Unset = UNSET
+        if not isinstance(self.search_context_size, Unset):
+            search_context_size = self.search_context_size.value
+
         country: None | str | Unset
         if isinstance(self.country, Unset):
             country = UNSET
         else:
             country = self.country
-
-        search_context_size: None | str | Unset
-        if isinstance(self.search_context_size, Unset):
-            search_context_size = UNSET
-        elif isinstance(
-            self.search_context_size, PerplexitySearchRequestSearchContextSize
-        ):
-            search_context_size = self.search_context_size.value
-        else:
-            search_context_size = self.search_context_size
 
         search_language_filter: list[str] | None | Unset
         if isinstance(self.search_language_filter, Unset):
@@ -180,10 +175,10 @@ class PerplexitySearchRequest:
             field_dict["maxTokens"] = max_tokens
         if max_tokens_per_page is not UNSET:
             field_dict["maxTokensPerPage"] = max_tokens_per_page
-        if country is not UNSET:
-            field_dict["country"] = country
         if search_context_size is not UNSET:
             field_dict["searchContextSize"] = search_context_size
+        if country is not UNSET:
+            field_dict["country"] = country
         if search_language_filter is not UNSET:
             field_dict["searchLanguageFilter"] = search_language_filter
         if search_domain_filter is not UNSET:
@@ -234,6 +229,15 @@ class PerplexitySearchRequest:
             d.pop("maxTokensPerPage", UNSET)
         )
 
+        _search_context_size = d.pop("searchContextSize", UNSET)
+        search_context_size: PerplexitySearchRequestSearchContextSize | Unset
+        if isinstance(_search_context_size, Unset):
+            search_context_size = UNSET
+        else:
+            search_context_size = PerplexitySearchRequestSearchContextSize(
+                _search_context_size
+            )
+
         def _parse_country(data: object) -> None | str | Unset:
             if data is None:
                 return data
@@ -242,29 +246,6 @@ class PerplexitySearchRequest:
             return cast(None | str | Unset, data)
 
         country = _parse_country(d.pop("country", UNSET))
-
-        def _parse_search_context_size(
-            data: object,
-        ) -> None | PerplexitySearchRequestSearchContextSize | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            try:
-                if not isinstance(data, str):
-                    raise TypeError()
-                search_context_size_search_context_size = (
-                    PerplexitySearchRequestSearchContextSize(data)
-                )
-
-                return search_context_size_search_context_size
-            except (TypeError, ValueError, AttributeError, KeyError):
-                pass
-            return cast(None | PerplexitySearchRequestSearchContextSize | Unset, data)
-
-        search_context_size = _parse_search_context_size(
-            d.pop("searchContextSize", UNSET)
-        )
 
         def _parse_search_language_filter(data: object) -> list[str] | None | Unset:
             if data is None:
@@ -378,8 +359,8 @@ class PerplexitySearchRequest:
             timeout=timeout,
             max_tokens=max_tokens,
             max_tokens_per_page=max_tokens_per_page,
-            country=country,
             search_context_size=search_context_size,
+            country=country,
             search_language_filter=search_language_filter,
             search_domain_filter=search_domain_filter,
             search_recency_filter=search_recency_filter,
