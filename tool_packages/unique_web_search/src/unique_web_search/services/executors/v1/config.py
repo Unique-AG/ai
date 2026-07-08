@@ -15,7 +15,6 @@ from unique_web_search.services.executors.v1.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     REFINE_QUERY_SYSTEM_PROMPT,
-    RESTRICT_DATE_DESCRIPTION,
 )
 from unique_web_search.settings import env_settings
 
@@ -41,16 +40,6 @@ class WebSearchToolParametersDescriptionConfig(BaseModel):
         default=_DEFAULT_QUERY_DESCRIPTION,
         title="Query Parameter Description",
         description="Advanced: Description of the search query parameter shown to the AI model.",
-    )
-    date_restrict_description: Annotated[
-        str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(RESTRICT_DATE_DESCRIPTION.split("\n"))
-        ),
-    ] = Field(
-        default=RESTRICT_DATE_DESCRIPTION,
-        title="Date Filter Description",
-        description="Advanced: Description of the date restriction parameter shown to the AI model.",
     )
 
 

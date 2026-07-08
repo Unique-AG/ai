@@ -5,6 +5,10 @@ from time import time
 
 from jinja2 import Template
 from typing_extensions import override
+from unique_search_proxy_core.search_engines.call_schema import (
+    build_exposed_tool_field_defs,
+    exposed_field_names,
+)
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags.feature_flags import (
@@ -120,25 +124,41 @@ class WebSearchTool(Tool[WebSearchConfig]):
     @override
     def tool_description(self) -> LanguageModelToolDescription:
         if self.config.web_search_mode_config.mode == WebSearchMode.V1:
-            self.tool_parameter_calls = WebSearchToolParameters.from_tool_parameter_query_description(
-                self.config.web_search_mode_config.tool_parameters_description.query_description,
-                self.config.web_search_mode_config.tool_parameters_description.date_restrict_description,
+            exposed_field_defs = build_exposed_tool_field_defs(
+                self.search_engine_service.config
+            )
+            self.tool_parameter_calls = WebSearchToolParameters.with_exposed_fields(
+                exposed_field_defs,
+                query_description=(
+                    self.config.web_search_mode_config.tool_parameters_description.query_description
+                ),
+            )
+        elif self.config.web_search_mode_config.mode == WebSearchMode.V3:
+            exposed_field_defs = build_exposed_tool_field_defs(
+                self.search_engine_service.config
+            )
+            self._exposed_field_names = exposed_field_names(
+                self.search_engine_service.config
+            )
+            self.tool_parameter_calls = WebSearchV3ToolParameters.with_exposed_fields(
+                exposed_field_defs
+            )
+            tool_description = Template(
+                self.config.web_search_mode_config.tool_description
+            ).render(
+                tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(
+                    exposed_field_defs
+                ),
             )
         else:
-            if self.config.web_search_mode_config.mode == WebSearchMode.V3:
-                self.tool_parameter_calls = WebSearchV3ToolParameters
-            else:
-                engine_mode = self._resolve_search_engine_mode()
-                self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
-                    engine_mode
-                )
-
-        tool_description = self.config.web_search_mode_config.tool_description
-
-        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
-            tool_description = Template(tool_description).render(
-                tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(),
+            engine_mode = self._resolve_search_engine_mode()
+            self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
+                engine_mode
             )
+            tool_description = self.config.web_search_mode_config.tool_description
+
+        if self.config.web_search_mode_config.mode != WebSearchMode.V3:
+            tool_description = self.config.web_search_mode_config.tool_description
 
         return LanguageModelToolDescription(
             name=self.name,

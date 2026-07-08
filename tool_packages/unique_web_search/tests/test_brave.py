@@ -27,13 +27,14 @@ class TestBraveSearchConfig:
 
     def test_default_safesearch_value(self):
         config = BraveConfig()
-        assert config.safesearch.value == "moderate"
-        assert config.safesearch.expose is False
+        assert config.safesearch == "moderate"
 
-    def test_default_country_is_inactive(self):
+    def test_default_country_and_search_lang(self):
         config = BraveConfig()
-        assert config.country.value is None
         assert config.country.expose is False
+        assert config.country.value == "US"
+        assert config.search_lang.expose is False
+        assert config.search_lang.value == "en"
 
 
 @pytest.fixture
@@ -69,10 +70,12 @@ class TestBraveSearch:
             NotImplementedError,
             match="Brave search is not supported in the legacy mode",
         ):
-            await search._legacy_search("query")
+            await search._legacy_search("query", {})
 
     @pytest.mark.asyncio
-    async def test_proxy_search_passes_config_to_client(self, _mock_brave_settings):
+    async def test_proxy_search_merges_config_via_generic_client(
+        self, _mock_brave_settings
+    ):
         config = BraveConfig(fetch_size=3)
         search = BraveSearch(config)
 
@@ -85,7 +88,7 @@ class TestBraveSearch:
                 content="",
             )
         ]
-        mock_brave = AsyncMock(return_value=mock_response)
+        mock_search = AsyncMock(return_value=mock_response)
 
         with (
             patch(
@@ -93,33 +96,21 @@ class TestBraveSearch:
                 True,
             ),
             patch(
-                "unique_web_search.services.search_engine.brave.open_search_proxy_client"
+                "unique_web_search.services.search_engine.base.open_search_proxy_client"
             ) as mock_open_client,
         ):
             mock_client = AsyncMock()
-            mock_client.search.brave = mock_brave
+            mock_client.search = Mock()
+            mock_client.search.search = mock_search
             mock_open_client.return_value.__aenter__.return_value = mock_client
 
             results = await search.search("test query")
 
-        mock_brave.assert_awaited_once_with(
-            query="test query",
-            fetch_size=3,
-            extra_snippets=True,
-            spellcheck=False,
-            text_decorations=True,
-            operators=True,
-            ui_lang="en-US",
-            units=None,
-            summary=True,
-            include_fetch_metadata=False,
-            goggles=None,
-            country=None,
-            freshness=None,
-            search_lang=None,
-            safesearch="moderate",
-            result_filter=None,
-        )
+        mock_search.assert_awaited_once()
+        call_kwargs = mock_search.await_args.kwargs
+        assert call_kwargs["query"] == "test query"
+        assert call_kwargs["engine"] == "brave"
+        assert call_kwargs["fetch_size"] == 3
         assert results == [
             WebSearchResult(
                 url="https://example.com/page",

@@ -2,8 +2,13 @@
 
 import typing
 from enum import StrEnum
+from typing import Any, cast
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
+
+from unique_web_search.services.executors.exposed_params import (
+    attach_exposed_schema_cleanup,
+)
 
 
 class Command(StrEnum):
@@ -36,6 +41,24 @@ class SearchPayload(BaseModel):
         )
     )
 
+    @classmethod
+    def with_exposed_fields(
+        cls,
+        exposed_field_defs: dict[str, tuple[Any, Any]] | None,
+    ) -> type["SearchPayload"]:
+        if exposed_field_defs is None:
+            return cls
+        exposed_names = list(exposed_field_defs.keys())
+        model = create_model(
+            cls.__name__,
+            __base__=cls,
+            **cast(Any, exposed_field_defs),
+        )
+        return cast(
+            type[SearchPayload],
+            attach_exposed_schema_cleanup(model, exposed_names),
+        )
+
 
 class FetchUrlsPayload(BaseModel):
     urls: list[str] = Field(
@@ -67,6 +90,33 @@ class WebSearchV3ToolParameters(BaseModel):
         description="The payload of the command. Must be either a SearchPayload or a FetchUrlsPayload."
     )
 
+    @classmethod
+    def with_exposed_fields(
+        cls,
+        exposed_field_defs: dict[str, tuple[Any, Any]] | None,
+    ) -> type["WebSearchV3ToolParameters"]:
+        search_payload = SearchPayload.with_exposed_fields(exposed_field_defs)
+        if search_payload is SearchPayload:
+            return cls
+        exposed_names = list(exposed_field_defs.keys()) if exposed_field_defs else []
+        model = create_model(
+            cls.__name__,
+            __base__=cls,
+            payload=(
+                search_payload | FetchUrlsPayload,
+                Field(
+                    description=(
+                        "The payload of the command. Must be either a SearchPayload "
+                        "or a FetchUrlsPayload."
+                    ),
+                ),
+            ),
+        )
+        return cast(
+            type[WebSearchV3ToolParameters],
+            attach_exposed_schema_cleanup(model, exposed_names),
+        )
+
     def relevance_focus(self) -> str:
         """Focus string for notify UI, snippet judging, and content processing."""
         phase_label = self.phase.value
@@ -78,7 +128,10 @@ class WebSearchV3ToolParameters(BaseModel):
         return f"[{phase_label}] {urls_preview}"
 
     @classmethod
-    def schema_hint(cls) -> str:
+    def schema_hint(
+        cls,
+        exposed_field_defs: dict[str, tuple[Any, Any]] | None = None,
+    ) -> str:
         """Return a markdown-bulleted hint mirroring the field descriptions of this model.
 
         Mirrors the legacy hand-written prompt block: one bullet per top-level
@@ -111,8 +164,9 @@ class WebSearchV3ToolParameters(BaseModel):
                 lines.append(f"- **`{name}`** — {field.description or name}")
 
         lines.append("- **`payload`** — Shape depends on `command`:")
+        search_payload = SearchPayload.with_exposed_fields(exposed_field_defs)
         for cmd, payload_model in (
-            (Command.SEARCH, SearchPayload),
+            (Command.SEARCH, search_payload),
             (Command.FETCH_URLS, FetchUrlsPayload),
         ):
             lines.append(f'  - For `"{cmd.value}"`: `{_inline_json(payload_model)}`.')

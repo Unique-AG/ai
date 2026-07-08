@@ -2,6 +2,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
 from unique_web_search.service import WebSearchTool
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
@@ -33,6 +34,8 @@ class TestWebSearchToolDescription:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.search_engine_service = Mock()
+        tool.search_engine_service.config = GoogleConfig()
         tool.tool_parameter_calls = None  # type: ignore
 
         result = tool.tool_description()
@@ -414,7 +417,7 @@ class TestWebSearchToolGetExecutor:
         tool._chat_service = Mock()
 
         tool_call = Mock()
-        parameters = WebSearchToolParameters(query="test", date_restrict=None)
+        parameters = WebSearchToolParameters(query="test")
         debug_info = Mock()
         web_search_message_logger = Mock()
 
@@ -638,7 +641,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         result = await tool.run(tool_call)
 
@@ -732,7 +735,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         result = await tool.run(tool_call)
 
@@ -883,7 +886,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         result = await tool.run(tool_call)
 
@@ -973,7 +976,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         await tool.run(tool_call)
 

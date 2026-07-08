@@ -7,6 +7,7 @@ import logging
 from time import time
 
 from unidecode import unidecode
+from unique_search_proxy_core.search_engines.call_schema import exposed_field_names
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
@@ -24,6 +25,9 @@ from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
+)
+from unique_web_search.services.executors.exposed_params import (
+    collect_flat_exposed_params,
 )
 from unique_web_search.services.executors.v3.schema import (
     FetchUrlsPayload,
@@ -59,7 +63,12 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         if isinstance(p.payload, SearchPayload):
             await self._message_log_callback.log_progress("_Executing Search_")
             return await self._run_search(
-                query=p.payload.query, objective=p.relevance_focus()
+                query=p.payload.query,
+                objective=p.relevance_focus(),
+                params=collect_flat_exposed_params(
+                    p.payload,
+                    exposed_field_names(self.search_service.config),
+                ),
             )
         if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
@@ -76,6 +85,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         *,
         query: str,
         objective: str,
+        params: dict,
     ) -> list[ContentChunk]:
         self.notify_name = "**Searching Web**"
         self.notify_message = objective
@@ -102,7 +112,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         await self._message_log_callback.log_queries([query])
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
-            results = await self.search_service.search(query)
+            results = await self.search_service.search(query, params=params)
         await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
