@@ -792,12 +792,12 @@ def test_overlaps_operator_resolves_variables(user_metadata, tool_parameters) ->
     """Purpose: Verify OVERLAPS substitutes variables in each array element like IN."""
     query = Statement(
         operator=Operator.OVERLAPS,
-        value=["<userMetadata.name>", "<toolParameters.category>", "Groupe"],
-        path=["Territory"],
+        value=["<userMetadata.name>", "<toolParameters.category>", "fallback-tag"],
+        path=["tags"],
     )
     enriched = query.with_variables(user_metadata, tool_parameters)
     assert isinstance(enriched, Statement)
-    assert enriched.value == ["John", "premium", "Groupe"]
+    assert enriched.value == ["John", "premium", "fallback-tag"]
 
 
 @pytest.mark.ai
@@ -807,12 +807,12 @@ def test_not_overlaps_operator_resolves_variables(
     """Purpose: Verify NOT_OVERLAPS substitutes variables in each array element like NOT_IN."""
     query = Statement(
         operator=Operator.NOT_OVERLAPS,
-        value=["<userMetadata.name>", "Groupe"],
-        path=["Territory"],
+        value=["<userMetadata.name>", "fallback-tag"],
+        path=["tags"],
     )
     enriched = query.with_variables(user_metadata, tool_parameters)
     assert isinstance(enriched, Statement)
-    assert enriched.value == ["John", "Groupe"]
+    assert enriched.value == ["John", "fallback-tag"]
 
 
 @pytest.mark.ai
@@ -821,8 +821,8 @@ def test_parse_uniqueql_overlaps_statement() -> None:
     json_data = {
         "or": [
             {
-                "path": ["Territory"],
-                "value": ["CH", "Groupe"],
+                "path": ["tags"],
+                "value": ["alpha", "beta"],
                 "operator": "overlaps",
             }
         ]
@@ -831,7 +831,7 @@ def test_parse_uniqueql_overlaps_statement() -> None:
     assert isinstance(result, OrStatement)
     assert isinstance(result.or_list[0], Statement)
     assert result.or_list[0].operator == Operator.OVERLAPS
-    assert result.or_list[0].value == ["CH", "Groupe"]
+    assert result.or_list[0].value == ["alpha", "beta"]
 
 
 @pytest.mark.ai
