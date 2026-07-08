@@ -49,6 +49,8 @@ exclude-newer = "2 weeks"
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false
+"unique-search-proxy-core" = false
+"unique-search-proxy-sdk" = false
 
 [tool.poe.tasks]
 lint = "ruff check ."
