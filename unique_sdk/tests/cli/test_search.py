@@ -437,6 +437,23 @@ class TestCmdSearchCallShapes:
         assert mock.call_args[1]["scopeIds"] == ["scope_r"]
 
     @patch("unique_sdk.Search.create")
+    def test_unscoped_search_sends_explicit_null_scope_ids(
+        self, mock: MagicMock
+    ) -> None:
+        """An unscoped (entire-KB) search must SEND ``scopeIds=None`` — a JSON
+        ``null`` on the wire — never omit the key. An omitted key reaches
+        node-ingestion as ``undefined`` and is destructure-defaulted to ``[]``,
+        which getScopes treats as "restrict to zero scopes", so entire-KB
+        search returns nothing on companies without file-based access. The
+        null-vs-omitted distinction is load-bearing; do not "simplify" this
+        back to a conditional key. See UN-22753.
+        """
+        mock.return_value = []
+        cmd_search(_state(), "q")
+        assert "scopeIds" in mock.call_args[1]
+        assert mock.call_args[1]["scopeIds"] is None
+
+    @patch("unique_sdk.Search.create")
     def test_uses_workspace_scope_ids_when_no_folder(self, mock: MagicMock) -> None:
         mock.return_value = []
         s = _state()
@@ -456,7 +473,7 @@ class TestCmdSearchCallShapes:
         s.workspace_metadata_filter = rule
         cmd_search(s, "q")
         assert mock.call_args[1]["metaDataFilter"] == rule
-        assert "scopeIds" not in mock.call_args[1]
+        assert mock.call_args[1]["scopeIds"] is None
 
     @patch("unique_sdk.Search.create")
     def test_workspace_metadata_filter_overrides_workspace_scope_ids(
@@ -474,7 +491,7 @@ class TestCmdSearchCallShapes:
         s.workspace_metadata_filter = rule
         cmd_search(s, "q")
         assert mock.call_args[1]["metaDataFilter"] == rule
-        assert "scopeIds" not in mock.call_args[1]
+        assert mock.call_args[1]["scopeIds"] is None
 
     @patch("unique_sdk.Search.create")
     def test_explicit_metadata_arg_is_anded_with_workspace_filter(
@@ -514,7 +531,7 @@ class TestCmdSearchCallShapes:
         }
         s.workspace_metadata_filter = wmf
         cmd_search(s, "q")
-        assert "scopeIds" not in mock.call_args[1]
+        assert mock.call_args[1]["scopeIds"] is None
         assert mock.call_args[1]["metaDataFilter"] == wmf
 
     @patch("unique_sdk.Search.create")
