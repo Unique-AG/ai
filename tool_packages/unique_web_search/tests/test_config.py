@@ -184,6 +184,24 @@ class TestWebSearchV2Config:
             == "Custom system prompt description"
         )
 
+    def test_web_search_v2_config_migrates_legacy_max_steps_placeholder(self):
+        """Legacy ``$max_steps`` prompts are rewritten to Jinja on parse."""
+        config = WebSearchV2Config(
+            tool_description_for_system_prompt=(
+                "Legacy V2 system prompt — must not exceed $max_steps steps."
+            ),
+        )
+
+        assert "$max_steps" not in config.tool_description_for_system_prompt
+        assert "{{ max_steps }}" in config.tool_description_for_system_prompt
+
+    def test_web_search_v2_config_leaves_jinja_max_steps_untouched(self):
+        """Prompts already using Jinja ``{{ max_steps }}`` are left as-is."""
+        prompt = "Modern V2 prompt with {{ max_steps }} steps."
+        config = WebSearchV2Config(tool_description_for_system_prompt=prompt)
+
+        assert config.tool_description_for_system_prompt == prompt
+
     def test_web_search_v2_config_mode_validator_with_beta_suffix(self):
         """Test WebSearchV2Config mode validator handles 'v2 (beta)' string."""
         config = WebSearchV2Config(mode="v2 (beta)")

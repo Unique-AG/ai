@@ -5,10 +5,6 @@ from time import time
 
 from jinja2 import Template
 from typing_extensions import override
-from unique_search_proxy_core.search_engines.call_schema import (
-    build_exposed_tool_field_defs,
-    exposed_field_names,
-)
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags.feature_flags import (
@@ -46,6 +42,9 @@ from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
+)
+from unique_web_search.services.executors.tool_parameters import (
+    compose_tool_parameters,
 )
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
@@ -123,77 +122,33 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
-        if self.config.web_search_mode_config.mode == WebSearchMode.V1:
-            exposed_field_defs = build_exposed_tool_field_defs(
-                self.search_engine_service.config
-            )
-            self.tool_parameter_calls = WebSearchToolParameters.with_exposed_fields(
-                exposed_field_defs,
-                query_description=(
-                    self.config.web_search_mode_config.tool_parameters_description.query_description
-                ),
-            )
-        elif self.config.web_search_mode_config.mode == WebSearchMode.V3:
-            exposed_field_defs = build_exposed_tool_field_defs(
-                self.search_engine_service.config
-            )
-            self._exposed_field_names = exposed_field_names(
-                self.search_engine_service.config
-            )
-            self.tool_parameter_calls = WebSearchV3ToolParameters.with_exposed_fields(
-                exposed_field_defs
-            )
-            tool_description = Template(
-                self.config.web_search_mode_config.tool_description
-            ).render(
-                tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(
-                    exposed_field_defs
-                ),
-            )
-        else:
-            engine_mode = self._resolve_search_engine_mode()
-            self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
-                engine_mode
-            )
-            tool_description = self.config.web_search_mode_config.tool_description
-
-        if self.config.web_search_mode_config.mode != WebSearchMode.V3:
-            tool_description = self.config.web_search_mode_config.tool_description
-
+        composed = compose_tool_parameters(
+            self.config.web_search_mode_config,
+            search_engine_config=self.search_engine_service.config,
+            resolve_search_engine_mode=self._resolve_search_engine_mode,
+        )
+        self.tool_parameter_calls = composed.parameters
         return LanguageModelToolDescription(
             name=self.name,
-            description=tool_description,
-            parameters=self.tool_parameter_calls,
+            description=composed.description,
+            parameters=composed.parameters,
         )
 
     def tool_description_for_system_prompt(self) -> str:
         mode_config = self.config.web_search_mode_config
-        if mode_config.mode == WebSearchMode.V1:
-            return mode_config.tool_description_for_system_prompt
-
         template_str = mode_config.tool_description_for_system_prompt
+        date_string = datetime.now().strftime("%A %B %d, %Y")
+
+        if mode_config.mode == WebSearchMode.V1:
+            return template_str
 
         if mode_config.mode == WebSearchMode.V3:
-            return Template(template_str).render(
-                date_string=datetime.now().strftime("%A %B %d, %Y"),
-            )
-
-        # Backwards compatibility: V2 prompts persisted before the Jinja
-        # migration use the legacy ``$max_steps`` placeholder. Jinja would
-        # otherwise pass it through verbatim, so rewrite it to the Jinja
-        # equivalent before rendering.
-        if "$max_steps" in template_str:
-            _LOGGER.warning(
-                "V2 web-search prompt contains legacy '$max_steps' placeholder; "
-                "rewriting to '{{ max_steps }}'. Please update the stored "
-                "configuration to use Jinja syntax."
-            )
-            template_str = template_str.replace("$max_steps", "{{ max_steps }}")
+            return Template(template_str).render(date_string=date_string)
 
         engine_mode = self._resolve_search_engine_mode()
         return Template(template_str).render(
             max_steps=mode_config.max_steps,
-            date_string=datetime.now().strftime("%A %B %d, %Y"),
+            date_string=date_string,
             search_engine_mode=engine_mode.value,
             tool_parameters_schema=WebSearchPlan.schema_hint(engine_mode),
             example_simple=WebSearchPlan.build_example_simple(
