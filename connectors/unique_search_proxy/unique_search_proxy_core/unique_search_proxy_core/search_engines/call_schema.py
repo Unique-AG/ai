@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic.alias_generators import to_camel
 
 from unique_search_proxy_core.param_policy.annotations import (
     plain_annotation_for_tool_field,
@@ -145,9 +146,14 @@ def build_exposed_tool_field_defs(
             optional_annotation = annotation
         else:
             optional_annotation = annotation | None
+        # Expose the camelCase alias (matching the HTTP request body) to LLM
+        # callers: snake_case field names with several underscores are copied
+        # unreliably by models, while the Python attribute stays snake_case so
+        # internal collection/merge is unchanged.
+        alias = request_model.model_fields[field_name].alias or to_camel(field_name)
         field_defs[field_name] = (
             optional_annotation,
-            Field(default=None, description=description),
+            Field(default=None, description=description, alias=alias),
         )
     return field_defs
 
@@ -159,7 +165,7 @@ def build_exposed_tool_fields_model(config: BaseModel) -> type[BaseModel] | None
         return None
     return create_model(
         f"{type(config).__name__}ExposedToolFields",
-        __config__=ConfigDict(extra="forbid"),
+        __config__=ConfigDict(extra="forbid", populate_by_name=True),
         **cast(Any, field_defs),
     )
 
@@ -219,6 +225,14 @@ def _strip_exposed_tool_schema_node(
     return out
 
 
+def exposed_tool_field_aliases(config: BaseModel) -> list[str]:
+    """Alias (camelCase) names of the exposed tool fields as seen by LLM callers."""
+    field_defs = build_exposed_tool_field_defs(config)
+    if not field_defs:
+        return []
+    return [info.alias or name for name, (_, info) in field_defs.items()]
+
+
 def exposed_tool_fields_json_schema(config: BaseModel) -> dict[str, Any]:
     """JSON schema for flat exposed tool fields with provider noise stripped."""
     model = build_exposed_tool_fields_model(config)
@@ -226,7 +240,7 @@ def exposed_tool_fields_json_schema(config: BaseModel) -> dict[str, Any]:
         raise ValueError("No exposed tool fields on config")
     return strip_exposed_tool_schema_noise(
         model.model_json_schema(),
-        field_names=exposed_field_names(config),
+        field_names=exposed_tool_field_aliases(config),
     )
 
 
@@ -236,6 +250,7 @@ __all__ = [
     "build_exposed_tool_field_defs",
     "build_exposed_tool_fields_model",
     "exposed_field_names",
+    "exposed_tool_field_aliases",
     "exposed_tool_fields_json_schema",
     "resolve_search_call_schema",
     "resolve_search_call_schema_from_config",
