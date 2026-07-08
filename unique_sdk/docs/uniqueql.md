@@ -138,6 +138,26 @@ These operators work with both numbers and dates (ISO 8601 format).
     }
     ```
 
+??? example "OVERLAPS - Match if any value intersects a list-valued field"
+
+    ```python
+    {
+        "path": ["tags"],
+        "operator": UQLOperator.OVERLAPS,
+        "value": ["Engineering", "Sales"]
+    }
+    ```
+
+??? example "NOT_OVERLAPS - Exclude if any value intersects a list-valued field"
+
+    ```python
+    {
+        "path": ["tags"],
+        "operator": UQLOperator.NOT_OVERLAPS,
+        "value": ["internal", "draft"]
+    }
+    ```
+
 ### Null/Empty Operators
 
 ??? example "IS_NOT_NULL - Exclude null values"
@@ -484,6 +504,8 @@ Use `AND` and `OR` combinators to build complex queries:
 | `LESS_THAN_OR_EQUAL` | Less than or equal | Number, Date (ISO 8601) |
 | `IN` | Match any value in list | Array |
 | `NOT_IN` | Exclude values in list | Array |
+| `OVERLAPS` | Match if any value intersects a list-valued field | Array |
+| `NOT_OVERLAPS` | Exclude if any value intersects a list-valued field | Array |
 | `IS_NULL` | Value is null | None |
 | `IS_NOT_NULL` | Value is not null | None |
 | `IS_EMPTY` | Value is empty | None |
