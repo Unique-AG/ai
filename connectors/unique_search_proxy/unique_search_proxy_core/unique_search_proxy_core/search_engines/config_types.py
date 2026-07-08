@@ -6,7 +6,7 @@ from typing import Annotated, Any, Mapping, TypeAlias, Union, cast
 
 from pydantic import BaseModel, Field, TypeAdapter
 
-from unique_search_proxy_core.projection import build_request_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
     SearchEngineType,
@@ -59,7 +59,9 @@ def _union_members_from_mapping(
 def build_search_request_union() -> Any:
     """Discriminated union of flat ``POST /v1/search`` bodies (``engine`` discriminator)."""
     members = _union_members_from_mapping(ENGINE_NAME_TO_CONFIG)
-    request_models = tuple(build_request_model(config_cls) for config_cls in members)
+    request_models = tuple(
+        ConfigRequestResolver.request_model(config_cls) for config_cls in members
+    )
     if len(request_models) == 1:
         return request_models[0]
     return Annotated[

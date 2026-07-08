@@ -11,8 +11,8 @@ from unique_search_proxy_core.agent_engines.base import (
     BaseAgentEngineConfig,
 )
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentConfig
-from unique_search_proxy_core.agent_engines.projection import build_agent_request_model
 from unique_search_proxy_core.agent_engines.vertexai.schema import VertexAIAgentConfig
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 AgentEngineConfigTypes: TypeAlias = BingAgentConfig | VertexAIAgentConfig
 
@@ -57,7 +57,7 @@ def build_agent_search_request_union() -> Any:
     """Discriminated union of flat ``POST /v1/agent-search`` bodies."""
     members = _union_members_from_mapping(ENGINE_NAME_TO_CONFIG)
     request_models = tuple(
-        build_agent_request_model(config_cls) for config_cls in members
+        ConfigRequestResolver.agent_request_model(config_cls) for config_cls in members
     )
     if len(request_models) == 1:
         return request_models[0]

@@ -15,7 +15,7 @@ from typing import (
     get_origin,
 )
 
-from pydantic import BaseModel, Field, GetCoreSchemaHandler, model_validator
+from pydantic import BaseModel, Field, GetCoreSchemaHandler
 from pydantic.fields import FieldInfo
 from pydantic_core import CoreSchema
 
@@ -73,7 +73,8 @@ class ExposableParam(BaseModel, Generic[T]):
         description="Admin default merged into each search when not ``None``.",
     )
 
-    def merged_value(self) -> T:
+    def resolve(self) -> T:
+        """Concrete value carried by this parameter (``None`` when deactivated)."""
         return self.value
 
     def llm_exposed(self) -> bool:
@@ -115,15 +116,6 @@ class ExposableParam(BaseModel, Generic[T]):
             clean_ref = f"{cls.__module__}.{cls.__name__}:{id(cls)}"
             return cast(CoreSchema, {**schema, "ref": clean_ref})
         return schema
-
-    @model_validator(mode="before")
-    @classmethod
-    def _coerce_input(cls, data: Any) -> Any:
-        if isinstance(data, str):
-            return {"expose": False, "value": data}
-        if isinstance(data, dict) and "expose" not in data and "value" not in data:
-            return data
-        return data
 
 
 def _exposable_field_keys(field_name: str, field_info: FieldInfo) -> list[str]:
@@ -210,6 +202,8 @@ def flatten_union_args(annotation: Any) -> tuple[Any, ...]:
     origin = get_origin(annotation)
     if origin is None:
         return (annotation,)
+    if origin is Literal:
+        return (annotation,)
     args = get_args(annotation)
     if not args:
         return (annotation,)
@@ -246,7 +240,7 @@ def exposable_param_inner_type(annotation: Any) -> Any:
     return _strip_annotated(annotation)
 
 
-def unwrap_exposable_param_value(value: Any) -> Any:
+def unwrap_exposable_param_value(value: T) -> T:
     if isinstance(value, ExposableParam):
-        return value.merged_value()
+        return value.resolve()
     return value

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 
+from unique_search_proxy_core.param_policy import QUERY_FIELD
 from unique_search_proxy_core.param_policy.exposable_param import (
     merge_exposable_params_with_factory_defaults,
 )
@@ -20,6 +21,10 @@ if TYPE_CHECKING:
 
 T = TypeVar("T", bound="SearchEngineType")
 SearchRequestT = TypeVar("SearchRequestT", bound=BaseModel)
+
+ENGINE_FIELD = "engine"
+FETCH_SIZE_FIELD = "fetch_size"
+TIMEOUT_FIELD = "timeout"
 
 
 class SearchEngineMode(StrEnum):
@@ -76,17 +81,16 @@ class BaseSearchEngineConfig(BaseModel, Generic[T]):
         """Merge exposable knobs with field ``default_factory`` when JSON omits ``value``."""
         return merge_exposable_params_with_factory_defaults(cls, data)
 
-    def provider_query_params_from(
-        self, request: BaseModel, by_alias: bool = True
-    ) -> dict[str, Any]:
-        """Provider query string params from a derived ``*ConfigRequest`` model."""
-        from unique_search_proxy_core.search_engines.params import (
-            provider_query_params_from_request,
-        )
+    @classmethod
+    def provider_param_exclude_fields(cls) -> set[str]:
+        """Field names never forwarded to the upstream provider query string.
 
-        return provider_query_params_from_request(
-            request, type(self), by_alias=by_alias
-        )
+        The base set covers fields shared by every engine: the discriminator,
+        request plumbing, and the query itself. Individual configs override this
+        to drop provider-specific internal fields — e.g. Google adds
+        ``search_engine_id`` (sent as the ``cx`` credential, not a query knob).
+        """
+        return {ENGINE_FIELD, FETCH_SIZE_FIELD, TIMEOUT_FIELD, QUERY_FIELD}
 
 
 class SearchEngine(ABC, Generic[SearchRequestT]):

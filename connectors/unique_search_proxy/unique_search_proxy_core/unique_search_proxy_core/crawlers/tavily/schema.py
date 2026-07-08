@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
-from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 TavilyExtractDepth = Literal["basic", "advanced"]
 TavilyExtractFormat = Literal["markdown", "text"]
@@ -70,7 +70,7 @@ class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
         return self
 
 
-TavilyCrawlRequest = build_crawl_request_model(TavilyConfig)
+TavilyCrawlRequest = ConfigRequestResolver.crawl_request_model(TavilyConfig)
 
 
 __all__ = [

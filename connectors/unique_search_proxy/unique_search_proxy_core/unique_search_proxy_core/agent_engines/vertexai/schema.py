@@ -9,7 +9,7 @@ from unique_search_proxy_core.agent_engines.base import (
     AgentEngineType,
     BaseAgentEngineConfig,
 )
-from unique_search_proxy_core.agent_engines.projection import build_agent_request_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 
 class VertexAIAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.VERTEXAI]]):
@@ -33,7 +33,7 @@ class VertexAIAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.VERTEXAI
 
 
 def vertexai_agent_request_model() -> type[BaseModel]:
-    return build_agent_request_model(VertexAIAgentConfig)
+    return ConfigRequestResolver.agent_request_model(VertexAIAgentConfig)
 
 
 VertexAIAgentSearchRequest = vertexai_agent_request_model()
