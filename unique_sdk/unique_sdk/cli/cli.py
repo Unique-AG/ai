@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import click
@@ -62,7 +63,7 @@ from unique_sdk.cli.commands.web_search import (
     is_error_output as _is_web_search_error_output,
 )
 from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
-from unique_sdk.cli.config import load_config
+from unique_sdk.cli.config import load_config, write_config_file
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
 
@@ -91,6 +92,8 @@ Required environment variables:
 Optional:
   UNIQUE_API_BASE     API base URL (default: https://gateway.unique.app/public/chat-gen2)
                      API key and app ID are optional only on localhost / secured cluster
+  UNIQUE_CONFIG_PATH  Path to a JSON file providing any of the variables above as
+                     fallback values (written by `unique-cli write-config`)
 
 \b
 Path formats accepted by all commands:
@@ -146,6 +149,37 @@ def main(ctx: click.Context) -> None:
             f"Type 'help' for available commands.\n"
         )
         shell.cmdloop()
+
+
+@main.command(name="write-config")
+@click.option(
+    "--out",
+    "out_path",
+    required=True,
+    type=click.Path(dir_okay=False),
+    help="Destination path for the JSON config file (created with mode 0600).",
+)
+def write_config(out_path: str) -> None:
+    """Write the current UNIQUE_* configuration env vars to a JSON file.
+
+    \b
+    Persists whichever of UNIQUE_API_KEY, UNIQUE_APP_ID, UNIQUE_USER_ID,
+    UNIQUE_COMPANY_ID, UNIQUE_API_BASE, UNIQUE_SKILL_FOLDER, and
+    INGESTION_UPLOAD_API_URL_INTERNAL are set into a 0600 JSON file.
+    Later invocations read the file through UNIQUE_CONFIG_PATH as a
+    fallback for unset environment variables.
+
+    \b
+    This is primarily used by the Claude Code plugin's SessionStart hook,
+    which bridges the plugin userConfig into a config file that in-session
+    Bash commands can use.
+
+    \b
+    Examples:
+      unique-cli write-config --out ~/.unique/cli-config.json
+    """
+    count = write_config_file(Path(out_path).expanduser())
+    click.echo(f"Wrote {count} configuration value(s) to {out_path}")
 
 
 @main.command()

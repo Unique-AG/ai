@@ -1,0 +1,71 @@
+#!/usr/bin/env sh
+set -eu
+
+os="$(uname -s 2>/dev/null || true)"
+arch="$(uname -m 2>/dev/null || true)"
+
+case "$os:$arch" in
+  Linux:x86_64|Linux:amd64)
+    binary="unique-cli-linux-amd64"
+    ;;
+  Linux:aarch64|Linux:arm64)
+    binary="unique-cli-linux-arm64"
+    ;;
+  Darwin:x86_64|Darwin:amd64)
+    binary="unique-cli-darwin-amd64"
+    ;;
+  Darwin:aarch64|Darwin:arm64)
+    binary="unique-cli-darwin-arm64"
+    ;;
+  *)
+    echo "unique-cli: unsupported platform: ${os:-unknown}/${arch:-unknown}" >&2
+    exit 1
+    ;;
+esac
+
+dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+target="$dir/$binary"
+
+if [ ! -x "$target" ]; then
+  echo "unique-cli: missing executable for ${os:-unknown}/${arch:-unknown}: $target" >&2
+  echo "Rebuild the plugin with: ./unique_sdk/claude-marketplace/plugins/unique-cli/build/build-plugin.sh" >&2
+  exit 1
+fi
+
+if [ -z "${UNIQUE_API_KEY:-}" ] && [ -n "${CLAUDE_PLUGIN_OPTION_UNIQUE_API_KEY:-}" ]; then
+  export UNIQUE_API_KEY="$CLAUDE_PLUGIN_OPTION_UNIQUE_API_KEY"
+fi
+
+if [ -z "${UNIQUE_APP_ID:-}" ] && [ -n "${CLAUDE_PLUGIN_OPTION_UNIQUE_APP_ID:-}" ]; then
+  export UNIQUE_APP_ID="$CLAUDE_PLUGIN_OPTION_UNIQUE_APP_ID"
+fi
+
+if [ -z "${UNIQUE_USER_ID:-}" ] && [ -n "${CLAUDE_PLUGIN_OPTION_UNIQUE_USER_ID:-}" ]; then
+  export UNIQUE_USER_ID="$CLAUDE_PLUGIN_OPTION_UNIQUE_USER_ID"
+fi
+
+if [ -z "${UNIQUE_COMPANY_ID:-}" ] && [ -n "${CLAUDE_PLUGIN_OPTION_UNIQUE_COMPANY_ID:-}" ]; then
+  export UNIQUE_COMPANY_ID="$CLAUDE_PLUGIN_OPTION_UNIQUE_COMPANY_ID"
+fi
+
+if [ -z "${UNIQUE_API_BASE:-}" ] && [ -n "${CLAUDE_PLUGIN_OPTION_UNIQUE_API_BASE:-}" ]; then
+  export UNIQUE_API_BASE="$CLAUDE_PLUGIN_OPTION_UNIQUE_API_BASE"
+fi
+
+# Fallback for sessions where the SessionStart hook could not publish
+# UNIQUE_CONFIG_PATH through CLAUDE_ENV_FILE: look for the config file the
+# hook writes into the persistent plugin data directory.
+if [ -z "${UNIQUE_CONFIG_PATH:-}" ]; then
+  if [ -n "${CLAUDE_PLUGIN_DATA:-}" ] && [ -f "${CLAUDE_PLUGIN_DATA}/config.json" ]; then
+    export UNIQUE_CONFIG_PATH="${CLAUDE_PLUGIN_DATA}/config.json"
+  else
+    for candidate in "$HOME/.claude/plugins/data/unique-cli"*/config.json; do
+      if [ -f "$candidate" ]; then
+        export UNIQUE_CONFIG_PATH="$candidate"
+        break
+      fi
+    done
+  fi
+fi
+
+exec "$target" "$@"

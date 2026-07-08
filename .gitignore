@@ -208,7 +208,8 @@ unique_sdk/examples/briefing_manual_smoke.py
 tool_packages/unique_web_search/docs/*
 tool_packages/unique_web_search/ssrf_test_server/*
 
-!unique_sdk/claude-cowork-plugin/build/
-unique_sdk/claude-cowork-plugin/dist/
-unique_sdk/claude-cowork-plugin/bin/*
-!unique_sdk/claude-cowork-plugin/bin/unique-cli
+!unique_sdk/claude-marketplace/plugins/unique-cli/build/
+unique_sdk/claude-marketplace/artifacts/
+unique_sdk/claude-marketplace/plugins/unique-cli/bin/*
+!unique_sdk/claude-marketplace/plugins/unique-cli/bin/unique-cli
+!unique_sdk/claude-marketplace/plugins/unique-cli/bin/unique-cli-*

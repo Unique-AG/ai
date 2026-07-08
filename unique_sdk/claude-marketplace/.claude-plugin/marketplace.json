@@ -1,0 +1,14 @@
+{
+  "name": "unique-plugins",
+  "description": "Unique Claude Code plugins.",
+  "owner": {
+    "name": "Unique"
+  },
+  "plugins": [
+    {
+      "name": "unique-cli",
+      "source": "./plugins/unique-cli",
+      "description": "The Unique SDK CLI for Claude Cowork."
+    }
+  ]
+}

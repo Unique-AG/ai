@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Generator
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 import unique_sdk
-from unique_sdk.cli.config import Config, load_config
+from unique_sdk.cli.config import Config, load_config, write_config_file
 
 # Stable fake gateway root for UNIQUE_API_BASE tests (not a real hostname).
 _TEST_PUBLIC_CHAT_BASE = "https://test-api-base.example/public/chat-gen2"
@@ -197,6 +199,173 @@ class TestLoadConfig:
     def test_all_vars_missing_exits(self) -> None:
         with pytest.raises(SystemExit):
             load_config()
+
+
+class TestConfigFile:
+    """``UNIQUE_CONFIG_PATH`` JSON file as a fallback source for env vars.
+
+    The file is written by the Claude Code plugin's SessionStart hook so
+    that plugin userConfig values reach CLI invocations from the Bash
+    tool, where CLAUDE_PLUGIN_OPTION_* variables are unavailable.
+    """
+
+    def _write_config(self, tmp_path: Path, payload: dict[str, str]) -> Path:
+        path = tmp_path / "config.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return path
+
+    def test_file_values_fill_missing_env_vars(self, tmp_path: Path) -> None:
+        path = self._write_config(
+            tmp_path,
+            {
+                "UNIQUE_API_KEY": "ukey_file",
+                "UNIQUE_APP_ID": "app_file",
+                "UNIQUE_USER_ID": "user_file",
+                "UNIQUE_COMPANY_ID": "company_file",
+            },
+        )
+        with patch.dict(os.environ, {"UNIQUE_CONFIG_PATH": str(path)}, clear=True):
+            config = load_config()
+        assert config.api_key == "ukey_file"
+        assert config.app_id == "app_file"
+        assert config.user_id == "user_file"
+        assert config.company_id == "company_file"
+
+    def test_env_vars_take_precedence_over_file(self, tmp_path: Path) -> None:
+        path = self._write_config(
+            tmp_path,
+            {
+                "UNIQUE_API_KEY": "ukey_file",
+                "UNIQUE_APP_ID": "app_file",
+                "UNIQUE_USER_ID": "user_file",
+                "UNIQUE_COMPANY_ID": "company_file",
+            },
+        )
+        env = {
+            "UNIQUE_CONFIG_PATH": str(path),
+            "UNIQUE_API_KEY": "ukey_env",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            config = load_config()
+        assert config.api_key == "ukey_env"
+        assert config.app_id == "app_file"
+
+    def test_unknown_keys_in_file_are_ignored(self, tmp_path: Path) -> None:
+        path = self._write_config(
+            tmp_path,
+            {
+                "UNIQUE_USER_ID": "user_file",
+                "UNIQUE_COMPANY_ID": "company_file",
+                "UNIQUE_API_BASE": _TEST_LOCAL_CHAT_BASE,
+                "PATH": "/tmp/evil",
+                "LD_PRELOAD": "/tmp/evil.so",
+            },
+        )
+        with patch.dict(os.environ, {"UNIQUE_CONFIG_PATH": str(path)}, clear=True):
+            load_config()
+            assert os.environ.get("LD_PRELOAD") is None
+            assert os.environ.get("PATH") != "/tmp/evil"
+
+    def test_missing_file_falls_through_to_env_error(self, tmp_path: Path) -> None:
+        env = {"UNIQUE_CONFIG_PATH": str(tmp_path / "does-not-exist.json")}
+        with patch.dict(os.environ, env, clear=True):
+            with pytest.raises(SystemExit):
+                load_config()
+
+    def test_corrupt_file_falls_through_to_env_error(self, tmp_path: Path) -> None:
+        path = tmp_path / "config.json"
+        path.write_text("{not json", encoding="utf-8")
+        with patch.dict(os.environ, {"UNIQUE_CONFIG_PATH": str(path)}, clear=True):
+            with pytest.raises(SystemExit):
+                load_config()
+
+
+class TestWriteConfigFile:
+    def test_writes_present_values_with_0600_mode(self, tmp_path: Path) -> None:
+        env = {
+            "UNIQUE_API_KEY": "ukey_test",
+            "UNIQUE_APP_ID": "app_test",
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+            "UNIQUE_API_BASE": _TEST_PUBLIC_CHAT_BASE,
+            "UNIQUE_SKILL_FOLDER": "/ClaudeSkills",
+        }
+        out = tmp_path / "data" / "config.json"
+        with patch.dict(os.environ, env, clear=True):
+            count = write_config_file(out)
+
+        assert count == 6
+        assert (out.stat().st_mode & 0o777) == 0o600
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload == env
+
+    def test_skips_unset_and_empty_values(self, tmp_path: Path) -> None:
+        env = {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_API_KEY": "",
+        }
+        out = tmp_path / "config.json"
+        with patch.dict(os.environ, env, clear=True):
+            count = write_config_file(out)
+
+        assert count == 1
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload == {"UNIQUE_USER_ID": "user_test"}
+
+    def test_rewrites_existing_file_and_enforces_mode(self, tmp_path: Path) -> None:
+        out = tmp_path / "config.json"
+        out.write_text("{}", encoding="utf-8")
+        out.chmod(0o644)
+        with patch.dict(os.environ, {"UNIQUE_USER_ID": "user_test"}, clear=True):
+            write_config_file(out)
+
+        assert (out.stat().st_mode & 0o777) == 0o600
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload == {"UNIQUE_USER_ID": "user_test"}
+
+    def test_preserves_existing_values_when_env_is_unset(self, tmp_path: Path) -> None:
+        """A partial-env run must not erase previously written credentials."""
+        out = tmp_path / "config.json"
+        out.write_text(
+            json.dumps(
+                {
+                    "UNIQUE_API_KEY": "ukey_old",
+                    "UNIQUE_APP_ID": "app_old",
+                    "IGNORED_KEY": "nope",
+                }
+            ),
+            encoding="utf-8",
+        )
+        env = {
+            "UNIQUE_APP_ID": "app_new",
+            "UNIQUE_SKILL_FOLDER": "/ClaudeSkills",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            count = write_config_file(out)
+
+        assert count == 3
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        assert payload == {
+            "UNIQUE_API_KEY": "ukey_old",
+            "UNIQUE_APP_ID": "app_new",
+            "UNIQUE_SKILL_FOLDER": "/ClaudeSkills",
+        }
+
+    def test_round_trip_through_load_config(self, tmp_path: Path) -> None:
+        env = {
+            "UNIQUE_API_KEY": "ukey_rt",
+            "UNIQUE_APP_ID": "app_rt",
+            "UNIQUE_USER_ID": "user_rt",
+            "UNIQUE_COMPANY_ID": "company_rt",
+        }
+        out = tmp_path / "config.json"
+        with patch.dict(os.environ, env, clear=True):
+            write_config_file(out)
+
+        with patch.dict(os.environ, {"UNIQUE_CONFIG_PATH": str(out)}, clear=True):
+            config = load_config()
+        assert config.api_key == "ukey_rt"
+        assert config.user_id == "user_rt"
 
 
 class TestLoadConfigIngestionUpload:

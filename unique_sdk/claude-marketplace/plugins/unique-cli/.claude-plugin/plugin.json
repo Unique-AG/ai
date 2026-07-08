@@ -1,0 +1,43 @@
+{
+  "name": "unique-cli",
+  "displayName": "Unique CLI",
+  "version": "0.7.0",
+  "description": "The Unique SDK CLI for Claude Cowork.",
+  "author": {
+    "name": "Unique"
+  },
+  "userConfig": {
+    "UNIQUE_API_KEY": {
+      "type": "string",
+      "title": "Unique API key",
+      "description": "API key used to authenticate with the Unique API.",
+      "sensitive": true,
+      "required": true
+    },
+    "UNIQUE_APP_ID": {
+      "type": "string",
+      "title": "Unique app ID",
+      "description": "Application ID used by the Unique SDK CLI.",
+      "required": true
+    },
+    "UNIQUE_USER_ID": {
+      "type": "string",
+      "title": "Unique user ID",
+      "description": "User ID used for Unique knowledge-base operations.",
+      "required": true
+    },
+    "UNIQUE_COMPANY_ID": {
+      "type": "string",
+      "title": "Unique company ID",
+      "description": "Company ID used for Unique knowledge-base operations.",
+      "required": true
+    },
+    "UNIQUE_API_BASE": {
+      "type": "string",
+      "title": "Unique API base URL",
+      "description": "Unique API base URL used by the CLI.",
+      "required": false,
+      "default": "https://gateway.unique.app/public/chat-gen2"
+    }
+  }
+}

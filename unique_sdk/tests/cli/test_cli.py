@@ -33,6 +33,16 @@ class TestClickCLI:
         assert result.exit_code == 0
         assert "unique-cli" in result.output
 
+    def test_write_config_does_not_require_full_unique_env(self, tmp_path) -> None:
+        out = tmp_path / "config.json"
+        runner = CliRunner()
+        with patch.dict(os.environ, {"UNIQUE_USER_ID": "user_test"}, clear=True):
+            result = runner.invoke(main, ["write-config", "--out", str(out)])
+
+        assert result.exit_code == 0
+        assert "Wrote 1 configuration value(s)" in result.output
+        assert (out.stat().st_mode & 0o777) == 0o600
+
     def test_pwd(self) -> None:
         runner = CliRunner()
         result = runner.invoke(main, ["pwd"])
