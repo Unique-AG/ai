@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from unique_web_search.services.executors.exposed_params import (
     attach_exposed_schema_cleanup,
+    exposed_alias_names,
 )
 
 
@@ -25,6 +26,8 @@ class SearchPhase(StrEnum):
 
 
 class SearchPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
     gap: str = Field(
         description=(
             "One atomic facet this call addresses (e.g. '2023 revenue band for Company X in CH')—"
@@ -48,7 +51,7 @@ class SearchPayload(BaseModel):
     ) -> type["SearchPayload"]:
         if exposed_field_defs is None:
             return cls
-        exposed_names = list(exposed_field_defs.keys())
+        exposed_names = exposed_alias_names(exposed_field_defs)
         model = create_model(
             cls.__name__,
             __base__=cls,
@@ -61,6 +64,8 @@ class SearchPayload(BaseModel):
 
 
 class FetchUrlsPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     urls: list[str] = Field(
         description="HTTP(S) URLs to crawl for full-page text. Use only URLs returned by a prior search or pasted by the user."
     )
@@ -98,7 +103,7 @@ class WebSearchV3ToolParameters(BaseModel):
         search_payload = SearchPayload.with_exposed_fields(exposed_field_defs)
         if search_payload is SearchPayload:
             return cls
-        exposed_names = list(exposed_field_defs.keys()) if exposed_field_defs else []
+        exposed_names = exposed_alias_names(exposed_field_defs)
         model = create_model(
             cls.__name__,
             __base__=cls,
@@ -144,10 +149,11 @@ class WebSearchV3ToolParameters(BaseModel):
         def _inline_json(payload_model: type[BaseModel]) -> str:
             parts: list[str] = []
             for name, field in payload_model.model_fields.items():
-                placeholder = f"<{field.description or name}>"
+                key = field.alias or name
+                placeholder = f"<{field.description or key}>"
                 if typing.get_origin(field.annotation) is list:
                     placeholder = f"[{placeholder}]"
-                parts.append(f'"{name}": {placeholder}')
+                parts.append(f'"{key}": {placeholder}')
             return "{ " + ", ".join(parts) + " }"
 
         lines: list[str] = []

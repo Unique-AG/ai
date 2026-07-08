@@ -6,13 +6,14 @@ from pydantic import BaseModel, ConfigDict, Field, create_model
 
 from unique_web_search.services.executors.exposed_params import (
     attach_exposed_schema_cleanup,
+    exposed_alias_names,
 )
 
 
 class WebSearchToolParameters(BaseModel):
     """Parameters for the Websearch tool."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     query: str
 
     @classmethod
@@ -28,7 +29,7 @@ class WebSearchToolParameters(BaseModel):
         }
         exposed_names: list[str] = []
         if exposed_field_defs:
-            exposed_names = list(exposed_field_defs.keys())
+            exposed_names = exposed_alias_names(exposed_field_defs)
             field_defs.update(exposed_field_defs)
 
         model = create_model(

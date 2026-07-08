@@ -12,6 +12,7 @@ from unique_search_proxy_core.search_engines.call_schema import (
 __all__ = [
     "attach_exposed_schema_cleanup",
     "collect_flat_exposed_params",
+    "exposed_alias_names",
     "strip_tool_schema_noise",
 ]
 
@@ -26,6 +27,22 @@ def collect_flat_exposed_params(
         for name in field_names
         if (value := getattr(source, name, None)) is not None
     }
+
+
+def exposed_alias_names(
+    exposed_field_defs: dict[str, tuple[Any, Any]] | None,
+) -> list[str]:
+    """Alias (camelCase) property names for exposed tool fields.
+
+    The tool schema is emitted ``by_alias``, so noise-stripping and prompt hints
+    must reference the alias, not the snake_case Python attribute name.
+    """
+    if not exposed_field_defs:
+        return []
+    return [
+        (field_info.alias or name)
+        for name, (_, field_info) in exposed_field_defs.items()
+    ]
 
 
 def strip_tool_schema_noise(

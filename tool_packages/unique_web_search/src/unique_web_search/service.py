@@ -222,7 +222,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         screening_service = await self._get_argument_screening_service_if_ff_enabled()
 
-        parameters_dump = parameters.model_dump()
+        parameters_dump = parameters.model_dump(by_alias=True)
         debug_info = WebSearchDebugInfo(parameters=parameters_dump)
 
         web_search_message_logger = WebSearchMessageLogger(

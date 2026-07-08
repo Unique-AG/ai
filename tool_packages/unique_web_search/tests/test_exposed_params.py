@@ -75,7 +75,9 @@ class TestV3FlatExposedParams:
         payload_props = schema["$defs"]["SearchPayload"]["properties"]
         assert "parameters" not in payload_props
         assert "gl" in payload_props
-        assert "date_restrict" in payload_props
+        # Exposed to the LLM under the camelCase alias, not the snake_case name.
+        assert "dateRestrict" in payload_props
+        assert "date_restrict" not in payload_props
         assert "title" not in payload_props["gl"]
         assert "default" not in payload_props["gl"]
 
