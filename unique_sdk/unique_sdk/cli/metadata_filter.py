@@ -32,7 +32,7 @@ _SCOPE_ID_RE = re.compile(r"scope_[a-z0-9_]+", re.IGNORECASE)
 # ``startswith("not")`` heuristic: that heuristic would also catch a future
 # ``notEmpty``-style operator and invert it wrongly. Mirrors the Operator enum
 # in unique_toolkit.content.smart_rules. See UN-21780.
-_NEGATED_OPERATORS = frozenset({"notequals", "notin", "notcontains"})
+_NEGATED_OPERATORS = frozenset({"notequals", "notin", "notcontains", "notoverlaps"})
 
 ScopePathResolver = Callable[[str], "str | None"]
 ContentOwnerPathResolver = Callable[[str], "str | None"]
