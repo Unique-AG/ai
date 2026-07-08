@@ -261,9 +261,16 @@ def cmd_search(
             "searchString": query,
             "searchType": "COMBINED",
             "limit": limit,
+            # An unscoped search must send an explicit ``scopeIds: null``,
+            # never omit the key. An absent key reaches node-ingestion as
+            # ``undefined`` and is destructure-defaulted to ``[]``, which
+            # getScopes treats as "restrict to zero scopes" — an entire-KB
+            # search then returns nothing on companies without file-based
+            # access. A JSON ``null`` bypasses both the default and the
+            # truthy check, matching what unique_toolkit's
+            # search_content_chunks sends. See UN-22753.
+            "scopeIds": scope_ids or None,
         }
-        if scope_ids:
-            search_params["scopeIds"] = scope_ids
         if metadata_filter:
             search_params["metaDataFilter"] = metadata_filter
 
