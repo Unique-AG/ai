@@ -146,6 +146,11 @@ Point the **`RM Agent - Advisory`** connector at the new endpoint:
 RM Agent - Advisory → https://rm-advisory-mcp.azurewebsites.net/mcp
 ```
 
+Advisory data is **env-invariant** (no KB content ids), so a plain `…/mcp` is correct
+for every environment. For a uniform convention with the CRM connector it *also* accepts
+the env-in-path form `…/<env>/mcp` (e.g. `…/sales/mcp`): the env segment is stripped and
+ignored (`EnvPathMiddleware`), so both connectors can follow the identical rule.
+
 Tool names, descriptions and output are unchanged, so the agent behaves exactly
 as it did against n8n — just against a service that doesn't fall over.
 

@@ -115,14 +115,53 @@ def build_auth():
     )
 
 
+def _load_known_envs() -> frozenset[str]:
+    """The env labels the connector URL may carry — the standard set, plus any added via
+    RM_COMPANY_ENV_JSON (parity with mcp_crm.common.env_map, without depending on it)."""
+    envs = {"qa", "uat", "bnpp", "sales", "local"}
+    try:
+        envs |= set(json.loads(os.getenv("RM_COMPANY_ENV_JSON", "") or "{}").values())
+    except Exception:
+        pass
+    return frozenset(envs)
+
+
+_KNOWN_ENVS = _load_known_envs()
+
+
+class EnvPathMiddleware:
+    """Accept the SAME env-in-path URL shape as the CRM server — ``…/<env>/mcp``.
+
+    The RM Agent MCPs are one shared deployment across environments. CRM encodes the
+    caller's env in the connector URL path so it can return env-specific KB content ids
+    (see ``mcp_crm``). Advisory has NO env-specific data, so it resolves no env — but it
+    accepts the identical URL shape so both connectors follow one rule (``…/<env>/mcp``)
+    and an env-prefixed Advisory URL never 404s. The env segment is simply stripped and
+    ignored, and the path rewritten to ``/mcp`` so FastMCP routes normally. Robust to
+    ``/<env>/mcp`` and ``/mcp/<env>``; a path with no env segment passes through."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            segments = [s for s in scope.get("path", "").split("/") if s]
+            env = next((s for s in segments if s in _KNOWN_ENVS), "")
+            if env:
+                new_path = "/" + "/".join(s for s in segments if s != env)
+                scope = dict(scope, path=new_path, raw_path=new_path.encode("utf-8"))
+        await self.app(scope, receive, send)
+
+
 custom_middleware = [
+    Middleware(EnvPathMiddleware),
     Middleware(
         CORSMiddleware,
         allow_credentials=True,
         allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
-    )
+    ),
 ]
 
 mcp = FastMCP("RM Agent - Advisory", auth=build_auth())

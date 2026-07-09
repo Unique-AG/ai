@@ -68,7 +68,10 @@ tools must return the id for the **caller's** environment, not a baked-in one.
   (same effect, but only usable for direct/local testing since prod admin rejects it);
   (3) the forwarded **`_meta.companyId`** (mapped by `COMPANY_ENV`) *if* the connector
   has the `unique.app/auth/` forwarding namespace enabled; (4) else `RM_DEFAULT_ENV`
-  (default `qa`). Only the CRM connector needs an env — Advisory has no content ids.
+  (default `qa`). Only the CRM connector *needs* an env, but **both** servers accept the
+  same `…/<env>/mcp` URL shape: Advisory has no content ids, so it strips and **ignores**
+  the env segment — that way both connectors follow one rule and an env-prefixed Advisory
+  URL never 404s.
 - `mcp_crm/common/env_map.py` maps `companyId → env` (`COMPANY_ENV`; override at
   deploy time with `RM_COMPANY_ENV_JSON`, default env via `RM_DEFAULT_ENV`) and looks
   the id up in `content_id_map(env, map_key, content_id)` — keys `dashboard:<client_id>`,
