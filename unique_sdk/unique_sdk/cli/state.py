@@ -229,6 +229,14 @@ class ShellState:
         """Return True if *content_id* is in the current workspace scope.
 
         Precedence (UN-21780):
+        0. Per-row uploaded documents (``.unique-uploaded.json``) surfaced by
+           ``unique-cli uploaded-search`` are task inputs that live *outside* the
+           KB scope boundary by design, so neither the metadata filter nor the
+           static ``scopeIds`` path below would admit them. Exempt them for
+           non-destructive access so the agent can ``read``/``ls``/``cite`` a doc
+           it just found via uploaded-search — mirroring the chat-file exemption.
+           Mutating ops (``rm``/``mv``) pass ``allow_chat_files=False`` and stay
+           denied, so an uploaded input can't be deleted or renamed this way.
         1. A per-message UniqueQL ``metaDataFilter`` (e.g. an Agentic Table
            column's ``scope_rules``) is the authority for this turn and
            *replaces* the static ``scopeIds`` for content access. Files the
@@ -241,6 +249,8 @@ class ShellState:
            ``is_folder_target_within_workspace``).
         3. With neither configured, everything is in scope.
         """
+        if allow_chat_files and content_id in self.uploaded_search_content_ids:
+            return True
         if self.workspace_metadata_filter is not None:
             if allow_chat_files and content_id in self._chat_file_content_ids():
                 return True

@@ -741,6 +741,45 @@ class TestMetadataFilterContentGating:
             "cont_attached", allow_chat_files=False
         )
 
+    def test_uploaded_doc_exempt_from_filter(self) -> None:
+        # Per-row uploaded docs (.unique-uploaded.json) surfaced by
+        # `unique-cli uploaded-search` live outside the KB scope boundary, so the
+        # metadata filter would deny them. They are turn inputs and must stay
+        # readable so `read`/`ls`/`cite` can reach a doc uploaded-search returned.
+        # See UN-21780.
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
+        )
+        s.uploaded_search_content_ids = ["cont_uploaded"]
+        assert s.is_content_within_workspace("cont_uploaded")
+        # A doc that is neither uploaded nor in the filter is still denied.
+        assert not s.is_content_within_workspace("cont_other")
+
+    def test_uploaded_doc_exemption_is_read_only(self) -> None:
+        # Same read-only guarantee as chat files: mutating ops (rm/mv) pass
+        # allow_chat_files=False and must not delete/rename an uploaded input.
+        s = self._state_with_filter(
+            {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
+        )
+        s.uploaded_search_content_ids = ["cont_uploaded"]
+        assert s.is_content_within_workspace("cont_uploaded", allow_chat_files=True)
+        assert not s.is_content_within_workspace(
+            "cont_uploaded", allow_chat_files=False
+        )
+
+    def test_uploaded_doc_exempt_under_static_scope_ids(self) -> None:
+        # The exemption must also apply when scoping is the static scopeIds
+        # boundary (no metadata filter): uploaded docs sit outside it too, and
+        # the check runs before any Content.get_info call.
+        s = ShellState(_config())
+        s.workspace_metadata_filter = None
+        s.workspace_scope_ids = ["scope_broad"]
+        s.uploaded_search_content_ids = ["cont_uploaded"]
+        assert s.is_content_within_workspace("cont_uploaded")
+        assert not s.is_content_within_workspace(
+            "cont_uploaded", allow_chat_files=False
+        )
+
     def test_filter_replaces_static_scope_ids(self) -> None:
         s = self._state_with_filter(
             {"path": ["contentId"], "operator": "in", "value": ["cont_a"]}
