@@ -10,7 +10,6 @@ from unique_search_proxy_core.search_engines.params import (
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     ExposableDomainFilter,
     ExposableRecencyFilter,
-    ExposableSearchContextSize,
     ExposableStrOrNone,
     PerplexityConfig,
     PerplexitySearchRequest,
@@ -26,7 +25,7 @@ class TestPerplexityMergeConfigAndInvocation:
     def test_merges_plain_defaults_and_exposable_values(self) -> None:
         config = PerplexityConfig(
             country=ExposableStrOrNone(expose=False, value="US"),
-            search_context_size=ExposableSearchContextSize(expose=True, value="high"),
+            search_context_size="high",
             fetch_size=5,
         )
         request = merge_config_and_invocation(
@@ -61,6 +60,7 @@ class TestPerplexityProviderParams:
             "max_results": 3,
             "country": "CH",
             "search_recency_filter": "week",
+            "search_context_size": "medium",
             "max_tokens": 512,
             "max_tokens_per_page": 128,
         }
@@ -111,9 +111,7 @@ class TestPerplexityConfigExposure:
     def test_config_defaults_collects_plain_and_exposable_values(self) -> None:
         config = PerplexityConfig(
             country=ExposableStrOrNone(expose=False, value="CH"),
-            search_context_size=ExposableSearchContextSize(
-                expose=False, value="medium"
-            ),
+            search_context_size="medium",
             max_tokens=256,
             max_tokens_per_page=64,
             fetch_size=8,

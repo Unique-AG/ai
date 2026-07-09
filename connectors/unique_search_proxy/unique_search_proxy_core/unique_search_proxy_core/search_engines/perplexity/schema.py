@@ -20,10 +20,6 @@ IntOrNone: TypeAlias = (
     Annotated[int, Field(title="Integer", ge=1, le=1_000_000)] | DeactivatedNone
 )
 StrOrNone: TypeAlias = Annotated[str, Field(title="String")] | DeactivatedNone
-SearchContextSizeOrNone: TypeAlias = (
-    Annotated[PerplexitySearchContextSize, Field(title="Search Context Size")]
-    | DeactivatedNone
-)
 RecencyFilterOrNone: TypeAlias = (
     Annotated[PerplexityRecencyFilter, Field(title="Recency Filter")] | DeactivatedNone
 )
@@ -35,30 +31,9 @@ DomainFilterOrNone: TypeAlias = (
 )
 
 ExposableStrOrNone = ExposableParam[StrOrNone]
-ExposableSearchContextSize = ExposableParam[SearchContextSizeOrNone]
 ExposableRecencyFilter = ExposableParam[RecencyFilterOrNone]
 ExposableLanguageFilter = ExposableParam[LanguageFilterOrNone]
 ExposableDomainFilter = ExposableParam[DomainFilterOrNone]
-
-
-def _inactive_str_exposable() -> ExposableStrOrNone:
-    return ExposableStrOrNone(expose=False, value=None)
-
-
-def _inactive_search_context_size_exposable() -> ExposableSearchContextSize:
-    return ExposableSearchContextSize(expose=False, value=None)
-
-
-def _inactive_recency_filter_exposable() -> ExposableRecencyFilter:
-    return ExposableRecencyFilter(expose=False, value=None)
-
-
-def _inactive_language_filter_exposable() -> ExposableLanguageFilter:
-    return ExposableLanguageFilter(expose=False, value=None)
-
-
-def _inactive_domain_filter_exposable() -> ExposableDomainFilter:
-    return ExposableDomainFilter(expose=False, value=None)
 
 
 class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXITY]]):
@@ -95,87 +70,82 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
             "Omit `search_context_size` when using this or `max_tokens`."
         ),
     )
-
-    country: ExposableStrOrNone = Field(
-        default=_inactive_str_exposable(),
-        title="Country",
-        description=(
-            "ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters). "
-            "Set `value` for a fixed default; set `expose` so the LLM may override per query."
-        ),
-    )
-    search_context_size: ExposableSearchContextSize = Field(
-        default=_inactive_search_context_size_exposable(),
+    search_context_size: PerplexitySearchContextSize = Field(
+        default="medium",
         alias="searchContextSize",
         title="Search context size",
         description=(
-            "Controls how much content is extracted from result pages: "
+            "How much content is extracted from result pages (Perplexity `search_context_size`): "
             "`low`, `medium`, or `high` (API default). "
-            "Omit when using `max_tokens` or `max_tokens_per_page`. "
-            "`value` + `expose` behave like `country`."
+            "Omit when using `max_tokens` or `max_tokens_per_page`."
         ),
     )
+
+    country: ExposableStrOrNone = Field(
+        default=ExposableStrOrNone(expose=False, value=None),
+        title="Country",
+        description="ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters).",
+    )
     search_language_filter: ExposableLanguageFilter = Field(
-        default=_inactive_language_filter_exposable(),
+        default=ExposableLanguageFilter(expose=False, value=None),
         alias="searchLanguageFilter",
         title="Search language filter",
         description=(
-            "ISO 639-1 language codes (two characters each, up to 20). "
-            "`value` + `expose` behave like `country`."
+            "ISO 639-1 language codes to include (Perplexity `search_language_filter`; "
+            "two characters each, up to 20)."
         ),
     )
     search_domain_filter: ExposableDomainFilter = Field(
-        default=_inactive_domain_filter_exposable(),
+        default=ExposableDomainFilter(expose=False, value=None),
         alias="searchDomainFilter",
         title="Search domain filter",
         description=(
-            "Limit results to specific domains (up to 20). "
-            "`value` + `expose` behave like `country`."
+            "Domains to limit results to (Perplexity `search_domain_filter`; up to 20)."
         ),
     )
     search_recency_filter: ExposableRecencyFilter = Field(
-        default=_inactive_recency_filter_exposable(),
+        default=ExposableRecencyFilter(expose=False, value=None),
         alias="searchRecencyFilter",
         title="Search recency filter",
         description=(
-            "Filter by publication recency: `hour`, `day`, `week`, `month`, or `year`. "
-            "`value` + `expose` behave like `country`."
+            "Publication recency filter (Perplexity `search_recency_filter`): "
+            "`hour`, `day`, `week`, `month`, or `year`."
         ),
     )
     last_updated_after_filter: ExposableStrOrNone = Field(
-        default=_inactive_str_exposable(),
+        default=ExposableStrOrNone(expose=False, value=None),
         alias="lastUpdatedAfterFilter",
         title="Last updated after",
         description=(
-            "Return results updated after this date (Perplexity `last_updated_after_filter`, "
-            "input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "Return results updated after this date (Perplexity `last_updated_after_filter`; "
+            "format `MM/DD/YYYY`)."
         ),
     )
     last_updated_before_filter: ExposableStrOrNone = Field(
-        default=_inactive_str_exposable(),
+        default=ExposableStrOrNone(expose=False, value=None),
         alias="lastUpdatedBeforeFilter",
         title="Last updated before",
         description=(
-            "Return results updated before this date (Perplexity `last_updated_before_filter`, "
-            "input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "Return results updated before this date (Perplexity `last_updated_before_filter`; "
+            "format `MM/DD/YYYY`)."
         ),
     )
     search_after_date_filter: ExposableStrOrNone = Field(
-        default=_inactive_str_exposable(),
+        default=ExposableStrOrNone(expose=False, value=None),
         alias="searchAfterDateFilter",
         title="Search after date",
         description=(
-            "Return results published after this date (Perplexity `search_after_date_filter`, "
-            "input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "Return results published after this date (Perplexity `search_after_date_filter`; "
+            "format `MM/DD/YYYY`)."
         ),
     )
     search_before_date_filter: ExposableStrOrNone = Field(
-        default=_inactive_str_exposable(),
+        default=ExposableStrOrNone(expose=False, value=None),
         alias="searchBeforeDateFilter",
         title="Search before date",
         description=(
-            "Return results published before this date (Perplexity `search_before_date_filter`, "
-            "input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "Return results published before this date (Perplexity `search_before_date_filter`; "
+            "format `MM/DD/YYYY`)."
         ),
     )
 
@@ -192,7 +162,6 @@ __all__ = [
     "ExposableDomainFilter",
     "ExposableLanguageFilter",
     "ExposableRecencyFilter",
-    "ExposableSearchContextSize",
     "ExposableStrOrNone",
     "PerplexityConfig",
     "PerplexitySearchRequest",

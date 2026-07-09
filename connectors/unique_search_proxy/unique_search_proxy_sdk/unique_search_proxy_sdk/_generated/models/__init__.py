@@ -4,7 +4,13 @@ from .agent_search_response import AgentSearchResponse
 from .basic_crawl_request import BasicCrawlRequest
 from .bing_agent_search_request import BingAgentSearchRequest
 from .brave_search_request import BraveSearchRequest
-from .brave_search_request_brave_safe_search import BraveSearchRequestBraveSafeSearch
+from .brave_search_request_country_type_0 import BraveSearchRequestCountryType0
+from .brave_search_request_result_filter_result_filter_item import (
+    BraveSearchRequestResultFilterResultFilterItem,
+)
+from .brave_search_request_safe_search import BraveSearchRequestSafeSearch
+from .brave_search_request_search_lang_type_0 import BraveSearchRequestSearchLangType0
+from .brave_search_request_ui_language import BraveSearchRequestUILanguage
 from .brave_search_request_units_type_0 import BraveSearchRequestUnitsType0
 from .content_types import ContentTypes
 from .crawl_response import CrawlResponse
@@ -50,7 +56,11 @@ __all__ = (
     "BasicCrawlRequest",
     "BingAgentSearchRequest",
     "BraveSearchRequest",
-    "BraveSearchRequestBraveSafeSearch",
+    "BraveSearchRequestCountryType0",
+    "BraveSearchRequestResultFilterResultFilterItem",
+    "BraveSearchRequestSafeSearch",
+    "BraveSearchRequestSearchLangType0",
+    "BraveSearchRequestUILanguage",
     "BraveSearchRequestUnitsType0",
     "ContentTypes",
     "CrawlResponse",

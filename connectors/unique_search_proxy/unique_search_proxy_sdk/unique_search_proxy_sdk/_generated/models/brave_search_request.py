@@ -11,9 +11,15 @@ from typing import (
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
-from ..models.brave_search_request_brave_safe_search import (
-    BraveSearchRequestBraveSafeSearch,
+from ..models.brave_search_request_country_type_0 import BraveSearchRequestCountryType0
+from ..models.brave_search_request_result_filter_result_filter_item import (
+    BraveSearchRequestResultFilterResultFilterItem,
 )
+from ..models.brave_search_request_safe_search import BraveSearchRequestSafeSearch
+from ..models.brave_search_request_search_lang_type_0 import (
+    BraveSearchRequestSearchLangType0,
+)
+from ..models.brave_search_request_ui_language import BraveSearchRequestUILanguage
 from ..models.brave_search_request_units_type_0 import BraveSearchRequestUnitsType0
 from ..types import UNSET, Unset
 
@@ -34,24 +40,31 @@ class BraveSearchRequest:
         text_decorations (bool | Unset): Whether result snippets include decoration markers (e.g. highlighting).
             Default: True.
         operators (bool | Unset): Whether Brave applies search operators in the query. Default: True.
-        ui_lang (str | Unset): User interface language for response strings (Brave `ui_lang`), e.g. `en-US`. Distinct
-            from `search_lang`. Default: 'en-US'.
+        ui_lang (BraveSearchRequestUILanguage | Unset): User interface language preferred in response. Usually of the
+            format `<language_code>-<country_code>`. For more, see RFC 9110. Default: BraveSearchRequestUILanguage.EN_US.
         units (BraveSearchRequestUnitsType0 | None | Unset): Measurement units for location-rich results: `metric` or
             `imperial`.
         summary (bool | Unset): Enable summary key generation in web search results (Brave summarizer). Default: True.
         include_fetch_metadata (bool | Unset): Include fetch metadata in the Brave response. Default: False.
+        safesearch (BraveSearchRequestSafeSearch | Unset): Adult content filter: `off`, `moderate` (API default), or
+            `strict`. Default: BraveSearchRequestSafeSearch.MODERATE.
         goggles (list[str] | None | str | Unset): Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles
-            per request.
-        country (None | str | Unset): Two-letter ISO 3166-1 alpha-2 country code for result origin (Brave `country`).
-            Set `value` for a fixed default; set `expose` so the LLM may override per query.
-        freshness (None | str | Unset): Recency filter: `pd`, `pw`, `pm`, `py`, or `YYYY-MM-DDtoYYYY-MM-DD`. `value` +
-            `expose` behave like `country`.
-        search_lang (None | str | Unset): Language code for result documents (Brave `search_lang`). `value` + `expose`
-            behave like `country`.
-        safesearch (BraveSearchRequestBraveSafeSearch | None | Unset): Adult content filter: `off`, `moderate` (API
-            default), or `strict`. Usually set via admin `value`; enable `expose` only if the LLM may tune per query.
-        result_filter (list[str] | None | Unset): Result types to include, e.g. `web`, `news`, `videos`. Omit (`null`)
-            for all subscribed types. `value` + `expose` behave like `country`.
+            per request. [Learn more about Brave Goggles](https://api-
+            dashboard.search.brave.com/documentation/resources/goggles)
+        country (BraveSearchRequestCountryType0 | None | Unset): The 2 character country code where the search results
+            come from. Supported values: `AR`, `AU`, `AT`, `BE`, `BR`, `CA`, `CL`, `DK`, `FI`, `FR`, `DE`, `GR`, `HK`, `IN`,
+            `ID`, `IT`, `JP`, `KR`, `MY`, `MX`, `NL`, `NZ`, `NO`, `CN`, `PL`, `PT`, `PH`, `RU`, `SA`, `ZA`, `ES`, `SE`,
+            `CH`, `TW`, `TR`, `GB`, `US`, `ALL`.
+        freshness (None | str | Unset): Recency filter (Brave `freshness`): `pd`, `pw`, `pm`, `py`, or `YYYY-MM-
+            DDtoYYYY-MM-DD`.
+        search_lang (BraveSearchRequestSearchLangType0 | None | Unset): The 2 or more character language code for which
+            the search results are provided. Supported values: `ar`, `eu`, `bn`, `bg`, `ca`, `zh-hans`, `zh-hant`, `hr`,
+            `cs`, `da`, `nl`, `en`, `en-gb`, `et`, `fi`, `fr`, `gl`, `de`, `el`, `gu`, `he`, `hi`, `hu`, `is`, `it`, `jp`,
+            `kn`, `ko`, `lv`, `lt`, `ms`, `ml`, `mr`, `nb`, `pl`, `pt-br`, `pt-pt`, `pa`, `ro`, `ru`, `sr`, `sk`, `sl`,
+            `es`, `sv`, `ta`, `te`, `th`, `tr`, `uk`, `vi`.
+        result_filter (list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset): Result types to include in
+            the search response (Brave `result_filter`). Omit for all result types allowed by the subscription. Supported
+            values: `discussions`, `faq`, `infobox`, `news`, `query`, `summarizer`, `videos`, `web`, `locations`.
     """
 
     query: str
@@ -62,16 +75,20 @@ class BraveSearchRequest:
     spellcheck: bool | Unset = False
     text_decorations: bool | Unset = True
     operators: bool | Unset = True
-    ui_lang: str | Unset = "en-US"
+    ui_lang: BraveSearchRequestUILanguage | Unset = BraveSearchRequestUILanguage.EN_US
     units: BraveSearchRequestUnitsType0 | None | Unset = UNSET
     summary: bool | Unset = True
     include_fetch_metadata: bool | Unset = False
+    safesearch: BraveSearchRequestSafeSearch | Unset = (
+        BraveSearchRequestSafeSearch.MODERATE
+    )
     goggles: list[str] | None | str | Unset = UNSET
-    country: None | str | Unset = UNSET
+    country: BraveSearchRequestCountryType0 | None | Unset = UNSET
     freshness: None | str | Unset = UNSET
-    search_lang: None | str | Unset = UNSET
-    safesearch: BraveSearchRequestBraveSafeSearch | None | Unset = UNSET
-    result_filter: list[str] | None | Unset = UNSET
+    search_lang: BraveSearchRequestSearchLangType0 | None | Unset = UNSET
+    result_filter: (
+        list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset
+    ) = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -91,7 +108,9 @@ class BraveSearchRequest:
 
         operators = self.operators
 
-        ui_lang = self.ui_lang
+        ui_lang: str | Unset = UNSET
+        if not isinstance(self.ui_lang, Unset):
+            ui_lang = self.ui_lang.value
 
         units: None | str | Unset
         if isinstance(self.units, Unset):
@@ -105,6 +124,10 @@ class BraveSearchRequest:
 
         include_fetch_metadata = self.include_fetch_metadata
 
+        safesearch: str | Unset = UNSET
+        if not isinstance(self.safesearch, Unset):
+            safesearch = self.safesearch.value
+
         goggles: list[str] | None | str | Unset
         if isinstance(self.goggles, Unset):
             goggles = UNSET
@@ -117,6 +140,8 @@ class BraveSearchRequest:
         country: None | str | Unset
         if isinstance(self.country, Unset):
             country = UNSET
+        elif isinstance(self.country, BraveSearchRequestCountryType0):
+            country = self.country.value
         else:
             country = self.country
 
@@ -129,22 +154,21 @@ class BraveSearchRequest:
         search_lang: None | str | Unset
         if isinstance(self.search_lang, Unset):
             search_lang = UNSET
+        elif isinstance(self.search_lang, BraveSearchRequestSearchLangType0):
+            search_lang = self.search_lang.value
         else:
             search_lang = self.search_lang
-
-        safesearch: None | str | Unset
-        if isinstance(self.safesearch, Unset):
-            safesearch = UNSET
-        elif isinstance(self.safesearch, BraveSearchRequestBraveSafeSearch):
-            safesearch = self.safesearch.value
-        else:
-            safesearch = self.safesearch
 
         result_filter: list[str] | None | Unset
         if isinstance(self.result_filter, Unset):
             result_filter = UNSET
         elif isinstance(self.result_filter, list):
-            result_filter = self.result_filter
+            result_filter = []
+            for result_filter_result_filter_item_data in self.result_filter:
+                result_filter_result_filter_item = (
+                    result_filter_result_filter_item_data.value
+                )
+                result_filter.append(result_filter_result_filter_item)
 
         else:
             result_filter = self.result_filter
@@ -178,6 +202,8 @@ class BraveSearchRequest:
             field_dict["summary"] = summary
         if include_fetch_metadata is not UNSET:
             field_dict["includeFetchMetadata"] = include_fetch_metadata
+        if safesearch is not UNSET:
+            field_dict["safesearch"] = safesearch
         if goggles is not UNSET:
             field_dict["goggles"] = goggles
         if country is not UNSET:
@@ -186,8 +212,6 @@ class BraveSearchRequest:
             field_dict["freshness"] = freshness
         if search_lang is not UNSET:
             field_dict["searchLang"] = search_lang
-        if safesearch is not UNSET:
-            field_dict["safesearch"] = safesearch
         if result_filter is not UNSET:
             field_dict["resultFilter"] = result_filter
 
@@ -214,7 +238,12 @@ class BraveSearchRequest:
 
         operators = d.pop("operators", UNSET)
 
-        ui_lang = d.pop("uiLang", UNSET)
+        _ui_lang = d.pop("uiLang", UNSET)
+        ui_lang: BraveSearchRequestUILanguage | Unset
+        if isinstance(_ui_lang, Unset):
+            ui_lang = UNSET
+        else:
+            ui_lang = BraveSearchRequestUILanguage(_ui_lang)
 
         def _parse_units(data: object) -> BraveSearchRequestUnitsType0 | None | Unset:
             if data is None:
@@ -237,6 +266,13 @@ class BraveSearchRequest:
 
         include_fetch_metadata = d.pop("includeFetchMetadata", UNSET)
 
+        _safesearch = d.pop("safesearch", UNSET)
+        safesearch: BraveSearchRequestSafeSearch | Unset
+        if isinstance(_safesearch, Unset):
+            safesearch = UNSET
+        else:
+            safesearch = BraveSearchRequestSafeSearch(_safesearch)
+
         def _parse_goggles(data: object) -> list[str] | None | str | Unset:
             if data is None:
                 return data
@@ -254,12 +290,22 @@ class BraveSearchRequest:
 
         goggles = _parse_goggles(d.pop("goggles", UNSET))
 
-        def _parse_country(data: object) -> None | str | Unset:
+        def _parse_country(
+            data: object,
+        ) -> BraveSearchRequestCountryType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(None | str | Unset, data)
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                country_type_0 = BraveSearchRequestCountryType0(data)
+
+                return country_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(BraveSearchRequestCountryType0 | None | Unset, data)
 
         country = _parse_country(d.pop("country", UNSET))
 
@@ -272,18 +318,9 @@ class BraveSearchRequest:
 
         freshness = _parse_freshness(d.pop("freshness", UNSET))
 
-        def _parse_search_lang(data: object) -> None | str | Unset:
-            if data is None:
-                return data
-            if isinstance(data, Unset):
-                return data
-            return cast(None | str | Unset, data)
-
-        search_lang = _parse_search_lang(d.pop("searchLang", UNSET))
-
-        def _parse_safesearch(
+        def _parse_search_lang(
             data: object,
-        ) -> BraveSearchRequestBraveSafeSearch | None | Unset:
+        ) -> BraveSearchRequestSearchLangType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -291,16 +328,18 @@ class BraveSearchRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                safesearch_brave_safe_search = BraveSearchRequestBraveSafeSearch(data)
+                search_lang_type_0 = BraveSearchRequestSearchLangType0(data)
 
-                return safesearch_brave_safe_search
+                return search_lang_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(BraveSearchRequestBraveSafeSearch | None | Unset, data)
+            return cast(BraveSearchRequestSearchLangType0 | None | Unset, data)
 
-        safesearch = _parse_safesearch(d.pop("safesearch", UNSET))
+        search_lang = _parse_search_lang(d.pop("searchLang", UNSET))
 
-        def _parse_result_filter(data: object) -> list[str] | None | Unset:
+        def _parse_result_filter(
+            data: object,
+        ) -> list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -308,12 +347,26 @@ class BraveSearchRequest:
             try:
                 if not isinstance(data, list):
                     raise TypeError()
-                result_filter_result_filter = cast(list[str], data)
+                result_filter_result_filter = []
+                _result_filter_result_filter = data
+                for (
+                    result_filter_result_filter_item_data
+                ) in _result_filter_result_filter:
+                    result_filter_result_filter_item = (
+                        BraveSearchRequestResultFilterResultFilterItem(
+                            result_filter_result_filter_item_data
+                        )
+                    )
+
+                    result_filter_result_filter.append(result_filter_result_filter_item)
 
                 return result_filter_result_filter
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(list[str] | None | Unset, data)
+            return cast(
+                list[BraveSearchRequestResultFilterResultFilterItem] | None | Unset,
+                data,
+            )
 
         result_filter = _parse_result_filter(d.pop("resultFilter", UNSET))
 
@@ -330,11 +383,11 @@ class BraveSearchRequest:
             units=units,
             summary=summary,
             include_fetch_metadata=include_fetch_metadata,
+            safesearch=safesearch,
             goggles=goggles,
             country=country,
             freshness=freshness,
             search_lang=search_lang,
-            safesearch=safesearch,
             result_filter=result_filter,
         )
 

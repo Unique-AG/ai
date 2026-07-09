@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class BraveSearchRequestBraveSafeSearch(str, Enum):
+class BraveSearchRequestSafeSearch(str, Enum):
     MODERATE = "moderate"
     OFF = "off"
     STRICT = "strict"

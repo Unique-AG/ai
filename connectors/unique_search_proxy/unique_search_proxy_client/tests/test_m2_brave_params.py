@@ -1,10 +1,12 @@
 import pytest
+from pydantic import ValidationError
 from unique_search_proxy_core.projection import build_llm_call_model
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.brave.schema import (
     BraveConfig,
     BraveSearchRequest,
-    ExposableSafesearch,
+    ExposableCountry,
+    ExposableSearchLang,
     ExposableStrOrNone,
 )
 from unique_search_proxy_core.search_engines.config_types import parse_search_request
@@ -27,7 +29,7 @@ class TestBraveMergeConfigAndInvocation:
     @pytest.mark.ai
     def test_merges_plain_defaults_and_exposable_values(self) -> None:
         config = BraveConfig(
-            country=ExposableStrOrNone(expose=False, value="CH"),
+            country=ExposableCountry(expose=False, value="CH"),
             freshness=ExposableStrOrNone(expose=True, value="pw"),
             fetch_size=5,
         )
@@ -59,8 +61,8 @@ class TestBraveProviderParams:
     @pytest.mark.ai
     def test_provider_query_params_uses_snake_case(self) -> None:
         config = BraveConfig(
-            country=ExposableStrOrNone(expose=False, value="DE"),
-            search_lang=ExposableStrOrNone(expose=False, value="de"),
+            country=ExposableCountry(expose=False, value="DE"),
+            search_lang=ExposableSearchLang(expose=False, value="de"),
         )
         request = merge_config_and_invocation(
             config,
@@ -143,8 +145,9 @@ class TestBraveConfigPolicyJsonSchema:
         assert set(exposable["properties"]) == {"expose", "value"}
         config = BraveConfig()
         assert config.country.expose is False
-        assert config.country.value is None
-        assert config.safesearch.value == "moderate"
+        assert config.country.value == "US"
+        assert config.search_lang.value == "en"
+        assert config.safesearch == "moderate"
 
 
 class TestBraveConfigExposure:
@@ -157,7 +160,7 @@ class TestBraveConfigExposure:
     def test_exposed_freshness_appears_on_llm_schema(self) -> None:
         config = BraveConfig(
             freshness=ExposableStrOrNone(expose=True, value="pm"),
-            country=ExposableStrOrNone(expose=False, value="US"),
+            country=ExposableCountry(expose=False, value="US"),
         )
         exposed = llm_exposed_field_names(config)
         assert "freshness" in exposed
@@ -169,8 +172,8 @@ class TestBraveConfigExposure:
     @pytest.mark.ai
     def test_config_defaults_collects_plain_and_exposable_values(self) -> None:
         config = BraveConfig(
-            country=ExposableStrOrNone(expose=False, value="CH"),
-            safesearch=ExposableSafesearch(expose=False, value="strict"),
+            country=ExposableCountry(expose=False, value="CH"),
+            safesearch="strict",
             fetch_size=8,
         )
         defaults = config_defaults(config)
@@ -181,6 +184,13 @@ class TestBraveConfigExposure:
 
     @pytest.mark.ai
     def test_legacy_string_coerces_to_exposable_param(self) -> None:
-        config = BraveConfig.model_validate({"engine": "brave", "country": "de"})
+        config = BraveConfig.model_validate({"engine": "brave", "country": "DE"})
         assert config.country.expose is False
-        assert config.country.value == "de"
+        assert config.country.value == "DE"
+
+    @pytest.mark.ai
+    def test_invalid_country_code_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            BraveConfig.model_validate(
+                {"engine": "brave", "country": {"expose": False, "value": "XX"}},
+            )

@@ -72,9 +72,7 @@ class TestProviderConfig:
         assert config.engine == SearchEngineType.PERPLEXITY
         assert config.country is not None
         assert config.country.value == "US"
-        assert config.search_context_size is not None
-        assert config.search_context_size.expose is False
-        assert config.search_context_size.value == "high"
+        assert config.search_context_size == "high"
 
     @pytest.mark.ai
     def test_unknown_engine_id_rejected(self) -> None:
