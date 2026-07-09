@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import Field
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
-from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 FirecrawlProxyMode = Literal["basic", "enhanced", "auto"]
 
@@ -87,7 +87,7 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
     )
 
 
-FirecrawlCrawlRequest = build_crawl_request_model(FirecrawlConfig)
+FirecrawlCrawlRequest = ConfigRequestResolver.crawl_request_model(FirecrawlConfig)
 
 
 __all__ = [

@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 import unique_search_proxy_core.url_safety.dns as url_safety_dns
-from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.executors import WebSearchMode
@@ -46,9 +46,7 @@ def event_loop():
 @pytest.fixture
 def sample_web_search_tool_parameters():
     """Sample WebSearchToolParameters for testing."""
-    return WebSearchToolParameters(
-        query="Python web scraping best practices", date_restrict="m1"
-    )
+    return WebSearchToolParameters(query="Python web scraping best practices")
 
 
 @pytest.fixture
@@ -147,7 +145,6 @@ def mock_web_search_config_v1():
     config.web_search_mode_config.tool_parameters_description.query_description = (
         "Query description"
     )
-    config.web_search_mode_config.tool_parameters_description.date_restrict_description = "Date restrict description"
     config.web_search_mode_config.refine_query_mode.mode = Mock()
     config.web_search_mode_config.refine_query_mode.language_model = Mock()
     config.web_search_mode_config.max_queries = 5
@@ -345,8 +342,7 @@ def mock_executor_dependencies():
     mock_search_service = Mock()
     mock_search_service.search = AsyncMock(return_value=[])
     mock_search_service.requires_scraping = False
-    mock_search_service.config = Mock()
-    mock_search_service.config.engine = SearchEngineType.GOOGLE
+    mock_search_service.config = GoogleConfig()
 
     mock_crawler_service = Mock()
     mock_crawler_service.crawl = AsyncMock(return_value=[])

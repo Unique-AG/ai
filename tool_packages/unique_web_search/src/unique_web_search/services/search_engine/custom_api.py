@@ -92,7 +92,7 @@ class CustomAPIConfig(BaseModel):
     key=LocalSearchEngineType.CUSTOM_API,
     config_cls=CustomAPIConfig,
     mode=SearchEngineMode.STANDARD,
-    config_display_name="Customized API Search",
+    config_display_name="Customized API",
 )
 class CustomAPI(SearchEngine[CustomAPIConfig]):
     def __init__(self, config: CustomAPIConfig):
@@ -101,11 +101,11 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
         self.is_configured = True  # No possibility to check if the API is configured from our side. So we assume it is configured.
 
     @override
-    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        return await self._legacy_search(query=query, **kwargs)
-
-    @override
-    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    async def _legacy_search(
+        self,
+        query: str,
+        params: dict[str, Any],
+    ) -> list[WebSearchResult]:
         params, body = self._prepare_request_params_and_body(query)
         async_client_params = self._client_config | {
             "timeout": self.config.timeout,

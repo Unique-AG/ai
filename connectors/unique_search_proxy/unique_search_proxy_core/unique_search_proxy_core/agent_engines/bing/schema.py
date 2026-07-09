@@ -9,7 +9,7 @@ from unique_search_proxy_core.agent_engines.base import (
     AgentEngineType,
     BaseAgentEngineConfig,
 )
-from unique_search_proxy_core.agent_engines.projection import build_agent_request_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 
 class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
@@ -38,7 +38,7 @@ class BingAgentConfig(BaseAgentEngineConfig[Literal[AgentEngineType.BING]]):
 
 
 def bing_agent_request_model() -> type[BaseModel]:
-    return build_agent_request_model(BingAgentConfig)
+    return ConfigRequestResolver.agent_request_model(BingAgentConfig)
 
 
 BingAgentSearchRequest = bing_agent_request_model()

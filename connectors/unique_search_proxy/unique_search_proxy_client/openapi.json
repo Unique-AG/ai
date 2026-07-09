@@ -731,8 +731,49 @@
           },
           "uiLang": {
             "type": "string",
+            "enum": [
+              "es-AR",
+              "en-AU",
+              "de-AT",
+              "nl-BE",
+              "fr-BE",
+              "pt-BR",
+              "en-CA",
+              "fr-CA",
+              "es-CL",
+              "da-DK",
+              "fi-FI",
+              "fr-FR",
+              "de-DE",
+              "el-GR",
+              "zh-HK",
+              "en-IN",
+              "en-ID",
+              "it-IT",
+              "ja-JP",
+              "ko-KR",
+              "en-MY",
+              "es-MX",
+              "nl-NL",
+              "en-NZ",
+              "no-NO",
+              "zh-CN",
+              "pl-PL",
+              "en-PH",
+              "ru-RU",
+              "en-ZA",
+              "es-ES",
+              "sv-SE",
+              "fr-CH",
+              "de-CH",
+              "zh-TW",
+              "tr-TR",
+              "en-GB",
+              "en-US",
+              "es-US"
+            ],
             "title": "UI language",
-            "description": "User interface language for response strings (Brave `ui_lang`), e.g. `en-US`. Distinct from `search_lang`.",
+            "description": "User interface language preferred in response. Usually of the format `<language_code>-<country_code>`. For more, see RFC 9110.",
             "default": "en-US"
           },
           "units": {
@@ -763,6 +804,17 @@
             "description": "Include fetch metadata in the Brave response.",
             "default": false
           },
+          "safesearch": {
+            "type": "string",
+            "enum": [
+              "off",
+              "moderate",
+              "strict"
+            ],
+            "title": "Safe search",
+            "description": "Adult content filter: `off`, `moderate` (API default), or `strict`.",
+            "default": "moderate"
+          },
           "goggles": {
             "anyOf": [
               {
@@ -779,25 +831,59 @@
               }
             ],
             "title": "Goggles",
-            "description": "Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles per request."
+            "description": "Custom re-ranking Goggle URL(s) or definition(s). Up to three Goggles per request. [Learn more about Brave Goggles](https://api-dashboard.search.brave.com/documentation/resources/goggles)"
           },
           "country": {
             "anyOf": [
               {
                 "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "enum": [
+                  "AR",
+                  "AU",
+                  "AT",
+                  "BE",
+                  "BR",
+                  "CA",
+                  "CL",
+                  "DK",
+                  "FI",
+                  "FR",
+                  "DE",
+                  "GR",
+                  "HK",
+                  "IN",
+                  "ID",
+                  "IT",
+                  "JP",
+                  "KR",
+                  "MY",
+                  "MX",
+                  "NL",
+                  "NZ",
+                  "NO",
+                  "CN",
+                  "PL",
+                  "PT",
+                  "PH",
+                  "RU",
+                  "SA",
+                  "ZA",
+                  "ES",
+                  "SE",
+                  "CH",
+                  "TW",
+                  "TR",
+                  "GB",
+                  "US",
+                  "ALL"
+                ]
               },
               {
                 "type": "null"
               }
             ],
             "title": "Country",
-            "description": "Two-letter ISO 3166-1 alpha-2 country code for result origin (Brave `country`). Set `value` for a fixed default; set `expose` so the LLM may override per query."
+            "description": "The 2 character country code where the search results come from. Supported values: `AR`, `AU`, `AT`, `BE`, `BR`, `CA`, `CL`, `DK`, `FI`, `FR`, `DE`, `GR`, `HK`, `IN`, `ID`, `IT`, `JP`, `KR`, `MY`, `MX`, `NL`, `NZ`, `NO`, `CN`, `PL`, `PT`, `PH`, `RU`, `SA`, `ZA`, `ES`, `SE`, `CH`, `TW`, `TR`, `GB`, `US`, `ALL`."
           },
           "freshness": {
             "anyOf": [
@@ -815,54 +901,89 @@
               }
             ],
             "title": "Freshness",
-            "description": "Recency filter: `pd`, `pw`, `pm`, `py`, or `YYYY-MM-DDtoYYYY-MM-DD`. `value` + `expose` behave like `country`."
+            "description": "Recency filter (Brave `freshness`): `pd`, `pw`, `pm`, `py`, or `YYYY-MM-DDtoYYYY-MM-DD`."
           },
           "searchLang": {
             "anyOf": [
               {
                 "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "enum": [
+                  "ar",
+                  "eu",
+                  "bn",
+                  "bg",
+                  "ca",
+                  "zh-hans",
+                  "zh-hant",
+                  "hr",
+                  "cs",
+                  "da",
+                  "nl",
+                  "en",
+                  "en-gb",
+                  "et",
+                  "fi",
+                  "fr",
+                  "gl",
+                  "de",
+                  "el",
+                  "gu",
+                  "he",
+                  "hi",
+                  "hu",
+                  "is",
+                  "it",
+                  "jp",
+                  "kn",
+                  "ko",
+                  "lv",
+                  "lt",
+                  "ms",
+                  "ml",
+                  "mr",
+                  "nb",
+                  "pl",
+                  "pt-br",
+                  "pt-pt",
+                  "pa",
+                  "ro",
+                  "ru",
+                  "sr",
+                  "sk",
+                  "sl",
+                  "es",
+                  "sv",
+                  "ta",
+                  "te",
+                  "th",
+                  "tr",
+                  "uk",
+                  "vi"
+                ]
               },
               {
                 "type": "null"
               }
             ],
             "title": "Search language",
-            "description": "Language code for result documents (Brave `search_lang`). `value` + `expose` behave like `country`."
-          },
-          "safesearch": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "off",
-                  "moderate",
-                  "strict"
-                ],
-                "title": "Brave Safe Search"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Safe search",
-            "description": "Adult content filter: `off`, `moderate` (API default), or `strict`. Usually set via admin `value`; enable `expose` only if the LLM may tune per query."
+            "description": "The 2 or more character language code for which the search results are provided. Supported values: `ar`, `eu`, `bn`, `bg`, `ca`, `zh-hans`, `zh-hant`, `hr`, `cs`, `da`, `nl`, `en`, `en-gb`, `et`, `fi`, `fr`, `gl`, `de`, `el`, `gu`, `he`, `hi`, `hu`, `is`, `it`, `jp`, `kn`, `ko`, `lv`, `lt`, `ms`, `ml`, `mr`, `nb`, `pl`, `pt-br`, `pt-pt`, `pa`, `ro`, `ru`, `sr`, `sk`, `sl`, `es`, `sv`, `ta`, `te`, `th`, `tr`, `uk`, `vi`."
           },
           "resultFilter": {
             "anyOf": [
               {
                 "items": {
-                  "type": "string"
+                  "type": "string",
+                  "enum": [
+                    "discussions",
+                    "faq",
+                    "infobox",
+                    "news",
+                    "query",
+                    "summarizer",
+                    "videos",
+                    "web",
+                    "locations"
+                  ]
                 },
                 "type": "array",
                 "title": "Result Filter"
@@ -877,7 +998,7 @@
               }
             ],
             "title": "Result filter",
-            "description": "Result types to include, e.g. `web`, `news`, `videos`. Omit (`null`) for all subscribed types. `value` + `expose` behave like `country`."
+            "description": "Result types to include in the search response (Brave `result_filter`). Omit for all result types allowed by the subscription. Supported values: `discussions`, `faq`, `infobox`, `news`, `query`, `summarizer`, `videos`, `web`, `locations`."
           }
         },
         "type": "object",
@@ -1220,7 +1341,7 @@
               }
             ],
             "title": "Geolocation (gl)",
-            "description": "Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). Set `value` for a fixed default; set `expose` so the LLM may override per query."
+            "description": "Two-letter ISO 3166-1 alpha-2 country code (Google `gl`)."
           },
           "hl": {
             "anyOf": [
@@ -1238,7 +1359,7 @@
               }
             ],
             "title": "Interface language (hl)",
-            "description": "Language for snippets/UI (Google `hl`). `value` + `expose` behave like `gl`."
+            "description": "Language for snippets and UI (Google `hl`)."
           },
           "lr": {
             "anyOf": [
@@ -1256,7 +1377,7 @@
               }
             ],
             "title": "Language restrict (lr)",
-            "description": "Document language restrict (Google `lr`), e.g. `lang_en`. `value` + `expose` behave like `gl`."
+            "description": "Document language restrict (Google `lr`), e.g. `lang_en`."
           },
           "dateRestrict": {
             "anyOf": [
@@ -1274,7 +1395,7 @@
               }
             ],
             "title": "Date restrict",
-            "description": "Google `dateRestrict` recency filter (`d7`, `m1`, \u2026). `value` + `expose` behave like `gl`."
+            "description": "Recency filter (Google `dateRestrict`), e.g. `d7`, `m1`."
           },
           "exactTerms": {
             "anyOf": [
@@ -1292,7 +1413,7 @@
               }
             ],
             "title": "Exact terms",
-            "description": "Phrase every hit must contain (Google `exactTerms`). `value` + `expose` behave like `gl`."
+            "description": "Phrase every hit must contain (Google `exactTerms`)."
           },
           "excludeTerms": {
             "anyOf": [
@@ -1310,7 +1431,7 @@
               }
             ],
             "title": "Exclude terms",
-            "description": "Phrase that must not appear (Google `excludeTerms`). `value` + `expose` behave like `gl`."
+            "description": "Phrase that must not appear in results (Google `excludeTerms`)."
           },
           "fileType": {
             "anyOf": [
@@ -1328,7 +1449,7 @@
               }
             ],
             "title": "File type",
-            "description": "File extension filter (Google `fileType`), e.g. `pdf`. `value` + `expose` behave like `gl`."
+            "description": "File extension filter (Google `fileType`), e.g. `pdf`."
           },
           "siteSearch": {
             "anyOf": [
@@ -1346,7 +1467,7 @@
               }
             ],
             "title": "Site search",
-            "description": "Site or domain (Google `siteSearch`). Pair with `siteSearchFilter`. `value` + `expose` behave like `gl`."
+            "description": "Site or domain to restrict results to (Google `siteSearch`)."
           },
           "siteSearchFilter": {
             "anyOf": [
@@ -1368,7 +1489,7 @@
               }
             ],
             "title": "Site search filter",
-            "description": "With `siteSearch`: `i` = include only that site, `e` = exclude. `value` + `expose` behave like `gl`."
+            "description": "With `siteSearch`: `i` = include only that site, `e` = exclude it (Google `siteSearchFilter`)."
           },
           "sort": {
             "anyOf": [
@@ -1386,7 +1507,7 @@
               }
             ],
             "title": "Sort",
-            "description": "Sort expression (Google `sort`), e.g. `date`. `value` + `expose` behave like `gl`."
+            "description": "Sort expression (Google `sort`), e.g. `date`."
           }
         },
         "type": "object",
@@ -1687,6 +1808,17 @@
             "title": "Max tokens per page",
             "description": "Maximum webpage content tokens extracted from each result page (Perplexity `max_tokens_per_page`). Omitted when unset. Omit `search_context_size` when using this or `max_tokens`."
           },
+          "searchContextSize": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Search context size",
+            "description": "How much content is extracted from result pages (Perplexity `search_context_size`): `low`, `medium`, or `high` (API default). Omit when using `max_tokens` or `max_tokens_per_page`.",
+            "default": "medium"
+          },
           "country": {
             "anyOf": [
               {
@@ -1703,30 +1835,7 @@
               }
             ],
             "title": "Country",
-            "description": "ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters). Set `value` for a fixed default; set `expose` so the LLM may override per query."
-          },
-          "searchContextSize": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "low",
-                  "medium",
-                  "high"
-                ],
-                "title": "Search Context Size"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Search context size",
-            "description": "Controls how much content is extracted from result pages: `low`, `medium`, or `high` (API default). Omit when using `max_tokens` or `max_tokens_per_page`. `value` + `expose` behave like `country`."
+            "description": "ISO 3166-1 alpha-2 country code (Perplexity `country`, two letters)."
           },
           "searchLanguageFilter": {
             "anyOf": [
@@ -1747,7 +1856,7 @@
               }
             ],
             "title": "Search language filter",
-            "description": "ISO 639-1 language codes (two characters each, up to 20). `value` + `expose` behave like `country`."
+            "description": "ISO 639-1 language codes to include (Perplexity `search_language_filter`; two characters each, up to 20)."
           },
           "searchDomainFilter": {
             "anyOf": [
@@ -1768,7 +1877,7 @@
               }
             ],
             "title": "Search domain filter",
-            "description": "Limit results to specific domains (up to 20). `value` + `expose` behave like `country`."
+            "description": "Domains to limit results to (Perplexity `search_domain_filter`; up to 20)."
           },
           "searchRecencyFilter": {
             "anyOf": [
@@ -1793,7 +1902,7 @@
               }
             ],
             "title": "Search recency filter",
-            "description": "Filter by publication recency: `hour`, `day`, `week`, `month`, or `year`. `value` + `expose` behave like `country`."
+            "description": "Publication recency filter (Perplexity `search_recency_filter`): `hour`, `day`, `week`, `month`, or `year`."
           },
           "lastUpdatedAfterFilter": {
             "anyOf": [
@@ -1811,7 +1920,7 @@
               }
             ],
             "title": "Last updated after",
-            "description": "Return results updated after this date (Perplexity `last_updated_after_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "description": "Return results updated after this date (Perplexity `last_updated_after_filter`; format `MM/DD/YYYY`)."
           },
           "lastUpdatedBeforeFilter": {
             "anyOf": [
@@ -1829,7 +1938,7 @@
               }
             ],
             "title": "Last updated before",
-            "description": "Return results updated before this date (Perplexity `last_updated_before_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "description": "Return results updated before this date (Perplexity `last_updated_before_filter`; format `MM/DD/YYYY`)."
           },
           "searchAfterDateFilter": {
             "anyOf": [
@@ -1847,7 +1956,7 @@
               }
             ],
             "title": "Search after date",
-            "description": "Return results published after this date (Perplexity `search_after_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "description": "Return results published after this date (Perplexity `search_after_date_filter`; format `MM/DD/YYYY`)."
           },
           "searchBeforeDateFilter": {
             "anyOf": [
@@ -1865,7 +1974,7 @@
               }
             ],
             "title": "Search before date",
-            "description": "Return results published before this date (Perplexity `search_before_date_filter`, input format `MM/DD/YYYY`). `value` + `expose` behave like `country`."
+            "description": "Return results published before this date (Perplexity `search_before_date_filter`; format `MM/DD/YYYY`)."
           }
         },
         "type": "object",

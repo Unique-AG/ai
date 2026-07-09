@@ -1,25 +1,18 @@
 import pytest
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 from unique_search_proxy_core.param_policy.exposable_param import (
     ExposableParam,
     merge_exposable_params_with_factory_defaults,
 )
-from unique_search_proxy_core.projection import build_llm_call_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 from unique_search_proxy_core.schema import camelized_model_config
-from unique_search_proxy_core.search_engines.base import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import (
     ExposableStrOrNone,
     GoogleConfig,
     GoogleSearchRequest,
 )
-from unique_search_proxy_core.search_engines.params import (
-    config_defaults,
-    llm_exposed_field_names,
-    merge_config_and_invocation,
-)
 
-from unique_search_proxy_client.web.core.search_engines import resolve_engine_call
 from unique_search_proxy_client.web.core.search_engines.google.pagination import (
     iter_google_page_requests,
 )
@@ -33,6 +26,12 @@ from unique_search_proxy_client.web.settings.providers.google import (
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED
 
 
+def _merge_search_request(config: GoogleConfig, invocation: dict[str, object]):
+    overrides = dict(invocation)
+    query = str(overrides.pop("query", ""))
+    return type(config).merge(config, overrides, query=query)
+
+
 class TestMergeConfigAndInvocation:
     @pytest.mark.ai
     def test_merges_config_defaults_with_call_overrides(self) -> None:
@@ -41,10 +40,9 @@ class TestMergeConfigAndInvocation:
             gl=ExposableStrOrNone(expose=True, value="us"),
             fetch_size=10,
         )
-        request = merge_config_and_invocation(
+        request = _merge_search_request(
             config,
             {"query": "hello", "gl": "de"},
-            engine=SearchEngineType.GOOGLE,
         )
         assert request.query == "hello"
         assert request.date_restrict == "d7"
@@ -55,19 +53,18 @@ class TestMergeConfigAndInvocation:
     @pytest.mark.ai
     def test_default_override_safe_applied_when_not_in_invocation(self) -> None:
         config = GoogleConfig(safe="off")
-        request = merge_config_and_invocation(
+        request = _merge_search_request(
             config,
             {"query": "x"},
-            engine=SearchEngineType.GOOGLE,
         )
         assert request.safe == "off"
 
     @pytest.mark.ai
-    def test_resolve_engine_call_from_factory(self) -> None:
+    def test_merge_from_config_type(self) -> None:
         config = GoogleConfig(
             date_restrict=ExposableStrOrNone(expose=False, value="m1"),
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "news", "gl": "ch"},
         )
@@ -83,12 +80,11 @@ class TestGoogleProviderParams:
             date_restrict=ExposableStrOrNone(expose=False, value="d7"),
             gl=ExposableStrOrNone(expose=False, value="us"),
         )
-        request = merge_config_and_invocation(
+        request = _merge_search_request(
             config,
             {"query": "hello"},
-            engine=SearchEngineType.GOOGLE,
         )
-        dumped = config.provider_query_params_from(request)
+        dumped = GoogleConfig.provider_query_params(request)
         assert dumped == {"dateRestrict": "d7", "gl": "us", "safe": "active"}
 
     @pytest.mark.ai
@@ -99,10 +95,9 @@ class TestGoogleProviderParams:
     @pytest.mark.ai
     def test_pagination_is_separate_from_engine_params(self) -> None:
         config = GoogleConfig()
-        request = merge_config_and_invocation(
+        request = _merge_search_request(
             config,
             {"query": "hello"},
-            engine=SearchEngineType.GOOGLE,
         )
         page = PageRequest(page_index=2, offset=11, count=5)
         query = build_google_query_params(
@@ -168,7 +163,7 @@ class TestGoogleConfigExposure:
     @pytest.mark.ai
     def test_query_always_in_llm_fields(self) -> None:
         config = GoogleConfig()
-        exposed = llm_exposed_field_names(config)
+        exposed = ConfigRequestResolver.exposed_field_names(config)
         assert exposed == ["query"]
 
     @pytest.mark.ai
@@ -177,14 +172,14 @@ class TestGoogleConfigExposure:
             date_restrict=ExposableStrOrNone(expose=False, value="d7"),
         )
         assert config.gl.value is None
-        assert llm_exposed_field_names(config) == ["query"]
+        assert ConfigRequestResolver.exposed_field_names(config) == ["query"]
 
     @pytest.mark.ai
     def test_exposed_date_restrict_appears_on_llm_schema(self) -> None:
         config = GoogleConfig(
             date_restrict=ExposableStrOrNone(expose=True, value="d7"),
         )
-        assert "date_restrict" in llm_exposed_field_names(config)
+        assert "date_restrict" in ConfigRequestResolver.exposed_field_names(config)
 
     @pytest.mark.ai
     def test_active_expose_fields_in_llm_projection(self) -> None:
@@ -192,10 +187,10 @@ class TestGoogleConfigExposure:
             gl=ExposableStrOrNone(expose=True, value="us"),
             date_restrict=ExposableStrOrNone(expose=False, value="d7"),
         )
-        exposed = llm_exposed_field_names(config)
+        exposed = ConfigRequestResolver.exposed_field_names(config)
         assert "gl" in exposed
         assert "date_restrict" not in exposed
-        projected = build_llm_call_model(GoogleConfig, config)
+        projected = ConfigRequestResolver.call_schema(config)
         assert "query" in projected.model_fields
         assert "gl" in projected.model_fields
         assert "date_restrict" not in projected.model_fields
@@ -244,7 +239,7 @@ class TestGoogleConfigExposure:
         config = GoogleConfig(
             gl=ExposableStrOrNone(expose=True, value="ch"),
         )
-        projected = build_llm_call_model(GoogleConfig, config, strict_required=False)
+        projected = ConfigRequestResolver.call_schema(config, strict=False)
         gl_schema = projected.model_json_schema()["properties"]["gl"]
         assert gl_schema["default"] == "ch"
 
@@ -266,17 +261,17 @@ class TestGoogleConfigExposure:
             fetch_size=5,
             safe="off",
         )
-        defaults = config_defaults(config)
+        defaults = ConfigRequestResolver.resolve_values(config)
         assert defaults["date_restrict"] == "d7"
         assert defaults["fetch_size"] == 5
         assert defaults["safe"] == "off"
 
     @pytest.mark.ai
-    def test_legacy_string_coerces_to_exposable_param(self) -> None:
-        config = GoogleConfig.model_validate({"engine": "google", "gl": "us"})
-        assert config.gl is not None
-        assert config.gl.expose is False
-        assert config.gl.value == "us"
+    def test_bare_string_rejected_for_exposable_field(self) -> None:
+        # Legacy bare-scalar values are no longer coerced; a stored config must
+        # use the explicit {expose, value} shape (handled by the migration).
+        with pytest.raises(ValidationError):
+            GoogleConfig.model_validate({"engine": "google", "gl": "us"})
 
     @pytest.mark.ai
     def test_field_default_factory_for_non_null_value(self) -> None:

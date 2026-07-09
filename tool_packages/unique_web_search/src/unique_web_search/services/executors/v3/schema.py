@@ -2,8 +2,13 @@
 
 import typing
 from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
+from unique_search_proxy_core.search_engines.call_schema import (
+    ExposedToolParameterModel,
+    _stamp_exposed_field_names,
+)
 
 
 class Command(StrEnum):
@@ -19,7 +24,9 @@ class SearchPhase(StrEnum):
     REDIRECT = "redirect"
 
 
-class SearchPayload(BaseModel):
+class SearchPayload(ExposedToolParameterModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
     gap: str = Field(
         description=(
             "One atomic facet this call addresses (e.g. '2023 revenue band for Company X in CH')—"
@@ -36,14 +43,23 @@ class SearchPayload(BaseModel):
         )
     )
 
+    @classmethod
+    def with_exposed_fields(
+        cls,
+        exposed_field_defs: dict[str, tuple[Any, Any]] | None,
+    ) -> type["SearchPayload"]:
+        return super().with_exposed_fields(exposed_field_defs)
+
 
 class FetchUrlsPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     urls: list[str] = Field(
         description="HTTP(S) URLs to crawl for full-page text. Use only URLs returned by a prior search or pasted by the user."
     )
 
 
-class WebSearchV3ToolParameters(BaseModel):
+class WebSearchV3ToolParameters(ExposedToolParameterModel):
     """Root JSON for the V3 WebSearch tool: set exactly one of ``query`` or ``urls``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -67,6 +83,30 @@ class WebSearchV3ToolParameters(BaseModel):
         description="The payload of the command. Must be either a SearchPayload or a FetchUrlsPayload."
     )
 
+    @classmethod
+    def with_exposed_fields(
+        cls,
+        exposed_field_defs: dict[str, tuple[Any, Any]] | None,
+    ) -> type["WebSearchV3ToolParameters"]:
+        search_payload = SearchPayload.with_exposed_fields(exposed_field_defs)
+        if search_payload is SearchPayload:
+            return cls
+        model = create_model(
+            cls.__name__,
+            __base__=cls,
+            payload=(
+                search_payload | FetchUrlsPayload,
+                Field(
+                    description=(
+                        "The payload of the command. Must be either a SearchPayload "
+                        "or a FetchUrlsPayload."
+                    ),
+                ),
+            ),
+        )
+        _stamp_exposed_field_names(model, exposed_field_defs)
+        return model
+
     def relevance_focus(self) -> str:
         """Focus string for notify UI, snippet judging, and content processing."""
         phase_label = self.phase.value
@@ -78,7 +118,10 @@ class WebSearchV3ToolParameters(BaseModel):
         return f"[{phase_label}] {urls_preview}"
 
     @classmethod
-    def schema_hint(cls) -> str:
+    def schema_hint(
+        cls,
+        exposed_field_defs: dict[str, tuple[Any, Any]] | None = None,
+    ) -> str:
         """Return a markdown-bulleted hint mirroring the field descriptions of this model.
 
         Mirrors the legacy hand-written prompt block: one bullet per top-level
@@ -91,10 +134,11 @@ class WebSearchV3ToolParameters(BaseModel):
         def _inline_json(payload_model: type[BaseModel]) -> str:
             parts: list[str] = []
             for name, field in payload_model.model_fields.items():
-                placeholder = f"<{field.description or name}>"
+                key = field.alias or name
+                placeholder = f"<{field.description or key}>"
                 if typing.get_origin(field.annotation) is list:
                     placeholder = f"[{placeholder}]"
-                parts.append(f'"{name}": {placeholder}')
+                parts.append(f'"{key}": {placeholder}')
             return "{ " + ", ".join(parts) + " }"
 
         lines: list[str] = []
@@ -111,18 +155,11 @@ class WebSearchV3ToolParameters(BaseModel):
                 lines.append(f"- **`{name}`** — {field.description or name}")
 
         lines.append("- **`payload`** — Shape depends on `command`:")
+        search_payload = SearchPayload.with_exposed_fields(exposed_field_defs)
         for cmd, payload_model in (
-            (Command.SEARCH, SearchPayload),
+            (Command.SEARCH, search_payload),
             (Command.FETCH_URLS, FetchUrlsPayload),
         ):
             lines.append(f'  - For `"{cmd.value}"`: `{_inline_json(payload_model)}`.')
 
         return "\n".join(lines)
-
-    def get_display_name_suffix(self) -> str:
-        if self.command == Command.SEARCH:
-            return " - Searching"
-        elif self.command == Command.FETCH_URLS:
-            return " - Reading Pages"
-        else:
-            raise ValueError(f"Invalid command: {self.command}")

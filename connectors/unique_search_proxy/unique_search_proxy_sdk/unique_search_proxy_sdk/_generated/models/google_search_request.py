@@ -32,24 +32,17 @@ class GoogleSearchRequest:
             at runtime when not set. Not sent as a query parameter.
         safe (GoogleSearchRequestSafeSearch | Unset): SafeSearch level for every search: `active` (default) or `off`.
             Applied on all requests unless the call body overrides it. Default: GoogleSearchRequestSafeSearch.ACTIVE.
-        gl (None | str | Unset): Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). Set `value` for a fixed
-            default; set `expose` so the LLM may override per query.
-        hl (None | str | Unset): Language for snippets/UI (Google `hl`). `value` + `expose` behave like `gl`.
-        lr (None | str | Unset): Document language restrict (Google `lr`), e.g. `lang_en`. `value` + `expose` behave
-            like `gl`.
-        date_restrict (None | str | Unset): Google `dateRestrict` recency filter (`d7`, `m1`, …). `value` + `expose`
-            behave like `gl`.
-        exact_terms (None | str | Unset): Phrase every hit must contain (Google `exactTerms`). `value` + `expose` behave
-            like `gl`.
-        exclude_terms (None | str | Unset): Phrase that must not appear (Google `excludeTerms`). `value` + `expose`
-            behave like `gl`.
-        file_type (None | str | Unset): File extension filter (Google `fileType`), e.g. `pdf`. `value` + `expose` behave
-            like `gl`.
-        site_search (None | str | Unset): Site or domain (Google `siteSearch`). Pair with `siteSearchFilter`. `value` +
-            `expose` behave like `gl`.
+        gl (None | str | Unset): Two-letter ISO 3166-1 alpha-2 country code (Google `gl`).
+        hl (None | str | Unset): Language for snippets and UI (Google `hl`).
+        lr (None | str | Unset): Document language restrict (Google `lr`), e.g. `lang_en`.
+        date_restrict (None | str | Unset): Recency filter (Google `dateRestrict`), e.g. `d7`, `m1`.
+        exact_terms (None | str | Unset): Phrase every hit must contain (Google `exactTerms`).
+        exclude_terms (None | str | Unset): Phrase that must not appear in results (Google `excludeTerms`).
+        file_type (None | str | Unset): File extension filter (Google `fileType`), e.g. `pdf`.
+        site_search (None | str | Unset): Site or domain to restrict results to (Google `siteSearch`).
         site_search_filter (GoogleSearchRequestSiteSearchFilter | None | Unset): With `siteSearch`: `i` = include only
-            that site, `e` = exclude. `value` + `expose` behave like `gl`.
-        sort (None | str | Unset): Sort expression (Google `sort`), e.g. `date`. `value` + `expose` behave like `gl`.
+            that site, `e` = exclude it (Google `siteSearchFilter`).
+        sort (None | str | Unset): Sort expression (Google `sort`), e.g. `date`.
     """
 
     query: str

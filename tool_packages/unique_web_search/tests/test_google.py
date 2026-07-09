@@ -10,7 +10,7 @@ from unique_web_search.services.search_engine.schema import WebSearchResult
 
 class TestGoogleSearch:
     @pytest.mark.asyncio
-    async def test_proxy_search_passes_flat_config_to_client(self):
+    async def test_proxy_search_merges_config_and_invocation(self):
         config = GoogleConfig(
             fetch_size=3,
             search_engine_id="cx-123",
@@ -28,7 +28,7 @@ class TestGoogleSearch:
                 content="",
             )
         ]
-        mock_google = AsyncMock(return_value=mock_response)
+        mock_search = AsyncMock(return_value=mock_response)
 
         with (
             patch(
@@ -36,30 +36,27 @@ class TestGoogleSearch:
                 True,
             ),
             patch(
-                "unique_web_search.services.search_engine.google.open_search_proxy_client"
+                "unique_web_search.services.search_engine.base.open_search_proxy_client"
             ) as mock_open_client,
         ):
             mock_client = AsyncMock()
-            mock_client.search.google = mock_google
+            mock_client.search = Mock()
+            mock_client.search.search = mock_search
             mock_open_client.return_value.__aenter__.return_value = mock_client
 
-            results = await search.search("test query")
+            results = await search.search("test query", params={"gl": "ch"})
 
-        mock_google.assert_awaited_once_with(
-            query="test query",
-            fetch_size=3,
-            search_engine_id="cx-123",
-            gl="us",
-            hl=None,
-            lr=None,
-            date_restrict=None,
-            exact_terms=None,
-            exclude_terms=None,
-            file_type=None,
-            site_search="example.com",
-            site_search_filter=None,
-            sort=None,
-        )
+        mock_search.assert_awaited_once()
+        assert mock_search.await_args.kwargs == {
+            "query": "test query",
+            "engine": "google",
+            "fetch_size": 3,
+            "timeout": 30,
+            "search_engine_id": "cx-123",
+            "safe": "active",
+            "gl": "ch",
+            "site_search": "example.com",
+        }
         assert results == [
             WebSearchResult(
                 url="https://example.com/page",

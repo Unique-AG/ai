@@ -14,14 +14,12 @@ from unique_search_proxy_core.crawlers.firecrawl.schema import (
     FirecrawlCrawlRequest,
 )
 from unique_search_proxy_core.crawlers.jina.schema import JinaConfig, JinaCrawlRequest
-from unique_search_proxy_core.crawlers.projection import (
-    URLS_FIELD,
-    build_crawl_request_model,
-)
 from unique_search_proxy_core.crawlers.tavily.schema import (
     TavilyConfig,
     TavilyCrawlRequest,
 )
+from unique_search_proxy_core.param_policy import URLS_FIELD
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 CrawlerConfigTypes: TypeAlias = (
     BasicConfig | TavilyConfig | JinaConfig | FirecrawlConfig
@@ -47,7 +45,7 @@ def build_crawl_request_union() -> Any:
     """Discriminated union of flat ``POST /v1/crawl`` bodies (``crawler`` discriminator)."""
     members = tuple(CRAWLER_NAME_TO_CONFIG.values())
     request_models = tuple(
-        build_crawl_request_model(config_cls) for config_cls in members
+        ConfigRequestResolver.crawl_request_model(config_cls) for config_cls in members
     )
     if len(request_models) == 1:
         return request_models[0]

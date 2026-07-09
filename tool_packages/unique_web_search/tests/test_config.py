@@ -1,7 +1,9 @@
 import pytest
 from pydantic import ValidationError
 from unique_search_proxy_core.search_engines import SearchEngineType
-from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy_core.search_engines.google.schema import (
+    GoogleConfig as _CoreGoogleConfig,
+)
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -32,6 +34,10 @@ from unique_web_search.services.executors.v1.config import (
 )
 from unique_web_search.services.executors.v2.config import WebSearchV2Config
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
+from unique_web_search.services.search_engine.registry import SEARCH_ENGINE_REGISTRY
+
+GoogleConfig = SEARCH_ENGINE_REGISTRY[SearchEngineType.GOOGLE].config_cls
+assert issubclass(GoogleConfig, _CoreGoogleConfig)
 
 
 class TestQueryElicitationConfig:
@@ -178,6 +184,24 @@ class TestWebSearchV2Config:
             == "Custom system prompt description"
         )
 
+    def test_web_search_v2_config_migrates_legacy_max_steps_placeholder(self):
+        """Legacy ``$max_steps`` prompts are rewritten to Jinja on parse."""
+        config = WebSearchV2Config(
+            tool_description_for_system_prompt=(
+                "Legacy V2 system prompt — must not exceed $max_steps steps."
+            ),
+        )
+
+        assert "$max_steps" not in config.tool_description_for_system_prompt
+        assert "{{ max_steps }}" in config.tool_description_for_system_prompt
+
+    def test_web_search_v2_config_leaves_jinja_max_steps_untouched(self):
+        """Prompts already using Jinja ``{{ max_steps }}`` are left as-is."""
+        prompt = "Modern V2 prompt with {{ max_steps }} steps."
+        config = WebSearchV2Config(tool_description_for_system_prompt=prompt)
+
+        assert config.tool_description_for_system_prompt == prompt
+
     def test_web_search_v2_config_mode_validator_with_beta_suffix(self):
         """Test WebSearchV2Config mode validator handles 'v2 (beta)' string."""
         config = WebSearchV2Config(mode="v2 (beta)")
@@ -277,17 +301,14 @@ class TestWebSearchToolParametersDescriptionConfig:
         config = WebSearchToolParametersDescriptionConfig()
 
         assert "search query" in config.query_description.lower()
-        assert len(config.date_restrict_description) > 0
 
     def test_tool_parameters_description_config_custom(self):
         """Test WebSearchToolParametersDescriptionConfig with custom values."""
         config = WebSearchToolParametersDescriptionConfig(
             query_description="Custom query description",
-            date_restrict_description="Custom date restriction description",
         )
 
         assert config.query_description == "Custom query description"
-        assert config.date_restrict_description == "Custom date restriction description"
 
 
 class TestWebSearchConfig:
@@ -606,7 +627,6 @@ class TestWebSearchConfig:
             max_queries=7,
             tool_parameters_description=WebSearchToolParametersDescriptionConfig(
                 query_description="Custom query description",
-                date_restrict_description="Custom date description",
             ),
         )
 

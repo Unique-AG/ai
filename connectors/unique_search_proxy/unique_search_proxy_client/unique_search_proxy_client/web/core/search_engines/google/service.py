@@ -19,7 +19,6 @@ from unique_search_proxy_core.search_engines.base import (
     get_search_engine_mode,
 )
 from unique_search_proxy_core.search_engines.google.schema import (
-    GoogleConfig,
     GoogleSearchRequest,
 )
 
@@ -155,17 +154,3 @@ class GoogleSearchService(SearchEngineService[GoogleSearchRequest]):
             )
         return results
 
-    @staticmethod
-    def llm_call_schema(
-        config: GoogleConfig,
-        *,
-        strict_required: bool = True,
-    ) -> type[Any]:
-
-        from unique_search_proxy_core.projection import build_llm_call_model
-
-        return build_llm_call_model(
-            GoogleConfig,
-            config,
-            strict_required=strict_required,
-        )

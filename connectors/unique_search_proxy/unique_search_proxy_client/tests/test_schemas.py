@@ -33,7 +33,11 @@ class TestProviderConfig:
     @pytest.mark.ai
     def test_google_config_discriminator(self) -> None:
         config = parse_search_engine_config(
-            {"engine": "google", "dateRestrict": "d7", "gl": "ch"},
+            {
+                "engine": "google",
+                "dateRestrict": {"expose": False, "value": "d7"},
+                "gl": {"expose": False, "value": "ch"},
+            },
         )
         assert isinstance(config, GoogleConfig)
         assert config.engine == SearchEngineType.GOOGLE
@@ -48,7 +52,7 @@ class TestProviderConfig:
             {
                 "engine": "brave",
                 "country": {"expose": True, "value": "CH"},
-                "freshness": "pw",
+                "freshness": {"expose": False, "value": "pw"},
             },
         )
         assert isinstance(config, BraveConfig)
@@ -72,9 +76,7 @@ class TestProviderConfig:
         assert config.engine == SearchEngineType.PERPLEXITY
         assert config.country is not None
         assert config.country.value == "US"
-        assert config.search_context_size is not None
-        assert config.search_context_size.expose is False
-        assert config.search_context_size.value == "high"
+        assert config.search_context_size == "high"
 
     @pytest.mark.ai
     def test_unknown_engine_id_rejected(self) -> None:

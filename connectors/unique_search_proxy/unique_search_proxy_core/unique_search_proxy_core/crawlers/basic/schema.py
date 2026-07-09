@@ -6,7 +6,7 @@ from pydantic import Field
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
-from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 
 class BasicConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
@@ -31,7 +31,7 @@ class BasicConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
     )
 
 
-BasicCrawlRequest = build_crawl_request_model(BasicConfig)
+BasicCrawlRequest = ConfigRequestResolver.crawl_request_model(BasicConfig)
 
 
 __all__ = [

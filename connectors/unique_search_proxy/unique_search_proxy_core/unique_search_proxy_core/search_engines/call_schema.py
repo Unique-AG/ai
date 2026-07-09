@@ -1,78 +1,145 @@
-"""LLM-facing call JSON Schema derived from deployment config (no HTTP)."""
+"""Tool JSON Schema fields for LLM-exposed engine parameters (no HTTP)."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, create_model
 
-from unique_search_proxy_core.projection import build_llm_call_model
-from unique_search_proxy_core.providers.schema import provider_default_config
-from unique_search_proxy_core.search_engines.base import (
-    SearchEngineType,
-    get_search_engine_mode,
-)
-from unique_search_proxy_core.search_engines.config_types import (
-    ENGINE_NAME_TO_CONFIG,
-    SearchEngineConfigTypes,
-    parse_search_engine_config,
-)
+from unique_search_proxy_core.param_policy.annotations import Annotation, as_optional
+from unique_search_proxy_core.param_policy.field_plan import field_plan
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
 
-@dataclass(frozen=True)
-class SearchCallSchemaDescriptor:
-    """Metadata and JSON Schema for the engine call model on ``POST /v1/search``."""
-
-    engine: str
-    mode: str
-    call_schema: dict[str, Any]
+def exposed_field_names(config: BaseModel) -> list[str]:
+    """Python field names exposed to LLM callers (``query`` excluded)."""
+    return ConfigRequestResolver.exposed_field_names(config, with_query=False)
 
 
-def resolve_search_call_schema_from_config(
-    engine_id: str,
-    config: SearchEngineConfigTypes,
-    *,
-    strict: bool = True,
-) -> SearchCallSchemaDescriptor:
-    """Project the LLM-visible call surface from a parsed deployment config."""
-    engine_type = SearchEngineType(engine_id.lower())
-    config_cls = ENGINE_NAME_TO_CONFIG[engine_type.value]
-    if type(config) is not config_cls:
-        raise ValueError(
-            f"Config type {type(config).__name__} does not match engine {engine_id!r}",
-        )
+# JSON-schema key an exposed field stamps on its own node so the finalize pass
+# can locate and clean it — including copies nested under ``$defs`` — without
+# threading field-name lists through every call site. Removed before output.
+_EXPOSED_FIELD_MARKER = "x-unique-exposed-tool-field"
 
-    projected = build_llm_call_model(config_cls, config, strict_required=strict)
-    return SearchCallSchemaDescriptor(
-        engine=engine_type.value,
-        mode=get_search_engine_mode(engine_type).value,
-        call_schema=projected.model_json_schema(),
+#: Class attribute stamped on dynamically built tool-parameter models.
+EXPOSED_FIELD_NAMES_ATTR = "__exposed_field_names__"
+
+
+def _stamp_exposed_field_names(
+    model: type[BaseModel],
+    exposed_field_defs: dict[str, tuple[Annotation, Any]] | None,
+) -> type[BaseModel]:
+    names: tuple[str, ...] = (
+        tuple(exposed_field_defs.keys()) if exposed_field_defs else ()
     )
+    setattr(model, EXPOSED_FIELD_NAMES_ATTR, names)
+    return model
 
 
-def resolve_search_call_schema(
-    engine_id: str,
-    *,
-    config: SearchEngineConfigTypes | dict[str, Any] | None = None,
-    strict: bool = True,
-) -> SearchCallSchemaDescriptor:
-    """Resolve call schema from deployment config or engine defaults."""
-    if config is not None:
-        parsed = (
-            config
-            if isinstance(config, BaseModel)
-            else parse_search_engine_config(config)
+def _mark_exposed_tool_field(field_schema: dict[str, Any]) -> None:
+    """``json_schema_extra`` hook: strip the default and flag the node for cleanup.
+
+    ``default`` can be dropped here, but Pydantic re-adds a ``title`` from the
+    field name *after* this hook runs, so title removal is deferred to
+    :func:`finalize_exposed_tool_schema` via the marker stamped here.
+    """
+    field_schema.pop("default", None)
+    field_schema[_EXPOSED_FIELD_MARKER] = True
+
+
+def finalize_exposed_tool_schema(node: Any) -> None:
+    """Strip ``title``/``default`` (and the marker) from exposed field nodes in-place.
+
+    Walks the fully rendered schema so marked nodes are cleaned wherever they
+    appear, including nested definitions under ``$defs``.
+    """
+    if isinstance(node, dict):
+        if node.pop(_EXPOSED_FIELD_MARKER, None):
+            node.pop("title", None)
+            node.pop("default", None)
+        for value in node.values():
+            finalize_exposed_tool_schema(value)
+    elif isinstance(node, list):
+        for item in node:
+            finalize_exposed_tool_schema(item)
+
+
+class ExposedToolParameterModel(BaseModel):
+    """Base for tool-parameter models that carry engine-exposed fields.
+
+    Overrides ``model_json_schema`` once (inherited by every dynamically built
+    tool-parameter model) to finalize exposed fields — dropping the Pydantic
+    ``title``/``default`` noise that must not leak into the LLM tool manifest.
+    """
+
+    @classmethod
+    def exposed_field_names_for_model(cls) -> tuple[str, ...]:
+        """Snake_case Python names exposed on this tool-parameter model."""
+        return getattr(cls, EXPOSED_FIELD_NAMES_ATTR, ())
+
+    @classmethod
+    def with_exposed_fields(
+        cls,
+        exposed_field_defs: dict[str, tuple[Annotation, Any]] | None,
+        *,
+        extra_field_defs: dict[str, tuple[Annotation, Any]] | None = None,
+    ) -> type[ExposedToolParameterModel]:
+        """Build a subclass with optional engine knobs plus any fixed fields."""
+        if exposed_field_defs is None and not extra_field_defs:
+            return cls
+        field_defs: dict[str, tuple[Any, Any]] = dict(extra_field_defs or {})
+        if exposed_field_defs:
+            field_defs.update(exposed_field_defs)
+        if not field_defs:
+            return cls
+        model = create_model(
+            cls.__name__,
+            __base__=cls,
+            **cast(Any, field_defs),
         )
-        return resolve_search_call_schema_from_config(engine_id, parsed, strict=strict)
+        return cast(
+            type[ExposedToolParameterModel],
+            _stamp_exposed_field_names(model, exposed_field_defs),
+        )
 
-    defaults = provider_default_config("search_engine", engine_id)
-    parsed = parse_search_engine_config(defaults)
-    return resolve_search_call_schema_from_config(engine_id, parsed, strict=strict)
+    @classmethod
+    def model_json_schema(cls, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        schema = super().model_json_schema(*args, **kwargs)
+        finalize_exposed_tool_schema(schema)
+        return schema
+
+
+def build_exposed_tool_field_defs(
+    config: BaseModel,
+) -> dict[str, tuple[Annotation, Any]] | None:
+    """Flat ``create_model`` field defs for tool schemas (description-only, optional).
+
+    A thin adapter over the exposed subset of :func:`field_plan`: each exposed
+    knob becomes an optional field keyed by its Python name, exposed to callers
+    under its camelCase alias. Admin defaults are not embedded in the tool schema
+    (they are merged at search time); each field marks its own schema node so
+    :class:`ExposedToolParameterModel` can strip the ``title``/``default`` noise.
+    """
+    exposed = set(exposed_field_names(config))
+    if not exposed:
+        return None
+    return {
+        plan.name: (
+            as_optional(plan.inner_type),
+            Field(
+                default=None,
+                description=plan.description,
+                alias=plan.alias,
+                json_schema_extra=_mark_exposed_tool_field,
+            ),
+        )
+        for plan in field_plan(type(config))
+        if plan.name in exposed
+    }
 
 
 __all__ = [
-    "SearchCallSchemaDescriptor",
-    "resolve_search_call_schema",
-    "resolve_search_call_schema_from_config",
+    "ExposedToolParameterModel",
+    "build_exposed_tool_field_defs",
+    "exposed_field_names",
 ]

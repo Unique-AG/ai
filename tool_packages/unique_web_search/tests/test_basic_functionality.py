@@ -18,13 +18,27 @@ class TestWebSearchSchema:
 
     def test_web_search_tool_parameters_basic(self):
         """Test basic WebSearchToolParameters creation."""
-        params = WebSearchToolParameters(query="Python programming", date_restrict=None)
+        params = WebSearchToolParameters(query="Python programming")
         assert params.query == "Python programming"
-        assert params.date_restrict is None
 
-    def test_web_search_tool_parameters_with_date(self):
-        """Test WebSearchToolParameters with date restriction."""
-        params = WebSearchToolParameters(query="Recent AI news", date_restrict="w1")
+    def test_web_search_tool_parameters_with_exposed_date_restrict(self):
+        """Test exposed engine date_restrict on the dynamic V1 tool model."""
+        from unique_search_proxy_core.search_engines.call_schema import (
+            build_exposed_tool_field_defs,
+        )
+        from unique_search_proxy_core.search_engines.google.schema import (
+            ExposableStrOrNone,
+            GoogleConfig,
+        )
+
+        config = GoogleConfig(
+            date_restrict=ExposableStrOrNone(expose=True, value="d7"),
+        )
+        Params = WebSearchToolParameters.with_exposed_fields(
+            build_exposed_tool_field_defs(config),
+            query_description="Search query",
+        )
+        params = Params(query="Recent AI news", date_restrict="w1")
         assert params.query == "Recent AI news"
         assert params.date_restrict == "w1"
 

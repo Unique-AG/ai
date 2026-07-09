@@ -164,7 +164,8 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
 
     async def run(self) -> list[ContentChunk]:
         query = self.tool_parameters.query
-        date_restrict = self.tool_parameters.date_restrict
+        search_params = self._search_params(self.tool_parameters)
+        date_restrict = search_params.get("date_restrict")
 
         self.notify_name = "**Refining Query**"
         self.notify_message = query_params_to_human_string(query, date_restrict)
@@ -197,7 +198,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
             await self.notify_callback()
             await self._message_log_callback.log_progress(self.notify_message)
 
-            search_results = await self._search(query, date_restrict=date_restrict)
+            search_results = await self._search(query)
 
             await self._message_log_callback.log_web_search_results(search_results)
 
@@ -269,17 +270,14 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
 
         return queries, refined_query.objective
 
-    async def _search(
-        self, query: str, date_restrict: str | None
-    ) -> list[WebSearchResult]:
+    async def _search(self, query: str) -> list[WebSearchResult]:
         engine = self.search_service.config.engine.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {engine}")
+        params = self._search_params(self.tool_parameters)
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
-            search_results = await self.search_service.search(
-                query, date_restrict=date_restrict
-            )
+            search_results = await self.search_service.search(query, params=params)
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(f"Searched with {engine} completed in {delta_time} seconds")
@@ -290,7 +288,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
                 config=self.search_service.config.engine.name,
                 extra={
                     "query": query,
-                    "date_restrict": date_restrict,
+                    "params": params,
                     "number_of_results": len(search_results),
                     "urls": [result.url for result in search_results],
                 },

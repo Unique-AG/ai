@@ -1,5 +1,5 @@
 import asyncio
-from typing import override
+from typing import Any, override
 
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
@@ -9,12 +9,7 @@ from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import LanguageModelService
 
 from unique_web_search.services.proxy.bridge import (
-    open_search_proxy_client,
     search_proxy_client_enabled,
-)
-from unique_web_search.services.proxy.mappers import (
-    agent_answer_text,
-    map_agent_answer,
 )
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineMode
 from unique_web_search.services.search_engine.registry import register_search_engine
@@ -62,8 +57,6 @@ class BingSearchConfig(BingAgentConfig):
     needs_language_model=True,
 )
 class BingSearch(SearchEngine[BingSearchConfig]):
-    supports_proxy_search = True
-
     def __init__(
         self,
         config: BingSearchConfig,
@@ -95,24 +88,11 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         return self.config.requires_scraping
 
     @override
-    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        async with open_search_proxy_client(
-            timeout=float(self.config.timeout)
-        ) as client:
-            response = await client.agent_search.bing(
-                query=query,
-                fetch_size=self.config.fetch_size,
-                agent_id=self.config.agent_id or None,
-                generation_instructions=self.config.generation_instructions,
-                timeout=self.config.timeout,
-            )
-            return await map_agent_answer(
-                agent_answer_text(response),
-                self.response_parsers,
-            )
-
-    @override
-    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
+    async def _legacy_search(
+        self,
+        query: str,
+        params: dict[str, Any],
+    ) -> list[WebSearchResult]:
         agent_client = get_project_client(self.credentials, self.config.endpoint)
 
         search_results = await create_and_process_run(

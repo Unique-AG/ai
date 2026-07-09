@@ -1,26 +1,30 @@
 """V1 WebSearch tool parameters (single-query tool call)."""
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from typing import Any
+
+from pydantic import ConfigDict, Field
+from unique_search_proxy_core.search_engines.call_schema import (
+    ExposedToolParameterModel,
+)
 
 
-class WebSearchToolParameters(BaseModel):
+class WebSearchToolParameters(ExposedToolParameterModel):
     """Parameters for the Websearch tool."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     query: str
-    date_restrict: str | None
 
     @classmethod
-    def from_tool_parameter_query_description(
-        cls, query_description: str, date_restrict_description: str | None
+    def with_exposed_fields(
+        cls,
+        exposed_field_defs: dict[str, tuple[Any, Any]] | None,
+        *,
+        query_description: str,
     ) -> type["WebSearchToolParameters"]:
-        """Create a new model with the query field."""
-        return create_model(
-            cls.__name__,
-            query=(str, Field(description=query_description)),
-            date_restrict=(
-                str | None,
-                Field(description=date_restrict_description),
-            ),
-            __base__=cls,
+        """Build tool parameters with ``query`` plus flat engine-exposed fields."""
+        return super().with_exposed_fields(
+            exposed_field_defs,
+            extra_field_defs={
+                "query": (str, Field(description=query_description)),
+            },
         )
