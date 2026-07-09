@@ -32,7 +32,7 @@ src/mcp_crm/
 ```
 
 The SQL is generated from the canonical registry by
-`python/rm_mcps_export/generate_sql.py` in the sandbox repo (do not edit by hand).
+`python/rm-demo/src/generate_sql.py` in the sandbox repo (do not edit by hand).
 
 ## Run locally
 
@@ -70,7 +70,7 @@ isn't up.
 
 ### Prerequisites
 
-1. **Azure subscription and resource group** — subscription `698f3b43-ccb0-4f97-9e10-2ca89a7782cf` (`lab-demo-001`), resource group `rg-lab-demo-001-rm-mcps`. The lab uses one pre-created RG per MCP and personal accounts can't create RGs at subscription scope, so have this RG created first (see the [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs)), or set `RG=` to an existing lab RG you have Contributor on.
+1. **Azure subscription and resource group** — subscription `698f3b43-ccb0-4f97-9e10-2ca89a7782cf` (`lab-demo-001`), resource group `rg-lab-demo-001-rm-agent-mcp`. The lab uses one pre-created RG per MCP and personal accounts can't create RGs at subscription scope, so have this RG created first (see the [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs)), or set `RG=` to an existing lab RG you have Contributor on.
 2. **Advisory deployed first** — CRM reuses the shared ACR (`rmmcpsacr`) and Postgres server (`rm-mcps-pg-db`) created by `mcp_advisory/deploy_pg.sh`. Use the **same** `PG_ADMIN_PASSWORD`.
 3. **Azure CLI** installed and logged in (`az login`) with access to the subscription above.
 4. **`psql`** on PATH — `deploy_pg.sh` seeds the database with it (e.g. `brew install libpq && brew link --force libpq`).
@@ -87,11 +87,17 @@ Deploy **Advisory first** (it creates the shared ACR + Postgres server), then:
 - **App:** `https://rm-crm-mcp.azurewebsites.net`  ·  **MCP endpoint:** `…/mcp`
 - Rewire the **`RM Agent - CRM`** Unique connector to the new endpoint.
 
-### Redeploy (code only)
+### Redeploy (code / seed changes)
+
+The web app is **pinned to a timestamp tag**, so building `:latest` + restarting does
+**nothing**. Use the shared script — it builds a fresh timestamp tag, repoints the app
+(`az webapp config container set`), and restarts (RG `rg-lab-demo-001-rm-agent-mcp`,
+needs Web App Contributor):
 
 ```bash
-az acr build -t rm-crm-mcp:latest -r rmmcpsacr .
-az webapp config container set -n rm-crm-mcp -g rg-lab-demo-001-rm-mcps \
-  --container-image-name "rmmcpsacr.azurecr.io/rm-crm-mcp:latest"
-az webapp restart -n rm-crm-mcp -g rg-lab-demo-001-rm-mcps
+../.local/redeploy.sh crm
 ```
+
+Seed SQL is baked into the image, so **run `Reset_Demo_Data` after redeploying** to apply
+new/changed seed data — e.g. a refreshed `content_id_map` (the env-specific KB content ids;
+see the [top-level README](../README.md#environment-aware-content-ids)).

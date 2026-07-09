@@ -7,7 +7,7 @@ set -e
 
 # === CONFIGURATION ===
 SUBSCRIPTION="${SUBSCRIPTION:-698f3b43-ccb0-4f97-9e10-2ca89a7782cf}"
-RG="${RG:-rg-lab-demo-001-rm-mcps}"
+RG="${RG:-rg-lab-demo-001-rm-agent-mcp}"
 LOCATION="${LOCATION:-westeurope}"
 APP="rm-crm-mcp"
 ACR="rmmcpsacr"               # shared registry for all RM MCPs

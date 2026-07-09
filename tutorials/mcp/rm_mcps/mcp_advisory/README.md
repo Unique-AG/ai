@@ -59,7 +59,7 @@ src/mcp_advisory/
 Per-client read-only data is stored as `<table>(client_id TEXT PK, data JSONB)` and
 read by a small factory in `common/db.py`; most domains are therefore just a
 declarative `SPECS` list + `register(mcp)`. The SQL is generated from the
-canonical registry by `python/rm_mcps_export/generate_sql.py` in the sandbox repo.
+canonical registry by `python/rm-demo/src/generate_sql.py` in the sandbox repo.
 
 Adding a domain = a new module exposing `register(mcp)`, a `sql/<domain>.sql`, and
 one import line in `mcp_advisory.py`.
@@ -119,7 +119,7 @@ server isn't up.
 
 ### Prerequisites
 
-1. **Azure subscription and resource group** — subscription `698f3b43-ccb0-4f97-9e10-2ca89a7782cf` (`lab-demo-001`), resource group `rg-lab-demo-001-rm-mcps`. The lab uses one pre-created RG per MCP and personal accounts can't create RGs at subscription scope, so have this RG created first (see the [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs)), or set `RG=` to an existing lab RG you have Contributor on.
+1. **Azure subscription and resource group** — subscription `698f3b43-ccb0-4f97-9e10-2ca89a7782cf` (`lab-demo-001`), resource group `rg-lab-demo-001-rm-agent-mcp`. The lab uses one pre-created RG per MCP and personal accounts can't create RGs at subscription scope, so have this RG created first (see the [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs)), or set `RG=` to an existing lab RG you have Contributor on.
 2. **Azure CLI** installed and logged in (`az login`) with access to the subscription above.
 3. **`psql`** on PATH — `deploy_pg.sh` seeds the database with it (e.g. `brew install libpq && brew link --force libpq`).
 4. *(Optional)* **Zitadel app** with redirect URI `https://rm-advisory-mcp.azurewebsites.net/auth/callback` — only needed if you enable OAuth (the server runs open without it).
@@ -131,7 +131,7 @@ server isn't up.
 ```
 
 Creates (idempotently) a shared `rmmcpsacr` registry + `rm-mcps-pg-db` Postgres
-server in resource group `rg-lab-demo-001-rm-mcps`, seeds every `sql/*.sql`, and
+server in resource group `rg-lab-demo-001-rm-agent-mcp`, seeds every `sql/*.sql`, and
 deploys the Web App `rm-advisory-mcp`. On later runs only the image is rebuilt
 and redeployed.
 
@@ -149,11 +149,15 @@ RM Agent - Advisory → https://rm-advisory-mcp.azurewebsites.net/mcp
 Tool names, descriptions and output are unchanged, so the agent behaves exactly
 as it did against n8n — just against a service that doesn't fall over.
 
-### Redeploy (code only)
+### Redeploy (code / seed changes)
+
+The web app is **pinned to a timestamp tag**, so building `:latest` + restarting does
+**nothing**. Use the shared script — it builds a fresh timestamp tag, repoints the app,
+and restarts (RG `rg-lab-demo-001-rm-agent-mcp`, needs Web App Contributor):
 
 ```bash
-az acr build -t rm-advisory-mcp:latest -r rmmcpsacr .
-az webapp config container set -n rm-advisory-mcp -g rg-lab-demo-001-rm-mcps \
-  --container-image-name "rmmcpsacr.azurecr.io/rm-advisory-mcp:latest"
-az webapp restart -n rm-advisory-mcp -g rg-lab-demo-001-rm-mcps
+../.local/redeploy.sh advisory
 ```
+
+Seed SQL is baked into the image, so **run `Reset_Demo_Data` after redeploying** to apply
+new/changed seed data.

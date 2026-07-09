@@ -27,7 +27,7 @@ seeds, restoring the baseline (notably the editable CRM client memory) between d
 runs.
 
 Both servers share **one** PostgreSQL database (`rmmcps`), one ACR (`rmmcpsacr`),
-and one resource group (`rg-lab-demo-001-rm-mcps`). One id everywhere:
+and one resource group (`rg-lab-demo-001-rm-agent-mcp`). One id everywhere:
 **`client_id`** (textual; names + legacy numeric ids resolve via `client_aliases`).
 OAuth (Zitadel) is wired like `mcp_sql_demo` but optional (open when unset).
 
@@ -116,3 +116,11 @@ Deploy **Advisory first** (it creates the shared ACR + Postgres server), then CR
 
 Then rewire the two Unique connectors (`RM Agent - Advisory`, `RM Agent - CRM`) to
 the new endpoints. See each package's README for details.
+
+**To redeploy code / seed changes** (after the initial deploy) use
+[`.local/redeploy.sh`](.local/redeploy.sh) `[advisory|crm|both]` — it builds a fresh
+**timestamp-tagged** image (the web apps are pinned to timestamp tags, so `:latest` +
+restart is a no-op), repoints the web app, and restarts. Everything lives in RG
+**`rg-lab-demo-001-rm-agent-mcp`** (needs Web App Contributor). Seed SQL is baked into
+the image, so **run `Reset_Demo_Data` after redeploying** to apply new/changed seed
+data (e.g. a refreshed `content_id_map`).

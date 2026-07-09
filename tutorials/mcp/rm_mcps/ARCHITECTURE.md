@@ -187,6 +187,7 @@ from the canonical sources (§7). Conventions:
 | **Roster & resolution** | `clients(client_id PK, data JSONB)`, `client_aliases(alias PK, client_id)` | `list_clients`, all resolution | roster page / canonical id |
 | **Editable client memory** | `rm_talking_points / rm_open_questions / rm_documents (client_id, position, …)` rows | `get_/upsert_/delete_*` | top-level array (get) / status (write) |
 | **Catalogue / bank-wide** | `house_view*`, `cio_themes`, `tactical_calls`, `model_catalog`, `model_portfolios(code PK)`, `lombard_coverage(party, scenario_id)`, `calendar_events`, `documents_catalog` | house view, models, lombard, calendar, doc catalog | as per the n8n shape |
+| **Env-specific KB content ids** (CRM) | `content_id_map(env, map_key, content_id)` (PK `env, map_key`) | `list_clients`, `list_available_documents` — resolved per **caller env** (§7, [env_map](mcp_crm/src/mcp_crm/common/env_map.py)) | the caller-env's `cont_…`, or `""` → open by `filePath` |
 
 **Why JSONB-per-client rather than fully normalized tables?** The tools are
 deterministic *key lookups* ("give me this client's holdings"), not the ad-hoc
@@ -214,33 +215,33 @@ exception: it keeps its own Markus-only party-alias map, mirroring the n8n tool.
 
 ## 7. Data pipeline (how `sql/*.sql` is produced)
 
-The seed SQL is **generated**, not hand-written, from two canonical sources in
-the **sandbox** repo:
+The seed SQL is **generated**, not hand-written, from canonical sources in the
+**sandbox** repo (single source of truth = `client_registry.py`):
 
 ```
-rm_demo.client_registry            # all per-client data + roster + resolution maps
-resources/n8n/split/*.json         # the data that lived ONLY in n8n JS
-        │                                  │
-        │   node harvest_n8n.js  ◀─────────┘   (evaluates the 4 n8n-only blobs:
-        │        │                              attribution, entity_ownership,
-        ▼        ▼                              model catalogue, lombard)
-   python/rm_mcps_export/generate_sql.py
+python/rm-demo/src/client_registry.py    # all per-client data + roster + resolution maps
+python/rm-demo/src/reference_data.json    # frozen non-per-client data (attribution,
+        │                                   entity_ownership, model catalogue, lombard)
+        ▼
+python/rm-demo/src/generate_sql.py
         │
         ▼
    writes sql/*.sql into BOTH ai-repo packages
 ```
 
-- `harvest_n8n.js` runs each tool's JS body via `new Function('query', body)` to
-  capture, verbatim, the data n8n held inline (no paraphrasing).
-- `generate_sql.py` reads the registry + the harvested JSON and emits idempotent
-  `CREATE TABLE IF NOT EXISTS … INSERT … ON CONFLICT DO NOTHING`, dollar-quoting
-  JSON (`$rmj$…$rmj$`) so nothing needs escaping.
+- `generate_sql.py` reads the registry + `reference_data.json` and emits idempotent
+  `CREATE TABLE IF NOT EXISTS … INSERT … ON CONFLICT DO NOTHING`, dollar-quoting JSON
+  (`$rmj$…$rmj$`) so nothing needs escaping. (The old `harvest_n8n.js` step is gone —
+  the n8n-only blobs were captured once and frozen into `reference_data.json`.)
+- **Env-specific KB content ids** → `sql/content_id_map.sql` (CRM only): one row per
+  `(env, map_key)` from `resources/rm-demo/{dashboard,document}_content_ids.<env>.json`
+  (refreshed per env by `fetch_*_ids.py --env user.<env>.env` after KB uploads). Resolved
+  at request time per caller env — see §5 and `mcp_crm/common/env_map.py`.
 
 Regenerate with:
 
 ```bash
-node   python/rm_mcps_export/harvest_n8n.js
-uv run python python/rm_mcps_export/generate_sql.py
+uv run --project python/rm-demo python python/rm-demo/src/generate_sql.py
 ```
 
 `clients.sql` is generated identically into both packages (both servers resolve
@@ -331,7 +332,7 @@ Health: `curl localhost:8003/` and `curl localhost:8004/`. The MCP endpoints are
 
 ## 12. Deployment (Azure)
 
-Shared infra in resource group `rg-lab-demo-001-rm-mcps`: one ACR (`rmmcpsacr`),
+Shared infra in resource group `rg-lab-demo-001-rm-agent-mcp`: one ACR (`rmmcpsacr`),
 one Postgres Flexible Server (`rm-mcps-pg-db`), one database (`rmmcps`). Deploy
 **Advisory first** (it creates the shared ACR + Postgres), then **CRM** (reuses
 them):
@@ -346,6 +347,17 @@ Each `deploy_pg.sh`: ensures the Postgres server/db, seeds `sql/*.sql` via `psql
 (`rm-advisory-mcp` / `rm-crm-mcp`, `WEBSITES_PORT` 8003/8004) with the Postgres
 app settings. Then rewire the two Unique connectors (`RM Agent - Advisory`,
 `RM Agent - CRM`) to the new `…/mcp` endpoints.
+
+**Redeploying code / seed changes** (after the initial `deploy_pg.sh`): use
+`.local/redeploy.sh [advisory|crm|both]`. The web apps are **pinned to timestamp
+tags** (not `:latest`), so building `:latest` + restarting does nothing — the script
+`az acr build`s a fresh timestamp tag, `az webapp config container set`s the app to it,
+and restarts. It needs **Web App Contributor** on `rg-lab-demo-001-rm-agent-mcp` (the
+`deploy_pg.sh` fallback path — direct `psql` seeding — additionally needs
+`PG_ADMIN_PASSWORD`; `redeploy.sh` avoids it). **Seed SQL is baked into the image**, so
+after a redeploy run **`Reset_Demo_Data`** (chat: "reset the demo data", or the
+`.local/mcp_call.py … call Reset_Demo_Data '{}'` helper) to apply new/changed seed data
+— e.g. a refreshed `content_id_map`. Resetting *before* redeploy restores the old data.
 
 > The build context is each package dir; deps are PyPI-only (no editable paths),
 > so `az acr build` resolves cleanly — unlike the SQL demo's local-path deps.
