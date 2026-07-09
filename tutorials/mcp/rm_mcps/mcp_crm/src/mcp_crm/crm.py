@@ -9,9 +9,11 @@ the roster + resolution come from sql/clients.sql.
 import json
 from typing import Annotated
 
+from fastmcp import Context
 from pydantic import Field
 
 from common.db import make_client_tools, query_all, query_one, resolve_client, unknown
+from common.env_map import content_id_for, env_from_ctx
 from common.tool_prompts import tool_meta
 
 SPECS = [
@@ -108,6 +110,7 @@ def register(mcp) -> None:
         rm: Annotated[str, Field(description="Owning RM.")] = "",
         limit: Annotated[int, Field(description="Page size.")] = 50,
         skip: Annotated[int, Field(description="Page offset.")] = 0,
+        ctx: Context = None,
     ) -> str:
         rows = [r["data"] for r in query_all("SELECT data FROM clients ORDER BY client_id")]
 
@@ -128,6 +131,14 @@ def register(mcp) -> None:
 
         matched = [c for c in rows if keep(c)]
         page = matched[skip: skip + limit]
+        # Resolve each client's dashboard content id for the CALLER's environment
+        # (this MCP is shared across envs; KB content ids are env-specific). Missing →
+        # "" so the consumer opens by dashboard_path (filePath), never a stale id.
+        env = env_from_ctx(ctx)
+        for c in page:
+            cont = content_id_for(env, f"dashboard:{c.get('client_id', '')}")
+            c["content_id"] = cont
+            c["open_doc_payload"] = json.dumps({"contentId": cont}, ensure_ascii=False) if cont else ""
         return json.dumps({"total": len(matched), "count": len(page), "skip": skip,
                            "limit": limit, "clients": page})
 
@@ -140,10 +151,21 @@ def register(mcp) -> None:
     def list_available_documents(
         input: Annotated[str, Field(description="Client name or client_id.")] = "",
         client_id: Annotated[str, Field(description="Client id (alternative to input).")] = "",
+        ctx: Context = None,
     ) -> str:
         cid = resolve_client(input or client_id)
         if cid is None:
             return json.dumps(unknown(input or client_id))
         row = query_one("SELECT data FROM documents_catalog WHERE client_id = %s", (cid,))
         docs = row["data"] if row else []
+        # Env-aware content ids for the caller's environment (shared MCP). Each doc's
+        # stable key is its filename ("file"); override the baked id when this env has a
+        # mapping, else leave the seeded id as a best-effort fallback.
+        env = env_from_ctx(ctx)
+        for d in docs:
+            fname = d.get("file")
+            cont = content_id_for(env, f"doc:{cid}:{fname}") if fname else ""
+            if cont:
+                d["contentId"] = cont
+                d["open_payload"] = json.dumps({"contentId": cont}, ensure_ascii=False)
         return json.dumps({"client_id": cid, "count": len(docs), "documents": docs, "items": docs})

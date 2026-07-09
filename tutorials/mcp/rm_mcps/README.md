@@ -41,13 +41,43 @@ generated from the canonical registry:
 - **Roster + resolution** → `clients`, `client_aliases`.
 - **Editable client memory** → `rm_talking_points` / `rm_open_questions` / `rm_documents` rows.
 - **Calendar / model catalogue / lombard** → `calendar_events`, `model_catalog` + `model_portfolios`, `lombard_coverage`.
+- **Env-specific KB content ids** → `content_id_map(env, map_key, content_id)` — see [Environment-aware content ids](#environment-aware-content-ids).
 
-The seed SQL is **generated** (do not hand-edit) by, in the sandbox repo:
+The seed SQL is **generated** (do not hand-edit) by, in the sandbox repo (single
+source of truth = `client_registry.py`):
 
 ```bash
-node   python/rm_mcps_export/harvest_n8n.js     # data that lived only in n8n JS
-uv run python python/rm_mcps_export/generate_sql.py   # → both packages' sql/*.sql
+uv run --project python/rm-demo python python/rm-demo/src/generate_sql.py   # → both packages' sql/*.sql
 ```
+
+## Environment-aware content ids
+
+These MCPs are a **single shared deployment** used by every environment (QA / UAT /
+prod-bnpp / prod-sales / local). KB **content ids (`cont_…`) are env-specific** — the
+same document has a different id in each environment's Knowledge Base — so the CRM
+tools must return the id for the **caller's** environment, not a baked-in one.
+
+- **Env signal — `env_map.env_from_ctx`, in priority order:** (1) an explicit
+  **`?env=<env>` on the connector URL** (`https://rm-crm-mcp.azurewebsites.net/mcp?env=sales`),
+  set per environment in admin — needs **no** platform feature (the MCP client preserves
+  the URL query); (2) the forwarded **`_meta.companyId`** (mapped by `COMPANY_ENV`) *if*
+  the connector has the `unique.app/auth/` forwarding namespace enabled; (3) else
+  `RM_DEFAULT_ENV` (default `qa`). **Use the URL param** when the admin build has no
+  "Context Forwarding" section (only the CRM connector needs it — Advisory has no
+  content ids).
+- `mcp_crm/common/env_map.py` maps `companyId → env` (`COMPANY_ENV`; override at
+  deploy time with `RM_COMPANY_ENV_JSON`, default env via `RM_DEFAULT_ENV`) and looks
+  the id up in `content_id_map(env, map_key, content_id)` — keys `dashboard:<client_id>`,
+  `cockpit`, `doc:<client_id>:<filename>`.
+- `list_clients` (dashboard `content_id` / `open_doc_payload`) and
+  `list_available_documents` (each doc's `contentId`) resolve per env.
+- **Graceful degradation:** unknown company / forwarding off / unseeded `(env, key)` →
+  the tool returns `content_id = ""`, so consumers open by **`filePath`** (which is
+  env-agnostic) instead of a wrong/dead id. A missing map never breaks a link.
+
+`content_id_map` is seeded from `resources/rm-demo/{dashboard,document}_content_ids.<env>.json`
+in the sandbox repo (per env, refreshed by `fetch_*_ids.py --env user.<env>.env` after
+uploads). Envs without a map file simply fall back to `filePath`.
 
 ## Run both locally
 
