@@ -29,5 +29,9 @@ def __getattr__(name: str) -> Any:
             warnings.simplefilter("ignore", DeprecationWarning)
             from unique_toolkit.chat.service import ChatService
 
+        # Cache in globals() per PEP 562: subsequent access resolves via
+        # normal attribute lookup, never re-entering __getattr__ (and
+        # never re-opening the non-thread-safe warnings.catch_warnings()).
+        globals()["ChatService"] = ChatService
         return ChatService
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
