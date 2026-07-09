@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.3](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.28.2...unique-sdk-v2026.28.3) (2026-07-09)
+
+
+### Bug Fixes
+
+* **unique_toolkit:** add OVERLAPS/NOT_OVERLAPS UniqueQL operators ([#2028](https://github.com/Unique-AG/ai/issues/2028)) ([a7714d8](https://github.com/Unique-AG/ai/commit/a7714d86de413c03ccf57ed529b1d9aa04c061de))
+
 ## [2026.28.2](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.28.1...unique-sdk-v2026.28.2) (2026-07-07)
 
 
