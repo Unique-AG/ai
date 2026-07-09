@@ -18,7 +18,6 @@ def build_perplexity_request_body(
     request: BaseModel,
 ) -> dict[str, Any]:
     """Assemble the Perplexity Search API JSON body from the derived request."""
-    config = PerplexityConfig()
     fetch_size = getattr(request, "fetch_size", PERPLEXITY_MAX_RESULTS)
     max_results = min(fetch_size, PERPLEXITY_MAX_RESULTS)
     if fetch_size > PERPLEXITY_MAX_RESULTS:
@@ -29,11 +28,29 @@ def build_perplexity_request_body(
             fetch_size,
             max_results,
         )
+    params = _apply_perplexity_api_rules(
+        PerplexityConfig.provider_query_params(request, by_alias=False),
+    )
     return {
         "query": query,
         "max_results": max_results,
-        **config.provider_query_params_from(request, by_alias=False),
+        **params,
     }
+
+
+def _apply_perplexity_api_rules(params: dict[str, Any]) -> dict[str, Any]:
+    """Enforce Perplexity API parameter constraints on the outgoing body.
+
+    The API rejects ``search_context_size`` when an explicit token limit
+    (``max_tokens`` / ``max_tokens_per_page``) is set, so the context size is
+    dropped in that case.
+    """
+    if (
+        params.get("max_tokens") is not None
+        or params.get("max_tokens_per_page") is not None
+    ):
+        params.pop("search_context_size", None)
+    return params
 
 
 __all__ = ["PERPLEXITY_MAX_RESULTS", "build_perplexity_request_body"]

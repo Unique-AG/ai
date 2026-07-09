@@ -9,7 +9,6 @@ from unique_search_proxy_core.search_engines.base import (
 from unique_search_proxy_core.search_engines.brave.schema import (
     BraveConfig,
     BraveSearchRequest,
-    brave_request_model,
 )
 from unique_search_proxy_core.search_engines.config_types import (
     SearchEngineConfigTypes,
@@ -23,13 +22,10 @@ from unique_search_proxy_core.search_engines.config_types import (
 from unique_search_proxy_core.search_engines.google.schema import (
     GoogleConfig,
     GoogleSearchRequest,
-    google_request_model,
 )
-from unique_search_proxy_core.search_engines.params import merge_config_and_invocation
 from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexityConfig,
     PerplexitySearchRequest,
-    perplexity_request_model,
 )
 
 __all__ = [
@@ -49,11 +45,7 @@ __all__ = [
     "SearchRequestTypes",
     "build_search_request_union",
     "get_search_engine_config_types_from_names",
-    "brave_request_model",
     "get_search_engine_mode",
-    "google_request_model",
-    "merge_config_and_invocation",
-    "perplexity_request_model",
     "parse_search_engine_config",
     "parse_search_request",
 ]

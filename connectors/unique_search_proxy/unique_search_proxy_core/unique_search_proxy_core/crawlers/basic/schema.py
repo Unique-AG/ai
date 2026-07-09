@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import Field
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
-from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
 
 
 class BasicConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
     """Deployment config for the HTTP basic crawler."""
+
+    _request_model_name: ClassVar[str] = "BasicCrawlRequest"
 
     crawler: Literal[CrawlerType.BASIC] = CrawlerType.BASIC
 
@@ -31,7 +32,7 @@ class BasicConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
     )
 
 
-BasicCrawlRequest = build_crawl_request_model(BasicConfig)
+BasicCrawlRequest = BasicConfig.request_model()
 
 
 __all__ = [

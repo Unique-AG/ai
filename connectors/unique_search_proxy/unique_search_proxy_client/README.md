@@ -39,7 +39,7 @@ System overview → [../README.md](../README.md)
 
 **What the client owns:** HTTP routes, provider registry, credential loading, httpx egress pool, Prometheus, Docker/Helm deployment.
 
-**What it does not own:** Deployment config JSON Schema, LLM call-schema projection, config/invocation merge — those live in core and run in caller processes.
+**What it does not own:** Deployment config JSON Schema, LLM exposed-params derivation, config/invocation merge — those live in core (as config-class methods) and run in caller processes.
 
 ---
 

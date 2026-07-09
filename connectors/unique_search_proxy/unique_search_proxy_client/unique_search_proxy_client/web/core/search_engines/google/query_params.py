@@ -17,14 +17,13 @@ def build_google_query_params(
     page: PageRequest,
 ) -> dict[str, Any]:
     """Assemble the Google API query string from the derived request + credentials."""
-    config = GoogleConfig()
     return {
         "q": query,
         "cx": search_engine_id,
         "key": api_key,
         "start": page.offset,
         "num": page.count,
-        **config.provider_query_params_from(request),
+        **GoogleConfig.provider_query_params(request),
     }
 
 

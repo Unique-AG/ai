@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
-from unique_search_proxy_core.projection import build_request_model
 from unique_search_proxy_core.schema import DeactivatedNone
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
@@ -40,6 +39,15 @@ def _inactive_site_search_filter_exposable() -> ExposableSiteSearchFilter:
 
 class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
     """Single source of truth for Google deployment + derived request/LLM surfaces."""
+
+    _request_model_name: ClassVar[str] = "GoogleSearchRequest"
+    _exposed_params_model_name: ClassVar[str] = "GoogleExposedParams"
+
+    # `search_engine_id` is the Programmable Search Engine credential (`cx`),
+    # resolved server-side — never forwarded as a provider query knob.
+    _provider_param_exclude_fields: ClassVar[frozenset[str]] = (
+        BaseSearchEngineConfig._provider_param_exclude_fields | {SEARCH_ENGINE_ID_FIELD}
+    )
 
     engine: Annotated[
         Literal[SearchEngineType.GOOGLE], RJSFMetaTag.SpecialWidget.hidden()
@@ -129,17 +137,11 @@ class GoogleConfig(BaseSearchEngineConfig[Literal[SearchEngineType.GOOGLE]]):
     )
 
 
-def google_request_model() -> type[BaseModel]:
-    """Derived ``POST /v1/search`` model (cached via ``build_request_model``)."""
-    return build_request_model(GoogleConfig)
-
-
-GoogleSearchRequest = google_request_model()
+GoogleSearchRequest = GoogleConfig.request_model()
 
 
 __all__ = [
     "GoogleConfig",
     "GoogleSearchRequest",
     "SEARCH_ENGINE_ID_FIELD",
-    "google_request_model",
 ]

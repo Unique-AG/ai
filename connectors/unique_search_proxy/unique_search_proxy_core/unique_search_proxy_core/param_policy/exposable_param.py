@@ -1,4 +1,11 @@
-"""Optional provider knobs: admin default (``value``) and LLM visibility (``expose``)."""
+"""Optional provider knobs: admin default (``value``) and LLM visibility (``expose``).
+
+Owns the ``ExposableParam`` deployment value object, the factory-default merge
+used by config ``model_validator`` hooks, the type-introspection helpers the
+derivation code needs (``is_exposable_param_type``, ``exposable_param_inner_type``),
+and the OpenAPI naming hooks that keep parametrized generics readable in
+``$defs`` / generated SDK file names.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +22,7 @@ from typing import (
     get_origin,
 )
 
-from pydantic import BaseModel, Field, GetCoreSchemaHandler, model_validator
+from pydantic import BaseModel, Field, GetCoreSchemaHandler
 from pydantic.fields import FieldInfo
 from pydantic_core import CoreSchema
 
@@ -58,9 +65,9 @@ class ExposableParam(BaseModel, Generic[T]):
     Parent config fields use ``ExposableParam[Annotated[T | None, DeactivatedNone]]`` with
     ``Field(default_factory=lambda: ExposableParam(expose=False, value=None))``.
 
-    - ``value is None``: deactivated (no merge, not on LLM schema unless ``expose`` alone matters).
+    - ``value is None``: deactivated (no merge; ``expose`` alone controls LLM visibility).
     - ``expose=False`` and ``value`` set: merge default; omit from LLM schema.
-    - ``expose=True``: include on LLM call schema; merge ``value`` when not ``None``.
+    - ``expose=True``: include on the LLM-facing exposed-params model; merge ``value`` when not ``None``.
     - ``value`` omitted in JSON: parent config merges from field ``default_factory`` before validation.
     - ``value: null`` in JSON: explicit deactivation (merge skipped; does not inherit factory).
     """
@@ -73,14 +80,11 @@ class ExposableParam(BaseModel, Generic[T]):
         description="Admin default merged into each search when not ``None``.",
     )
 
-    def merged_value(self) -> T:
-        return self.value
-
-    def llm_exposed(self) -> bool:
-        return self.expose
-
     def is_active(self) -> bool:
-        """True when a non-null admin default should be merged."""
+        """True when a non-null admin default should be merged.
+
+        Consumed by the web-search tool's legacy (non-proxy) search path.
+        """
         return self.value is not None
 
     @classmethod
@@ -115,15 +119,6 @@ class ExposableParam(BaseModel, Generic[T]):
             clean_ref = f"{cls.__module__}.{cls.__name__}:{id(cls)}"
             return cast(CoreSchema, {**schema, "ref": clean_ref})
         return schema
-
-    @model_validator(mode="before")
-    @classmethod
-    def _coerce_input(cls, data: Any) -> Any:
-        if isinstance(data, str):
-            return {"expose": False, "value": data}
-        if isinstance(data, dict) and "expose" not in data and "value" not in data:
-            return data
-        return data
 
 
 def _exposable_field_keys(field_name: str, field_info: FieldInfo) -> list[str]:
@@ -244,9 +239,3 @@ def exposable_param_inner_type(annotation: Any) -> Any:
     if annotation is ExposableParam:
         return str
     return _strip_annotated(annotation)
-
-
-def unwrap_exposable_param_value(value: Any) -> Any:
-    if isinstance(value, ExposableParam):
-        return value.merged_value()
-    return value

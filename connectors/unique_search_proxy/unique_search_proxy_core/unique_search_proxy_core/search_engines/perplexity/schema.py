@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
-from unique_search_proxy_core.projection import build_request_model
 from unique_search_proxy_core.schema import DeactivatedNone
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
@@ -42,6 +41,9 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
     Field names mirror the Perplexity Search API request body
     (``POST https://api.perplexity.ai/search``).
     """
+
+    _request_model_name: ClassVar[str] = "PerplexitySearchRequest"
+    _exposed_params_model_name: ClassVar[str] = "PerplexityExposedParams"
 
     engine: Annotated[
         Literal[SearchEngineType.PERPLEXITY], RJSFMetaTag.SpecialWidget.hidden()
@@ -150,12 +152,7 @@ class PerplexityConfig(BaseSearchEngineConfig[Literal[SearchEngineType.PERPLEXIT
     )
 
 
-def perplexity_request_model() -> type[BaseModel]:
-    """Derived ``POST /v1/search`` model (cached via ``build_request_model``)."""
-    return build_request_model(PerplexityConfig)
-
-
-PerplexitySearchRequest = perplexity_request_model()
+PerplexitySearchRequest = PerplexityConfig.request_model()
 
 
 __all__ = [
@@ -167,5 +164,4 @@ __all__ = [
     "PerplexitySearchRequest",
     "PerplexityRecencyFilter",
     "PerplexitySearchContextSize",
-    "perplexity_request_model",
 ]

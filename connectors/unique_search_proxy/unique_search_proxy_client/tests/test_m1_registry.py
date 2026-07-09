@@ -66,7 +66,7 @@ class TestDiscriminatedConfig:
     @pytest.mark.ai
     def test_search_engine_config_parses_google_discriminator(self) -> None:
         config = parse_search_engine_config(
-            {"engine": "google", "dateRestrict": "d7"},
+            {"engine": "google", "dateRestrict": {"expose": False, "value": "d7"}},
         )
         assert isinstance(config, GoogleConfig)
         assert config.engine == SearchEngineType.GOOGLE
