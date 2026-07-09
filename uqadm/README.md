@@ -417,10 +417,18 @@ locally are **left untouched — `kb sync` never deletes remote files**. Require
 exactly one of ``--folder-path`` or ``--scope-id``. Without ``--recursive`` only
 top-level files are synced; with it, subdirectories are recreated as child folders.
 
+By default, replaced files **archive prior blobs** (restorable via
+``unique-cli versions`` / ``restore-version``). Content ids are unchanged on
+replace (upsert by filename key). Pass ``--no-version`` to skip archiving
+(legacy overwrite behavior). Once a content row has been versioned, the platform
+treats versioning as sticky — later uploads keep archiving even with
+``--no-version``.
+
 ```bash
 uqadm kb sync ./docs --folder-path /Dept/HR
 uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
 uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
+uqadm kb sync ./docs --scope-id scope_abc --no-version
 ```
 
 | Option | Description |
@@ -429,6 +437,7 @@ uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 | `--scope-id` | Target folder scope id (mutually exclusive with ``--folder-path``). |
 | `-r`, `--recursive` | Recurse into subdirectories, mirroring them as child KB folders. |
 | `--dry-run` | Show planned uploads without writing anything. |
+| `--no-version` | Upload without archiving prior blobs. |
 | `--slot SLOT` | Credential slot. |
 
 Extensions that the OS `mimetypes` database cannot resolve (common on macOS for

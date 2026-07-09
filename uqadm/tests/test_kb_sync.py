@@ -46,6 +46,7 @@ def test_new_file_uploaded(
     args, kwargs = upload.call_args
     assert args[3] == "a.txt"  # displayed_filename / key
     assert kwargs["scope_or_unique_path"] == "scope1"
+    assert kwargs["versioning_enabled"] is True
 
 
 @patch("uqadm.kb.sync.upload_file")
@@ -75,6 +76,34 @@ def test_existing_file_replaced(
 
     # Replaced files are still re-uploaded (upsert overwrites by key).
     upload.assert_called_once()
+    assert upload.call_args.kwargs["versioning_enabled"] is True
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_no_version_passes_false(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path_with_create.return_value = "scope1"
+    content.get_infos.return_value = _no_remote()
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=False,
+        versioning=False,
+    )
+
+    upload.assert_called_once()
+    assert upload.call_args.kwargs["versioning_enabled"] is False
 
 
 @patch("uqadm.kb.sync.upload_file")
@@ -456,7 +485,7 @@ def test_dry_run_missing_folder_treats_files_as_new(
     upload.assert_not_called()
     content.get_infos.assert_not_called()
     folder.resolve_scope_id_from_folder_path_with_create.assert_not_called()
-    assert "[dry-run] new: a.txt" in capsys.readouterr().out
+    assert "[dry-run] new: a.txt (versioned)" in capsys.readouterr().out
 
 
 @patch("uqadm.kb.sync.upload_file")
@@ -491,4 +520,35 @@ def test_remote_keys_paginates(
     assert content.get_infos.call_args_list[0].kwargs["skip"] == 0
     assert content.get_infos.call_args_list[1].kwargs["skip"] == 1
     upload.assert_called_once()
-    assert "replaced: b.txt" in capsys.readouterr().out
+    assert "replaced: b.txt (versioned)" in capsys.readouterr().out
+
+
+@patch("uqadm.kb.sync.upload_file")
+@patch("uqadm.kb.sync.Content")
+@patch("uqadm.kb.sync.Folder")
+def test_dry_run_shows_no_version_label(
+    folder: MagicMock,
+    content: MagicMock,
+    upload: MagicMock,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    (tmp_path / "a.txt").write_text("hi", encoding="utf-8")
+    folder.resolve_scope_id_from_folder_path.return_value = "scope1"
+    content.get_infos.return_value = {
+        "contentInfos": [{"key": "a.txt"}],
+        "totalCount": 1,
+    }
+
+    cmd_sync(
+        _cfg(),
+        local_dir=tmp_path,
+        folder_path="/X",
+        scope_id=None,
+        recursive=False,
+        dry_run=True,
+        versioning=False,
+    )
+
+    upload.assert_not_called()
+    assert "[dry-run] replaced: a.txt (no-version)" in capsys.readouterr().out

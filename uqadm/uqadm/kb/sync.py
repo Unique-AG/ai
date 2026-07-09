@@ -90,6 +90,7 @@ def cmd_sync(
     scope_id: str | None,
     recursive: bool,
     dry_run: bool,
+    versioning: bool = True,
 ) -> None:
     if bool(folder_path) == bool(scope_id):
         typer.echo("Specify exactly one of --folder-path or --scope-id.", err=True)
@@ -152,8 +153,9 @@ def cmd_sync(
                 counts["failed"] += 1
                 continue
             action = "replaced" if path.name in existing else "new"
+            version_label = "(versioned)" if versioning else "(no-version)"
             if dry_run:
-                typer.echo(f"[dry-run] {action}: {display}")
+                typer.echo(f"[dry-run] {action}: {display} {version_label}")
                 counts[action] += 1
                 continue
             try:
@@ -164,13 +166,14 @@ def cmd_sync(
                     path.name,
                     mime,
                     scope_or_unique_path=target_scope,
+                    versioning_enabled=versioning,
                 )
             except Exception as exc:
                 typer.echo(f"failed: {display}: {exc}", err=True)
                 echo_credential_debug_if_auth_failure(cfg, exc, label="kb sync")
                 counts["failed"] += 1
                 continue
-            typer.echo(f"{action}: {display}")
+            typer.echo(f"{action}: {display} {version_label}")
             counts[action] += 1
 
     typer.echo(

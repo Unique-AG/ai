@@ -73,6 +73,33 @@ def test_kb_sync_cli_invokes_helper(
     assert kw["scope_id"] is None
     assert kw["recursive"] is True
     assert kw["dry_run"] is True
+    assert kw["versioning"] is True
+
+
+@patch("uqadm.kb.cmd_sync")
+@patch("uqadm.kb.config_for_slot")
+@patch("uqadm.kb.resolve_slot", return_value="qa")
+def test_kb_sync_no_version_cli(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_sync: MagicMock,
+    tmp_path: Path,
+) -> None:
+    mock_cfg.return_value = MagicMock(user_id="u1", company_id="c1")
+    result = _runner().invoke(
+        app,
+        [
+            "kb",
+            "sync",
+            str(tmp_path),
+            "--folder-path",
+            "/X",
+            "--no-version",
+        ],
+    )
+    assert result.exit_code == 0
+    mock_sync.assert_called_once()
+    assert mock_sync.call_args.kwargs["versioning"] is False
 
 
 @patch("uqadm.kb.cmd_download")
