@@ -9,10 +9,15 @@ from unique_search_proxy_core.search_engines.perplexity.schema import (
     PerplexitySearchRequest,
 )
 
-from unique_search_proxy_client.web.core.search_engines import resolve_engine_call
 from unique_search_proxy_client.web.core.search_engines.perplexity.request_body import (
     build_perplexity_request_body,
 )
+
+
+def _merge_search_request(config: PerplexityConfig, invocation: dict[str, object]):
+    overrides = dict(invocation)
+    query = str(overrides.pop("query", ""))
+    return type(config).merge(config, overrides, query=query)
 
 
 class TestPerplexityMergeConfigAndInvocation:
@@ -23,7 +28,7 @@ class TestPerplexityMergeConfigAndInvocation:
             search_context_size="high",
             fetch_size=5,
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello"},
         )
@@ -43,7 +48,7 @@ class TestPerplexityProviderParams:
             max_tokens=512,
             max_tokens_per_page=128,
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello", "fetch_size": 3},
         )

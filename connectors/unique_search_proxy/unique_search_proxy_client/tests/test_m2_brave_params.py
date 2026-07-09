@@ -10,7 +10,6 @@ from unique_search_proxy_core.search_engines.brave.schema import (
 )
 from unique_search_proxy_core.search_engines.config_types import parse_search_request
 
-from unique_search_proxy_client.web.core.search_engines import resolve_engine_call
 from unique_search_proxy_client.web.core.search_engines.brave.pagination import (
     iter_brave_page_requests,
 )
@@ -18,6 +17,12 @@ from unique_search_proxy_client.web.core.search_engines.brave.query_params impor
     build_brave_query_params,
 )
 from unique_search_proxy_client.web.core.search_engines.pagination import PageRequest
+
+
+def _merge_search_request(config: BraveConfig, invocation: dict[str, object]):
+    overrides = dict(invocation)
+    query = str(overrides.pop("query", ""))
+    return type(config).merge(config, overrides, query=query)
 
 
 class TestBraveMergeConfigAndInvocation:
@@ -28,7 +33,7 @@ class TestBraveMergeConfigAndInvocation:
             freshness=ExposableStrOrNone(expose=True, value="pw"),
             fetch_size=5,
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello", "freshness": "pd"},
         )
@@ -43,7 +48,7 @@ class TestBraveMergeConfigAndInvocation:
     @pytest.mark.ai
     def test_safesearch_default_moderate(self) -> None:
         config = BraveConfig()
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "x"},
         )
@@ -52,7 +57,7 @@ class TestBraveMergeConfigAndInvocation:
     @pytest.mark.ai
     def test_country_and_search_lang_defaults(self) -> None:
         config = BraveConfig()
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "x"},
         )
@@ -67,13 +72,11 @@ class TestBraveProviderParams:
             country=ExposableCountry(expose=False, value="DE"),
             search_lang=ExposableSearchLang(expose=False, value="de"),
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello"},
         )
-        dumped = ConfigRequestResolver.provider_query_params(
-            request, BraveConfig, by_alias=False
-        )
+        dumped = BraveConfig.provider_query_params(request, by_alias=False)
         assert dumped == {
             "country": "DE",
             "extra_snippets": True,
@@ -117,7 +120,7 @@ class TestBraveProviderParams:
     @pytest.mark.ai
     def test_pagination_is_separate_from_engine_params(self) -> None:
         config = BraveConfig()
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello"},
         )

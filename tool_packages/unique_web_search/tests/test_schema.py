@@ -68,17 +68,6 @@ class TestWebSearchToolParameters:
         params = WebSearchToolParameters(query="")
         assert params.query == ""
 
-    def test_from_tool_parameter_query_description(self):
-        """Test creating model with custom query description."""
-        CustomParams = WebSearchToolParameters.from_tool_parameter_query_description(
-            query_description="Custom query description",
-        )
-
-        params = CustomParams(query="test query")
-
-        assert params.query == "test query"
-        assert CustomParams.__name__ == "WebSearchToolParameters"
-
     def test_with_exposed_fields(self):
         """Test flat engine-exposed fields are merged into the tool model."""
         from unique_search_proxy_core.search_engines.call_schema import (

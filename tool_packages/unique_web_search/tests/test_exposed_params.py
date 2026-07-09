@@ -3,7 +3,6 @@
 import pytest
 from unique_search_proxy_core.search_engines.call_schema import (
     build_exposed_tool_field_defs,
-    exposed_field_names,
 )
 from unique_search_proxy_core.search_engines.google.schema import (
     ExposableStrOrNone,
@@ -90,5 +89,5 @@ class TestV3FlatExposedParams:
         field_defs = build_exposed_tool_field_defs(config)
         PayloadModel = SearchPayload.with_exposed_fields(field_defs)
         payload = PayloadModel(gap="facet", query="q", gl="ch")
-        params = collect_flat_exposed_params(payload, exposed_field_names(config))
+        params = collect_flat_exposed_params(payload)
         assert params == {"gl": "ch"}

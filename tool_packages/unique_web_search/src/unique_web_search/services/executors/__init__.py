@@ -6,6 +6,7 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.executors.modes import WebSearchModeConfig
 from unique_web_search.services.executors.v1.config import (
     RefineQueryMode,
     WebSearchV1Config,
@@ -24,7 +25,6 @@ from unique_web_search.services.executors.v3.executor import (
 from unique_web_search.settings import env_settings
 
 _LOGGER = getLogger(__name__)
-WebSearchModeConfig = WebSearchV1Config | WebSearchV2Config | WebSearchV3Config
 
 
 def get_default_web_search_mode_config() -> WebSearchMode:

@@ -19,7 +19,6 @@ from unique_search_proxy_core.search_engines.base import (
     get_search_engine_mode,
 )
 from unique_search_proxy_core.search_engines.perplexity.schema import (
-    PerplexityConfig,
     PerplexitySearchRequest,
 )
 
@@ -118,19 +117,6 @@ class PerplexitySearchService(SearchEngineService[PerplexitySearchRequest]):
                 ),
             )
         return results
-
-    @staticmethod
-    def llm_call_schema(
-        config: PerplexityConfig,
-        *,
-        strict_required: bool = True,
-    ) -> type[Any]:
-        from unique_search_proxy_core.param_policy.resolver import (
-            ConfigRequestResolver,
-        )
-
-        return ConfigRequestResolver.call_schema(config, strict=strict_required)
-
 
 def _perplexity_headers(api_key: str) -> dict[str, str]:
     return {

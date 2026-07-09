@@ -107,6 +107,8 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.search_engine_service = Mock()
+        tool.search_engine_service.config = GoogleConfig()
 
         result: str = tool.tool_description_for_system_prompt()
 

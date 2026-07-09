@@ -1,9 +1,7 @@
 import logging
-import re
 from datetime import datetime
 from time import time
 
-from jinja2 import Template
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -31,32 +29,23 @@ from unique_web_search.services.argument_screening import (
 )
 from unique_web_search.services.content_processing import ContentProcessor
 from unique_web_search.services.crawlers import get_crawler_service
-from unique_web_search.services.executors import (
-    WebSearchMode,
-    WebSearchV1Executor,
-    WebSearchV2Executor,
-    WebSearchV3Config,
-    WebSearchV3Executor,
-)
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
-from unique_web_search.services.executors.tool_parameters import (
-    compose_tool_parameters,
+from unique_web_search.services.executors.modes import (
+    WebSearchExecutor,
+    WebSearchModeStrategy,
+    WebSearchToolContext,
+    WebSearchToolParametersInstance,
+    get_mode_strategy,
 )
-from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
-from unique_web_search.services.executors.v2.schema import WebSearchPlan
-from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import (
-    SearchEngineMode,
-    get_search_engine_mode,
     get_search_engine_service,
 )
-from unique_web_search.services.search_engine.custom_api import CustomAPIConfig
 from unique_web_search.utils import (
     WebPageChunk,
     reduce_sources_to_token_limit,
@@ -113,56 +102,40 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
         self.content_reducer = content_reducer
+        self._mode_strategy = get_mode_strategy(self.config.web_search_mode_config)
 
-    def _resolve_search_engine_mode(self) -> SearchEngineMode:
-        """Derive the search-engine mode, respecting CustomAPI overrides."""
-        cfg = self.search_engine_service.config
-        override = cfg.search_engine_mode if isinstance(cfg, CustomAPIConfig) else None
-        return get_search_engine_mode(cfg.engine, override=override)
+    @property
+    def _strategy(self) -> WebSearchModeStrategy:
+        """Mode strategy resolved once in ``__init__``; lazy fallback for test doubles."""
+        try:
+            return self._mode_strategy
+        except AttributeError:
+            self._mode_strategy = get_mode_strategy(self.config.web_search_mode_config)
+            return self._mode_strategy
+
+    def _tool_context(self) -> WebSearchToolContext:
+        return WebSearchToolContext(
+            search_engine_config=self.search_engine_service.config,
+            date_string=datetime.now().strftime("%A %B %d, %Y"),
+        )
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
-        composed = compose_tool_parameters(
-            self.config.web_search_mode_config,
-            search_engine_config=self.search_engine_service.config,
-            resolve_search_engine_mode=self._resolve_search_engine_mode,
-        )
-        self.tool_parameter_calls = composed.parameters
+        ctx = self._tool_context()
+        self.tool_parameter_calls = self._strategy.build_tool_parameters(ctx)
         return LanguageModelToolDescription(
             name=self.name,
-            description=composed.description,
-            parameters=composed.parameters,
+            description=self._strategy.tool_description(ctx),
+            parameters=self.tool_parameter_calls,
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        mode_config = self.config.web_search_mode_config
-        template_str = mode_config.tool_description_for_system_prompt
-        date_string = datetime.now().strftime("%A %B %d, %Y")
-
-        if mode_config.mode == WebSearchMode.V1:
-            return template_str
-
-        if mode_config.mode == WebSearchMode.V3:
-            return Template(template_str).render(date_string=date_string)
-
-        engine_mode = self._resolve_search_engine_mode()
-        return Template(template_str).render(
-            max_steps=mode_config.max_steps,
-            date_string=date_string,
-            search_engine_mode=engine_mode.value,
-            tool_parameters_schema=WebSearchPlan.schema_hint(engine_mode),
-            example_simple=WebSearchPlan.build_example_simple(
-                engine_mode
-            ).model_dump_json(indent=2),
-            example_complex=WebSearchPlan.build_example_complex(
-                engine_mode
-            ).model_dump_json(indent=2),
-        )
+        return self._strategy.system_prompt(self._tool_context())
 
     def tool_format_information_for_system_prompt(self) -> str:
-        if self.config.web_search_active_mode == WebSearchMode.V3:
-            return self.config.web_search_mode_config_v3.tool_format_information_for_system_prompt
-        return self.config.tool_format_information_for_system_prompt
+        return self._strategy.format_information_for_system_prompt(
+            default=self.config.tool_format_information_for_system_prompt,
+        )
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
@@ -264,18 +237,16 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def _get_executor(
         self,
         tool_call: LanguageModelFunction,
-        parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
+        parameters: WebSearchToolParametersInstance,
         debug_info: WebSearchDebugInfo,
         web_search_message_logger: WebSearchMessageLogger,
-    ) -> WebSearchV1Executor | WebSearchV2Executor | WebSearchV3Executor:
-        # Initialize query elicitation service and get callbacks
+    ) -> WebSearchExecutor:
         elicitation_service = QueryElicitationService(
             chat_service=self._chat_service,
             display_name=self.display_name(),
             config=self.config.query_elicitation_config,
         )
 
-        # Build context objects
         services = ExecutorServiceContext(
             search_engine_service=self.search_engine_service,
             crawler_service=self.crawler_service,
@@ -297,43 +268,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_progress_reporter=self._ff_tool_progress_reporter(),
         )
 
-        search_config = self.config.web_search_mode_config
-        if search_config.mode == WebSearchMode.V3:
-            assert isinstance(search_config, WebSearchV3Config)
-            assert isinstance(parameters, WebSearchV3ToolParameters)
-
-            return WebSearchV3Executor(
-                services=services,
-                config=config,
-                callbacks=callbacks,
-                tool_call=tool_call,
-                tool_parameters=parameters,
-            )
-        if isinstance(parameters, WebSearchPlan):
-            assert search_config.mode == WebSearchMode.V2
-            return WebSearchV2Executor(
-                services=services,
-                config=config,
-                callbacks=callbacks,
-                tool_call=tool_call,
-                tool_parameters=parameters,
-                max_steps=search_config.max_steps,
-            )
-        elif isinstance(parameters, WebSearchToolParameters):
-            assert search_config.mode == WebSearchMode.V1
-            return WebSearchV1Executor(
-                services=services,
-                config=config,
-                callbacks=callbacks,
-                tool_call=tool_call,
-                tool_parameters=parameters,
-                refine_query_system_prompt=search_config.refine_query_mode.system_prompt,
-                refine_query_language_model=search_config.refine_query_mode.language_model,
-                mode=search_config.refine_query_mode.mode,
-                max_queries=search_config.max_queries,
-            )
-        else:
-            raise ValueError(f"Invalid parameters: {parameters}")
+        return self._strategy.build_executor(
+            services=services,
+            config=config,
+            callbacks=callbacks,
+            tool_call=tool_call,
+            parameters=parameters,
+        )
 
     def get_evaluation_checks_based_on_tool_response(
         self,
@@ -389,20 +330,12 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     def _build_display_name(
         self,
-        parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
+        parameters: WebSearchToolParametersInstance,
     ) -> str:
-        if not isinstance(parameters, WebSearchV3ToolParameters):
-            return self.display_name()
-
-        display_name = self.display_name()
-        # Remove "search" from the display name (case-insensitive, all occurrences).
-        display_name = re.sub(
-            r"\bsearch\b", "", display_name, flags=re.IGNORECASE
-        ).strip()
-
-        suffix = parameters.get_display_name_suffix()
-
-        return display_name + suffix
+        return self._strategy.build_display_name(
+            base_display_name=self.display_name(),
+            parameters=parameters,
+        )
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

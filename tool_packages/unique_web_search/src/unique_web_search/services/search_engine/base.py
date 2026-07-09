@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from pydantic import BaseModel
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.config_types import ENGINE_NAME_TO_CONFIG
-from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
-from unique_search_proxy_core.search_engines.base import SearchEngineType
+from unique_search_proxy_core.search_engines.base import (
+    BaseSearchEngineConfig,
+    SearchEngineType,
+)
 
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
@@ -115,7 +117,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         engine: SearchEngineType,
     ) -> list[WebSearchResult]:
         """Merge deployment config with per-call params and dispatch via the proxy SDK."""
-        request = ConfigRequestResolver.merge(self.config, params, query=query)
+        request = BaseSearchEngineConfig.merge(self.config, params, query=query)
         invocation = request.model_dump(by_alias=False, exclude_none=True)
         invocation.pop("engine", None)
         invocation.pop("query", None)

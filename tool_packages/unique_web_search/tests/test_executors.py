@@ -21,6 +21,7 @@ from unique_web_search.services.executors.v2.executor import (
     WebSearchV2Executor,
 )
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
+from unique_web_search.services.executors.v3.config import WebSearchV3Config
 from unique_web_search.services.executors.v3.executor import (
     WebSearchV3Executor,
 )
@@ -30,6 +31,7 @@ from unique_web_search.services.executors.v3.schema import (
     SearchPayload,
     WebSearchV3ToolParameters,
 )
+from unique_web_search.services.executors.v3.strategy import WebSearchV3Strategy
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
@@ -1009,8 +1011,9 @@ class TestWebSearchV3ToolParametersValidation:
         assert Command("read_urls") is Command.FETCH_URLS
 
     @pytest.mark.ai
-    def test_get_display_name_suffix_per_command(self) -> None:
-        """Display-name suffix differs per command for UI clarity."""
+    def test_build_display_name_per_command(self) -> None:
+        """Display name suffix differs per command for UI clarity."""
+        strategy = WebSearchV3Strategy(WebSearchV3Config())
         search_params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
@@ -1026,8 +1029,20 @@ class TestWebSearchV3ToolParametersValidation:
             }
         )
         assert search_params.relevance_focus() == "[exploratory] g"
-        assert search_params.get_display_name_suffix() == " - Searching"
-        assert fetch_params.get_display_name_suffix() == " - Reading Pages"
+        assert (
+            strategy.build_display_name(
+                base_display_name="Web Search",
+                parameters=search_params,
+            )
+            == "Web - Searching"
+        )
+        assert (
+            strategy.build_display_name(
+                base_display_name="Web Search",
+                parameters=fetch_params,
+            )
+            == "Web - Reading Pages"
+        )
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:

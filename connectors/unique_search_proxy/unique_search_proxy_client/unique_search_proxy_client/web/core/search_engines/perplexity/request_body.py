@@ -4,7 +4,6 @@ import logging
 from typing import Any
 
 from pydantic import BaseModel
-from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 from unique_search_proxy_core.search_engines.perplexity.schema import PerplexityConfig
 
 PERPLEXITY_MAX_RESULTS = 20
@@ -29,9 +28,7 @@ def build_perplexity_request_body(
             fetch_size,
             max_results,
         )
-    params = ConfigRequestResolver.provider_query_params(
-        request, PerplexityConfig, by_alias=False
-    )
+    params = PerplexityConfig.provider_query_params(request, by_alias=False)
     params = _apply_perplexity_api_rules(params)
     return {
         "query": query,

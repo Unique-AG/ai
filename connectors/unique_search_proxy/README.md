@@ -88,7 +88,7 @@ flowchart TB
 
 | Path | When | What moves |
 |------|------|------------|
-| **A — Schema & config** | Deploy time, tool registration | Deployment config → JSON Schema; LLM call schema; `ConfigRequestResolver.merge()` builds the flat request body |
+| **A — Schema & config** | Deploy time, tool registration | Deployment config → JSON Schema; LLM call schema; `BaseSearchEngineConfig.merge()` builds the flat request body |
 | **B — Runtime HTTP** | Each search / crawl / agent call | SDK → proxy route → provider service → upstream API |
 
 Path A never hits the network. Path B never re-derives schemas — it consumes the flat JSON body that Path A (or manual construction) already produced.
@@ -121,8 +121,8 @@ sequenceDiagram
     participant Google as Google API
 
     Note over AC,Core: Path A — before any HTTP call
-    AC->>Core: resolve_search_call_schema(config)
-    AC->>Core: ConfigRequestResolver.merge(config, llm_args, query=...)
+    AC->>Core: ConfigRequestResolver.call_schema(config)
+    AC->>Core: BaseSearchEngineConfig.merge(config, llm_args, query=...)
 
     Note over AC,Google: Path B — runtime
     AC->>SDK: search.search(...)

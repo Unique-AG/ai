@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from time import time
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
@@ -20,6 +20,9 @@ from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
+)
+from unique_web_search.services.executors.exposed_params import (
+    collect_flat_exposed_params,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -97,6 +100,14 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
     @abstractmethod
     async def run(self) -> list[ContentChunk]:
         raise NotImplementedError("Subclasses must implement this method.")
+
+    def _search_params(self, source: BaseModel) -> dict[str, Any]:
+        """Exposed engine params to forward with a search request.
+
+        The single place executors resolve search-request params, so every
+        search hop reads ``self.search_service.search(query, params=...)``.
+        """
+        return collect_flat_exposed_params(source)
 
     async def _content_processing(
         self, objective: str, web_search_results: list[WebSearchResult]

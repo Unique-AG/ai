@@ -13,7 +13,6 @@ from unique_search_proxy_core.search_engines.google.schema import (
     GoogleSearchRequest,
 )
 
-from unique_search_proxy_client.web.core.search_engines import resolve_engine_call
 from unique_search_proxy_client.web.core.search_engines.google.pagination import (
     iter_google_page_requests,
 )
@@ -27,6 +26,12 @@ from unique_search_proxy_client.web.settings.providers.google import (
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED
 
 
+def _merge_search_request(config: GoogleConfig, invocation: dict[str, object]):
+    overrides = dict(invocation)
+    query = str(overrides.pop("query", ""))
+    return type(config).merge(config, overrides, query=query)
+
+
 class TestMergeConfigAndInvocation:
     @pytest.mark.ai
     def test_merges_config_defaults_with_call_overrides(self) -> None:
@@ -35,7 +40,7 @@ class TestMergeConfigAndInvocation:
             gl=ExposableStrOrNone(expose=True, value="us"),
             fetch_size=10,
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello", "gl": "de"},
         )
@@ -48,18 +53,18 @@ class TestMergeConfigAndInvocation:
     @pytest.mark.ai
     def test_default_override_safe_applied_when_not_in_invocation(self) -> None:
         config = GoogleConfig(safe="off")
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "x"},
         )
         assert request.safe == "off"
 
     @pytest.mark.ai
-    def test_resolve_engine_call_from_factory(self) -> None:
+    def test_merge_from_config_type(self) -> None:
         config = GoogleConfig(
             date_restrict=ExposableStrOrNone(expose=False, value="m1"),
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "news", "gl": "ch"},
         )
@@ -75,11 +80,11 @@ class TestGoogleProviderParams:
             date_restrict=ExposableStrOrNone(expose=False, value="d7"),
             gl=ExposableStrOrNone(expose=False, value="us"),
         )
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello"},
         )
-        dumped = ConfigRequestResolver.provider_query_params(request, GoogleConfig)
+        dumped = GoogleConfig.provider_query_params(request)
         assert dumped == {"dateRestrict": "d7", "gl": "us", "safe": "active"}
 
     @pytest.mark.ai
@@ -90,7 +95,7 @@ class TestGoogleProviderParams:
     @pytest.mark.ai
     def test_pagination_is_separate_from_engine_params(self) -> None:
         config = GoogleConfig()
-        request = resolve_engine_call(
+        request = _merge_search_request(
             config,
             {"query": "hello"},
         )

@@ -55,11 +55,11 @@ Core uses **three different config patterns** depending on provider kind. Only s
 
 ### 3.1 Three provider patterns (search vs agent vs crawl)
 
-All three kinds share one owner — `param_policy.resolver.ConfigRequestResolver` — which derives the request model (leading `query`/`urls` injected via `SearchRequestBase`/`AgentRequestBase`/`CrawlRequestBase`), resolves `ExposableParam` values, merges deployment defaults with caller overrides, and projects the LLM call schema.
+All three kinds share one owner — `param_policy.resolver.ConfigRequestResolver` — which derives the request model (leading `query`/`urls` injected via `SearchRequestBase`/`AgentRequestBase`/`CrawlRequestBase`), resolves `ExposableParam` values, and projects the LLM call schema. Search-engine-specific operations (runtime merge, provider query string) live on `BaseSearchEngineConfig`.
 
 | Kind | Config → request | `ExposableParam` | LLM call schema | Config/invocation merge |
 |------|------------------|------------------|-----------------|-------------------------|
-| **Search engines** | `GoogleConfig` → `GoogleSearchRequest` via `ConfigRequestResolver.request_model` | Yes | `ConfigRequestResolver.call_schema` + `call_schema.resolve_*` | `ConfigRequestResolver.merge` |
+| **Search engines** | `GoogleConfig` → `GoogleSearchRequest` via `ConfigRequestResolver.request_model` | Yes | `ConfigRequestResolver.call_schema` | `BaseSearchEngineConfig.merge` |
 | **Agent engines** | `BingAgentConfig` → `BingAgentSearchRequest` via `ConfigRequestResolver.agent_request_model` | No (plain fields) | Not implemented in core | Not implemented in core |
 | **Crawlers** | `BasicConfig` → `BasicCrawlRequest` via `ConfigRequestResolver.crawl_request_model` | No | Not implemented in core | `merge_crawler_config_and_invocation` |
 
@@ -68,7 +68,7 @@ flowchart TB
     subgraph resolver["param_policy/resolver.py — ConfigRequestResolver"]
         RM["request_model / agent_request_model / crawl_request_model"]
         CS["call_schema"]
-        MG["merge / resolve_values"]
+        MG["resolve_values"]
     end
 
     subgraph search["Search engines"]
@@ -118,12 +118,12 @@ gl: ExposableParam[str | None] = ExposableParam(expose=True, value=None)   # LLM
 
 No agent or crawler schema imports `ExposableParam` today.
 
-### 3.4 ConfigRequestResolver.merge — search-engine only
+### 3.4 BaseSearchEngineConfig.merge — search-engine only
 
 ```python
-from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
+from unique_search_proxy_core.search_engines.base import BaseSearchEngineConfig
 
-request = ConfigRequestResolver.merge(google_config, {}, query="EU AI Act")
+request = BaseSearchEngineConfig.merge(google_config, {}, query="EU AI Act")
 # → validated GoogleSearchRequest ready for POST /v1/search
 ```
 
@@ -169,7 +169,7 @@ flowchart TB
 |--------|----------------|
 | `schema.py` | Shared API models: `SearchResponse`, `AgentSearchResponse`, `CrawlResponse`, `WebSearchResult`, `ErrorResponse`, SSE events |
 | `errors.py` | `ProxyError` hierarchy and stable `ProxyErrorCode` enum |
-| `param_policy/` | `ExposableParam` policy, `annotations.py` (field/annotation plumbing: `plain_annotation_*`, `field_definition_from_info`, `resolve_field_name`), **plus** `resolver.ConfigRequestResolver` — the single owner of config → request/call-schema/value resolution for all three kinds |
+| `param_policy/` | `ExposableParam` policy, `annotations.py` (annotation plumbing: `plain_inner_type`/`as_optional`/`as_required`, `field_definition_from_info`, `resolve_field_name`), `field_plan.py` (single per-config field walk), **plus** `resolver.ConfigRequestResolver` — the single owner of config → request/call-schema/value resolution for all three kinds |
 | `providers/schema.py` | JSON Schema + defaults for deployment UIs (`provider_config_json_schema`, …) |
 | `search_engines/` | Config models (with per-config `provider_param_exclude_fields` override), request union, call-schema resolution |
 | `agent_engines/` | Agent config/request models, output schema |
@@ -208,18 +208,18 @@ defaults = provider_default_config("search_engine", "google")
 ### Tool manifest — LLM call schema
 
 ```python
-from unique_search_proxy_core.search_engines.call_schema import resolve_search_call_schema
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 
-descriptor = resolve_search_call_schema("google", config=google_config, strict=False)
-# descriptor.call_schema → JSON Schema for the LLM tool
+projected = ConfigRequestResolver.call_schema(google_config, strict=False)
+call_schema = projected.model_json_schema()  # JSON Schema for the LLM tool
 ```
 
 ### Runtime — build flat request before HTTP call
 
 ```python
-from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
+from unique_search_proxy_core.search_engines.base import BaseSearchEngineConfig
 
-body = ConfigRequestResolver.merge(config, llm_invocation_dict, query="EU AI Act")
+body = BaseSearchEngineConfig.merge(config, llm_invocation_dict, query="EU AI Act")
 ```
 
 ### Shared types and errors
@@ -242,6 +242,7 @@ from unique_search_proxy_core import (
 - **Search-only:** `ExposableParam` policy, three-surface projection, LLM call schema
 - **Agent:** config → request derivation via `ConfigRequestResolver.agent_request_model`
 - **Crawl:** `ConfigRequestResolver.crawl_request_model` (injects `urls`); `merge_crawler_config_and_invocation`
+- **Search runtime merge / provider query string:** `BaseSearchEngineConfig.merge` / `BaseSearchEngineConfig.provider_query_params`
 - CamelCase JSON aliases on all models
 - Zero server dependencies (import-linter enforced in the client package)
 

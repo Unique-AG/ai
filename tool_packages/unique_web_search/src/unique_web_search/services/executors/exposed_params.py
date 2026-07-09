@@ -1,101 +1,23 @@
-"""Helpers for injecting engine-exposed parameters into tool schemas."""
+"""Runtime collection of engine-exposed parameters from validated tool calls."""
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel
-from unique_search_proxy_core.search_engines.call_schema import (
-    strip_exposed_tool_schema_noise,
-)
 
-__all__ = [
-    "attach_exposed_schema_cleanup",
-    "collect_flat_exposed_params",
-    "exposed_alias_names",
-    "strip_tool_schema_noise",
-]
+__all__ = ["collect_flat_exposed_params"]
 
 
-def collect_flat_exposed_params(
-    source: BaseModel,
-    field_names: list[str],
-) -> dict[str, Any]:
-    """Collect non-null exposed engine params from flat tool fields."""
+def collect_flat_exposed_params(source: BaseModel) -> dict[str, Any]:
+    """Collect non-null exposed engine params from flat tool fields.
+
+    Field names are read from the parameter model class (stamped at schema-build
+    time by :meth:`ExposedToolParameterModel.with_exposed_fields`).
+    """
+    field_names = type(source).exposed_field_names_for_model()
     return {
         name: value
         for name in field_names
         if (value := getattr(source, name, None)) is not None
     }
-
-
-def exposed_alias_names(
-    exposed_field_defs: dict[str, tuple[Any, Any]] | None,
-) -> list[str]:
-    """Alias (camelCase) property names for exposed tool fields.
-
-    The tool schema is emitted ``by_alias``, so noise-stripping and prompt hints
-    must reference the alias, not the snake_case Python attribute name.
-    """
-    if not exposed_field_defs:
-        return []
-    return [
-        (field_info.alias or name)
-        for name, (_, field_info) in exposed_field_defs.items()
-    ]
-
-
-def strip_tool_schema_noise(
-    schema: dict[str, Any],
-    *,
-    field_names: list[str],
-) -> dict[str, Any]:
-    """Remove ``title`` and ``default`` from exposed property nodes."""
-    return strip_exposed_tool_schema_noise(schema, field_names=field_names)
-
-
-def attach_exposed_schema_cleanup(
-    model: type[BaseModel],
-    exposed_field_names: list[str],
-) -> type[BaseModel]:
-    """Strip provider noise from JSON schema for dynamically injected exposed fields."""
-    if not exposed_field_names:
-        return model
-
-    @classmethod
-    def model_json_schema(
-        cls,
-        by_alias: bool = True,
-        ref_template: str = "#/$defs/{model}",
-        mode: str = "validation",
-    ) -> dict[str, Any]:
-        schema = BaseModel.model_json_schema.__func__(  # type: ignore[attr-defined]
-            cls,
-            by_alias=by_alias,
-            ref_template=ref_template,
-            mode=mode,
-        )
-        return strip_exposed_tool_schema_noise(
-            schema,
-            field_names=exposed_field_names,
-        )
-
-    model.model_json_schema = model_json_schema  # type: ignore[method-assign]
-    return model
-
-
-def create_model_with_exposed_fields(
-    name: str,
-    base: type[BaseModel],
-    field_defs: dict[str, tuple[Any, Any]],
-    exposed_field_names: list[str],
-) -> type[BaseModel]:
-    """Create a dynamic tool model and attach exposed-field JSON schema cleanup."""
-    from pydantic import create_model
-
-    model = create_model(
-        name,
-        __base__=base,
-        **cast(Any, field_defs),
-    )
-    return attach_exposed_schema_cleanup(model, exposed_field_names)

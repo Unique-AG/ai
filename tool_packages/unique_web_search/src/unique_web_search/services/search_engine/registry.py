@@ -90,6 +90,19 @@ def get_search_engine_mode(
     return SEARCH_ENGINE_REGISTRY[engine_type].mode
 
 
+def resolve_search_engine_mode(search_engine_config: object) -> SearchEngineMode:
+    """Resolve a config's mode, honoring a CustomAPI ``search_engine_mode`` override.
+
+    Only ``CustomAPIConfig`` carries a ``search_engine_mode`` field; for every other
+    engine the attribute is absent and the registry default applies.
+    """
+    override = getattr(search_engine_config, "search_engine_mode", None)
+    return get_search_engine_mode(
+        getattr(search_engine_config, "engine"),
+        override=override,
+    )
+
+
 def get_search_engine_model_config(
     search_engine_name: EngineKey,
 ) -> ConfigDict:

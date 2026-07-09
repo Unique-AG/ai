@@ -2,13 +2,12 @@
 
 import typing
 from enum import StrEnum
-from typing import Any, cast
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
-
-from unique_web_search.services.executors.exposed_params import (
-    attach_exposed_schema_cleanup,
-    exposed_alias_names,
+from unique_search_proxy_core.search_engines.call_schema import (
+    ExposedToolParameterModel,
+    _stamp_exposed_field_names,
 )
 
 
@@ -25,7 +24,7 @@ class SearchPhase(StrEnum):
     REDIRECT = "redirect"
 
 
-class SearchPayload(BaseModel):
+class SearchPayload(ExposedToolParameterModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     gap: str = Field(
@@ -49,18 +48,7 @@ class SearchPayload(BaseModel):
         cls,
         exposed_field_defs: dict[str, tuple[Any, Any]] | None,
     ) -> type["SearchPayload"]:
-        if exposed_field_defs is None:
-            return cls
-        exposed_names = exposed_alias_names(exposed_field_defs)
-        model = create_model(
-            cls.__name__,
-            __base__=cls,
-            **cast(Any, exposed_field_defs),
-        )
-        return cast(
-            type[SearchPayload],
-            attach_exposed_schema_cleanup(model, exposed_names),
-        )
+        return super().with_exposed_fields(exposed_field_defs)
 
 
 class FetchUrlsPayload(BaseModel):
@@ -71,7 +59,7 @@ class FetchUrlsPayload(BaseModel):
     )
 
 
-class WebSearchV3ToolParameters(BaseModel):
+class WebSearchV3ToolParameters(ExposedToolParameterModel):
     """Root JSON for the V3 WebSearch tool: set exactly one of ``query`` or ``urls``."""
 
     model_config = ConfigDict(extra="forbid")
@@ -103,7 +91,6 @@ class WebSearchV3ToolParameters(BaseModel):
         search_payload = SearchPayload.with_exposed_fields(exposed_field_defs)
         if search_payload is SearchPayload:
             return cls
-        exposed_names = exposed_alias_names(exposed_field_defs)
         model = create_model(
             cls.__name__,
             __base__=cls,
@@ -117,10 +104,8 @@ class WebSearchV3ToolParameters(BaseModel):
                 ),
             ),
         )
-        return cast(
-            type[WebSearchV3ToolParameters],
-            attach_exposed_schema_cleanup(model, exposed_names),
-        )
+        _stamp_exposed_field_names(model, exposed_field_defs)
+        return model
 
     def relevance_focus(self) -> str:
         """Focus string for notify UI, snippet judging, and content processing."""
@@ -178,11 +163,3 @@ class WebSearchV3ToolParameters(BaseModel):
             lines.append(f'  - For `"{cmd.value}"`: `{_inline_json(payload_model)}`.')
 
         return "\n".join(lines)
-
-    def get_display_name_suffix(self) -> str:
-        if self.command == Command.SEARCH:
-            return " - Searching"
-        elif self.command == Command.FETCH_URLS:
-            return " - Reading Pages"
-        else:
-            raise ValueError(f"Invalid command: {self.command}")

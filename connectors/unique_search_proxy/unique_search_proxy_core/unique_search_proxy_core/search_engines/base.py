@@ -10,6 +10,7 @@ from unique_search_proxy_core.param_policy import QUERY_FIELD
 from unique_search_proxy_core.param_policy.exposable_param import (
     merge_exposable_params_with_factory_defaults,
 )
+from unique_search_proxy_core.param_policy.resolver import ConfigRequestResolver
 from unique_search_proxy_core.schema import (
     SearchEngineRaw,
     WebSearchResults,
@@ -91,6 +92,47 @@ class BaseSearchEngineConfig(BaseModel, Generic[T]):
         ``search_engine_id`` (sent as the ``cx`` credential, not a query knob).
         """
         return {ENGINE_FIELD, FETCH_SIZE_FIELD, TIMEOUT_FIELD, QUERY_FIELD}
+
+    @staticmethod
+    def merge(
+        config: BaseModel,
+        overrides: dict[str, Any],
+        *,
+        query: str,
+    ) -> BaseModel:
+        """Merge deployment defaults + caller/LLM overrides + query into a request model."""
+        request_model = ConfigRequestResolver.request_model(type(config))
+        merged: dict[str, Any] = {
+            **ConfigRequestResolver.resolve_values(
+                config, exclude=frozenset({ENGINE_FIELD})
+            ),
+            **overrides,
+            QUERY_FIELD: query,
+        }
+        engine = getattr(config, ENGINE_FIELD, None)
+        if engine is not None and ENGINE_FIELD in request_model.model_fields:
+            merged[ENGINE_FIELD] = getattr(engine, "value", engine)
+        return request_model.model_validate(merged)
+
+    @classmethod
+    def provider_query_params(
+        cls,
+        request: BaseModel,
+        *,
+        by_alias: bool = True,
+    ) -> dict[str, Any]:
+        """Serialize forwardable provider knobs from a merged request model.
+
+        Fields the config marks as non-forwardable (via
+        :meth:`provider_param_exclude_fields`) are dropped so credentials and
+        request plumbing never leak into the upstream query string.
+        """
+        return request.model_dump(
+            mode="json",
+            exclude_none=True,
+            by_alias=by_alias,
+            exclude=cls.provider_param_exclude_fields(),
+        )
 
 
 class SearchEngine(ABC, Generic[SearchRequestT]):
