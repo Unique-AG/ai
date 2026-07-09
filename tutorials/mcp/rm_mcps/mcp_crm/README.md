@@ -85,7 +85,11 @@ Deploy **Advisory first** (it creates the shared ACR + Postgres server), then:
 ```
 
 - **App:** `https://rm-crm-mcp.azurewebsites.net`  ·  **MCP endpoint:** `…/mcp`
-- Rewire the **`RM Agent - CRM`** Unique connector to the new endpoint.
+- Rewire the **`RM Agent - CRM`** Unique connector to the new endpoint. Because this is
+  one shared deployment across environments, put the env in the URL **path** so the
+  server returns that environment's KB content ids: `…/<env>/mcp` (e.g. `…/sales/mcp`,
+  `…/uat/mcp`; plain `…/mcp` ⇒ the `RM_DEFAULT_ENV`, `qa`). See
+  [Environment-aware content ids](../README.md#environment-aware-content-ids).
 
 ### Redeploy (code / seed changes)
 

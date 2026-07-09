@@ -40,6 +40,7 @@ import dashboard
 import meetings
 import person_lookup
 from common.db import RESET_DEMO_DATA_DESCRIPTION, reset_demo_data
+from common.env_map import KNOWN_ENVS, set_url_env
 from common.tool_prompts import tool_meta
 
 load_dotenv()
@@ -105,14 +106,48 @@ def build_auth():
     )
 
 
+class EnvPathMiddleware:
+    """Make the connector URL carry the environment in its PATH — ``…/<env>/mcp``.
+
+    The RM Agent MCPs are one shared deployment across environments, and KB content ids
+    are env-specific (see ``common.env_map``). The env signal has to ride on the connector
+    URL, which is the only thing settable per environment in admin. The admin rejects a
+    ``?env=`` query string but accepts a plain path, so we encode the env as a path segment.
+
+    This pure-ASGI middleware runs before FastMCP's router: if a path segment matches a
+    known env (``/sales/mcp`` or ``/mcp/sales``) it records it (``set_url_env``) for the
+    resolver and rewrites the path so the endpoint still routes as ``/mcp``. Requests with
+    no env segment are passed through untouched (→ ``DEFAULT_ENV``)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            segments = [s for s in scope.get("path", "").split("/") if s]
+            env = next((s for s in segments if s in KNOWN_ENVS), "")
+            set_url_env(env)
+            if env:
+                new_path = "/" + "/".join(s for s in segments if s != env)
+                # Carry the env two ways: the ContextVar (fast path) AND on the request
+                # scope, which travels with the Request that get_http_request() returns —
+                # so the resolver still finds it even if the tool runs in a task that only
+                # re-establishes FastMCP's own request context.
+                scope = dict(
+                    scope, path=new_path, raw_path=new_path.encode("utf-8"), rm_env=env
+                )
+        await self.app(scope, receive, send)
+
+
 custom_middleware = [
+    Middleware(EnvPathMiddleware),
     Middleware(
         CORSMiddleware,
         allow_credentials=True,
         allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
-    )
+    ),
 ]
 
 mcp = FastMCP("RM Agent - CRM", auth=build_auth())

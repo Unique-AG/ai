@@ -7,13 +7,18 @@ the CRM tools must return the id for the *caller's* environment, not a baked one
 
 How the env is detected (see ``env_from_ctx``)
 ----------------------------------------------
-1. **Connector URL query** — ``https://…/mcp?env=<env>``, set per environment on the
-   connector's URL in admin. Works with NO platform feature (the MCP client preserves
-   the URL's query string) — this is the primary signal.
-2. **Forwarded company id** — ``_meta.companyId`` mapped via ``COMPANY_ENV``, IF the
+1. **Connector URL path segment** — ``https://…/<env>/mcp`` (e.g. ``/sales/mcp``), set
+   per environment on the connector's URL in admin. This is the PRIMARY signal: the
+   admin accepts a plain path (it rejects a ``?env=`` query), and it needs NO platform
+   feature. A small ASGI middleware (``mcp_crm.EnvPathMiddleware``) reads the ``<env>``
+   segment, stashes it for this request, and rewrites the path back to ``/mcp`` so
+   FastMCP still routes the endpoint. Robust to ``/<env>/mcp`` and ``/mcp/<env>``.
+2. **Connector URL query** — ``https://…/mcp?env=<env>``. Same effect, but the prod
+   admin rejects a query string, so this is only useful for direct / local testing.
+3. **Forwarded company id** — ``_meta.companyId`` mapped via ``COMPANY_ENV``, IF the
    connector has the ``unique.app/auth/`` forwarding namespace enabled (node-chat:
    extended-mcp-server sets ``_meta.companyId`` / ``_meta.userId``).
-3. Otherwise ``DEFAULT_ENV``.
+4. Otherwise ``DEFAULT_ENV``.
 
 The resolved env keys into the ``content_id_map(env, map_key, content_id)`` table
 (seeded per env by ``generate_sql``).
@@ -26,6 +31,7 @@ env-agnostic) instead of a wrong/dead content id. So a missing map never breaks 
 link; it just drops the "open by content id" upgrade.
 """
 
+import contextvars
 import json
 import os
 
@@ -47,6 +53,24 @@ except Exception:
 
 # Env used when the caller's company can't be determined (forwarding off / unknown).
 DEFAULT_ENV = (os.getenv("RM_DEFAULT_ENV") or "qa").strip() or "qa"
+
+# The set of addressable env labels — used both as the content_id_map key space and as
+# the allowlist for the URL-path signal (only these segments are treated as an env, so
+# a stray path segment can never be mistaken for one, and `env` is never raw input).
+KNOWN_ENVS = frozenset(COMPANY_ENV.values())
+
+# Per-request env parsed from the connector URL path by the ASGI middleware
+# (mcp_crm.EnvPathMiddleware), read back by `_env_from_request`. A ContextVar so it is
+# isolated per request/task and never leaks across concurrent calls.
+_URL_ENV: contextvars.ContextVar[str] = contextvars.ContextVar("rm_url_env", default="")
+
+
+def set_url_env(env: str) -> None:
+    """Record the env parsed from the request URL path (called by the middleware).
+
+    Ignores anything not in ``KNOWN_ENVS`` so only a real, allowlisted env label is ever
+    stored — the value later interpolated nowhere as SQL, only compared / used as a key."""
+    _URL_ENV.set(env if env in KNOWN_ENVS else "")
 
 
 def _company_from_ctx(ctx) -> str:
@@ -86,23 +110,41 @@ def _company_from_ctx(ctx) -> str:
 
 
 def _env_from_request() -> str:
-    """Explicit env from the connector URL query — `https://…/mcp?env=<env>`.
+    """Explicit env from the connector URL, without any platform feature.
 
-    This is the signal that works WITHOUT platform context-forwarding: set it once per
-    environment on the connector's URL in admin. Read server-side from the HTTP request
-    (the MCP client preserves the URL's query string on every call)."""
+    Priority:
+      1. the URL **path segment** ``…/<env>/mcp``, captured by the ASGI path middleware
+         (``mcp_crm.EnvPathMiddleware``) into ``_URL_ENV`` — the signal the admin accepts;
+      2. a ``?env=<env>`` **query** param (direct / local testing; prod admin rejects it);
+      3. a known-env segment still present in the raw request path (belt-and-suspenders,
+         e.g. if the middleware is not installed).
+    """
+    e = _URL_ENV.get()
+    if e:
+        return e
     try:
         from fastmcp.server.dependencies import get_http_request
 
-        return (get_http_request().query_params.get("env") or "").strip().lower()
+        req = get_http_request()
+        scoped = req.scope.get("rm_env")            # set by EnvPathMiddleware on the scope
+        if scoped in KNOWN_ENVS:
+            return scoped
+        q = (req.query_params.get("env") or "").strip().lower()
+        if q:
+            return q
+        for seg in req.url.path.strip("/").split("/"):
+            if seg in KNOWN_ENVS:
+                return seg
     except Exception:
-        return ""
+        pass
+    return ""
 
 
 def env_from_ctx(ctx) -> str:
     """Resolve the caller's environment, in priority order:
 
-      1. explicit ``?env=<env>`` on the connector URL — no forwarding required;
+      1. the connector URL signal — ``/<env>/mcp`` path segment (or ``?env=``) — which
+         needs no platform feature (see ``_env_from_request``);
       2. else the forwarded ``_meta.companyId`` → env (needs ``unique.app/auth/``
          forwarding enabled on the connector);
       3. else ``DEFAULT_ENV``.

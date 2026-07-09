@@ -57,14 +57,18 @@ prod-bnpp / prod-sales / local). KB **content ids (`cont_…`) are env-specific*
 same document has a different id in each environment's Knowledge Base — so the CRM
 tools must return the id for the **caller's** environment, not a baked-in one.
 
-- **Env signal — `env_map.env_from_ctx`, in priority order:** (1) an explicit
-  **`?env=<env>` on the connector URL** (`https://rm-crm-mcp.azurewebsites.net/mcp?env=sales`),
-  set per environment in admin — needs **no** platform feature (the MCP client preserves
-  the URL query); (2) the forwarded **`_meta.companyId`** (mapped by `COMPANY_ENV`) *if*
-  the connector has the `unique.app/auth/` forwarding namespace enabled; (3) else
-  `RM_DEFAULT_ENV` (default `qa`). **Use the URL param** when the admin build has no
-  "Context Forwarding" section (only the CRM connector needs it — Advisory has no
-  content ids).
+- **Env signal — `env_map.env_from_ctx`, in priority order:** (1) the **env as a URL
+  path segment** on the connector — `https://rm-crm-mcp.azurewebsites.net/<env>/mcp`
+  (e.g. `…/sales/mcp`), set per environment in admin. This is the primary signal: it
+  needs **no** platform feature, and unlike a `?env=` query (which the prod admin
+  rejects as an "Invalid MCP server url") a plain path is accepted. A tiny ASGI
+  middleware (`mcp_crm.EnvPathMiddleware`) peels the known-env segment off the path,
+  records it for the request, and rewrites the path back to `/mcp` so FastMCP routes
+  normally — robust to `/<env>/mcp` and `/mcp/<env>`. (2) a `?env=<env>` **query**
+  (same effect, but only usable for direct/local testing since prod admin rejects it);
+  (3) the forwarded **`_meta.companyId`** (mapped by `COMPANY_ENV`) *if* the connector
+  has the `unique.app/auth/` forwarding namespace enabled; (4) else `RM_DEFAULT_ENV`
+  (default `qa`). Only the CRM connector needs an env — Advisory has no content ids.
 - `mcp_crm/common/env_map.py` maps `companyId → env` (`COMPANY_ENV`; override at
   deploy time with `RM_COMPANY_ENV_JSON`, default env via `RM_DEFAULT_ENV`) and looks
   the id up in `content_id_map(env, map_key, content_id)` — keys `dashboard:<client_id>`,
