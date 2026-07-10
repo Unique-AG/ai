@@ -27,7 +27,7 @@ PAGINATION_SIZE = 10
     key=SearchEngineType.GOOGLE,
     config_cls=GoogleConfig,
     mode=SearchEngineMode.STANDARD,
-    config_display_name="Google Search",
+    config_display_name="Google",
 )
 class GoogleSearch(SearchEngine[GoogleConfig]):
     @property
