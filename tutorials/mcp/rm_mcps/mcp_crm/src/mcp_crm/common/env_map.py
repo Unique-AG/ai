@@ -177,3 +177,18 @@ def content_id_for(env: str, map_key: str) -> str:
         # No content_id_map table / DB unreachable → degrade to filePath (return "").
         return ""
     return (row.get("content_id") if row else "") or ""
+
+
+def remap_content_id(env: str, baked_content_id: str) -> str:
+    """Correct a BAKED (seed-env) KB content id to the caller's env.
+
+    Tools whose rows carry a fixed content id baked at seed time (e.g. ``list_documents``
+    over the editable ``rm_documents`` table) can't key by filename, so they remap the id
+    itself via the ``cid:<baked-id>`` rows in ``content_id_map`` (see
+    generate_sql.build_content_id_map_sql). Returns the env-correct id, or the original id
+    unchanged when there's no remap row (already env-correct, unknown, or a user-added id) —
+    so a link is never broken, only upgraded."""
+    if not env or not baked_content_id:
+        return baked_content_id
+    mapped = content_id_for(env, f"cid:{baked_content_id}")
+    return mapped or baked_content_id

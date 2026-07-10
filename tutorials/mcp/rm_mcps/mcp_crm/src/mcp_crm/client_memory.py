@@ -10,9 +10,11 @@ or delete one row by (client_id, position). Tables: sql/client_memory.sql.
 import json
 from typing import Annotated
 
+from fastmcp import Context
 from pydantic import Field
 
 from common.db import execute, query_all, resolve_client, unknown
+from common.env_map import env_from_ctx, remap_content_id
 from common.tool_prompts import tool_meta
 
 MAXLEN = 200    # MEMORY_MAX_CHARS
@@ -114,14 +116,18 @@ def register(mcp) -> None:
     @mcp.tool(name="list_documents", title="List Documents (Memory)",
               description="Get the client's pinned documents (ordered list with title + contentId). Input: client name or client_id.",
               meta=tool_meta("list_documents", {"unique.app/icon": "files"}))
-    def list_documents(client_id: _CID = "", input: _CID = "") -> str:
+    def list_documents(client_id: _CID = "", input: _CID = "", ctx: Context = None) -> str:
         rows = _get("rm_documents", client_id or input)
-        # Add an attr-bindable openDocument payload per row (same pattern as
+        # The MCP is shared across environments and the rm_documents contentIds are baked
+        # at seed time, so remap each to the CALLER's env (see common.env_map). Then add an
+        # attr-bindable openDocument payload per row (same pattern as
         # list_clients.open_doc_payload) so the dashboard's "Open" button gets a valid
         # {"contentId": "cont_…"} object — the payload-less openDocument + data-unique-key
         # path does NOT survive list rendering (the key renders as the value).
         if isinstance(rows, list):
+            env = env_from_ctx(ctx)
             for r in rows:
+                r["contentId"] = remap_content_id(env, r.get("contentId", ""))
                 r["open_doc_payload"] = json.dumps({"contentId": r.get("contentId", "")})
         return json.dumps(rows)
 
