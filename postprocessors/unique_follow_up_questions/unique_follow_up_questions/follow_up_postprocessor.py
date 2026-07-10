@@ -8,6 +8,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    LanguageModelTokenUsage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.language_model.utils import convert_string_to_json
@@ -42,6 +43,10 @@ class FollowUpPostprocessor(Postprocessor):
         self._language = event.payload.user_message.language
         self._historyManager = historyManager
         self._llm_service = llm_service
+        self._usage: LanguageModelTokenUsage | None = None
+
+    def get_usage(self) -> LanguageModelTokenUsage | None:
+        return self._usage
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
         history = await self._historyManager.get_user_visible_chat_history(
@@ -187,6 +192,7 @@ class FollowUpPostprocessor(Postprocessor):
                     raise ValueError("Language model response content must be a string")
                 parsed_content = convert_string_to_json(content)
 
+            self._usage = response.usage
             return FollowUpQuestionsOutput.model_validate(parsed_content)
 
         except Exception as e:

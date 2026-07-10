@@ -184,9 +184,11 @@ class ContextRelevancyEvaluator:
                 exception=e,
             )
 
-        return parse_eval_metric_result_structured_output(
+        evaluation_result = parse_eval_metric_result_structured_output(
             result_content, EvaluationMetricName.CONTEXT_RELEVANCY
         )
+        evaluation_result.usage = result.usage
+        return evaluation_result
 
     async def _handle_regular_output(
         self,
@@ -209,9 +211,11 @@ class ContextRelevancyEvaluator:
                 user_message=error_message,
             )
 
-        return parse_eval_metric_result(
+        evaluation_result = parse_eval_metric_result(
             result_content, EvaluationMetricName.CONTEXT_RELEVANCY
         )
+        evaluation_result.usage = result.usage
+        return evaluation_result
 
     def _compose_msgs(
         self,

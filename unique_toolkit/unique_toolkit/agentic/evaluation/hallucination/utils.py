@@ -77,6 +77,7 @@ async def check_hallucination(
         result = await LanguageModelService.complete_async_util(
             company_id=company_id, user_id=user_id, messages=msgs, model_name=model_name
         )
+        usage = result.usage
         result_content = result.choices[0].message.content
         if not result_content or not isinstance(result_content, str):
             error_message = "Hallucination evaluation did not return a text result."
@@ -88,6 +89,7 @@ async def check_hallucination(
             result_content,
             EvaluationMetricName.HALLUCINATION,
         )
+        result.usage = usage
 
         return result
     except Exception as e:

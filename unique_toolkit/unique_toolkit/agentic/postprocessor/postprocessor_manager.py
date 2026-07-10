@@ -7,6 +7,7 @@ from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
+    LanguageModelTokenUsage,
     ResponsesLanguageModelStreamResponse,
 )
 
@@ -33,6 +34,10 @@ class Postprocessor(ABC):
             "Subclasses must implement this method to remove post-processing from the message."
         )
 
+    def get_usage(self) -> LanguageModelTokenUsage | None:
+        """Override in subclasses whose `run()` makes its own LLM call(s)."""
+        return None
+
 
 class ResponsesApiPostprocessor(ABC):
     def __init__(self, name: str):
@@ -55,6 +60,13 @@ class ResponsesApiPostprocessor(ABC):
         raise NotImplementedError(
             "Subclasses must implement this method to remove post-processing from the message."
         )
+
+    def get_usage(self) -> LanguageModelTokenUsage | None:
+        """Token usage from any LLM call(s) this postprocessor made in its last `run()`.
+
+        Default `None` — override in subclasses that make their own LLM calls.
+        """
+        return None
 
 
 class PostprocessorManager:
@@ -86,6 +98,7 @@ class PostprocessorManager:
         self._chat_service = chat_service
         self._postprocessors: list[Postprocessor | ResponsesApiPostprocessor] = []
         self._execution_times: dict[str, float] = {}
+        self._usage: dict[str, LanguageModelTokenUsage] = {}
 
         # Allow to add postprocessors that should be run before or after the others.
         self._first_postprocessor: Postprocessor | ResponsesApiPostprocessor | None = (
@@ -126,6 +139,7 @@ class PostprocessorManager:
         loop_response: LanguageModelStreamResponse,
     ) -> None:
         self._execution_times = {}
+        self._usage = {}
 
         task_executor = SafeTaskExecutor(
             logger=self._logger,
@@ -166,6 +180,10 @@ class PostprocessorManager:
     def get_execution_times(self) -> dict[str, float]:
         return self._execution_times.copy()
 
+    def get_usage(self) -> LanguageModelTokenUsage | None:
+        """Sum token usage across every postprocessor that made its own LLM call(s)."""
+        return LanguageModelTokenUsage.sum_usages(self._usage.values())
+
     async def execute_postprocessors(
         self,
         loop_response: LanguageModelStreamResponse,
@@ -176,6 +194,9 @@ class PostprocessorManager:
         self._execution_times[postprocessor_instance.name] = round(
             time.perf_counter() - start, 3
         )
+        usage = postprocessor_instance.get_usage()
+        if usage is not None:
+            self._usage[postprocessor_instance.name] = usage
 
     async def remove_from_text(
         self,

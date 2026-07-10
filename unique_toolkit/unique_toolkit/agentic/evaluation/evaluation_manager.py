@@ -19,6 +19,7 @@ from unique_toolkit.chat.schemas import (
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
+    LanguageModelTokenUsage,
 )
 
 
@@ -88,6 +89,7 @@ class EvaluationManager:
         self._evaluations: dict[EvaluationMetricName, Evaluation] = {}
         self._evaluation_passed: bool = True
         self._execution_times: dict[str, float] = {}
+        self._usage: dict[str, LanguageModelTokenUsage] = {}
 
     def add_evaluation(self, evaluation: Evaluation):
         self._evaluations[evaluation.get_name()] = evaluation
@@ -102,6 +104,7 @@ class EvaluationManager:
         assistant_message_id: str,
     ) -> list[EvaluationMetricResult]:
         self._execution_times = {}
+        self._usage = {}
 
         task_executor = SafeTaskExecutor(
             logger=self._logger,
@@ -125,6 +128,10 @@ class EvaluationManager:
             )
             if not unpacked_evaluation_result.is_positive:
                 self._evaluation_passed = False
+            if unpacked_evaluation_result.usage is not None:
+                self._usage[str(selected_evaluation_names[i])] = (
+                    unpacked_evaluation_result.usage
+                )
             evaluation_results_unpacked.append(unpacked_evaluation_result)
 
         for evaluation_name, evaluation_result in zip(
@@ -140,6 +147,10 @@ class EvaluationManager:
 
     def get_execution_times(self) -> dict[str, float]:
         return self._execution_times.copy()
+
+    def get_usage(self) -> LanguageModelTokenUsage | None:
+        """Sum token usage across every evaluation that made its own LLM call."""
+        return LanguageModelTokenUsage.sum_usages(self._usage.values())
 
     async def execute_evaluation_call(
         self,
