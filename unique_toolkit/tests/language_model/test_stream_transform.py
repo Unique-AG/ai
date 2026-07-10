@@ -125,9 +125,17 @@ class FakeChoice:
         self.delta = delta
 
 
+class FakeUsage:
+    def __init__(self, completion_tokens=0, prompt_tokens=0, total_tokens=0):
+        self.completion_tokens = completion_tokens
+        self.prompt_tokens = prompt_tokens
+        self.total_tokens = total_tokens
+
+
 class FakeChunk:
-    def __init__(self, content=None, tool_calls=None):
+    def __init__(self, content=None, tool_calls=None, usage=None):
         self.choices = [FakeChoice(FakeDelta(content=content, tool_calls=tool_calls))]
+        self.usage = usage
 
 
 class FakeStream:
@@ -215,8 +223,9 @@ class FakeDeltaWithToolCalls:
 
 
 class FakeChunkWithToolCalls:
-    def __init__(self, tool_calls):
+    def __init__(self, tool_calls, usage=None):
         self.choices = [FakeChoice(FakeDeltaWithToolCalls(tool_calls=tool_calls))]
+        self.usage = usage
 
 
 @patch(

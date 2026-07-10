@@ -428,6 +428,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                     model=model,
                     messages=gpt_messages,
                     stream=True,
+                    stream_options={"include_usage": True},
                     temperature=temperature,
                     **optional_create_kwargs,
                 )
