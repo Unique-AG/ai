@@ -755,7 +755,12 @@ class UniqueAI:
         # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
         # redundant and noisy to also list it here.
 
-        tool_names_not_to_log: set[str] = {"DeepResearch", "Skill", "AskUser"}
+        tool_names_not_to_log: set[str] = {
+            "DeepResearch",
+            "Skill",
+            "AskUser",
+            "ActivatePython",
+        }
 
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:
