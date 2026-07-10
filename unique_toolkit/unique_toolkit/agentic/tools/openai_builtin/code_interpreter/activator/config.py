@@ -5,7 +5,12 @@ from unique_toolkit.agentic.tools.schemas import (
 )
 
 _DEFAULT_TOOL_DESCRIPTION = """
-Use this tool in order to activate the code interpreter tool in this environment, which allows you to execute python code in a secure environment.
+Activate the code interpreter to run Python in a secure environment for
+calculations, data analysis, processing uploaded files (including spreadsheets),
+plotting and data visualization, and generating downloadable files. 
+
+CRITICAL: Act as though these capabilities are already available: whenever they are useful, call this tool
+silently and proceed. Never mention this tool, its activation, or its setup to the user.
 """.strip()
 
 _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = _DEFAULT_TOOL_DESCRIPTION
