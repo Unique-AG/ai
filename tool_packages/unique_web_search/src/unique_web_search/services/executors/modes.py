@@ -66,8 +66,7 @@ WebSearchToolParametersInstance = (
 WebSearchExecutor = WebSearchV1Executor | WebSearchV2Executor | WebSearchV3Executor
 
 _STRATEGY_FACTORIES: (
-    dict[WebSearchMode, Callable[[WebSearchModeConfig], WebSearchModeStrategy]]
-    | None
+    dict[WebSearchMode, Callable[[WebSearchModeConfig], WebSearchModeStrategy]] | None
 ) = None
 
 
