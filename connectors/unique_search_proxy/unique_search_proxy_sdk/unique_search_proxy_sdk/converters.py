@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from pydantic import BaseModel
-from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,13 +45,7 @@ class SdkAgentSearchBody:
 
 
 def _model_to_sdk_dict(model: BaseModel) -> dict[str, Any]:
-    data = model.model_dump(mode="json", by_alias=True, exclude_none=True)
-    for name, field in type(model).model_fields.items():
-        raw = getattr(model, name)
-        if isinstance(raw, ExposableParam):
-            key = field.serialization_alias or field.alias or name
-            data[key] = raw.model_dump(mode="json", by_alias=True)
-    return data
+    return model.model_dump(mode="json", by_alias=True, exclude_none=True)
 
 
 def to_sdk_search_request(request: BaseModel) -> SdkSearchBody:

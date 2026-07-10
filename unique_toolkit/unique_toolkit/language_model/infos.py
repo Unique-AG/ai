@@ -83,12 +83,14 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
     ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
+    ANTHROPIC_CLAUDE_SONNET_5 = "litellm:anthropic-claude-sonnet-5"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
     ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
     ANTHROPIC_CLAUDE_OPUS_4_7 = "litellm:anthropic-claude-opus-4-7"
     ANTHROPIC_CLAUDE_OPUS_4_8 = "litellm:anthropic-claude-opus-4-8"
+    ANTHROPIC_CLAUDE_FABLE_5 = "litellm:anthropic-claude-fable-5"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
@@ -125,12 +127,18 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_4_1_NANO = "litellm:openai-gpt-4-1-nano"
     LITELLM_DEEPSEEK_R1 = "litellm:deepseek-r1"
     LITELLM_DEEPSEEK_V3 = "litellm:deepseek-v3-1"
+    LITELLM_DEEPSEEK_V4_PRO = "litellm:deepseek-v4-pro"
+    LITELLM_GLM_5_1 = "litellm:glm-5.1"
+    LITELLM_GLM_5_2 = "litellm:glm-5.2"
+    LITELLM_KIMI_K2_6 = "litellm:kimi-k2.6"
     LITELLM_QWEN_3 = "litellm:qwen-3-235B-A22B"
     LITELLM_QWEN_3_THINKING = "litellm:qwen-3-235B-A22B-thinking"
     VERTEX_CLAUDE_SONNET_4_6 = "litellm:vertex-claude-sonnet-4-6"
+    VERTEX_CLAUDE_SONNET_5 = "litellm:vertex-claude-sonnet-5"
     VERTEX_CLAUDE_OPUS_4_6 = "litellm:vertex-claude-opus-4-6"
     VERTEX_CLAUDE_OPUS_4_7 = "litellm:vertex-claude-opus-4-7"
     VERTEX_CLAUDE_OPUS_4_8 = "litellm:vertex-claude-opus-4-8"
+    VERTEX_CLAUDE_FABLE_5 = "litellm:vertex-claude-fable-5"
 
 
 class EncoderName(StrEnum):
@@ -1590,6 +1598,33 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2026, 2, 17),
                     supported_reasoning_efforts=[],
                 )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_SONNET_5
+                | LanguageModelName.VERTEX_CLAUDE_SONNET_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-sonnet-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 7, 1),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    supported_reasoning_efforts=[],
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
                     name=model_name,
@@ -1723,6 +1758,30 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 5, 28),
+                    supported_reasoning_efforts=[],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_FABLE_5
+                | LanguageModelName.VERTEX_CLAUDE_FABLE_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-fable-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 7, 1),
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
@@ -2625,6 +2684,82 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=128_000, token_limit_output=4_000
                     ),
                     published_at=date(2025, 8, 1),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_DEEPSEEK_V4_PRO:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.DEEPSEEK,
+                    version="deepseek-v4-pro",
+                    encoder_name=EncoderName.DEEPSEEK,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000, token_limit_output=384_000
+                    ),
+                    published_at=date(2026, 1, 1),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_GLM_5_1:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ZAI,
+                    version="glm-5.1",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=200_000, token_limit_output=128_000
+                    ),
+                    published_at=date(2026, 1, 1),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_GLM_5_2:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ZAI,
+                    version="glm-5.2",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=256_000, token_limit_output=128_000
+                    ),  # GLM-5.2 supports up to a 1_000_000 token context window. Together AI is supporting however only up to 256_000 tokens.
+                    published_at=date(2026, 1, 1),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.LITELLM_KIMI_K2_6:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.KIMI,
+                    version="kimi-k2.6",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.STREAMING,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=256_000, token_limit_output=32_000
+                    ),
+                    published_at=date(2026, 1, 1),
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_QWEN_3:

@@ -1,158 +1,82 @@
-import operator
-from functools import reduce
-from typing import TypeAlias
-
-from unique_toolkit import LanguageModelService
+from pydantic import BaseModel
 
 from unique_web_search.services.search_engine.base import (
-    BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineMode,
-    SearchEngineType,
-    get_search_engine_mode,
 )
-from unique_web_search.services.search_engine.bing import (
+from unique_web_search.services.search_engine.registry import (
+    SEARCH_ENGINE_REGISTRY,
+    get_search_engine_mode,
+    get_search_engine_service,
+)
+
+SEARCH_ENGINE_REGISTRY.autodiscover(__path__, __name__, exclude=frozenset({"schema"}))
+
+from unique_search_proxy_core.search_engines import (  # noqa: E402
+    BraveConfig,
+    GoogleConfig,
+    PerplexityConfig,
+    SearchEngineType,
+)
+
+from unique_web_search.services.search_engine.bing import (  # noqa: E402
     BingSearch,
     BingSearchConfig,
 )
-from unique_web_search.services.search_engine.brave import (
-    BraveSearch,
-    BraveSearchConfig,
-)
-from unique_web_search.services.search_engine.custom_api import (
+from unique_web_search.services.search_engine.brave import BraveSearch  # noqa: E402
+from unique_web_search.services.search_engine.custom_api import (  # noqa: E402
     CustomAPI,
     CustomAPIConfig,
 )
-from unique_web_search.services.search_engine.firecrawl import (
-    FireCrawlConfig,
-    FireCrawlSearch,
-)
-from unique_web_search.services.search_engine.google import (
-    GoogleConfig,
-    GoogleSearch,
-)
-from unique_web_search.services.search_engine.jina import (
-    JinaConfig,
-    JinaSearch,
-)
-from unique_web_search.services.search_engine.perplexity import (
+from unique_web_search.services.search_engine.google import GoogleSearch  # noqa: E402
+from unique_web_search.services.search_engine.perplexity import (  # noqa: E402
     PerplexitySearch,
-    PerplexitySearchConfig,
 )
-from unique_web_search.services.search_engine.tavily import (
-    TavilyConfig,
-    TavilySearch,
-)
-from unique_web_search.services.search_engine.vertexai import (
+from unique_web_search.services.search_engine.vertexai import (  # noqa: E402
     VertexAI,
     VertexAIConfig,
 )
 
 SearchEngineTypes = (
-    GoogleSearch
-    | BingSearch
-    | CustomAPI
-    | JinaSearch
-    | TavilySearch
-    | BraveSearch
-    | PerplexitySearch
-    | FireCrawlSearch
-    | VertexAI
+    GoogleSearch | BingSearch | CustomAPI | BraveSearch | PerplexitySearch | VertexAI
 )
 SearchEngineConfigTypes = (
     GoogleConfig
     | BingSearchConfig
     | CustomAPIConfig
-    | JinaConfig
-    | TavilyConfig
-    | BraveSearchConfig
-    | PerplexitySearchConfig
-    | FireCrawlConfig
+    | BraveConfig
+    | PerplexityConfig
     | VertexAIConfig
 )
 
-ENGINE_NAME_TO_CONFIG = {
-    "google": GoogleConfig,
-    "jina": JinaConfig,
-    "tavily": TavilyConfig,
-    "bing": BingSearchConfig,
-    "brave": BraveSearchConfig,
-    "perplexity": PerplexitySearchConfig,
-    "firecrawl": FireCrawlConfig,
-    "vertexai": VertexAIConfig,
-    "custom_api": CustomAPIConfig,
-}
+ENGINE_NAME_TO_CONFIG = SEARCH_ENGINE_REGISTRY.name_to_config()
 
 
-def get_search_engine_service(
-    search_engine_config: SearchEngineConfigTypes,
-    language_model_service: LanguageModelService,
-):
-    match search_engine_config.search_engine_name:
-        case SearchEngineType.FIRECRAWL:
-            return FireCrawlSearch(search_engine_config)
-        case SearchEngineType.GOOGLE:
-            return GoogleSearch(search_engine_config)
-        case SearchEngineType.JINA:
-            return JinaSearch(search_engine_config)
-        case SearchEngineType.TAVILY:
-            return TavilySearch(search_engine_config)
-        case SearchEngineType.BING:
-            return BingSearch(search_engine_config, language_model_service)
-        case SearchEngineType.BRAVE:
-            return BraveSearch(search_engine_config)
-        case SearchEngineType.PERPLEXITY:
-            return PerplexitySearch(search_engine_config)
-        case SearchEngineType.VERTEXAI:
-            return VertexAI(search_engine_config, language_model_service)
-        case SearchEngineType.CUSTOM_API:
-            return CustomAPI(search_engine_config)
-
-
-def get_search_engine_config_types_from_names(engine_names: list[str]) -> TypeAlias:
-    assert len(engine_names) >= 1, "At least one search engine must be active"
-
-    selected_types = [
-        ENGINE_NAME_TO_CONFIG[name.lower()]
-        for name in engine_names
-        if name.lower() in ENGINE_NAME_TO_CONFIG
-    ]
-    if not selected_types:
-        raise ValueError(f"No search engine config found for names: {engine_names}")
-    if len(selected_types) == 1:
-        return selected_types[0]
-    # Use reduce to create Union[Type1, Type2, Type3, ...]
-    return reduce(operator.or_, selected_types)
+def get_search_engine_config_types_from_names(
+    engine_names: list[str],
+) -> type[BaseModel]:
+    return SEARCH_ENGINE_REGISTRY.config_types_from_names(engine_names)
 
 
 def get_default_search_engine_config(
     engine_names: list[str],
-) -> SearchEngineConfigTypes:
-    assert len(engine_names) >= 1, "At least one search engine must be active"
-
-    return ENGINE_NAME_TO_CONFIG[engine_names[0]]
+) -> type[BaseModel]:
+    return SEARCH_ENGINE_REGISTRY.default_config(engine_names)
 
 
 __all__ = [
     "SearchEngineMode",
     "SearchEngineType",
     "get_search_engine_mode",
-    "FireCrawlConfig",
-    "FireCrawlSearch",
     "GoogleConfig",
     "GoogleSearch",
-    "JinaConfig",
-    "JinaSearch",
-    "TavilyConfig",
-    "TavilySearch",
     "BingSearchConfig",
     "BingSearch",
     "BraveSearch",
-    "BraveSearchConfig",
+    "BraveConfig",
     "PerplexitySearch",
-    "PerplexitySearchConfig",
+    "PerplexityConfig",
     "get_search_engine_service",
-    "BaseSearchEngineConfig",
     "SearchEngine",
     "get_search_engine_config_types_from_names",
     "get_default_search_engine_config",

@@ -166,6 +166,8 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         cls, tools: list[ToolBuildConfig], info: ValidationInfo
     ) -> list[ToolBuildConfig]:
         for tool in tools:
+            if not tool.is_enabled:
+                continue
             if tool.name in (
                 InternalSearchTool.name,
                 WebSearchTool.name,
@@ -453,6 +455,10 @@ class ExperimentalConfig(BaseToolConfig):
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
+    )
+
+    use_experimental_python_streaming: bool = Field(
+        default=False,
     )
 
 

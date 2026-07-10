@@ -88,9 +88,11 @@ jobs:
           target-branch: ${{ github.ref_name }}
 
   # After release-please updates the PR with new version bumps it does not
-  # update uv.lock. This job finds the open release PR via its label, checks
-  # out that branch, reruns uv lock, and commits the result so the lockfile
-  # stays consistent with pyproject.toml.
+  # update uv.lock or the dedicated helm chart READMEs (Chart.yaml/values.yaml
+  # get bumped, but helm-docs never reruns). This job finds the open release
+  # PR via its label, checks out that branch, reruns uv lock + helm-docs, and
+  # commits the results so both stay consistent with the bumped versions
+  # instead of failing Gatekeeper's helm-schema-check once the PR merges.
   #
   # Why gh pr list instead of release-please outputs.prs?
   # release-please only populates `prs` when it modifies the PR in the current
@@ -98,10 +100,10 @@ jobs:
   # empty even though an open release PR exists. Querying by label is reliable
   # regardless of what release-please did in the current run.
   #
-  # Why the App token? The lockfile commit needs to fire pull_request: CI
-  # on the standing Release PR. A push by GITHUB_TOKEN would be silently
-  # ignored by GitHub's anti-recursion rule and the PR would sit with no
-  # CI status against its newest commit.
+  # Why the App token? The commit needs to fire pull_request: CI on the
+  # standing Release PR. A push by GITHUB_TOKEN would be silently ignored by
+  # GitHub's anti-recursion rule and the PR would sit with no CI status
+  # against its newest commit.
   update-release-lockfile:
     needs: release-please
     if: needs.release-please.outputs.releases_created != 'true'
@@ -160,7 +162,15 @@ jobs:
         if: steps.pr-info.outputs.branch != ''
         run: uv lock
 
-      - name: Commit lockfile and floor updates if changed
+      - name: Install helm-docs
+        if: steps.pr-info.outputs.branch != ''
+        uses: ./.github/actions/install-helm-docs
+
+      - name: Regenerate helm chart docs
+        if: steps.pr-info.outputs.branch != ''
+        run: scripts/render-helm-docs.sh
+
+      - name: Commit lockfile, floor, and helm-docs updates if changed
         if: steps.pr-info.outputs.branch != ''
         run: |
           if git diff --quiet; then
@@ -170,7 +180,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "chore: update dependency floors and regenerate uv.lock for release"
+          git commit -m "chore: update dependency floors, uv.lock, and helm chart docs for release"
           git push
 
   # Main-only post-release chores. Skipped on release/* because hotfix

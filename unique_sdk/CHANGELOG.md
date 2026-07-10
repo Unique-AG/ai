@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.26.0...unique-sdk-v2026.28.0) (2026-07-03)
+
+
+### Features
+
+* carry MCP reference enrichment fields end to end [UN-22310] ([#1953](https://github.com/Unique-AG/ai/issues/1953)) ([ea4c147](https://github.com/Unique-AG/ai/commit/ea4c1477137fa01ee7c7f6ebc7043cbec37abdd8))
+* **cli:** browser steering command (unique-cli browser) ([#1986](https://github.com/Unique-AG/ai/issues/1986)) ([cf3e855](https://github.com/Unique-AG/ai/commit/cf3e8550e6e9f99393dd72f1c183223e682e105a))
+* **cli:** per-task uploaded documents via uploaded-search [UN-21780] ([#1965](https://github.com/Unique-AG/ai/issues/1965)) ([e91c2a7](https://github.com/Unique-AG/ai/commit/e91c2a7c1483987cfb7ed4a56a38dd53f3cdfbbd))
+* **cli:** scope read/cite/ls/download to per-message metadata filter (UN-21780) ([#1868](https://github.com/Unique-AG/ai/issues/1868)) ([982ef65](https://github.com/Unique-AG/ai/commit/982ef651a4a574ff5aff3ffabb915698fc9ea124))
+* **cli:** share record_mcp_citations for tools-mode MCP referencing [UN-22484] ([#1972](https://github.com/Unique-AG/ai/issues/1972)) ([9e8c4be](https://github.com/Unique-AG/ai/commit/9e8c4bea080cf6e5efe5b826c1f807648c35278e))
+* **dci:** cite read-method taxonomy + multimodal hallucination context [UN-21765] ([#1895](https://github.com/Unique-AG/ai/issues/1895)) ([b02fdcb](https://github.com/Unique-AG/ai/commit/b02fdcb7eb3b625a9f8da4f006b548428d048542))
+* **mcp:** reference + groundedness support for MCP tool results ([#1896](https://github.com/Unique-AG/ai/issues/1896)) ([84eb29d](https://github.com/Unique-AG/ai/commit/84eb29d309880fdf887be48902a77b46c587287e))
+* **sdk, toolkit:** allow segment_kind on message modify (UN-22153) ([#1992](https://github.com/Unique-AG/ai/issues/1992)) ([4c62b84](https://github.com/Unique-AG/ai/commit/4c62b84b68f61966784365be1744f564a9e53859))
+* **sdk:** autoapprove elicitation ([#1940](https://github.com/Unique-AG/ai/issues/1940)) ([6b36cc7](https://github.com/Unique-AG/ai/commit/6b36cc7f9285f72af4b77c86947834c908d95162))
+* **sdk:** forward chatId/spaceId headers on browser bridge calls ([#1996](https://github.com/Unique-AG/ai/issues/1996)) ([9a3a792](https://github.com/Unique-AG/ai/commit/9a3a792f2c6b7cfa1fcfb32e09a63f37d807f619))
+* **sdk:** move folder api ([#1897](https://github.com/Unique-AG/ai/issues/1897)) ([6ea7d02](https://github.com/Unique-AG/ai/commit/6ea7d02ebc4b7f6d7581466948a80258c438af78))
+* **sdk:** sub-agents ([#1926](https://github.com/Unique-AG/ai/issues/1926)) ([6255e50](https://github.com/Unique-AG/ai/commit/6255e50fd2f93bf309e149cd498135efd9e75904))
+* **toolkit:** add segment_kind/response_turn_id params to create_assistant_message_async [UN-22064] ([#1948](https://github.com/Unique-AG/ai/issues/1948)) ([6784095](https://github.com/Unique-AG/ai/commit/6784095781676a034a4d0020b669e366f397e4e6))
+* **uqadm:** wire assistantPrompts through upsert and migrate [UN-22129] ([#1903](https://github.com/Unique-AG/ai/issues/1903)) ([eb78043](https://github.com/Unique-AG/ai/commit/eb7804328152458a4e6bc10ff744c6577fc0d195))
+
+
+### Bug Fixes
+
+* **cli:** file upload ([#1924](https://github.com/Unique-AG/ai/issues/1924)) ([ac86b3b](https://github.com/Unique-AG/ai/commit/ac86b3b7dc72cfc2d1a86c51342f002f72199bc5))
+* **uqadm:** migrate user model selection settings [UN-22297] ([#1943](https://github.com/Unique-AG/ai/issues/1943)) ([d31d637](https://github.com/Unique-AG/ai/commit/d31d637c2d854f93e878ecd1f20b5b92489fbc90))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.24.0...unique-sdk-v2026.26.0) (2026-06-22)
 
 

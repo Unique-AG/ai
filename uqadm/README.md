@@ -3,7 +3,7 @@
 Admin CLI for the Unique platform. It groups these command families:
 
 - **`space`** — list, export, diff, migrate, upsert, access grants, ingestion settings, and delete assistant spaces.
-- **`kb`** — knowledge-base folders: create paths, sync/download files, grant group access, set folder ingestion config.
+- **`kb`** — knowledge-base folders: create paths, sync/download/remove files and folders, grant group access, set folder ingestion config.
 - **`chat`** — send messages to an assistant and inspect chat history.
 - **`env`** — manage named credential slots stored in `~/.uqadm/envs/`.
 - **`install`** — one-time bootstrap: create directories, install shell completion, set up your first slot.
@@ -324,6 +324,8 @@ uqadm space migrate --source "qa:space_src123" --destination "prod:" --dry-run
 
 Supported URL path markers: `/space/<id>`, `/custom-space/<id>`, `/swappable-intelligence-space/<id>`.
 
+Migrates top-level space fields including `languageModel`, `allowModelSwitching`, `switchableLanguageModels` (user model selection toggle and allowed model list), `settings`, `assistantPrompts`, and modules matched by name. Scope rules, MCP bindings, and briefings are not migrated.
+
 ### `space access-grant SPACE_ID`
 
 Add **user or group** entries to a space ACL via ``Space.add_space_access``. The API **merges** new entries with existing access; it does not replace the full ACL.
@@ -379,7 +381,9 @@ uqadm space delete space_old123 --dry-run
 
 ## `uqadm kb`
 
-Manage **knowledge-base folder** paths and metadata via ``unique_sdk.Folder``.
+Manage **knowledge-base folders**: create paths, sync/download/remove files and
+folders, grant group access, and set folder ingestion config (via
+``unique_sdk.Folder`` and ``Content.delete`` for targeted file removal).
 
 ```bash
 uqadm kb --help
@@ -413,10 +417,18 @@ locally are **left untouched — `kb sync` never deletes remote files**. Require
 exactly one of ``--folder-path`` or ``--scope-id``. Without ``--recursive`` only
 top-level files are synced; with it, subdirectories are recreated as child folders.
 
+By default, replaced files **archive prior blobs** (restorable via
+``unique-cli versions`` / ``restore-version``). Content ids are unchanged on
+replace (upsert by filename key). Pass ``--no-version`` to skip archiving
+(legacy overwrite behavior). Once a content row has been versioned, the platform
+treats versioning as sticky — later uploads keep archiving even with
+``--no-version``.
+
 ```bash
 uqadm kb sync ./docs --folder-path /Dept/HR
 uqadm kb sync ./docs --folder-path /Dept/HR -r --dry-run
 uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
+uqadm kb sync ./docs --scope-id scope_abc --no-version
 ```
 
 | Option | Description |
@@ -425,6 +437,7 @@ uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
 | `--scope-id` | Target folder scope id (mutually exclusive with ``--folder-path``). |
 | `-r`, `--recursive` | Recurse into subdirectories, mirroring them as child KB folders. |
 | `--dry-run` | Show planned uploads without writing anything. |
+| `--no-version` | Upload without archiving prior blobs. |
 | `--slot SLOT` | Credential slot. |
 
 Extensions that the OS `mimetypes` database cannot resolve (common on macOS for
@@ -451,6 +464,32 @@ uqadm kb download ./out --scope-id scope_abc -r --slot qa
 | `--scope-id` | Source folder scope id (mutually exclusive with ``--folder-path``). |
 | `-r`, `--recursive` | Recurse into subfolders, mirroring them as local subdirectories. |
 | `--dry-run` | Show planned downloads without writing anything. |
+| `--slot SLOT` | Credential slot. |
+
+### `kb rm`
+
+Delete a KB folder or specific files within it, using ``Folder.delete`` /
+``Content.delete``. Requires exactly one of ``--folder-path`` or ``--scope-id``.
+With one or more ``--file`` options (matched by key, repeatable) only those
+files are deleted; otherwise the whole folder is removed. Deleting a **non-empty
+folder requires ``--recursive``** (it refuses otherwise). Unless ``--yes`` is
+given you are **prompted to confirm**; ``--dry-run`` prints the plan without
+deleting anything.
+
+```bash
+uqadm kb rm --folder-path /Dept/HR --file old.pdf
+uqadm kb rm --scope-id scope_abc -r --dry-run
+uqadm kb rm --scope-id scope_abc -r --slot qa -y
+```
+
+| Option | Description |
+|--------|-------------|
+| `--folder-path` | Target KB folder path (mutually exclusive with ``--scope-id``). |
+| `--scope-id` | Target folder scope id (mutually exclusive with ``--folder-path``). |
+| `--file` | Delete only this file (matched by key) in the scope; repeatable. |
+| `-r`, `--recursive` | Delete a non-empty folder and everything under it. |
+| `--dry-run` | Show what would be deleted without deleting anything. |
+| `-y`, `--yes` | Skip the interactive confirmation prompt. |
 | `--slot SLOT` | Credential slot. |
 
 ### `kb access grant`

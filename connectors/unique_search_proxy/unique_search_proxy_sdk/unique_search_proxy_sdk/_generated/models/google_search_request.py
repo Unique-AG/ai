@@ -12,8 +12,8 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 from ..models.google_search_request_safe_search import GoogleSearchRequestSafeSearch
-from ..models.google_search_request_site_search_filter_type_0 import (
-    GoogleSearchRequestSiteSearchFilterType0,
+from ..models.google_search_request_site_search_filter import (
+    GoogleSearchRequestSiteSearchFilter,
 )
 from ..types import UNSET, Unset
 
@@ -32,24 +32,17 @@ class GoogleSearchRequest:
             at runtime when not set. Not sent as a query parameter.
         safe (GoogleSearchRequestSafeSearch | Unset): SafeSearch level for every search: `active` (default) or `off`.
             Applied on all requests unless the call body overrides it. Default: GoogleSearchRequestSafeSearch.ACTIVE.
-        gl (None | str | Unset): Two-letter ISO 3166-1 alpha-2 country code (Google `gl`). Set `value` for a fixed
-            default; set `expose` so the LLM may override per query.
-        hl (None | str | Unset): Language for snippets/UI (Google `hl`). `value` + `expose` behave like `gl`.
-        lr (None | str | Unset): Document language restrict (Google `lr`), e.g. `lang_en`. `value` + `expose` behave
-            like `gl`.
-        date_restrict (None | str | Unset): Google `dateRestrict` recency filter (`d7`, `m1`, …). `value` + `expose`
-            behave like `gl`.
-        exact_terms (None | str | Unset): Phrase every hit must contain (Google `exactTerms`). `value` + `expose` behave
-            like `gl`.
-        exclude_terms (None | str | Unset): Phrase that must not appear (Google `excludeTerms`). `value` + `expose`
-            behave like `gl`.
-        file_type (None | str | Unset): File extension filter (Google `fileType`), e.g. `pdf`. `value` + `expose` behave
-            like `gl`.
-        site_search (None | str | Unset): Site or domain (Google `siteSearch`). Pair with `siteSearchFilter`. `value` +
-            `expose` behave like `gl`.
-        site_search_filter (GoogleSearchRequestSiteSearchFilterType0 | None | Unset): With `siteSearch`: `i` = include
-            only that site, `e` = exclude. `value` + `expose` behave like `gl`.
-        sort (None | str | Unset): Sort expression (Google `sort`), e.g. `date`. `value` + `expose` behave like `gl`.
+        gl (None | str | Unset): Two-letter ISO 3166-1 alpha-2 country code (Google `gl`).
+        hl (None | str | Unset): Language for snippets and UI (Google `hl`).
+        lr (None | str | Unset): Document language restrict (Google `lr`), e.g. `lang_en`.
+        date_restrict (None | str | Unset): Recency filter (Google `dateRestrict`), e.g. `d7`, `m1`.
+        exact_terms (None | str | Unset): Phrase every hit must contain (Google `exactTerms`).
+        exclude_terms (None | str | Unset): Phrase that must not appear in results (Google `excludeTerms`).
+        file_type (None | str | Unset): File extension filter (Google `fileType`), e.g. `pdf`.
+        site_search (None | str | Unset): Site or domain to restrict results to (Google `siteSearch`).
+        site_search_filter (GoogleSearchRequestSiteSearchFilter | None | Unset): With `siteSearch`: `i` = include only
+            that site, `e` = exclude it (Google `siteSearchFilter`).
+        sort (None | str | Unset): Sort expression (Google `sort`), e.g. `date`.
     """
 
     query: str
@@ -66,7 +59,7 @@ class GoogleSearchRequest:
     exclude_terms: None | str | Unset = UNSET
     file_type: None | str | Unset = UNSET
     site_search: None | str | Unset = UNSET
-    site_search_filter: GoogleSearchRequestSiteSearchFilterType0 | None | Unset = UNSET
+    site_search_filter: GoogleSearchRequestSiteSearchFilter | None | Unset = UNSET
     sort: None | str | Unset = UNSET
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
@@ -140,9 +133,7 @@ class GoogleSearchRequest:
         site_search_filter: None | str | Unset
         if isinstance(self.site_search_filter, Unset):
             site_search_filter = UNSET
-        elif isinstance(
-            self.site_search_filter, GoogleSearchRequestSiteSearchFilterType0
-        ):
+        elif isinstance(self.site_search_filter, GoogleSearchRequestSiteSearchFilter):
             site_search_filter = self.site_search_filter.value
         else:
             site_search_filter = self.site_search_filter
@@ -296,7 +287,7 @@ class GoogleSearchRequest:
 
         def _parse_site_search_filter(
             data: object,
-        ) -> GoogleSearchRequestSiteSearchFilterType0 | None | Unset:
+        ) -> GoogleSearchRequestSiteSearchFilter | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -304,14 +295,14 @@ class GoogleSearchRequest:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                site_search_filter_type_0 = GoogleSearchRequestSiteSearchFilterType0(
-                    data
+                site_search_filter_site_search_filter = (
+                    GoogleSearchRequestSiteSearchFilter(data)
                 )
 
-                return site_search_filter_type_0
+                return site_search_filter_site_search_filter
             except (TypeError, ValueError, AttributeError, KeyError):
                 pass
-            return cast(GoogleSearchRequestSiteSearchFilterType0 | None | Unset, data)
+            return cast(GoogleSearchRequestSiteSearchFilter | None | Unset, data)
 
         site_search_filter = _parse_site_search_filter(d.pop("siteSearchFilter", UNSET))
 

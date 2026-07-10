@@ -10,7 +10,6 @@ import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -22,6 +21,7 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.functions import upload_content_from_bytes
+from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -40,13 +40,21 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         config: MCPToolConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ) -> None:
         self.name = mcp_tool.name
-        super().__init__(config)
-        self._event = event
-        self._tool_progress_reporter = tool_progress_reporter
-        self._chat_service = ChatService(event)
-        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
+        if chat_service is not None and language_model_service is not None:
+            super().__init__(
+                config,
+                event,
+                tool_progress_reporter=tool_progress_reporter,
+                chat_service=chat_service,
+                language_model_service=language_model_service,
+            )
+        else:
+            super().__init__(config, event, tool_progress_reporter)
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 
@@ -81,13 +89,14 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     def tool_description_for_system_prompt(self) -> str:
         """Return tool description for system prompt"""
         # Not using jinja here to keep it simple and not import new packages.
-        description = (
-            f"**MCP Server**: {self._mcp_server.name}\n"
-            f"**Tool Name**: {self.name}\n"
-            f"{self._mcp_tool.system_prompt}"
-        )
+        lines = [
+            f"**MCP Server**: {self._mcp_server.name}",
+            f"**Tool Name**: {self.name}",
+        ]
+        if self._mcp_tool.system_prompt:
+            lines.append(self._mcp_tool.system_prompt)
 
-        return description
+        return "\n".join(lines)
 
     def tool_description_for_user_prompt(self) -> str:
         return self._mcp_tool.user_prompt or ""
@@ -384,7 +393,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 user_id=self._event.user_id,
                 company_id=self._event.company_id,
                 name=self.name,
-                messageId=self._event.payload.assistant_message.id,
+                messageId=self._chat_service.assistant_message_id,
                 chatId=self._event.payload.chat_id,
                 arguments=arguments,
             )

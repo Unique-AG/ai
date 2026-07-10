@@ -30,6 +30,7 @@ from unique_sdk.cli.state import ShellState
 DEFAULT_LIMIT = 200
 
 SEARCH_ERROR_PREFIX = "search:"
+UPLOADED_SEARCH_ERROR_PREFIX = "uploaded-search:"
 
 _REFS_LOG_RELATIVE_PATH = Path(".unique") / "kb-search-refs.jsonl"
 _LOCK_FILENAME = "kb-search-refs.lock"
@@ -260,9 +261,16 @@ def cmd_search(
             "searchString": query,
             "searchType": "COMBINED",
             "limit": limit,
+            # An unscoped search must send an explicit ``scopeIds: null``,
+            # never omit the key. An absent key reaches node-ingestion as
+            # ``undefined`` and is destructure-defaulted to ``[]``, which
+            # getScopes treats as "restrict to zero scopes" — an entire-KB
+            # search then returns nothing on companies without file-based
+            # access. A JSON ``null`` bypasses both the default and the
+            # truthy check, matching what unique_toolkit's
+            # search_content_chunks sends. See UN-22753.
+            "scopeIds": scope_ids or None,
         }
-        if scope_ids:
-            search_params["scopeIds"] = scope_ids
         if metadata_filter:
             search_params["metaDataFilter"] = metadata_filter
 
@@ -272,7 +280,7 @@ def cmd_search(
             **search_params,
         )
 
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, unique_sdk.UniqueError) as e:
         return f"{SEARCH_ERROR_PREFIX} {e}"
 
     log_path = refs_log_path or (Path.cwd() / _REFS_LOG_RELATIVE_PATH)
@@ -280,6 +288,69 @@ def cmd_search(
         return _format_results_with_citations(results, refs_log_path=log_path)
     except UnsafeRefsLogPathError as exc:
         return f"{SEARCH_ERROR_PREFIX} {exc}"
+
+
+def cmd_uploaded_search(
+    state: ShellState,
+    query: str,
+    limit: int = DEFAULT_LIMIT,
+    *,
+    refs_log_path: Path | None = None,
+) -> str:
+    """Search this task's per-row **uploaded** documents.
+
+    Uploaded files (e.g. an Agentic Table row's attached documents) live
+    outside the knowledge-base folder scopes, so the scope-bound
+    ``unique-cli search`` cannot return them. This mirrors the platform's
+    UploadedSearch tool: a chat-scoped ``Search.create`` (``chatOnly=True``)
+    over the owning chat and the selected content ids, both written by the
+    Swappable Intelligence runner to ``.unique-uploaded.json``. See UN-21780.
+
+    Results share the same per-turn ``<sourceN>`` manifest as
+    ``unique-cli search`` (``_format_results_with_citations`` appends under the
+    same lock), so ``[sourceN]`` citation numbering stays continuous across
+    both commands within a turn.
+
+    Args:
+        state: Shell state carrying user/company credentials and the uploaded
+            document scope loaded from ``.unique-uploaded.json``.
+        query: Search string.
+        limit: Maximum number of results.
+        refs_log_path: Override the per-turn citation manifest path — for
+            tests; production callers leave this ``None``.
+    """
+    if not state.uploaded_search_available:
+        return (
+            f"{UPLOADED_SEARCH_ERROR_PREFIX} no uploaded documents are "
+            "available for this task. Use `unique-cli search` for the "
+            "knowledge base."
+        )
+
+    try:
+        search_params: dict[str, Any] = {
+            "searchString": query,
+            "searchType": "COMBINED",
+            "chatOnly": True,
+            "limit": limit,
+        }
+        if state.uploaded_search_chat_id:
+            search_params["chatId"] = state.uploaded_search_chat_id
+        if state.uploaded_search_content_ids:
+            search_params["contentIds"] = state.uploaded_search_content_ids
+
+        results = unique_sdk.Search.create(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            **search_params,
+        )
+    except (ValueError, unique_sdk.UniqueError) as e:
+        return f"{UPLOADED_SEARCH_ERROR_PREFIX} {e}"
+
+    log_path = refs_log_path or (Path.cwd() / _REFS_LOG_RELATIVE_PATH)
+    try:
+        return _format_results_with_citations(results, refs_log_path=log_path)
+    except UnsafeRefsLogPathError as exc:
+        return f"{UPLOADED_SEARCH_ERROR_PREFIX} {exc}"
 
 
 def is_error_output(output: str) -> bool:
@@ -290,3 +361,8 @@ def is_error_output(output: str) -> bool:
     exit code without changing the existing string-returning contract.
     """
     return output.startswith(SEARCH_ERROR_PREFIX)
+
+
+def is_uploaded_search_error_output(output: str) -> bool:
+    """Return ``True`` when ``output`` is an ``uploaded-search`` error message."""
+    return output.startswith(UPLOADED_SEARCH_ERROR_PREFIX)

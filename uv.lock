@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-06-23T13:35:58.334235Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -3841,23 +3841,6 @@ wheels = [
 ]
 
 [[package]]
-name = "perplexityai"
-version = "0.36.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anyio" },
-    { name = "distro" },
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "sniffio" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/44/19/d1535dafc485754173fe8d88b16918918c20ffe8565b97dd9f2660e1266a/perplexityai-0.36.0.tar.gz", hash = "sha256:597ed0cb9ab70824e06e3abad54378e24799317f803643504e0f5bdf6bfc52c1", size = 139816, upload-time = "2026-05-30T22:59:03.93Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/dd/67e14657eeab752bd93dbcbfe27b22e9a62966b835563d3fb8b28fffed1c/perplexityai-0.36.0-py3-none-any.whl", hash = "sha256:1676522bc049ad6fbdc1d7b9317502d5f03d7225afc96a9804b3a0ba32c8eccd", size = 133388, upload-time = "2026-05-30T22:59:02.645Z" },
-]
-
-[[package]]
 name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5756,7 +5739,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5798,7 +5781,7 @@ dev = []
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "postprocessors/unique_follow_up_questions" }
 dependencies = [
     { name = "jinja2" },
@@ -5823,7 +5806,7 @@ dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
@@ -5843,7 +5826,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5871,7 +5854,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "2026.28.0.dev3"
+version = "2026.28.0"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5913,7 +5896,7 @@ dev = []
 
 [[package]]
 name = "unique-quartr"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -5939,7 +5922,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "2026.28.0.dev3"
+version = "2026.28.0"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -5976,7 +5959,7 @@ dev = []
 
 [[package]]
 name = "unique-search-proxy"
-version = "2026.28.0.dev1"
+version = "2026.28.0"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_client" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -6041,13 +6024,14 @@ dev = [
 
 [[package]]
 name = "unique-search-proxy-core"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_core" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyhumps" },
+    { name = "unique-toolkit", extra = ["monitoring"] },
 ]
 
 [package.dev-dependencies]
@@ -6064,6 +6048,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
+    { name = "unique-toolkit", extras = ["monitoring"], editable = "unique_toolkit" },
 ]
 
 [package.metadata.requires-dev]
@@ -6076,7 +6061,7 @@ dev = [
 
 [[package]]
 name = "unique-search-proxy-sdk"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_sdk" }
 dependencies = [
     { name = "attrs" },
@@ -6113,7 +6098,7 @@ dev = [
 
 [[package]]
 name = "unique-six"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -6146,7 +6131,7 @@ dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
 name = "unique-skill-tool"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "tool_packages/unique_skill_tool" }
 dependencies = [
     { name = "jinja2" },
@@ -6168,7 +6153,7 @@ dev = []
 
 [[package]]
 name = "unique-stock-ticker"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "postprocessors/unique_stock_ticker" }
 dependencies = [
     { name = "numerize" },
@@ -6200,7 +6185,7 @@ dev = []
 
 [[package]]
 name = "unique-swot"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "tool_packages/unique_swot" }
 dependencies = [
     { name = "jinja2" },
@@ -6226,7 +6211,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "2026.28.0.dev2"
+version = "2026.28.0"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -6249,6 +6234,7 @@ dependencies = [
     { name = "pyhumps" },
     { name = "pypandoc" },
     { name = "python-docx" },
+    { name = "rapidfuzz" },
     { name = "requests" },
     { name = "sseclient" },
     { name = "tenacity" },
@@ -6307,6 +6293,7 @@ requires-dist = [
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
     { name = "python-docx", specifier = ">=1.1.0,<2" },
+    { name = "rapidfuzz", specifier = ">=3.0,<4" },
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
     { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
@@ -6324,7 +6311,7 @@ dev = [{ name = "types-cachetools", specifier = ">=5.0,<6" }]
 
 [[package]]
 name = "unique-user-memory"
-version = "2026.28.0.dev1"
+version = "2026.28.0"
 source = { editable = "postprocessors/unique_user_memory" }
 dependencies = [
     { name = "jinja2" },
@@ -6346,7 +6333,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "2026.28.0.dev0"
+version = "2026.28.0"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -6363,7 +6350,6 @@ dependencies = [
     { name = "httpx" },
     { name = "jinja2" },
     { name = "markdownify" },
-    { name = "perplexityai" },
     { name = "playwright" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -6392,7 +6378,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "markdownify", specifier = ">=0.14.1,<1" },
-    { name = "perplexityai", specifier = ">=0.34.0" },
     { name = "playwright", specifier = ">=1.58.0" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
@@ -6411,7 +6396,7 @@ dev = []
 
 [[package]]
 name = "uqadm"
-version = "2026.28.0.dev3"
+version = "2026.28.0"
 source = { editable = "uqadm" }
 dependencies = [
     { name = "python-dotenv" },

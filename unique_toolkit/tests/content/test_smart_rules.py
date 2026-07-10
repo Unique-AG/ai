@@ -788,6 +788,53 @@ def test_to_dict__round_trips_model() -> None:
 
 
 @pytest.mark.ai
+def test_overlaps_operator_resolves_variables(user_metadata, tool_parameters) -> None:
+    """Purpose: Verify OVERLAPS substitutes variables in each array element like IN."""
+    query = Statement(
+        operator=Operator.OVERLAPS,
+        value=["<userMetadata.name>", "<toolParameters.category>", "fallback-tag"],
+        path=["tags"],
+    )
+    enriched = query.with_variables(user_metadata, tool_parameters)
+    assert isinstance(enriched, Statement)
+    assert enriched.value == ["John", "premium", "fallback-tag"]
+
+
+@pytest.mark.ai
+def test_not_overlaps_operator_resolves_variables(
+    user_metadata, tool_parameters
+) -> None:
+    """Purpose: Verify NOT_OVERLAPS substitutes variables in each array element like NOT_IN."""
+    query = Statement(
+        operator=Operator.NOT_OVERLAPS,
+        value=["<userMetadata.name>", "fallback-tag"],
+        path=["tags"],
+    )
+    enriched = query.with_variables(user_metadata, tool_parameters)
+    assert isinstance(enriched, Statement)
+    assert enriched.value == ["John", "fallback-tag"]
+
+
+@pytest.mark.ai
+def test_parse_uniqueql_overlaps_statement() -> None:
+    """Purpose: Verify OVERLAPS/NOT_OVERLAPS round-trip through parse_uniqueql."""
+    json_data = {
+        "or": [
+            {
+                "path": ["tags"],
+                "value": ["alpha", "beta"],
+                "operator": "overlaps",
+            }
+        ]
+    }
+    result = parse_uniqueql(json_data)
+    assert isinstance(result, OrStatement)
+    assert isinstance(result.or_list[0], Statement)
+    assert result.or_list[0].operator == Operator.OVERLAPS
+    assert result.or_list[0].value == ["alpha", "beta"]
+
+
+@pytest.mark.ai
 def test_uniqueql_to_dict__passes_through_wire_dict() -> None:
     """Purpose: Verify uniqueql_to_dict still normalizes plain dicts at API boundaries."""
     from unique_toolkit.content.smart_rules import uniqueql_to_dict

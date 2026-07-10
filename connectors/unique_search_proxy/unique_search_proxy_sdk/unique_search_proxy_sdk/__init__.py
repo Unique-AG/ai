@@ -4,7 +4,7 @@ The low-level client is **generated** under :mod:`unique_search_proxy_sdk._gener
 (``openapi-python-client``). :class:`UniqueSearchProxyClient` composes
 :class:`SearchClient` and :class:`CrawlClient` for typed execution calls.
 
-Config resolution and LLM call-schema projection live in
+Config resolution and request/exposed-params model derivation live in
 ``unique_search_proxy_core`` (not in this SDK).
 
 Regenerate after API changes::

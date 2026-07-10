@@ -65,9 +65,13 @@ from unique_toolkit.agentic.tools.tool_manager import (
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.experimental.integrations.openai.streaming.event_routing import (
+    ResponsesCompleteWithReferences,
+)
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 from unique_user_memory.user_memory import load_user_memory
@@ -99,14 +103,19 @@ class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
 
     Injects `include` params from the tool manager on every call so the
     orchestrator loop stays generic (no isinstance checks in UniqueAI).
+
+    Delegates the actual streaming to an injected
+    `ResponsesSupportCompleteWithReferences` (the event-routing
+    `ResponsesCompleteWithReferences` orchestrator), so this class only owns
+    the `include` injection.
     """
 
     def __init__(
         self,
-        chat_service: ChatService,
+        inner: ResponsesSupportCompleteWithReferences,
         tool_manager: ResponsesApiToolManager,
     ) -> None:
-        self._chat_service: ChatService = chat_service
+        self._inner: ResponsesSupportCompleteWithReferences = inner
         self._tool_manager: ResponsesApiToolManager = tool_manager
 
     @override
@@ -114,13 +123,26 @@ class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         include = self._tool_manager.get_required_include_params()
         if include:
             kwargs["include"] = include
-        return self._chat_service.complete_responses_with_references(*args, **kwargs)
+        return self._inner.complete_with_references(*args, **kwargs)
 
     @override
     async def complete_with_references_async(self, *args: Any, **kwargs: Any) -> Any:
         include = self._tool_manager.get_required_include_params()
         if include:
             kwargs["include"] = include
+        return await self._inner.complete_with_references_async(*args, **kwargs)
+
+
+class _ChatServiceResponsesStreaming(ResponsesSupportCompleteWithReferences):
+    def __init__(self, chat_service: ChatService) -> None:
+        self._chat_service: ChatService = chat_service
+
+    @override
+    def complete_with_references(self, *args: Any, **kwargs: Any) -> Any:
+        return self._chat_service.complete_responses_with_references(*args, **kwargs)
+
+    @override
+    async def complete_with_references_async(self, *args: Any, **kwargs: Any) -> Any:
         return await self._chat_service.complete_responses_with_references_async(
             *args, **kwargs
         )
@@ -319,11 +341,15 @@ async def _build_common(
         mcp_servers=event.payload.mcp_servers,
         event=event,
         tool_progress_reporter=tool_progress_reporter,
+        chat_service=chat_service,
+        language_model_service=llm_service,
     )
     a2a_manager = A2AManager(
         logger=logger,
         tool_progress_reporter=tool_progress_reporter,
         response_watcher=response_watcher,
+        chat_service=chat_service,
+        language_model_service=llm_service,
     )
 
     tool_manager_config = ToolManagerConfig(
@@ -361,16 +387,28 @@ async def _build_common(
 
     user_memory_text = ""
     if config.space.allow_user_memory:
+        user_memory_config = config.agent.services.user_memory_config
+        # The postprocessor consolidates memory with the orchestrator model or the
+        # configured one depending on this flag. Token capping at load time must use
+        # the same model so the loaded baseline matches what consolidation expects;
+        # otherwise a mismatched tokenizer can truncate memory.md differently.
+        memory_language_model = (
+            config.space.language_model
+            if user_memory_config.use_orchestrator_language_model
+            else user_memory_config.language_model
+        )
         user_memory_state = await load_user_memory(
             event=event,
-            config=config.agent.services.user_memory_config,
+            config=user_memory_config,
+            language_model=memory_language_model,
             logger=logger,
         )
         if user_memory_state is not None:
             user_memory_text = user_memory_state.text
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
-                    config=config.agent.services.user_memory_config,
+                    config=user_memory_config,
+                    language_model=memory_language_model,
                     event=event,
                     state=user_memory_state,
                     logger=logger,
@@ -516,6 +554,8 @@ async def _build_responses(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
+        chat_service=common_components.chat_service,
+        language_model_service=common_components.llm_service,
     )
     if (
         not config.agent.experimental.open_file_tool_config.enabled
@@ -554,8 +594,22 @@ async def _build_responses(
         openai_client=client,
     )
 
+    if config.agent.experimental.use_experimental_python_streaming:
+        inner: ResponsesSupportCompleteWithReferences = ResponsesCompleteWithReferences(
+            UniqueSettings.from_chat_event(event),
+            additional_headers={
+                "x-model": config.space.language_model.name,
+                "x-user-id": event.user_id,
+                "x-company-id": event.company_id,
+                "x-assistant-id": event.payload.assistant_id,
+                "x-chat-id": event.payload.chat_id,
+            },
+        )
+    else:
+        inner = _ChatServiceResponsesStreaming(common_components.chat_service)
+
     streaming_handler = ResponsesStreamingHandler(
-        chat_service=common_components.chat_service,
+        inner=inner,
         tool_manager=tool_manager,
     )
 
@@ -617,6 +671,8 @@ async def _build_completions(
         tool_progress_reporter=common_components.tool_progress_reporter,
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
+        chat_service=common_components.chat_service,
+        language_model_service=common_components.llm_service,
     )
     if force_uploaded_search:
         tool_manager.add_forced_tool(UploadedSearchTool.name)

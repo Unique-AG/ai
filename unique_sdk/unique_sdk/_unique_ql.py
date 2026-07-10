@@ -46,6 +46,8 @@ class UQLOperator:
     LESS_THAN_OR_EQUAL = "lessThanOrEqual"
     IN = "in"
     NOT_IN = "notIn"
+    OVERLAPS = "overlaps"
+    NOT_OVERLAPS = "notOverlaps"
     CONTAINS = "contains"
     NOT_CONTAINS = "notContains"
     IS_NULL = "isNull"

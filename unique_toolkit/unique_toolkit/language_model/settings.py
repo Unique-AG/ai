@@ -20,8 +20,10 @@ class ModelFamily(StrEnum):
     GOOGLE = "google"
     XAI = "xai"
     DEEPSEEK = "deepseek"
+    KIMI = "kimi"
     QWEN = "qwen"
     MISTRAL = "mistral"
+    ZAI = "zai"
     UNKNOWN = "unknown"
 
 

@@ -60,6 +60,13 @@ class TestAllowsContent:
         assert not mf.allows_content("cont_x")
         assert mf.allows_content("cont_other")
 
+    def test_negated_overlaps_contentid_inverts(self) -> None:
+        mf, _ = _make_filter(
+            {"path": ["contentId"], "operator": "notOverlaps", "value": ["cont_x"]}
+        )
+        assert not mf.allows_content("cont_x")
+        assert mf.allows_content("cont_other")
+
     def test_folder_containment(self) -> None:
         mf, _ = _make_filter(
             {"path": ["folderIdPath"], "operator": "contains", "value": "scope_fund_a"},

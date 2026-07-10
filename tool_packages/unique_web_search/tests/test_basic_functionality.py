@@ -1,11 +1,15 @@
 import pytest
+from unique_search_proxy_core.agent_engines import AgentEngineType
+from unique_search_proxy_core.search_engines import SearchEngineType
+from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
 
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
-from unique_web_search.services.search_engine.base import SearchEngineType
-from unique_web_search.services.search_engine.google import GoogleConfig
+from unique_web_search.services.search_engine.base import (
+    LocalSearchEngineType,
+)
 from unique_web_search.utils import query_params_to_human_string
 
 
@@ -117,10 +121,12 @@ class TestConfigurationBasics:
     def test_search_engine_types_available(self):
         """Test that search engine types are properly defined."""
 
-        assert SearchEngineType.GOOGLE == "Google"
-        assert SearchEngineType.JINA == "Jina"
-        assert SearchEngineType.TAVILY == "Tavily"
-        assert SearchEngineType.FIRECRAWL == "Firecrawl"
+        assert SearchEngineType.GOOGLE == "google"
+        assert SearchEngineType.BRAVE == "brave"
+        assert SearchEngineType.PERPLEXITY == "perplexity"
+        assert AgentEngineType.BING == "bing"
+        assert AgentEngineType.VERTEXAI == "vertexai"
+        assert LocalSearchEngineType.CUSTOM_API == "custom_api"
 
 
 class TestBasicConfiguration:
@@ -137,8 +143,8 @@ class TestBasicConfiguration:
     def test_google_search_config(self):
         """Test GoogleConfig creation."""
 
-        config = GoogleConfig(search_engine_name=SearchEngineType.GOOGLE)
-        assert config.search_engine_name == SearchEngineType.GOOGLE
+        config = GoogleConfig()
+        assert config.engine == SearchEngineType.GOOGLE
         assert hasattr(config, "fetch_size")
 
 

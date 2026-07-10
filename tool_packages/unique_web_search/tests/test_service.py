@@ -62,13 +62,13 @@ class TestWebSearchToolDescription:
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
 
-        from unique_web_search.services.search_engine.base import SearchEngineType
+        from unique_search_proxy_core.search_engines import SearchEngineType
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.tool_parameter_calls = None  # type: ignore
         mock_engine = Mock()
-        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
 
         result = tool.tool_description()
@@ -121,7 +121,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         Why this matters: V2 mode requires dynamic max_steps and engine-mode injection.
         Setup summary: Mock WebSearchTool with V2 config containing Jinja placeholders.
         """
-        from unique_web_search.services.search_engine.base import SearchEngineType
+        from unique_search_proxy_core.search_engines import SearchEngineType
 
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -134,7 +134,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         mock_engine = Mock()
-        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()
@@ -156,7 +156,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         Jinja migration must keep working without manual config updates.
         Setup summary: Mock V2 config with the legacy ``$max_steps`` syntax.
         """
-        from unique_web_search.services.search_engine.base import SearchEngineType
+        from unique_search_proxy_core.search_engines import SearchEngineType
 
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -171,7 +171,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         mock_engine = Mock()
-        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()
@@ -191,7 +191,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         Why this matters: V3 uses dynamic date in the system prompt template.
         Setup summary: Mock WebSearchTool with V3 config containing Jinja placeholders.
         """
-        from unique_web_search.services.search_engine.base import SearchEngineType
+        from unique_search_proxy_core.search_engines import SearchEngineType
 
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -204,7 +204,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
         mock_engine = Mock()
-        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()

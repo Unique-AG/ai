@@ -67,26 +67,69 @@ This method is the heart of the tool's functionality and must be tailored to the
 
 ### 🧩 Initialization
 
-The base `Tool` class is initialized with **configuration only**. The base class is decoupled from chat-frontend concerns (ChatEvent, ChatService, LanguageModelService, ToolProgressReporter).
+The base `Tool` class supports three initialization paths. Which one runs depends on who constructs the tool.
 
-Tools that need runtime context (event, chat_service, language_model_service, tool_progress_reporter) should accept them in their own `__init__` and create the services they need.
+#### Orchestrator path (preferred)
 
-#### Base Constructor:
+When tools run inside the agent loop, the orchestrator owns a single `ChatService` and `LanguageModelService` for the turn. `ToolManager` (and the MCP/A2A managers) inject that shared pair into every tool at construction time. All tools therefore share the same live `assistant_message_id` across multi-turn loops.
+
+Do **not** create a separate `ChatService(event)` inside a tool when the orchestrator injects services — a second instance freezes state from init time and produces stale message IDs.
+
+#### Constructor overloads
+
 ```{.python #tool-init}
-def __init__(self, config: ConfigType) -> None:
-    """Initialize the tool with configuration only."""
-    self.settings = ToolBuildConfig(
-        name=self.name,
-        configuration=config,
-    )
-    self.config = config
-    self.logger = getLogger(f"{module_name}.{__name__}")
-    self.debug_info: dict = {}
+# Config only — standalone / tests
+Tool(config)
+
+# Legacy — bootstraps its own ChatService + LanguageModelService from event
+Tool(config, event, tool_progress_reporter)
+
+# Orchestrator — reuses the shared services injected by ToolManager
+Tool(
+    config,
+    event,
+    tool_progress_reporter,
+    chat_service=chat_service,
+    language_model_service=language_model_service,
+)
 ```
+
+When `chat_service` and `language_model_service` are supplied, the base class stores them directly. When only `event` is supplied, it creates `ChatService(event)` and `LanguageModelService.from_event(event)` for backward compatibility with SDK and legacy callers.
+
+Both services must be injected together; supplying only one raises `ValueError`.
+
+#### Custom `__init__` in tool subclasses
+
+Tools with their own constructor must accept the optional injected services and forward them to `super().__init__`. `ToolManager` passes these kwargs when building tools from configuration.
+
+```{.python #tool-subclass-init}
+def __init__(
+    self,
+    configuration: MyToolConfig,
+    event: ChatEvent,
+    tool_progress_reporter: ToolProgressReporter | None = None,
+    *,
+    chat_service: ChatService | None = None,
+    language_model_service: LanguageModelService | None = None,
+) -> None:
+    if chat_service is not None and language_model_service is not None:
+        super().__init__(
+            configuration,
+            event,
+            tool_progress_reporter,
+            chat_service=chat_service,
+            language_model_service=language_model_service,
+        )
+    else:
+        super().__init__(configuration, event, tool_progress_reporter)
+    # tool-specific setup using event fields ...
+```
+
+Use `self.chat_service.assistant_message_id` (via the inherited property) for the current assistant message — not `event.payload.assistant_message.id`, which is frozen at event creation.
 
 #### 🔄 Progress Reporting
 
-Tools that need progress reporting should accept `tool_progress_reporter` in their `__init__` (passed by ToolManager) and store it. Progress updates are typically sent before any streaming begins, ensuring users are aware of the tool's current state.
+Tools that need progress reporting accept `tool_progress_reporter` in their `__init__` (passed by `ToolManager`) and store it via the base class. Progress updates are typically sent before any streaming begins, ensuring users are aware of the tool's current state.
 
 ---
 

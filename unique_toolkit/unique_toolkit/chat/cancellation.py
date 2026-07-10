@@ -57,6 +57,16 @@ class CancellationWatcher:
     def on_cancellation(self) -> TypedEventBus[CancellationEvent]:
         return self._bus
 
+    @property
+    def assistant_message_id(self) -> str:
+        return self._assistant_message_id
+
+    def set_assistant_message_id(self, message_id: str) -> None:
+        """Retarget polling to the active assistant segment."""
+        if self._cancelled:
+            return
+        self._assistant_message_id = message_id
+
     async def check_cancellation_async(self) -> bool:
         """Poll the DB once.  Returns ``True`` if the message was cancelled.
 

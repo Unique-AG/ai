@@ -28,7 +28,7 @@ class TestSearchEngineConfigUnion:
             {
                 "engine": "google",
                 "fetchSize": 15,
-                "dateRestrict": "d7",
+                "dateRestrict": {"expose": False, "value": "d7"},
             },
         )
         assert isinstance(config, GoogleConfig)
@@ -58,13 +58,13 @@ class TestSearchEngineConfigUnion:
             {
                 "engine": "brave",
                 "fetchSize": 12,
-                "safesearch": {"expose": False, "value": "strict"},
+                "safesearch": "strict",
             },
         )
         assert isinstance(config, BraveConfig)
         assert config.engine == SearchEngineType.BRAVE
         assert config.fetch_size == 12
-        assert config.safesearch.value == "strict"
+        assert config.safesearch == "strict"
 
     @pytest.mark.ai
     def test_search_request_parses_flat_brave_payload(self) -> None:

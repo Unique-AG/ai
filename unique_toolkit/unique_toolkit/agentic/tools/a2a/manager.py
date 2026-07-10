@@ -5,6 +5,8 @@ from unique_toolkit.agentic.tools.a2a.tool import SubAgentTool, SubAgentToolConf
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model import LanguageModelService
 
 
 class A2AManager:
@@ -13,10 +15,15 @@ class A2AManager:
         logger: Logger,
         tool_progress_reporter: ToolProgressReporter,
         response_watcher: SubAgentResponseWatcher,
+        *,
+        chat_service: ChatService | None = None,
+        language_model_service: LanguageModelService | None = None,
     ):
         self._logger = logger
         self._tool_progress_reporter = tool_progress_reporter
         self._response_watcher = response_watcher
+        self._chat_service = chat_service
+        self._language_model_service = language_model_service
 
     def get_all_sub_agents(
         self,
@@ -45,16 +52,33 @@ class A2AManager:
             sub_agent_tool_config = tool_config.configuration
 
             try:
-                sub_agents.append(
-                    SubAgentTool(
-                        configuration=sub_agent_tool_config,
-                        event=event,
-                        tool_progress_reporter=self._tool_progress_reporter,
-                        name=tool_config.name,
-                        display_name=tool_config.display_name,
-                        response_watcher=self._response_watcher,
+                if (
+                    self._chat_service is not None
+                    and self._language_model_service is not None
+                ):
+                    sub_agents.append(
+                        SubAgentTool(
+                            configuration=sub_agent_tool_config,
+                            event=event,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                            name=tool_config.name,
+                            display_name=tool_config.display_name,
+                            response_watcher=self._response_watcher,
+                            chat_service=self._chat_service,
+                            language_model_service=self._language_model_service,
+                        )
                     )
-                )
+                else:
+                    sub_agents.append(
+                        SubAgentTool(
+                            configuration=sub_agent_tool_config,
+                            event=event,
+                            tool_progress_reporter=self._tool_progress_reporter,
+                            name=tool_config.name,
+                            display_name=tool_config.display_name,
+                            response_watcher=self._response_watcher,
+                        )
+                    )
             except Exception:
                 self._logger.warning(
                     "Skipping sub-agent '%s' due to initialization failure.",

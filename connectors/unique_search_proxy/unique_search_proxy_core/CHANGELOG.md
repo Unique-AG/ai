@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.26.0...unique-search-proxy-core-v2026.28.0) (2026-07-03)
+
+
+### Features
+
+* Migrate search engine configuration from proxy core ([#1966](https://github.com/Unique-AG/ai/issues/1966)) ([6693d37](https://github.com/Unique-AG/ai/commit/6693d378b1d5626ec881b2f91ed490afb7cf4471))
+
+
+### Miscellaneous
+
+* arm release 2026.28.0 ([e890f5e](https://github.com/Unique-AG/ai/commit/e890f5ecc6217d885dbdb4a3d6f093237320e1bd))
+
 ## [2026.26.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.24.0...unique-search-proxy-core-v2026.26.0) (2026-06-22)
 
 

@@ -12,6 +12,8 @@ from unique_sdk.cli.config import Config
 from unique_sdk.cli.metadata_filter import MetadataFilter
 
 _SEARCH_CONFIG_FILENAME = ".unique-search.json"
+_UPLOADED_CONFIG_FILENAME = ".unique-uploaded.json"
+_MCP_TOOLS_CONFIG_FILENAME = ".unique-mcp-tools.json"
 _CHAT_FILES_MANIFEST_PATH = Path(".unique") / "chat-files.json"
 
 
@@ -25,6 +27,65 @@ def _load_search_config() -> dict[str, Any]:
     except (json.JSONDecodeError, OSError):
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _load_uploaded_config() -> dict[str, Any]:
+    """Load ``.unique-uploaded.json`` from the cwd, or ``{}`` when absent/invalid.
+
+    Written by the Swappable Intelligence runner when the task carries per-row
+    uploaded documents (an Agentic Table row's ``selectedUploadedFiles``). It
+    holds the chat that owns those uploads and their content ids so
+    ``unique-cli uploaded-search`` can reach them: uploaded files live outside
+    the knowledge-base folder scopes, so the scope-bound ``unique-cli search``
+    structurally cannot return them. See UN-21780.
+    """
+    config_path = Path.cwd() / _UPLOADED_CONFIG_FILENAME
+    if not config_path.is_file():
+        return {}
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _load_mcp_tool_configs() -> dict[str, dict[str, Any]]:
+    """Load per-MCP-tool reference mappings from ``.unique-mcp-tools.json``.
+
+    Written by the Swappable Intelligence runner from each configured tool's
+    ``referenceMapping`` (a Unique admin override describing how to destructure
+    a list-returning result into individual citations). Shape:
+    ``{"toolConfigs": {<toolName>: {listPath, titlePath, titleTemplate, ...}}}``.
+    Keyed by the same namespaced tool name the agent passes to ``unique-cli
+    mcp``. Returns ``{}`` when absent or invalid.
+    """
+    config_path = Path.cwd() / _MCP_TOOLS_CONFIG_FILENAME
+    if not config_path.is_file():
+        return {}
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    configs = data.get("toolConfigs") if isinstance(data, dict) else None
+    if not isinstance(configs, dict):
+        return {}
+    return {
+        name: mapping
+        for name, mapping in configs.items()
+        if isinstance(name, str) and isinstance(mapping, dict)
+    }
+
+
+def _load_uploaded_content_ids(data: dict[str, Any]) -> list[str]:
+    content_ids = data.get("contentIds")
+    if isinstance(content_ids, list) and all(isinstance(c, str) for c in content_ids):
+        return content_ids
+    return []
+
+
+def _load_uploaded_chat_id(data: dict[str, Any]) -> str | None:
+    chat_id = data.get("chatId")
+    return chat_id if isinstance(chat_id, str) and chat_id else None
 
 
 def _load_workspace_scope_ids(data: dict[str, Any]) -> list[str]:
@@ -100,6 +161,41 @@ class ShellState:
         self._workspace_metadata_filter: dict[str, Any] | None = None
         self._metadata_filter: MetadataFilter | None = None
         self.workspace_metadata_filter = _load_workspace_metadata_filter(_search_config)
+        # Per-row uploaded documents reachable via ``unique-cli uploaded-search``.
+        # Loaded from ``.unique-uploaded.json`` (written by the runner). The chat
+        # id is the chat that *owns* the uploads — for a subagent this is the
+        # parent chat — and is required for the chat-scoped uploaded search.
+        # See UN-21780.
+        _uploaded_config = _load_uploaded_config()
+        self.uploaded_search_chat_id: str | None = _load_uploaded_chat_id(
+            _uploaded_config
+        )
+        self.uploaded_search_content_ids: list[str] = _load_uploaded_content_ids(
+            _uploaded_config
+        )
+        # Per-MCP-tool reference mappings (``.unique-mcp-tools.json``), keyed by
+        # the namespaced tool name the agent passes to ``unique-cli mcp``. Used
+        # by ``cmd_mcp`` to destructure list results into individual citations.
+        self.mcp_tool_reference_mappings: dict[str, dict[str, Any]] = (
+            _load_mcp_tool_configs()
+        )
+
+    @property
+    def uploaded_search_available(self) -> bool:
+        """True when this task has per-row uploaded documents to search.
+
+        Requires *both* a non-empty selected content-id set and the owning
+        chat id. The owning chat id alone is not enough: ``cmd_uploaded_search``
+        would then issue a ``chatOnly`` ``Search.create`` with no ``contentIds``
+        filter, silently widening scope from the row's selected files to *every*
+        upload in the chat. That degenerate state arises when the runner wrote
+        a ``.unique-uploaded.json`` whose ``contentIds`` were absent or
+        malformed (e.g. mixed types, rejected wholesale by
+        ``_load_uploaded_content_ids``) while the ``chatId`` still parsed — so
+        we treat it as "no uploaded scope" rather than "all chat uploads".
+        See UN-21780.
+        """
+        return bool(self.uploaded_search_content_ids and self.uploaded_search_chat_id)
 
     @property
     def workspace_metadata_filter(self) -> dict[str, Any] | None:
@@ -167,6 +263,14 @@ class ShellState:
         """Return True if *content_id* is in the current workspace scope.
 
         Precedence (UN-21780):
+        0. Per-row uploaded documents (``.unique-uploaded.json``) surfaced by
+           ``unique-cli uploaded-search`` are task inputs that live *outside* the
+           KB scope boundary by design, so neither the metadata filter nor the
+           static ``scopeIds`` path below would admit them. Exempt them for
+           non-destructive access so the agent can ``read``/``ls``/``cite`` a doc
+           it just found via uploaded-search — mirroring the chat-file exemption.
+           Mutating ops (``rm``/``mv``) pass ``allow_chat_files=False`` and stay
+           denied, so an uploaded input can't be deleted or renamed this way.
         1. A per-message UniqueQL ``metaDataFilter`` (e.g. an Agentic Table
            column's ``scope_rules``) is the authority for this turn and
            *replaces* the static ``scopeIds`` for content access. Files the
@@ -179,6 +283,8 @@ class ShellState:
            ``is_folder_target_within_workspace``).
         3. With neither configured, everything is in scope.
         """
+        if allow_chat_files and content_id in self.uploaded_search_content_ids:
+            return True
         if self.workspace_metadata_filter is not None:
             if allow_chat_files and content_id in self._chat_file_content_ids():
                 return True

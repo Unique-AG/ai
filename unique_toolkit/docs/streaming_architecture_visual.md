@@ -118,7 +118,7 @@ flowchart TB
         PLDATA[logs_by_correlation]:::data
     end
 
-    SDK[(unique_sdk<br/>Message.modify_async · MessageLog.*)]:::sdk
+    SDK[(unique_sdk<br/>Message.modify_async · Message.create_event_async · MessageLog.*)]:::sdk
 
     ORCH ==>|owns| ODATA
     ROUTER ==>|owns| RDATA
@@ -235,7 +235,7 @@ Each component has one well-scoped responsibility. The table is the short versio
 
 Subscribers implement the `StreamSubscriber` protocol — a single `register(bus)` method that wires per-event callbacks (`on_started`, `on_text_delta`, …) onto the channels the subscriber cares about. This replaces a fan-out `handle(event)` with `isinstance` branches: channel selection is now the subscribe-time act, and `on_*` methods only run when their channel fires.
 
-- **`MessagePersistingSubscriber`** — the *only* caller of `unique_sdk.Message.modify_async`. `register(bus)` subscribes to `stream_started`, `text_delta`, `stream_ended`. On `StreamStarted` it resets `references=[]` and stamps `startedStreamingAt`. On `TextDelta` it writes the current text + filtered references (via `filter_cited_sdk_references`). On `StreamEnded` it concatenates `full_text + appendices` and stamps `stoppedStreamingAt` **only when the round produced answer text** — a single final write. Tool-call rounds (empty text) leave `stoppedStreamingAt` null so the message stays in the streaming state (the frontend keeps showing the inline tool-progress steps). `completedAt` is **not** written here; the orchestrator marks completion at end-of-turn via `set_completed_at`.
+- **`MessagePersistingSubscriber`** — the *only* caller of `unique_sdk.Message.modify_async` and `unique_sdk.Message.create_event_async`. `register(bus)` subscribes to `stream_started`, `text_delta`, `stream_ended`. On `StreamStarted` it resets `references=[]` and stamps `startedStreamingAt` via `Message.modify_async`. On `TextDelta` (the hot path) it writes the current text + filtered references (via `filter_cited_sdk_references`) through `Message.create_event_async`. On `StreamEnded` it concatenates `full_text + appendices` and stamps `stoppedStreamingAt` **only when the round produced answer text** — a single final `Message.modify_async` write. Tool-call rounds (empty text) leave `stoppedStreamingAt` null so the message stays in the streaming state (the frontend keeps showing the inline tool-progress steps). `completedAt` is **not** written here; the orchestrator marks completion at end-of-turn via `set_completed_at`.
 - **`ProgressLogPersister`** — the *only* caller of `unique_sdk.MessageLog.*`. `register(bus)` subscribes to `activity_progress` only. Keyed by `correlation_id`: creates a new log the first time it sees an id, updates on subsequent transitions, skips no-ops. The orchestrator only registers it when the router actually has a progress-producing event handler (`router.activity_bus is not None`).
 
 ### 5.7 Pattern replacer
@@ -440,7 +440,7 @@ classDiagram
 
 One subscriber per SDK surface, each subscribed only to the channels it handles:
 
-- `MessagePersistingSubscriber` → `Message.modify_async` (reacts to `stream_started` / `text_delta` / `stream_ended`)
+- `MessagePersistingSubscriber` → `Message.modify_async` (stream_started / stream_ended) · `Message.create_event_async` (text_delta)
 - `ProgressLogPersister` → `MessageLog.create_async` / `update_async` (reacts to `activity_progress` only)
 
 ---
@@ -653,7 +653,7 @@ flowchart LR
 | `event_routing/chat_completions/complete_with_references.py` | Chat Completions orchestrator |
 | `event_routing/chat_completions/text_event_handler.py` | Throttled text accumulator |
 | `event_routing/chat_completions/tool_call_event_handler.py` | Tool call assembler |
-| `event_routing/subscribers/message_persister.py` | Only caller of `Message.modify_async` |
+| `event_routing/subscribers/message_persister.py` | Only caller of `Message.modify_async` (start/end) and `Message.create_event_async` (deltas) |
 | `event_routing/subscribers/progress_log_persister.py` | Only caller of `MessageLog.*` |
 | `event_routing/_async_bridge.py` | Run an async coroutine from sync code (sync orchestrator entrypoint) |
 | `experimental/components/streaming/pattern_replacer.py` | `NORMALIZATION_PATTERNS` + `StreamingPatternReplacer` |

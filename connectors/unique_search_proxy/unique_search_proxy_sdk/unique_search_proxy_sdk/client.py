@@ -4,8 +4,8 @@ Regenerate the low-level client with::
 
     uv run poe generate-sdk
 
-Schema operations (config resolution, LLM call-schema projection) live in
-``unique_search_proxy_core`` — not in this SDK.
+Schema operations (config resolution, request/exposed-params model derivation)
+live in ``unique_search_proxy_core`` — not in this SDK.
 """
 
 from __future__ import annotations

@@ -401,7 +401,7 @@ class TestKnowledgeBaseServiceSearchContentChunks:
         mock_search.assert_called_once_with(
             user_id="test_user",
             company_id="test_company",
-            chat_id="",
+            chat_id=None,
             search_string="test query",
             search_type=ContentSearchType.VECTOR,
             limit=10,
@@ -681,7 +681,7 @@ class TestKnowledgeBaseServiceSearchContents:
         mock_search.assert_called_once_with(
             user_id="test_user",
             company_id="test_company",
-            chat_id="",
+            chat_id=None,
             where={"key": "test_file.txt"},
             include_failed_content=False,
         )
@@ -777,7 +777,7 @@ class TestKnowledgeBaseServiceUpload:
             content_name="test.txt",
             mime_type="text/plain",
             scope_id="scope_test123",
-            chat_id="",
+            chat_id=None,
             skip_ingestion=False,
             ingestion_config=None,
             metadata=None,
@@ -910,7 +910,7 @@ class TestKnowledgeBaseServiceDownload:
             user_id="test_user",
             company_id="test_company",
             content_id="cont_test123",
-            chat_id="",
+            chat_id=None,
             filename="downloaded.txt",
             tmp_dir_path=tmp_path,
         )
