@@ -224,6 +224,9 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_54_THINKING
             | LMN.LITELLM_OPENAI_GPT_55
             | LMN.LITELLM_OPENAI_GPT_55_PRO
+            | LMN.LITELLM_OPENAI_GPT_56_SOL
+            | LMN.LITELLM_OPENAI_GPT_56_TERRA
+            | LMN.LITELLM_OPENAI_GPT_56_LUNA
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
