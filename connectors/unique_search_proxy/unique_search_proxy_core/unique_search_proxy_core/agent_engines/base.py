@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, AsyncIterator, Generic, TypeVar
+from typing import TYPE_CHECKING, Annotated, AsyncIterator, ClassVar, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.agent_engines.output_schema import AgentSearchOutput
+from unique_search_proxy_core.param_policy.derive import derive_request_model
+from unique_search_proxy_core.param_policy.request_base import AgentRequestBase
 from unique_search_proxy_core.schema import (
     AgentSearchResponse,
     AgentSearchStreamEvent,
@@ -42,10 +44,33 @@ class AgentEngineType(StrEnum):
     VERTEXAI = "vertexai"
 
 
+#: Config fields not accepted on the agent-search request body.
+_AGENT_REQUEST_EXCLUDED_FIELDS = frozenset({"output_schema"})
+
+
 class BaseAgentEngineConfig(BaseModel, Generic[T]):
     """Shared agent-engine config; each engine narrows ``engine`` with a Literal."""
 
     model_config = camelized_model_config
+
+    #: Name of the derived request model; set by every concrete agent config.
+    _request_model_name: ClassVar[str]
+
+    @classmethod
+    def request_model(cls) -> type[BaseModel]:
+        """HTTP request body model, cached per config class.
+
+        :class:`AgentRequestBase` (required ``query``) + this config's fields,
+        excluding ``output_schema`` (server-side concern, not a request knob).
+
+        Example: ``BingAgentConfig.request_model()`` -> ``BingAgentSearchRequest``.
+        """
+        return derive_request_model(
+            cls,
+            base=AgentRequestBase,
+            name=cls._request_model_name,
+            exclude=_AGENT_REQUEST_EXCLUDED_FIELDS,
+        )
 
     engine: T
     generation_instructions: Annotated[

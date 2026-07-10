@@ -15,12 +15,11 @@ def build_brave_query_params(
     page: PageRequest,
 ) -> dict[str, Any]:
     """Assemble the Brave Web Search API query string from the derived request."""
-    config = BraveConfig()
     return {
         "q": query,
         "count": page.count,
         "offset": page.offset,
-        **config.provider_query_params_from(request, by_alias=False),
+        **BraveConfig.provider_query_params(request, by_alias=False),
     }
 
 

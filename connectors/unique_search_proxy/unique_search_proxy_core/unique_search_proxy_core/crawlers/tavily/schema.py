@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import Field, model_validator
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
-from unique_search_proxy_core.crawlers.projection import build_crawl_request_model
 
 TavilyExtractDepth = Literal["basic", "advanced"]
 TavilyExtractFormat = Literal["markdown", "text"]
@@ -13,6 +12,8 @@ TavilyExtractFormat = Literal["markdown", "text"]
 
 class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
     """Deployment config for the Tavily Extract crawler."""
+
+    _request_model_name: ClassVar[str] = "TavilyCrawlRequest"
 
     crawler: Literal[CrawlerType.TAVILY] = CrawlerType.TAVILY
 
@@ -70,7 +71,7 @@ class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
         return self
 
 
-TavilyCrawlRequest = build_crawl_request_model(TavilyConfig)
+TavilyCrawlRequest = TavilyConfig.request_model()
 
 
 __all__ = [

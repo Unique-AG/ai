@@ -6,11 +6,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig
 from unique_search_proxy_core.crawlers.config_types import crawler_config_from_request
-from unique_search_proxy_core.crawlers.projection import (
-    URLS_FIELD,
-    build_crawl_request_model,
-)
+from unique_search_proxy_core.param_policy import URLS_FIELD
 
 CRAWLER_FIELD = "crawler"
 TIMEOUT_FIELD = "timeout"
@@ -29,11 +27,11 @@ def crawler_config_defaults(config: BaseModel) -> dict[str, Any]:
 
 
 def merge_crawler_config_and_invocation(
-    config: BaseModel,
+    config: BaseCrawlerConfig,
     invocation: dict[str, Any],
 ) -> BaseModel:
     """Merge deployment config defaults with caller/LLM args into a flat crawl request."""
-    request_model = build_crawl_request_model(type(config))
+    request_model = config.request_model()
     defaults = crawler_config_defaults(config)
     merged: dict[str, Any] = {**defaults, **invocation}
     merged[CRAWLER_FIELD] = getattr(config, CRAWLER_FIELD)

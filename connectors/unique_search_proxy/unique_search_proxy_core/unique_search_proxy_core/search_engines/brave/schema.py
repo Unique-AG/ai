@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal, TypeAlias, get_args
+from typing import Annotated, ClassVar, Literal, TypeAlias, get_args
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.param_policy.exposable_param import ExposableParam
-from unique_search_proxy_core.projection import build_request_model
 from unique_search_proxy_core.schema import DeactivatedNone
 from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
@@ -204,6 +203,9 @@ ExposableResultFilter = ExposableParam[ResultFilterOrNone]
 class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
     """Single source of truth for Brave deployment + derived request/LLM surfaces."""
 
+    _request_model_name: ClassVar[str] = "BraveSearchRequest"
+    _exposed_params_model_name: ClassVar[str] = "BraveExposedParams"
+
     engine: Annotated[
         Literal[SearchEngineType.BRAVE], RJSFMetaTag.SpecialWidget.hidden()
     ] = Field(
@@ -311,12 +313,7 @@ class BraveConfig(BaseSearchEngineConfig[Literal[SearchEngineType.BRAVE]]):
     )
 
 
-def brave_request_model() -> type[BaseModel]:
-    """Derived ``POST /v1/search`` model (cached via ``build_request_model``)."""
-    return build_request_model(BraveConfig)
-
-
-BraveSearchRequest = brave_request_model()
+BraveSearchRequest = BraveConfig.request_model()
 
 
 __all__ = [
@@ -332,5 +329,4 @@ __all__ = [
     "ExposableResultFilter",
     "ExposableSearchLang",
     "ExposableStrOrNone",
-    "brave_request_model",
 ]

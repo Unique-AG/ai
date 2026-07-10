@@ -28,7 +28,7 @@ class TestSearchEngineConfigUnion:
             {
                 "engine": "google",
                 "fetchSize": 15,
-                "dateRestrict": "d7",
+                "dateRestrict": {"expose": False, "value": "d7"},
             },
         )
         assert isinstance(config, GoogleConfig)

@@ -33,7 +33,11 @@ class TestProviderConfig:
     @pytest.mark.ai
     def test_google_config_discriminator(self) -> None:
         config = parse_search_engine_config(
-            {"engine": "google", "dateRestrict": "d7", "gl": "ch"},
+            {
+                "engine": "google",
+                "dateRestrict": {"expose": False, "value": "d7"},
+                "gl": {"expose": False, "value": "ch"},
+            },
         )
         assert isinstance(config, GoogleConfig)
         assert config.engine == SearchEngineType.GOOGLE
@@ -48,7 +52,7 @@ class TestProviderConfig:
             {
                 "engine": "brave",
                 "country": {"expose": True, "value": "CH"},
-                "freshness": "pw",
+                "freshness": {"expose": False, "value": "pw"},
             },
         )
         assert isinstance(config, BraveConfig)

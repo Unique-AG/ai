@@ -11,9 +11,6 @@ from unique_search_proxy_core.agent_engines.config_types import (
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.basic.content_types import ContentTypeToggles
 from unique_search_proxy_core.crawlers.config_types import CRAWLER_NAME_TO_CONFIG
-from unique_search_proxy_core.search_engines.call_schema import (
-    resolve_search_call_schema,
-)
 from unique_search_proxy_core.search_engines.config_types import (
     ENGINE_NAME_TO_CONFIG as SEARCH_ENGINE_NAME_TO_CONFIG,
 )
@@ -328,15 +325,6 @@ class TestProviderRegistry:
         assert len(CRAWLER_NAME_TO_CONFIG) == len(expected)
         for attr in expected:
             assert hasattr(client, attr)
-
-
-class TestCoreCallSchema:
-    @pytest.mark.ai
-    def test_resolve_search_call_schema_in_core(self) -> None:
-        descriptor = resolve_search_call_schema("google")
-        assert descriptor.engine == "google"
-        assert "query" in descriptor.call_schema["properties"]
-        assert "fetchSize" not in descriptor.call_schema["properties"]
 
 
 @pytest.mark.integration

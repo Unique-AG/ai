@@ -49,7 +49,7 @@ flowchart LR
 
 | Package | PyPI name | One-line role |
 |---------|-----------|---------------|
-| [`unique_search_proxy_core/`](unique_search_proxy_core/README.md) | `unique-search-proxy-core` | **Contracts** — Pydantic models, deployment config, LLM schema projection. No HTTP. |
+| [`unique_search_proxy_core/`](unique_search_proxy_core/README.md) | `unique-search-proxy-core` | **Contracts** — Pydantic models, deployment config with config-owned request/LLM-schema derivation. No HTTP. |
 | [`unique_search_proxy_client/`](unique_search_proxy_client/README.md) | `unique-search-proxy` | **Execution** — FastAPI server, secrets, egress, provider adapters, Prometheus. |
 | [`unique_search_proxy_sdk/`](unique_search_proxy_sdk/README.md) | `unique-search-proxy-sdk` | **Transport** — async HTTP client generated from the server's OpenAPI spec. |
 
@@ -88,7 +88,7 @@ flowchart TB
 
 | Path | When | What moves |
 |------|------|------------|
-| **A — Schema & config** | Deploy time, tool registration | Deployment config → JSON Schema; LLM call schema; `merge_config_and_invocation()` builds the flat request body |
+| **A — Schema & config** | Deploy time, tool registration | Deployment config → JSON Schema; `config.exposed_params_model()` supplies the LLM knobs; `config.merge()` builds the flat request body |
 | **B — Runtime HTTP** | Each search / crawl / agent call | SDK → proxy route → provider service → upstream API |
 
 Path A never hits the network. Path B never re-derives schemas — it consumes the flat JSON body that Path A (or manual construction) already produced.
@@ -121,8 +121,8 @@ sequenceDiagram
     participant Google as Google API
 
     Note over AC,Core: Path A — before any HTTP call
-    AC->>Core: resolve_search_call_schema(config)
-    AC->>Core: merge_config_and_invocation(config, llm_args)
+    AC->>Core: config.exposed_params_model()
+    AC->>Core: config.merge(llm_args, query=...)
 
     Note over AC,Google: Path B — runtime
     AC->>SDK: search.search(...)
