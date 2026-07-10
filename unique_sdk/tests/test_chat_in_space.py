@@ -111,25 +111,23 @@ async def test_send_message_and_wait_for_completion__calls_update_hook_for_chang
     assert on_message_update.await_count == 2
     assert on_message_update.await_args_list[0].args == (in_progress,)
     assert on_message_update.await_args_list[1].args == (completed,)
-    # Regression: debugInfo/token_usage is only ever written to the
-    # ASSISTANT message, not the user's own message returned by
-    # create_message_async ("user-msg") — the re-fetch must use the
-    # completed message's own id ("assistant-msg"), not the stale one.
+    # debugInfo/token_usage is written to the USER message (message_id from
+    # create_message_async), not the assistant reply — the re-fetch must use
+    # that original id.
     mock_message_retrieve.assert_awaited_once_with(
-        "user-1", "company-1", "assistant-msg", chatId="chat-1"
+        "user-1", "company-1", "user-msg", chatId="chat-1"
     )
 
 
 @pytest.mark.asyncio
-async def test_send_message_and_wait_for_completion__debug_info_from_assistant_not_user_message() -> (
+async def test_send_message_and_wait_for_completion__debug_info_from_user_not_assistant_message() -> (
     None
 ):
-    """Regression test: previously, the debugInfo re-fetch used `message_id`
-    from the initial create_message_async response (the USER's own message),
-    silently discarding the completed ASSISTANT message's real debugInfo
-    (where token_usage/execution_time actually live). Verify the fix by
+    """debugInfo/token_usage is written via ChatService.update_debug_info_async(),
+    which always targets the USER message (assistant=False in
+    _construct_message_modify_params), not the assistant reply. Verify by
     giving the user and assistant messages distinguishable debugInfo and
-    asserting the assistant's is the one that survives."""
+    asserting the user's is the one that survives."""
     completed = {
         "id": "assistant-msg",
         "chatId": "chat-1",
@@ -144,9 +142,9 @@ async def test_send_message_and_wait_for_completion__debug_info_from_assistant_n
 
     async def fake_retrieve(user_id, company_id, message_id, chatId):
         if message_id == "user-msg":
-            return {"debugInfo": None}
-        if message_id == "assistant-msg":
             return {"debugInfo": {"token_usage": {"totalTokens": 46}}}
+        if message_id == "assistant-msg":
+            return {"debugInfo": None}
         raise AssertionError(f"unexpected message_id: {message_id}")
 
     with (

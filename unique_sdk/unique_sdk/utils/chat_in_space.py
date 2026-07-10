@@ -100,17 +100,18 @@ async def send_message_and_wait_for_completion(
                 last_update_signature = update_signature
         if answer.get(stop_condition) is not None:
             try:
-                # debugInfo only ever lands on the assistant message, not the
-                # user message `message_id` points to — re-fetch by the
-                # completed (assistant) message's own id instead.
-                completed_message_id = answer.get("id") or message_id
-                completed_message = await Message.retrieve_async(
-                    user_id, company_id, completed_message_id, chatId=chat_id
+                # debugInfo/token_usage is written via update_debug_info_async(),
+                # which always targets the original USER message, not the
+                # assistant reply (assistant=False in
+                # ChatService._construct_message_modify_params) — re-fetch by
+                # `message_id`, not the polled assistant message's own id.
+                user_message = await Message.retrieve_async(
+                    user_id, company_id, message_id, chatId=chat_id
                 )
-                debug_info = completed_message.get("debugInfo")
+                debug_info = user_message.get("debugInfo")
                 answer["debugInfo"] = debug_info
             except Exception as e:
-                print(f"Failed to load debug info from completed message: {e}")
+                print(f"Failed to load debug info from user message: {e}")
 
             return answer
         await asyncio.sleep(poll_interval)
