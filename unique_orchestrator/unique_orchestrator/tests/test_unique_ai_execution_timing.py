@@ -665,6 +665,7 @@ class TestRunExecutionTimingIntegration:
         mock_postprocessor_manager = MagicMock()
         mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
         mock_postprocessor_manager.get_execution_times.return_value = {}
+        mock_postprocessor_manager.get_usage.return_value = None
 
         mock_evaluation_manager = MagicMock()
         mock_evaluation_manager.run_evaluations = AsyncMock(return_value=[])
