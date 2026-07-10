@@ -10,10 +10,8 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
-    CodeInterpreterBuilder,
-)
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator import (
     CodeInterpreterActivatorTool,
+    CodeInterpreterBuilder,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,

@@ -14,7 +14,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
     CodeInterpreterActivatorTool,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.artifacts import (

@@ -30,7 +30,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
     CodeInterpreterActivatorTool,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToolManager
