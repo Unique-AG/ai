@@ -90,7 +90,9 @@ class TestWebSearchToolParameters:
 
     def test_with_exposed_params_none_returns_base(self):
         """Test that with_exposed_params(None) returns the base class."""
-        assert WebSearchToolParameters.with_exposed_params(None) is WebSearchToolParameters
+        assert (
+            WebSearchToolParameters.with_exposed_params(None) is WebSearchToolParameters
+        )
 
 
 class TestStepType:

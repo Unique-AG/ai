@@ -90,9 +90,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         """
         if self.exposed_params_cls is None:
             return None
-        return self.exposed_params_cls.model_validate(
-            source.model_dump(by_alias=True)
-        )
+        return self.exposed_params_cls.model_validate(source.model_dump(by_alias=True))
 
     @property
     def notify_name(self):

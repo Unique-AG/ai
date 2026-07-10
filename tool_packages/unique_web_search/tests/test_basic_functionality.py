@@ -25,9 +25,7 @@ class TestWebSearchSchema:
 
     def test_web_search_tool_parameters_with_exposed_date(self):
         """Test WebSearchToolParameters with exposed date restriction."""
-        config = GoogleConfig(
-            date_restrict=ExposableStrOrNone(expose=True, value=None)
-        )
+        config = GoogleConfig(date_restrict=ExposableStrOrNone(expose=True, value=None))
         Params = WebSearchToolParameters.with_exposed_params(
             config.exposed_params_model()
         )
