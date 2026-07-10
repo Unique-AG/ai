@@ -168,6 +168,7 @@ class TestChatServiceUnit:
                 ],
                 debugInfo={},
                 completedAt=mocked_datetime,
+                stoppedStreamingAt=None,
             )
         ]
         mock_modify.assert_has_calls(expected_calls)
@@ -212,6 +213,7 @@ class TestChatServiceUnit:
                 ],
                 debugInfo={},
                 completedAt=None,
+                stoppedStreamingAt=None,
             )
         ]
         mock_modify.assert_has_calls(expected_calls)
@@ -244,6 +246,7 @@ class TestChatServiceUnit:
                 references=[],
                 debugInfo=None,
                 completedAt=None,
+                stoppedStreamingAt=None,
                 segmentKind="PREFACE",
             )
         ]
@@ -494,6 +497,7 @@ class TestChatServiceUnit:
                 ],
                 debugInfo={},
                 completedAt=mocked_datetime,
+                stoppedStreamingAt=None,
             )
         ]
         mock_modify.assert_has_calls(expected_calls)
@@ -538,6 +542,7 @@ class TestChatServiceUnit:
                 ],
                 debugInfo={},
                 completedAt=None,
+                stoppedStreamingAt=None,
             )
         ]
         mock_modify.assert_has_calls(expected_calls)

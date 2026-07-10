@@ -392,6 +392,7 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = None,
+        set_stopped_streaming_at: bool | None = None,
         segment_kind: str | None = None,
     ) -> ChatMessage:
         """Modifies a message in the chat session synchronously if parameter is not specified the corresponding field will remain as is.
@@ -403,6 +404,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info (dict[str, Any]]]): Debug information. Defaults to {}.
             message_id (Optional[str]): The message ID. Defaults to None.
             set_completed_at (Optional[bool]): Whether to set the completedAt field with the current date time. Defaults to False.
+            set_stopped_streaming_at (Optional[bool]): Whether to set the stoppedStreamingAt field with the current date time. Use this to unblock user input as soon as model streaming ends, ahead of slower post-processing (e.g. evaluations) that still needs to run before completedAt is set. Defaults to False.
             segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place, e.g. relabeling M0 from PROCESS to PREFACE once content is set. Defaults to None (kind unchanged).
 
         Returns:
@@ -427,6 +429,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at or False,
+            set_stopped_streaming_at=set_stopped_streaming_at or False,
             segment_kind=segment_kind,
         )
 
@@ -438,6 +441,7 @@ class ChatService(ChatServiceDeprecated):
         debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
+        set_stopped_streaming_at: bool | None = False,
         segment_kind: str | None = None,
     ) -> ChatMessage:
         """Modifies a message in the chat session asynchronously.
@@ -449,6 +453,7 @@ class ChatService(ChatServiceDeprecated):
             references (list[ContentReference]): list of ContentReference objects. Defaults to None.
             debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
             set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+            set_stopped_streaming_at (bool, optional): Whether to set the stoppedStreamingAt field with the current date time. Use this to unblock user input as soon as model streaming ends, ahead of slower post-processing (e.g. evaluations) that still needs to run before completedAt is set. Defaults to False.
             segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place, e.g. relabeling M0 from PROCESS to PREFACE once content is set. Defaults to None (kind unchanged).
 
         Returns:
@@ -472,6 +477,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at or False,
+            set_stopped_streaming_at=set_stopped_streaming_at or False,
             segment_kind=segment_kind,
         )
 
@@ -654,6 +660,17 @@ class ChatService(ChatServiceDeprecated):
     def free_user_input(self) -> None:
         """Unblocks the next user input"""
         self.modify_assistant_message(set_completed_at=True)
+
+    def signal_streaming_stopped(self) -> None:
+        """Marks model streaming as finished without marking the message fully completed.
+
+        Call this as soon as the model stops emitting tokens, before running any
+        slower post-processing (e.g. evaluations, hallucination checks). Clients
+        that unblock user input on ``stoppedStreamingAt`` (in addition to
+        ``completedAt``) will re-enable input immediately instead of waiting for
+        post-processing to finish.
+        """
+        self.modify_assistant_message(set_stopped_streaming_at=True)
 
     # History Methods
     ############################################################################
