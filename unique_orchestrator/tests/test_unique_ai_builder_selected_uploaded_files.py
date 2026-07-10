@@ -43,8 +43,6 @@ def _patch_constructors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(f"{MODULE}.ToolProgressReporter", lambda **kw: MagicMock())
     monkeypatch.setattr(f"{MODULE}.ThinkingManager", lambda **kw: MagicMock())
     monkeypatch.setattr(f"{MODULE}.ReferenceManager", MagicMock)
-    monkeypatch.setattr(f"{MODULE}.HistoryManager", lambda *a, **kw: MagicMock())
-    monkeypatch.setattr(f"{MODULE}.HistoryManagerConfig", lambda **kw: MagicMock())
     monkeypatch.setattr(f"{MODULE}.EvaluationManager", lambda **kw: MagicMock())
     monkeypatch.setattr(f"{MODULE}.MCPManager", lambda **kw: MagicMock())
     monkeypatch.setattr(f"{MODULE}.A2AManager", lambda **kw: MagicMock())

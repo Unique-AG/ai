@@ -9,7 +9,7 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
-    FileContentSerialization,
+    FileContentSerializer,
     get_full_history_with_contents_and_tool_calls_async,
     get_full_history_with_contents_async,
 )
@@ -54,13 +54,13 @@ class LoopTokenReducer:
         logger: Logger,
         event: ChatEvent,
         max_history_tokens: int,
-        has_uploaded_content_config: bool,
         reference_manager: ReferenceManager,
         language_model: LMI,
         enable_tool_call_persistence: bool = False,
+        file_content_serializer: FileContentSerializer | None = None,
     ):
         self._max_history_tokens = max_history_tokens
-        self._has_uploaded_content_config = has_uploaded_content_config
+        self._file_content_serializer = file_content_serializer
         self._logger = logger
         self._reference_manager = reference_manager
         self._language_model = language_model
@@ -309,11 +309,6 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
-        file_content_serialization_type = (
-            FileContentSerialization.NONE
-            if self._has_uploaded_content_config
-            else FileContentSerialization.FILE_NAME
-        )
         if self._enable_tool_call_persistence:
             (
                 full_history,
@@ -324,7 +319,7 @@ class LoopTokenReducer:
                 chat_id=self._chat_id,
                 chat_service=self._chat_service,
                 content_service=self._content_service,
-                file_content_serialization_type=file_content_serialization_type,
+                file_content_serializer=self._file_content_serializer,
                 selected_content_ids=self._selected_content_ids,
             )
             self._max_db_source_number = max_src
@@ -335,7 +330,7 @@ class LoopTokenReducer:
                 chat_id=self._chat_id,
                 chat_service=self._chat_service,
                 content_service=self._content_service,
-                file_content_serialization_type=file_content_serialization_type,
+                file_content_serializer=self._file_content_serializer,
                 selected_content_ids=self._selected_content_ids,
             )
 

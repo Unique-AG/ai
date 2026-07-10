@@ -206,7 +206,6 @@ async def test_append_element_to_builder_async_no_contents():
     """Messages without contents take the simple message_append path."""
     from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
         ChatMessageWithContents,
-        FileContentSerialization,
     )
 
     builder = MagicMock()
@@ -225,7 +224,6 @@ async def test_append_element_to_builder_async_no_contents():
         c=msg,
         text="hello",
         include_images=ImageContentInclusion.ALL,
-        file_content_serialization_type=FileContentSerialization.NONE,
         content_service=MagicMock(),
         chat_id="c1",
     )
@@ -236,13 +234,18 @@ async def test_append_element_to_builder_async_no_contents():
 @pytest.mark.ai
 @pytest.mark.asyncio
 async def test_append_element_to_builder_async_with_file_contents():
-    """Messages with file (non-image) contents use message_append with file info."""
+    """Verify each uploaded file becomes a separately serialized user text part.
+
+    Purpose: Check multipart construction and custom per-file serialization.
+    Why this matters: File metadata must remain distinct from the user prompt.
+    Setup summary: Append two files and assert serializer order and exact parts.
+    """
     from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
         ChatMessageWithContents,
-        FileContentSerialization,
     )
 
-    file_content = _make_file_content()
+    first_file = _make_file_content()
+    second_file = _make_file_content("appendix.docx", "cont_file2")
     builder = MagicMock()
     msg = ChatMessageWithContents(
         id="m1",
@@ -251,7 +254,64 @@ async def test_append_element_to_builder_async_with_file_contents():
         role=ChatRole.USER,
         gpt_request=None,
         created_at=datetime(2026, 1, 1, 12, 0),
-        contents=[file_content],
+        contents=[first_file, second_file],
+    )
+    serialized_ids: list[str] = []
+
+    def serialize_file(content: Content) -> str:
+        serialized_ids.append(content.id)
+        return f"File: {content.key} ({content.id})"
+
+    with (
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_file_content",
+            return_value=True,
+        ),
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_image_content",
+            return_value=False,
+        ),
+    ):
+        await _append_element_to_builder_async(
+            builder=builder,
+            c=msg,
+            text="see attached",
+            include_images=ImageContentInclusion.ALL,
+            content_service=MagicMock(),
+            chat_id="c1",
+            file_content_serializer=serialize_file,
+        )
+
+    assert serialized_ids == ["cont_file1", "cont_file2"]
+    assert (
+        builder.message_append.call_args.kwargs["content"]
+        == "see attached\n\nFile: report.pdf (cont_file1)\n"
+        "File: appendix.docx (cont_file2)"
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_append_element_to_builder_async_without_file_serializer():
+    """Verify uploaded files are omitted when no serializer is configured.
+
+    Purpose: Cover the default-off uploaded-file serialization behavior.
+    Why this matters: File metadata must only enter model context when explicitly enabled.
+    Setup summary: Append one file without a serializer and assert plain user text.
+    """
+    from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+        ChatMessageWithContents,
+    )
+
+    builder = MagicMock()
+    msg = ChatMessageWithContents(
+        id="m1",
+        chat_id="c1",
+        text="see attached",
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime(2026, 1, 1, 12, 0),
+        contents=[_make_file_content()],
     )
 
     with (
@@ -269,24 +329,28 @@ async def test_append_element_to_builder_async_with_file_contents():
             c=msg,
             text="see attached",
             include_images=ImageContentInclusion.ALL,
-            file_content_serialization_type=FileContentSerialization.FILE_NAME,
             content_service=MagicMock(),
             chat_id="c1",
         )
 
-    builder.message_append.assert_called_once()
+    assert builder.message_append.call_args.kwargs["content"] == "see attached"
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_append_element_to_builder_async_with_image_contents():
-    """Messages with image contents use image_message_append."""
+async def test_append_element_to_builder_async_with_file_and_image_contents():
+    """Verify serialized file text is included before attached images.
+
+    Purpose: Check that uploaded files and images coexist in one user message.
+    Why this matters: Mixed uploads must retain deterministic model-input ordering.
+    Setup summary: Append one file and one image and assert the image-builder input.
+    """
     from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
         ChatMessageWithContents,
-        FileContentSerialization,
     )
 
     img_content = _make_image_content()
+    file_content = _make_file_content()
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock(return_value=b"\x89PNG")
     builder = MagicMock()
@@ -298,17 +362,17 @@ async def test_append_element_to_builder_async_with_image_contents():
         role=ChatRole.USER,
         gpt_request=None,
         created_at=datetime(2026, 1, 1, 12, 0),
-        contents=[img_content],
+        contents=[file_content, img_content],
     )
 
     with (
         patch(
             "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_file_content",
-            return_value=False,
+            side_effect=lambda key: key.endswith(".pdf"),
         ),
         patch(
             "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_image_content",
-            return_value=True,
+            side_effect=lambda key: key.endswith(".png"),
         ),
     ):
         await _append_element_to_builder_async(
@@ -316,12 +380,18 @@ async def test_append_element_to_builder_async_with_image_contents():
             c=msg,
             text="see this image",
             include_images=ImageContentInclusion.ALL,
-            file_content_serialization_type=FileContentSerialization.NONE,
             content_service=content_service,
             chat_id="c1",
+            file_content_serializer=lambda content: f"File: {content.key}",
         )
 
-    builder.image_message_append.assert_called_once()
+    assert (
+        builder.image_message_append.call_args.kwargs["content"]
+        == "see this image\n\nFile: report.pdf"
+    )
+    assert builder.image_message_append.call_args.kwargs["images"] == [
+        "data:image/png;base64,iVBORw=="
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -677,7 +747,6 @@ async def test_append_element_to_builder_async_selected_content_ids_filters_imag
     """When selected_content_ids is set, only matching images should be attached."""
     from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
         ChatMessageWithContents,
-        FileContentSerialization,
     )
 
     img_selected = _make_image_content(key="selected.png", content_id="img_sel")
@@ -711,7 +780,6 @@ async def test_append_element_to_builder_async_selected_content_ids_filters_imag
             c=msg,
             text="two images",
             include_images=ImageContentInclusion.ALL,
-            file_content_serialization_type=FileContentSerialization.NONE,
             content_service=content_service,
             chat_id="c1",
             selected_content_ids={"img_sel"},
@@ -730,7 +798,6 @@ async def test_append_element_to_builder_async_selected_content_ids_empty_exclud
     """When selected_content_ids is an empty set, no images should be attached."""
     from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
         ChatMessageWithContents,
-        FileContentSerialization,
     )
 
     img = _make_image_content(key="photo.png", content_id="img_1")
@@ -761,7 +828,6 @@ async def test_append_element_to_builder_async_selected_content_ids_empty_exclud
             c=msg,
             text="one image",
             include_images=ImageContentInclusion.ALL,
-            file_content_serialization_type=FileContentSerialization.NONE,
             content_service=MagicMock(),
             chat_id="c1",
             selected_content_ids=set(),
@@ -777,7 +843,6 @@ async def test_append_element_to_builder_async_selected_content_ids_none_include
     """When selected_content_ids is None (FF disabled), all images are included."""
     from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
         ChatMessageWithContents,
-        FileContentSerialization,
     )
 
     img = _make_image_content(key="photo.png", content_id="img_1")
@@ -810,7 +875,6 @@ async def test_append_element_to_builder_async_selected_content_ids_none_include
             c=msg,
             text="one image",
             include_images=ImageContentInclusion.ALL,
-            file_content_serialization_type=FileContentSerialization.NONE,
             content_service=content_service,
             chat_id="c1",
             selected_content_ids=None,
