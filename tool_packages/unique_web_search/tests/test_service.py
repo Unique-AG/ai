@@ -33,6 +33,7 @@ class TestWebSearchToolDescription:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
         tool.tool_parameter_calls = None  # type: ignore
 
         result = tool.tool_description()
@@ -66,6 +67,7 @@ class TestWebSearchToolDescription:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        tool.exposed_params_cls = None
         tool.tool_parameter_calls = None  # type: ignore
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
@@ -104,6 +106,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
 
         result: str = tool.tool_description_for_system_prompt()
 
@@ -133,6 +136,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        tool.exposed_params_cls = None
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -170,6 +174,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        tool.exposed_params_cls = None
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -203,6 +208,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
+        tool.exposed_params_cls = None
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -238,6 +244,7 @@ class TestWebSearchToolFormatInformation:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
 
         result: str = tool.tool_format_information_for_system_prompt()
 
@@ -264,6 +271,7 @@ class TestWebSearchToolFormatInformation:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
+        tool.exposed_params_cls = None
 
         result: str = tool.tool_format_information_for_system_prompt()
 
@@ -297,6 +305,7 @@ class TestWebSearchToolEvaluationCheckList:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
 
         result: list = tool.evaluation_check_list()
 
@@ -340,6 +349,7 @@ class TestWebSearchToolGetExecutor:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        tool.exposed_params_cls = None
         tool.search_engine_service = Mock()
         tool._language_model_service = Mock()
         tool.crawler_service = Mock()
@@ -399,6 +409,7 @@ class TestWebSearchToolGetExecutor:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
         tool.search_engine_service = Mock()
         tool._language_model_service = Mock()
         tool.crawler_service = Mock()
@@ -414,7 +425,7 @@ class TestWebSearchToolGetExecutor:
         tool._chat_service = Mock()
 
         tool_call = Mock()
-        parameters = WebSearchToolParameters(query="test", date_restrict=None)
+        parameters = WebSearchToolParameters(query="test")
         debug_info = Mock()
         web_search_message_logger = Mock()
 
@@ -453,6 +464,7 @@ class TestWebSearchToolGetExecutor:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
         tool._chat_service = Mock()
         tool._display_name = "Web Search"
         tool.settings = Mock()
@@ -527,6 +539,7 @@ class TestWebSearchToolGetEvaluationChecksBasedOnToolResponse:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
 
         tool_response = Mock()
         tool_response.content_chunks = []
@@ -558,6 +571,7 @@ class TestWebSearchToolGetEvaluationChecksBasedOnToolResponse:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
 
         tool_response = Mock()
         tool_response.content_chunks = sample_content_chunks
@@ -622,6 +636,7 @@ class TestWebSearchToolRun:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -638,7 +653,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         result = await tool.run(tool_call)
 
@@ -716,6 +731,7 @@ class TestWebSearchToolRun:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -732,7 +748,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         result = await tool.run(tool_call)
 
@@ -792,6 +808,7 @@ class TestWebSearchToolRun:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
+        tool.exposed_params_cls = None
         tool.tool_parameter_calls = WebSearchV3ToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -867,6 +884,7 @@ class TestWebSearchToolRun:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -883,7 +901,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         result = await tool.run(tool_call)
 
@@ -951,6 +969,7 @@ class TestWebSearchToolRun:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -973,7 +992,7 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = {"query": "test", "date_restrict": None}
+        tool_call.arguments = {"query": "test"}
 
         await tool.run(tool_call)
 

@@ -62,7 +62,7 @@ class TestPerplexitySearch:
             NotImplementedError,
             match="Perplexity search is not supported in the legacy mode",
         ):
-            await search._legacy_search("query")
+            await search._legacy_search("query", params=None)
 
     @pytest.mark.asyncio
     async def test_proxy_search_passes_config_to_client(
@@ -70,7 +70,7 @@ class TestPerplexitySearch:
     ):
         config = PerplexityConfig(
             fetch_size=3,
-            country="US",
+            country=ExposableStrOrNone(expose=False, value="US"),
             max_tokens=1024,
             max_tokens_per_page=512,
             search_recency_filter=ExposableRecencyFilter(expose=False, value="week"),
@@ -93,7 +93,7 @@ class TestPerplexitySearch:
                 content="",
             )
         ]
-        mock_perplexity = AsyncMock(return_value=mock_response)
+        mock_search = AsyncMock(return_value=mock_response)
 
         with (
             patch(
@@ -101,30 +101,30 @@ class TestPerplexitySearch:
                 True,
             ),
             patch(
-                "unique_web_search.services.search_engine.perplexity.open_search_proxy_client"
+                "unique_web_search.services.search_engine.base.open_search_proxy_client"
             ) as mock_open_client,
         ):
             mock_client = AsyncMock()
-            mock_client.search.perplexity = mock_perplexity
+            mock_client.search.search = mock_search
             mock_open_client.return_value.__aenter__.return_value = mock_client
 
             results = await search.search("test query")
 
-        mock_perplexity.assert_awaited_once_with(
-            query="test query",
-            fetch_size=3,
-            max_tokens=1024,
-            max_tokens_per_page=512,
-            country="US",
-            search_context_size=None,
-            search_language_filter=["en"],
-            search_domain_filter=["example.com"],
-            search_recency_filter="week",
-            last_updated_after_filter=None,
-            last_updated_before_filter=None,
-            search_after_date_filter="01/01/2024",
-            search_before_date_filter=None,
-        )
+        mock_search.assert_awaited_once()
+        call_kwargs = mock_search.await_args.kwargs
+        assert call_kwargs["query"] == "test query"
+        assert call_kwargs["engine"] == "perplexity"
+        assert call_kwargs["fetch_size"] == 3
+        assert call_kwargs["max_tokens"] == 1024
+        assert call_kwargs["max_tokens_per_page"] == 512
+        assert call_kwargs["country"] == "US"
+        assert call_kwargs["search_language_filter"] == ["en"]
+        assert call_kwargs["search_domain_filter"] == ["example.com"]
+        assert call_kwargs["search_recency_filter"] == "week"
+        assert call_kwargs["search_after_date_filter"] == "01/01/2024"
+        # search_context_size is dropped by Perplexity provider rules when token
+        # limits are set — merge still includes the config default; the SDK/server
+        # apply the omit rule. Here we only assert the merged kwargs from config.
         assert results == [
             WebSearchResult(
                 url="https://example.com/page",

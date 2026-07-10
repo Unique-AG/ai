@@ -1,9 +1,21 @@
 """V3 WebSearch tool parameters: a flat schema with exactly one of ``query`` or ``urls`` per call."""
 
+from __future__ import annotations
+
 import typing
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic.alias_generators import to_camel
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+
+# Strict LLM-facing config: camelCase aliases + forbid extras, while still
+# inheriting ExposedParams.model_json_schema (strips title/default noise).
+_LLM_TOOL_MODEL_CONFIG = ConfigDict(
+    alias_generator=to_camel,
+    populate_by_name=True,
+    extra="forbid",
+)
 
 
 class Command(StrEnum):
@@ -19,7 +31,9 @@ class SearchPhase(StrEnum):
     REDIRECT = "redirect"
 
 
-class SearchPayload(BaseModel):
+class SearchPayload(ExposedParams):
+    model_config = _LLM_TOOL_MODEL_CONFIG
+
     gap: str = Field(
         description=(
             "One atomic facet this call addresses (e.g. '2023 revenue band for Company X in CH')—"
@@ -36,17 +50,32 @@ class SearchPayload(BaseModel):
         )
     )
 
+    @classmethod
+    def with_exposed_params(
+        cls,
+        exposed: type[ExposedParams] | None,
+    ) -> type[SearchPayload]:
+        """Graft admin-exposed engine knobs onto the search payload model."""
+        if exposed is None:
+            return cls
+        return create_model(
+            cls.__name__,
+            __base__=(cls, exposed),
+        )
+
 
 class FetchUrlsPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     urls: list[str] = Field(
         description="HTTP(S) URLs to crawl for full-page text. Use only URLs returned by a prior search or pasted by the user."
     )
 
 
-class WebSearchV3ToolParameters(BaseModel):
+class WebSearchV3ToolParameters(ExposedParams):
     """Root JSON for the V3 WebSearch tool: set exactly one of ``query`` or ``urls``."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = _LLM_TOOL_MODEL_CONFIG
 
     command: Command = Field(
         description="The command to execute. Must be either 'search' or 'read_urls'."
@@ -67,6 +96,29 @@ class WebSearchV3ToolParameters(BaseModel):
         description="The payload of the command. Must be either a SearchPayload or a FetchUrlsPayload."
     )
 
+    @classmethod
+    def with_exposed_params(
+        cls,
+        exposed: type[ExposedParams] | None,
+    ) -> type[WebSearchV3ToolParameters]:
+        """Rebuild the payload union with an exposed ``SearchPayload`` subtype."""
+        search_payload = SearchPayload.with_exposed_params(exposed)
+        if search_payload is SearchPayload:
+            return cls
+        return create_model(
+            cls.__name__,
+            __base__=cls,
+            payload=(
+                search_payload | FetchUrlsPayload,
+                Field(
+                    description=(
+                        "The payload of the command. Must be either a SearchPayload "
+                        "or a FetchUrlsPayload."
+                    ),
+                ),
+            ),
+        )
+
     def relevance_focus(self) -> str:
         """Focus string for notify UI, snippet judging, and content processing."""
         phase_label = self.phase.value
@@ -78,23 +130,28 @@ class WebSearchV3ToolParameters(BaseModel):
         return f"[{phase_label}] {urls_preview}"
 
     @classmethod
-    def schema_hint(cls) -> str:
+    def schema_hint(
+        cls,
+        exposed: type[ExposedParams] | None = None,
+    ) -> str:
         """Return a markdown-bulleted hint mirroring the field descriptions of this model.
 
         Mirrors the legacy hand-written prompt block: one bullet per top-level
         field, with the ``payload`` bullet expanded into one inline JSON sketch
         per ``command`` value (since ``payload`` is a discriminated union).
         Field descriptions are inlined as ``<...>`` placeholders so the prompt
-        stays in sync with the Pydantic model.
+        stays in sync with the Pydantic model. Exposed knobs render under their
+        camelCase aliases.
         """
 
         def _inline_json(payload_model: type[BaseModel]) -> str:
             parts: list[str] = []
             for name, field in payload_model.model_fields.items():
-                placeholder = f"<{field.description or name}>"
+                key = field.alias or name
+                placeholder = f"<{field.description or key}>"
                 if typing.get_origin(field.annotation) is list:
                     placeholder = f"[{placeholder}]"
-                parts.append(f'"{name}": {placeholder}')
+                parts.append(f'"{key}": {placeholder}')
             return "{ " + ", ".join(parts) + " }"
 
         lines: list[str] = []
@@ -111,8 +168,9 @@ class WebSearchV3ToolParameters(BaseModel):
                 lines.append(f"- **`{name}`** — {field.description or name}")
 
         lines.append("- **`payload`** — Shape depends on `command`:")
+        search_payload = SearchPayload.with_exposed_params(exposed)
         for cmd, payload_model in (
-            (Command.SEARCH, SearchPayload),
+            (Command.SEARCH, search_payload),
             (Command.FETCH_URLS, FetchUrlsPayload),
         ):
             lines.append(f'  - For `"{cmd.value}"`: `{_inline_json(payload_model)}`.')

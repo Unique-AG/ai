@@ -4,6 +4,7 @@ from typing import Any, Literal, TypeVar, override
 from httpx import AsyncClient
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.base import (
@@ -101,12 +102,13 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
         self.is_configured = True  # No possibility to check if the API is configured from our side. So we assume it is configured.
 
     @override
-    async def _proxy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        return await self._legacy_search(query=query, **kwargs)
-
-    @override
-    async def _legacy_search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        params, body = self._prepare_request_params_and_body(query)
+    async def _legacy_search(
+        self,
+        query: str,
+        params: ExposedParams | None,
+    ) -> list[WebSearchResult]:
+        del params
+        params_dict, body = self._prepare_request_params_and_body(query)
         async_client_params = self._client_config | {
             "timeout": self.config.timeout,
         }
@@ -115,7 +117,7 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
                 method=self._request_method,
                 headers=self._headers,
                 url=self.api_endpoint,
-                params=params,
+                params=params_dict,
                 json=body,
             )
 

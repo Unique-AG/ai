@@ -5,6 +5,8 @@ from time import time
 
 from jinja2 import Template
 from typing_extensions import override
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+from unique_search_proxy_core.search_engines.base import BaseSearchEngineConfig
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags.feature_flags import (
@@ -97,6 +99,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
         self.debug = self.config.debug
         self._display_name = kwargs.get("display_name", "Web Search")
+        self.exposed_params_cls = self._resolve_exposed_params_cls()
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
 
@@ -111,6 +114,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         self.content_reducer = content_reducer
 
+    def _resolve_exposed_params_cls(self) -> type[ExposedParams] | None:
+        """Resolve the exposed-params model from the search-engine config, if any."""
+        cfg = self.config.search_engine_config
+        if isinstance(cfg, BaseSearchEngineConfig):
+            return cfg.exposed_params_model()
+        return None
+
     def _resolve_search_engine_mode(self) -> SearchEngineMode:
         """Derive the search-engine mode, respecting CustomAPI overrides."""
         cfg = self.search_engine_service.config
@@ -119,14 +129,16 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
+        exposed = self.exposed_params_cls
         if self.config.web_search_mode_config.mode == WebSearchMode.V1:
-            self.tool_parameter_calls = WebSearchToolParameters.from_tool_parameter_query_description(
-                self.config.web_search_mode_config.tool_parameters_description.query_description,
-                self.config.web_search_mode_config.tool_parameters_description.date_restrict_description,
+            self.tool_parameter_calls = WebSearchToolParameters.with_exposed_params(
+                exposed
             )
         else:
             if self.config.web_search_mode_config.mode == WebSearchMode.V3:
-                self.tool_parameter_calls = WebSearchV3ToolParameters
+                self.tool_parameter_calls = (
+                    WebSearchV3ToolParameters.with_exposed_params(exposed)
+                )
             else:
                 engine_mode = self._resolve_search_engine_mode()
                 self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
@@ -137,7 +149,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         if self.config.web_search_mode_config.mode == WebSearchMode.V3:
             tool_description = Template(tool_description).render(
-                tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(),
+                tool_parameters_schema=WebSearchV3ToolParameters.schema_hint(exposed),
             )
 
         return LanguageModelToolDescription(
@@ -202,7 +214,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         screening_service = await self._get_argument_screening_service_if_ff_enabled()
 
-        parameters_dump = parameters.model_dump()
+        parameters_dump = parameters.model_dump(by_alias=True)
         debug_info = WebSearchDebugInfo(parameters=parameters_dump)
 
         web_search_message_logger = WebSearchMessageLogger(
@@ -333,6 +345,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
+                exposed_params_cls=self.exposed_params_cls,
             )
         if isinstance(parameters, WebSearchPlan):
             assert search_config.mode == WebSearchMode.V2
@@ -343,6 +356,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 tool_call=tool_call,
                 tool_parameters=parameters,
                 max_steps=search_config.max_steps,
+                exposed_params_cls=self.exposed_params_cls,
             )
         elif isinstance(parameters, WebSearchToolParameters):
             assert search_config.mode == WebSearchMode.V1
@@ -356,6 +370,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 refine_query_language_model=search_config.refine_query_mode.language_model,
                 mode=search_config.refine_query_mode.mode,
                 max_queries=search_config.max_queries,
+                exposed_params_cls=self.exposed_params_cls,
             )
         else:
             raise ValueError(f"Invalid parameters: {parameters}")

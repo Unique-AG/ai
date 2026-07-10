@@ -46,9 +46,7 @@ def event_loop():
 @pytest.fixture
 def sample_web_search_tool_parameters():
     """Sample WebSearchToolParameters for testing."""
-    return WebSearchToolParameters(
-        query="Python web scraping best practices", date_restrict="m1"
-    )
+    return WebSearchToolParameters(query="Python web scraping best practices")
 
 
 @pytest.fixture
@@ -144,10 +142,6 @@ def mock_web_search_config_v1():
     config.web_search_mode_config.tool_description_for_system_prompt = (
         "V1 system prompt"
     )
-    config.web_search_mode_config.tool_parameters_description.query_description = (
-        "Query description"
-    )
-    config.web_search_mode_config.tool_parameters_description.date_restrict_description = "Date restrict description"
     config.web_search_mode_config.refine_query_mode.mode = Mock()
     config.web_search_mode_config.refine_query_mode.language_model = Mock()
     config.web_search_mode_config.max_queries = 5
