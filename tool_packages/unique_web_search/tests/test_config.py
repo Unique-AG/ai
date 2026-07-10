@@ -177,6 +177,19 @@ class TestWebSearchV2Config:
             == "Custom system prompt description"
         )
 
+    def test_web_search_v2_config_migrates_legacy_max_steps_placeholder(self):
+        """Legacy ``$max_steps`` is rewritten to Jinja at config validation time."""
+        config = WebSearchV2Config(
+            tool_description_for_system_prompt=(
+                "Do not exceed $max_steps research steps."
+            ),
+        )
+        assert (
+            config.tool_description_for_system_prompt
+            == "Do not exceed {{ max_steps }} research steps."
+        )
+        assert "$max_steps" not in config.tool_description_for_system_prompt
+
     def test_web_search_v2_config_mode_validator_with_beta_suffix(self):
         """Test WebSearchV2Config mode validator handles 'v2 (beta)' string."""
         config = WebSearchV2Config(mode="v2 (beta)")

@@ -1009,8 +1009,11 @@ class TestWebSearchV3ToolParametersValidation:
         assert Command("read_urls") is Command.FETCH_URLS
 
     @pytest.mark.ai
-    def test_get_display_name_suffix_per_command(self) -> None:
-        """Display-name suffix differs per command for UI clarity."""
+    def test_v3_strategy_build_display_name_per_command(self) -> None:
+        """V3 strategy appends a command-specific phase suffix to the display name."""
+        from unique_web_search.services.executors.v3.config import WebSearchV3Config
+        from unique_web_search.services.executors.v3.strategy import WebSearchV3Strategy
+
         search_params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
@@ -1025,9 +1028,22 @@ class TestWebSearchV3ToolParametersValidation:
                 "payload": {"urls": ["https://example.com/a"]},
             }
         )
+        strategy = WebSearchV3Strategy(WebSearchV3Config())
         assert search_params.relevance_focus() == "[exploratory] g"
-        assert search_params.get_display_name_suffix() == " - Searching"
-        assert fetch_params.get_display_name_suffix() == " - Reading Pages"
+        assert (
+            strategy.build_display_name(
+                base_display_name="Web Search",
+                parameters=search_params,
+            )
+            == "Web - Searching"
+        )
+        assert (
+            strategy.build_display_name(
+                base_display_name="Web Search",
+                parameters=fetch_params,
+            )
+            == "Web - Reading Pages"
+        )
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:
