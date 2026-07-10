@@ -14,6 +14,9 @@ from unique_toolkit.agentic.history_manager.history_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.activator import (
+    CodeInterpreterActivatorTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.artifacts import (
     load_code_execution_metadata,
 )
@@ -63,6 +66,8 @@ def _get_file_content_serializer(
         ),
         code_interpreter_available=(
             tool_manager.get_tool_by_name(OpenAIBuiltInToolName.CODE_INTERPRETER)
+            is not None
+            or tool_manager.get_tool_by_name(CodeInterpreterActivatorTool.NAME)
             is not None
         ),
     )
