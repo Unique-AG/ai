@@ -11,7 +11,10 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
     LanguageModelSystemMessage,
+    LanguageModelTokenUsage,
     LanguageModelTool,
     LanguageModelToolDescription,
     LanguageModelToolMessage,
@@ -19,6 +22,48 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolParameters,
     LanguageModelUserMessage,
 )
+
+
+def test_language_model_response_from_stream_response__carries_usage():
+    """LanguageModelResponse.from_stream_response() previously dropped
+    usage entirely, even though the source LanguageModelStreamResponse
+    already had it populated — e.g. ChatService.complete()/complete_async()
+    build a LanguageModelResponse this way, so any caller (DeepResearch's
+    self.chat_service.complete_async() among them) silently lost usage."""
+    stream_response = LanguageModelStreamResponse(
+        message=LanguageModelStreamResponseMessage(
+            id="msg-1",
+            chat_id="chat-1",
+            previous_message_id=None,
+            role=LanguageModelMessageRole.ASSISTANT,
+            text="hello",
+        ),
+        usage=LanguageModelTokenUsage(
+            completion_tokens=12, prompt_tokens=34, total_tokens=46
+        ),
+    )
+
+    response = LanguageModelResponse.from_stream_response(stream_response)
+
+    assert response.usage == LanguageModelTokenUsage(
+        completion_tokens=12, prompt_tokens=34, total_tokens=46
+    )
+
+
+def test_language_model_response_from_stream_response__usage_none__stays_none():
+    stream_response = LanguageModelStreamResponse(
+        message=LanguageModelStreamResponseMessage(
+            id="msg-1",
+            chat_id="chat-1",
+            previous_message_id=None,
+            role=LanguageModelMessageRole.ASSISTANT,
+            text="hello",
+        ),
+    )
+
+    response = LanguageModelResponse.from_stream_response(stream_response)
+
+    assert response.usage is None
 
 
 class TestLanguageModelSchemas:

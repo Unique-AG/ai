@@ -4,7 +4,7 @@ import json
 import math
 from collections.abc import Sequence
 from enum import StrEnum
-from typing import Any, Literal, Self, TypeAlias, TypeVar, cast, override
+from typing import Any, Iterable, Literal, Self, TypeAlias, TypeVar, cast, override
 from uuid import uuid4
 
 from humps import camelize
@@ -163,6 +163,20 @@ class LanguageModelTokenUsage(BaseModel):
     completion_tokens: int | None = None
     prompt_tokens: int | None = None
     total_tokens: int | None = None
+
+    @classmethod
+    def sum_usages(
+        cls, usages: Iterable[LanguageModelTokenUsage | None]
+    ) -> LanguageModelTokenUsage | None:
+        """Sum usages, skipping `None` entries; returns `None` if none are present."""
+        present = [u for u in usages if u is not None]
+        if not present:
+            return None
+        return cls(
+            completion_tokens=sum(u.completion_tokens or 0 for u in present),
+            prompt_tokens=sum(u.prompt_tokens or 0 for u in present),
+            total_tokens=sum(u.total_tokens or 0 for u in present),
+        )
 
 
 class LanguageModelStreamResponse(BaseModel):
@@ -631,6 +645,7 @@ class LanguageModelResponse(BaseModel):
     model_config = model_config
 
     choices: list[LanguageModelCompletionChoice]
+    usage: LanguageModelTokenUsage | None = None
 
     @classmethod
     def from_stream_response(cls, response: LanguageModelStreamResponse):
@@ -640,7 +655,7 @@ class LanguageModelResponse(BaseModel):
             finish_reason="",
         )
 
-        return cls(choices=[choice])
+        return cls(choices=[choice], usage=response.usage)
 
 
 # The OpenAI SDK's ReasoningEffort type alias is generated from an older OpenAPI spec and is
