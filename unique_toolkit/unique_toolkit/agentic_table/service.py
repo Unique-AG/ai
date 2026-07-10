@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import time
 from typing import Any, cast
 
 from typing_extensions import deprecated
@@ -8,6 +10,7 @@ from unique_sdk import (
     AgreementStatus,
     CellRendererTypes,
     FilterTypes,
+    MagicTableArtifactState,
     MagicTableArtifactType,
     RowVerificationStatus,
     SelectionMethod,
@@ -16,11 +19,14 @@ from unique_sdk import AgenticTableCell as SDKAgenticTableCell
 from unique_sdk.api_resources._agentic_table import ActivityStatus
 
 from .schemas import (
+    CreatedMagicTableSheet,
     LogEntry,
     MagicTableAction,
+    MagicTableArtifact,
     MagicTableCell,
     MagicTableSheet,
     RowMetadataEntry,
+    SheetMetadataEntryInput,
 )
 
 
@@ -47,6 +53,18 @@ class LockedAgenticTableError(Exception):
     pass
 
 
+class AgenticTableRunNotStartedError(TimeoutError):
+    """Raised by ``wait_for_run`` when the sheet never left IDLE within the start timeout."""
+
+
+class AgenticTableRunTimeoutError(TimeoutError):
+    """Raised by ``wait_for_run``/``wait_for_artifacts`` when the operation did not complete in time."""
+
+
+class AgenticTableArtifactError(Exception):
+    """Raised by ``wait_for_artifacts`` when an artifact ends up in the ERROR state."""
+
+
 class AgenticTableService:
     """
     Provides methods to interact with the Agentic Table.
@@ -69,6 +87,51 @@ class AgenticTableService:
         self._company_id = company_id
         self.table_id = table_id
         self.logger = logger
+        self.created_sheet: CreatedMagicTableSheet | None = None
+
+    @classmethod
+    async def create_sheet(
+        cls,
+        user_id: str,
+        company_id: str,
+        assistant_id: str,
+        name: str | None = None,
+        due_at: str | None = None,
+        logger: logging.Logger = logging.getLogger(__name__),
+    ) -> "AgenticTableService":
+        """Create a new Agentic Table sheet in a space and return a service bound to it.
+
+        Args:
+            user_id: The user creating the sheet (must have access to the space).
+            company_id: The company id.
+            assistant_id: The space (assistant) to create the sheet in.
+            name: Optional sheet name.
+            due_at: Optional due date (ISO 8601 string).
+
+        Returns:
+            AgenticTableService: A service bound to the new sheet. The full creation
+            response (including ``due_diligence_id``) is available on ``created_sheet``.
+        """
+        params: dict[str, str] = {"assistantId": assistant_id}
+        if name is not None:
+            params["name"] = name
+        if due_at is not None:
+            params["dueAt"] = due_at
+        # ``Unpack[CreateSheet]`` + dynamic keys: basedpyright cannot tie ``params`` to optional fields.
+        created = await AgenticTable.create_sheet(
+            user_id=user_id,
+            company_id=company_id,
+            **cast(Any, params),
+        )
+        sheet = CreatedMagicTableSheet.model_validate(created)
+        service = cls(
+            user_id=user_id,
+            company_id=company_id,
+            table_id=sheet.sheet_id,
+            logger=logger,
+        )
+        service.created_sheet = sheet
+        return service
 
     async def set_cell(
         self,
@@ -519,3 +582,228 @@ class AgenticTableService:
                 status=status,
                 locked=locked,
             )
+
+    async def import_questions_and_sources(
+        self,
+        question_file_ids: list[str] | None = None,
+        question_texts: list[str] | None = None,
+        source_file_ids: list[str] | None = None,
+        context: str | None = None,
+    ) -> None:
+        """Import questions and source files into the sheet (`POST .../metadata`).
+
+        Delta semantics: ids/texts already on the sheet are silently skipped. The
+        agent run is only triggered when new questions (file ids or texts) are
+        provided; adding only sources does not trigger a run. Rejected while the
+        sheet is PROCESSING.
+
+        Args:
+            question_file_ids: Content ids of questionnaire files to import.
+            question_texts: Question texts to import directly.
+            source_file_ids: Content ids of source (knowledge) files to answer from.
+            context: Optional free-text context passed to the agent.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        params: dict[str, Any] = {}
+        if question_file_ids is not None:
+            params["questionFileIds"] = question_file_ids
+        if question_texts is not None:
+            params["questionTexts"] = question_texts
+        if source_file_ids is not None:
+            params["sourceFileIds"] = source_file_ids
+        if context is not None:
+            params["context"] = context
+        result = await AgenticTable.add_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            **cast(Any, params),
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to import metadata")
+
+    async def generate_artifacts(
+        self,
+        artifact_types: list[MagicTableArtifactType],
+    ) -> None:
+        """Trigger export generation (`POST .../generate-artifact`).
+
+        Generation is asynchronous: this only initiates it. Use ``wait_for_artifacts``
+        (or poll ``list_artifacts``) to detect completion, then download the artifact's
+        ``content_id`` via the Content API.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        result = await AgenticTable.generate_artifact(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            artifactTypes=artifact_types,
+        )
+        if not result.get("status"):
+            raise Exception(
+                result.get("message") or "Failed to trigger artifact generation"
+            )
+
+    async def list_artifacts(self) -> list[MagicTableArtifact]:
+        """List export artifacts of the sheet (`GET .../artifacts`)."""
+        artifacts = await AgenticTable.list_artifacts(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+        )
+        return [MagicTableArtifact.model_validate(artifact) for artifact in artifacts]
+
+    async def create_sheet_metadata(
+        self,
+        entries: list[SheetMetadataEntryInput],
+    ) -> None:
+        """Create sheet metadata entries (key/value pairs) on the sheet.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        result = await AgenticTable.create_sheet_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            entries=[
+                cast(
+                    Any,
+                    entry.model_dump(by_alias=True, exclude_none=True),
+                )
+                for entry in entries
+            ],
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to create sheet metadata")
+
+    async def delete_sheet_metadata(self, metadata_id: str) -> None:
+        """Delete a sheet metadata entry by its id.
+
+        Raises:
+            Exception: If the API reports a non-success status.
+        """
+        result = await AgenticTable.delete_sheet_metadata(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            metadataId=metadata_id,
+        )
+        if not result.get("status"):
+            raise Exception(result.get("message") or "Failed to delete sheet metadata")
+
+    async def wait_for_run(
+        self,
+        start_timeout: float = 120.0,
+        completion_timeout: float = 3600.0,
+        poll_interval: float = 5.0,
+    ) -> AgenticTableSheetState:
+        """Wait for an agent run to start and complete, by polling the sheet state.
+
+        Two-phase poll:
+        1. Wait until the sheet leaves IDLE (the agent picked up the trigger).
+           If it never does within ``start_timeout``, raise
+           ``AgenticTableRunNotStartedError`` — most likely the trigger did not
+           start a run (e.g. no new questions were imported).
+        2. Wait until the sheet returns to IDLE or STOPPED_BY_USER (the run
+           finished), up to ``completion_timeout``.
+
+        Args:
+            start_timeout: Max seconds to wait for the run to start (phase 1).
+            completion_timeout: Max seconds to wait for the run to finish (phase 2).
+            poll_interval: Seconds between state polls.
+
+        Returns:
+            AgenticTableSheetState: The terminal state (IDLE or STOPPED_BY_USER).
+
+        Raises:
+            AgenticTableRunNotStartedError: The sheet never left IDLE in phase 1.
+            AgenticTableRunTimeoutError: The run did not finish within ``completion_timeout``.
+        """
+        deadline = time.monotonic() + start_timeout
+        while True:
+            state = await AgenticTable.get_sheet_state(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                tableId=self.table_id,
+            )
+            if state != AgenticTableSheetState.IDLE:
+                break
+            if time.monotonic() >= deadline:
+                raise AgenticTableRunNotStartedError(
+                    f"Sheet {self.table_id} never left IDLE within {start_timeout}s. "
+                    "Did the trigger start a run (e.g. were new questions imported)?"
+                )
+            await asyncio.sleep(poll_interval)
+
+        self.logger.debug("Sheet %s run started (state=%s)", self.table_id, state)
+
+        deadline = time.monotonic() + completion_timeout
+        while state == AgenticTableSheetState.PROCESSING:
+            if time.monotonic() >= deadline:
+                raise AgenticTableRunTimeoutError(
+                    f"Sheet {self.table_id} still PROCESSING after {completion_timeout}s."
+                )
+            await asyncio.sleep(poll_interval)
+            state = await AgenticTable.get_sheet_state(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                tableId=self.table_id,
+            )
+
+        self.logger.debug("Sheet %s run finished (state=%s)", self.table_id, state)
+        return state
+
+    async def wait_for_artifacts(
+        self,
+        artifact_types: list[MagicTableArtifactType],
+        timeout: float = 600.0,
+        poll_interval: float = 5.0,
+    ) -> list[MagicTableArtifact]:
+        """Wait until artifacts of the given types are DONE, by polling ``list_artifacts``.
+
+        Artifact records are upserted per type: triggering an export flips the record
+        of that type to IN_PROGRESS and back to DONE when the file is ready.
+
+        Args:
+            artifact_types: The artifact types to wait for (as passed to ``generate_artifacts``).
+            timeout: Max seconds to wait for all requested artifacts to be DONE.
+            poll_interval: Seconds between polls.
+
+        Returns:
+            list[MagicTableArtifact]: The DONE artifacts, one per requested type.
+
+        Raises:
+            AgenticTableArtifactError: An artifact of a requested type is in the ERROR state.
+            AgenticTableRunTimeoutError: Not all artifacts were DONE within ``timeout``.
+        """
+        wanted = set(artifact_types)
+        deadline = time.monotonic() + timeout
+        while True:
+            artifacts = await self.list_artifacts()
+            relevant = [a for a in artifacts if a.artifact_type in wanted]
+            failed = [
+                a for a in relevant if a.artifact_state == MagicTableArtifactState.ERROR
+            ]
+            if failed:
+                raise AgenticTableArtifactError(
+                    f"Artifact generation failed for {[a.artifact_type for a in failed]} "
+                    f"on sheet {self.table_id}."
+                )
+            done = {
+                a.artifact_type: a
+                for a in relevant
+                if a.artifact_state == MagicTableArtifactState.DONE
+            }
+            if wanted <= set(done.keys()):
+                return [done[t] for t in artifact_types]
+            if time.monotonic() >= deadline:
+                missing = sorted(t.value for t in wanted - set(done.keys()))
+                raise AgenticTableRunTimeoutError(
+                    f"Artifacts {missing} not DONE within {timeout}s on sheet {self.table_id}."
+                )
+            await asyncio.sleep(poll_interval)
