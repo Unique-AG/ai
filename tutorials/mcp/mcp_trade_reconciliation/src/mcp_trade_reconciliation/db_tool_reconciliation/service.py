@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -565,3 +566,131 @@ def reset_demo_data() -> dict[str, Any]:
         "counterparty_email_cashflows": counterparty_count,
         "note": "Demo restored to baseline; all counterparty (email) cash flows are UNMATCHED.",
     }
+
+
+# ---------------------------------------------------------------------------
+# Break analysis ("smart actions") — server-side, deterministic
+# ---------------------------------------------------------------------------
+# For every UNMATCHED email row that will NOT auto-reconcile, explain WHY and
+# suggest an ops action. This is the reliable replacement for the old in-page
+# JavaScript fuzzy engine (the HTML sandbox strips scripts): the same rules run
+# here (R-AMOUNT-DRIFT / R-CCY-MISMATCH / R-SIDE-MISMATCH / R-DATE-MISMATCH /
+# R-FUZZY-VENDOR / R-NO-CANDIDATE), so the dashboard/agent can render live cards.
+
+_VENDOR_SIM_THRESHOLD = 0.50  # SequenceMatcher ratio to call two names "similar"
+
+
+def _vendor_similarity(a: str | None, b: str | None) -> float:
+    return SequenceMatcher(None, _norm(a), _norm(b)).ratio()
+
+
+def _closest_by_amount(rows: list[dict[str, Any]], amount: Decimal) -> dict[str, Any] | None:
+    """The row whose gross_amt is nearest the email amount (the likeliest intended trade)."""
+    return min(rows, key=lambda r: abs(r["gross_amt"] - amount)) if rows else None
+
+
+def _break_card(
+    rule: str, title: str, email_row: dict[str, Any], detail: str,
+    suggested_action: str, book_row: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    card: dict[str, Any] = {
+        "rule": rule,
+        "title": title,
+        "email_id": email_row["id"],
+        "vendor": email_row["vendor"],
+        "email_amount": float(email_row["amount"]),
+        "email_ccy": email_row["ccy"],
+        "email_action": email_row["action"],
+        "detail": detail,
+        "suggested_action": suggested_action,
+    }
+    if book_row is not None:
+        card.update({
+            "book_trade_ref": book_row["bfx_trade_id"],
+            "book_instrument": book_row["instrument"],
+            "book_amount": float(book_row["gross_amt"]),
+            "book_ccy": book_row["ccy"],
+            "book_side": book_row["side"],
+        })
+    return card
+
+
+def _classify_break(email_row: dict[str, Any], book_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Explain, in priority order, the first dimension on which an email row breaks."""
+    ev, eccy, eact, eamt = (
+        email_row["vendor"], email_row["ccy"], email_row["action"], email_row["amount"],
+    )
+    same_vendor = [r for r in book_rows if _norm(r["counterparty"]) == _norm(ev)]
+    if not same_vendor:
+        fuzzy = [r for r in book_rows if _vendor_similarity(ev, r["counterparty"]) >= _VENDOR_SIM_THRESHOLD]
+        cand = _closest_by_amount(fuzzy, eamt)
+        if cand is not None:
+            return _break_card(
+                "R-FUZZY-VENDOR", "Counterparty name doesn't match exactly", email_row,
+                f"No book trade for counterparty '{ev}'. Closest by name is '{cand['counterparty']}' "
+                f"(trade {cand['bfx_trade_id']}) — likely a spelling/alias mismatch on the confirm.",
+                "Confirm the counterparty alias / legal entity, then re-run the matcher.", cand)
+        return _break_card(
+            "R-NO-CANDIDATE", "No matching book trade", email_row,
+            f"No book trade found for counterparty '{ev}' — the email may reference a trade not yet "
+            "booked, or a different desk.",
+            "Check whether the trade is booked; chase the desk or the counterparty confirm.")
+
+    same_ccy = [r for r in same_vendor if r["ccy"] == eccy]
+    if not same_ccy:
+        cand = _closest_by_amount(same_vendor, eamt)
+        return _break_card(
+            "R-CCY-MISMATCH", "Currency mismatch on same counterparty", email_row,
+            f"Email is in {eccy} but the closest book trade for {ev} ({cand['bfx_trade_id']}) is in "
+            f"{cand['ccy']} — possible missing FX leg or wrong base ccy on the confirm.",
+            "Request the FX leg / confirm the base currency on the counterparty email.", cand)
+
+    same_side = [r for r in same_ccy if r["side"] == eact]
+    if not same_side:
+        cand = _closest_by_amount(same_ccy, eamt)
+        return _break_card(
+            "R-SIDE-MISMATCH", "Side/action mismatch on same counterparty", email_row,
+            f"Email action is {eact} but the closest book trade for {ev} ({cand['bfx_trade_id']}) is "
+            f"{cand['side']}.",
+            "Verify the direction with the counterparty; correct the confirm or the booking.", cand)
+
+    cand = _closest_by_amount(same_side, eamt)
+    edate = email_row["value_date"]
+    if edate not in (cand["trade_date"], cand["settl_date"]):
+        return _break_card(
+            "R-DATE-MISMATCH", "Value date doesn't line up", email_row,
+            f"Email value_date {edate.isoformat()} doesn't equal the trade "
+            f"({cand['trade_date'].isoformat()}) or settlement ({cand['settl_date'].isoformat()}) date "
+            f"of {cand['bfx_trade_id']}.",
+            "Confirm the settlement date — a T+ mismatch or an amended settl date is likely.", cand)
+
+    diff = cand["gross_amt"] - eamt
+    pct = (abs(diff) / abs(cand["gross_amt"]) * 100) if cand["gross_amt"] else Decimal(0)
+    return _break_card(
+        "R-AMOUNT-DRIFT", "Amount close but not exact", email_row,
+        f"Email {float(eamt):,.2f} {eccy} vs book {float(cand['gross_amt']):,.2f} {cand['ccy']} "
+        f"({cand['bfx_trade_id']}) — drift {float(abs(diff)):,.2f} ({float(pct):.2f}%). Could be a fee, "
+        "an FX cut, or quote-to-fill slippage.",
+        "Check net-vs-gross / the fee schedule; if within policy, book the adjustment for review.", cand)
+
+
+def derive_break_actions() -> dict[str, Any]:
+    """Classify every UNMATCHED email row that will NOT auto-match into a break action card.
+
+    Read-only. Rows that WOULD reconcile on ``Match_Cashflows`` are skipped (they're not
+    breaks). Returns ``{count, actions:[…]}`` where each action carries a rule code, a
+    human title/detail, the email and closest book trade, and a suggested ops action.
+    """
+    with _readonly_connection() as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute(f"SELECT * FROM {COUNTERPARTY_TABLE} WHERE status = 'UNMATCHED' ORDER BY id ASC")
+        email_rows = cur.fetchall()
+        cur.execute(f"SELECT * FROM {CUSTOMER_TABLE} ORDER BY id ASC")
+        customer_rows = cur.fetchall()
+
+    actions: list[dict[str, Any]] = []
+    for email_row in email_rows:
+        # Skip rows that would reconcile cleanly — those aren't breaks.
+        if _find_match_for_email(email_row, customer_rows, set()).matched:
+            continue
+        actions.append(_classify_break(email_row, customer_rows))
+    return {"count": len(actions), "actions": actions}

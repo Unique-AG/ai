@@ -41,3 +41,14 @@ RESET_DEMO_DATA_DESCRIPTION = (
     "so the reconciliation can be demonstrated from scratch. Use this between "
     "demo runs to get a clean, predictable starting state."
 )
+
+DERIVE_BREAK_ACTIONS_DESCRIPTION = (
+    "Analyse the reconciliation breaks: for every UNMATCHED counterparty (email) cash "
+    "flow that will NOT auto-reconcile, explain why and suggest an operations action. "
+    "Read-only and deterministic — the server-side version of the dashboard's 'smart "
+    "actions'. Returns {count, actions:[…]}, one card per break with a rule code "
+    "(R-AMOUNT-DRIFT, R-CCY-MISMATCH, R-SIDE-MISMATCH, R-DATE-MISMATCH, R-FUZZY-VENDOR, "
+    "R-NO-CANDIDATE), a human title/detail, the email row and the closest book trade, and "
+    "a suggested_action. Rows that would reconcile cleanly are omitted. Use it to produce "
+    "an ops breaks worklist, or to render live smart-action cards on the canvas."
+)

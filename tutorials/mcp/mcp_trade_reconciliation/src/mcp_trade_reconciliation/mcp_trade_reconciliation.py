@@ -16,6 +16,7 @@ from starlette.requests import Request
 
 from db_tool_reconciliation import service as reconciliation_service
 from db_tool_reconciliation.prompts import (
+    DERIVE_BREAK_ACTIONS_DESCRIPTION,
     GET_COUNTERPARTY_EMAIL_CASHFLOWS_DESCRIPTION,
     GET_CUSTOMER_BOOK_CASHFLOWS_DESCRIPTION,
     MATCH_CASHFLOWS_DESCRIPTION,
@@ -218,6 +219,20 @@ async def match_cashflows(
     ] = None,
 ) -> str:
     result: dict[str, Any] = reconciliation_service.match_cashflows(email_ids=email_ids)
+    return json.dumps(result, default=str)
+
+
+@mcp.tool(
+    name="Derive_Break_Actions",
+    title="Derive break actions",
+    description=DERIVE_BREAK_ACTIONS_DESCRIPTION,
+    meta={
+        "unique.app/icon": "sparkles",
+        "unique.app/system-prompt": DERIVE_BREAK_ACTIONS_DESCRIPTION,
+    },
+)
+async def derive_break_actions() -> str:
+    result: dict[str, Any] = reconciliation_service.derive_break_actions()
     return json.dumps(result, default=str)
 
 
