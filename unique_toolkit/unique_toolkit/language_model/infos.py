@@ -1161,46 +1161,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2026, 6, 1),
                     published_at=date(2026, 7, 9),
                     temperature_bounds=TemperatureBounds(
-                        min_temperature=1.0, max_temperature=1.0
-                    ),
-                    default_options={
-                        "reasoning_effort": "none",
-                    },
-                    supported_reasoning_efforts=[
-                        "none",
-                        "low",
-                        "medium",
-                        "high",
-                    ],
-                )
-            case (
-                LanguageModelName.LITELLM_OPENAI_GPT_56_SOL
-                | LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA
-                | LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA
-            ):
-                return cls(
-                    name=model_name,
-                    provider=LanguageModelProvider.LITELLM,
-                    family=ModelFamily.OPENAI,
-                    version="2026-07-09",
-                    encoder_name=EncoderName.O200K_BASE,
-                    capabilities=[
-                        ModelCapabilities.CHAT_COMPLETIONS_API,
-                        ModelCapabilities.FUNCTION_CALLING,
-                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
-                        ModelCapabilities.REASONING,
-                        ModelCapabilities.RESPONSES_API,
-                        ModelCapabilities.STREAMING,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
-                        ModelCapabilities.VISION,
-                    ],
-                    token_limits=LanguageModelTokenLimits(
-                        token_limit_input=922_000, token_limit_output=128_000
-                    ),
-                    info_cutoff_at=date(2026, 6, 1),
-                    published_at=date(2026, 7, 9),
-                    temperature_bounds=TemperatureBounds(
-                        min_temperature=1.0, max_temperature=1.0
+                        min_temperature=0.0, max_temperature=1.0
                     ),
                     default_options={
                         "reasoning_effort": "none",
@@ -2551,6 +2512,45 @@ class LanguageModelInfo(BaseModel):
                         "reasoning_effort": "medium",
                     },
                     supported_reasoning_efforts=["medium", "high", "xhigh"],
+                )
+            case (
+                LanguageModelName.LITELLM_OPENAI_GPT_56_SOL
+                | LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA
+                | LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA
+            ):
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.OPENAI,
+                    version="2026-07-09",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=922_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2026, 6, 1),
+                    published_at=date(2026, 7, 9),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=0.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "none",
+                    },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                    ],
                 )
             case LanguageModelName.LITELLM_OPENAI_O1:
                 return cls(
