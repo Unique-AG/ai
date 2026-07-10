@@ -4,6 +4,7 @@ from time import time
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
 )
@@ -39,6 +40,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
         tool_parameters: T,
+        exposed_params_cls: type[ExposedParams] | None = None,
     ):
         # Extract from service context
         self.search_service = services.search_engine_service
@@ -61,6 +63,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         # Store tool parameters
         self.tool_call = tool_call
         self.tool_parameters = tool_parameters
+        self.exposed_params_cls = exposed_params_cls
 
         # Initialize notification state
         self._notify_name = ""
@@ -77,6 +80,19 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
                 )
 
         self.notify_callback = notify_callback
+
+    def _extract_search_params(self, source: BaseModel) -> ExposedParams | None:
+        """Validate ``source`` against the exposed-params class, dropping tool-only fields.
+
+        Returns ``None`` when no knobs are exposed for this deployment. Otherwise
+        re-validates the source dump through ``exposed_params_cls``
+        (``extra="ignore"``) so only admin-exposed engine knobs remain.
+        """
+        if self.exposed_params_cls is None:
+            return None
+        return self.exposed_params_cls.model_validate(
+            source.model_dump(by_alias=True)
+        )
 
     @property
     def notify_name(self):

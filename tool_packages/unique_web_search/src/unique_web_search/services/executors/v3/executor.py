@@ -7,6 +7,7 @@ import logging
 from time import time
 
 from unidecode import unidecode
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
@@ -45,6 +46,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchV3ToolParameters,
+        exposed_params_cls: type[ExposedParams] | None = None,
     ):
         super().__init__(
             services=services,
@@ -52,6 +54,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             callbacks=callbacks,
             tool_call=tool_call,
             tool_parameters=tool_parameters,
+            exposed_params_cls=exposed_params_cls,
         )
 
     async def run(self) -> list[ContentChunk]:
@@ -59,7 +62,9 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         if isinstance(p.payload, SearchPayload):
             await self._message_log_callback.log_progress("_Executing Search_")
             return await self._run_search(
-                query=p.payload.query, objective=p.relevance_focus()
+                query=p.payload.query,
+                objective=p.relevance_focus(),
+                params=self._extract_search_params(p.payload),
             )
         if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
@@ -76,6 +81,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         *,
         query: str,
         objective: str,
+        params: ExposedParams | None,
     ) -> list[ContentChunk]:
         self.notify_name = "**Searching Web**"
         self.notify_message = objective
@@ -102,7 +108,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         await self._message_log_callback.log_queries([query])
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
-            results = await self.search_service.search(query)
+            results = await self.search_service.search(query, params=params)
         await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
@@ -113,6 +119,11 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
                 config=engine,
                 extra={
                     "query": query,
+                    "params": (
+                        params.model_dump(by_alias=True, exclude_none=True)
+                        if params
+                        else None
+                    ),
                     "number_of_results": len(results),
                     "urls": [result.url for result in results],
                 },

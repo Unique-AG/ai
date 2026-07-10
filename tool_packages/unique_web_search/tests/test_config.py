@@ -27,7 +27,6 @@ from unique_web_search.services.executors.base_config import WebSearchMode
 from unique_web_search.services.executors.v1.config import (
     QueryRefinementConfig,
     RefineQueryMode,
-    WebSearchToolParametersDescriptionConfig,
     WebSearchV1Config,
 )
 from unique_web_search.services.executors.v2.config import WebSearchV2Config
@@ -267,27 +266,6 @@ class TestQueryRefinementConfig:
         config = QueryRefinementConfig(mode=RefineQueryMode.ADVANCED)
 
         assert config.mode == RefineQueryMode.ADVANCED
-
-
-class TestWebSearchToolParametersDescriptionConfig:
-    """Test cases for WebSearchToolParametersDescriptionConfig."""
-
-    def test_tool_parameters_description_config_defaults(self):
-        """Test WebSearchToolParametersDescriptionConfig with default values."""
-        config = WebSearchToolParametersDescriptionConfig()
-
-        assert "search query" in config.query_description.lower()
-        assert len(config.date_restrict_description) > 0
-
-    def test_tool_parameters_description_config_custom(self):
-        """Test WebSearchToolParametersDescriptionConfig with custom values."""
-        config = WebSearchToolParametersDescriptionConfig(
-            query_description="Custom query description",
-            date_restrict_description="Custom date restriction description",
-        )
-
-        assert config.query_description == "Custom query description"
-        assert config.date_restrict_description == "Custom date restriction description"
 
 
 class TestWebSearchConfig:
@@ -604,10 +582,6 @@ class TestWebSearchConfig:
                 system_prompt="Custom refinement prompt",
             ),
             max_queries=7,
-            tool_parameters_description=WebSearchToolParametersDescriptionConfig(
-                query_description="Custom query description",
-                date_restrict_description="Custom date description",
-            ),
         )
 
         config = WebSearchConfig(
@@ -640,10 +614,6 @@ class TestWebSearchConfig:
             == RefineQueryMode.ADVANCED
         )
         assert config.web_search_mode_config.max_queries == 7
-        assert (
-            config.web_search_mode_config.tool_parameters_description.query_description
-            == "Custom query description"
-        )
         assert config.debug is True
 
     def test_web_search_config_with_all_features_v2(self, mock_language_model_info):
