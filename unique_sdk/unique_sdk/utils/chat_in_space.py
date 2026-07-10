@@ -1,14 +1,23 @@
+from __future__ import annotations
+
 import asyncio
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Literal
 
+from unique_sdk.api_resources._integrated import Integrated
 from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.file_io import upload_file
 from unique_sdk.utils.file_io import (
     wait_for_ingestion_completion as _wait_for_ingestion_completion,
 )
+
+
+def get_message_usage(message: Space.Message) -> Integrated.Usage | None:
+    """Token usage for a completed Space message, read from `debugInfo.token_usage`."""
+    debug_info = message.get("debugInfo") or {}
+    return debug_info.get("token_usage")
 
 
 async def send_message_and_wait_for_completion(
@@ -23,10 +32,10 @@ async def send_message_and_wait_for_completion(
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
-    correlation: "Space.Correlation | None" = None,
+    correlation: Space.Correlation | None = None,
     auto_approve_elicitation: bool | None = None,
-    on_message_update: Callable[["Space.Message"], Awaitable[None]] | None = None,
-) -> "Space.Message":
+    on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
+) -> Space.Message:
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
 
@@ -91,13 +100,17 @@ async def send_message_and_wait_for_completion(
                 last_update_signature = update_signature
         if answer.get(stop_condition) is not None:
             try:
-                user_message = await Message.retrieve_async(
-                    user_id, company_id, message_id, chatId=chat_id
+                # debugInfo only ever lands on the assistant message, not the
+                # user message `message_id` points to — re-fetch by the
+                # completed (assistant) message's own id instead.
+                completed_message_id = answer.get("id") or message_id
+                completed_message = await Message.retrieve_async(
+                    user_id, company_id, completed_message_id, chatId=chat_id
                 )
-                debug_info = user_message.get("debugInfo")
+                debug_info = completed_message.get("debugInfo")
                 answer["debugInfo"] = debug_info
             except Exception as e:
-                print(f"Failed to load debug info from user message: {e}")
+                print(f"Failed to load debug info from completed message: {e}")
 
             return answer
         await asyncio.sleep(poll_interval)
@@ -116,7 +129,7 @@ async def chat_against_file(
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     should_delete_chat: bool = True,
-) -> "Space.Message":
+) -> Space.Message:
     """
     Chat against a file by uploading it, sending a message and waiting for a reply.
     Args:
