@@ -253,6 +253,52 @@ def test_modify_message_with_segment_kind(mock_sdk, sample_message_data):
     assert call_kwargs["segmentKind"] == "PREFACE"
 
 
+def test_modify_message_with_set_stopped_streaming_at(mock_sdk, sample_message_data):
+    # Setup
+    mock_sdk.Message.modify.return_value = sample_message_data
+
+    # Execute
+    modify_message(
+        user_id="user123",
+        company_id="company123",
+        assistant_message_id="asst123",
+        chat_id="chat123",
+        user_message_id="user123",
+        user_message_text="Hello",
+        assistant=True,
+        content="Modified content",
+        set_stopped_streaming_at=True,
+    )
+
+    # Assert
+    call_kwargs = mock_sdk.Message.modify.call_args[1]
+    assert call_kwargs["stoppedStreamingAt"] is not None
+    assert call_kwargs["completedAt"] is None
+
+
+def test_modify_message_without_set_stopped_streaming_at_defaults_to_none(
+    mock_sdk, sample_message_data
+):
+    # Setup
+    mock_sdk.Message.modify.return_value = sample_message_data
+
+    # Execute
+    modify_message(
+        user_id="user123",
+        company_id="company123",
+        assistant_message_id="asst123",
+        chat_id="chat123",
+        user_message_id="user123",
+        user_message_text="Hello",
+        assistant=True,
+        content="Modified content",
+    )
+
+    # Assert
+    call_kwargs = mock_sdk.Message.modify.call_args[1]
+    assert call_kwargs["stoppedStreamingAt"] is None
+
+
 def test_modify_message_without_segment_kind_omits_key(mock_sdk, sample_message_data):
     # Setup
     mock_sdk.Message.modify.return_value = sample_message_data

@@ -66,6 +66,7 @@ def modify_message(
     debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
+    set_stopped_streaming_at: bool = False,
     segment_kind: str | None = None,
 ) -> ChatMessage:
     """Modifies a chat message synchronously.
@@ -84,6 +85,7 @@ def modify_message(
         references (list[ContentReference]): list of ContentReference objects. Defaults to None.
         debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
         set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+        set_stopped_streaming_at (bool, optional): Whether to set the stoppedStreamingAt field with the current date time. Use this to signal that model streaming has finished while post-processing (e.g. evaluations) is still running, so clients can unblock user input before completedAt is set. Defaults to False.
         segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place. Defaults to None (kind unchanged).
 
     Returns:
@@ -108,6 +110,7 @@ def modify_message(
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at,
+            set_stopped_streaming_at=set_stopped_streaming_at,
             segment_kind=segment_kind,
         )
         message = unique_sdk.Message.modify(**params)
@@ -131,6 +134,7 @@ async def modify_message_async(
     debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
+    set_stopped_streaming_at: bool = False,
     segment_kind: str | None = None,
 ) -> ChatMessage:
     """Modifies a chat message asynchronously.
@@ -149,6 +153,7 @@ async def modify_message_async(
         references (list[ContentReference]): list of ContentReference objects. Defaults to None.
         debug_info (dict[str, Any]], optional): Debug information. Defaults to None.
         set_completed_at (bool, optional): Whether to set the completedAt field with the current date time. Defaults to False.
+        set_stopped_streaming_at (bool, optional): Whether to set the stoppedStreamingAt field with the current date time. Use this to signal that model streaming has finished while post-processing (e.g. evaluations) is still running, so clients can unblock user input before completedAt is set. Defaults to False.
         segment_kind (str, optional): The segment kind (e.g. "PROCESS", "PREFACE", "ELICITATION", "ANSWER") to relabel the segment to in place. Defaults to None (kind unchanged).
 
     Returns:
@@ -173,6 +178,7 @@ async def modify_message_async(
             debug_info=debug_info,
             message_id=message_id,
             set_completed_at=set_completed_at,
+            set_stopped_streaming_at=set_stopped_streaming_at,
             segment_kind=segment_kind,
         )
         message = await unique_sdk.Message.modify_async(**params)
@@ -231,9 +237,11 @@ def _construct_message_modify_params(
     debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
+    set_stopped_streaming_at: bool = False,
     segment_kind: str | None = None,
 ) -> dict[str, Any]:
     completed_at_datetime = None
+    stopped_streaming_at_datetime = None
 
     if message_id:
         # Message ID specified. No need to guess
@@ -249,6 +257,9 @@ def _construct_message_modify_params(
     if set_completed_at:
         completed_at_datetime = _time_utils.get_datetime_now()
 
+    if set_stopped_streaming_at:
+        stopped_streaming_at_datetime = _time_utils.get_datetime_now()
+
     params: dict[str, Any] = {
         "user_id": user_id,
         "company_id": company_id,
@@ -259,6 +270,7 @@ def _construct_message_modify_params(
         "references": map_references(references) if references else [],
         "debugInfo": debug_info,
         "completedAt": completed_at_datetime,
+        "stoppedStreamingAt": stopped_streaming_at_datetime,
     }
     if segment_kind is not None:
         params["segmentKind"] = segment_kind
