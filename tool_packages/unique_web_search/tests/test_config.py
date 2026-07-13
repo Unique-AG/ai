@@ -1,7 +1,9 @@
 import pytest
 from pydantic import ValidationError
 from unique_search_proxy_core.search_engines import SearchEngineType
-from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy_core.search_engines.google.schema import (
+    GoogleConfig as _CoreGoogleConfig,
+)
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -31,6 +33,11 @@ from unique_web_search.services.executors.v1.config import (
 )
 from unique_web_search.services.executors.v2.config import WebSearchV2Config
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
+from unique_web_search.services.search_engine.registry import SEARCH_ENGINE_REGISTRY
+
+# ActivatedSearchEngine uses the registry's titled subclass; construct that in tests.
+GoogleConfig = SEARCH_ENGINE_REGISTRY[SearchEngineType.GOOGLE].config_cls
+assert issubclass(GoogleConfig, _CoreGoogleConfig)
 
 
 class TestQueryElicitationConfig:
@@ -176,6 +183,19 @@ class TestWebSearchV2Config:
             config.tool_description_for_system_prompt
             == "Custom system prompt description"
         )
+
+    def test_web_search_v2_config_migrates_legacy_max_steps_placeholder(self):
+        """Legacy ``$max_steps`` is rewritten to Jinja at config validation time."""
+        config = WebSearchV2Config(
+            tool_description_for_system_prompt=(
+                "Do not exceed $max_steps research steps."
+            ),
+        )
+        assert (
+            config.tool_description_for_system_prompt
+            == "Do not exceed {{ max_steps }} research steps."
+        )
+        assert "$max_steps" not in config.tool_description_for_system_prompt
 
     def test_web_search_v2_config_mode_validator_with_beta_suffix(self):
         """Test WebSearchV2Config mode validator handles 'v2 (beta)' string."""

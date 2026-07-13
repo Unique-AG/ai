@@ -17,6 +17,18 @@ from unique_web_search.services.search_engine import (
 from unique_web_search.services.search_engine.base import LocalSearchEngineType
 from unique_web_search.services.search_engine.registry import SEARCH_ENGINE_REGISTRY
 
+_EXPECTED_CONFIG_BASES: dict[
+    SearchEngineType | AgentEngineType | LocalSearchEngineType,
+    type,
+] = {
+    SearchEngineType.GOOGLE: GoogleConfig,
+    SearchEngineType.BRAVE: BraveConfig,
+    SearchEngineType.PERPLEXITY: PerplexityConfig,
+    AgentEngineType.BING: BingSearchConfig,
+    AgentEngineType.VERTEXAI: VertexAIConfig,
+    LocalSearchEngineType.CUSTOM_API: CustomAPIConfig,
+}
+
 
 def test_search_engine_registry__autodiscover__registers_all_engines() -> None:
     assert len(SEARCH_ENGINE_REGISTRY.specs) == 6
@@ -30,17 +42,13 @@ def test_search_engine_registry__enum_coverage__includes_all_discriminators() ->
     )
 
 
-def test_search_engine_registry__config_classes__match_static_union() -> None:
-    registered = {spec.config_cls for spec in SEARCH_ENGINE_REGISTRY.specs}
-    expected = {
-        GoogleConfig,
-        BingSearchConfig,
-        CustomAPIConfig,
-        BraveConfig,
-        PerplexityConfig,
-        VertexAIConfig,
-    }
-    assert registered == expected
+def test_search_engine_registry__config_classes__extend_static_bases() -> None:
+    for spec in SEARCH_ENGINE_REGISTRY.specs:
+        base_cls = _EXPECTED_CONFIG_BASES[spec.key]
+        assert issubclass(spec.config_cls, base_cls)
+        assert (
+            spec.config_cls.model_json_schema().get("title") == spec.config_display_name
+        )
 
 
 @pytest.mark.parametrize(

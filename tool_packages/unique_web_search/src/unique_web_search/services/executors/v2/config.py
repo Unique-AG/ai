@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
@@ -14,6 +15,11 @@ from unique_web_search.services.executors.v2.prompts import (
     TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
 )
 from unique_web_search.services.helpers import clean_model_title_generator
+
+_LOGGER = getLogger(__name__)
+
+_LEGACY_MAX_STEPS_PLACEHOLDER = "$max_steps"
+_JINJA_MAX_STEPS_PLACEHOLDER = "{{ max_steps }}"
 
 
 class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
@@ -52,3 +58,25 @@ class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
         if "v2" in v.lower():
             return "v2"
         raise ValueError(f"Invalid mode: {v}")
+
+    @field_validator("tool_description_for_system_prompt", mode="after")
+    @classmethod
+    def migrate_legacy_max_steps_placeholder(cls, value: str) -> str:
+        """Rewrite the pre-Jinja ``$max_steps`` token to ``{{ max_steps }}``.
+
+        V2 prompts persisted before the Jinja migration use the legacy
+        ``$max_steps`` placeholder, which Jinja would otherwise emit verbatim.
+        Normalising here keeps rendering free of backwards-compatibility logic.
+        """
+        if _LEGACY_MAX_STEPS_PLACEHOLDER not in value:
+            return value
+        _LOGGER.warning(
+            "V2 web-search prompt contains legacy '%s' placeholder; rewriting "
+            "to '%s'. Please update the stored configuration to use Jinja "
+            "syntax.",
+            _LEGACY_MAX_STEPS_PLACEHOLDER,
+            _JINJA_MAX_STEPS_PLACEHOLDER,
+        )
+        return value.replace(
+            _LEGACY_MAX_STEPS_PLACEHOLDER, _JINJA_MAX_STEPS_PLACEHOLDER
+        )

@@ -81,12 +81,12 @@ class TestSearchEngineFactory:
     def test_get_config_types_from_names_single(self):
         """Test getting config types from single engine name."""
         config_type = get_search_engine_config_types_from_names(["google"])
-        assert config_type == GoogleConfig
+        assert issubclass(config_type, GoogleConfig)
 
     def test_get_default_search_engine_config(self):
         """Test getting default search engine config."""
         config = get_default_search_engine_config(["google", "brave"])
-        assert config == GoogleConfig
+        assert issubclass(config, GoogleConfig)
 
 
 class TestBingSearchInit:
@@ -139,18 +139,18 @@ class TestGetSearchEngineModelConfig:
         config_dict = get_search_engine_model_config(SearchEngineType.GOOGLE)
 
         # Assert
-        assert config_dict["title"] == "Google Search"
+        assert config_dict["title"] == "Google"
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
         "engine_type, expected_title",
         [
-            (SearchEngineType.GOOGLE, "Google Search"),
-            (SearchEngineType.BRAVE, "Brave Search"),
-            (SearchEngineType.PERPLEXITY, "Perplexity Search"),
+            (SearchEngineType.GOOGLE, "Google"),
+            (SearchEngineType.BRAVE, "Brave"),
+            (SearchEngineType.PERPLEXITY, "Perplexity"),
             (AgentEngineType.BING, "Grounding with Bing"),
             (AgentEngineType.VERTEXAI, "Grounding with VertexAI"),
-            (LocalSearchEngineType.CUSTOM_API, "Customized API Search"),
+            (LocalSearchEngineType.CUSTOM_API, "Customized API"),
         ],
         ids=[
             "google",
@@ -195,6 +195,24 @@ class TestGetSearchEngineModelConfig:
         # Assert
         assert config.engine == SearchEngineType.BRAVE
         assert config.fetch_size == 10
+
+    @pytest.mark.ai
+    def test_model_config_title__set_on_perplexity_config__when_registered(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify registry applies config_display_name as JSON schema title.
+        Why this matters: Admin UI uses schema titles to label engine config variants.
+        Setup summary: Read titled config class from SEARCH_ENGINE_REGISTRY.
+        """
+        from unique_web_search.services.search_engine.registry import (
+            SEARCH_ENGINE_REGISTRY,
+        )
+
+        config_cls = SEARCH_ENGINE_REGISTRY[SearchEngineType.PERPLEXITY].config_cls
+
+        assert config_cls.model_json_schema()["title"] == "Perplexity"
+        assert issubclass(config_cls, PerplexityConfig)
 
     @pytest.mark.ai
     def test_model_config_title__set_on_vertexai_config__when_instantiated(
