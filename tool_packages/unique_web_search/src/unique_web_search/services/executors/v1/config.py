@@ -15,7 +15,6 @@ from unique_web_search.services.executors.v1.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     REFINE_QUERY_SYSTEM_PROMPT,
-    RESTRICT_DATE_DESCRIPTION,
 )
 from unique_web_search.settings import env_settings
 
@@ -24,34 +23,6 @@ class RefineQueryMode(StrEnum):
     BASIC = "Basic"
     ADVANCED = "Advanced (Beta)"
     DEACTIVATED = "Deactivated"
-
-
-_DEFAULT_QUERY_DESCRIPTION = "The search query to issue to the web."
-
-
-class WebSearchToolParametersDescriptionConfig(BaseModel):
-    model_config = get_configuration_dict()
-
-    query_description: Annotated[
-        str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(_DEFAULT_QUERY_DESCRIPTION.split("\n"))
-        ),
-    ] = Field(
-        default=_DEFAULT_QUERY_DESCRIPTION,
-        title="Query Parameter Description",
-        description="Advanced: Description of the search query parameter shown to the AI model.",
-    )
-    date_restrict_description: Annotated[
-        str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(RESTRICT_DATE_DESCRIPTION.split("\n"))
-        ),
-    ] = Field(
-        default=RESTRICT_DATE_DESCRIPTION,
-        title="Date Filter Description",
-        description="Advanced: Description of the date restriction parameter shown to the AI model.",
-    )
 
 
 class QueryRefinementConfig(BaseModel):
@@ -99,12 +70,6 @@ class WebSearchV1Config(BaseWebSearchModeConfig[WebSearchMode.V1]):
         default=5,
         title="Maximum Search Queries",
         description="Maximum number of separate searches to run per user request. Only applies when Query Refinement is set to Advanced.",
-    )
-
-    tool_parameters_description: WebSearchToolParametersDescriptionConfig = Field(
-        default_factory=WebSearchToolParametersDescriptionConfig,
-        title="Search Parameter Descriptions",
-        description="Advanced: Descriptions of each search parameter, shown to the AI model.",
     )
 
     tool_description: Annotated[

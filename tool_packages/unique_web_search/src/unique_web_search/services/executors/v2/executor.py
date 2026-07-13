@@ -2,6 +2,7 @@ import asyncio
 import logging
 from time import time
 
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
@@ -45,6 +46,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         tool_call: LanguageModelFunction,
         tool_parameters: WebSearchPlan,
         max_steps: int = 3,
+        exposed_params_cls: type[ExposedParams] | None = None,
     ):
         super().__init__(
             services=services,
@@ -52,6 +54,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
             callbacks=callbacks,
             tool_call=tool_call,
             tool_parameters=tool_parameters,
+            exposed_params_cls=exposed_params_cls,
         )
 
         self.max_steps = max_steps

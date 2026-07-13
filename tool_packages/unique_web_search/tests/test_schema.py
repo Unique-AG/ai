@@ -59,49 +59,40 @@ class TestWebSearchToolParameters:
 
     def test_valid_parameters(self):
         """Test creating valid WebSearchToolParameters."""
-        params = WebSearchToolParameters(
-            query="Python web scraping tutorial", date_restrict="m1"
-        )
+        params = WebSearchToolParameters(query="Python web scraping tutorial")
 
         assert params.query == "Python web scraping tutorial"
-        assert params.date_restrict == "m1"
-
-    def test_parameters_without_date_restrict(self):
-        """Test creating parameters without date restriction."""
-        params = WebSearchToolParameters(query="Python tutorial", date_restrict=None)
-
-        assert params.query == "Python tutorial"
-        assert params.date_restrict is None
 
     def test_empty_query_validation(self):
         """Test that query validation works as expected."""
-        params = WebSearchToolParameters(query="", date_restrict=None)
+        params = WebSearchToolParameters(query="")
         assert params.query == ""
 
-    def test_from_tool_parameter_query_description(self):
-        """Test creating model with custom query description."""
-        CustomParams = WebSearchToolParameters.from_tool_parameter_query_description(
-            query_description="Custom query description",
-            date_restrict_description="Custom date restrict description",
+    def test_with_exposed_params_from_google_config(self):
+        """Test grafting exposed Google knobs onto the V1 tool model."""
+        from unique_search_proxy_core.search_engines.google.schema import (
+            ExposableStrOrNone,
+            GoogleConfig,
         )
 
-        # Test that we can create an instance
-        params = CustomParams(query="test query", date_restrict="d1")
+        config = GoogleConfig(
+            date_restrict=ExposableStrOrNone(expose=True, value=None),
+        )
+        CustomParams = WebSearchToolParameters.with_exposed_params(
+            config.exposed_params_model()
+        )
+
+        params = CustomParams(query="test query", dateRestrict="d1")
 
         assert params.query == "test query"
         assert params.date_restrict == "d1"
         assert CustomParams.__name__ == "WebSearchToolParameters"
 
-    def test_from_tool_parameter_query_description_none_date_restrict(self):
-        """Test creating model with None date restrict description."""
-        CustomParams = WebSearchToolParameters.from_tool_parameter_query_description(
-            query_description="Custom query description", date_restrict_description=None
+    def test_with_exposed_params_none_returns_base(self):
+        """Test that with_exposed_params(None) returns the base class."""
+        assert (
+            WebSearchToolParameters.with_exposed_params(None) is WebSearchToolParameters
         )
-
-        params = CustomParams(query="test query", date_restrict=None)
-
-        assert params.query == "test query"
-        assert params.date_restrict is None
 
 
 class TestStepType:

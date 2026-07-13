@@ -181,7 +181,7 @@ class TestWebSearchV1ExecutorInit:
         Why this matters: Ensures proper initialization of the executor.
         Setup summary: Provide all required dependencies.
         """
-        tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
+        tool_parameters = WebSearchToolParameters(query="test")
 
         executor = WebSearchV1Executor(
             services=executor_context_objects["services"],
@@ -216,9 +216,7 @@ class TestWebSearchV1ExecutorRun:
         Why this matters: Ensures the main execution flow works correctly.
         Setup summary: Mock all services to return successful results.
         """
-        tool_parameters = WebSearchToolParameters(
-            query="test query", date_restrict=None
-        )
+        tool_parameters = WebSearchToolParameters(query="test query")
 
         mock_executor_dependencies["search_service"].search = AsyncMock(
             return_value=sample_web_search_results
@@ -257,9 +255,7 @@ class TestWebSearchV1ExecutorRun:
         Why this matters: Some search engines don't return content, requiring crawling.
         Setup summary: Set requires_scraping=True on search service.
         """
-        tool_parameters = WebSearchToolParameters(
-            query="test query", date_restrict=None
-        )
+        tool_parameters = WebSearchToolParameters(query="test query")
 
         mock_executor_dependencies["search_service"].search = AsyncMock(
             return_value=sample_web_search_results
@@ -299,9 +295,7 @@ class TestWebSearchV1ExecutorRun:
         Why this matters: Search-driven crawl flows must not bypass the shared SSRF guard.
         Setup summary: Return a localhost URL from the search service with scraping enabled and assert CrawlTargetValidationError is raised.
         """
-        tool_parameters = WebSearchToolParameters(
-            query="test query", date_restrict=None
-        )
+        tool_parameters = WebSearchToolParameters(query="test query")
 
         mock_executor_dependencies["search_service"].search = AsyncMock(
             return_value=[
@@ -348,7 +342,7 @@ class TestWebSearchV1ExecutorRefineQuery:
         Why this matters: BASIC mode should return one refined query.
         Setup summary: Mock LLM to return a RefinedQuery.
         """
-        tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
+        tool_parameters = WebSearchToolParameters(query="test")
 
         mock_response = Mock()
         mock_response.choices = [Mock()]
@@ -389,7 +383,7 @@ class TestWebSearchV1ExecutorRefineQuery:
         Why this matters: ADVANCED mode should return multiple refined queries.
         Setup summary: Mock LLM to return RefinedQueries.
         """
-        tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
+        tool_parameters = WebSearchToolParameters(query="test")
 
         mock_response = Mock()
         mock_response.choices = [Mock()]
@@ -437,7 +431,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
         Why this matters: Queries under the limit should not be truncated.
         Setup summary: Provide queries list smaller than max_queries.
         """
-        tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
+        tool_parameters = WebSearchToolParameters(query="test")
 
         executor = WebSearchV1Executor(
             services=executor_context_objects["services"],
@@ -467,7 +461,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
         Why this matters: Prevents excessive queries that could slow down execution.
         Setup summary: Provide queries list larger than max_queries.
         """
-        tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
+        tool_parameters = WebSearchToolParameters(query="test")
 
         executor = WebSearchV1Executor(
             services=executor_context_objects["services"],
@@ -1015,8 +1009,11 @@ class TestWebSearchV3ToolParametersValidation:
         assert Command("read_urls") is Command.FETCH_URLS
 
     @pytest.mark.ai
-    def test_get_display_name_suffix_per_command(self) -> None:
-        """Display-name suffix differs per command for UI clarity."""
+    def test_v3_strategy_build_display_name_per_command(self) -> None:
+        """V3 strategy appends a command-specific phase suffix to the display name."""
+        from unique_web_search.services.executors.v3.config import WebSearchV3Config
+        from unique_web_search.services.executors.v3.strategy import WebSearchV3Strategy
+
         search_params = WebSearchV3ToolParameters.model_validate(
             {
                 "command": "search",
@@ -1031,9 +1028,22 @@ class TestWebSearchV3ToolParametersValidation:
                 "payload": {"urls": ["https://example.com/a"]},
             }
         )
+        strategy = WebSearchV3Strategy(WebSearchV3Config())
         assert search_params.relevance_focus() == "[exploratory] g"
-        assert search_params.get_display_name_suffix() == " - Searching"
-        assert fetch_params.get_display_name_suffix() == " - Reading Pages"
+        assert (
+            strategy.build_display_name(
+                base_display_name="Web Search",
+                parameters=search_params,
+            )
+            == "Web - Searching"
+        )
+        assert (
+            strategy.build_display_name(
+                base_display_name="Web Search",
+                parameters=fetch_params,
+            )
+            == "Web - Reading Pages"
+        )
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:

@@ -11,6 +11,3 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT: str = load_template(
 REFINE_QUERY_SYSTEM_PROMPT: str = load_template(
     _PROMPTS_DIR, "refine_query_system_prompt.j2"
 )
-RESTRICT_DATE_DESCRIPTION: str = load_template(
-    _PROMPTS_DIR, "restrict_date_description.j2"
-)

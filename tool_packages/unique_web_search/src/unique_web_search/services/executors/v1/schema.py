@@ -1,26 +1,38 @@
 """V1 WebSearch tool parameters (single-query tool call)."""
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from __future__ import annotations
+
+from pydantic import ConfigDict, Field, create_model
+from pydantic.alias_generators import to_camel
+from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+
+_DEFAULT_QUERY_DESCRIPTION = "The search query to issue to the web."
 
 
-class WebSearchToolParameters(BaseModel):
+class WebSearchToolParameters(ExposedParams):
     """Parameters for the Websearch tool."""
 
-    model_config = ConfigDict(extra="forbid")
-    query: str
-    date_restrict: str | None
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        extra="forbid",
+    )
+
+    query: str = Field(description=_DEFAULT_QUERY_DESCRIPTION)
 
     @classmethod
-    def from_tool_parameter_query_description(
-        cls, query_description: str, date_restrict_description: str | None
-    ) -> type["WebSearchToolParameters"]:
-        """Create a new model with the query field."""
+    def with_exposed_params(
+        cls,
+        exposed: type[ExposedParams] | None,
+    ) -> type[WebSearchToolParameters]:
+        """Graft admin-exposed engine knobs onto the V1 tool-parameter model.
+
+        Returns ``cls`` unchanged when nothing is exposed; otherwise builds a
+        dynamic subclass via ``create_model(__base__=(cls, exposed))``.
+        """
+        if exposed is None:
+            return cls
         return create_model(
             cls.__name__,
-            query=(str, Field(description=query_description)),
-            date_restrict=(
-                str | None,
-                Field(description=date_restrict_description),
-            ),
-            __base__=cls,
+            __base__=(cls, exposed),
         )
