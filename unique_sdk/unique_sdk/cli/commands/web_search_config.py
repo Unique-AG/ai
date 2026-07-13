@@ -12,7 +12,7 @@ Two file shapes are recognised:
 1. **Full platform config** — a complete ``WebSearchConfig`` payload as
    emitted by the platform (camelCase or snake_case). Detected by the
    presence of ``webSearchActiveMode`` / ``web_search_active_mode`` or a
-   discriminator field (``search_engine_name`` / ``searchEngineName``,
+   discriminator field (``engine`` / ``searchEngineName`` / ``search_engine_name``,
    ``crawler`` / ``crawler_type`` / ``crawlerType``) inside the nested engine/crawler
    dicts. The nested ``searchEngineConfig`` and ``crawlerConfig`` blocks
    are forwarded verbatim to the API.
@@ -37,7 +37,7 @@ DEFAULT_CONFIG_PATH = Path.home() / ".unique-websearch.json"
 ENV_CONFIG_PATH = "UNIQUE_WEBSEARCH_CONFIG"
 
 _MODE_KEYS = frozenset({"webSearchActiveMode", "web_search_active_mode"})
-_ENGINE_DISCRIMINATORS = frozenset({"search_engine_name", "searchEngineName"})
+_ENGINE_DISCRIMINATORS = frozenset({"engine", "searchEngineName", "search_engine_name"})
 _CRAWLER_DISCRIMINATORS = frozenset({"crawler", "crawler_type", "crawlerType"})
 
 _ENGINE_KEYS = ("searchEngineConfig", "search_engine_config")
@@ -134,8 +134,8 @@ def is_full_platform_config(data: dict[str, Any]) -> bool:
 
     A full config is identified by the ``webSearchActiveMode`` /
     ``web_search_active_mode`` top-level key, or by a discriminator
-    (``searchEngineName`` / ``crawlerType``) inside the nested
-    engine/crawler config dicts.
+    (``engine`` / ``searchEngineName``; ``crawler`` / ``crawlerType``)
+    inside the nested engine/crawler config dicts.
     """
     if set(data.keys()) & _MODE_KEYS:
         return True
