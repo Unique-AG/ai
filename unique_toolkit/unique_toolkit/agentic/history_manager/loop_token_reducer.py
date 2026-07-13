@@ -256,7 +256,7 @@ class LoopTokenReducer:
             f"(overshoot factor: {overshoot_factor:.2f}x). Reducing number of sources per tool call.",
         )
 
-        return self._reduce_message_length_by_reducing_sources_in_tool_response(
+        return self._reduce_message_length_by_reducing_tool_responses_content(
             loop_history, overshoot_factor
         )
 
@@ -496,7 +496,7 @@ class LoopTokenReducer:
 
         return limited_history_messages[idx:]
 
-    def _reduce_message_length_by_reducing_sources_in_tool_response(
+    def _reduce_message_length_by_reducing_tool_responses_content(
         self,
         history: list[LanguageModelMessage],
         overshoot_factor: float,
@@ -518,7 +518,20 @@ class LoopTokenReducer:
         source_offset = max(0, self._max_db_source_number + 1)
 
         for message in history:
-            if self._can_truncate_message(message):
+            if not self._should_reduce_message(message):
+                result = message
+            elif self._has_sources(message):
+                source_result = self._reduce_sources_in_tool_message(
+                    message,
+                    chunk_offset,
+                    source_offset,
+                    overshoot_factor,
+                )
+                content_chunks_reduced.extend(source_result.reduced_chunks)
+                chunk_offset = source_result.chunk_offset
+                source_offset = source_result.source_offset
+                result = source_result.message
+            elif self._can_truncate_message(message):
                 assert isinstance(message.content, str)
                 truncated = _truncate_plain_text(message.content, overshoot_factor)
                 if truncated != message.content:
@@ -527,28 +540,19 @@ class LoopTokenReducer:
                         f"{len(truncated)} chars "
                         f"(overshoot factor: {overshoot_factor:.2f}x)."
                     )
-                history_reduced.append(
-                    LanguageModelToolMessage(
-                        content=truncated,
-                        tool_call_id=message.tool_call_id,
-                        name=message.name,
-                    )
+                result = LanguageModelToolMessage(
+                    content=truncated,
+                    tool_call_id=message.tool_call_id,
+                    name=message.name,
                 )
-            elif self._should_reduce_message(message):
-                result = self._reduce_sources_in_tool_message(
-                    message,
-                    chunk_offset,
-                    source_offset,
-                    overshoot_factor,
-                )
-                content_chunks_reduced.extend(result.reduced_chunks)
-                history_reduced.append(result.message)
-                chunk_offset = result.chunk_offset
-                source_offset = result.source_offset
             else:
-                history_reduced.append(message)
+                result = message
 
-        self._reference_manager.replace(chunks=content_chunks_reduced)
+            history_reduced.append(result)
+
+        if len(content_chunks_reduced) > 0:
+            self._reference_manager.replace(chunks=content_chunks_reduced)
+
         return history_reduced
 
     def _should_reduce_message(
@@ -559,12 +563,15 @@ class LoopTokenReducer:
             message, LanguageModelToolMessage
         )
 
+    def _has_sources(self, message: LanguageModelToolMessage) -> bool:
+        return len(self._reference_manager.get_chunks_of_tool(message.tool_call_id)) > 0
+
     def _can_truncate_message(self, message: LanguageModelMessage) -> bool:
         if not self._should_reduce_message(message) or message.name == "TableSearch":
             return False
         if not isinstance(message.content, str):
             return False
-        if self._reference_manager.get_chunks_of_tool(message.tool_call_id):
+        if self._has_sources(message):
             return False
         base = message.content.removesuffix(PLAIN_TEXT_TRUNCATION_MARKER)
         return len(base) > MIN_PLAIN_TEXT_CHARS_TO_KEEP

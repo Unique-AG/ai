@@ -1299,7 +1299,7 @@ def test_reduce_message_length_by_reducing_sources__processes_all_tool_messages_
 
     # Act
     result = (
-        loop_token_reducer._reduce_message_length_by_reducing_sources_in_tool_response(
+        loop_token_reducer._reduce_message_length_by_reducing_tool_responses_content(
             history, overshoot_factor=2.0
         )
     )
