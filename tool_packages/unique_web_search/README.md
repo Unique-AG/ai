@@ -26,7 +26,6 @@ The following diagram illustrates the complete architecture and workflow of the 
 
 - **Multiple Web Crawlers**:
   - Basic HTTP Crawler
-  - Crawl4AI
   - Jina Reader
   - Tavily Crawler
   - Firecrawl Crawler
@@ -51,7 +50,7 @@ The following diagram illustrates the complete architecture and workflow of the 
 For deeper dives into each subsystem, see the dedicated READMEs:
 
 - [Search Engines](./unique_web_search/services/search_engine/README.md) &mdash; full catalogue of supported engines, configuration, and usage examples.
-- [Crawlers](./unique_web_search/services/crawlers/README.md) &mdash; comparison of crawling strategies (Basic, Crawl4AI, Tavily, Firecrawl, Jina) with setup guides.
+- [Crawlers](./unique_web_search/services/crawlers/README.md) &mdash; comparison of crawling strategies (Basic, Tavily, Firecrawl, Jina) with setup guides.
 - [Executors](./unique_web_search/services/executors/README.md) &mdash; orchestration layer (V1 & V2) covering query refinement, planning, logging, and best practices.
 
 ## Configuration

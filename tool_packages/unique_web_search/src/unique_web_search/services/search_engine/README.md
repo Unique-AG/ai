@@ -661,7 +661,7 @@ To add a new search engine:
 5. Add the config and implementation types to the static `SearchEngineConfigTypes` / `SearchEngineTypes` unions in `__init__.py` (required for pyright; guarded by `tests/test_search_engine_registry.py`)
 6. Add tests in `tests/test_search_engines.py`
 
-The shared registration machinery lives in [`services/_registry.py`](../_registry.py); crawlers will reuse the same core in a future migration.
+The shared registration machinery lives in [`services/_registry.py`](../_registry.py); crawlers reuse the same core via [`services/crawlers/registry.py`](../crawlers/registry.py).
 
 Example template (web-only engine):
 

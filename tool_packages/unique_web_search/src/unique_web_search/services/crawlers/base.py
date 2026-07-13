@@ -1,50 +1,21 @@
-from abc import ABC, abstractmethod
-from enum import StrEnum
-from typing import ClassVar, Generic, TypeVar
+from __future__ import annotations
 
-from pydantic import BaseModel
+from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
+
+from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig
 from unique_search_proxy_core.url_safety import (
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
     UrlSafetyService,
 )
-from unique_toolkit.agentic.tools.config import (
-    get_configuration_dict,
-)
 
 from unique_web_search.metrics import crawl_blocked
-from unique_web_search.services.helpers import (
-    clean_model_title_generator,
-    experimental_model_title_generator,
+from unique_web_search.services.proxy.bridge import (
+    open_search_proxy_client,
+    search_proxy_client_enabled,
 )
-from unique_web_search.services.proxy.bridge import search_proxy_client_enabled
-
-
-class CrawlerType(StrEnum):
-    CRAWL4AI = "Crawl4AiCrawler"
-    BASIC = "BasicCrawler"
-    NO_CRAWLER = "NoCrawler"
-    TAVILY = "TavilyCrawler"
-    FIRECRAWL = "FirecrawlCrawler"
-    JINA = "JinaCrawler"
-
-
-T = TypeVar("T", bound=CrawlerType)
-
-
-class BaseCrawlerConfig(BaseModel, Generic[T]):
-    model_config = get_configuration_dict(
-        model_title_generator=clean_model_title_generator
-    )
-    crawler_type: T
-    timeout: int = 10
-
-
-class BaseCrawlerConfigExperimental(BaseCrawlerConfig[T]):
-    model_config = get_configuration_dict(
-        model_title_generator=experimental_model_title_generator
-    )
-
+from unique_web_search.services.proxy.mappers import map_crawl_response
 
 CrawlerConfig = TypeVar(
     "CrawlerConfig",
@@ -53,13 +24,17 @@ CrawlerConfig = TypeVar(
 
 
 class BaseCrawler(ABC, Generic[CrawlerConfig]):
-    supports_proxy_crawl: ClassVar[bool] = False
+    """Base class for web-page crawlers.
+
+    The search-proxy path is implemented entirely here. Subclasses only provide
+    the direct ``_legacy_crawl`` implementation used when the proxy is disabled.
+    """
 
     def __init__(self, config: CrawlerConfig):
         self.config = config
 
     async def crawl(self, urls: list[str]) -> list[str]:
-        if search_proxy_client_enabled and self.supports_proxy_crawl:
+        if search_proxy_client_enabled:
             return await self._proxy_crawl(urls)
 
         try:
@@ -70,8 +45,18 @@ class BaseCrawler(ABC, Generic[CrawlerConfig]):
             raise
         return await self._legacy_crawl(targets)
 
-    @abstractmethod
-    async def _proxy_crawl(self, urls: list[str]) -> list[str]: ...
+    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
+        """Dump deployment config fields into the generic proxy crawl call."""
+        params = self.config.model_dump(exclude={"crawler"}, exclude_none=True)
+        async with open_search_proxy_client(
+            timeout=float(self.config.timeout)
+        ) as client:
+            response = await client.crawl.crawl(
+                urls=urls,
+                crawler=self.config.crawler,
+                **params,
+            )
+        return map_crawl_response(response, urls)
 
     @abstractmethod
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]: ...

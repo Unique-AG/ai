@@ -1,12 +1,32 @@
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
 from pydantic import Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
+from unique_search_proxy_core.schema import DeactivatedNone
 
 FirecrawlProxyMode = Literal["basic", "enhanced", "auto"]
+
+MaxConcurrencyOrNone: TypeAlias = (
+    Annotated[int, Field(title="Integer", ge=1)] | DeactivatedNone
+)
+TagListOrNone: TypeAlias = (
+    Annotated[
+        list[str],
+        Field(title="Tags"),
+        RJSFMetaTag({"ui:options": {"orderable": False}}),
+    ]
+    | DeactivatedNone
+)
+ScrapeHeadersOrNone: TypeAlias = (
+    Annotated[dict[str, str], Field(title="Headers")] | DeactivatedNone
+)
+MaxAgeOrNone: TypeAlias = (
+    Annotated[int, Field(title="Integer", ge=0)] | DeactivatedNone
+)
 
 
 class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
@@ -14,7 +34,13 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
 
     _request_model_name: ClassVar[str] = "FirecrawlCrawlRequest"
 
-    crawler: Literal[CrawlerType.FIRECRAWL] = CrawlerType.FIRECRAWL
+    crawler: Annotated[
+        Literal[CrawlerType.FIRECRAWL], RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
+        default=CrawlerType.FIRECRAWL,
+        title="Crawler",
+        description="Provider discriminator; must be `Firecrawl` for this config.",
+    )
 
     only_main_content: bool = Field(
         default=True,
@@ -26,9 +52,8 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
         title="Only clean content",
         description="LLM pass to remove residual boilerplate from markdown.",
     )
-    max_concurrency: int | None = Field(
+    max_concurrency: MaxConcurrencyOrNone = Field(
         default=None,
-        ge=1,
         title="Max concurrency",
         description="Maximum concurrent scrapes for this batch job.",
     )
@@ -63,24 +88,23 @@ class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
         title="Proxy mode",
         description="Firecrawl proxy tier: `basic`, `enhanced`, or `auto`.",
     )
-    include_tags: list[str] | None = Field(
+    include_tags: TagListOrNone = Field(
         default=None,
         title="Include tags",
         description="HTML tags to include in scrape output.",
     )
-    exclude_tags: list[str] | None = Field(
+    exclude_tags: TagListOrNone = Field(
         default=None,
         title="Exclude tags",
         description="HTML tags to exclude from scrape output.",
     )
-    scrape_headers: dict[str, str] | None = Field(
+    scrape_headers: ScrapeHeadersOrNone = Field(
         default=None,
         title="Scrape headers",
         description="Headers sent to the target page (cookies, user-agent, etc.).",
     )
-    max_age: int | None = Field(
+    max_age: MaxAgeOrNone = Field(
         default=None,
-        ge=0,
         title="Max age",
         description=(
             "Return cached page content younger than this age in milliseconds."

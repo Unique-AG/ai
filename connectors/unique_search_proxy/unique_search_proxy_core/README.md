@@ -68,7 +68,7 @@ Admin JSON → GoogleConfig {expose, value}
 | `merge(overrides, *, query)` (instance) | search only | deployment defaults + LLM overrides + query → validated `request_model()` instance |
 | `provider_query_params(request)` (classmethod) | search only | request serialized for the upstream provider, minus `_provider_param_exclude_fields` (Google adds `search_engine_id`) |
 
-Agent engines (`BingAgentConfig`, …) and crawlers (`BasicConfig`, …) only implement `request_model()`; crawlers additionally keep `merge_crawler_config_and_invocation`.
+Agent engines (`BingAgentConfig`, …) and crawlers (`BasicConfig`, …) only implement `request_model()`. Crawlers have no exposable params and no `merge` — a crawl request is simply the deployment config fields plus `urls`.
 
 ### 3.2 ExposableParam — search-engine only
 
@@ -106,15 +106,6 @@ request = google_config.merge({"gl": "de"}, query="EU AI Act")
 ```
 
 Deactivated knobs (`value=None`) are dropped, overrides win over admin defaults, `engine` always comes from the config. The proxy receives a flat body; it does not resolve deployment config over HTTP.
-
-### 3.5 merge_crawler_config_and_invocation — crawler only
-
-```python
-from unique_search_proxy_core.crawlers import merge_crawler_config_and_invocation
-
-request = merge_crawler_config_and_invocation(basic_config, {"urls": ["https://example.com"]})
-# → validated BasicCrawlRequest ready for POST /v1/crawl
-```
 
 ---
 
@@ -155,7 +146,7 @@ flowchart TB
 | `providers/schema.py` | JSON Schema + defaults for deployment UIs (`provider_config_json_schema`, …) |
 | `search_engines/` | Config models with the config-owned API (`request_model` / `exposed_params_model` / `merge` / `provider_query_params`), request union |
 | `agent_engines/` | Agent config/request models (`request_model`), output schema |
-| `crawlers/` | `*Config` deployment models + derived `*CrawlRequest` bodies, `merge_crawler_config_and_invocation` |
+| `crawlers/` | `*Config` deployment models + derived `*CrawlRequest` bodies (`request_model()`) |
 
 ---
 
@@ -220,7 +211,7 @@ from unique_search_proxy_core import (
 - Discriminated provider configs (`engine`, `crawler` Literal discriminators)
 - **Search-only:** `ExposableParam` policy; config-owned `request_model` / `exposed_params_model` / `merge` / `provider_query_params`
 - **Agent:** `BingAgentConfig.request_model()` (injects `query`; excludes `output_schema`)
-- **Crawl:** `BasicConfig.request_model()` (injects `urls`); `merge_crawler_config_and_invocation`
+- **Crawl:** `BasicConfig.request_model()` (injects `urls`); no exposable params / no merge
 - CamelCase JSON aliases on all models
 - Zero server dependencies (import-linter enforced in the client package)
 

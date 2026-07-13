@@ -13,7 +13,7 @@ Two file shapes are recognised:
    emitted by the platform (camelCase or snake_case). Detected by the
    presence of ``webSearchActiveMode`` / ``web_search_active_mode`` or a
    discriminator field (``search_engine_name`` / ``searchEngineName``,
-   ``crawler_type`` / ``crawlerType``) inside the nested engine/crawler
+   ``crawler`` / ``crawler_type`` / ``crawlerType``) inside the nested engine/crawler
    dicts. The nested ``searchEngineConfig`` and ``crawlerConfig`` blocks
    are forwarded verbatim to the API.
 
@@ -38,7 +38,7 @@ ENV_CONFIG_PATH = "UNIQUE_WEBSEARCH_CONFIG"
 
 _MODE_KEYS = frozenset({"webSearchActiveMode", "web_search_active_mode"})
 _ENGINE_DISCRIMINATORS = frozenset({"search_engine_name", "searchEngineName"})
-_CRAWLER_DISCRIMINATORS = frozenset({"crawler_type", "crawlerType"})
+_CRAWLER_DISCRIMINATORS = frozenset({"crawler", "crawler_type", "crawlerType"})
 
 _ENGINE_KEYS = ("searchEngineConfig", "search_engine_config")
 _CRAWLER_KEYS = ("crawlerConfig", "crawler_config")

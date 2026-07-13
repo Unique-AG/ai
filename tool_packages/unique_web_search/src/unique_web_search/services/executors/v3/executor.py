@@ -190,7 +190,7 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         )
 
         urls = list(urls)
-        crawler = self.crawler_service.config.crawler_type.value
+        crawler = self.crawler_service.config.crawler.value
         time_start = time()
         _LOGGER.info(
             f"Company {self.company_id} Crawling {len(urls)} URLs with {crawler}"

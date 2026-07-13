@@ -1,21 +1,15 @@
 import asyncio
-from typing import Any, Literal, cast, override
+from typing import Any, override
 
 from httpx import AsyncClient
 from pydantic import BaseModel, Field, HttpUrl
-from unique_search_proxy_core.crawlers.jina.schema import JinaEngine, JinaReturnFormat
+from unique_search_proxy_core.crawlers.base import CrawlerType
+from unique_search_proxy_core.crawlers.jina.schema import JinaConfig
 
 from unique_web_search.client_settings import get_jina_search_settings
-from unique_web_search.services.crawlers.base import (
-    BaseCrawler,
-    BaseCrawlerConfigExperimental,
-    CrawlerType,
-)
+from unique_web_search.services.crawlers.base import BaseCrawler
+from unique_web_search.services.crawlers.registry import register_crawler
 from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
-from unique_web_search.services.proxy.bridge import (
-    open_search_proxy_client,
-)
-from unique_web_search.services.proxy.mappers import map_crawl_response
 
 
 class ReaderBody(BaseModel):
@@ -38,45 +32,15 @@ class ReaderResponse(BaseModel):
     data: ReaderData | None = None
 
 
-class JinaCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.JINA]):
-    crawler_type: Literal[CrawlerType.JINA] = CrawlerType.JINA
-    headers: dict[str, str] = Field(
-        default={
-            "X-Return-Format": "markdown",
-            "X-Engine": "browser",
-            "DNT": "1",
-        },
-        description="Headers to send with the request",
-    )
-
-
-class JinaCrawler(BaseCrawler[JinaCrawlerConfig]):
-    supports_proxy_crawl = True
-
-    def __init__(self, config: JinaCrawlerConfig):
+@register_crawler(
+    name="jina",
+    key=CrawlerType.JINA,
+    config_cls=JinaConfig,
+    config_display_name="Jina",
+)
+class JinaCrawler(BaseCrawler[JinaConfig]):
+    def __init__(self, config: JinaConfig):
         super().__init__(config)
-
-    # TODO: Find a solution for tracking
-    # @track(
-    #     tags=["jina", "scrape"],
-    # )
-    @override
-    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
-        headers = self.config.headers
-        async with open_search_proxy_client(
-            timeout=float(self.config.timeout),
-        ) as client:
-            response = await client.crawl.jina(
-                urls=urls,
-                timeout=int(self.config.timeout),
-                return_format=cast(
-                    JinaReturnFormat,
-                    headers.get("X-Return-Format", "markdown"),
-                ),
-                engine=cast(JinaEngine, headers.get("X-Engine", "browser")),
-                do_not_track=headers.get("DNT") == "1",
-            )
-            return map_crawl_response(response, urls)
 
     @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
@@ -91,7 +55,11 @@ class JinaCrawler(BaseCrawler[JinaCrawlerConfig]):
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-        } | self.config.headers
+            "X-Return-Format": self.config.return_format,
+            "X-Engine": self.config.engine,
+        }
+        if self.config.do_not_track:
+            headers["DNT"] = "1"
 
         async with AsyncClient(timeout=self.config.timeout) as client:
             tasks = [
