@@ -395,7 +395,7 @@ class TestRunLoopDebugParams:
             MagicMock(url="source_3"),
         ]
         ua._loop_iteration_runner.return_value.message.references = references
-        ua._reference_manager.get_latest_references.return_value = references
+        ua._reference_manager.get_references.return_value = [references]
 
         await ua.run()
 
@@ -421,6 +421,37 @@ class TestRunLoopDebugParams:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__analytics__counts_references_across_iterations(
+        self, monkeypatch
+    ) -> None:
+        """
+        Purpose: Verify analytics includes reference sources from every loop iteration.
+        Why this matters: Earlier citations belong to the same run and must not be
+        omitted when a later iteration appends another reference batch.
+        Setup summary: Return two stored batches with one duplicate source and assert
+        that all three distinct sources are counted.
+        """
+        ua = self._build_run_ua(monkeypatch)
+        first_iteration_references = [
+            MagicMock(url="source_1"),
+            MagicMock(url="source_2"),
+        ]
+        latest_iteration_references = [
+            MagicMock(url="source_2"),
+            MagicMock(url="source_3"),
+        ]
+        ua._reference_manager.get_references.return_value = [
+            first_iteration_references,
+            latest_iteration_references,
+        ]
+
+        await ua.run()
+
+        analytics_call = ua._debug_info_manager.add_analytics.call_args
+        assert analytics_call.kwargs["references"] == 3
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__analytics__counts_distinct_references_without_urls(
         self, monkeypatch
     ) -> None:
@@ -436,7 +467,7 @@ class TestRunLoopDebugParams:
             MagicMock(url=None, source="mcp", source_id="resource_2"),
         ]
         ua._loop_iteration_runner.return_value.message.references = references
-        ua._reference_manager.get_latest_references.return_value = references
+        ua._reference_manager.get_references.return_value = [references]
 
         await ua.run()
 

@@ -322,7 +322,8 @@ class UniqueAI:
                 ("url", reference.url)
                 if reference.url is not None
                 else ("source", reference.source, reference.source_id)
-                for reference in self._reference_manager.get_latest_references()
+                for references in self._reference_manager.get_references()
+                for reference in references
             }
             language_model = self._config.space.language_model
             tool_display_names = {
