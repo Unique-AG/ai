@@ -122,7 +122,6 @@ def loop_token_reducer(
         logger=mock_logger,
         event=test_event,
         max_history_tokens=4000,
-        has_uploaded_content_config=False,
         reference_manager=mock_reference_manager,
         language_model=language_model_info,
     )
@@ -204,14 +203,13 @@ def test_loop_token_reducer__initializes__with_valid_parameters_AI(
         logger=mock_logger,
         event=test_event,
         max_history_tokens=4000,
-        has_uploaded_content_config=False,
         reference_manager=mock_reference_manager,
         language_model=language_model_info,
     )
 
     # Assert
     assert reducer._max_history_tokens == 4000
-    assert reducer._has_uploaded_content_config is False
+    assert reducer._file_content_serializer is None
     assert reducer._logger == mock_logger
     assert reducer._reference_manager == mock_reference_manager
     assert reducer._language_model == language_model_info
@@ -1272,7 +1270,6 @@ async def test_get_history_from_db__calls_without_tool_calls__when_persistence_d
         logger=mock_logger,
         event=test_event,
         max_history_tokens=4000,
-        has_uploaded_content_config=False,
         reference_manager=mock_reference_manager,
         language_model=language_model_info,
         enable_tool_call_persistence=False,
@@ -1294,6 +1291,10 @@ async def test_get_history_from_db__calls_without_tool_calls__when_persistence_d
     )
 
     mock_get_history.assert_called_once()
+    assert (
+        mock_get_history.call_args.kwargs["file_content_serializer"]
+        is reducer._file_content_serializer
+    )
 
 
 @pytest.mark.ai
@@ -1322,7 +1323,6 @@ async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enab
         logger=mock_logger,
         event=test_event,
         max_history_tokens=4000,
-        has_uploaded_content_config=False,
         reference_manager=mock_reference_manager,
         language_model=language_model_info,
         enable_tool_call_persistence=True,

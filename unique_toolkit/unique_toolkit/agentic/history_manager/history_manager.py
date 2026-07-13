@@ -10,6 +10,9 @@ from unique_toolkit._common.feature_flags.schema import (
 )
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+    FileContentSerializer,
+)
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import (
     serialize_tool_content_json,
@@ -115,6 +118,7 @@ class HistoryManager:
         config: HistoryManagerConfig,
         language_model: LMI,
         reference_manager: ReferenceManager,
+        file_content_serializer: FileContentSerializer | None = None,
     ):
         self._config = config
         self._logger = logger
@@ -123,10 +127,10 @@ class HistoryManager:
             logger=self._logger,
             event=event,
             max_history_tokens=self._config.max_history_tokens,
-            has_uploaded_content_config=bool(self._config.uploaded_content_config),
             language_model=self._language_model,
             reference_manager=reference_manager,
             enable_tool_call_persistence=self._config.enable_tool_call_persistence,
+            file_content_serializer=file_content_serializer,
         )
         self._reference_manager = reference_manager
         self._tool_call_result_history: list[ToolCallResponse] = []

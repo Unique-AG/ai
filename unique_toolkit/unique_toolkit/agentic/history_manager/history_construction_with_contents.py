@@ -6,7 +6,7 @@ import mimetypes
 from datetime import datetime
 from enum import StrEnum
 from itertools import groupby
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING, Callable, Iterator
 
 if TYPE_CHECKING:
     from unique_toolkit.content.schemas import ContentChunk
@@ -200,9 +200,7 @@ async def download_encoded_images_async(
     return base64_encoded_images
 
 
-class FileContentSerialization(StrEnum):
-    NONE = "none"
-    FILE_NAME = "file_name"
+FileContentSerializer = Callable[[Content], str | None]
 
 
 class ImageContentInclusion(StrEnum):
@@ -210,23 +208,17 @@ class ImageContentInclusion(StrEnum):
     ALL = "all"
 
 
-def file_content_serialization(
+def _serialize_file_contents(
+    text: str,
     file_contents: list[Content],
-    file_content_serialization: FileContentSerialization,
+    file_content_serializer: FileContentSerializer | None,
 ) -> str:
-    match file_content_serialization:
-        case FileContentSerialization.NONE:
-            return ""
-        case FileContentSerialization.FILE_NAME:
-            file_names = [
-                f"- Uploaded file: {f.key} at {f.created_at}" for f in file_contents
-            ]
-            return "\n".join(
-                [
-                    "Files Uploaded to Chat can be accessed by internal search tool if available:\n",
-                ]
-                + file_names,
-            )
+    serialized_files: list[str] = []
+    if file_content_serializer is not None:
+        for file_content in file_contents:
+            if serialized_file := file_content_serializer(file_content):
+                serialized_files.append(serialized_file)
+    return (text + "\n\n" + "\n".join(serialized_files)).strip()
 
 
 def _append_element_to_builder(
@@ -234,9 +226,9 @@ def _append_element_to_builder(
     c: ChatMessageWithContents,
     text: str,
     include_images: ImageContentInclusion,
-    file_content_serialization_type: FileContentSerialization,
     content_service: ContentService,
     chat_id: str,
+    file_content_serializer: FileContentSerializer | None = None,
     selected_content_ids: set[str] | None = None,
 ) -> None:
     if len(c.contents) > 0:
@@ -249,15 +241,12 @@ def _append_element_to_builder(
             image_contents = [
                 co for co in image_contents if co.id in selected_content_ids
             ]
-        content = (
-            text
-            + "\n\n"
-            + file_content_serialization(
-                file_contents,
-                file_content_serialization_type,
-            )
-        ).strip()
-        if include_images and len(image_contents) > 0:
+        content = _serialize_file_contents(
+            text,
+            file_contents,
+            file_content_serializer,
+        )
+        if include_images and image_contents:
             builder.image_message_append(
                 content=content,
                 images=download_encoded_images(
@@ -285,9 +274,9 @@ async def _append_element_to_builder_async(
     c: ChatMessageWithContents,
     text: str,
     include_images: ImageContentInclusion,
-    file_content_serialization_type: FileContentSerialization,
     content_service: ContentService,
     chat_id: str,
+    file_content_serializer: FileContentSerializer | None = None,
     selected_content_ids: set[str] | None = None,
 ) -> None:
     if len(c.contents) > 0:
@@ -300,15 +289,12 @@ async def _append_element_to_builder_async(
             image_contents = [
                 co for co in image_contents if co.id in selected_content_ids
             ]
-        content = (
-            text
-            + "\n\n"
-            + file_content_serialization(
-                file_contents,
-                file_content_serialization_type,
-            )
-        ).strip()
-        if include_images and len(image_contents) > 0:
+        content = _serialize_file_contents(
+            text,
+            file_contents,
+            file_content_serializer,
+        )
+        if include_images and image_contents:
             builder.image_message_append(
                 content=content,
                 images=await download_encoded_images_async(
@@ -336,7 +322,7 @@ def get_full_history_with_contents(
     chat_service: ChatService,
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
-    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    file_content_serializer: FileContentSerializer | None = None,
     selected_content_ids: set[str] | None = None,
 ) -> LanguageModelMessages:
     grouped_elements = get_chat_history_with_contents(
@@ -361,7 +347,7 @@ def get_full_history_with_contents(
             c=c,
             text=text,
             include_images=include_images,
-            file_content_serialization_type=file_content_serialization_type,
+            file_content_serializer=file_content_serializer,
             content_service=content_service,
             chat_id=chat_id,
             selected_content_ids=selected_content_ids,
@@ -376,7 +362,7 @@ async def get_full_history_with_contents_async(
     chat_service: ChatService,
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
-    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    file_content_serializer: FileContentSerializer | None = None,
     selected_content_ids: set[str] | None = None,
 ) -> LanguageModelMessages:
     grouped_elements = await get_chat_history_with_contents_async(
@@ -400,7 +386,7 @@ async def get_full_history_with_contents_async(
             c=c,
             text=text,
             include_images=include_images,
-            file_content_serialization_type=file_content_serialization_type,
+            file_content_serializer=file_content_serializer,
             content_service=content_service,
             chat_id=chat_id,
             selected_content_ids=selected_content_ids,
@@ -415,7 +401,7 @@ def get_full_history_with_contents_and_tool_calls(
     chat_service: ChatService,
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
-    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    file_content_serializer: FileContentSerializer | None = None,
     selected_content_ids: set[str] | None = None,
 ) -> tuple[LanguageModelMessages, int, dict[int, "ContentChunk"]]:
     """Build the full LLM message history, including persisted tool call rounds.
@@ -544,7 +530,7 @@ def get_full_history_with_contents_and_tool_calls(
             c=c,
             text=text,
             include_images=include_images,
-            file_content_serialization_type=file_content_serialization_type,
+            file_content_serializer=file_content_serializer,
             content_service=content_service,
             chat_id=chat_id,
             selected_content_ids=selected_content_ids,
@@ -559,7 +545,7 @@ async def get_full_history_with_contents_and_tool_calls_async(
     chat_service: ChatService,
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
-    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    file_content_serializer: FileContentSerializer | None = None,
     selected_content_ids: set[str] | None = None,
 ) -> tuple[LanguageModelMessages, int, dict[int, "ContentChunk"]]:
     """Async version of get_full_history_with_contents_and_tool_calls."""
@@ -662,7 +648,7 @@ async def get_full_history_with_contents_and_tool_calls_async(
             c=c,
             text=text,
             include_images=include_images,
-            file_content_serialization_type=file_content_serialization_type,
+            file_content_serializer=file_content_serializer,
             content_service=content_service,
             chat_id=chat_id,
             selected_content_ids=selected_content_ids,

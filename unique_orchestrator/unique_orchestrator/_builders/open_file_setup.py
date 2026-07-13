@@ -8,29 +8,15 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from logging import Logger
-from typing import TYPE_CHECKING
 
-from unique_toolkit.agentic.history_manager import (
-    history_manager as history_manager_module,
-)
-from unique_toolkit.agentic.history_manager.history_manager import (
-    HistoryManager,
-    HistoryManagerConfig,
-)
 from unique_toolkit.agentic.tools.experimental.open_file_tool import OpenFileTool
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content import Content
-from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_orchestrator.config import UniqueAIConfig
-
-if TYPE_CHECKING:
-    from unique_toolkit.agentic.reference_manager.reference_manager import (
-        ReferenceManager,
-    )
 
 
 def handle_uploaded_file_tool_choices(
@@ -76,39 +62,15 @@ def handle_uploaded_file_tool_choices(
 def configure_file_payload(
     config: UniqueAIConfig,
     event: ChatEvent,
-    logger: Logger,
-    history_manager: HistoryManager,
-    reference_manager: ReferenceManager,
-    language_model: LanguageModelInfo,
     tool_manager: ResponsesApiToolManager,
-) -> tuple[HistoryManager, list[str]]:
+) -> list[str]:
     """Configure file-in-payload handling for the Responses API.
 
-    When sending uploaded files as file parts, disables the UploadedContentConfig
-    mechanism so the HistoryManager doesn't also inject uploaded content as text
-    (which would duplicate what the input_file parts already provide).
+    Registers the OpenFileTool when send_files_in_payload is enabled, backed by
+    a shared registry for agent-requested KB file IDs.
 
-    Also registers the OpenFileTool when send_files_in_payload is enabled,
-    backed by a shared registry for agent-requested KB file IDs.
-
-    Returns the (possibly updated) history_manager and the agent file registry.
+    Returns the registry shared with the OpenFileTool.
     """
-    if config.agent.experimental.open_file_tool_config.send_uploaded_files_in_payload:
-        upload_free_config = HistoryManagerConfig(
-            experimental_features=history_manager_module.ExperimentalFeatures(),
-            percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
-            language_model=language_model,
-            uploaded_content_config=None,
-            enable_tool_call_persistence=config.agent.input_token_distribution.enable_tool_call_persistence,
-        )
-        history_manager = HistoryManager(
-            logger,
-            event,
-            upload_free_config,
-            language_model,
-            reference_manager,
-        )
-
     agent_file_registry: list[str] = []
 
     if config.agent.experimental.open_file_tool_config.send_files_in_payload:
@@ -120,4 +82,4 @@ def configure_file_payload(
             )
         )
 
-    return history_manager, agent_file_registry
+    return agent_file_registry

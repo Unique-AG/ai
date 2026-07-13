@@ -2,9 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
-from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
-    OpenFileToolConfig,
-)
+from unique_toolkit.agentic.tools.experimental.open_file_tool import OpenFileTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
@@ -14,6 +12,10 @@ from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 from unique_toolkit.content.schemas import Content
 from unique_user_memory.user_memory import UserMemoryState
 
+from unique_orchestrator._builders.history_manager import (
+    build_history_manager,
+    serialize_uploaded_file_for_history,
+)
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
 from unique_orchestrator.config import UniqueAIConfig, UploadedSearchToolConfig
 from unique_orchestrator.unique_ai_builder import (
@@ -34,7 +36,6 @@ def _make_common_components(uploaded_documents):
         uploaded_images=[],
         thinking_manager=MagicMock(),
         reference_manager=MagicMock(),
-        history_manager=MagicMock(),
         evaluation_manager=MagicMock(),
         postprocessor_manager=MagicMock(),
         message_step_logger=MagicMock(),
@@ -90,10 +91,6 @@ def _patch_build_common_user_memory(
     )
     monkeypatch.setattr(
         "unique_orchestrator.unique_ai_builder.ThinkingManager",
-        MagicMock(return_value=MagicMock()),
-    )
-    monkeypatch.setattr(
-        "unique_orchestrator.unique_ai_builder.HistoryManager",
         MagicMock(return_value=MagicMock()),
     )
     monkeypatch.setattr(
@@ -154,7 +151,6 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
 
     config = UniqueAIConfig(space={"allowUserMemory": True})
-
     common_components = await _build_common(
         event=event,
         logger=MagicMock(),
@@ -172,6 +168,59 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     assert "UserMemoryPostprocessor" in postprocessor_names
 
 
+class TestSerializeUploadedFileForHistory:
+    def test_describes_all_available_file_operations(self) -> None:
+        content = Content(id="cont_1", key="report.pdf")
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result == (
+            "User uploaded file: report.pdf (cont_1)\n"
+            "- Searchable using UploadedSearchTool\n"
+            "- Available for processing in the code execution container"
+        )
+
+    def test_omits_search_for_non_ingested_file(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="report.pdf",
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_INGESTION"},
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=False,
+        )
+
+        assert result == "User uploaded file: report.pdf (cont_1)"
+
+    def test_excludes_code_interpreter_generated_file(self) -> None:
+        content = Content(
+            id="cont_1",
+            key="generated.csv",
+            metadata={
+                "codeExecutionArtifactMetadata": {
+                    "container_id": "container_1",
+                    "file_id": "file_1",
+                    "filepath": "/mnt/data/generated.csv",
+                }
+            },
+        )
+
+        result = serialize_uploaded_file_for_history(
+            content,
+            uploaded_search_available=True,
+            code_interpreter_available=True,
+        )
+
+        assert result is None
+
+
 class _FakeResponsesApiToolManager:
     instances = []
 
@@ -186,6 +235,29 @@ class _FakeResponsesApiToolManager:
 
     def add_tool(self, tool: object) -> None:
         return None
+
+    def get_tool_by_name(self, tool_name: str):
+        return next(
+            (
+                tool
+                for tool in self.kwargs["config"].tools
+                if tool.is_enabled and tool.name == tool_name
+            ),
+            None,
+        )
+
+
+def test_configure_file_payload_registers_open_file_tool() -> None:
+    config = UniqueAIConfig()
+    config.agent.experimental.open_file_tool_config.send_files_in_payload = True
+    event = _make_event(tool_choices=[])
+    tool_manager = MagicMock()
+
+    registry = configure_file_payload(config, event, tool_manager)
+
+    registered_tool = tool_manager.add_tool.call_args.args[0]
+    assert isinstance(registered_tool, OpenFileTool)
+    assert registry == []
 
 
 @pytest.mark.asyncio
@@ -357,27 +429,18 @@ async def test_build_responses_keeps_uploaded_search_when_code_interpreter_is_au
     ]
 
 
-def test_configure_file_payload_preserves_tool_call_persistence_and_language_model(
+def test_build_history_manager_uses_final_tool_availability(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     event = _make_event(tool_choices=[])
-    history_manager = MagicMock()
     reference_manager = MagicMock()
     logger = MagicMock()
     tool_manager = MagicMock()
-    config = UniqueAIConfig(
-        agent={
-            "input_token_distribution": {
-                "enable_tool_call_persistence": True,
-            },
-            "experimental": {
-                "responses_api_config": {"use_responses_api": True},
-                "open_file_tool_config": OpenFileToolConfig(
-                    enabled=True,
-                    send_uploaded_files_in_payload=True,
-                ),
-            },
-        }
+    tool_manager.get_tool_by_name.return_value = object()
+    config = UniqueAIConfig()
+    config.agent.input_token_distribution.enable_tool_call_persistence = True
+    config.agent.input_token_distribution.serialize_uploaded_files_in_user_message = (
+        True
     )
     language_model = config.space.language_model
 
@@ -391,36 +454,43 @@ def test_configure_file_payload_preserves_tool_call_persistence_and_language_mod
             config_arg,
             language_model_arg,
             reference_manager_arg,
+            *,
+            file_content_serializer,
         ):
             captured["logger"] = logger_arg
             captured["event"] = event_arg
             captured["config"] = config_arg
             captured["language_model"] = language_model_arg
             captured["reference_manager"] = reference_manager_arg
+            captured["file_content_serializer"] = file_content_serializer
 
     monkeypatch.setattr(
-        "unique_orchestrator._builders.open_file_setup.HistoryManager",
+        "unique_orchestrator._builders.history_manager.HistoryManager",
         _FakeHistoryManager,
     )
 
-    updated_history_manager, agent_file_registry = configure_file_payload(
-        config=config,
+    history_manager = build_history_manager(
         event=event,
         logger=logger,
-        history_manager=history_manager,
+        config=config,
         reference_manager=reference_manager,
-        language_model=language_model,
         tool_manager=tool_manager,
     )
 
-    assert updated_history_manager is not history_manager
-    assert agent_file_registry == []
+    assert isinstance(history_manager, _FakeHistoryManager)
     assert captured["logger"] is logger
     assert captured["event"] is event
     assert captured["language_model"] is language_model
     assert captured["reference_manager"] is reference_manager
     assert captured["config"].language_model is language_model
     assert captured["config"].enable_tool_call_persistence is True
+    file_content_serializer = captured["file_content_serializer"]
+    assert callable(file_content_serializer)
+    assert file_content_serializer(Content(id="cont_1", key="report.pdf")) == (
+        "User uploaded file: report.pdf (cont_1)\n"
+        "- Searchable using UploadedSearchTool\n"
+        "- Available for processing in the code execution container"
+    )
 
 
 class TestConfigureUploadedSearchToolIngestionFilter:

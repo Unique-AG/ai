@@ -20,13 +20,7 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
-from unique_toolkit.agentic.history_manager import (
-    history_manager as history_manager_module,
-)
-from unique_toolkit.agentic.history_manager.history_manager import (
-    HistoryManager,
-    HistoryManagerConfig,
-)
+from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
@@ -81,6 +75,7 @@ from unique_orchestrator._builders import (
     build_loop_iteration_runner,
     build_responses_loop_iteration_runner,
 )
+from unique_orchestrator._builders.history_manager import build_history_manager
 from unique_orchestrator._builders.open_file_setup import (
     configure_file_payload,
     handle_uploaded_file_tool_choices,
@@ -96,6 +91,27 @@ from unique_orchestrator.config import (
 )
 from unique_orchestrator.unique_ai import UniqueAI
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
+
+
+def _configure_follow_up_questions(
+    *,
+    config: UniqueAIConfig,
+    event: ChatEvent,
+    logger: Logger,
+    history_manager: HistoryManager,
+    postprocessor_manager: PostprocessorManager,
+) -> None:
+    follow_up_config = config.agent.services.follow_up_questions_config
+    if follow_up_config and follow_up_config.number_of_questions > 0:
+        postprocessor_manager.set_last_postprocessor(
+            FollowUpPostprocessor(
+                logger=logger,
+                config=follow_up_config,
+                event=event,
+                historyManager=history_manager,
+                llm_service=LanguageModelService.from_event(event),
+            )
+        )
 
 
 class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
@@ -190,7 +206,6 @@ class _CommonComponents(NamedTuple):
     uploaded_images: list[Content]
     thinking_manager: ThinkingManager
     reference_manager: ReferenceManager
-    history_manager: HistoryManager
     evaluation_manager: EvaluationManager
     postprocessor_manager: PostprocessorManager
     message_step_logger: MessageStepLogger
@@ -312,21 +327,6 @@ async def _build_common(
 
     reference_manager = ReferenceManager()
 
-    history_manager_config = HistoryManagerConfig(
-        experimental_features=history_manager_module.ExperimentalFeatures(),
-        percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
-        language_model=config.space.language_model,
-        uploaded_content_config=config.agent.services.uploaded_content_config,
-        enable_tool_call_persistence=config.agent.input_token_distribution.enable_tool_call_persistence,
-    )
-    history_manager = HistoryManager(
-        logger,
-        event,
-        history_manager_config,
-        config.space.language_model,
-        reference_manager,
-    )
-
     evaluation_manager = EvaluationManager(logger=logger, chat_service=chat_service)
     if config.agent.services.evaluation_config:
         evaluation_manager.add_evaluation(
@@ -370,21 +370,6 @@ async def _build_common(
             )
         )
 
-    if (
-        config.agent.services.follow_up_questions_config
-        and config.agent.services.follow_up_questions_config.number_of_questions > 0
-    ):
-        # Should run last to make sure the follow up questions are displayed last.
-        postprocessor_manager.set_last_postprocessor(
-            FollowUpPostprocessor(
-                logger=logger,
-                config=config.agent.services.follow_up_questions_config,
-                event=event,
-                historyManager=history_manager,
-                llm_service=LanguageModelService.from_event(event),
-            )
-        )
-
     user_memory_text = ""
     if config.space.allow_user_memory:
         user_memory_config = config.agent.services.user_memory_config
@@ -423,7 +408,6 @@ async def _build_common(
         uploaded_images=uploaded_images,
         thinking_manager=thinking_manager,
         reference_manager=reference_manager,
-        history_manager=history_manager,
         evaluation_manager=evaluation_manager,
         tool_progress_reporter=tool_progress_reporter,
         mcp_manager=mcp_manager,
@@ -565,18 +549,26 @@ async def _build_responses(
 
     agent_file_registry: list[str] = []
     if config.agent.experimental.open_file_tool_config.enabled:
-        history_manager, agent_file_registry = configure_file_payload(
+        agent_file_registry = configure_file_payload(
             config,
             event,
-            logger,
-            common_components.history_manager,
-            common_components.reference_manager,
-            config.space.language_model,
             tool_manager,
         )
-        common_components = common_components._replace(
-            history_manager=history_manager,
-        )
+
+    history_manager = build_history_manager(
+        event=event,
+        logger=logger,
+        config=config,
+        reference_manager=common_components.reference_manager,
+        tool_manager=tool_manager,
+    )
+    _configure_follow_up_questions(
+        config=config,
+        event=event,
+        logger=logger,
+        history_manager=history_manager,
+        postprocessor_manager=postprocessor_manager,
+    )
 
     await configure_skill_tool(
         config=config,
@@ -590,7 +582,7 @@ async def _build_responses(
 
     loop_iteration_runner = build_responses_loop_iteration_runner(
         config=config,
-        history_manager=common_components.history_manager,
+        history_manager=history_manager,
         openai_client=client,
     )
 
@@ -637,7 +629,7 @@ async def _build_responses(
         tool_manager=tool_manager,
         thinking_manager=common_components.thinking_manager,
         streaming_handler=streaming_handler,
-        history_manager=common_components.history_manager,
+        history_manager=history_manager,
         reference_manager=common_components.reference_manager,
         evaluation_manager=common_components.evaluation_manager,
         postprocessor_manager=postprocessor_manager,
@@ -677,6 +669,21 @@ async def _build_completions(
     if force_uploaded_search:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
+    history_manager = build_history_manager(
+        event=event,
+        logger=logger,
+        config=config,
+        reference_manager=common_components.reference_manager,
+        tool_manager=tool_manager,
+    )
+    _configure_follow_up_questions(
+        config=config,
+        event=event,
+        logger=logger,
+        history_manager=history_manager,
+        postprocessor_manager=common_components.postprocessor_manager,
+    )
+
     await configure_skill_tool(
         config=config,
         logger=logger,
@@ -705,7 +712,7 @@ async def _build_completions(
 
     loop_iteration_runner = build_loop_iteration_runner(
         config=config,
-        history_manager=common_components.history_manager,
+        history_manager=history_manager,
         llm_service=common_components.llm_service,
         chat_service=common_components.chat_service,
     )
@@ -719,7 +726,7 @@ async def _build_completions(
         uploaded_documents=common_components.uploaded_documents,
         tool_manager=tool_manager,
         thinking_manager=common_components.thinking_manager,
-        history_manager=common_components.history_manager,
+        history_manager=history_manager,
         reference_manager=common_components.reference_manager,
         streaming_handler=common_components.chat_service,
         evaluation_manager=common_components.evaluation_manager,

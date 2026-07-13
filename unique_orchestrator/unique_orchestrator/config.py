@@ -348,6 +348,11 @@ class HistoryConfig(BaseToolConfig):
         description="Persist tool calls and reconstruct tool call history across turns.",
     )
 
+    serialize_uploaded_files_in_user_message: bool = Field(
+        default=False,
+        description="Include an indication of each uploaded file in the user message.",
+    )
+
     def max_history_tokens(self, max_input_token: int) -> int:
         return int(self.percent_for_history * max_input_token)
 
