@@ -419,6 +419,30 @@ class TestRunLoopDebugParams:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__analytics__counts_distinct_references_without_urls(
+        self, monkeypatch
+    ) -> None:
+        """
+        Purpose: Verify URL-less references are identified by source and source ID.
+        Why this matters: MCP citations can omit URLs and must not collapse into one
+        analytics source.
+        Setup summary: Run with two distinct URL-less references and assert both count.
+        """
+        ua = self._build_run_ua(monkeypatch)
+        references = [
+            MagicMock(url=None, source="mcp", source_id="resource_1"),
+            MagicMock(url=None, source="mcp", source_id="resource_2"),
+        ]
+        ua._loop_iteration_runner.return_value.message.references = references
+        ua._reference_manager.get_latest_references.return_value = references
+
+        await ua.run()
+
+        analytics_call = ua._debug_info_manager.add_analytics.call_args
+        assert analytics_call.kwargs["references"] == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__loop_params__contains_one_entry_per_iteration(
         self, monkeypatch
     ) -> None:

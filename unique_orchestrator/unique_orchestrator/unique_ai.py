@@ -319,7 +319,9 @@ class UniqueAI:
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
             reference_sources = {
-                reference.url
+                ("url", reference.url)
+                if reference.url is not None
+                else ("source", reference.source, reference.source_id)
                 for reference in self._reference_manager.get_latest_references()
             }
             language_model = self._config.space.language_model
