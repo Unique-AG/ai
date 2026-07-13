@@ -7,14 +7,17 @@ authors = [{ name = "Andreas Hauri", email = "andreas@unique.ch" }]
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.120.2",
-    "fastmcp>=2.13.0.2",
+    "fastmcp>=3.4.4",
     "psycopg2-binary>=2.9.11",
+    "py-key-value-aio[postgresql]>=0.4.0",
     "pydantic>=2.12.3",
     "python-dotenv>=1.0.0",
 ]
 
 [tool.uv]
-exclude-newer = "2 weeks"
+# Relaxed from "2 weeks" so fastmcp 3.4.4 (fixes client_secret_basic parsing
+# at the /token endpoint, which the platform's MCP SDK uses) can resolve.
+exclude-newer = "1 day"
 constraint-dependencies = [
     "authlib>=1.6.11",
     "cryptography>=46.0.7",
