@@ -489,6 +489,7 @@ class TestAddAnalytics:
             user_prompt_length=17,
             answer_length=42,
             loop_iteration_count=3,
+            total_time_to_answer_ms=1234,
         )
 
         analytics = debug_info_manager.get()["analytics"]
@@ -501,6 +502,7 @@ class TestAddAnalytics:
         assert analytics["user_prompt_length"] == 17
         assert analytics["answer_length"] == 42
         assert analytics["loop_iteration_count"] == 3
+        assert analytics["total_time_to_answer_ms"] == 1234
         assert analytics["subagent_names_used"] == []
         assert analytics["mcp_tool_names_used"] == []
         assert analytics["language_model"] == {

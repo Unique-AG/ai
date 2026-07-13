@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -737,6 +738,27 @@ class TestRunExecutionTimingIntegration:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__analytics__includes_total_time_to_answer_ms(
+        self, monkeypatch
+    ) -> None:
+        """
+        Purpose: Verify analytics measures from user creation through completion.
+        Why this matters: Internal loop timing excludes queueing and completion latency.
+        Setup summary: Return a known completion timestamp and assert the full delta.
+        """
+        ua = self._build_run_ua(monkeypatch)
+        ua._event.payload.user_message.created_at = "2026-07-13T20:00:00Z"
+        ua._chat_service.modify_assistant_message_async.return_value = MagicMock(
+            completed_at=datetime(2026, 7, 13, 20, 0, 2, 345000, tzinfo=timezone.utc)
+        )
+
+        await ua.run()
+
+        analytics_call = ua._debug_info_manager.add_analytics.call_args
+        assert analytics_call.kwargs["total_time_to_answer_ms"] == 2345
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__execution_times__contains_one_entry_after_single_iteration(
         self, monkeypatch
     ) -> None:
@@ -836,10 +858,10 @@ class TestRunExecutionTimingIntegration:
     ) -> None:
         """
         Purpose: Verify that a failure in update_debug_info_async propagates to the caller.
-        Why this matters: After refactoring, debug info failures are no longer silently
-        swallowed; callers must handle them.
+        Why this matters: Debug failures remain visible without preventing answer
+        completion.
         Setup summary: Make update_debug_info_async raise; run; assert RuntimeError
-        propagates and modify_assistant_message_async is never reached.
+        propagates after modify_assistant_message_async completes the answer.
         """
         ua = self._build_run_ua(monkeypatch)
         ua._chat_service.update_debug_info_async.side_effect = RuntimeError("boom")
@@ -847,7 +869,9 @@ class TestRunExecutionTimingIntegration:
         with pytest.raises(RuntimeError, match="boom"):
             await ua.run()
 
-        ua._chat_service.modify_assistant_message_async.assert_not_called()
+        ua._chat_service.modify_assistant_message_async.assert_awaited_once_with(
+            set_completed_at=True
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio

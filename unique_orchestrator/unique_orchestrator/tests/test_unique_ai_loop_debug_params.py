@@ -378,6 +378,7 @@ class TestRunLoopDebugParams:
             user_prompt_length=5,
             answer_length=22,
             loop_iteration_count=1,
+            total_time_to_answer_ms=None,
         )
 
     @pytest.mark.ai
@@ -415,6 +416,7 @@ class TestRunLoopDebugParams:
             user_prompt_length=5,
             answer_length=22,
             loop_iteration_count=1,
+            total_time_to_answer_ms=None,
         )
 
     @pytest.mark.ai

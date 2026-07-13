@@ -1,4 +1,4 @@
-from typing import Any, Required, TypedDict
+from typing import Any, NotRequired, Required, TypedDict
 
 from unique_toolkit.agentic.tools.openai_builtin import OpenAICodeInterpreterTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
@@ -42,6 +42,7 @@ class Analytics(TypedDict):
     subagent_names_used: list[str]
     tool_call_count: int
     tools_used: list[AnalyticsTool]
+    total_time_to_answer_ms: NotRequired[int]
     user_prompt_length: int
 
 
@@ -97,6 +98,7 @@ class DebugInfoManager:
         user_prompt_length: int = 0,
         answer_length: int = 0,
         loop_iteration_count: int = 0,
+        total_time_to_answer_ms: int | None = None,
     ) -> None:
         """Add a stable 'analytics' snapshot for downstream ROI/usage reporting.
 
@@ -112,40 +114,40 @@ class DebugInfoManager:
             _to_analytics_tool_entry(tool, tool_display_names)
             for tool in self.debug_info.get("tools", [])
         ]
-        self.add(
-            "analytics",
-            Analytics(
-                tools_used=analytics_tools,
-                tool_call_count=len(analytics_tools),
-                skills_used=[
-                    AnalyticsSkill(
-                        name=skill["name"],
-                        content_id=skill["content_id"],
-                        is_forced=skill["is_forced"],
-                    )
-                    for skill in skills
-                ],
-                references_count=references,
-                user_prompt_length=user_prompt_length,
-                answer_length=answer_length,
-                language_model=language_model.copy(),
-                loop_iteration_count=loop_iteration_count,
-                subagent_names_used=list(
-                    dict.fromkeys(
-                        tool["display_name"]
-                        for tool in analytics_tools
-                        if tool.get("is_sub_agent")
-                    )
-                ),
-                mcp_tool_names_used=list(
-                    dict.fromkeys(
-                        tool["display_name"]
-                        for tool in analytics_tools
-                        if tool.get("is_mcp")
-                    )
-                ),
+        analytics = Analytics(
+            tools_used=analytics_tools,
+            tool_call_count=len(analytics_tools),
+            skills_used=[
+                AnalyticsSkill(
+                    name=skill["name"],
+                    content_id=skill["content_id"],
+                    is_forced=skill["is_forced"],
+                )
+                for skill in skills
+            ],
+            references_count=references,
+            user_prompt_length=user_prompt_length,
+            answer_length=answer_length,
+            language_model=language_model.copy(),
+            loop_iteration_count=loop_iteration_count,
+            subagent_names_used=list(
+                dict.fromkeys(
+                    tool["display_name"]
+                    for tool in analytics_tools
+                    if tool.get("is_sub_agent")
+                )
+            ),
+            mcp_tool_names_used=list(
+                dict.fromkeys(
+                    tool["display_name"]
+                    for tool in analytics_tools
+                    if tool.get("is_mcp")
+                )
             ),
         )
+        if total_time_to_answer_ms is not None:
+            analytics["total_time_to_answer_ms"] = total_time_to_answer_ms
+        self.add("analytics", analytics)
 
 
 def _to_analytics_tool_entry(
