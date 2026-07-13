@@ -53,6 +53,23 @@ class DebugInfoManager:
     def get(self) -> dict[str, Any]:
         return self.debug_info
 
+    def add_analytics(self, skills: list[dict[str, Any]]) -> None:
+        """Add a stable 'analytics' snapshot for downstream ROI/usage reporting.
+
+        Shallow-copies the current `tools` list plus the given `skills` list into a new
+        `analytics` key, so later appends to `debug_info["tools"]` (e.g. from
+        extract_tool_debug_info) can't leak into the frozen snapshot. Existing top-level
+        keys (`tools`, `skills`, ...) are left untouched, so this is additive for any
+        consumer already reading the old shape.
+        """
+        self.add(
+            "analytics",
+            {
+                "tools": list(self.debug_info.get("tools", [])),
+                "skills": list(skills),
+            },
+        )
+
 
 def _extract_tool_calls_from_stream_response(
     stream_response: LanguageModelStreamResponse,

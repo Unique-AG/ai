@@ -316,10 +316,9 @@ class UniqueAI:
                 },
             )
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
-            self._debug_info_manager.add(
-                "skills",
-                self._get_activated_skills_debug_info(),
-            )
+            skills_debug_info = self._get_activated_skills_debug_info()
+            self._debug_info_manager.add("skills", skills_debug_info)
+            self._debug_info_manager.add_analytics(skills_debug_info)
 
             tool_names = [
                 tool["name"] for tool in self._debug_info_manager.get()["tools"]

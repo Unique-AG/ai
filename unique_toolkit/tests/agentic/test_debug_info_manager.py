@@ -454,3 +454,42 @@ def test_extract_tool_calls_from_stream_response__is_forced_true__when_in_tool_c
 
     # Assert
     assert result[0]["info"]["is_forced"] is True
+
+
+class TestAddAnalytics:
+    @pytest.mark.ai
+    def test_add_analytics__copies_tools_and_skills__into_new_key(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify add_analytics() writes an 'analytics' key containing the
+        current 'tools' list plus the given skills list.
+        Setup summary: Seed debug_info with one tool entry; call add_analytics with
+        one skill entry; assert analytics.tools and analytics.skills both present.
+        """
+        debug_info_manager.debug_info["tools"] = [{"name": "WebSearch", "info": {}}]
+        skills = [{"name": "plot-skill", "content_id": "c1", "is_forced": True}]
+
+        debug_info_manager.add_analytics(skills)
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["tools"] == [{"name": "WebSearch", "info": {}}]
+        assert analytics["skills"] == skills
+
+    @pytest.mark.ai
+    def test_add_analytics__does_not_remove_top_level_tools_or_skills_keys(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify the original top-level 'tools' key survives untouched.
+        Why this matters: Backward compatibility for existing consumers is an
+        explicit acceptance criterion — this is the regression guard for it.
+        Setup summary: Seed tools; call add_analytics; assert top-level 'tools' key
+        is unchanged (identical) after the call.
+        """
+        tools = [{"name": "InternalSearch", "info": {}}]
+        debug_info_manager.debug_info["tools"] = tools
+
+        debug_info_manager.add_analytics([])
+
+        assert debug_info_manager.get()["tools"] == tools
