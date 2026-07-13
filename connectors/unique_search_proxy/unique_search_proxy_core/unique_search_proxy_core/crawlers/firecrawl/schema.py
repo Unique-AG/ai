@@ -24,9 +24,7 @@ TagListOrNone: TypeAlias = (
 ScrapeHeadersOrNone: TypeAlias = (
     Annotated[dict[str, str], Field(title="Headers")] | DeactivatedNone
 )
-MaxAgeOrNone: TypeAlias = (
-    Annotated[int, Field(title="Integer", ge=0)] | DeactivatedNone
-)
+MaxAgeOrNone: TypeAlias = Annotated[int, Field(title="Integer", ge=0)] | DeactivatedNone
 
 
 class FirecrawlConfig(BaseCrawlerConfig[CrawlerType.FIRECRAWL]):
