@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from typing import Annotated
 
 import timeout_decorator
@@ -108,6 +109,9 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
     ) -> str:
         headers = {"User-Agent": get_random_user_agent()}
 
+        if self._is_url_blocked(target.normalized_url):
+            return "Unable to crawl URL due to blocked pattern"
+
         request_headers = dict(headers)
         request_extensions: dict[str, str] = {}
         if target.host_header is not None:
@@ -135,6 +139,11 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
         markdown = _markdownify_html_with_timeout(content, self.config.timeout)
 
         return markdown
+
+    def _is_url_blocked(self, url: str) -> bool:
+        return any(
+            re.match(pattern, url) for pattern in self.config.url_blocked_patterns
+        )
 
     def _content_type_not_allowed(self, content_type: str) -> bool:
         allowed_mimes = {

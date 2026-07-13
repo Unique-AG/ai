@@ -283,17 +283,30 @@ class TestBasicCrawlerCrawlUrl:
         )
 
     @pytest.mark.asyncio
+    async def test_crawl_url_skips_blocked_pattern_before_fetch(self, basic_crawler):
+        client = AsyncMock(spec=httpx.AsyncClient)
+        target = ResolvedCrawlTarget(
+            normalized_url="https://example.com/file.pdf",
+            hostname="example.com",
+            resolved_ip="",
+            used_dns_resolution=False,
+        )
+        result = await basic_crawler._crawl_url_with_client(client, target)
+        assert "blocked pattern" in result
+        client.get.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_crawl_url_rejects_disallowed_content_type(self, basic_crawler):
         response = httpx.Response(
             200,
             text="%PDF-1.4",
             headers={"content-type": "application/pdf"},
-            request=httpx.Request("GET", "https://example.com/file.pdf"),
+            request=httpx.Request("GET", "https://example.com/download"),
         )
         client = AsyncMock(spec=httpx.AsyncClient)
         client.get.return_value = response
         target = ResolvedCrawlTarget(
-            normalized_url="https://example.com/file.pdf",
+            normalized_url="https://example.com/download",
             hostname="example.com",
             resolved_ip="",
             used_dns_resolution=False,
