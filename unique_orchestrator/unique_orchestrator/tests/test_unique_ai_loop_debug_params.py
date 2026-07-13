@@ -353,6 +353,14 @@ class TestRunLoopDebugParams:
         ]
         assert "loop_params" in keys_written
         assert "skills" in keys_written
+        skills_call = next(
+            c
+            for c in ua._debug_info_manager.add.call_args_list
+            if c.args[0] == "skills"
+        )
+        ua._debug_info_manager.add_analytics.assert_called_once_with(
+            skills_call.args[1]
+        )
 
     @pytest.mark.ai
     @pytest.mark.asyncio

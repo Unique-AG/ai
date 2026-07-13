@@ -454,3 +454,131 @@ def test_extract_tool_calls_from_stream_response__is_forced_true__when_in_tool_c
 
     # Assert
     assert result[0]["info"]["is_forced"] is True
+
+
+class TestAddAnalytics:
+    @pytest.mark.ai
+    def test_add_analytics__copies_tools_and_skills__into_new_key(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify add_analytics() writes an 'analytics' key containing the
+        current 'tools' list plus the given skills list.
+        Setup summary: Seed debug_info with one tool entry; call add_analytics with
+        one skill entry; assert analytics.tools and analytics.skills both present.
+        """
+        debug_info_manager.debug_info["tools"] = [{"name": "WebSearch", "info": {}}]
+        skills = [{"name": "plot-skill", "content_id": "c1", "is_forced": True}]
+
+        debug_info_manager.add_analytics(skills)
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["tools"] == [{"name": "WebSearch"}]
+        assert analytics["skills"] == skills
+
+    @pytest.mark.ai
+    def test_add_analytics__does_not_remove_top_level_tools_or_skills_keys(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify the original top-level 'tools' key survives untouched.
+        Why this matters: Backward compatibility for existing consumers is an
+        explicit acceptance criterion — this is the regression guard for it.
+        Setup summary: Seed tools; call add_analytics; assert top-level 'tools' key
+        is unchanged (identical) after the call.
+        """
+        tools = [{"name": "InternalSearch", "info": {}}]
+        debug_info_manager.debug_info["tools"] = tools
+
+        debug_info_manager.add_analytics([])
+
+        assert debug_info_manager.get()["tools"] == tools
+
+    @pytest.mark.ai
+    def test_add_analytics__strips_tool_info__to_attribution_fields_only(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify every analytics tool entry keeps only name plus
+        is_forced / is_exclusive / loop_iteration.
+        Why this matters: Query/filter/timing payloads must not enter the
+        ROI/usage analytics envelope for any tool.
+        Setup summary: Seed InternalSearch and WebSearch with full debug info;
+        call add_analytics; assert both analytics entries are reduced to
+        attribution fields only.
+        """
+        debug_info_manager.debug_info["tools"] = [
+            {
+                "name": "InternalSearch",
+                "info": {
+                    "chatOnly": False,
+                    "is_forced": True,
+                    "contentIds": None,
+                    "is_exclusive": False,
+                    "searchStrings": ["meaning of the character o umlaut"],
+                    "loop_iteration": 0,
+                    "metadataFilter": {"and": []},
+                    "execution_time_s": 0.906,
+                },
+            },
+            {
+                "name": "WebSearch",
+                "mcp_server": "should-be-dropped",
+                "info": {
+                    "query": "umlaut",
+                    "execution_time_s": 1.2,
+                    "is_forced": False,
+                    "is_exclusive": True,
+                    "loop_iteration": 1,
+                },
+            },
+        ]
+
+        debug_info_manager.add_analytics([])
+
+        assert debug_info_manager.get()["analytics"]["tools"] == [
+            {
+                "name": "InternalSearch",
+                "is_forced": True,
+                "is_exclusive": False,
+                "loop_iteration": 0,
+            },
+            {
+                "name": "WebSearch",
+                "is_forced": False,
+                "is_exclusive": True,
+                "loop_iteration": 1,
+            },
+        ]
+
+    @pytest.mark.ai
+    def test_add_analytics__leaves_full_tool_info__in_top_level_tools(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify stripping for analytics does not mutate top-level tools.
+        Why this matters: Debug consumers still need full tool payloads.
+        Setup summary: Seed rich tool info; call add_analytics; assert top-level
+        tools entry is identical to the seeded object.
+        """
+        tools = [
+            {
+                "name": "InternalSearch",
+                "info": {
+                    "searchStrings": ["how to type ö on keyboard"],
+                    "is_forced": True,
+                    "is_exclusive": False,
+                    "loop_iteration": 0,
+                    "execution_time_s": 0.906,
+                },
+            }
+        ]
+        debug_info_manager.debug_info["tools"] = tools
+
+        debug_info_manager.add_analytics([])
+
+        assert debug_info_manager.get()["tools"] is tools
+        assert debug_info_manager.get()["tools"][0]["info"]["searchStrings"] == [
+            "how to type ö on keyboard"
+        ]
+        assert debug_info_manager.get()["tools"][0]["info"]["execution_time_s"] == 0.906
