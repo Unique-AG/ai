@@ -1171,6 +1171,7 @@ class LanguageModelInfo(BaseModel):
                         "low",
                         "medium",
                         "high",
+                        "xhigh",
                     ],
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
@@ -2550,6 +2551,7 @@ class LanguageModelInfo(BaseModel):
                         "low",
                         "medium",
                         "high",
+                        "xhigh",
                     ],
                 )
             case LanguageModelName.LITELLM_OPENAI_O1:
