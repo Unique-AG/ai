@@ -42,6 +42,9 @@ class TavilyCrawler(BaseCrawler[TavilyConfig]):
                 extract_depth=self.config.extract_depth,
                 timeout=self.config.timeout,
                 include_favicon=self.config.include_favicon,
+                include_usage=self.config.include_usage,
+                query=self.config.query,  # type: ignore[arg-type]
+                chunks_per_source=self.config.chunks_per_source,  # type: ignore[arg-type]
             )
             return batch_response
 

@@ -55,11 +55,7 @@ class JinaCrawler(BaseCrawler[JinaConfig]):
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "X-Return-Format": self.config.return_format,
-            "X-Engine": self.config.engine,
         }
-        if self.config.do_not_track:
-            headers["DNT"] = "1"
 
         async with AsyncClient(timeout=self.config.timeout) as client:
             tasks = [
@@ -84,6 +80,52 @@ class JinaCrawler(BaseCrawler[JinaConfig]):
 
         return markdown_results
 
+    def _build_reader_body(self, url: str) -> dict[str, Any]:
+        """Build the Jina Reader POST body applying all deployment config fields.
+
+        Mirrors ``build_jina_reader_body`` on the search-proxy path so the direct
+        (proxy-disabled) crawl honours the same ``JinaConfig`` fields.
+        """
+        config = self.config
+        page_timeout = config.page_timeout
+        if page_timeout is None:
+            page_timeout = min(max(config.timeout, 1), 180)
+
+        body: dict[str, Any] = {
+            "url": url,
+            "respondWith": config.return_format,
+            "engine": config.engine,
+            "timeout": page_timeout,
+            "doNotTrack": config.do_not_track,
+        }
+
+        if config.no_cache:
+            body["noCache"] = True
+        if config.target_selector is not None:
+            body["targetSelector"] = config.target_selector
+        if config.wait_for_selector is not None:
+            body["waitForSelector"] = config.wait_for_selector
+        if config.remove_selector is not None:
+            body["removeSelector"] = config.remove_selector
+        if config.with_generated_alt:
+            body["withGeneratedAlt"] = True
+        if config.with_links_summary:
+            body["withLinksSummary"] = True
+        if config.with_images_summary:
+            body["withImagesSummary"] = True
+        if config.with_iframe:
+            body["withIframe"] = True
+        if config.retain_images is not None:
+            body["retainImages"] = config.retain_images
+        if config.locale is not None:
+            body["locale"] = config.locale
+        if config.referer is not None:
+            body["referer"] = config.referer
+        if config.proxy_url is not None:
+            body["proxyUrl"] = config.proxy_url
+
+        return body
+
     async def _crawl_url(
         self,
         url: str,
@@ -94,7 +136,7 @@ class JinaCrawler(BaseCrawler[JinaConfig]):
         params = {
             "url": reader_api_endpoint,
             "headers": headers,
-            "json": {"url": url},
+            "json": self._build_reader_body(url),
         }
         response = await client.post(**params)
         return ReaderResponse.model_validate(response.json())
