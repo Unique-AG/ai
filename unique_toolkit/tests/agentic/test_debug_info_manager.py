@@ -7,6 +7,7 @@ import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
 
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+    AnalyticsLanguageModel,
     DebugInfoManager,
     _extract_tool_calls_from_stream_response,
 )
@@ -457,6 +458,16 @@ def test_extract_tool_calls_from_stream_response__is_forced_true__when_in_tool_c
 
 
 class TestAddAnalytics:
+    language_model = AnalyticsLanguageModel(
+        name="AZURE_GPT_5_2025_0807",
+        family="openai",
+        provider="AZURE",
+    )
+    tool_display_names = {
+        "InternalSearch": "Knowledge Base Search",
+        "WebSearch": "Web Search",
+    }
+
     @pytest.mark.ai
     def test_add_analytics__copies_tools_and_skills__into_new_key(
         self, debug_info_manager: DebugInfoManager
@@ -470,11 +481,33 @@ class TestAddAnalytics:
         debug_info_manager.debug_info["tools"] = [{"name": "WebSearch", "info": {}}]
         skills = [{"name": "plot-skill", "content_id": "c1", "is_forced": True}]
 
-        debug_info_manager.add_analytics(skills)
+        debug_info_manager.add_analytics(
+            skills,
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+            references=2,
+            user_prompt_length=17,
+            answer_length=42,
+            loop_iteration_count=3,
+        )
 
         analytics = debug_info_manager.get()["analytics"]
-        assert analytics["tools"] == [{"name": "WebSearch"}]
-        assert analytics["skills"] == skills
+        assert analytics["tools_used"] == [
+            {"name": "WebSearch", "display_name": "Web Search"}
+        ]
+        assert analytics["tool_call_count"] == 1
+        assert analytics["skills_used"] == skills
+        assert analytics["references_count"] == 2
+        assert analytics["user_prompt_length"] == 17
+        assert analytics["answer_length"] == 42
+        assert analytics["loop_iteration_count"] == 3
+        assert analytics["subagent_names_used"] == []
+        assert analytics["mcp_tool_names_used"] == []
+        assert analytics["language_model"] == {
+            "name": "AZURE_GPT_5_2025_0807",
+            "family": "openai",
+            "provider": "AZURE",
+        }
 
     @pytest.mark.ai
     def test_add_analytics__does_not_remove_top_level_tools_or_skills_keys(
@@ -490,7 +523,11 @@ class TestAddAnalytics:
         tools = [{"name": "InternalSearch", "info": {}}]
         debug_info_manager.debug_info["tools"] = tools
 
-        debug_info_manager.add_analytics([])
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
 
         assert debug_info_manager.get()["tools"] == tools
 
@@ -499,8 +536,8 @@ class TestAddAnalytics:
         self, debug_info_manager: DebugInfoManager
     ) -> None:
         """
-        Purpose: Verify every analytics tool entry keeps only name plus
-        is_forced / is_exclusive / loop_iteration.
+        Purpose: Verify every analytics tool entry keeps only attribution fields,
+        including whether it is a sub-agent or MCP tool.
         Why this matters: Query/filter/timing payloads must not enter the
         ROI/usage analytics envelope for any tool.
         Setup summary: Seed InternalSearch and WebSearch with full debug info;
@@ -515,6 +552,7 @@ class TestAddAnalytics:
                     "is_forced": True,
                     "contentIds": None,
                     "is_exclusive": False,
+                    "is_sub_agent": True,
                     "searchStrings": ["meaning of the character o umlaut"],
                     "loop_iteration": 0,
                     "metadataFilter": {"and": []},
@@ -534,21 +572,35 @@ class TestAddAnalytics:
             },
         ]
 
-        debug_info_manager.add_analytics([])
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
 
-        assert debug_info_manager.get()["analytics"]["tools"] == [
+        assert debug_info_manager.get()["analytics"]["tools_used"] == [
             {
                 "name": "InternalSearch",
+                "display_name": "Knowledge Base Search",
                 "is_forced": True,
                 "is_exclusive": False,
+                "is_sub_agent": True,
                 "loop_iteration": 0,
             },
             {
                 "name": "WebSearch",
+                "display_name": "Web Search",
                 "is_forced": False,
                 "is_exclusive": True,
+                "is_mcp": True,
                 "loop_iteration": 1,
             },
+        ]
+        assert debug_info_manager.get()["analytics"]["subagent_names_used"] == [
+            "Knowledge Base Search"
+        ]
+        assert debug_info_manager.get()["analytics"]["mcp_tool_names_used"] == [
+            "Web Search"
         ]
 
     @pytest.mark.ai
@@ -575,7 +627,11 @@ class TestAddAnalytics:
         ]
         debug_info_manager.debug_info["tools"] = tools
 
-        debug_info_manager.add_analytics([])
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
 
         assert debug_info_manager.get()["tools"] is tools
         assert debug_info_manager.get()["tools"][0]["info"]["searchStrings"] == [

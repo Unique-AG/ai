@@ -8,6 +8,7 @@ import jinja2
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+    AnalyticsLanguageModel,
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
@@ -261,9 +262,8 @@ class UniqueAI:
                     self._finalize_loop_timing(loop_start)
                     break
 
-                self._reference_manager.add_references(
-                    loop_response.message.references or []
-                )
+                references = loop_response.message.references or []
+                self._reference_manager.add_references(references)
                 self._last_assistant_text = (
                     loop_response.message.original_text or loop_response.message.text
                 )
@@ -318,7 +318,28 @@ class UniqueAI:
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
-            self._debug_info_manager.add_analytics(skills_debug_info)
+            reference_sources = {
+                reference.url
+                for reference in self._reference_manager.get_latest_references()
+            }
+            language_model = self._config.space.language_model
+            tool_display_names = {
+                str(tool.name): tool.display_name() or str(tool.name)
+                for tool in self._tool_manager.available_tools
+            }
+            self._debug_info_manager.add_analytics(
+                skills_debug_info,
+                language_model=AnalyticsLanguageModel(
+                    name=str(language_model.name),
+                    family=str(language_model.family),
+                    provider=str(language_model.provider),
+                ),
+                tool_display_names=tool_display_names,
+                references=len(reference_sources),
+                user_prompt_length=len(self._event.payload.user_message.text),
+                answer_length=len(self._last_assistant_text or ""),
+                loop_iteration_count=len(self._execution_times),
+            )
 
             tool_names = [
                 tool["name"] for tool in self._debug_info_manager.get()["tools"]

@@ -76,6 +76,7 @@ def _make_loop_response() -> MagicMock:
     response.message = MagicMock()
     response.message.references = []
     response.message.text = "response text"
+    response.message.original_text = "original response text"
     response.is_empty.return_value = False
     return response
 
@@ -279,6 +280,9 @@ class TestRunLoopDebugParams:
         mock_config = MagicMock()
         mock_config.effective_max_loop_iterations = 1
         mock_config.agent.prompt_config.user_metadata = []
+        mock_config.space.language_model.name = "AZURE_GPT_5_2025_0807"
+        mock_config.space.language_model.family = "openai"
+        mock_config.space.language_model.provider = "AZURE"
 
         mock_history_manager = MagicMock()
         mock_history_manager.get_history_for_model_call = AsyncMock(
@@ -345,6 +349,10 @@ class TestRunLoopDebugParams:
         as the first argument.
         """
         ua = self._build_run_ua(monkeypatch)
+        tool = MagicMock()
+        tool.name = "InternalSearch"
+        tool.display_name.return_value = "Knowledge Base Search"
+        ua._tool_manager.available_tools = [tool]
 
         await ua.run()
 
@@ -359,7 +367,54 @@ class TestRunLoopDebugParams:
             if c.args[0] == "skills"
         )
         ua._debug_info_manager.add_analytics.assert_called_once_with(
-            skills_call.args[1]
+            skills_call.args[1],
+            language_model={
+                "name": "AZURE_GPT_5_2025_0807",
+                "family": "openai",
+                "provider": "AZURE",
+            },
+            tool_display_names={"InternalSearch": "Knowledge Base Search"},
+            references=0,
+            user_prompt_length=5,
+            answer_length=22,
+            loop_iteration_count=1,
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__analytics__counts_unique_reference_sources(
+        self, monkeypatch
+    ) -> None:
+        ua = self._build_run_ua(monkeypatch)
+        references = [
+            MagicMock(url="source_1"),
+            MagicMock(url="source_1"),
+            MagicMock(url="source_2"),
+            MagicMock(url="source_3"),
+            MagicMock(url="source_3"),
+        ]
+        ua._loop_iteration_runner.return_value.message.references = references
+        ua._reference_manager.get_latest_references.return_value = references
+
+        await ua.run()
+
+        skills_call = next(
+            call
+            for call in ua._debug_info_manager.add.call_args_list
+            if call.args[0] == "skills"
+        )
+        ua._debug_info_manager.add_analytics.assert_called_once_with(
+            skills_call.args[1],
+            language_model={
+                "name": "AZURE_GPT_5_2025_0807",
+                "family": "openai",
+                "provider": "AZURE",
+            },
+            tool_display_names={},
+            references=3,
+            user_prompt_length=5,
+            answer_length=22,
+            loop_iteration_count=1,
         )
 
     @pytest.mark.ai

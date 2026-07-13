@@ -12,8 +12,11 @@ from unique_toolkit.language_model.schemas import (
 
 class AnalyticsTool(TypedDict, total=False):
     name: Required[str]
+    display_name: Required[str]
     is_forced: bool
     is_exclusive: bool
+    is_sub_agent: bool
+    is_mcp: bool
     loop_iteration: int
 
 
@@ -23,9 +26,23 @@ class AnalyticsSkill(TypedDict):
     is_forced: bool
 
 
+class AnalyticsLanguageModel(TypedDict):
+    name: str
+    family: str
+    provider: str
+
+
 class Analytics(TypedDict):
-    tools: list[AnalyticsTool]
-    skills: list[AnalyticsSkill]
+    answer_length: int
+    language_model: AnalyticsLanguageModel
+    loop_iteration_count: int
+    mcp_tool_names_used: list[str]
+    references_count: int
+    skills_used: list[AnalyticsSkill]
+    subagent_names_used: list[str]
+    tool_call_count: int
+    tools_used: list[AnalyticsTool]
+    user_prompt_length: int
 
 
 class DebugInfoManager:
@@ -71,24 +88,36 @@ class DebugInfoManager:
     def get(self) -> dict[str, Any]:
         return self.debug_info
 
-    def add_analytics(self, skills: list[dict[str, Any]]) -> None:
+    def add_analytics(
+        self,
+        skills: list[dict[str, Any]],
+        language_model: AnalyticsLanguageModel,
+        tool_display_names: dict[str, str],
+        references: int = 0,
+        user_prompt_length: int = 0,
+        answer_length: int = 0,
+        loop_iteration_count: int = 0,
+    ) -> None:
         """Add a stable 'analytics' snapshot for downstream ROI/usage reporting.
 
         Copies the current `tools` list (with each tool's info reduced to
-        attribution fields only) plus the given `skills` list into a new
-        `analytics` key, so later appends to `debug_info["tools"]` (e.g. from
+        attribution fields only), the given `skills` list, usage counts, prompt
+        and answer lengths, and language-model attribution into a new
+        `analytics` key. Later appends to `debug_info["tools"]` (e.g. from
         extract_tool_debug_info) can't leak into the frozen snapshot. Existing
         top-level keys (`tools`, `skills`, ...) are left untouched, so this is
-        additive for any consumer already reading the old shape.
+        additive for consumers reading the old shape.
         """
+        analytics_tools = [
+            _to_analytics_tool_entry(tool, tool_display_names)
+            for tool in self.debug_info.get("tools", [])
+        ]
         self.add(
             "analytics",
             Analytics(
-                tools=[
-                    _to_analytics_tool_entry(tool)
-                    for tool in self.debug_info.get("tools", [])
-                ],
-                skills=[
+                tools_used=analytics_tools,
+                tool_call_count=len(analytics_tools),
+                skills_used=[
                     AnalyticsSkill(
                         name=skill["name"],
                         content_id=skill["content_id"],
@@ -96,21 +125,50 @@ class DebugInfoManager:
                     )
                     for skill in skills
                 ],
+                references_count=references,
+                user_prompt_length=user_prompt_length,
+                answer_length=answer_length,
+                language_model=language_model.copy(),
+                loop_iteration_count=loop_iteration_count,
+                subagent_names_used=list(
+                    dict.fromkeys(
+                        tool["display_name"]
+                        for tool in analytics_tools
+                        if tool.get("is_sub_agent")
+                    )
+                ),
+                mcp_tool_names_used=list(
+                    dict.fromkeys(
+                        tool["display_name"]
+                        for tool in analytics_tools
+                        if tool.get("is_mcp")
+                    )
+                ),
             ),
         )
 
 
-def _to_analytics_tool_entry(tool: dict[str, Any]) -> AnalyticsTool:
+def _to_analytics_tool_entry(
+    tool: dict[str, Any], tool_display_names: dict[str, str]
+) -> AnalyticsTool:
     """Return an analytics-safe copy of a tool debug-info entry.
 
-    Keeps only name plus is_forced / is_exclusive / loop_iteration.
+    Keeps only tool attribution fields.
     """
     info = tool.get("info") or {}
-    analytics_tool = AnalyticsTool(name=tool["name"])
+    name = tool["name"]
+    analytics_tool = AnalyticsTool(
+        name=name,
+        display_name=tool_display_names.get(name) or name,
+    )
     if "is_forced" in info:
         analytics_tool["is_forced"] = info["is_forced"]
     if "is_exclusive" in info:
         analytics_tool["is_exclusive"] = info["is_exclusive"]
+    if info.get("is_sub_agent"):
+        analytics_tool["is_sub_agent"] = True
+    if info.get("is_mcp") or tool.get("mcp_server"):
+        analytics_tool["is_mcp"] = True
     if "loop_iteration" in info:
         analytics_tool["loop_iteration"] = info["loop_iteration"]
     return analytics_tool
