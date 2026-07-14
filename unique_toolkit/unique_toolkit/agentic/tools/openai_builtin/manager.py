@@ -44,11 +44,7 @@ class OpenAIBuiltInToolManager:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
 
-            deferred_config = tool_config.configuration.activator_config
-            if deferred_config is not None and tool_config.is_exclusive:
-                raise ValueError(
-                    "A deferred code interpreter tool cannot be exclusive."
-                )
+            activator_config = tool_config.configuration.activator_config
 
             builder = CodeInterpreterBuilder(
                 config=tool_config.configuration.tool_config,
@@ -64,9 +60,9 @@ class OpenAIBuiltInToolManager:
 
             # Deferred: offer a cheap activator function tool now and provision
             # the container only when the model calls it.
-            if deferred_config is not None:
+            if activator_config is not None:
                 return CodeInterpreterActivatorTool(
-                    config=deferred_config,
+                    config=activator_config,
                     builder=builder,
                 )
 
