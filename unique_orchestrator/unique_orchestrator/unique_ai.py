@@ -35,6 +35,9 @@ from unique_toolkit.agentic.tools.experimental.open_file_tool import (
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
     DisplayCodeInterpreterFilesPostProcessor,
 )
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    ArtifactsDebugInfo,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     SafeTaskExecutor,
@@ -200,6 +203,7 @@ class UniqueAI:
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
         self._loop_debug_params: list[dict[str, Any]] = []
+        self._generated_files_info: ArtifactsDebugInfo | None = None
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -366,6 +370,7 @@ class UniqueAI:
                 answer_length=len(self._last_assistant_text or ""),
                 loop_iteration_count=len(self._execution_times),
                 total_time_to_answer_ms=total_time_to_answer_ms,
+                artifacts=self._generated_files_info,
             )
 
             # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
@@ -704,12 +709,9 @@ class UniqueAI:
             evaluation_results,
         )
         postprocessor_outputs = postprocessor_result.unpack() or {}
-        artifacts = postprocessor_outputs.get(
+        self._generated_files_info = postprocessor_outputs.get(
             DisplayCodeInterpreterFilesPostProcessor.__name__
         )
-        if artifacts is not None:
-            self._debug_info_manager.add("artifacts", artifacts)
-
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()
         )
