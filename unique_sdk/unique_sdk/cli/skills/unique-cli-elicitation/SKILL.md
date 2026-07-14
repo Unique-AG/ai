@@ -44,7 +44,6 @@ default — comfortably under Claude Code's ~120s):
      --mode FORM \
      --tool-name "<tool_name>" \
      --chat-id "$UNIQUE_CHAT_ID" \
-     --message-id "$UNIQUE_MESSAGE_ID" \
      --expires-in 7200 \
      --schema '<json schema>')
    elicitation_id=$(echo "$create_output" | awk '/^Created elicitation/{print $3}')
@@ -86,8 +85,12 @@ use). Do not reach for it from inside an agent turn.
 unique-cli elicit ask "<question>" [options]
 ```
 
-!!! danger "`--chat-id` and `--message-id` are MANDATORY"
-    You **must always pass both** `--chat-id "$UNIQUE_CHAT_ID"` **and** `--message-id "$UNIQUE_MESSAGE_ID"` on every `elicit create`/`elicit ask` call. These environment variables are always available in the agent environment. Without both flags the elicitation is not correctly anchored to the current conversation and the user will not see it.
+!!! danger "`--chat-id` is MANDATORY"
+    You **must always pass** `--chat-id "$UNIQUE_CHAT_ID"` on every
+    `elicit create`/`elicit ask` call. Omit `--message-id`: the CLI resolves
+    the current turn's assistant message ID from `$UNIQUE_TURN_IDENTITY_FILE`
+    (preferred) or `$UNIQUE_MESSAGE_ID`. Do **not** pass a stale
+    `$UNIQUE_MESSAGE_ID` from a persistent process environment.
 
 ## When to use
 
@@ -111,8 +114,7 @@ unique-cli elicit ask "<question>" [options]
 
 ```bash
 unique-cli elicit ask "Which quarter should I report on?" \
-  --chat-id "$UNIQUE_CHAT_ID" \
-  --message-id "$UNIQUE_MESSAGE_ID"
+  --chat-id "$UNIQUE_CHAT_ID"
 ```
 
 Under the hood this creates a form with a single required string field `answer`. The reply you receive will look like:
@@ -135,7 +137,6 @@ Provide an explicit JSON schema so the user sees proper UI controls instead of a
 ```bash
 unique-cli elicit ask "Which report format do you want?" \
   --chat-id "$UNIQUE_CHAT_ID" \
-  --message-id "$UNIQUE_MESSAGE_ID" \
   --schema '{
     "type": "object",
     "properties": {
@@ -156,7 +157,6 @@ Always use this before `rm`, `rmdir -r`, mass uploads, or anything irreversible.
 ```bash
 unique-cli elicit ask "Confirm deleting /Archive/2024 and everything inside it" \
   --chat-id "$UNIQUE_CHAT_ID" \
-  --message-id "$UNIQUE_MESSAGE_ID" \
   --schema '{
     "type": "object",
     "properties": {
@@ -176,7 +176,6 @@ Proceed **only** if the response contains `"confirm": true`. Treat `DECLINED`, `
 ```bash
 unique-cli elicit ask "Please provide report settings" \
   --chat-id "$UNIQUE_CHAT_ID" \
-  --message-id "$UNIQUE_MESSAGE_ID" \
   --schema '{
     "type": "object",
     "properties": {
@@ -200,7 +199,7 @@ you call separately in the polling pattern).
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
 | `--chat-id` | `-c` | none | **MANDATORY.** Chat to show the question in. Always pass `"$UNIQUE_CHAT_ID"`. Without it the visibility workaround cannot run and the user will not see the elicitation. |
-| `--message-id` | `-m` | none | **MANDATORY.** The current assistant message ID. Always pass `"$UNIQUE_MESSAGE_ID"`. Anchors the elicitation to the correct message in the conversation thread. |
+| `--message-id` | `-m` | auto | Optional. Prefer omitting this flag — the CLI resolves the current turn's message ID from `$UNIQUE_TURN_IDENTITY_FILE` (preferred) or `$UNIQUE_MESSAGE_ID`. Do not pass a stale env value from a persistent process. |
 | `--tool-name` | `-t` | `agent_question` | Short snake_case label shown to the user (e.g. `clarify`, `confirm_delete`, `choose_report`). |
 | `--schema` | | single `answer` string | JSON Schema for the form body. |
 | `--timeout` | | `7200` | Max seconds to block locally before giving up. This is the single knob for `ask`: it also sets when the request expires on the platform, so the prompt expires exactly when you stop waiting and the chat UI can offer the user a way to continue. |
@@ -271,7 +270,6 @@ In a shell script or agent tool wrapper, capture the output and pull out the `Re
 ```bash
 result=$(unique-cli elicit ask "Which region?" \
   --chat-id "$UNIQUE_CHAT_ID" \
-  --message-id "$UNIQUE_MESSAGE_ID" \
   --schema '{
     "type":"object",
     "properties":{"region":{"type":"string","enum":["EU","US","APAC"]}},
@@ -299,7 +297,7 @@ esac
 
 1. **Default to `elicit create` + `elicit wait` polling.** If you need an answer from the user, use this pattern, not a chat message and not a single blocking `elicit ask` call. See "The pattern" above.
 2. **Always pass `--chat-id "$UNIQUE_CHAT_ID"`.** Without it the elicitation is not attached to a chat and the user will not see it.
-3. **Always pass `--message-id "$UNIQUE_MESSAGE_ID"`.** This anchors the elicitation to the current message in the conversation. Both `$UNIQUE_CHAT_ID` and `$UNIQUE_MESSAGE_ID` are always available as environment variables — never omit either.
+3. **Omit `--message-id`.** The CLI resolves the current turn's assistant message ID from `$UNIQUE_TURN_IDENTITY_FILE` (preferred) or `$UNIQUE_MESSAGE_ID`. Do not pass a stale `$UNIQUE_MESSAGE_ID` from a persistent process environment.
 4. **Never pass `--no-visible`.** See the warning above. The visibility workaround is mandatory today.
 5. **Never run destructive CLI commands without a confirmation elicitation.** This includes `rm`, `rmdir -r`, bulk renames, large uploads, schedule deletion, etc.
 6. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
@@ -320,7 +318,8 @@ UNIQUE_COMPANY_ID # Company ID (required)
 UNIQUE_API_KEY    # API key -- optional on localhost / secured cluster
 UNIQUE_APP_ID     # App ID -- optional on localhost / secured cluster
 UNIQUE_CHAT_ID    # Current chat ID -- always pass as --chat-id (required)
-UNIQUE_MESSAGE_ID # Current message ID -- always pass as --message-id (required)
+UNIQUE_TURN_IDENTITY_FILE # Per-turn identity JSON — CLI resolves message ID from here
+UNIQUE_MESSAGE_ID # Fallback message ID when no turn-identity file is present
 ```
 
 Install: `pip install unique-sdk`

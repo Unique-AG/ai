@@ -17,9 +17,11 @@ the tool name shown in the generated connected-space skill.
 ```bash
 unique-cli subagent "<tool_name>" "<message>" \
   --chat-id "$UNIQUE_CHAT_ID" \
-  --message-id "$UNIQUE_MESSAGE_ID" \
   --assistant-id "$UNIQUE_ASSISTANT_ID"
 ```
+
+Omit `--message-id`: the CLI resolves the current turn's assistant message ID
+from `$UNIQUE_TURN_IDENTITY_FILE` automatically.
 
 ## Rules
 
@@ -49,7 +51,7 @@ The platform sets these environment variables automatically:
 UNIQUE_USER_ID
 UNIQUE_COMPANY_ID
 UNIQUE_CHAT_ID
-UNIQUE_MESSAGE_ID
+UNIQUE_TURN_IDENTITY_FILE
 UNIQUE_ASSISTANT_ID
 UNIQUE_API_KEY
 UNIQUE_APP_ID

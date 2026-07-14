@@ -84,10 +84,37 @@ from unique_sdk.cli.commands.web_search import (
 )
 from unique_sdk.cli.commands.web_search_config import ENV_CONFIG_PATH
 from unique_sdk.cli.config import load_config
+from unique_sdk.cli.identity import TurnIdentityError, resolve_message_id
 from unique_sdk.cli.shell import UniqueShell
 from unique_sdk.cli.state import ShellState
 
 _DYNAMIC_FRONTEND_ERROR_PREFIX = "dynamic-frontend "
+
+
+def _resolve_cli_message_id(
+    ctx: click.Context,
+    explicit: str | None,
+    *,
+    required: bool = False,
+) -> str | None:
+    """Resolve message id for Click commands; exit on turn-identity errors.
+
+    When *required* is True and no source yields a value, exits with code 2.
+    """
+    try:
+        resolved = resolve_message_id(explicit)
+    except TurnIdentityError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        ctx.exit(2)
+    if required and not resolved:
+        click.echo(
+            "Error: message id is required. Pass --message-id, or set "
+            "UNIQUE_TURN_IDENTITY_FILE / UNIQUE_MESSAGE_ID.",
+            err=True,
+        )
+        ctx.exit(2)
+    return resolved
+
 
 MAIN_HELP = """\
 Unique CLI -- Linux-like file explorer for the Unique AI Platform.
@@ -802,8 +829,12 @@ def uploaded_search(
 @click.option(
     "--message-id",
     "-m",
-    required=True,
-    help="Message ID for the MCP tool call context.",
+    default=None,
+    help=(
+        "Message ID for the MCP tool call context. Defaults to the "
+        "current turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_MESSAGE_ID."
+    ),
 )
 @click.option(
     "--file",
@@ -824,7 +855,7 @@ def mcp(
     ctx: click.Context,
     payload: str | None,
     chat_id: str,
-    message_id: str,
+    message_id: str | None,
     file_path: str | None,
     use_stdin: bool,
 ) -> None:
@@ -837,7 +868,8 @@ def mcp(
     \b
     The JSON is forwarded 1:1 to the MCP call-tool API. Chat ID and
     message ID are provided as separate flags to identify the
-    conversation context.
+    conversation context. When --message-id is omitted, the CLI resolves
+    it from $UNIQUE_TURN_IDENTITY_FILE (preferred) or $UNIQUE_MESSAGE_ID.
 
     \b
     Input sources (exactly one required):
@@ -854,11 +886,12 @@ def mcp(
 
       cat payload.json | unique-cli mcp -c chat_123 -m msg_456 --stdin
     """
+    resolved_message_id = _resolve_cli_message_id(ctx, message_id, required=True)
     click.echo(
         cmd_mcp(
             LazyState.get(ctx),
             chat_id=chat_id,
-            message_id=message_id,
+            message_id=resolved_message_id or "",
             payload=payload,
             file=file_path,
             stdin=use_stdin,
@@ -887,8 +920,11 @@ def mcp(
     "--message-id",
     "parent_message_id",
     default=None,
-    envvar="UNIQUE_MESSAGE_ID",
-    help="Parent message ID for message correlation.",
+    help=(
+        "Parent message ID for message correlation. Defaults to the "
+        "current turn identity file ($UNIQUE_TURN_IDENTITY_FILE), then "
+        "$UNIQUE_MESSAGE_ID."
+    ),
 )
 @click.option(
     "--assistant-id",
@@ -931,13 +967,14 @@ def subagent(
       unique-cli subagent LegalReview "Review this contract clause"
       unique-cli subagent Finance "Summarize Q4 revenue" --reset-chat
     """
+    resolved_message_id = _resolve_cli_message_id(ctx, parent_message_id)
     output = cmd_subagent(
         LazyState.get(ctx),
         tool_name=tool_name,
         message=message,
         config_path=config_path,
         parent_chat_id=parent_chat_id,
-        parent_message_id=parent_message_id,
+        parent_message_id=resolved_message_id,
         parent_assistant_id=parent_assistant_id,
         reset_chat=reset_chat,
         output_json=output_json,
@@ -1195,7 +1232,15 @@ def elicit() -> None:
     ),
 )
 @click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
-@click.option("--message-id", "-m", default=None, help="Associated message ID.")
+@click.option(
+    "--message-id",
+    "-m",
+    default=None,
+    help=(
+        "Associated message ID. Defaults to the current turn identity "
+        "file ($UNIQUE_TURN_IDENTITY_FILE), then $UNIQUE_MESSAGE_ID."
+    ),
+)
 @click.option(
     "--timeout",
     type=int,
@@ -1299,7 +1344,7 @@ def elicit_ask(
         "tool_name": tool_name,
         "schema": schema,
         "chat_id": chat_id,
-        "message_id": message_id,
+        "message_id": _resolve_cli_message_id(ctx, message_id),
         "timeout": timeout,
         "poll_interval": poll_interval,
         "metadata": parsed_metadata or None,
@@ -1334,7 +1379,15 @@ def elicit_ask(
 )
 @click.option("--url", default=None, help="External URL (required for --mode URL).")
 @click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
-@click.option("--message-id", "-m", default=None, help="Associated message ID.")
+@click.option(
+    "--message-id",
+    "-m",
+    default=None,
+    help=(
+        "Associated message ID. Defaults to the current turn identity "
+        "file ($UNIQUE_TURN_IDENTITY_FILE), then $UNIQUE_MESSAGE_ID."
+    ),
+)
 @click.option(
     "--expires-in",
     "expires_in_seconds",
@@ -1439,7 +1492,7 @@ def elicit_create(
         "schema": schema,
         "url": url,
         "chat_id": chat_id,
-        "message_id": message_id,
+        "message_id": _resolve_cli_message_id(ctx, message_id),
         "expires_in_seconds": expires_in_seconds,
         "external_elicitation_id": external_elicitation_id,
         "metadata": parsed_metadata or None,
