@@ -666,9 +666,14 @@ def _classify_break(
             f"{cand['side']}.",
             "Verify the direction with the counterparty; correct the confirm or the booking.", cand)
 
-    cand = _closest_by_amount(same_side, eamt)
+    # Date is its own cascade tier, mirroring _find_match_for_email's precedence
+    # (date filter before amount tolerance): only when NO same-side row lines up
+    # on date is the break a date mismatch — otherwise the closest date-matching
+    # row is the line in contention and the drift is on amount.
     edate = email_row["value_date"]
-    if edate not in (cand["trade_date"], cand["settl_date"]):
+    same_date = [r for r in same_side if edate in (r["trade_date"], r["settl_date"])]
+    if not same_date:
+        cand = _closest_by_amount(same_side, eamt)
         return _break_card(
             "R-DATE-MISMATCH", "Value date doesn't line up", email_row,
             f"Email value_date {edate.isoformat()} doesn't equal the trade "
@@ -676,6 +681,7 @@ def _classify_break(
             f"of {cand['bfx_trade_id']}.",
             "Confirm the settlement date — a T+ mismatch or an amended settl date is likely.", cand)
 
+    cand = _closest_by_amount(same_date, eamt)
     diff = cand["gross_amt"] - eamt
     pct = (abs(diff) / abs(cand["gross_amt"]) * 100) if cand["gross_amt"] else Decimal(0)
     return _break_card(
