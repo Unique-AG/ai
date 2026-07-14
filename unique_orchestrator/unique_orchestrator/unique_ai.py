@@ -385,7 +385,8 @@ class UniqueAI:
 
         try:
             user_created_at = datetime.fromisoformat(user_message_created_at)
-        except ValueError:
+        except (ValueError, TypeError):
+            # ValueError: malformed timestamp; TypeError: created_at not a str.
             return None
 
         if user_created_at.tzinfo is None:

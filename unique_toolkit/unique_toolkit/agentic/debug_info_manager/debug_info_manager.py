@@ -1,4 +1,4 @@
-from typing import Any, NotRequired, Required, TypedDict
+from typing import Any, Required, TypedDict
 
 from unique_toolkit.agentic.tools.openai_builtin import OpenAICodeInterpreterTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
@@ -32,17 +32,24 @@ class AnalyticsLanguageModel(TypedDict):
     provider: str
 
 
+class AnalyticsToolName(TypedDict):
+    name: str
+    display_name: str
+
+
 class Analytics(TypedDict):
     answer_length: int
+    artifacts_created_count: int | None
+    artifacts_created_filetype: list[str] | None
     language_model: AnalyticsLanguageModel
     loop_iteration_count: int
-    mcp_tool_names_used: list[str]
+    mcp_tool_names_used: list[AnalyticsToolName]
     references_count: int
     skills_used: list[AnalyticsSkill]
-    subagent_names_used: list[str]
+    subagent_names_used: list[AnalyticsToolName]
     tool_call_count: int
     tools_used: list[AnalyticsTool]
-    total_time_to_answer_ms: NotRequired[int]
+    total_time_to_answer_ms: int | None
     user_prompt_length: int
 
 
@@ -130,24 +137,33 @@ class DebugInfoManager:
             answer_length=answer_length,
             language_model=language_model.copy(),
             loop_iteration_count=loop_iteration_count,
-            subagent_names_used=list(
-                dict.fromkeys(
-                    tool["display_name"]
-                    for tool in analytics_tools
-                    if tool.get("is_sub_agent")
-                )
-            ),
-            mcp_tool_names_used=list(
-                dict.fromkeys(
-                    tool["display_name"]
-                    for tool in analytics_tools
-                    if tool.get("is_mcp")
-                )
-            ),
+            subagent_names_used=_unique_tool_names(analytics_tools, "is_sub_agent"),
+            mcp_tool_names_used=_unique_tool_names(analytics_tools, "is_mcp"),
+            total_time_to_answer_ms=total_time_to_answer_ms,
+            # Reserved placeholders — schema present so consumers can rely on the
+            # keys, populated in a follow-up step (artifacts instrumentation).
+            artifacts_created_count=None,
+            artifacts_created_filetype=None,
         )
-        if total_time_to_answer_ms is not None:
-            analytics["total_time_to_answer_ms"] = total_time_to_answer_ms
         self.add("analytics", analytics)
+
+
+def _unique_tool_names(
+    analytics_tools: list[AnalyticsTool], flag: str
+) -> list[AnalyticsToolName]:
+    """Dedupe the tools carrying `flag` into `{name, display_name}` entries.
+
+    Keyed on the stable `name` so downstream reporting can join on a stable
+    identifier while still carrying the user-facing `display_name` for labels.
+    """
+    unique: dict[str, AnalyticsToolName] = {}
+    for tool in analytics_tools:
+        if tool.get(flag) and tool["name"] not in unique:
+            unique[tool["name"]] = AnalyticsToolName(
+                name=tool["name"],
+                display_name=tool["display_name"],
+            )
+    return list(unique.values())
 
 
 def _to_analytics_tool_entry(

@@ -510,6 +510,31 @@ class TestAddAnalytics:
             "family": "openai",
             "provider": "AZURE",
         }
+        # Reserved placeholders — always present, populated in a later step.
+        assert analytics["artifacts_created_count"] is None
+        assert analytics["artifacts_created_filetype"] is None
+
+    @pytest.mark.ai
+    def test_add_analytics__total_time_to_answer_ms__always_present_as_null(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify total_time_to_answer_ms is always emitted, as null when
+        unknown, rather than being omitted from the analytics envelope.
+        Why this matters: A stable schema lets consumers rely on the key existing
+        (read None) instead of handling a sometimes-missing key.
+        Setup summary: Call add_analytics without a timing value; assert the key is
+        present and None.
+        """
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert "total_time_to_answer_ms" in analytics
+        assert analytics["total_time_to_answer_ms"] is None
 
     @pytest.mark.ai
     def test_add_analytics__does_not_remove_top_level_tools_or_skills_keys(
@@ -599,10 +624,10 @@ class TestAddAnalytics:
             },
         ]
         assert debug_info_manager.get()["analytics"]["subagent_names_used"] == [
-            "Knowledge Base Search"
+            {"name": "InternalSearch", "display_name": "Knowledge Base Search"}
         ]
         assert debug_info_manager.get()["analytics"]["mcp_tool_names_used"] == [
-            "Web Search"
+            {"name": "WebSearch", "display_name": "Web Search"}
         ]
 
     @pytest.mark.ai

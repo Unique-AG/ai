@@ -257,6 +257,9 @@ class TestRunLoopDebugParams:
         mock_chat_service.cancellation = mock_cancellation
         mock_chat_service.get_debug_info_async = AsyncMock(return_value={})
         mock_chat_service.update_debug_info_async = AsyncMock(return_value=None)
+        # Returns None by default → no completed_at, so total_time_to_answer_ms
+        # resolves to None. Tests that exercise timing override this return value
+        # with a MagicMock(completed_at=...).
         mock_chat_service.modify_assistant_message_async = AsyncMock(return_value=None)
         mock_chat_service.create_assistant_message_async = AsyncMock(
             return_value=MagicMock(id="assist_new")
@@ -361,25 +364,21 @@ class TestRunLoopDebugParams:
         ]
         assert "loop_params" in keys_written
         assert "skills" in keys_written
+        # This test owns one contract: run() forwards the same skills value it
+        # wrote under "skills" as the first positional arg to add_analytics.
+        # Per-field kwargs (references / timing / lengths) are covered by the
+        # focused sibling tests below, so we don't re-pin the whole call here.
         skills_call = next(
             c
             for c in ua._debug_info_manager.add.call_args_list
             if c.args[0] == "skills"
         )
-        ua._debug_info_manager.add_analytics.assert_called_once_with(
-            skills_call.args[1],
-            language_model={
-                "name": "AZURE_GPT_5_2025_0807",
-                "family": "openai",
-                "provider": "AZURE",
-            },
-            tool_display_names={"InternalSearch": "Knowledge Base Search"},
-            references=0,
-            user_prompt_length=5,
-            answer_length=22,
-            loop_iteration_count=1,
-            total_time_to_answer_ms=None,
-        )
+        ua._debug_info_manager.add_analytics.assert_called_once()
+        analytics_call = ua._debug_info_manager.add_analytics.call_args
+        assert analytics_call.args[0] == skills_call.args[1]
+        assert analytics_call.kwargs["tool_display_names"] == {
+            "InternalSearch": "Knowledge Base Search"
+        }
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -399,25 +398,8 @@ class TestRunLoopDebugParams:
 
         await ua.run()
 
-        skills_call = next(
-            call
-            for call in ua._debug_info_manager.add.call_args_list
-            if call.args[0] == "skills"
-        )
-        ua._debug_info_manager.add_analytics.assert_called_once_with(
-            skills_call.args[1],
-            language_model={
-                "name": "AZURE_GPT_5_2025_0807",
-                "family": "openai",
-                "provider": "AZURE",
-            },
-            tool_display_names={},
-            references=3,
-            user_prompt_length=5,
-            answer_length=22,
-            loop_iteration_count=1,
-            total_time_to_answer_ms=None,
-        )
+        analytics_call = ua._debug_info_manager.add_analytics.call_args
+        assert analytics_call.kwargs["references"] == 3
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -473,6 +455,28 @@ class TestRunLoopDebugParams:
 
         analytics_call = ua._debug_info_manager.add_analytics.call_args
         assert analytics_call.kwargs["references"] == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__analytics__total_time_to_answer_ms_none_without_completed_at(
+        self, monkeypatch
+    ) -> None:
+        """
+        Purpose: Verify total_time_to_answer_ms is None when the completed message
+        carries no completed_at.
+        Why this matters: Makes the None case deliberate — run() must degrade to
+        None (not crash) when completion time is unavailable, e.g. a tool took
+        control. Pairs with test_run__analytics__includes_total_time_to_answer_ms
+        (execution-timing suite) which covers the populated case.
+        Setup summary: modify_assistant_message_async returns None (fixture default);
+        assert the kwarg is present and None.
+        """
+        ua = self._build_run_ua(monkeypatch)
+
+        await ua.run()
+
+        analytics_call = ua._debug_info_manager.add_analytics.call_args
+        assert analytics_call.kwargs["total_time_to_answer_ms"] is None
 
     @pytest.mark.ai
     @pytest.mark.asyncio
