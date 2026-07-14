@@ -10,6 +10,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
 )
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 
 class EvaluationMetricName(StrEnum):
@@ -102,6 +103,7 @@ class EvaluationMetricResult(BaseModel):
     user_info: Optional[str] = None
     error: Exception | None = None
     fact_list: list[str] = Field(default_factory=list[str])
+    invocation_stats: list[LanguageModelInvocationStats] = Field(default_factory=list)
 
 
 class EvaluationAssessmentMessage(BaseModel):

@@ -4,6 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai.types.responses import Response, ResponseFunctionToolCall
+from openai.types.responses.response_usage import (
+    InputTokensDetails,
+    OutputTokensDetails,
+    ResponseUsage,
+)
 
 from unique_toolkit.agentic.loop_runner.middleware.planning.planning import (
     _PLAN_TOOL_NAME,
@@ -49,11 +54,30 @@ def _make_tool_call(arguments: str = '{"plan": "do stuff"}') -> MagicMock:
     return call
 
 
-def _make_response(arguments: str = '{"plan": "do stuff"}') -> MagicMock:
+def _make_response(
+    arguments: str = '{"plan": "do stuff"}', *, usage: MagicMock | None = None
+) -> MagicMock:
     """Create a mock Response whose output contains a single forced tool call."""
     response = MagicMock(spec=Response)
     response.output = [_make_tool_call(arguments)]
+    response.usage = usage
     return response
+
+
+def _make_usage(
+    input_tokens: int = 10,
+    output_tokens: int = 5,
+    total_tokens: int = 15,
+    reasoning_tokens: int = 0,
+    cached_tokens: int = 0,
+) -> ResponseUsage:
+    return ResponseUsage(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        total_tokens=total_tokens,
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=reasoning_tokens),
+        input_tokens_details=InputTokensDetails(cached_tokens=cached_tokens),
+    )
 
 
 def _base_kwargs(**overrides):
@@ -335,6 +359,81 @@ async def test_responses_planning__converts_tool_description_objects() -> None:
     search_tool = call_kwargs["tools"][1]
     assert search_tool["type"] == "function"
     assert isinstance(search_tool["parameters"], dict)
+
+
+# ============================================================================
+# Tests for get_invocation_stats
+# ============================================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__captures_invocation_stats_on_usage() -> None:
+    """
+    Purpose: The planning call is a real, separate LLM call the main loop
+    never sees — its usage must be captured under source="planning" and
+    exposed via get_invocation_stats(), mapping OpenAI's ResponseUsage
+    (input_tokens/output_tokens/total_tokens) onto our LanguageModelTokenUsage.
+    """
+    middleware, _, openai_client = _make_middleware()
+    usage = _make_usage(input_tokens=10, output_tokens=5, total_tokens=15)
+    openai_client.responses.create = AsyncMock(return_value=_make_response(usage=usage))
+
+    model = _make_model_mock(name="o3-mini")
+    await middleware(**_base_kwargs(model=model))
+
+    stats = middleware.get_invocation_stats()
+    assert len(stats) == 1
+    assert stats[0].model_name == "o3-mini"
+    assert stats[0].source == "planning"
+    assert stats[0].token_usage.prompt_tokens == 10
+    assert stats[0].token_usage.completion_tokens == 5
+    assert stats[0].token_usage.total_tokens == 15
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__no_usage_on_response__no_stats_captured() -> None:
+    """Provider responses without usage must not produce a stats entry."""
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response(usage=None))
+
+    await middleware(**_base_kwargs())
+
+    assert middleware.get_invocation_stats() == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__get_invocation_stats_drains_between_calls() -> None:
+    """get_invocation_stats() must return-and-clear so repeated iterations
+    (the middleware instance is reused across loop iterations) don't
+    double-count a prior iteration's planning call."""
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(
+        return_value=_make_response(usage=_make_usage())
+    )
+
+    await middleware(**_base_kwargs())
+    first_drain = middleware.get_invocation_stats()
+    second_drain = middleware.get_invocation_stats()
+
+    assert len(first_drain) == 1
+    assert second_drain == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__plan_step_failure__no_stats_captured() -> None:
+    """When the plan step raises (e.g. malformed response) and is swallowed
+    by @failsafe_async, no usage was ever obtained, so nothing is captured."""
+    middleware, runner, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(side_effect=RuntimeError("boom"))
+
+    await middleware(**_base_kwargs())
+
+    runner.assert_awaited_once()
+    assert middleware.get_invocation_stats() == []
 
 
 @pytest.mark.asyncio

@@ -1,14 +1,38 @@
+from __future__ import annotations
+
 import asyncio
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Literal
 
+from unique_sdk.api_resources._integrated import Integrated
 from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.file_io import upload_file
 from unique_sdk.utils.file_io import (
     wait_for_ingestion_completion as _wait_for_ingestion_completion,
 )
+
+
+def get_message_usage(message: Space.Message) -> Integrated.Usage | None:
+    """Total token usage for a completed Space message, read from
+    `debugInfo.llm_invocations.totalTokenUsage`.
+    """
+    debug_info = message.get("debugInfo") or {}
+    llm_invocations = debug_info.get("llm_invocations")
+    if llm_invocations is None:
+        return None
+    return llm_invocations["totalTokenUsage"]
+
+
+def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
+    """Per-LLM-invocation stats for a completed Space message.
+
+    Each entry has `modelName`, `tokenUsage`, and `source` keys.
+    """
+    debug_info = message.get("debugInfo") or {}
+    llm_invocations = debug_info.get("llm_invocations") or {}
+    return llm_invocations["invocations"] if llm_invocations else []
 
 
 async def send_message_and_wait_for_completion(
@@ -23,10 +47,10 @@ async def send_message_and_wait_for_completion(
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
-    correlation: "Space.Correlation | None" = None,
+    correlation: Space.Correlation | None = None,
     auto_approve_elicitation: bool | None = None,
-    on_message_update: Callable[["Space.Message"], Awaitable[None]] | None = None,
-) -> "Space.Message":
+    on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
+) -> Space.Message:
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
 
@@ -91,6 +115,11 @@ async def send_message_and_wait_for_completion(
                 last_update_signature = update_signature
         if answer.get(stop_condition) is not None:
             try:
+                # debugInfo/llm_invocations is written via update_debug_info_async(),
+                # which always targets the original USER message, not the
+                # assistant reply (assistant=False in
+                # ChatService._construct_message_modify_params) — re-fetch by
+                # `message_id`, not the polled assistant message's own id.
                 user_message = await Message.retrieve_async(
                     user_id, company_id, message_id, chatId=chat_id
                 )
@@ -116,7 +145,7 @@ async def chat_against_file(
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     should_delete_chat: bool = True,
-) -> "Space.Message":
+) -> Space.Message:
     """
     Chat against a file by uploading it, sending a message and waiting for a reply.
     Args:

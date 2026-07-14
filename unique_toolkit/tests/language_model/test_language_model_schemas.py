@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from openai.types.completion_usage import CompletionTokensDetails, CompletionUsage
 from pydantic import BaseModel, Field, ValidationError
 
 from unique_toolkit.language_model.schemas import (
@@ -11,7 +12,10 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
     LanguageModelSystemMessage,
+    LanguageModelTokenUsage,
     LanguageModelTool,
     LanguageModelToolDescription,
     LanguageModelToolMessage,
@@ -19,6 +23,282 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolParameters,
     LanguageModelUserMessage,
 )
+
+
+def test_language_model_response_from_stream_response__carries_usage():
+    """LanguageModelResponse.from_stream_response() previously dropped
+    usage entirely, even though the source LanguageModelStreamResponse
+    already had it populated — e.g. ChatService.complete()/complete_async()
+    build a LanguageModelResponse this way, so any caller (DeepResearch's
+    self.chat_service.complete_async() among them) silently lost usage."""
+    stream_response = LanguageModelStreamResponse(
+        message=LanguageModelStreamResponseMessage(
+            id="msg-1",
+            chat_id="chat-1",
+            previous_message_id=None,
+            role=LanguageModelMessageRole.ASSISTANT,
+            text="hello",
+        ),
+        usage=LanguageModelTokenUsage(
+            completion_tokens=12, prompt_tokens=34, total_tokens=46
+        ),
+    )
+
+    response = LanguageModelResponse.from_stream_response(stream_response)
+
+    assert response.usage == LanguageModelTokenUsage(
+        completion_tokens=12, prompt_tokens=34, total_tokens=46
+    )
+
+
+def test_language_model_response_from_stream_response__usage_none__stays_none():
+    stream_response = LanguageModelStreamResponse(
+        message=LanguageModelStreamResponseMessage(
+            id="msg-1",
+            chat_id="chat-1",
+            previous_message_id=None,
+            role=LanguageModelMessageRole.ASSISTANT,
+            text="hello",
+        ),
+    )
+
+    response = LanguageModelResponse.from_stream_response(stream_response)
+
+    assert response.usage is None
+
+
+class TestLanguageModelTokenUsageProviderNormalization:
+    """Reasoning/cached/cache-write extraction across real provider usage shapes:
+    our own gateway, the Responses API, and litellm-proxied Anthropic/Gemini/GPT-5.6.
+    """
+
+    def test_unique_gateway_chat_shape__extracts_reasoning_and_cached(self):
+        """Path 1 (unique_sdk.ChatCompletion): camelCase totals, snake_case
+        nested details -- exact shape captured live against Azure GPT-5.1."""
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "completionTokens": 826,
+                "promptTokens": 71,
+                "totalTokens": 897,
+                "completion_tokens_details": {
+                    "accepted_prediction_tokens": 0,
+                    "audio_tokens": 0,
+                    "reasoning_tokens": 108,
+                    "rejected_prediction_tokens": 0,
+                },
+                "prompt_tokens_details": {
+                    "audio_tokens": 0,
+                    "cached_tokens": 0,
+                },
+            }
+        )
+
+        assert usage.completion_tokens == 826
+        assert usage.prompt_tokens == 71
+        assert usage.total_tokens == 897
+        assert usage.reasoning_tokens == 108
+        assert usage.cached_tokens == 0
+        assert usage.cache_write_tokens is None
+
+    def test_unique_gateway_chat_shape__cache_hit(self):
+        """Same path, second call against a warm cache -- cached_tokens > 0."""
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "completionTokens": 12,
+                "promptTokens": 5335,
+                "totalTokens": 5347,
+                "completion_tokens_details": {"reasoning_tokens": 0},
+                "prompt_tokens_details": {"cached_tokens": 5248},
+            }
+        )
+
+        assert usage.cached_tokens == 5248
+
+    def test_responses_api_shape__maps_input_output_vocabulary(self):
+        """Path 3 (Responses API): different vocabulary AND different nesting
+        names (output_tokens_details / input_tokens_details) than Chat
+        Completions -- must map onto the same fields without any call site
+        pre-flattening it first (defends the raw-dict gateway path, which may
+        route some models through Responses under the hood)."""
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "input_tokens": 62,
+                "input_tokens_details": {"cached_tokens": 0},
+                "output_tokens": 1078,
+                "output_tokens_details": {"reasoning_tokens": 539},
+                "total_tokens": 1140,
+            }
+        )
+
+        assert usage.prompt_tokens == 62
+        assert usage.completion_tokens == 1078
+        assert usage.total_tokens == 1140
+        assert usage.reasoning_tokens == 539
+        assert usage.cached_tokens == 0
+
+    def test_responses_api_shape__missing_total__computed_from_parts(self):
+        usage = LanguageModelTokenUsage.model_validate(
+            {"input_tokens": 10, "output_tokens": 5}
+        )
+
+        assert usage.total_tokens == 15
+
+    def test_anthropic_shape__prefers_nested_over_top_level_alias(self):
+        """litellm's Anthropic mapping emits BOTH a nested
+        prompt_tokens_details.cached_tokens AND a top-level
+        cache_read_input_tokens for the same read count -- nested wins,
+        top-level is only a fallback."""
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "completion_tokens": 5,
+                "prompt_tokens": 16,
+                "total_tokens": 21,
+                "prompt_tokens_details": {"cached_tokens": 6185},
+                "cache_read_input_tokens": 9999,  # must be ignored: nested wins
+            }
+        )
+
+        assert usage.cached_tokens == 6185
+
+    def test_anthropic_shape__top_level_alias_used_when_nested_absent(self):
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "completion_tokens": 5,
+                "prompt_tokens": 16,
+                "total_tokens": 21,
+                "cache_read_input_tokens": 6185,
+                "cache_creation_input_tokens": 0,
+            }
+        )
+
+        assert usage.cached_tokens == 6185
+        assert usage.cache_write_tokens == 0
+
+    def test_anthropic_shape__cache_write_via_top_level_alias(self):
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "completion_tokens": 5,
+                "prompt_tokens": 16,
+                "total_tokens": 21,
+                "cache_creation_input_tokens": 6185,
+            }
+        )
+
+        assert usage.cache_write_tokens == 6185
+
+    def test_gpt_56_shape__cache_write_nested_under_prompt_tokens_details(self):
+        """GPT-5.6 via litellm nests cache_write_tokens alongside cached_tokens,
+        not as a top-level Anthropic-style alias."""
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "completion_tokens": 3,
+                "prompt_tokens": 5334,
+                "total_tokens": 5337,
+                "prompt_tokens_details": {
+                    "audio_tokens": 0,
+                    "cached_tokens": 0,
+                    "cache_write_tokens": 5313,
+                },
+            }
+        )
+
+        assert usage.cache_write_tokens == 5313
+        assert usage.cached_tokens == 0
+
+    def test_gemini_shape__ignores_unknown_detail_keys(self):
+        """Gemini's detail objects carry an extra `text_tokens` key we don't
+        model -- it must be ignored, not raise or leak through."""
+        usage = LanguageModelTokenUsage.model_validate(
+            {
+                "completion_tokens": 24,
+                "prompt_tokens": 10,
+                "total_tokens": 34,
+                "completion_tokens_details": {
+                    "reasoning_tokens": 22,
+                    "text_tokens": 2,
+                },
+                "prompt_tokens_details": {"text_tokens": 10},
+            }
+        )
+
+        assert usage.reasoning_tokens == 22
+        assert usage.cached_tokens is None
+
+    def test_mistral_shape__totals_only__optional_fields_stay_none_not_zero(self):
+        """No detail objects at all -- reasoning/cached/cache_write must be
+        `None` (unknown), never invented as `0`."""
+        usage = LanguageModelTokenUsage.model_validate(
+            {"completion_tokens": 3, "prompt_tokens": 14, "total_tokens": 17}
+        )
+
+        assert usage.reasoning_tokens is None
+        assert usage.cached_tokens is None
+        assert usage.cache_write_tokens is None
+
+    def test_explicit_kwargs_construction__unaffected_by_validator(self):
+        """Direct keyword construction (used by every call site that already
+        extracted values from an SDK object) must still work as a plain model
+        -- the validator only fills gaps in dict-shaped input, never fights
+        explicit values."""
+        usage = LanguageModelTokenUsage(
+            completion_tokens=10,
+            prompt_tokens=20,
+            total_tokens=30,
+            reasoning_tokens=5,
+            cached_tokens=8,
+            cache_write_tokens=2,
+        )
+
+        assert usage.reasoning_tokens == 5
+        assert usage.cached_tokens == 8
+        assert usage.cache_write_tokens == 2
+
+    def test_model_validate__accepts_raw_sdk_usage_object_directly(self):
+        """Callers pass the OpenAI SDK's own usage object straight to
+        model_validate() -- no manual `.model_dump()` at the call site; the
+        validator converts it internally."""
+        sdk_usage = CompletionUsage(
+            completion_tokens=670,
+            prompt_tokens=71,
+            total_tokens=741,
+            completion_tokens_details=CompletionTokensDetails(reasoning_tokens=277),
+        )
+
+        usage = LanguageModelTokenUsage.model_validate(sdk_usage)
+
+        assert usage.completion_tokens == 670
+        assert usage.prompt_tokens == 71
+        assert usage.reasoning_tokens == 277
+
+    def test_sum_usages__includes_cache_write_tokens(self):
+        total = LanguageModelTokenUsage.sum_usages(
+            [
+                LanguageModelTokenUsage(cache_write_tokens=5313),
+                LanguageModelTokenUsage(cache_write_tokens=100),
+            ]
+        )
+
+        assert total is not None
+        assert total.cache_write_tokens == 5413
+
+    def test_model_dump_by_alias__new_fields_camel_cased(self):
+        usage = LanguageModelTokenUsage(
+            completion_tokens=1,
+            prompt_tokens=2,
+            total_tokens=3,
+            reasoning_tokens=4,
+            cached_tokens=5,
+            cache_write_tokens=6,
+        )
+
+        assert usage.model_dump(by_alias=True) == {
+            "completionTokens": 1,
+            "promptTokens": 2,
+            "totalTokens": 3,
+            "reasoningTokens": 4,
+            "cachedTokens": 5,
+            "cacheWriteTokens": 6,
+        }
 
 
 class TestLanguageModelSchemas:

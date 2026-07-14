@@ -18,6 +18,9 @@ from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.infos import ModelCapabilities
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -77,6 +80,7 @@ async def check_hallucination(
         result = await LanguageModelService.complete_async_util(
             company_id=company_id, user_id=user_id, messages=msgs, model_name=model_name
         )
+        usage = result.usage
         result_content = result.choices[0].message.content
         if not result_content or not isinstance(result_content, str):
             error_message = "Hallucination evaluation did not return a text result."
@@ -88,6 +92,12 @@ async def check_hallucination(
             result_content,
             EvaluationMetricName.HALLUCINATION,
         )
+        if usage is not None:
+            result.invocation_stats = [
+                LanguageModelInvocationStats.from_usage(
+                    model_name, usage, source="hallucination"
+                )
+            ]
 
         return result
     except Exception as e:

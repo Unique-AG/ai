@@ -6,6 +6,7 @@ from unique_toolkit.agentic.loop_runner._iteration_handler_utils import (
 from unique_toolkit.agentic.loop_runner.base import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
+    SupportsInvocationStats,
 )
 from unique_toolkit.agentic.loop_runner.middleware import (
     PlanningConfig,
@@ -42,4 +43,5 @@ __all__ = [
     "QWEN_MAX_LOOP_ITERATIONS",
     "ResponsesLoopIterationRunner",
     "ResponsesBasicLoopIterationRunner",
+    "SupportsInvocationStats",
 ]

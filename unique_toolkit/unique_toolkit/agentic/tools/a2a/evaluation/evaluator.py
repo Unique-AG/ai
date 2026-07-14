@@ -31,7 +31,13 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
 )
 from unique_toolkit.language_model.builder import MessagesBuilder
-from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelResponse,
+    LanguageModelStreamResponse,
+)
 from unique_toolkit.language_model.service import LanguageModelService
 
 logger = logging.getLogger(__name__)
@@ -208,13 +214,23 @@ class SubAgentEvaluationService(Evaluation):
 
                 sub_agents_display_data.append(data)
 
-        reason = await self._get_reason(sub_agents_display_data)
+        response = await self._get_reason(sub_agents_display_data)
+        reason = str(response.choices[0].message.content)
 
         return EvaluationMetricResult(
             name=self.get_name(),
             value=value,
             reason=reason,
             is_positive=value == ChatMessageAssessmentLabel.GREEN,
+            invocation_stats=[
+                LanguageModelInvocationStats.from_usage(
+                    self._config.summarization_model.name,
+                    response.usage,
+                    source=str(self.get_name()),
+                )
+            ]
+            if response.usage is not None
+            else [],
         )
 
     @override
@@ -250,7 +266,9 @@ class SubAgentEvaluationService(Evaluation):
             type=self.get_assessment_type(),
         )
 
-    async def _get_reason(self, sub_agents_display_data: list[dict[str, Any]]) -> str:
+    async def _get_reason(
+        self, sub_agents_display_data: list[dict[str, Any]]
+    ) -> LanguageModelResponse:
         messages = (
             MessagesBuilder()
             .system_message_append(self._config.summarization_system_message)
@@ -262,10 +280,8 @@ class SubAgentEvaluationService(Evaluation):
             .build()
         )
 
-        reason = await self._language_model_service.complete_async(
+        return await self._language_model_service.complete_async(
             messages=messages,
             model_name=self._config.summarization_model.name,
             temperature=0.0,
         )
-
-        return str(reason.choices[0].message.content)

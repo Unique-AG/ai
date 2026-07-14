@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.utils.source_handling.schema import SourceFormatConfig
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 
 # TODO: this needs to be more general as the tools can potentially return anything maybe make a base class and then derive per "type" of tool
@@ -19,6 +20,10 @@ class ToolCallResponse(BaseModel):
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
     reasoning_result: Optional[dict[str, Any]] = None  # TODO: Make the default {}
     error_message: str = ""
+    invocation_stats: list[LanguageModelInvocationStats] = Field(
+        default_factory=list,
+        description="Per-LLM-call usage stats from any calls this tool made while producing this response.",
+    )
     image_data_urls: list[str] = Field(
         default_factory=list,
         description="Data URLs (e.g. data:image/png;base64,...) for images returned by this tool.",

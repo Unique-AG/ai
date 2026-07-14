@@ -64,11 +64,7 @@ class ChatCompletionTextEventHandler:
         bool-return semantics. All other chunks silently accumulate state.
         """
         if event.usage is not None:
-            self._usage = LanguageModelTokenUsage(
-                completion_tokens=event.usage.completion_tokens,
-                prompt_tokens=event.usage.prompt_tokens,
-                total_tokens=event.usage.total_tokens,
-            )
+            self._usage = LanguageModelTokenUsage.model_validate(event.usage)
 
         if len(event.choices) == 0:
             return

@@ -4,8 +4,6 @@ accumulation, flush throttling, and bus publishing semantics.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 from openai.types.chat.chat_completion_chunk import (
     ChatCompletionChunk,
@@ -14,6 +12,7 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCall,
     ChoiceDeltaToolCallFunction,
 )
+from openai.types.completion_usage import CompletionUsage
 
 from unique_toolkit.experimental._internal.streaming import TextFlushed
 from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions.text_event_handler import (
@@ -26,7 +25,7 @@ def _chunk(
     content: str | None = None,
     tool_calls: list[ChoiceDeltaToolCall] | None = None,
     no_choices: bool = False,
-    usage: SimpleNamespace | None = None,
+    usage: CompletionUsage | None = None,
 ) -> ChatCompletionChunk:
     choices = (
         []
@@ -138,7 +137,7 @@ async def test_AI_text_event_handler__on_chunk__captures_usage_from_terminal_chu
     await event_handler.on_chunk(
         _chunk(
             no_choices=True,
-            usage=SimpleNamespace(
+            usage=CompletionUsage(
                 completion_tokens=3,
                 prompt_tokens=5,
                 total_tokens=8,
