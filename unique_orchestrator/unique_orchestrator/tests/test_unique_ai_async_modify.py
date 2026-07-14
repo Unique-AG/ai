@@ -88,6 +88,7 @@ def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
     ua._mcp_servers = []
     ua._execution_times = []
     ua._current_loop_timing = {}
+    ua._generated_files_info = None
     ua.current_iteration_index = 0
     ua._skill_choices = []
 
@@ -133,7 +134,7 @@ async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_handle_no_tool_calls_adds_returned_artifacts_to_debug_info(monkeypatch):
+async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics(monkeypatch):
     ua = _make_ua(monkeypatch)
     artifacts = {"count": 1, "filetypes": ["csv"]}
     ua._postprocessor_manager.run_postprocessors.return_value = {
@@ -146,4 +147,4 @@ async def test_handle_no_tool_calls_adds_returned_artifacts_to_debug_info(monkey
 
     await ua._handle_no_tool_calls(response)
 
-    ua._debug_info_manager.add.assert_called_once_with("artifacts", artifacts)
+    assert ua._generated_files_info == artifacts

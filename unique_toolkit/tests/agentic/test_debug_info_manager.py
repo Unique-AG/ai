@@ -537,25 +537,20 @@ class TestAddAnalytics:
         assert analytics["total_time_to_answer_ms"] is None
 
     @pytest.mark.ai
-    def test_add_analytics__artifacts__populated_from_debug_info_entry(
+    def test_add_analytics__artifacts__populated_from_argument(
         self, debug_info_manager: DebugInfoManager
     ) -> None:
         """
-        Purpose: Verify the artifact fields are read from the debug_info["artifacts"]
-        entry written at the Code Interpreter postprocessor seam.
+        Purpose: Verify the artifact fields are read from the artifacts argument.
         Why this matters: This is the wiring that makes the reserved keys carry real
         values once Code Interpreter has produced files.
-        Setup summary: Seed debug_info["artifacts"]; assert both fields mirror it.
+        Setup summary: Pass artifact metadata; assert both fields mirror it.
         """
-        debug_info_manager.debug_info["artifacts"] = {
-            "count": 2,
-            "filetypes": ["csv", "png"],
-        }
-
         debug_info_manager.add_analytics(
             [],
             language_model=self.language_model,
             tool_display_names=self.tool_display_names,
+            artifacts={"count": 2, "filetypes": ["csv", "png"]},
         )
 
         analytics = debug_info_manager.get()["analytics"]
@@ -570,16 +565,15 @@ class TestAddAnalytics:
         Purpose: Verify a ran-but-produced-nothing Code Interpreter turn reports
         count 0 / empty filetypes, distinct from the never-ran (None) case.
         Why this matters: Consumers must be able to tell "0 files created" from
-        "no Code Interpreter this turn" — the postprocessor writes {count:0,
-        filetypes:[]} in the former case, no entry in the latter.
-        Setup summary: Seed an empty artifacts entry; assert 0 / [] (not None).
+        "no Code Interpreter this turn" — the caller passes {count:0,
+        filetypes:[]} in the former case and None in the latter.
+        Setup summary: Pass empty artifact metadata; assert 0 / [] (not None).
         """
-        debug_info_manager.debug_info["artifacts"] = {"count": 0, "filetypes": []}
-
         debug_info_manager.add_analytics(
             [],
             language_model=self.language_model,
             tool_display_names=self.tool_display_names,
+            artifacts={"count": 0, "filetypes": []},
         )
 
         analytics = debug_info_manager.get()["analytics"]
