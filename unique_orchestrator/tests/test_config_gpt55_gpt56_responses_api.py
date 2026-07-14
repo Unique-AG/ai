@@ -1,10 +1,8 @@
-"""Tests for UniqueAIConfig.enable_responses_api_for_gpt_55_and_gpt_55_pro.
+"""Tests for the GPT-5.5 and GPT-5.6 Responses API validator.
 
-GPT-5.5 (AZURE_GPT_55_2026_0424) and GPT-5.5-Pro (AZURE_GPT_55_PRO_2026_0424)
-reject requests that combine ``tools`` with ``reasoning_effort`` on
-``/v1/chat/completions`` and demand ``/v1/responses``. The validator forces
-the Responses API on when either of these models is selected, regardless of
-which tools are configured.
+These models reject requests that combine ``tools`` with ``reasoning_effort``
+on ``/v1/chat/completions`` and demand ``/v1/responses``. The validator forces
+the Responses API on regardless of which tools are configured.
 
 Tracked in Jira: UN-20123.
 
@@ -38,6 +36,14 @@ from unique_orchestrator.config import (
 AFFECTED_MODELS = [
     LanguageModelName.AZURE_GPT_55_2026_0424,
     LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+    LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+    LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+    LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+    LanguageModelName.LITELLM_OPENAI_GPT_55,
+    LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+    LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+    LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+    LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
 ]
 
 CODE_INTERPRETER_TOOL = ToolBuildConfig(
@@ -47,7 +53,7 @@ CODE_INTERPRETER_TOOL = ToolBuildConfig(
 
 
 def _make_unaffected_model() -> LanguageModelInfo:
-    """Build a model that is NOT GPT-5.5(-Pro) but still supports the Responses API.
+    """Build an unrelated model that still supports the Responses API.
 
     Used to assert the validator only auto-enables for the specific affected
     models — never for unrelated models, even when capabilities would allow it.
@@ -71,8 +77,7 @@ def _make_unaffected_model() -> LanguageModelInfo:
 def test_enables_responses_api_for_affected_models(
     model_name: LanguageModelName,
 ) -> None:
-    """When the selected model is GPT-5.5 or GPT-5.5-Pro, the validator must
-    flip ``use_responses_api`` to True so the runner routes to ``/v1/responses``."""
+    """Affected models must route through ``/v1/responses``."""
     model = LanguageModelInfo.from_name(model_name)
 
     config = UniqueAIConfig(
@@ -86,9 +91,7 @@ def test_enables_responses_api_for_affected_models(
 def test_enables_responses_api_for_affected_models_with_tools(
     model_name: LanguageModelName,
 ) -> None:
-    """The auto-enable applies even when other tools (e.g. Code Interpreter)
-    are configured — the GPT-5.5(-Pro) transport requirement is independent
-    of the Code Interpreter validator."""
+    """The transport requirement is independent of configured tools."""
     model = LanguageModelInfo.from_name(model_name)
 
     config = UniqueAIConfig(
@@ -102,9 +105,7 @@ def test_enables_responses_api_for_affected_models_with_tools(
 
 
 def test_does_not_enable_responses_api_for_other_models() -> None:
-    """When the selected model is neither GPT-5.5 nor GPT-5.5-Pro, the validator
-    must be a no-op even if the model supports the Responses API. Otherwise the
-    TEMP FIX could mask real configuration issues for unaffected models."""
+    """The validator must not affect unrelated Responses-capable models."""
     config = UniqueAIConfig(
         space=UniqueAISpaceConfig(language_model=_make_unaffected_model(), tools=[]),
     )
@@ -116,8 +117,7 @@ def test_does_not_enable_responses_api_for_other_models() -> None:
 def test_keeps_responses_api_enabled_when_already_enabled(
     model_name: LanguageModelName,
 ) -> None:
-    """When ``use_responses_api`` is already True for an affected model, the
-    validator must leave it True — i.e. it is idempotent for those models."""
+    """The validator must remain idempotent."""
     model = LanguageModelInfo.from_name(model_name)
 
     config = UniqueAIConfig(
