@@ -490,26 +490,35 @@ class DisplayCodeInterpreterFilesPostProcessor(
             save_ms,
         )
 
-        self._add_artifacts_debug_info(container_files)
+        self._add_artifacts_debug_info(loop_response)
 
     def _add_artifacts_debug_info(
-        self, container_files: list[AnnotationContainerFileCitation]
+        self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> None:
         """Record this turn's successfully-created artifacts in the debug info.
 
         Feeds analytics.artifacts_created_count / artifacts_created_filetype.
-        Scoped to ``container_files`` (this response) rather than
-        ``self._content_map``, which also holds prior-message files loaded from
-        short-term memory — counting those would inflate the per-turn total.
-        Only successful uploads (content_id is not None) are counted; filetypes
-        are the deduped, sorted set of file extensions.
+
+        Only written when the Code Interpreter actually executed this turn
+        (``code_interpreter_calls`` non-empty). The postprocessor is registered
+        whenever the tool is *enabled*, so ``run()`` also fires on turns where the
+        model never invoked it — leaving the entry absent in that case keeps
+        analytics.artifacts_* as null ("did not run") rather than 0/[] ("ran,
+        created nothing"). When it did run, count is scoped to this response's
+        ``container_files`` (not ``self._content_map``, which also holds
+        prior-message files from short-term memory), successful uploads only,
+        with a deduped, sorted set of file extensions.
         """
         if self._debug_info_manager is None:
             return
 
+        # Interpreter did not run this turn → leave artifacts null, not 0/[].
+        if not loop_response.code_interpreter_calls:
+            return
+
         created_filenames = {
             cf.filename
-            for cf in container_files
+            for cf in loop_response.container_files
             if self._content_map.get(cf.filename) is not None
         }
         self._debug_info_manager.add(
