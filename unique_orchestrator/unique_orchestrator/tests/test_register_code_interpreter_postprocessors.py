@@ -240,12 +240,7 @@ class TestConfigPassthrough:
 
     @pytest.mark.ai
     def test_display_files_postprocessor_receives_client_and_company_id(self):
-        """DisplayCodeInterpreterFilesPostProcessor must receive the client and
-        company_id and be the second registered postprocessor.
-
-        The postprocessor no longer owns a DebugInfoManager: it computes the
-        artifact stats and returns them to the orchestrator.
-        """
+        """DisplayCodeInterpreterFilesPostProcessor must receive the client and company_id."""
         mgr = _make_postprocessor_manager()
         client = MagicMock()
         content_service = MagicMock()
