@@ -55,7 +55,7 @@ class Analytics(TypedDict):
 
 class DebugInfoManager:
     def __init__(self):
-        self.debug_info = {"tools": []}
+        self.debug_info: dict[str, Any] = {"tools": []}
 
     def extract_tool_debug_info(
         self,
@@ -121,6 +121,11 @@ class DebugInfoManager:
             _to_analytics_tool_entry(tool, tool_display_names)
             for tool in self.debug_info.get("tools", [])
         ]
+        # Artifacts are recorded at the postprocessor seam (Code Interpreter's
+        # DisplayCodeInterpreterFilesPostProcessor) into debug_info["artifacts"].
+        # Absent when no Code Interpreter ran this turn → both fields stay None,
+        # preserving the always-present, null-when-unknown contract.
+        artifacts = self.debug_info.get("artifacts") or {}
         analytics = Analytics(
             tools_used=analytics_tools,
             tool_call_count=len(analytics_tools),
@@ -140,10 +145,8 @@ class DebugInfoManager:
             subagent_names_used=_unique_tool_names(analytics_tools, "is_sub_agent"),
             mcp_tool_names_used=_unique_tool_names(analytics_tools, "is_mcp"),
             total_time_to_answer_ms=total_time_to_answer_ms,
-            # Reserved placeholders — schema present so consumers can rely on the
-            # keys, populated in a follow-up step (artifacts instrumentation).
-            artifacts_created_count=None,
-            artifacts_created_filetype=None,
+            artifacts_created_count=artifacts.get("count"),
+            artifacts_created_filetype=artifacts.get("filetypes"),
         )
         self.add("analytics", analytics)
 

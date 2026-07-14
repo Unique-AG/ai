@@ -76,6 +76,7 @@ class TestNoPostprocessorsRegistered:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         mgr.add_postprocessor.assert_not_called()
@@ -94,6 +95,7 @@ class TestNoPostprocessorsRegistered:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         mgr.add_postprocessor.assert_not_called()
@@ -112,6 +114,7 @@ class TestNoPostprocessorsRegistered:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         mgr.add_postprocessor.assert_not_called()
@@ -137,6 +140,7 @@ class TestPostprocessorTypesRegistered:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         assert mgr.add_postprocessor.call_count == 2
@@ -155,6 +159,7 @@ class TestPostprocessorTypesRegistered:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         first_call_arg = mgr.add_postprocessor.call_args_list[0][0][0]
@@ -174,6 +179,7 @@ class TestPostprocessorTypesRegistered:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         second_call_arg = mgr.add_postprocessor.call_args_list[1][0][0]
@@ -210,6 +216,7 @@ class TestConfigPassthrough:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         postprocessor: ShowExecutedCodePostprocessor = (
@@ -231,6 +238,7 @@ class TestConfigPassthrough:
             company_id="company-fence",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         postprocessor: ShowExecutedCodePostprocessor = (
@@ -240,11 +248,13 @@ class TestConfigPassthrough:
 
     @pytest.mark.ai
     def test_display_files_postprocessor_receives_client_and_company_id(self):
-        """DisplayCodeInterpreterFilesPostProcessor must receive the client and company_id."""
+        """DisplayCodeInterpreterFilesPostProcessor must receive the client, company_id
+        and the debug_info_manager (the latter feeds analytics.artifacts_* )."""
         mgr = _make_postprocessor_manager()
         client = MagicMock()
         content_service = MagicMock()
         chat_service = MagicMock()
+        debug_info_manager = MagicMock()
 
         _register_code_interpreter_postprocessors(
             tools=[_make_code_interpreter_tool()],
@@ -255,6 +265,7 @@ class TestConfigPassthrough:
             company_id="company-99",
             chat_id="chat-7",
             chat_service=chat_service,
+            debug_info_manager=debug_info_manager,
         )
 
         pp: DisplayCodeInterpreterFilesPostProcessor = (
@@ -262,6 +273,9 @@ class TestConfigPassthrough:
         )
         assert pp._client is client
         assert pp._company_id == "company-99"
+        # debug_info_manager must be threaded through so the postprocessor can
+        # record artifact counts/filetypes into analytics.
+        assert pp._debug_info_manager is debug_info_manager
         # All three IDs were passed, so short-term memory manager is initialised
         assert pp._short_term_memory_manager is not None
 
@@ -303,6 +317,7 @@ class TestFirstMatchWins:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         postprocessor: ShowExecutedCodePostprocessor = (
@@ -341,6 +356,7 @@ class TestFirstMatchWins:
             company_id="c1",
             chat_id="ch1",
             chat_service=MagicMock(),
+            debug_info_manager=MagicMock(),
         )
 
         postprocessor: ShowExecutedCodePostprocessor = (

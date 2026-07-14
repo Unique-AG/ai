@@ -9,6 +9,9 @@ import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 
+from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+    DebugInfoManager,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors import (
     generated_files as gen_mod,
 )
@@ -18,6 +21,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
     DisplayCodeInterpreterFilesPostProcessor,
     DisplayCodeInterpreterFilesPostProcessorConfig,
+    _artifact_filetype,
     _build_code_blocks,
     _build_file_fence,
     _ensure_fences_are_standalone,
@@ -2886,3 +2890,132 @@ async def test_download_and_upload__py_file__uploaded_as_text_plain() -> None:
         "the KB rejects text/x-python (UN-19267)"
     )
     assert kwargs["content"] == py_bytes
+
+
+# ---------------------------------------------------------------------------
+# _add_artifacts_debug_info — analytics.artifacts_* instrumentation (UN-22110)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        ("chart.png", "png"),
+        ("data.CSV", "csv"),
+        ("archive.tar.gz", "gz"),
+        ("README", ""),
+    ],
+)
+def test_artifact_filetype__returns_lowercased_extension(
+    filename: str, expected: str
+) -> None:
+    """The helper returns the lower-cased extension, '' when there is none."""
+    assert _artifact_filetype(filename) == expected
+
+
+@pytest.mark.ai
+def test_add_artifacts_debug_info__excludes_failed_uploads() -> None:
+    """
+    Purpose: Verify only successful uploads (content_id is not None) are counted.
+    Why this matters: artifacts_created_count means files the user actually got;
+    failed downloads must not inflate it (decision 2).
+    Setup summary: content_map with two successes and one failure; assert count 2
+    and the failed file's extension is absent.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._debug_info_manager = DebugInfoManager()
+    proc._content_map = {"a.png": "c1", "b.csv": "c2", "c.pdf": None}
+
+    proc._add_artifacts_debug_info(
+        [
+            _make_annotation("a.png"),
+            _make_annotation("b.csv"),
+            _make_annotation("c.pdf"),
+        ]
+    )
+
+    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts["count"] == 2
+    assert artifacts["filetypes"] == ["csv", "png"]
+
+
+@pytest.mark.ai
+def test_add_artifacts_debug_info__filetypes_deduped_and_sorted() -> None:
+    """
+    Purpose: Verify filetypes is a deduped, sorted set of extensions (decisions 1, 3).
+    Setup summary: Two PNGs and one CSV; assert filetypes == ['csv', 'png'] and the
+    count still reflects the three distinct files.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._debug_info_manager = DebugInfoManager()
+    proc._content_map = {"chart.png": "c1", "chart2.png": "c2", "data.csv": "c3"}
+
+    proc._add_artifacts_debug_info(
+        [
+            _make_annotation("chart.png"),
+            _make_annotation("chart2.png"),
+            _make_annotation("data.csv"),
+        ]
+    )
+
+    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts["count"] == 3
+    assert artifacts["filetypes"] == ["csv", "png"]
+
+
+@pytest.mark.ai
+def test_add_artifacts_debug_info__counts_only_this_turn_not_prior_files() -> None:
+    """
+    Purpose: Verify prior-message files in _content_map (loaded from short-term
+    memory) are NOT counted — only this turn's container_files (decision 4).
+    Why this matters: Guards the §2a accuracy trap; counting the whole content_map
+    would inflate the per-turn total across a long chat.
+    Setup summary: content_map holds a prior file plus this turn's file; only this
+    turn's annotation is passed; assert just it is counted.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._debug_info_manager = DebugInfoManager()
+    # 'old.pdf' was created in an earlier message (present in content_map via
+    # _load_previous_files) but is NOT in this response's container_files.
+    proc._content_map = {"old.pdf": "c-old", "new.png": "c-new"}
+
+    proc._add_artifacts_debug_info([_make_annotation("new.png")])
+
+    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts["count"] == 1
+    assert artifacts["filetypes"] == ["png"]
+
+
+@pytest.mark.ai
+def test_add_artifacts_debug_info__empty_container_files__writes_zero() -> None:
+    """
+    Purpose: Verify a ran-but-produced-nothing turn writes count 0 / empty filetypes.
+    Why this matters: Lets analytics distinguish 0-files-created from never-ran.
+    Setup summary: No container files; assert {count: 0, filetypes: []}.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._debug_info_manager = DebugInfoManager()
+    proc._content_map = {}
+
+    proc._add_artifacts_debug_info([])
+
+    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts["count"] == 0
+    assert artifacts["filetypes"] == []
+
+
+@pytest.mark.ai
+def test_add_artifacts_debug_info__no_debug_info_manager__is_noop() -> None:
+    """
+    Purpose: Verify the method is a safe no-op when no DebugInfoManager was wired.
+    Why this matters: The postprocessor must still work standalone (tests, other
+    callers) with debug_info_manager left at its default None.
+    Setup summary: _debug_info_manager is None; call must not raise.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._debug_info_manager = None
+    proc._content_map = {"a.png": "c1"}
+
+    # Must not raise.
+    proc._add_artifacts_debug_info([_make_annotation("a.png")])

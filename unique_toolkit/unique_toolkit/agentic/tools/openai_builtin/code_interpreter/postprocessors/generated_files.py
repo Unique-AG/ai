@@ -5,7 +5,7 @@ import re
 import time
 from dataclasses import dataclass
 from mimetypes import guess_type
-from typing import NamedTuple, override
+from typing import TYPE_CHECKING, NamedTuple, override
 
 import httpx
 from openai import AsyncOpenAI
@@ -42,6 +42,14 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
+
+if TYPE_CHECKING:
+    # Imported under TYPE_CHECKING only: debug_info_manager imports from
+    # unique_toolkit.agentic.tools.openai_builtin (this package), so a runtime
+    # import here would create a circular import. We only need the type.
+    from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+        DebugInfoManager,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -344,6 +352,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
+        debug_info_manager: "DebugInfoManager | None" = None,
     ) -> None:
         super().__init__(self.__class__.__name__)
 
@@ -352,6 +361,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._client = client
         self._config = config
         self._company_id = company_id
+        self._debug_info_manager = debug_info_manager
 
         if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
@@ -478,6 +488,38 @@ class DisplayCodeInterpreterFilesPostProcessor(
             load_ms,
             download_upload_ms,
             save_ms,
+        )
+
+        self._add_artifacts_debug_info(container_files)
+
+    def _add_artifacts_debug_info(
+        self, container_files: list[AnnotationContainerFileCitation]
+    ) -> None:
+        """Record this turn's successfully-created artifacts in the debug info.
+
+        Feeds analytics.artifacts_created_count / artifacts_created_filetype.
+        Scoped to ``container_files`` (this response) rather than
+        ``self._content_map``, which also holds prior-message files loaded from
+        short-term memory — counting those would inflate the per-turn total.
+        Only successful uploads (content_id is not None) are counted; filetypes
+        are the deduped, sorted set of file extensions.
+        """
+        if self._debug_info_manager is None:
+            return
+
+        created_filenames = {
+            cf.filename
+            for cf in container_files
+            if self._content_map.get(cf.filename) is not None
+        }
+        self._debug_info_manager.add(
+            "artifacts",
+            {
+                "count": len(created_filenames),
+                "filetypes": sorted(
+                    {_artifact_filetype(name) for name in created_filenames}
+                ),
+            },
         )
 
     @override
@@ -922,6 +964,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
             len(content_infos),
             (time.monotonic() - t0) * 1000,
         )
+
+
+def _artifact_filetype(filename: str) -> str:
+    """Lower-cased file extension for analytics, e.g. 'chart.png' -> 'png'.
+
+    Returns '' for an extensionless filename.
+    """
+    return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
 
 def _get_file_type(filename: str) -> CodeInterpreterFileType:

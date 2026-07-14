@@ -537,6 +537,76 @@ class TestAddAnalytics:
         assert analytics["total_time_to_answer_ms"] is None
 
     @pytest.mark.ai
+    def test_add_analytics__artifacts__populated_from_debug_info_entry(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify the artifact fields are read from the debug_info["artifacts"]
+        entry written at the Code Interpreter postprocessor seam.
+        Why this matters: This is the wiring that makes the reserved keys carry real
+        values once Code Interpreter has produced files.
+        Setup summary: Seed debug_info["artifacts"]; assert both fields mirror it.
+        """
+        debug_info_manager.debug_info["artifacts"] = {
+            "count": 2,
+            "filetypes": ["csv", "png"],
+        }
+
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["artifacts_created_count"] == 2
+        assert analytics["artifacts_created_filetype"] == ["csv", "png"]
+
+    @pytest.mark.ai
+    def test_add_analytics__artifacts__zero_when_code_interpreter_ran_but_empty(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify a ran-but-produced-nothing Code Interpreter turn reports
+        count 0 / empty filetypes, distinct from the never-ran (None) case.
+        Why this matters: Consumers must be able to tell "0 files created" from
+        "no Code Interpreter this turn" — the postprocessor writes {count:0,
+        filetypes:[]} in the former case, no entry in the latter.
+        Setup summary: Seed an empty artifacts entry; assert 0 / [] (not None).
+        """
+        debug_info_manager.debug_info["artifacts"] = {"count": 0, "filetypes": []}
+
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["artifacts_created_count"] == 0
+        assert analytics["artifacts_created_filetype"] == []
+
+    @pytest.mark.ai
+    def test_add_analytics__artifacts__none_when_no_entry(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify both artifact fields are None when no Code Interpreter ran
+        (no debug_info["artifacts"] entry) — the always-present, null-when-unknown
+        contract from doc 03.
+        Setup summary: No artifacts entry seeded; assert both keys present and None.
+        """
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["artifacts_created_count"] is None
+        assert analytics["artifacts_created_filetype"] is None
+
+    @pytest.mark.ai
     def test_add_analytics__does_not_remove_top_level_tools_or_skills_keys(
         self, debug_info_manager: DebugInfoManager
     ) -> None:
