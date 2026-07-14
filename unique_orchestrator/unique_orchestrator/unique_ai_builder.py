@@ -68,7 +68,10 @@ from unique_toolkit.experimental.integrations.openai.streaming.event_routing imp
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
-from unique_user_memory.user_memory import load_user_memory
+from unique_user_memory.user_memory import (
+    build_user_memory_references,
+    load_user_memory,
+)
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders import (
@@ -362,6 +365,8 @@ async def _build_common(
         chat_service=chat_service,
     )
 
+    message_step_logger = MessageStepLogger(chat_service)
+
     if config.agent.services.stock_ticker_config is not None:
         postprocessor_manager.add_postprocessor(
             StockTickerPostprocessor(
@@ -390,6 +395,13 @@ async def _build_common(
         )
         if user_memory_state is not None:
             user_memory_text = user_memory_state.text
+            if user_memory_state.content_id is not None:
+                message_step_logger.create_message_log_entry(
+                    text="**User Memory Loaded**",
+                    references=build_user_memory_references(
+                        user_memory_state.content_id
+                    ),
+                )
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
                     config=user_memory_config,
@@ -397,6 +409,7 @@ async def _build_common(
                     event=event,
                     state=user_memory_state,
                     logger=logger,
+                    message_step_logger=message_step_logger,
                 )
             )
 
@@ -417,7 +430,7 @@ async def _build_common(
         user_memory_text=user_memory_text,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
-        message_step_logger=MessageStepLogger(chat_service),
+        message_step_logger=message_step_logger,
     )
 
 

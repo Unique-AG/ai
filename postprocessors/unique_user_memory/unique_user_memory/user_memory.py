@@ -18,6 +18,7 @@ from unique_toolkit.language_model import (
     TypeDecoder,
     TypeEncoder,
 )
+from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_user_memory.config import UserMemoryConfig
@@ -45,6 +46,26 @@ _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 class UserMemoryState:
     scope_id: str
     text: str
+    content_id: str | None = None
+
+
+def build_user_memory_references(content_id: str | None) -> list[ContentReference]:
+    """Build the reference list linking to the ``memory.md`` file.
+
+    Returns an empty list when no content id is available (e.g. the first
+    turn for a user, before any ``memory.md`` exists).
+    """
+    if not content_id:
+        return []
+    return [
+        ContentReference(
+            name=MEMORY_FILENAME,
+            sequence_number=0,
+            source="internal",
+            source_id=content_id,
+            url=f"unique://content/{content_id}",
+        )
+    ]
 
 
 def _get_model_tokenizer(
@@ -298,7 +319,7 @@ async def load_user_memory(
         logger.info("[user-memory] folder ensure failed - running without memory")
         return None
 
-    text = await download_user_memory(
+    text, content_id = await download_user_memory(
         scope_id=scope_id,
         user_id=user_id,
         company_id=company_id,
@@ -306,6 +327,7 @@ async def load_user_memory(
     )
     return UserMemoryState(
         scope_id=scope_id,
+        content_id=content_id,
         text=await fit_user_memory(
             content=text,
             max_tokens=config.max_tokens,
@@ -450,7 +472,13 @@ async def download_user_memory(
     user_id: str,
     company_id: str,
     logger: Logger,
-) -> str:
+) -> tuple[str, str | None]:
+    """Download ``memory.md`` from ``scope_id``.
+
+    Returns a ``(text, content_id)`` tuple. ``content_id`` is the id of the
+    ``memory.md`` content when it exists (used to build a link to the file),
+    or ``None`` when the file is missing or could not be downloaded.
+    """
     try:
         contents = await search_contents_async(
             user_id=user_id,
@@ -465,7 +493,7 @@ async def download_user_memory(
             type(exc).__name__,
             exc,
         )
-        return ""
+        return "", None
 
     memory_content = next(
         (content for content in contents if (content.key or "") == MEMORY_FILENAME),
@@ -477,7 +505,7 @@ async def download_user_memory(
             MEMORY_FILENAME,
             scope_id,
         )
-        return ""
+        return "", None
 
     try:
         content_bytes = await download_content_to_bytes_async(
@@ -493,7 +521,7 @@ async def download_user_memory(
             len(content_bytes),
             scope_id,
         )
-        return text
+        return text, memory_content.id
     except Exception as exc:
         logger.warning(
             "[user-memory] failed to download %s from scope %s: [%s] %s",
@@ -502,7 +530,7 @@ async def download_user_memory(
             type(exc).__name__,
             exc,
         )
-        return ""
+        return "", None
 
 
 async def upload_user_memory(

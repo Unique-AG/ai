@@ -226,7 +226,7 @@ async def test_download_user_memory_returns_empty_when_file_missing(
         logger=MagicMock(),
     )
 
-    assert result == ""
+    assert result == ("", None)
     search_contents.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
@@ -260,7 +260,7 @@ async def test_download_user_memory_downloads_existing_file_to_memory(
         logger=MagicMock(),
     )
 
-    assert result == "# User Memory\n\n## Identity\n- Test"
+    assert result == ("# User Memory\n\n## Identity\n- Test", "content_1")
     search_contents.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",

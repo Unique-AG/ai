@@ -1,5 +1,6 @@
 from logging import Logger
 
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.default_language_model import (
@@ -11,6 +12,7 @@ from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     UserMemoryState,
+    build_user_memory_references,
     consolidate_user_memory,
     upload_user_memory,
 )
@@ -27,6 +29,7 @@ class UserMemoryPostprocessor(Postprocessor):
         event: ChatEvent,
         state: UserMemoryState,
         logger: Logger,
+        message_step_logger: MessageStepLogger | None = None,
     ) -> None:
         super().__init__(name="UserMemoryPostprocessor")
         self._config = config
@@ -38,6 +41,7 @@ class UserMemoryPostprocessor(Postprocessor):
         self._event = event
         self._state = state
         self._logger = logger
+        self._message_step_logger = message_step_logger
         self._new_memory: str | None = None
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
@@ -74,6 +78,12 @@ class UserMemoryPostprocessor(Postprocessor):
             return
 
         self._logger.info("[user-memory] memory updated and uploaded successfully")
+
+        if self._message_step_logger is not None:
+            self._message_step_logger.create_message_log_entry(
+                text="**User Memory Updated**",
+                references=build_user_memory_references(self._state.content_id),
+            )
 
     def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse
