@@ -17,8 +17,11 @@ if TYPE_CHECKING:
 
 from unique_toolkit.agentic.history_manager.loop_token_reducer import (
     MAX_INPUT_TOKENS_SAFETY_PERCENTAGE,
+    MIN_PLAIN_TEXT_CHARS_TO_KEEP,
+    PLAIN_TEXT_TRUNCATION_MARKER,
     LoopTokenReducer,
     SourceReductionResult,
+    _truncate_plain_text,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app import (
@@ -258,16 +261,35 @@ def test_exceeds_token_limit__returns_false__when_under_limit_AI(
 
 
 @pytest.mark.ai
-def test_exceeds_token_limit__returns_false__when_no_multiple_chunks_AI(
+def test_exceeds_token_limit__returns_true__when_over_limit_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify _exceeds_token_limit is a pure size check.
+    Why this matters: Reducibility is a separate concern (_can_reduce_history), so
+    the size check must not depend on what sources or messages exist.
+    """
+    # Arrange
+    token_count = 1_000_000  # Over any limit
+
+    # Act
+    result = loop_token_reducer._exceeds_token_limit(token_count)
+
+    # Assert
+    assert result is True
+
+
+@pytest.mark.ai
+def test_can_reduce_history__returns_false__when_single_chunk_and_no_plain_text_AI(
     loop_token_reducer: LoopTokenReducer,
     mock_reference_manager: ReferenceManager,
 ) -> None:
     """
-    Purpose: Verify _exceeds_token_limit returns False when no tool call has multiple chunks.
-    Why this matters: Reduction requires at least one tool call with multiple chunks.
+    Purpose: Verify _can_reduce_history is False when nothing can be reduced.
+    Why this matters: A tool call with a single chunk cannot shed sources, and a
+    short plain-text response is below the truncation floor.
     """
     # Arrange
-    # Add a single chunk to the reference manager
     from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 
     tool_response = ToolCallResponse(
@@ -277,28 +299,26 @@ def test_exceeds_token_limit__returns_false__when_no_multiple_chunks_AI(
         content_chunks=[create_content_chunk("chunk_1", "text")],
     )
     mock_reference_manager.extract_referenceable_chunks([tool_response])
-    token_count = 1_000_000  # Over any limit
 
     # Act
-    result = loop_token_reducer._exceeds_token_limit(token_count)
+    result = loop_token_reducer._can_reduce_history([])
 
     # Assert
     assert result is False
 
 
 @pytest.mark.ai
-def test_exceeds_token_limit__returns_true__when_over_limit_with_multiple_chunks_AI(
+def test_can_reduce_history__returns_true__when_multiple_chunks_AI(
     loop_token_reducer: LoopTokenReducer,
     mock_reference_manager: ReferenceManager,
 ) -> None:
     """
-    Purpose: Verify _exceeds_token_limit returns True when over limit with multiple chunks.
-    Why this matters: Should trigger reduction when needed.
+    Purpose: Verify _can_reduce_history is True when a tool call has multiple chunks.
+    Why this matters: Sources can still be dropped, so reduction should proceed.
     """
     # Arrange
     from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 
-    # Add multiple chunks to a tool call
     tool_response = ToolCallResponse(
         id="tool_1",
         name="TestTool",
@@ -309,13 +329,190 @@ def test_exceeds_token_limit__returns_true__when_over_limit_with_multiple_chunks
         ],
     )
     mock_reference_manager.extract_referenceable_chunks([tool_response])
-    token_count = 1_000_000  # Over any limit
 
     # Act
-    result = loop_token_reducer._exceeds_token_limit(token_count)
+    result = loop_token_reducer._can_reduce_history([])
 
     # Assert
     assert result is True
+
+
+@pytest.mark.ai
+def test_can_reduce_history__returns_true__when_reducible_plain_text_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify _can_reduce_history is True for a large chunk-less plain-text
+    tool response, even with no chunks registered anywhere.
+    Why this matters: Plain-text truncation is an independent reduction lever.
+    """
+    # Arrange
+    message = create_tool_message(
+        "tool_1", "TestTool", "x" * (MIN_PLAIN_TEXT_CHARS_TO_KEEP + 100)
+    )
+
+    # Act
+    result = loop_token_reducer._can_reduce_history([message])
+
+    # Assert
+    assert result is True
+
+
+# Plain-text truncation tests
+@pytest.mark.ai
+def test_truncate_plain_text__keeps_head_and_appends_marker__when_over_AI() -> None:
+    """
+    Purpose: Verify _truncate_plain_text keeps the head and appends the marker.
+    Why this matters: The truncated content must stay a prefix of the original
+    plus a clear marker so the model knows the response was cut.
+    """
+    # Arrange
+    text = "A" * 10_000
+
+    # Act
+    result = _truncate_plain_text(text, overshoot_factor=2.0)
+
+    # Assert
+    assert result.endswith(PLAIN_TEXT_TRUNCATION_MARKER)
+    body = result.removesuffix(PLAIN_TEXT_TRUNCATION_MARKER)
+    assert len(body) < len(text)
+    assert text.startswith(body)  # only the head is kept
+
+
+@pytest.mark.ai
+def test_truncate_plain_text__returns_unchanged__when_at_or_below_floor_AI() -> None:
+    """
+    Purpose: Verify text at/below the floor is returned unchanged (no marker).
+    Why this matters: Tiny responses must not be shrunk further or marker-stacked.
+    """
+    # Arrange
+    text = "A" * (MIN_PLAIN_TEXT_CHARS_TO_KEEP - 1)
+
+    # Act
+    result = _truncate_plain_text(text, overshoot_factor=100.0)
+
+    # Assert
+    assert result == text
+
+
+@pytest.mark.ai
+def test_truncate_plain_text__never_below_floor__for_huge_overshoot_AI() -> None:
+    """
+    Purpose: Verify truncation never keeps fewer than the floor of characters.
+    Why this matters: Even under extreme overshoot we retain useful content.
+    """
+    # Arrange
+    text = "A" * 10_000
+
+    # Act
+    result = _truncate_plain_text(text, overshoot_factor=1_000.0)
+
+    # Assert
+    body = result.removesuffix(PLAIN_TEXT_TRUNCATION_MARKER)
+    assert len(body) == MIN_PLAIN_TEXT_CHARS_TO_KEEP
+
+
+@pytest.mark.ai
+def test_truncate_plain_text__does_not_stack_markers__on_repeated_calls_AI() -> None:
+    """
+    Purpose: Verify a prior marker is stripped before re-truncating.
+    Why this matters: The outer loop re-truncates the same message across rounds;
+    markers must not accumulate and length must be measured on real content.
+    """
+    # Arrange
+    text = "A" * 10_000
+
+    # Act
+    once = _truncate_plain_text(text, overshoot_factor=2.0)
+    twice = _truncate_plain_text(once, overshoot_factor=4.0)
+
+    # Assert
+    assert twice.count(PLAIN_TEXT_TRUNCATION_MARKER) == 1
+    body = twice.removesuffix(PLAIN_TEXT_TRUNCATION_MARKER)
+    assert len(body) < len(once.removesuffix(PLAIN_TEXT_TRUNCATION_MARKER))
+
+
+@pytest.mark.ai
+def test_can_truncate_message__true__for_large_chunkless_plain_text_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify _can_truncate_message accepts a large chunk-less tool response.
+    """
+    # Arrange
+    message = create_tool_message(
+        "tool_1", "TestTool", "x" * (MIN_PLAIN_TEXT_CHARS_TO_KEEP + 1)
+    )
+
+    # Act & Assert
+    assert loop_token_reducer._can_truncate_message(message) is True
+
+
+@pytest.mark.ai
+def test_can_truncate_message__false__for_table_search_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify TableSearch is excluded from plain-text truncation.
+    Why this matters: TableSearch content is structured JSON that truncation
+    would corrupt.
+    """
+    # Arrange
+    message = create_tool_message(
+        "tool_1", "TableSearch", "x" * (MIN_PLAIN_TEXT_CHARS_TO_KEEP + 1)
+    )
+
+    # Act & Assert
+    assert loop_token_reducer._can_truncate_message(message) is False
+
+
+@pytest.mark.ai
+def test_can_truncate_message__false__when_below_floor_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify a short chunk-less response is not flagged as truncatable.
+    """
+    # Arrange
+    message = create_tool_message(
+        "tool_1", "TestTool", "x" * (MIN_PLAIN_TEXT_CHARS_TO_KEEP - 1)
+    )
+
+    # Act & Assert
+    assert loop_token_reducer._can_truncate_message(message) is False
+
+
+@pytest.mark.ai
+def test_can_truncate_message__false__when_message_has_chunks_AI(
+    loop_token_reducer: LoopTokenReducer,
+    mock_reference_manager: ReferenceManager,
+) -> None:
+    """
+    Purpose: Verify a chunk-bearing tool response is reduced via sources, not
+    plain-text truncation.
+    """
+    # Arrange
+    from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+
+    mock_reference_manager.extract_referenceable_chunks(
+        [
+            ToolCallResponse(
+                id="tool_1",
+                name="TestTool",
+                content="test",
+                content_chunks=[
+                    create_content_chunk("chunk_1", "text1"),
+                    create_content_chunk("chunk_2", "text2"),
+                ],
+            )
+        ]
+    )
+    message = create_tool_message(
+        "tool_1", "TestTool", "x" * (MIN_PLAIN_TEXT_CHARS_TO_KEEP + 1)
+    )
+
+    # Act & Assert
+    assert loop_token_reducer._can_truncate_message(message) is False
 
 
 # Message Token Counting Tests
@@ -1102,7 +1299,7 @@ def test_reduce_message_length_by_reducing_sources__processes_all_tool_messages_
 
     # Act
     result = (
-        loop_token_reducer._reduce_message_length_by_reducing_sources_in_tool_response(
+        loop_token_reducer._reduce_message_length_by_reducing_tool_responses_content(
             history, overshoot_factor=2.0
         )
     )

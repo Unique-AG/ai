@@ -37,6 +37,37 @@ from unique_toolkit.services.factory import UniqueServiceFactory
 MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = env_settings.input_correction_reduction_factor
 SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION = env_settings.input_aggressive_reduction_factor
 
+PLAIN_TEXT_TRUNCATION_MARKER = "\n\n[... tool response too long and was truncated]"
+# TODO: Make this configurable
+MIN_PLAIN_TEXT_CHARS_TO_KEEP = 1000
+
+
+def _truncate_plain_text(text: str, overshoot_factor: float) -> str:
+    """Truncate plain text so it helps a tool response fit the token budget.
+
+    Keeps the head and appends a marker. The amount kept scales with the
+    overshoot (mirroring the source-reduction math) and never drops below
+    ``MIN_PLAIN_TEXT_CHARS_TO_KEEP``. Truncation is on characters rather than
+    tokens because the encoder is encode-only; on prose the character ratio is a
+    good proxy for the token ratio, and the outer loop re-counts and re-enters
+    until the payload fits or no further progress is possible. Any prior marker
+    is stripped first so repeated rounds neither stack markers nor re-flag an
+    already-floored string. Returns *text* unchanged when no truncation applies.
+    """
+    base = text.removesuffix(PLAIN_TEXT_TRUNCATION_MARKER)
+
+    # Copied as for the case where the tool returns chunks (below)
+    aggressive_divisor = overshoot_factor * SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION
+    divisor = max(
+        aggressive_divisor if aggressive_divisor >= 1.2 else overshoot_factor, 1.0
+    )
+    chars_to_keep = max(MIN_PLAIN_TEXT_CHARS_TO_KEEP, int(len(base) // divisor))
+
+    if chars_to_keep >= len(base):
+        return text
+
+    return base[:chars_to_keep] + PLAIN_TEXT_TRUNCATION_MARKER
+
 
 class SourceReductionResult(BaseModel):
     message: LanguageModelToolMessage
@@ -118,7 +149,9 @@ class LoopTokenReducer:
         token_count = self._count_message_tokens(messages)
         self._log_token_usage(token_count)
 
-        while self._exceeds_token_limit(token_count):
+        while self._exceeds_token_limit(token_count) and self._can_reduce_history(
+            loop_history
+        ):
             token_count_before_reduction = token_count
             loop_history[:] = self._handle_token_limit_exceeded(
                 loop_history, token_count
@@ -141,18 +174,30 @@ class LoopTokenReducer:
         return messages
 
     def _exceeds_token_limit(self, token_count: int) -> bool:
-        """Check if token count exceeds the maximum allowed limit and if at least one tool call has more than one source."""
-        # At least one tool call should have more than one chunk as answer
+        """Whether the payload is over the effective input-token limit.
+
+        This is purely a size check. Whether anything can actually be reduced to
+        get back under the limit is a separate concern (:meth:`_can_reduce_history`).
+        """
+        # TODO: This is not fully correct at the moment as the token_count
+        # include system_prompt and user question already
+        return token_count > self._effective_token_limit
+
+    def _can_reduce_history(self, loop_history: list[LanguageModelMessage]) -> bool:
+        """Whether there is any tool response left to reduce.
+
+        Two independent reduction levers exist:
+          * a tool call with more than one chunk can shed sources, and
+          * a chunk-less plain-text tool response can be truncated.
+        When neither applies the reduction loop cannot make progress and stops.
+        """
         has_multiple_chunks_for_a_tool_call = any(
             len(chunks) > 1
             for chunks in self._reference_manager.get_chunks_of_all_tools()
         )
-        # TODO: This is not fully correct at the moment as the token_count
-        # include system_prompt and user question already
-        # TODO: There is a problem if we exceed but only have one chunk per tool call
-        exceeds_limit = token_count > self._effective_token_limit
-
-        return has_multiple_chunks_for_a_tool_call and exceeds_limit
+        return has_multiple_chunks_for_a_tool_call or any(
+            self._can_truncate_message(message) for message in loop_history
+        )
 
     def _count_message_tokens(self, messages: LanguageModelMessages) -> int:
         """Count tokens in messages using the configured encoding model."""
@@ -211,7 +256,7 @@ class LoopTokenReducer:
             f"(overshoot factor: {overshoot_factor:.2f}x). Reducing number of sources per tool call.",
         )
 
-        return self._reduce_message_length_by_reducing_sources_in_tool_response(
+        return self._reduce_message_length_by_reducing_tool_responses_content(
             loop_history, overshoot_factor
         )
 
@@ -451,7 +496,7 @@ class LoopTokenReducer:
 
         return limited_history_messages[idx:]
 
-    def _reduce_message_length_by_reducing_sources_in_tool_response(
+    def _reduce_message_length_by_reducing_tool_responses_content(
         self,
         history: list[LanguageModelMessage],
         overshoot_factor: float,
@@ -473,21 +518,41 @@ class LoopTokenReducer:
         source_offset = max(0, self._max_db_source_number + 1)
 
         for message in history:
-            if self._should_reduce_message(message):
-                result = self._reduce_sources_in_tool_message(
+            if not self._should_reduce_message(message):
+                result = message
+            elif self._has_sources(message):
+                source_result = self._reduce_sources_in_tool_message(
                     message,
                     chunk_offset,
                     source_offset,
                     overshoot_factor,
                 )
-                content_chunks_reduced.extend(result.reduced_chunks)
-                history_reduced.append(result.message)
-                chunk_offset = result.chunk_offset
-                source_offset = result.source_offset
+                content_chunks_reduced.extend(source_result.reduced_chunks)
+                chunk_offset = source_result.chunk_offset
+                source_offset = source_result.source_offset
+                result = source_result.message
+            elif self._can_truncate_message(message):
+                assert isinstance(message.content, str)
+                truncated = _truncate_plain_text(message.content, overshoot_factor)
+                if truncated != message.content:
+                    self._logger.warning(
+                        f"Truncated plain-text tool response '{message.name}' to "
+                        f"{len(truncated)} chars "
+                        f"(overshoot factor: {overshoot_factor:.2f}x)."
+                    )
+                result = LanguageModelToolMessage(
+                    content=truncated,
+                    tool_call_id=message.tool_call_id,
+                    name=message.name,
+                )
             else:
-                history_reduced.append(message)
+                result = message
 
-        self._reference_manager.replace(chunks=content_chunks_reduced)
+            history_reduced.append(result)
+
+        if len(content_chunks_reduced) > 0:
+            self._reference_manager.replace(chunks=content_chunks_reduced)
+
         return history_reduced
 
     def _should_reduce_message(
@@ -497,6 +562,19 @@ class LoopTokenReducer:
         return message.role == LanguageModelMessageRole.TOOL and isinstance(
             message, LanguageModelToolMessage
         )
+
+    def _has_sources(self, message: LanguageModelToolMessage) -> bool:
+        return len(self._reference_manager.get_chunks_of_tool(message.tool_call_id)) > 0
+
+    def _can_truncate_message(self, message: LanguageModelMessage) -> bool:
+        if not self._should_reduce_message(message) or message.name == "TableSearch":
+            return False
+        if not isinstance(message.content, str):
+            return False
+        if self._has_sources(message):
+            return False
+        base = message.content.removesuffix(PLAIN_TEXT_TRUNCATION_MARKER)
+        return len(base) > MIN_PLAIN_TEXT_CHARS_TO_KEEP
 
     def _reduce_sources_in_tool_message(
         self,
