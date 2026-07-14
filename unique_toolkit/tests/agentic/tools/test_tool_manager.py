@@ -18,6 +18,9 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    CodeInterpreterActivatorTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAIBuiltInToolManager,
 )
@@ -333,6 +336,7 @@ def test_responses_api_tool_manager__initializes__with_builtin_tools(
     """
     # Arrange
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
 
     # Act
@@ -350,37 +354,6 @@ def test_responses_api_tool_manager__initializes__with_builtin_tools(
     assert tool_manager is not None
     assert tool_manager._api_mode == "responses"
     mock_builtin_manager.get_all_openai_builtin_tools.assert_called_once()
-
-
-@pytest.mark.ai
-def test_responses_api_tool_manager__get_required_include_params__delegates_to_builtin_manager(
-    logger,
-    tool_manager_config,
-    base_event,
-    tool_progress_reporter,
-    mcp_manager,
-    a2a_manager,
-    mocker,
-) -> None:
-    """ResponsesApiToolManager forwards include params from OpenAIBuiltInToolManager."""
-    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
-    mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
-    mock_builtin_manager.get_required_include_params.return_value = [
-        "code_interpreter_call.outputs",
-    ]
-    tool_manager = ResponsesApiToolManager(
-        logger=logger,
-        config=tool_manager_config,
-        event=base_event,
-        tool_progress_reporter=tool_progress_reporter,
-        mcp_manager=mcp_manager,
-        a2a_manager=a2a_manager,
-        builtin_tool_manager=mock_builtin_manager,
-    )
-    assert tool_manager.get_required_include_params() == [
-        "code_interpreter_call.outputs",
-    ]
-    mock_builtin_manager.get_required_include_params.assert_called_once()
 
 
 @pytest.mark.ai
@@ -531,6 +504,7 @@ def test_responses_api_tool_manager__code_interpreter_always_available__when_too
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     tool_configs = [
@@ -1990,6 +1964,7 @@ def test_responses_api_tool_manager__get_tool_by_name__can_return_builtin(
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     tool_manager = ResponsesApiToolManager(
@@ -2031,6 +2006,7 @@ def test_responses_api_tool_manager__filter_tool_calls__filters_builtin(
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     tool_manager = ResponsesApiToolManager(
@@ -2080,6 +2056,7 @@ def test_responses_api_tool_manager__get_forced_tools__formats_builtin_special(
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     base_event.payload.tool_choices = ["code_interpreter"]
@@ -2203,6 +2180,7 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
     """
     # Arrange
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
 
     tool_configs = [
@@ -2264,6 +2242,7 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
     """
     # Arrange
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
 
     tool_configs = [
@@ -2576,6 +2555,7 @@ def test_responses_api_tool_manager__exclude_tool__removes_builtin_from_all_list
     mock_builtin_tool.is_exclusive.return_value = False
 
     mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_activator_tools.return_value = []
     mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
 
     config = ToolManagerConfig(tools=[], max_tool_calls=10)
@@ -2847,3 +2827,171 @@ def test_a2a_manager__skips_disabled_sub_agent__does_not_initialize(
     assert sub_agents == []
     assert filtered_configs == []
     assert "Skipping disabled sub-agent" in caplog.text
+
+
+# ============================================================================
+# Tests for deferred activator surfacing + activation (Step 4)
+# ============================================================================
+
+
+def _make_responses_manager_with_activators(
+    *,
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+    activator_tools,
+) -> ResponsesApiToolManager:
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
+    mock_builtin_manager.get_activator_tools.return_value = activator_tools
+    return ResponsesApiToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+
+
+@pytest.mark.ai
+def test_responses_manager__surfaces_activator_tool(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """Activator tools from the builtin manager are offered as regular tools."""
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
+    activator.name = "ActivatePython"
+    activator.is_enabled.return_value = True
+    activator.is_exclusive.return_value = False
+    activator.is_capability.return_value = True
+    activator.is_activated = False
+
+    tm = _make_responses_manager_with_activators(
+        logger=logger,
+        tool_manager_config=tool_manager_config,
+        base_event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        mocker=mocker,
+        activator_tools=[activator],
+    )
+
+    assert activator in tm.get_tools()
+
+
+@pytest.mark.ai
+def test_activate_deferred_tools__swaps_activator_for_builtin(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """Once activated, the activator is replaced by its provisioned built-in tool."""
+    built = mocker.Mock(spec=OpenAIBuiltInTool)
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
+    activator.is_activated = True
+    activator.get_activated_tool.return_value = built
+
+    tm = _make_responses_manager_with_activators(
+        logger=logger,
+        tool_manager_config=tool_manager_config,
+        base_event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        mocker=mocker,
+        activator_tools=[],
+    )
+    tm._tools = [activator]
+    tm._builtin_tools = []
+
+    tm._activate_deferred_tools()
+
+    assert activator not in tm._tools
+    assert built in tm._tools
+    assert built in tm._builtin_tools
+
+
+@pytest.mark.ai
+def test_activate_deferred_tools__is_idempotent(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """Calling activation twice does not add the built-in tool more than once."""
+    built = mocker.Mock(spec=OpenAIBuiltInTool)
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
+    activator.is_activated = True
+    activator.get_activated_tool.return_value = built
+
+    tm = _make_responses_manager_with_activators(
+        logger=logger,
+        tool_manager_config=tool_manager_config,
+        base_event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        mocker=mocker,
+        activator_tools=[],
+    )
+    tm._tools = [activator]
+    tm._builtin_tools = []
+
+    tm._activate_deferred_tools()
+    tm._activate_deferred_tools()
+
+    assert tm._tools.count(built) == 1
+    assert tm._builtin_tools.count(built) == 1
+
+
+@pytest.mark.ai
+def test_activate_deferred_tools__noop_when_not_activated(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """An activator that has not been activated is left untouched."""
+    activator = mocker.Mock(spec=CodeInterpreterActivatorTool)
+    activator.is_activated = False
+
+    tm = _make_responses_manager_with_activators(
+        logger=logger,
+        tool_manager_config=tool_manager_config,
+        base_event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        mocker=mocker,
+        activator_tools=[],
+    )
+    tm._tools = [activator]
+    tm._builtin_tools = []
+
+    tm._activate_deferred_tools()
+
+    assert tm._tools == [activator]
+    assert tm._builtin_tools == []
+    activator.get_activated_tool.assert_not_called()
