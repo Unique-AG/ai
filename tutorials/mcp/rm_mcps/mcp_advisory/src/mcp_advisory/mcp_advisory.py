@@ -44,6 +44,7 @@ import model_portfolios
 import portfolios
 import transactions
 from common.db import RESET_DEMO_DATA_DESCRIPTION, reset_demo_data
+from common.oauth_metadata import AdvertisePostAuthOnly
 from common.tool_prompts import tool_meta
 
 load_dotenv()
@@ -162,6 +163,7 @@ custom_middleware = [
         allow_methods=["*"],
         allow_headers=["*"],
     ),
+    Middleware(AdvertisePostAuthOnly),
 ]
 
 mcp = FastMCP("RM Agent - Advisory", auth=build_auth())

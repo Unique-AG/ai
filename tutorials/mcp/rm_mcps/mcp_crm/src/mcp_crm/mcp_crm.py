@@ -41,6 +41,7 @@ import meetings
 import person_lookup
 from common.db import RESET_DEMO_DATA_DESCRIPTION, reset_demo_data
 from common.env_map import KNOWN_ENVS, set_url_env
+from common.oauth_metadata import AdvertisePostAuthOnly
 from common.tool_prompts import tool_meta
 
 load_dotenv()
@@ -148,6 +149,7 @@ custom_middleware = [
         allow_methods=["*"],
         allow_headers=["*"],
     ),
+    Middleware(AdvertisePostAuthOnly),
 ]
 
 mcp = FastMCP("RM Agent - CRM", auth=build_auth())
