@@ -34,9 +34,20 @@ class CodeInterpreterExtendedConfig(BaseToolConfig):
         title="Code display",
     )
 
-    deferred_execution_config: (
-        CodeInterpreterActivatorConfig | Annotated[None, Field(title="Deactivated")]
-    ) = None
+    activator_config: (
+        Annotated[
+            CodeInterpreterActivatorConfig,
+            Field(
+                title="Active",
+                description="Configuration for the tool allowing the model to request code execution.",
+            ),
+        ]
+        | Annotated[None, Field(title="Deactivated")]
+    ) = Field(
+        default=None,
+        title="Deferred Resource Provisioning",
+        description="If active, the resources for code execution are not provisioned eagerly but only when the model indicates that it needs the tool.",
+    )
 
     @field_validator("executed_code_display_config", mode="before")
     @classmethod

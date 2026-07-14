@@ -44,7 +44,7 @@ class OpenAIBuiltInToolManager:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
 
-            deferred_config = tool_config.configuration.deferred_execution_config
+            deferred_config = tool_config.configuration.activator_config
             if deferred_config is not None and tool_config.is_exclusive:
                 raise ValueError(
                     "A deferred code interpreter tool cannot be exclusive."
