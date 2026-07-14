@@ -3,6 +3,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    DisplayCodeInterpreterFilesPostProcessor,
+)
 
 from unique_orchestrator.unique_ai import UniqueAI
 
@@ -126,3 +129,21 @@ async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
 
     assert result is True
     ua._chat_service.modify_assistant_message_async.assert_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_handle_no_tool_calls_adds_returned_artifacts_to_debug_info(monkeypatch):
+    ua = _make_ua(monkeypatch)
+    artifacts = {"count": 1, "filetypes": ["csv"]}
+    ua._postprocessor_manager.run_postprocessors.return_value = {
+        DisplayCodeInterpreterFilesPostProcessor.__name__: artifacts
+    }
+    ua._current_loop_timing = {"post_processing": {}, "evaluation": {}}
+
+    response = MagicMock()
+    response.model_copy.return_value = response
+
+    await ua._handle_no_tool_calls(response)
+
+    ua._debug_info_manager.add.assert_called_once_with("artifacts", artifacts)

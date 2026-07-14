@@ -5,7 +5,7 @@ import re
 import time
 from dataclasses import dataclass
 from mimetypes import guess_type
-from typing import TYPE_CHECKING, NamedTuple, override
+from typing import NamedTuple, TypedDict, override
 
 import httpx
 from openai import AsyncOpenAI
@@ -43,15 +43,19 @@ from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamRe
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
-if TYPE_CHECKING:
-    # Imported under TYPE_CHECKING only: debug_info_manager imports from
-    # unique_toolkit.agentic.tools.openai_builtin (this package), so a runtime
-    # import here would create a circular import. We only need the type.
-    from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
-        DebugInfoManager,
-    )
-
 logger = logging.getLogger(__name__)
+
+
+class ArtifactsDebugInfo(TypedDict):
+    """This turn's successfully-created artifacts, for analytics.
+
+    Feeds analytics.artifacts_created_count / artifacts_created_filetype. The
+    postprocessor returns this to the orchestrator, which owns the
+    ``DebugInfoManager`` and records it.
+    """
+
+    count: int
+    filetypes: list[str]
 
 
 class _ChatLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
@@ -352,7 +356,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
-        debug_info_manager: "DebugInfoManager | None" = None,
     ) -> None:
         super().__init__(self.__class__.__name__)
 
@@ -361,7 +364,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._client = client
         self._config = config
         self._company_id = company_id
-        self._debug_info_manager = debug_info_manager
 
         if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
@@ -392,7 +394,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
         )
 
     @override
-    async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
+    async def run(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> ArtifactsDebugInfo | None:
         run_t0 = time.monotonic()
         self._log.info("run() started — fetching and uploading code interpreter files")
 
@@ -490,45 +494,37 @@ class DisplayCodeInterpreterFilesPostProcessor(
             save_ms,
         )
 
-        self._add_artifacts_debug_info(loop_response)
+        return self._compute_artifacts_debug_info(loop_response)
 
-    def _add_artifacts_debug_info(
+    def _compute_artifacts_debug_info(
         self, loop_response: ResponsesLanguageModelStreamResponse
-    ) -> None:
-        """Record this turn's successfully-created artifacts in the debug info.
+    ) -> ArtifactsDebugInfo | None:
+        """Compute this turn's successfully-created artifacts.
 
         Feeds analytics.artifacts_created_count / artifacts_created_filetype.
 
-        Only written when the Code Interpreter actually executed this turn
-        (``code_interpreter_calls`` non-empty). The postprocessor is registered
+        Returns ``None`` when the Code Interpreter did not execute this turn
+        (``code_interpreter_calls`` empty). The postprocessor is registered
         whenever the tool is *enabled*, so ``run()`` also fires on turns where the
-        model never invoked it — leaving the entry absent in that case keeps
-        analytics.artifacts_* as null ("did not run") rather than 0/[] ("ran,
-        created nothing"). When it did run, count is scoped to this response's
-        ``container_files`` (not ``self._content_map``, which also holds
-        prior-message files from short-term memory), successful uploads only,
-        with a deduped, sorted set of file extensions.
+        model never invoked it — returning ``None`` there keeps analytics.artifacts_*
+        as null ("did not run") rather than 0/[] ("ran, created nothing"). When it
+        did run, count is scoped to this response's ``container_files`` (not
+        ``self._content_map``, which also holds prior-message files from short-term
+        memory), successful uploads only, with a deduped, sorted set of file
+        extensions.
         """
-        if self._debug_info_manager is None:
-            return
-
         # Interpreter did not run this turn → leave artifacts null, not 0/[].
         if not loop_response.code_interpreter_calls:
-            return
+            return None
 
         created_filenames = {
             cf.filename
             for cf in loop_response.container_files
             if self._content_map.get(cf.filename) is not None
         }
-        self._debug_info_manager.add(
-            "artifacts",
-            {
-                "count": len(created_filenames),
-                "filetypes": sorted(
-                    {_artifact_filetype(name) for name in created_filenames}
-                ),
-            },
+        return ArtifactsDebugInfo(
+            count=len(created_filenames),
+            filetypes=sorted({_artifact_filetype(name) for name in created_filenames}),
         )
 
     @override

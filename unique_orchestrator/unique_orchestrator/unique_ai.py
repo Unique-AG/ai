@@ -32,6 +32,9 @@ from unique_toolkit.agentic.tools.experimental.open_file_tool import (
     OpenFileToolRuntime,
     OpenFileToolRuntimeConfig,
 )
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    DisplayCodeInterpreterFilesPostProcessor,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     SafeTaskExecutor,
@@ -696,10 +699,16 @@ class UniqueAI:
             loop_response.model_copy(deep=True),
         )
 
-        _, evaluation_results = await asyncio.gather(
+        postprocessor_result, evaluation_results = await asyncio.gather(
             postprocessor_result,
             evaluation_results,
         )
+        postprocessor_outputs = postprocessor_result.unpack() or {}
+        artifacts = postprocessor_outputs.get(
+            DisplayCodeInterpreterFilesPostProcessor.__name__
+        )
+        if artifacts is not None:
+            self._debug_info_manager.add("artifacts", artifacts)
 
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()

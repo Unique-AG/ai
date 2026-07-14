@@ -3,6 +3,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     ShowExecutedCodePostprocessorConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    ArtifactsDebugInfo,
     DisplayCodeInterpreterFilesPostProcessor,
     DisplayCodeInterpreterFilesPostProcessorConfig,
 )
@@ -12,4 +13,5 @@ __all__ = [
     "ShowExecutedCodePostprocessorConfig",
     "DisplayCodeInterpreterFilesPostProcessor",
     "DisplayCodeInterpreterFilesPostProcessorConfig",
+    "ArtifactsDebugInfo",
 ]

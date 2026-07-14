@@ -9,9 +9,6 @@ import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 
-from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
-    DebugInfoManager,
-)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors import (
     generated_files as gen_mod,
 )
@@ -2893,7 +2890,7 @@ async def test_download_and_upload__py_file__uploaded_as_text_plain() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _add_artifacts_debug_info — analytics.artifacts_* instrumentation (UN-22110)
+# _compute_artifacts_debug_info — analytics.artifacts_* instrumentation (UN-22110)
 # ---------------------------------------------------------------------------
 
 
@@ -2915,7 +2912,7 @@ def test_artifact_filetype__returns_lowercased_extension(
 
 
 @pytest.mark.ai
-def test_add_artifacts_debug_info__excludes_failed_uploads() -> None:
+def test_compute_artifacts_debug_info__excludes_failed_uploads() -> None:
     """
     Purpose: Verify only successful uploads (content_id is not None) are counted.
     Why this matters: artifacts_created_count means files the user actually got;
@@ -2924,7 +2921,6 @@ def test_add_artifacts_debug_info__excludes_failed_uploads() -> None:
     and the failed file's extension is absent.
     """
     proc = _make_display_files_postprocessor()
-    proc._debug_info_manager = DebugInfoManager()
     proc._content_map = {"a.png": "c1", "b.csv": "c2", "c.pdf": None}
     response = _make_response(
         calls=[_make_ci_call("print('x')")],
@@ -2935,22 +2931,21 @@ def test_add_artifacts_debug_info__excludes_failed_uploads() -> None:
         ],
     )
 
-    proc._add_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response)
 
-    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts is not None
     assert artifacts["count"] == 2
     assert artifacts["filetypes"] == ["csv", "png"]
 
 
 @pytest.mark.ai
-def test_add_artifacts_debug_info__filetypes_deduped_and_sorted() -> None:
+def test_compute_artifacts_debug_info__filetypes_deduped_and_sorted() -> None:
     """
     Purpose: Verify filetypes is a deduped, sorted set of extensions (decisions 1, 3).
     Setup summary: Two PNGs and one CSV; assert filetypes == ['csv', 'png'] and the
     count still reflects the three distinct files.
     """
     proc = _make_display_files_postprocessor()
-    proc._debug_info_manager = DebugInfoManager()
     proc._content_map = {"chart.png": "c1", "chart2.png": "c2", "data.csv": "c3"}
     response = _make_response(
         calls=[_make_ci_call("print('x')")],
@@ -2961,15 +2956,15 @@ def test_add_artifacts_debug_info__filetypes_deduped_and_sorted() -> None:
         ],
     )
 
-    proc._add_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response)
 
-    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts is not None
     assert artifacts["count"] == 3
     assert artifacts["filetypes"] == ["csv", "png"]
 
 
 @pytest.mark.ai
-def test_add_artifacts_debug_info__counts_only_this_turn_not_prior_files() -> None:
+def test_compute_artifacts_debug_info__counts_only_this_turn_not_prior_files() -> None:
     """
     Purpose: Verify prior-message files in _content_map (loaded from short-term
     memory) are NOT counted — only this turn's container_files (decision 4).
@@ -2979,7 +2974,6 @@ def test_add_artifacts_debug_info__counts_only_this_turn_not_prior_files() -> No
     turn's annotation is on the response; assert just it is counted.
     """
     proc = _make_display_files_postprocessor()
-    proc._debug_info_manager = DebugInfoManager()
     # 'old.pdf' was created in an earlier message (present in content_map via
     # _load_previous_files) but is NOT in this response's container_files.
     proc._content_map = {"old.pdf": "c-old", "new.png": "c-new"}
@@ -2988,71 +2982,48 @@ def test_add_artifacts_debug_info__counts_only_this_turn_not_prior_files() -> No
         annotations=[_make_annotation("new.png")],
     )
 
-    proc._add_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response)
 
-    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts is not None
     assert artifacts["count"] == 1
     assert artifacts["filetypes"] == ["png"]
 
 
 @pytest.mark.ai
-def test_add_artifacts_debug_info__ran_but_produced_no_files__writes_zero() -> None:
+def test_compute_artifacts_debug_info__ran_but_produced_no_files__returns_zero() -> (
+    None
+):
     """
-    Purpose: Verify a turn where the interpreter ran but produced no files writes
+    Purpose: Verify a turn where the interpreter ran but produced no files returns
     count 0 / empty filetypes.
     Why this matters: This is the genuine "ran, created nothing" state — distinct
-    from "did not run" (no entry). It requires code_interpreter_calls to be present.
+    from "did not run" (None). It requires code_interpreter_calls to be present.
     Setup summary: One CI call, no container files; assert {count: 0, filetypes: []}.
     """
     proc = _make_display_files_postprocessor()
-    proc._debug_info_manager = DebugInfoManager()
     proc._content_map = {}
     response = _make_response(calls=[_make_ci_call("1 + 1")], annotations=[])
 
-    proc._add_artifacts_debug_info(response)
+    artifacts = proc._compute_artifacts_debug_info(response)
 
-    artifacts = proc._debug_info_manager.get()["artifacts"]
+    assert artifacts is not None
     assert artifacts["count"] == 0
     assert artifacts["filetypes"] == []
 
 
 @pytest.mark.ai
-def test_add_artifacts_debug_info__interpreter_not_invoked__writes_no_entry() -> None:
+def test_compute_artifacts_debug_info__interpreter_not_invoked__returns_none() -> None:
     """
-    Purpose: Verify NOTHING is written when the Code Interpreter did not run this
+    Purpose: Verify None is returned when the Code Interpreter did not run this
     turn, so analytics.artifacts_* stays null ("did not run") rather than 0/[].
     Why this matters: The postprocessor is registered whenever the tool is *enabled*,
-    so run() fires even on turns the model never invoked it — writing 0/[] there
+    so run() fires even on turns the model never invoked it — returning 0/[] there
     would misreport "ran, created nothing" on every ordinary answer (Cursor bot,
     UN-22110). Guards that regression.
-    Setup summary: No code_interpreter_calls and no container files; assert the
-    'artifacts' key is absent from debug_info entirely.
+    Setup summary: No code_interpreter_calls and no container files; assert None.
     """
     proc = _make_display_files_postprocessor()
-    proc._debug_info_manager = DebugInfoManager()
     proc._content_map = {}
     response = _make_response(calls=[], annotations=[])
 
-    proc._add_artifacts_debug_info(response)
-
-    assert "artifacts" not in proc._debug_info_manager.get()
-
-
-@pytest.mark.ai
-def test_add_artifacts_debug_info__no_debug_info_manager__is_noop() -> None:
-    """
-    Purpose: Verify the method is a safe no-op when no DebugInfoManager was wired.
-    Why this matters: The postprocessor must still work standalone (tests, other
-    callers) with debug_info_manager left at its default None.
-    Setup summary: _debug_info_manager is None; call must not raise.
-    """
-    proc = _make_display_files_postprocessor()
-    proc._debug_info_manager = None
-    proc._content_map = {"a.png": "c1"}
-    response = _make_response(
-        calls=[_make_ci_call("print('x')")],
-        annotations=[_make_annotation("a.png")],
-    )
-
-    # Must not raise.
-    proc._add_artifacts_debug_info(response)
+    assert proc._compute_artifacts_debug_info(response) is None

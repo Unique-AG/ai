@@ -430,13 +430,13 @@ def _register_code_interpreter_postprocessors(
     company_id: str,
     chat_id: str,
     chat_service: ChatService,
-    debug_info_manager: DebugInfoManager,
 ) -> None:
     """Find the first enabled Code Interpreter tool and register its postprocessors.
 
     When a CODE_INTERPRETER tool is present and enabled, both the executed-code
     display postprocessor and the generated-files postprocessor are unconditionally
     registered so that all Code Interpreter output is surfaced to the user.
+
     """
     code_interpreter_config = None
     for tool in tools:
@@ -464,7 +464,6 @@ def _register_code_interpreter_postprocessors(
             company_id=company_id,
             chat_id=chat_id,
             chat_service=chat_service,
-            debug_info_manager=debug_info_manager,
         )
     )
 
@@ -497,7 +496,6 @@ async def _build_responses(
         company_id=event.company_id,
         chat_id=event.payload.chat_id,
         chat_service=common_components.chat_service,
-        debug_info_manager=debug_info_manager,
     )
 
     force_auto_container = (

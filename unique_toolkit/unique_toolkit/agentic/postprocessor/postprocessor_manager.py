@@ -18,7 +18,7 @@ class Postprocessor(ABC):
     def get_name(self) -> str:
         return self.name
 
-    async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+    async def run(self, loop_response: LanguageModelStreamResponse) -> object | None:
         raise NotImplementedError("Subclasses must implement this method.")
 
     def apply_postprocessing_to_response(
@@ -41,7 +41,9 @@ class ResponsesApiPostprocessor(ABC):
     def get_name(self) -> str:
         return self.name
 
-    async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
+    async def run(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> object | None:
         raise NotImplementedError("Subclasses must implement this method.")
 
     def apply_postprocessing_to_response(
@@ -124,7 +126,7 @@ class PostprocessorManager:
     async def run_postprocessors(
         self,
         loop_response: LanguageModelStreamResponse,
-    ) -> None:
+    ) -> dict[str, object | None]:
         self._execution_times = {}
 
         task_executor = SafeTaskExecutor(
@@ -163,6 +165,12 @@ class PostprocessorManager:
                 references=loop_response.message.references,
             )
 
+        return {
+            postprocessors[i].get_name(): postprocessor_results[i].unpack()
+            for i in range(len(postprocessors))
+            if postprocessor_results[i].success
+        }
+
     def get_execution_times(self) -> dict[str, float]:
         return self._execution_times.copy()
 
@@ -170,12 +178,13 @@ class PostprocessorManager:
         self,
         loop_response: LanguageModelStreamResponse,
         postprocessor_instance: Postprocessor | ResponsesApiPostprocessor,
-    ) -> None:
+    ) -> object | None:
         start = time.perf_counter()
-        await postprocessor_instance.run(loop_response)  # pyright: ignore[reportArgumentType]  # TODO(UN-19522)
+        result = await postprocessor_instance.run(loop_response)  # pyright: ignore[reportArgumentType]  # TODO(UN-19522)
         self._execution_times[postprocessor_instance.name] = round(
             time.perf_counter() - start, 3
         )
+        return result
 
     async def remove_from_text(
         self,
