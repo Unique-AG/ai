@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -181,3 +182,118 @@ class TestPostprocessorManagerExecutionTimes:
         outputs = await manager.run_postprocessors(MagicMock())
 
         assert outputs == {"source_handler": expected}
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_side_effect_postprocessor_does_not_delay_message_update(
+        self, manager
+    ) -> None:
+        side_effect_release = asyncio.Event()
+        side_effect_finished = asyncio.Event()
+        message_updated = asyncio.Event()
+
+        async def run_side_effect(_loop_response) -> None:
+            await side_effect_release.wait()
+            side_effect_finished.set()
+
+        def apply_message_postprocessing(loop_response) -> bool:
+            loop_response.message.text += " follow-up"
+            return True
+
+        side_effect_postprocessor = MagicMock(spec=Postprocessor)
+        side_effect_postprocessor.name = "user_memory"
+        side_effect_postprocessor.affects_assistant_message.return_value = False
+        side_effect_postprocessor.run = AsyncMock(side_effect=run_side_effect)
+
+        message_postprocessor = MagicMock(spec=Postprocessor)
+        message_postprocessor.name = "follow_up"
+        message_postprocessor.affects_assistant_message.return_value = True
+        message_postprocessor.run = AsyncMock(return_value=None)
+        message_postprocessor.apply_postprocessing_to_response.side_effect = (
+            apply_message_postprocessing
+        )
+
+        manager.add_postprocessor(side_effect_postprocessor)
+        manager.add_postprocessor(message_postprocessor)
+        manager._chat_service.modify_assistant_message_async = AsyncMock(
+            side_effect=lambda **_kwargs: message_updated.set()
+        )
+
+        loop_response = MagicMock()
+        loop_response.message.text = "answer"
+        loop_response.message.id = "assistant-message"
+        loop_response.message.references = []
+        run_task = asyncio.create_task(manager.run_postprocessors(loop_response))
+
+        await asyncio.wait_for(message_updated.wait(), timeout=1)
+
+        assert not side_effect_finished.is_set()
+        assert not run_task.done()
+        manager._chat_service.modify_assistant_message_async.assert_awaited_once_with(
+            content="answer follow-up",
+            message_id="assistant-message",
+            references=[],
+        )
+
+        side_effect_release.set()
+        await run_task
+
+        assert side_effect_finished.is_set()
+        manager._chat_service.modify_assistant_message_async.assert_awaited_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_message_postprocessors_publish_one_deterministic_update(
+        self, manager
+    ) -> None:
+        first_release = asyncio.Event()
+        second_finished = asyncio.Event()
+
+        async def run_first(_loop_response) -> None:
+            await first_release.wait()
+
+        async def run_second(_loop_response) -> None:
+            second_finished.set()
+
+        def apply_first(loop_response) -> bool:
+            loop_response.message.text += " first"
+            return True
+
+        def apply_second(loop_response) -> bool:
+            loop_response.message.text += " second"
+            return True
+
+        first_postprocessor = MagicMock(spec=Postprocessor)
+        first_postprocessor.name = "first"
+        first_postprocessor.affects_assistant_message.return_value = True
+        first_postprocessor.run = AsyncMock(side_effect=run_first)
+        first_postprocessor.apply_postprocessing_to_response.side_effect = apply_first
+
+        second_postprocessor = MagicMock(spec=Postprocessor)
+        second_postprocessor.name = "second"
+        second_postprocessor.affects_assistant_message.return_value = True
+        second_postprocessor.run = AsyncMock(side_effect=run_second)
+        second_postprocessor.apply_postprocessing_to_response.side_effect = apply_second
+
+        manager.add_postprocessor(first_postprocessor)
+        manager.add_postprocessor(second_postprocessor)
+        manager._chat_service.modify_assistant_message_async = AsyncMock()
+
+        loop_response = MagicMock()
+        loop_response.message.text = "answer"
+        loop_response.message.id = "assistant-message"
+        loop_response.message.references = []
+        run_task = asyncio.create_task(manager.run_postprocessors(loop_response))
+
+        await asyncio.wait_for(second_finished.wait(), timeout=1)
+
+        manager._chat_service.modify_assistant_message_async.assert_not_awaited()
+
+        first_release.set()
+        await run_task
+
+        manager._chat_service.modify_assistant_message_async.assert_awaited_once_with(
+            content="answer first second",
+            message_id="assistant-message",
+            references=[],
+        )
