@@ -25,7 +25,6 @@ from pathlib import Path
 
 TURN_IDENTITY_ENV_VAR = "UNIQUE_TURN_IDENTITY_FILE"
 MESSAGE_ID_ENV_VAR = "UNIQUE_MESSAGE_ID"
-CHAT_ID_ENV_VAR = "UNIQUE_CHAT_ID"
 
 
 class TurnIdentityError(ValueError):
@@ -36,23 +35,13 @@ class TurnIdentityError(ValueError):
 class TurnIdentity:
     """Parsed contents of the per-turn identity file.
 
-    Mirrors the JSON contract written by the platform runner. Only
-    ``message_id`` is mandatory; the remaining fields are informational.
+    The runner writes a richer JSON object (chat/user/company/assistant IDs,
+    turn counter), but the CLI only consumes ``message_id`` — the one value
+    that goes stale in a persistent process environment. Extra keys are
+    ignored; parse a field here only once the CLI actually relies on it.
     """
 
     message_id: str
-    chat_id: str | None = None
-    user_id: str | None = None
-    company_id: str | None = None
-    assistant_id: str | None = None
-    turn: int | None = None
-
-
-def _optional_str(payload: dict[str, object], key: str) -> str | None:
-    value = payload.get(key)
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return None
 
 
 def read_turn_identity(
@@ -99,15 +88,7 @@ def read_turn_identity(
             "'message_id' string"
         )
 
-    raw_turn = payload.get("turn")
-    return TurnIdentity(
-        message_id=message_id.strip(),
-        chat_id=_optional_str(payload, "chat_id"),
-        user_id=_optional_str(payload, "user_id"),
-        company_id=_optional_str(payload, "company_id"),
-        assistant_id=_optional_str(payload, "assistant_id"),
-        turn=raw_turn if isinstance(raw_turn, int) else None,
-    )
+    return TurnIdentity(message_id=message_id.strip())
 
 
 def resolve_message_id(explicit: str | None = None) -> str | None:
@@ -126,25 +107,6 @@ def resolve_message_id(explicit: str | None = None) -> str | None:
         return identity.message_id
 
     env_id = os.environ.get(MESSAGE_ID_ENV_VAR)
-    if env_id is not None and env_id.strip():
-        return env_id.strip()
-    return None
-
-
-def resolve_chat_id(explicit: str | None = None) -> str | None:
-    """Resolve chat ID with the same file-then-env precedence as message ID.
-
-    Explicit flag wins. The turn-identity file is consulted next (and fails
-    loudly when configured but unusable). Falls back to ``$UNIQUE_CHAT_ID``.
-    """
-    if explicit is not None and str(explicit).strip():
-        return str(explicit).strip()
-
-    identity = read_turn_identity()
-    if identity is not None and identity.chat_id is not None:
-        return identity.chat_id
-
-    env_id = os.environ.get(CHAT_ID_ENV_VAR)
     if env_id is not None and env_id.strip():
         return env_id.strip()
     return None

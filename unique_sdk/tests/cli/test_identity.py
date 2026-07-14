@@ -37,17 +37,10 @@ def _write_identity(path: Path, *, message_id: str = "msg-live") -> Path:
 
 
 class TestReadTurnIdentity:
-    def test_returns_typed_identity(self, tmp_path: Path) -> None:
+    def test_returns_typed_identity_ignoring_extra_keys(self, tmp_path: Path) -> None:
         path = _write_identity(tmp_path / "turn-identity.json")
         identity = read_turn_identity(path)
-        assert identity == TurnIdentity(
-            message_id="msg-live",
-            chat_id="chat-1",
-            user_id="u1",
-            company_id="c1",
-            assistant_id="a1",
-            turn=2,
-        )
+        assert identity == TurnIdentity(message_id="msg-live")
 
     def test_returns_none_when_unconfigured(
         self, monkeypatch: pytest.MonkeyPatch
@@ -55,7 +48,7 @@ class TestReadTurnIdentity:
         monkeypatch.delenv(TURN_IDENTITY_ENV_VAR, raising=False)
         assert read_turn_identity() is None
 
-    def test_optional_fields_default_to_none(self, tmp_path: Path) -> None:
+    def test_minimal_file_with_only_message_id(self, tmp_path: Path) -> None:
         path = tmp_path / "turn-identity.json"
         path.write_text(json.dumps({"message_id": "msg-1"}), encoding="utf-8")
         identity = read_turn_identity(path)
