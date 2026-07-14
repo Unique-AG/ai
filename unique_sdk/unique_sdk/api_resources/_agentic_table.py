@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from enum import StrEnum
 from typing import (
+    TYPE_CHECKING,
     Any,
     Literal,
     NotRequired,
@@ -8,6 +11,9 @@ from typing import (
 )
 
 from typing_extensions import Unpack
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -243,6 +249,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.SetCell"],
     ) -> "AgenticTableCell":
         """ """
@@ -255,6 +262,7 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -263,6 +271,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.GetCell"],
     ) -> "AgenticTableCell":
         """ """
@@ -278,6 +287,7 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params=params,
+                client=client,
             ),
         )
 
@@ -286,6 +296,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.SetActivityStatus"],
     ) -> MagicTableActivityResponse:
         url = f"/magic-table/{params['tableId']}/activity"
@@ -297,6 +308,7 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -305,6 +317,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.SetArtifact"],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{params['tableId']}/artifact"
@@ -316,6 +329,7 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )
 
@@ -324,12 +338,15 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.UpdateSheet"],
     ) -> "AgenticTable.UpdateSheetResponse":
         url = f"/magic-table/{params['tableId']}"
         return cast(
             "AgenticTable.UpdateSheetResponse",
-            await cls._static_request_async("post", url, user_id, company_id, params),
+            await cls._static_request_async(
+                "post", url, user_id, company_id, params, client=client
+            ),
         )
 
     @classmethod
@@ -337,13 +354,14 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.SetColumnMetadata"],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{params['tableId']}/column/metadata"
         # Remove tableId from params
         params.pop("tableId")
         response = await cls._static_request_async(
-            "post", url, user_id, company_id, params
+            "post", url, user_id, company_id, params, client=client
         )
         return cast(
             ColumnMetadataUpdateStatus,
@@ -355,21 +373,29 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.GetSheetData"],
     ) -> AgenticTableSheet:
         url = f"/magic-table/{params['tableId']}"
         return cast(
             AgenticTableSheet,
-            await cls._static_request_async("get", url, user_id, company_id, params),
+            await cls._static_request_async(
+                "get", url, user_id, company_id, params, client=client
+            ),
         )
 
     @classmethod
     async def get_sheet_state(
-        cls, user_id: str, company_id: str, tableId: str
+        cls,
+        user_id: str,
+        company_id: str,
+        tableId: str,
+        client: "_BaseClient | None" = None,
     ) -> AgenticTableSheetState:
         sheet = await cls.get_sheet_data(
             user_id=user_id,
             company_id=company_id,
+            client=client,
             tableId=tableId,
             includeCells=False,
         )
@@ -380,12 +406,15 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.SetCellMetadata"],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{params['tableId']}/cell/metadata"
         return cast(
             "ColumnMetadataUpdateStatus",
-            await cls._static_request_async("post", url, user_id, company_id, params),
+            await cls._static_request_async(
+                "post", url, user_id, company_id, params, client=client
+            ),
         )
 
     @classmethod
@@ -395,6 +424,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         company_id: str,
         tableId: str,
         cells: list[AgenticTableCell],
+        client: "_BaseClient | None" = None,
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
         try:
@@ -413,7 +443,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         return cast(
             "ColumnMetadataUpdateStatus",
             await cls._static_request_async(
-                "post", url, user_id, company_id, params=params_api
+                "post", url, user_id, company_id, params=params_api, client=client
             ),
         )
 
@@ -422,6 +452,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["AgenticTable.BulkUpdateStatus"],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{params['tableId']}/rows/bulk-update-status"
@@ -433,5 +464,6 @@ class AgenticTable(APIResource["AgenticTable"]):
                 user_id,
                 company_id,
                 params,
+                client=client,
             ),
         )

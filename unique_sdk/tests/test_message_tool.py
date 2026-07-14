@@ -143,6 +143,7 @@ def test_create_many__success__returns_list_object(mocker):
         "user",
         "company",
         params={"messageId": "msg-1", "tools": []},
+        client=None,
     )
 
 
@@ -191,6 +192,7 @@ def test_get_message_tools__single_chunk__calls_api_once(mocker):
         "user",
         "company",
         params={"messageIds": "msg-1,msg-2"},
+        client=None,
     )
 
 
@@ -324,6 +326,7 @@ async def test_get_message_tools_async__single_chunk__calls_api_once(mocker):
         "user",
         "company",
         params={"messageIds": "msg-1,msg-2"},
+        client=None,
     )
 
 

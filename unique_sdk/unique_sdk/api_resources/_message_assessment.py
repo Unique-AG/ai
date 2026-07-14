@@ -1,8 +1,13 @@
-from typing import Literal, Unpack
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
+
+if TYPE_CHECKING:
+    from unique_sdk._client import _BaseClient
 
 
 class MessageAssessment(APIResource["MessageAssessment"]):
@@ -34,10 +39,11 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
         return cls._static_request(
-            "post", cls.RESOURCE_URL, user_id, company_id, params=params
+            "post", cls.RESOURCE_URL, user_id, company_id, params=params, client=client
         )
 
     @classmethod
@@ -45,10 +51,11 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageAssessment.CreateParams"],
     ) -> "MessageAssessment":
         return await cls._static_request_async(
-            "post", cls.RESOURCE_URL, user_id, company_id, params=params
+            "post", cls.RESOURCE_URL, user_id, company_id, params=params, client=client
         )
 
     @classmethod
@@ -56,19 +63,23 @@ class MessageAssessment(APIResource["MessageAssessment"]):
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
         url = f"{cls.RESOURCE_URL}/{params['messageId']}"
-        return cls._static_request("patch", url, user_id, company_id, params=params)
+        return cls._static_request(
+            "patch", url, user_id, company_id, params=params, client=client
+        )
 
     @classmethod
     async def modify_async(
         cls,
         user_id: str,
         company_id: str,
+        client: "_BaseClient | None" = None,
         **params: Unpack["MessageAssessment.ModifyParams"],
     ) -> "MessageAssessment":
         url = f"{cls.RESOURCE_URL}/{params['messageId']}"
         return await cls._static_request_async(
-            "patch", url, user_id, company_id, params=params
+            "patch", url, user_id, company_id, params=params, client=client
         )
