@@ -1,7 +1,7 @@
 import asyncio
 import time
 from logging import Logger, getLogger
-from typing import Any, Generic, Literal, TypeVar, overload
+from typing import Any, Generic, Literal, TypeVar, cast, overload
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
@@ -379,13 +379,45 @@ class _ToolManager(Generic[_ApiMode]):
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools]
 
-    def add_tool(self, tool: Tool[Any]) -> None:
+    @overload
+    def add_tool(
+        self, tool: Tool[Any], kind: Literal["internal", "mcp"] = "internal"
+    ) -> None: ...
+
+    @overload
+    def add_tool(
+        self, tool: OpenAIBuiltInTool[Any], kind: Literal["builtin"]
+    ) -> None: ...
+
+    @overload
+    def add_tool(self, tool: SubAgentTool, kind: Literal["sub_agent"]) -> None: ...
+
+    def add_tool(
+        self,
+        tool: Tool[Any] | OpenAIBuiltInTool[Any] | SubAgentTool,
+        kind: Literal["internal", "builtin", "mcp", "sub_agent"] = "internal",
+    ) -> None:
         """Inject an externally constructed tool into the manager.
 
         Use this for tools that require custom constructor arguments (e.g. a
         shared registry) that cannot be built through ToolFactory.
+
+        Args:
+            tool: The tool instance to register. Its accepted type is narrowed
+                by ``kind`` via the overloads above.
+            kind: Which category the tool belongs to. Determines the internal
+                tracking list it is added to ("internal", "builtin", "mcp" or
+                "sub_agent"). Defaults to "internal".
         """
-        self._internal_tools.append(tool)
+        if kind == "builtin":
+            self._builtin_tools.append(cast(OpenAIBuiltInTool[Any], tool))
+        elif kind == "sub_agent":
+            self._sub_agents.append(cast(SubAgentTool, tool))
+        elif kind == "mcp":
+            self._mcp_tools.append(cast(Tool[Any], tool))
+        else:
+            self._internal_tools.append(cast(Tool[Any], tool))
+
         self.available_tools.append(tool)
         self._tools.append(tool)
 
@@ -509,17 +541,17 @@ class _ToolManager(Generic[_ApiMode]):
         active tool set with the built-in so subsequent loop iterations offer the
         real ``code_interpreter`` tool instead of the activator function.
 
-        Idempotent by construction: the activator is removed from ``_tools``
-        once handled, so later passes over ``_tools`` cannot process it again.
+        Idempotent by construction: the activator is removed via
+        ``exclude_tool`` once handled, so later passes over ``_tools`` cannot
+        process it again.
         """
         if self._api_mode != "responses":
             return
         for tool in list(self._tools):
             if isinstance(tool, CodeInterpreterActivatorTool) and tool.is_activated:
                 built_tool = tool.get_activated_tool()
-                self._tools.remove(tool)
-                self._tools.append(built_tool)
-                self._builtin_tools.append(built_tool)
+                self.exclude_tool(tool.name)
+                self.add_tool(built_tool, kind="builtin")
 
     async def _execute_parallelized(
         self,
