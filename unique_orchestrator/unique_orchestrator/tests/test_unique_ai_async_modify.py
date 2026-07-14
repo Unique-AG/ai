@@ -134,7 +134,9 @@ async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics(monkeypatch):
+async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics(
+    monkeypatch,
+):
     ua = _make_ua(monkeypatch)
     artifacts = {"count": 1, "filetypes": ["csv"]}
     ua._postprocessor_manager.run_postprocessors.return_value = {
