@@ -87,6 +87,7 @@ def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
     ua._current_loop_timing = {}
     ua.current_iteration_index = 0
     ua._skill_choices = []
+    ua._loop_iteration_runner = MagicMock()
 
     return ua
 
@@ -103,6 +104,7 @@ async def test_run_calls_modify_async_when_feature_flag_disabled(monkeypatch):
     empty_response.message.references = []
     empty_response.tool_calls = None
     empty_response.is_empty.return_value = True
+    empty_response.usage = None
 
     ua._plan_or_execute = AsyncMock(return_value=empty_response)
 

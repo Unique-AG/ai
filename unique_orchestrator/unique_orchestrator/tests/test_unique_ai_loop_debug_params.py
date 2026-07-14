@@ -77,6 +77,7 @@ def _make_loop_response() -> MagicMock:
     response.message.references = []
     response.message.text = "response text"
     response.is_empty.return_value = False
+    response.usage = None
     return response
 
 

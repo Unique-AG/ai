@@ -64,6 +64,7 @@ def _make_tool_response(name: str, execution_time_s: float | None = None) -> Mag
     response.debug_info = (
         {"execution_time_s": execution_time_s} if execution_time_s is not None else None
     )
+    response.invocation_stats = []
     return response
 
 
@@ -74,6 +75,7 @@ def _make_loop_response(tool_calls: list | None = None) -> MagicMock:
     response.message.references = []
     response.message.text = "response text"
     response.is_empty.return_value = False
+    response.usage = None
     return response
 
 
@@ -396,9 +398,11 @@ class TestHandleNoToolCallsTiming:
             "evaluation": {},
         }
         instance._evaluation_manager.run_evaluations = AsyncMock(return_value=[])
+        instance._evaluation_manager.get_invocation_stats.return_value = []
         instance._postprocessor_manager.run_postprocessors = AsyncMock(
             return_value=None
         )
+        instance._postprocessor_manager.get_invocation_stats.return_value = []
         return instance
 
     @pytest.mark.ai
@@ -665,11 +669,12 @@ class TestRunExecutionTimingIntegration:
         mock_postprocessor_manager = MagicMock()
         mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
         mock_postprocessor_manager.get_execution_times.return_value = {}
-        mock_postprocessor_manager.get_usage.return_value = None
+        mock_postprocessor_manager.get_invocation_stats.return_value = []
 
         mock_evaluation_manager = MagicMock()
         mock_evaluation_manager.run_evaluations = AsyncMock(return_value=[])
         mock_evaluation_manager.get_execution_times.return_value = {}
+        mock_evaluation_manager.get_invocation_stats.return_value = []
 
         dummy_event = MagicMock()
         dummy_event.payload.assistant_message.id = "assist_1"

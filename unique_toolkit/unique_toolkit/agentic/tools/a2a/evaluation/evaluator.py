@@ -31,6 +31,9 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
 )
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelResponse,
     LanguageModelStreamResponse,
@@ -219,7 +222,15 @@ class SubAgentEvaluationService(Evaluation):
             value=value,
             reason=reason,
             is_positive=value == ChatMessageAssessmentLabel.GREEN,
-            usage=response.usage,
+            invocation_stats=[
+                LanguageModelInvocationStats.from_usage(
+                    self._config.summarization_model.name,
+                    response.usage,
+                    source=str(self.get_name()),
+                )
+            ]
+            if response.usage is not None
+            else [],
         )
 
     @override

@@ -601,6 +601,7 @@ class TestWebSearchToolRun:
         mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
         mock_debug_info_instance.num_chunks_in_final_prompts = None
         mock_debug_info_instance.execution_time = None
+        mock_debug_info_instance.invocation_stats = []
         mock_debug_info_class.return_value = mock_debug_info_instance
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
@@ -696,6 +697,7 @@ class TestWebSearchToolRun:
         mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
         mock_debug_info_instance.num_chunks_in_final_prompts = None
         mock_debug_info_instance.execution_time = None
+        mock_debug_info_instance.invocation_stats = []
         mock_debug_info_class.return_value = mock_debug_info_instance
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
@@ -772,6 +774,7 @@ class TestWebSearchToolRun:
         mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
         mock_debug_info_instance.num_chunks_in_final_prompts = None
         mock_debug_info_instance.execution_time = None
+        mock_debug_info_instance.invocation_stats = []
         mock_debug_info_class.return_value = mock_debug_info_instance
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
@@ -847,6 +850,7 @@ class TestWebSearchToolRun:
         mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
         mock_debug_info_instance.num_chunks_in_final_prompts = None
         mock_debug_info_instance.execution_time = None
+        mock_debug_info_instance.invocation_stats = []
         mock_debug_info_class.return_value = mock_debug_info_instance
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
@@ -930,6 +934,7 @@ class TestWebSearchToolRun:
         mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
         mock_debug_info_instance.num_chunks_in_final_prompts = None
         mock_debug_info_instance.execution_time = None
+        mock_debug_info_instance.invocation_stats = []
         mock_debug_info_class.return_value = mock_debug_info_instance
         mocker.patch(
             "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class

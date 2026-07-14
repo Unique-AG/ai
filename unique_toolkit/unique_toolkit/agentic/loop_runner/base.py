@@ -1,4 +1,4 @@
-from typing import Any, Protocol, Required, Unpack
+from typing import Any, Protocol, Required, Unpack, runtime_checkable
 
 from openai.types.chat import ChatCompletionNamedToolChoiceParam
 from openai.types.responses import (
@@ -15,6 +15,9 @@ from unique_toolkit.chat.functions import LanguageModelStreamResponse
 from unique_toolkit.chat.service import LanguageModelMessages
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     ResponsesLanguageModelStreamResponse,
     ResponsesMessageInput,
@@ -23,6 +26,17 @@ from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
     SupportCompleteWithReferences,
 )
+
+
+@runtime_checkable
+class SupportsInvocationStats(Protocol):
+    """Optional capability for a loop iteration runner (or middleware wrapping
+    one) that makes its own extra LLM call(s) beyond the main iteration
+    response — e.g. a planning step. `unique_ai.py` checks for this via
+    `isinstance` and, if present, folds the returned stats into the turn's
+    accumulator; runners that don't make extra calls need not implement it."""
+
+    def get_invocation_stats(self) -> list[LanguageModelInvocationStats]: ...
 
 
 class _LoopIterationRunnerKwargs(TypedDict, total=False):

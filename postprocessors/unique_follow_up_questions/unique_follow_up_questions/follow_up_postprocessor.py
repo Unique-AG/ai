@@ -4,11 +4,13 @@ from unique_toolkit.agentic.history_manager.history_manager import HistoryManage
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelMessages,
     LanguageModelStreamResponse,
-    LanguageModelTokenUsage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 from unique_toolkit.language_model.utils import convert_string_to_json
@@ -43,12 +45,14 @@ class FollowUpPostprocessor(Postprocessor):
         self._language = event.payload.user_message.language
         self._historyManager = historyManager
         self._llm_service = llm_service
-        self._usage: LanguageModelTokenUsage | None = None
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
 
-    def get_usage(self) -> LanguageModelTokenUsage | None:
-        return self._usage
+    def get_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        return list(self._invocation_stats)
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+        # Reset so a re-run reports one entry per actual LLM call of this run.
+        self._invocation_stats = []
         history = await self._historyManager.get_user_visible_chat_history(
             loop_response.message.text,
             self.remove_from_text,
@@ -192,7 +196,14 @@ class FollowUpPostprocessor(Postprocessor):
                     raise ValueError("Language model response content must be a string")
                 parsed_content = convert_string_to_json(content)
 
-            self._usage = response.usage
+            if response.usage is not None:
+                self._invocation_stats.append(
+                    LanguageModelInvocationStats.from_usage(
+                        self._config.language_model.name,
+                        response.usage,
+                        source="follow_up_questions",
+                    )
+                )
             return FollowUpQuestionsOutput.model_validate(parsed_content)
 
         except Exception as e:

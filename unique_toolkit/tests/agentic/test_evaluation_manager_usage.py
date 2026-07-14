@@ -10,7 +10,12 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricName,
     EvaluationMetricResult,
 )
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
+
+_MODEL_INFO = "gpt-4-test"
 
 
 class TestEvaluationManagerUsage:
@@ -33,7 +38,7 @@ class TestEvaluationManagerUsage:
     def _make_evaluation(
         self,
         name: EvaluationMetricName,
-        usage: LanguageModelTokenUsage | None,
+        invocation_stats: list[LanguageModelInvocationStats],
     ) -> MagicMock:
         eval_instance = MagicMock(spec=Evaluation)
         eval_instance.get_name.return_value = name
@@ -45,7 +50,7 @@ class TestEvaluationManagerUsage:
                 is_positive=True,
                 value="GREEN",
                 reason="ok",
-                usage=usage,
+                invocation_stats=invocation_stats,
             )
 
         eval_instance.run = AsyncMock(side_effect=fake_run)
@@ -53,20 +58,24 @@ class TestEvaluationManagerUsage:
         return eval_instance
 
     @pytest.mark.ai
-    def test_get_usage__no_evaluations_run__returns_none(self, manager) -> None:
-        assert manager.get_usage() is None
+    def test_get_invocation_stats__no_evaluations_run__returns_empty_list(
+        self, manager
+    ) -> None:
+        assert manager.get_invocation_stats() == []
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run_evaluations__single_evaluation__records_usage(
+    async def test_run_evaluations__single_evaluation__records_invocation_stats(
         self, manager
     ) -> None:
-        evaluation = self._make_evaluation(
-            EvaluationMetricName.HALLUCINATION,
+        stats = LanguageModelInvocationStats.from_usage(
+            _MODEL_INFO,
             LanguageModelTokenUsage(
                 completion_tokens=10, prompt_tokens=20, total_tokens=30
             ),
+            source=str(EvaluationMetricName.HALLUCINATION),
         )
+        evaluation = self._make_evaluation(EvaluationMetricName.HALLUCINATION, [stats])
         manager.add_evaluation(evaluation)
         mock_loop_response = MagicMock()
 
@@ -74,26 +83,40 @@ class TestEvaluationManagerUsage:
             [EvaluationMetricName.HALLUCINATION], mock_loop_response, "msg_1"
         )
 
-        assert manager.get_usage() == LanguageModelTokenUsage(
-            completion_tokens=10, prompt_tokens=20, total_tokens=30
-        )
+        assert manager.get_invocation_stats() == [
+            LanguageModelInvocationStats.from_usage(
+                _MODEL_INFO,
+                LanguageModelTokenUsage(
+                    completion_tokens=10, prompt_tokens=20, total_tokens=30
+                ),
+                source=str(EvaluationMetricName.HALLUCINATION),
+            )
+        ]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run_evaluations__multiple_evaluations__sums_usage(
+    async def test_run_evaluations__multiple_evaluations__records_all_invocation_stats(
         self, manager
     ) -> None:
-        hallucination = self._make_evaluation(
-            EvaluationMetricName.HALLUCINATION,
+        hallucination_stats = LanguageModelInvocationStats.from_usage(
+            _MODEL_INFO,
             LanguageModelTokenUsage(
                 completion_tokens=10, prompt_tokens=20, total_tokens=30
             ),
+            source=str(EvaluationMetricName.HALLUCINATION),
         )
-        relevancy = self._make_evaluation(
-            EvaluationMetricName.CONTEXT_RELEVANCY,
+        relevancy_stats = LanguageModelInvocationStats.from_usage(
+            _MODEL_INFO,
             LanguageModelTokenUsage(
                 completion_tokens=1, prompt_tokens=2, total_tokens=3
             ),
+            source=str(EvaluationMetricName.CONTEXT_RELEVANCY),
+        )
+        hallucination = self._make_evaluation(
+            EvaluationMetricName.HALLUCINATION, [hallucination_stats]
+        )
+        relevancy = self._make_evaluation(
+            EvaluationMetricName.CONTEXT_RELEVANCY, [relevancy_stats]
         )
         manager.add_evaluation(hallucination)
         manager.add_evaluation(relevancy)
@@ -108,16 +131,25 @@ class TestEvaluationManagerUsage:
             "msg_1",
         )
 
-        assert manager.get_usage() == LanguageModelTokenUsage(
-            completion_tokens=11, prompt_tokens=22, total_tokens=33
+        recorded = manager.get_invocation_stats()
+        assert len(recorded) == 2
+        assert recorded[0].source == str(EvaluationMetricName.HALLUCINATION)
+        assert recorded[0].token_usage == LanguageModelTokenUsage(
+            completion_tokens=10, prompt_tokens=20, total_tokens=30
+        )
+        assert recorded[1].source == str(EvaluationMetricName.CONTEXT_RELEVANCY)
+        assert recorded[1].token_usage == LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=2, total_tokens=3
         )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run_evaluations__usage_none__not_recorded(self, manager) -> None:
-        """An evaluation that made no LLM call (usage=None, e.g. a
-        deterministic/rule-based check) must not contribute a zeroed entry."""
-        evaluation = self._make_evaluation(EvaluationMetricName.HALLUCINATION, None)
+    async def test_run_evaluations__no_invocation_stats__not_recorded(
+        self, manager
+    ) -> None:
+        """An evaluation that made no LLM call (invocation_stats=[], e.g. a
+        deterministic/rule-based check) must not contribute any entries."""
+        evaluation = self._make_evaluation(EvaluationMetricName.HALLUCINATION, [])
         manager.add_evaluation(evaluation)
         mock_loop_response = MagicMock()
 
@@ -125,24 +157,53 @@ class TestEvaluationManagerUsage:
             [EvaluationMetricName.HALLUCINATION], mock_loop_response, "msg_1"
         )
 
-        assert manager.get_usage() is None
+        assert manager.get_invocation_stats() == []
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run_evaluations__resets_usage_between_runs(self, manager) -> None:
-        evaluation = self._make_evaluation(
-            EvaluationMetricName.HALLUCINATION,
+    async def test_run_evaluations__resets_invocation_stats_between_runs(
+        self, manager
+    ) -> None:
+        stats = LanguageModelInvocationStats.from_usage(
+            _MODEL_INFO,
             LanguageModelTokenUsage(
                 completion_tokens=10, prompt_tokens=20, total_tokens=30
             ),
+            source=str(EvaluationMetricName.HALLUCINATION),
         )
+        evaluation = self._make_evaluation(EvaluationMetricName.HALLUCINATION, [stats])
         manager.add_evaluation(evaluation)
         mock_loop_response = MagicMock()
 
         await manager.run_evaluations(
             [EvaluationMetricName.HALLUCINATION], mock_loop_response, "msg_1"
         )
-        assert manager.get_usage() is not None
+        assert manager.get_invocation_stats() != []
 
         await manager.run_evaluations([], mock_loop_response, "msg_1")
-        assert manager.get_usage() is None
+        assert manager.get_invocation_stats() == []
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run_evaluations__preserves_producer_source(self, manager) -> None:
+        """`source` is mandatory on LanguageModelInvocationStats -- the
+        manager just collects whatever each evaluation already set, it does
+        not stamp or override it."""
+        stats = LanguageModelInvocationStats.from_usage(
+            _MODEL_INFO,
+            LanguageModelTokenUsage(
+                completion_tokens=10, prompt_tokens=20, total_tokens=30
+            ),
+            source="custom_source",
+        )
+        evaluation = self._make_evaluation(EvaluationMetricName.HALLUCINATION, [stats])
+        manager.add_evaluation(evaluation)
+        mock_loop_response = MagicMock()
+
+        await manager.run_evaluations(
+            [EvaluationMetricName.HALLUCINATION], mock_loop_response, "msg_1"
+        )
+
+        recorded = manager.get_invocation_stats()
+        assert len(recorded) == 1
+        assert recorded[0].source == "custom_source"

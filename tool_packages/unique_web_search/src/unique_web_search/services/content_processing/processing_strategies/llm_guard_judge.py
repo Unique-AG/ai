@@ -6,6 +6,7 @@ from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.content_processing.processing_strategies.base import (
     ProcessingStrategyKwargs,
     WebSearchResult,
@@ -208,7 +209,9 @@ class LLMGuardJudge:
             sanitize=True,
         )
 
-        parsed = await self._complete(LLMGuardResponse, system_prompt, user_prompt)
+        parsed = await self._complete(
+            LLMGuardResponse, system_prompt, user_prompt, kwargs.get("debug_info")
+        )
         return parsed.apply_to_page(page, self._config.privacy_filter.flag_message)
 
     async def judge_only(
@@ -235,7 +238,9 @@ class LLMGuardJudge:
             task_description=_JUDGE_TASK_PREFIX,
         )
 
-        parsed = await self._complete(JudgeResponse, system_prompt, user_prompt)
+        parsed = await self._complete(
+            JudgeResponse, system_prompt, user_prompt, kwargs.get("debug_info")
+        )
 
         _LOGGER.info(
             f"Judge result for {page.url}: needs_sanitization={parsed.needs_sanitization}"
@@ -268,7 +273,10 @@ class LLMGuardJudge:
         )
 
         parsed = await self._complete(
-            JudgeAndSanitizeResponse, system_prompt, user_prompt
+            JudgeAndSanitizeResponse,
+            system_prompt,
+            user_prompt,
+            kwargs.get("debug_info"),
         )
 
         _LOGGER.info(
@@ -289,6 +297,7 @@ class LLMGuardJudge:
         response_model: type[_T],
         system_prompt: str,
         user_prompt: str,
+        debug_info: WebSearchDebugInfo | None = None,
     ) -> _T:
         """Build messages, call the LLM, and return the parsed structured response."""
         messages = (
@@ -309,6 +318,13 @@ class LLMGuardJudge:
             structured_output_model=response_model,
             structured_output_enforce_schema=True,
         )
+
+        if debug_info is not None:
+            debug_info.add_invocation(
+                self._config.language_model.name,
+                response.usage,
+                source="web_search_llm_guard_judge",
+            )
 
         if response.choices[0].message.parsed is None:
             raise ValueError("Judge call returned no parsed response")

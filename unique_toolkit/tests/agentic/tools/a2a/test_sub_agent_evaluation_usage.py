@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.a2a.evaluation.config import (
     SubAgentEvaluationConfig,
     SubAgentEvaluationServiceConfig,
@@ -15,6 +16,9 @@ from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWa
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentLabel,
     ChatMessageAssessmentStatus,
+)
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelCompletionChoice,
@@ -82,11 +86,15 @@ def _make_service(complete_async_mock: AsyncMock) -> SubAgentEvaluationService:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_sub_agent_evaluation__multiple_assessments__carries_usage() -> None:
+async def test_sub_agent_evaluation__multiple_assessments__carries_invocation_stats() -> (
+    None
+):
     """SubAgentEvaluationService.run(), in its multi-assessment branch, makes
     its own LLM call to summarize the assessments (_get_reason) — that
     response's usage was previously discarded (_get_reason returned only a
-    plain str). Verify it now survives onto the final EvaluationMetricResult."""
+    plain str). Verify it now survives onto the final EvaluationMetricResult
+    as an invocation_stats entry, tagged with the model used and the
+    evaluation's own name as source."""
     complete_async_mock = AsyncMock(
         return_value=LanguageModelResponse(
             choices=[
@@ -107,16 +115,25 @@ async def test_sub_agent_evaluation__multiple_assessments__carries_usage() -> No
 
     complete_async_mock.assert_awaited_once()
     assert result.reason == "summary text"
-    assert result.usage == LanguageModelTokenUsage(
-        completion_tokens=12, prompt_tokens=34, total_tokens=46
-    )
+    assert result.invocation_stats == [
+        LanguageModelInvocationStats.from_usage(
+            SubAgentEvaluationServiceConfig().summarization_model.name,
+            LanguageModelTokenUsage(
+                completion_tokens=12, prompt_tokens=34, total_tokens=46
+            ),
+            source=str(EvaluationMetricName.SUB_AGENT),
+        )
+    ]
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_sub_agent_evaluation__no_responses__usage_none_no_llm_call() -> None:
+async def test_sub_agent_evaluation__no_responses__no_invocation_stats_no_llm_call() -> (
+    None
+):
     """The no-responses early-return path makes no LLM call at all --
-    usage must stay None, and complete_async must never be called."""
+    invocation_stats must stay empty, and complete_async must never be
+    called."""
     complete_async_mock = AsyncMock()
     watcher = SubAgentResponseWatcher()
     language_model_service = MagicMock()
@@ -138,4 +155,4 @@ async def test_sub_agent_evaluation__no_responses__usage_none_no_llm_call() -> N
     result = await service.run(loop_response=MagicMock())
 
     complete_async_mock.assert_not_awaited()
-    assert result.usage is None
+    assert result.invocation_stats == []

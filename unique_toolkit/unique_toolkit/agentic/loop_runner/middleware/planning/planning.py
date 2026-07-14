@@ -37,9 +37,13 @@ from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
     LanguageModelUserMessage,
 )
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageOptions,
     LanguageModelMessages,
+    LanguageModelTokenUsage,
     ResponsesLanguageModelStreamResponse,
 )
 
@@ -136,6 +140,12 @@ class PlanningMiddleware(LoopIterationRunner):
         self._loop_runner = loop_runner
         self._history_manager = history_manager
         self._llm_service = llm_service
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
+
+    def get_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Return and clear the planning-step stats captured since the last call."""
+        stats, self._invocation_stats = self._invocation_stats, []
+        return stats
 
     @failsafe_async(failure_return_value=None, logger=_LOGGER)
     async def _run_plan_step(
@@ -154,6 +164,13 @@ class PlanningMiddleware(LoopIterationRunner):
             structured_output_model=planning_schema,
             other_options=other_options,
         )
+
+        if response.usage is not None:
+            self._invocation_stats.append(
+                LanguageModelInvocationStats.from_usage(
+                    kwargs["model"].name, response.usage, source="planning"
+                )
+            )
 
         if response.choices[0].message.parsed is None:
             _LOGGER.info("Error parsing planning response")
@@ -196,6 +213,12 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
         self._loop_runner = loop_runner
         self._history_manager = history_manager
         self._openai_client = openai_client
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
+
+    def get_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Return and clear the planning-step stats captured since the last call."""
+        stats, self._invocation_stats = self._invocation_stats, []
+        return stats
 
     def _build_forwarded_options(
         self, kwargs: _ResponsesLoopIterationRunnerKwargs
@@ -259,6 +282,19 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
             parallel_tool_calls=False,
             **forwarded_options,
         )
+
+        if response.usage is not None:
+            self._invocation_stats.append(
+                LanguageModelInvocationStats.from_usage(
+                    model_name,
+                    LanguageModelTokenUsage(
+                        prompt_tokens=response.usage.input_tokens,
+                        completion_tokens=response.usage.output_tokens,
+                        total_tokens=response.usage.total_tokens,
+                    ),
+                    source="planning",
+                )
+            )
 
         output_text = _get_first_tool_call_arguments(response)
         if not output_text:

@@ -32,6 +32,9 @@ from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     ModelCapabilities,
 )
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,
@@ -187,7 +190,14 @@ class ContextRelevancyEvaluator:
         evaluation_result = parse_eval_metric_result_structured_output(
             result_content, EvaluationMetricName.CONTEXT_RELEVANCY
         )
-        evaluation_result.usage = result.usage
+        if result.usage is not None:
+            evaluation_result.invocation_stats = [
+                LanguageModelInvocationStats.from_usage(
+                    config.language_model.name,
+                    result.usage,
+                    source="context_relevancy",
+                )
+            ]
         return evaluation_result
 
     async def _handle_regular_output(
@@ -214,7 +224,14 @@ class ContextRelevancyEvaluator:
         evaluation_result = parse_eval_metric_result(
             result_content, EvaluationMetricName.CONTEXT_RELEVANCY
         )
-        evaluation_result.usage = result.usage
+        if result.usage is not None:
+            evaluation_result.invocation_stats = [
+                LanguageModelInvocationStats.from_usage(
+                    config.language_model.name,
+                    result.usage,
+                    source="context_relevancy",
+                )
+            ]
         return evaluation_result
 
     def _compose_msgs(

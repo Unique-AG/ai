@@ -607,6 +607,8 @@ async def stream_complete_with_references_openai(
         stream = await client.chat.completions.create(**stream_kwargs)
         async with stream:
             async for chunk in stream:
+                # stream_options.include_usage sends one terminal chunk with the
+                # final cumulative totals, not a per-chunk delta -- overwrite, don't sum.
                 if chunk.usage is not None:
                     usage = LanguageModelTokenUsage(
                         completion_tokens=chunk.usage.completion_tokens,

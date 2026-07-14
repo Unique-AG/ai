@@ -107,7 +107,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         )
         with metric_scope(llm_duration, llm_errors, purpose="content_processing"):
             content_results = await self.content_processor.run(
-                objective, web_search_results
+                objective, web_search_results, debug_info=self.debug_info
             )
         end_time = time()
         delta_time = end_time - start_time

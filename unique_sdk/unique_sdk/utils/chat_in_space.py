@@ -15,9 +15,24 @@ from unique_sdk.utils.file_io import (
 
 
 def get_message_usage(message: Space.Message) -> Integrated.Usage | None:
-    """Token usage for a completed Space message, read from `debugInfo.token_usage`."""
+    """Total token usage for a completed Space message, read from
+    `debugInfo.llm_invocations.totalTokenUsage`.
+    """
     debug_info = message.get("debugInfo") or {}
-    return debug_info.get("token_usage")
+    llm_invocations = debug_info.get("llm_invocations")
+    if llm_invocations is None:
+        return None
+    return llm_invocations["totalTokenUsage"]
+
+
+def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
+    """Per-LLM-invocation stats for a completed Space message.
+
+    Each entry has `modelInfo`, `tokenUsage`, and `source` keys.
+    """
+    debug_info = message.get("debugInfo") or {}
+    llm_invocations = debug_info.get("llm_invocations") or {}
+    return llm_invocations["invocations"] if llm_invocations else []
 
 
 async def send_message_and_wait_for_completion(

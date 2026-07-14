@@ -18,6 +18,9 @@ from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.infos import ModelCapabilities
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -89,7 +92,12 @@ async def check_hallucination(
             result_content,
             EvaluationMetricName.HALLUCINATION,
         )
-        result.usage = usage
+        if usage is not None:
+            result.invocation_stats = [
+                LanguageModelInvocationStats.from_usage(
+                    model_name, usage, source="hallucination"
+                )
+            ]
 
         return result
     except Exception as e:

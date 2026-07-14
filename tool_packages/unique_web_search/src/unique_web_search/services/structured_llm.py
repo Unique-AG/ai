@@ -7,6 +7,8 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.schema import WebSearchDebugInfo
+
 T = TypeVar("T", bound=BaseModel)
 
 
@@ -22,6 +24,7 @@ async def complete_structured_llm(
     user_message: str,
     response_model: type[T],
     structured_output_enforce_schema: bool = True,
+    debug_info: WebSearchDebugInfo | None = None,
 ) -> T:
     """Run a structured completion and return a validated model instance."""
     messages = (
@@ -37,6 +40,11 @@ async def complete_structured_llm(
         structured_output_model=response_model,
         structured_output_enforce_schema=structured_output_enforce_schema,
     )
+
+    if debug_info is not None:
+        debug_info.add_invocation(
+            language_model.name, response.usage, source="web_search_argument_screening"
+        )
 
     parsed = response.choices[0].message.parsed
     if parsed is None:

@@ -1,9 +1,14 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.agentic.loop_runner import SupportsInvocationStats
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_orchestrator.unique_ai import UniqueAI
+
+MODEL_NAME = "gpt-4"
 
 
 def _make_loop_response(usage: LanguageModelTokenUsage | None) -> MagicMock:
@@ -50,6 +55,7 @@ def _build_run_ua(loop_responses: list[MagicMock], max_iterations: int):
     mock_config = MagicMock()
     mock_config.effective_max_loop_iterations = max_iterations
     mock_config.agent.prompt_config.user_metadata = []
+    mock_config.space.language_model.name = MODEL_NAME
 
     mock_history_manager = MagicMock()
     mock_history_manager.get_history_for_model_call = AsyncMock(
@@ -62,12 +68,12 @@ def _build_run_ua(loop_responses: list[MagicMock], max_iterations: int):
     mock_postprocessor_manager = MagicMock()
     mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
     mock_postprocessor_manager.get_execution_times.return_value = {}
-    mock_postprocessor_manager.get_usage.return_value = None
+    mock_postprocessor_manager.get_invocation_stats.return_value = []
 
     mock_evaluation_manager = MagicMock()
     mock_evaluation_manager.run_evaluations = AsyncMock(return_value=[])
     mock_evaluation_manager.get_execution_times.return_value = {}
-    mock_evaluation_manager.get_usage.return_value = None
+    mock_evaluation_manager.get_invocation_stats.return_value = []
 
     dummy_event = MagicMock()
     dummy_event.payload.assistant_message.id = "assist_1"
@@ -104,47 +110,86 @@ def _build_run_ua(loop_responses: list[MagicMock], max_iterations: int):
 
 
 class TestAccumulateUsage:
-    def test_accumulate_usage__none__is_noop(self):
-        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
-        ua._accumulate_usage(None)
-        assert ua._total_usage is None
+    """Tests for how UniqueAI._invocation_stats is populated from the main loop."""
 
-    def test_accumulate_usage__single_call__sets_total(self):
+    def test_main_loop__none_usage__is_noop(self):
         ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
-        ua._accumulate_usage(
+        assert ua._invocation_stats == []
+
+    @pytest.mark.asyncio
+    async def test_main_loop__single_call__appends_one_entry(self):
+        loop_response = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=10, prompt_tokens=20, total_tokens=30
             )
         )
-        assert ua._total_usage == LanguageModelTokenUsage(
+        ua = _build_run_ua([loop_response], max_iterations=1)
+
+        await ua.run()
+
+        assert len(ua._invocation_stats) == 1
+        entry = ua._invocation_stats[0]
+        assert entry.model_info == MODEL_NAME
+        assert entry.source == "main_loop"
+        assert entry.token_usage == LanguageModelTokenUsage(
             completion_tokens=10, prompt_tokens=20, total_tokens=30
         )
 
-    def test_accumulate_usage__multiple_calls__sums(self):
-        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
-        ua._accumulate_usage(
+    @pytest.mark.asyncio
+    async def test_main_loop__multiple_iterations__appends_one_entry_per_call(self):
+        tool_call = MagicMock()
+        tool_call.name = "WebSearch"
+
+        first = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=10, prompt_tokens=20, total_tokens=30
             )
         )
-        ua._accumulate_usage(
+        first.tool_calls = [tool_call]
+        second = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=1, prompt_tokens=2, total_tokens=3
             )
         )
-        assert ua._total_usage == LanguageModelTokenUsage(
-            completion_tokens=11, prompt_tokens=22, total_tokens=33
+        ua = _build_run_ua([first, second], max_iterations=2)
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="WebSearch", invocation_stats=[])
+            ]
         )
 
-    def test_accumulate_usage__none_mixed_with_real__ignores_none(self):
-        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
-        ua._accumulate_usage(
+        await ua.run()
+
+        assert len(ua._invocation_stats) == 2
+        assert [entry.token_usage.total_tokens for entry in ua._invocation_stats] == [
+            30,
+            3,
+        ]
+        assert all(entry.source == "main_loop" for entry in ua._invocation_stats)
+
+    @pytest.mark.asyncio
+    async def test_main_loop__none_mixed_with_real__none_is_skipped(self):
+        tool_call = MagicMock()
+        tool_call.name = "WebSearch"
+
+        first = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=10, prompt_tokens=20, total_tokens=30
             )
         )
-        ua._accumulate_usage(None)
-        assert ua._total_usage == LanguageModelTokenUsage(
+        first.tool_calls = [tool_call]
+        second = _make_loop_response(None)
+        ua = _build_run_ua([first, second], max_iterations=2)
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="WebSearch", invocation_stats=[])
+            ]
+        )
+
+        await ua.run()
+
+        assert len(ua._invocation_stats) == 1
+        assert ua._invocation_stats[0].token_usage == LanguageModelTokenUsage(
             completion_tokens=10, prompt_tokens=20, total_tokens=30
         )
 
@@ -152,9 +197,9 @@ class TestAccumulateUsage:
 class TestRunTokenUsageIntegration:
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__debug_info_manager__receives_token_usage_key(self):
+    async def test_run__debug_info_manager__receives_llm_invocations_key(self):
         """A single-iteration run with real usage on the loop response must
-        surface it under debug_info's 'token_usage' key."""
+        surface it under debug_info's 'llm_invocations' key."""
         loop_response = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=12, prompt_tokens=34, total_tokens=46
@@ -167,18 +212,25 @@ class TestRunTokenUsageIntegration:
         calls_by_key = {
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
-        assert "token_usage" in calls_by_key
-        assert calls_by_key["token_usage"] == {
+        assert "llm_invocations" in calls_by_key
+        payload = calls_by_key["llm_invocations"]
+        assert payload["totalTokenUsage"] == {
             "completionTokens": 12,
             "promptTokens": 34,
             "totalTokens": 46,
         }
+        assert len(payload["invocations"]) == 1
+        assert payload["invocations"][0]["modelInfo"] == MODEL_NAME
+        assert payload["invocations"][0]["source"] == "main_loop"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__no_usage_on_any_response__token_usage_is_none(self):
+    async def test_run__no_usage_on_any_response__llm_invocations_report_is_empty(
+        self,
+    ):
         """When usage is never populated (e.g. no supporting provider),
-        the 'token_usage' key must be explicitly None, not absent/silent."""
+        the 'llm_invocations' key must still be present with an empty report,
+        not absent/silent."""
         ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
 
         await ua.run()
@@ -186,14 +238,17 @@ class TestRunTokenUsageIntegration:
         calls_by_key = {
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
-        assert "token_usage" in calls_by_key
-        assert calls_by_key["token_usage"] is None
+        assert "llm_invocations" in calls_by_key
+        assert calls_by_key["llm_invocations"] == {
+            "invocations": [],
+            "totalTokenUsage": None,
+        }
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_run__postprocessor_usage__added_to_loop_usage(self):
         """FollowUpPostprocessor (and any postprocessor) makes its own LLM
-        call outside _plan_or_execute() — its usage must be added to the
+        call outside _plan_or_execute() -- its usage must be added to the
         same total, not silently dropped."""
         loop_response = _make_loop_response(
             LanguageModelTokenUsage(
@@ -201,8 +256,93 @@ class TestRunTokenUsageIntegration:
             )
         )
         ua = _build_run_ua([loop_response], max_iterations=1)
-        ua._postprocessor_manager.get_usage.return_value = LanguageModelTokenUsage(
-            completion_tokens=3, prompt_tokens=7, total_tokens=10
+        ua._postprocessor_manager.get_invocation_stats.return_value = [
+            LanguageModelInvocationStats.from_usage(
+                MODEL_NAME,
+                LanguageModelTokenUsage(
+                    completion_tokens=3, prompt_tokens=7, total_tokens=10
+                ),
+                source="FollowUpPostprocessor",
+            )
+        ]
+
+        await ua.run()
+
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        payload = calls_by_key["llm_invocations"]
+        assert payload["totalTokenUsage"] == {
+            "completionTokens": 15,
+            "promptTokens": 41,
+            "totalTokens": 56,
+        }
+        sources = [inv["source"] for inv in payload["invocations"]]
+        assert sources == ["main_loop", "FollowUpPostprocessor"]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__loop_runner_reports_invocation_stats__added_to_loop_usage(
+        self,
+    ):
+        """PlanningMiddleware (and any loop-runner wrapper implementing
+        SupportsInvocationStats) makes its own LLM call outside the main
+        completion -- e.g. a planning step before the iteration -- and its
+        usage must be folded into the same total, not silently dropped."""
+        loop_response = _make_loop_response(
+            LanguageModelTokenUsage(
+                completion_tokens=12, prompt_tokens=34, total_tokens=46
+            )
+        )
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        # A bare AsyncMock() satisfies hasattr() for any name but does NOT
+        # satisfy isinstance() against a runtime_checkable Protocol -- only
+        # spec=<the protocol> does, matching what real PlanningMiddleware
+        # instances trigger via isinstance() in production.
+        runner = AsyncMock(spec=SupportsInvocationStats)
+        runner.side_effect = [loop_response]
+        runner.get_invocation_stats.return_value = [
+            LanguageModelInvocationStats.from_usage(
+                MODEL_NAME,
+                LanguageModelTokenUsage(
+                    completion_tokens=2, prompt_tokens=8, total_tokens=10
+                ),
+                source="planning",
+            )
+        ]
+        ua._loop_iteration_runner = runner
+
+        await ua.run()
+
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        payload = calls_by_key["llm_invocations"]
+        assert payload["totalTokenUsage"] == {
+            "completionTokens": 14,
+            "promptTokens": 42,
+            "totalTokens": 56,
+        }
+        sources = [inv["source"] for inv in payload["invocations"]]
+        assert sources == ["main_loop", "planning"]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__loop_runner_without_invocation_stats__is_a_noop(self):
+        """A plain runner that doesn't implement SupportsInvocationStats
+        (the common case: Basic/Qwen/Mistral runners with no planning
+        middleware) must not contribute spurious entries."""
+        loop_response = _make_loop_response(
+            LanguageModelTokenUsage(
+                completion_tokens=12, prompt_tokens=34, total_tokens=46
+            )
+        )
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        # spec restricts this mock to only __call__ -- no get_invocation_stats
+        # attribute exists, so isinstance(..., SupportsInvocationStats) is False,
+        # mirroring a real runner (Basic/Qwen/Mistral) that doesn't implement it.
+        ua._loop_iteration_runner = AsyncMock(
+            side_effect=[loop_response], spec=["__call__"]
         )
 
         await ua.run()
@@ -210,17 +350,127 @@ class TestRunTokenUsageIntegration:
         calls_by_key = {
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
-        assert calls_by_key["token_usage"] == {
-            "completionTokens": 15,
-            "promptTokens": 41,
-            "totalTokens": 56,
+        payload = calls_by_key["llm_invocations"]
+        sources = [inv["source"] for inv in payload["invocations"]]
+        assert sources == ["main_loop"]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__tool_usage__added_to_loop_usage(self):
+        """A tool's own internal LLM calls (e.g. web search argument screening)
+        report usage via ToolCallResponse.invocation_stats -- it must be folded
+        into the same total as the main loop, per tool-call iteration."""
+        tool_call = MagicMock()
+        tool_call.name = "WebSearch"
+
+        loop_response_with_tools = _make_loop_response(
+            LanguageModelTokenUsage(
+                completion_tokens=12, prompt_tokens=34, total_tokens=46
+            )
+        )
+        loop_response_with_tools.tool_calls = [tool_call]
+        loop_response_with_tools.is_empty.return_value = False
+
+        final_response = _make_loop_response(None)
+
+        ua = _build_run_ua([loop_response_with_tools, final_response], max_iterations=2)
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(
+                    id="call_1",
+                    name="WebSearch",
+                    invocation_stats=[
+                        LanguageModelInvocationStats.from_usage(
+                            MODEL_NAME,
+                            LanguageModelTokenUsage(
+                                completion_tokens=1, prompt_tokens=2, total_tokens=3
+                            ),
+                            source="WebSearch",
+                        )
+                    ],
+                )
+            ]
+        )
+
+        await ua.run()
+
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
+        payload = calls_by_key["llm_invocations"]
+        assert payload["totalTokenUsage"] == {
+            "completionTokens": 13,
+            "promptTokens": 36,
+            "totalTokens": 49,
+        }
+        sources = [inv["source"] for inv in payload["invocations"]]
+        assert sources == ["main_loop", "WebSearch"]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__multiple_tool_calls_in_one_iteration__usage_summed(self):
+        """Two (or more) tool calls in the same iteration -- e.g. two parallel
+        web searches -- must each contribute their own usage, not overwrite
+        or drop one another."""
+        tool_call = MagicMock()
+        tool_call.name = "WebSearch"
+
+        loop_response_with_tools = _make_loop_response(None)
+        loop_response_with_tools.tool_calls = [tool_call, tool_call]
+        loop_response_with_tools.is_empty.return_value = False
+
+        final_response = _make_loop_response(None)
+
+        ua = _build_run_ua([loop_response_with_tools, final_response], max_iterations=2)
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(
+                    id="call_1",
+                    name="WebSearch",
+                    invocation_stats=[
+                        LanguageModelInvocationStats.from_usage(
+                            MODEL_NAME,
+                            LanguageModelTokenUsage(
+                                completion_tokens=1, prompt_tokens=2, total_tokens=3
+                            ),
+                            source="WebSearch",
+                        )
+                    ],
+                ),
+                ToolCallResponse(
+                    id="call_2",
+                    name="WebSearch",
+                    invocation_stats=[
+                        LanguageModelInvocationStats.from_usage(
+                            MODEL_NAME,
+                            LanguageModelTokenUsage(
+                                completion_tokens=4, prompt_tokens=5, total_tokens=9
+                            ),
+                            source="WebSearch",
+                        )
+                    ],
+                ),
+            ]
+        )
+
+        await ua.run()
+
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        payload = calls_by_key["llm_invocations"]
+        assert payload["totalTokenUsage"] == {
+            "completionTokens": 5,
+            "promptTokens": 7,
+            "totalTokens": 12,
+        }
+        assert len(payload["invocations"]) == 2
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_run__reset_between_runs__does_not_leak_across_calls(self):
-        """_total_usage must reset at the start of run(), so a second run()
-        on the same UniqueAI instance doesn't inherit the prior run's total."""
+        """_invocation_stats must reset at the start of run(), so a second run()
+        on the same UniqueAI instance doesn't inherit the prior run's entries."""
         loop_response = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=5, prompt_tokens=5, total_tokens=10
@@ -234,8 +484,10 @@ class TestRunTokenUsageIntegration:
         calls_by_key = {
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
-        assert calls_by_key["token_usage"] == {
+        payload = calls_by_key["llm_invocations"]
+        assert payload["totalTokenUsage"] == {
             "completionTokens": 5,
             "promptTokens": 5,
             "totalTokens": 10,
         }
+        assert len(payload["invocations"]) == 1
