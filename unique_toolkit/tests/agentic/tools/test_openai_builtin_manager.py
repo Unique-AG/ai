@@ -198,7 +198,7 @@ def test_get_all_openai_builtin_tools_returns_copy() -> None:
 
 def _deferred_tool_config(*, is_exclusive: bool = False) -> ToolBuildConfig:
     extended = CodeInterpreterExtendedConfig(
-        deferred_execution_config=CodeInterpreterActivatorConfig(),
+        activator_config=CodeInterpreterActivatorConfig(),
     )
     return ToolBuildConfig.model_validate(
         {
