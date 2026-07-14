@@ -44,13 +44,24 @@ class TestResolveRedirectChain:
     async def test_resolve_redirect_chain__no_redirect__returns_original_url(
         self,
     ) -> None:
+        """
+        Purpose: Confirm non-redirect responses keep the original validated URL.
+        Why this matters: Most crawl targets are already final; probing must not rewrite them.
+        Setup summary: Mock a 200 HEAD response and assert the input URL is returned.
+        """
         mock_client = self._make_mock_client([(200, None)])
 
-        with patch(_REDIRECT_HTTPX, return_value=mock_client):
+        with patch(_REDIRECT_HTTPX, return_value=mock_client) as mock_client_cls:
             result = await self._resolve_redirect_chain("https://example.com/page")
 
         assert result == "https://example.com/page"
         mock_client.head.assert_called_once_with("https://example.com/page")
+        _, kwargs = mock_client_cls.call_args
+        assert (
+            kwargs["headers"]["User-Agent"]
+            == redirect_module._REDIRECT_PROBE_USER_AGENT
+        )
+        assert not kwargs["headers"]["User-Agent"].startswith("python-httpx")
 
     @pytest.mark.ai
     @pytest.mark.asyncio
