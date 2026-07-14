@@ -615,8 +615,20 @@ def _break_card(
     return card
 
 
-def _classify_break(email_row: dict[str, Any], book_rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Explain, in priority order, the first dimension on which an email row breaks."""
+def _classify_break(
+    email_row: dict[str, Any],
+    book_rows: list[dict[str, Any]],
+    used_customer_ids: set[int] | None = None,
+) -> dict[str, Any]:
+    """Explain, in priority order, the first dimension on which an email row breaks.
+
+    Only unreserved book rows are considered — citing a line already linked to
+    another email (or claimed earlier in the same run) would misstate which
+    trade is actually in contention. With every candidate reserved the cascade
+    falls through to R-NO-CANDIDATE, which is the truthful outcome.
+    """
+    if used_customer_ids:
+        book_rows = [r for r in book_rows if r["id"] not in used_customer_ids]
     ev, eccy, eact, eamt = (
         email_row["vendor"], email_row["ccy"], email_row["action"], email_row["amount"],
     )
@@ -708,5 +720,5 @@ def derive_break_actions() -> dict[str, Any]:
             if outcome.customer_cf_id is not None:
                 used_customer_ids.add(outcome.customer_cf_id)
             continue
-        actions.append(_classify_break(email_row, customer_rows))
+        actions.append(_classify_break(email_row, customer_rows, used_customer_ids))
     return {"count": len(actions), "actions": actions}
