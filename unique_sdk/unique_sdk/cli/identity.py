@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 TURN_IDENTITY_ENV_VAR = "UNIQUE_TURN_IDENTITY_FILE"
 MESSAGE_ID_ENV_VAR = "UNIQUE_MESSAGE_ID"
@@ -32,18 +32,42 @@ class TurnIdentityError(ValueError):
     """Raised when the turn-identity file is configured but unusable."""
 
 
+@dataclass(frozen=True)
+class TurnIdentity:
+    """Parsed contents of the per-turn identity file.
+
+    Mirrors the JSON contract written by the platform runner. Only
+    ``message_id`` is mandatory; the remaining fields are informational.
+    """
+
+    message_id: str
+    chat_id: str | None = None
+    user_id: str | None = None
+    company_id: str | None = None
+    assistant_id: str | None = None
+    turn: int | None = None
+
+
+def _optional_str(payload: dict[str, object], key: str) -> str | None:
+    value = payload.get(key)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
 def read_turn_identity(
     path: str | Path | None = None,
-) -> dict[str, Any]:
+) -> TurnIdentity | None:
     """Load and validate the turn-identity JSON file.
 
-    When *path* is ``None``, reads ``$UNIQUE_TURN_IDENTITY_FILE``. Raises
-    ``TurnIdentityError`` if the env var / path is set but the file cannot be
-    read or does not contain a non-empty ``message_id`` string.
+    When *path* is ``None``, reads ``$UNIQUE_TURN_IDENTITY_FILE``. Returns
+    ``None`` when neither is set. Raises ``TurnIdentityError`` if the env
+    var / path is set but the file cannot be read or does not contain a
+    non-empty ``message_id`` string.
     """
     raw_path = str(path) if path is not None else os.environ.get(TURN_IDENTITY_ENV_VAR)
     if not raw_path:
-        return {}
+        return None
 
     identity_path = Path(raw_path)
     if not identity_path.is_file():
@@ -74,7 +98,16 @@ def read_turn_identity(
             f"turn-identity file {raw_path!r} is missing a non-empty "
             "'message_id' string"
         )
-    return payload
+
+    raw_turn = payload.get("turn")
+    return TurnIdentity(
+        message_id=message_id.strip(),
+        chat_id=_optional_str(payload, "chat_id"),
+        user_id=_optional_str(payload, "user_id"),
+        company_id=_optional_str(payload, "company_id"),
+        assistant_id=_optional_str(payload, "assistant_id"),
+        turn=raw_turn if isinstance(raw_turn, int) else None,
+    )
 
 
 def resolve_message_id(explicit: str | None = None) -> str | None:
@@ -89,10 +122,8 @@ def resolve_message_id(explicit: str | None = None) -> str | None:
         return str(explicit).strip()
 
     identity = read_turn_identity()
-    if identity:
-        message_id = identity.get("message_id")
-        if isinstance(message_id, str) and message_id.strip():
-            return message_id.strip()
+    if identity is not None:
+        return identity.message_id
 
     env_id = os.environ.get(MESSAGE_ID_ENV_VAR)
     if env_id is not None and env_id.strip():
@@ -110,10 +141,8 @@ def resolve_chat_id(explicit: str | None = None) -> str | None:
         return str(explicit).strip()
 
     identity = read_turn_identity()
-    if identity:
-        chat_id = identity.get("chat_id")
-        if isinstance(chat_id, str) and chat_id.strip():
-            return chat_id.strip()
+    if identity is not None and identity.chat_id is not None:
+        return identity.chat_id
 
     env_id = os.environ.get(CHAT_ID_ENV_VAR)
     if env_id is not None and env_id.strip():
