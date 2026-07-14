@@ -1,6 +1,6 @@
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import Logger
 from typing import Any, cast, overload
 
@@ -8,6 +8,7 @@ import jinja2
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+    AnalyticsLanguageModel,
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
@@ -261,9 +262,8 @@ class UniqueAI:
                     self._finalize_loop_timing(loop_start)
                     break
 
-                self._reference_manager.add_references(
-                    loop_response.message.references or []
-                )
+                references = loop_response.message.references or []
+                self._reference_manager.add_references(references)
                 self._last_assistant_text = (
                     loop_response.message.original_text or loop_response.message.text
                 )
@@ -318,11 +318,52 @@ class UniqueAI:
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
-            self._debug_info_manager.add_analytics(skills_debug_info)
-
+            reference_sources = {
+                ("url", reference.url)
+                if reference.url is not None
+                else ("source", reference.source, reference.source_id)
+                for references in self._reference_manager.get_references()
+                for reference in references
+            }
+            language_model = self._config.space.language_model
+            tool_display_names = {
+                str(tool.name): tool.display_name() or str(tool.name)
+                for tool in self._tool_manager.available_tools
+            }
             tool_names = [
                 tool["name"] for tool in self._debug_info_manager.get()["tools"]
             ]
+
+            total_time_to_answer_ms: int | None = None
+            if not self._chat_service.cancellation.is_cancelled:
+                if self._config.agent.input_token_distribution.enable_tool_call_persistence:
+                    await self._persist_tool_calls()
+                completed_message = (
+                    await self._chat_service.modify_assistant_message_async(
+                        set_completed_at=not self._tool_took_control,
+                    )
+                )
+                total_time_to_answer_ms = self._calculate_total_time_to_answer_ms(
+                    user_message_created_at=self._event.payload.user_message.created_at,
+                    assistant_completed_at=getattr(
+                        completed_message, "completed_at", None
+                    ),
+                )
+
+            self._debug_info_manager.add_analytics(
+                skills_debug_info,
+                language_model=AnalyticsLanguageModel(
+                    name=str(language_model.name),
+                    family=str(language_model.family),
+                    provider=str(language_model.provider),
+                ),
+                tool_display_names=tool_display_names,
+                references=len(reference_sources),
+                user_prompt_length=len(self._event.payload.user_message.text),
+                answer_length=len(self._last_assistant_text or ""),
+                loop_iteration_count=len(self._execution_times),
+                total_time_to_answer_ms=total_time_to_answer_ms,
+            )
 
             # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
             if "DeepResearch" not in tool_names:
@@ -331,15 +372,29 @@ class UniqueAI:
                     **self._debug_info_manager.get(),
                 }
                 await self._chat_service.update_debug_info_async(debug_info=debug_info)
-
-            if not self._chat_service.cancellation.is_cancelled:
-                if self._config.agent.input_token_distribution.enable_tool_call_persistence:
-                    await self._persist_tool_calls()
-                await self._chat_service.modify_assistant_message_async(
-                    set_completed_at=not self._tool_took_control,
-                )
         finally:
             sub.cancel()
+
+    @staticmethod
+    def _calculate_total_time_to_answer_ms(
+        user_message_created_at: str,
+        assistant_completed_at: datetime | None,
+    ) -> int | None:
+        if assistant_completed_at is None:
+            return None
+
+        try:
+            user_created_at = datetime.fromisoformat(user_message_created_at)
+        except (ValueError, TypeError):
+            # ValueError: malformed timestamp; TypeError: created_at not a str.
+            return None
+
+        if user_created_at.tzinfo is None:
+            user_created_at = user_created_at.replace(tzinfo=timezone.utc)
+        if assistant_completed_at.tzinfo is None:
+            assistant_completed_at = assistant_completed_at.replace(tzinfo=timezone.utc)
+
+        return round((assistant_completed_at - user_created_at).total_seconds() * 1000)
 
     def _record_loop_debug_params(self, other_options: dict) -> None:
         reasoning = other_options.get("reasoning")

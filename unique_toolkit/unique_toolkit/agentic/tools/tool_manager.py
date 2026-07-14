@@ -525,6 +525,10 @@ class _ToolManager(Generic[_ApiMode]):
             unpacked_tool_call_result.debug_info["is_forced"] = (
                 tool_calls[i].name in self.get_tool_choices()
             )
+            if any(tool.name == tool_calls[i].name for tool in self._sub_agents):
+                unpacked_tool_call_result.debug_info["is_sub_agent"] = True
+            if any(tool.name == tool_calls[i].name for tool in self._mcp_tools):
+                unpacked_tool_call_result.debug_info["is_mcp"] = True
             tool_call_results_unpacked.append(unpacked_tool_call_result)
 
         return tool_call_results_unpacked
