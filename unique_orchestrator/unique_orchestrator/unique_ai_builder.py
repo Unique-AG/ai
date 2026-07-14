@@ -436,7 +436,6 @@ def _register_code_interpreter_postprocessors(
     When a CODE_INTERPRETER tool is present and enabled, both the executed-code
     display postprocessor and the generated-files postprocessor are unconditionally
     registered so that all Code Interpreter output is surfaced to the user.
-
     """
     code_interpreter_config = None
     for tool in tools:
