@@ -1,18 +1,22 @@
 import pytest
 from unique_search_proxy_core.agent_engines import AgentEngineType
+from unique_search_proxy_core.crawlers.base import CrawlerType
+from unique_search_proxy_core.crawlers.basic.schema import BasicConfig
 from unique_search_proxy_core.search_engines import SearchEngineType
 from unique_search_proxy_core.search_engines.google.schema import (
     ExposableStrOrNone,
     GoogleConfig,
 )
 
-from unique_web_search.services.crawlers.base import CrawlerType
-from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
+from unique_web_search.services.crawlers.registry import CRAWLER_REGISTRY
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.search_engine.base import (
     LocalSearchEngineType,
 )
+
+TitledBasicConfig = CRAWLER_REGISTRY[CrawlerType.BASIC].config_cls
+assert issubclass(TitledBasicConfig, BasicConfig)
 
 
 class TestWebSearchSchema:
@@ -83,11 +87,10 @@ class TestConfigurationBasics:
     def test_crawler_types_available(self):
         """Test that crawler types are properly defined."""
 
-        assert CrawlerType.BASIC == "BasicCrawler"
-        assert CrawlerType.CRAWL4AI == "Crawl4AiCrawler"
-        assert CrawlerType.FIRECRAWL == "FirecrawlCrawler"
-        assert CrawlerType.JINA == "JinaCrawler"
-        assert CrawlerType.TAVILY == "TavilyCrawler"
+        assert CrawlerType.BASIC == "Basic"
+        assert CrawlerType.FIRECRAWL == "Firecrawl"
+        assert CrawlerType.JINA == "Jina"
+        assert CrawlerType.TAVILY == "Tavily"
 
     def test_search_engine_types_available(self):
         """Test that search engine types are properly defined."""
@@ -104,12 +107,12 @@ class TestBasicConfiguration:
     """Test basic configuration models."""
 
     def test_basic_crawler_config(self):
-        """Test BasicCrawlerConfig creation."""
+        """Test BasicConfig creation."""
 
-        config = BasicCrawlerConfig(crawler_type=CrawlerType.BASIC)
-        assert config.crawler_type == CrawlerType.BASIC
-        assert hasattr(config, "url_pattern_blacklist")
-        assert hasattr(config, "unwanted_content_types")
+        config = TitledBasicConfig(crawler=CrawlerType.BASIC)
+        assert config.crawler == CrawlerType.BASIC
+        assert hasattr(config, "content_types")
+        assert hasattr(config, "max_concurrent_requests")
 
     def test_google_search_config(self):
         """Test GoogleConfig creation."""

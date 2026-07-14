@@ -4,9 +4,9 @@ from unittest.mock import Mock
 
 import pytest
 import unique_search_proxy_core.url_safety.dns as url_safety_dns
+from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.search_engines.base import SearchEngineType
 
-from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.executors import WebSearchMode
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
@@ -345,7 +345,7 @@ def mock_executor_dependencies():
     mock_crawler_service = Mock()
     mock_crawler_service.crawl = AsyncMock(return_value=[])
     mock_crawler_service.config = Mock()
-    mock_crawler_service.config.crawler_type = CrawlerType.BASIC
+    mock_crawler_service.config.crawler = CrawlerType.BASIC
 
     mock_content_processor = Mock()
     mock_content_processor.run = AsyncMock(return_value=[])

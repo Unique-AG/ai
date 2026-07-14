@@ -90,14 +90,21 @@ class TestProviderConfig:
         assert config.crawler == CrawlerType.BASIC
 
     @pytest.mark.ai
-    def test_crawler_config_rejects_urls(self) -> None:
-        with pytest.raises(ValidationError):
-            parse_crawler_config(
-                {
-                    "crawler": CrawlerType.BASIC.value,
-                    "urls": ["https://example.com"],
-                },
-            )
+    def test_crawler_config_ignores_urls(self) -> None:
+        # Deployment configs are intentionally lenient (no ``extra='forbid'``)
+        # so the RJSF admin form's discriminated ``oneOf`` keeps matching. The
+        # config/request split holds because ``urls`` is not a config field: it
+        # is silently dropped here and enforced only on the runtime request
+        # body (see ``parse_crawl_request`` / ``CrawlRequestBase``).
+        config = parse_crawler_config(
+            {
+                "crawler": CrawlerType.BASIC.value,
+                "urls": ["https://example.com"],
+            },
+        )
+        assert isinstance(config, BasicConfig)
+        assert not hasattr(config, "urls")
+        assert "urls" not in config.model_dump()
 
 
 class TestProxyErrorCode:

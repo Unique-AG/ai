@@ -9,10 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from unique_search_proxy_core.schema import (
-    camelized_model_config,
-    deployment_model_config,
-)
+from unique_search_proxy_core.schema import camelized_model_config
 
 
 class SearchRequestBase(BaseModel):
@@ -27,11 +24,7 @@ class AgentRequestBase(SearchRequestBase):
 
 
 class CrawlRequestBase(BaseModel):
-    """Base for derived ``POST /v1/crawl`` bodies: carries the required ``urls``.
+    """Base for derived ``POST /v1/crawl`` bodies: carries the required ``urls``."""
 
-    Uses ``deployment_model_config`` (``extra='forbid'``) to match the crawler
-    configs' schema (``additionalProperties: false``).
-    """
-
-    model_config = deployment_model_config
+    model_config = camelized_model_config
     urls: list[str] = Field(..., min_length=1, description="URLs to crawl")

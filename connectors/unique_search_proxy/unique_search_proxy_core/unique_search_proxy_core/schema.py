@@ -35,15 +35,6 @@ def get_model_config(title: str | None = None) -> ConfigDict:
 camelized_model_config = get_model_config()
 
 
-deployment_model_config = ConfigDict(
-    alias_generator=to_camel,
-    field_title_generator=field_title_generator,
-    model_title_generator=model_title_generator,
-    populate_by_name=True,
-    extra="forbid",
-)
-
-
 # Marks the deactivated branch of an optional config value. Locally declared so
 # core has no runtime dependency on unique-toolkit for this one-line alias.
 DeactivatedNone = Annotated[

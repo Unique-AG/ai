@@ -1,84 +1,82 @@
 import asyncio
 import logging
 import re
-from typing import Literal
+from typing import Annotated
 
 import timeout_decorator
 from httpx import AsyncClient, Timeout
 from markdownify import markdownify
 from pydantic import Field
 from typing_extensions import override
+from unique_search_proxy_core.crawlers.base import CrawlerType
+from unique_search_proxy_core.crawlers.basic.content_types import (
+    CONTENT_TYPE_TOGGLE_TO_MIME,
+)
+from unique_search_proxy_core.crawlers.basic.schema import (
+    BasicConfig as CoreBasicConfig,
+)
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_web_search.services.client.proxy_config import async_client
-from unique_web_search.services.crawlers.base import (
-    BaseCrawler,
-    BaseCrawlerConfig,
-    CrawlerType,
-)
+from unique_web_search.services.crawlers.base import BaseCrawler
+from unique_web_search.services.crawlers.registry import register_crawler
 from unique_web_search.services.crawlers.url_safety import (
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
 )
 from unique_web_search.services.crawlers.utils import get_random_user_agent
-from unique_web_search.services.proxy.bridge import (
-    open_search_proxy_client,
-)
+from unique_web_search.services.proxy.bridge import open_search_proxy_client
 from unique_web_search.services.proxy.mappers import map_crawl_response
 
 _LOGGER = logging.getLogger(__name__)
 
-unwanted_types = {
-    "application/octet-stream",
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "image/",
-    "video/",
-    "audio/",
-}
 
+class BasicConfig(CoreBasicConfig):
+    """Tool-local Basic crawler config; extends proxy-core with legacy URL filters."""
 
-class BasicCrawlerConfig(BaseCrawlerConfig[CrawlerType.BASIC]):
-    crawler_type: Literal[CrawlerType.BASIC] = CrawlerType.BASIC
-    url_pattern_blacklist: list[str] = Field(
-        default=[r".*\.pdf$"],
-        description="List of URL patterns to blacklist",
-    )
-    unwanted_content_types: set[str] = Field(
-        default=unwanted_types,
-        description="Set of content types to not allow",
-    )
-    max_concurrent_requests: int = Field(
-        default=10,
-        description="The maximum number of concurrent requests to make to the same domain.",
+    url_blocked_patterns: Annotated[
+        list[str],
+        RJSFMetaTag({"ui:options": {"orderable": False}}),
+    ] = Field(
+        default_factory=lambda: [r".*\.pdf$"],
+        title="URL blocked patterns",
+        description=(
+            "List of URL regex patterns to skip when crawling. "
+            "**Note:** This field will be deprecated in the future."
+        ),
     )
 
 
-class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
-    supports_proxy_crawl = True
-
-    def __init__(self, config: BasicCrawlerConfig):
+@register_crawler(
+    name="basic",
+    key=CrawlerType.BASIC,
+    config_cls=BasicConfig,
+    config_display_name="Basic",
+)
+class BasicCrawler(BaseCrawler[BasicConfig]):
+    def __init__(self, config: BasicConfig):
         super().__init__(config)
 
         self.semaphore: asyncio.Semaphore = asyncio.Semaphore(
             self.config.max_concurrent_requests
         )
 
-    # TODO: Find a good way for tracking
-    # @track(
-    #     tags=["basic", "scrape"],
-    # )
     @override
     async def _proxy_crawl(self, urls: list[str]) -> list[str]:
+        """Proxy crawl excludes tool-only fields the search-proxy schema forbids."""
+        params = self.config.model_dump(
+            exclude={"crawler", "url_blocked_patterns"},
+            exclude_none=True,
+        )
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout),
+            timeout=float(self.config.timeout)
         ) as client:
-            response = await client.crawl.basic(
+            response = await client.crawl.crawl(
                 urls=urls,
-                timeout=int(self.config.timeout),
-                max_concurrent_requests=self.config.max_concurrent_requests,
+                crawler=self.config.crawler,
+                **params,
             )
-            return map_crawl_response(response, urls)
+        return map_crawl_response(response, urls)
 
     @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
@@ -111,8 +109,8 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
     ) -> str:
         headers = {"User-Agent": get_random_user_agent()}
 
-        if self._is_url_blacklisted(target.normalized_url):
-            return "Unable to crawl URL due to blacklisted pattern"
+        if self._is_url_blocked(target.normalized_url):
+            return "Unable to crawl URL due to blocked pattern"
 
         request_headers = dict(headers)
         request_extensions: dict[str, str] = {}
@@ -142,13 +140,18 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
 
         return markdown
 
-    def _is_url_blacklisted(self, url: str) -> bool:
+    def _is_url_blocked(self, url: str) -> bool:
         return any(
-            re.match(pattern, url) for pattern in self.config.url_pattern_blacklist
+            re.match(pattern, url) for pattern in self.config.url_blocked_patterns
         )
 
     def _content_type_not_allowed(self, content_type: str) -> bool:
-        return content_type in self.config.unwanted_content_types
+        allowed_mimes = {
+            mime
+            for field_name, mime in CONTENT_TYPE_TOGGLE_TO_MIME.items()
+            if getattr(self.config.content_types, field_name)
+        }
+        return content_type not in allowed_mimes
 
 
 def _markdownify_html_with_timeout(content: str, timeout: float) -> str:
