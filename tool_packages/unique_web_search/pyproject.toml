@@ -63,11 +63,12 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 
 [tool.deptry]
 known_first_party = ["unique_web_search"]
+extend_exclude = ["benchmarking"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
 include = ["unique_web_search"]
-exclude = ["**/tests/**", "**/test_*.py"]
+exclude = ["**/tests/**", "**/test_*.py", "**/benchmarking/**"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"
