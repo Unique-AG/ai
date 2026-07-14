@@ -21,6 +21,7 @@ from unique_toolkit.agentic.history_manager.utils import (
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
+    SupportsInvocationStats,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
@@ -49,6 +50,10 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationReport,
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -204,6 +209,7 @@ class UniqueAI:
         self._current_loop_timing: dict[str, Any] = {}
         self._loop_debug_params: list[dict[str, Any]] = []
         self._generated_files_info: ArtifactsDebugInfo | None = None
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -233,6 +239,7 @@ class UniqueAI:
         # reaching _handle_no_tool_calls (tool takes control / empty response /
         # cancellation) must not report the previous run's artifacts.
         self._generated_files_info = None
+        self._invocation_stats = []
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
@@ -268,6 +275,18 @@ class UniqueAI:
                     time.perf_counter() - planning_start, 3
                 )
                 self._logger.info("Done with _plan_or_execute")
+                if loop_response.usage is not None:
+                    self._invocation_stats.append(
+                        LanguageModelInvocationStats.from_usage(
+                            self._config.space.language_model.name,
+                            loop_response.usage,
+                            source="main_loop",
+                        )
+                    )
+                if isinstance(self._loop_iteration_runner, SupportsInvocationStats):
+                    self._invocation_stats.extend(
+                        self._loop_iteration_runner.get_invocation_stats()
+                    )
 
                 if await self._chat_service.cancellation.check_cancellation_async():
                     self._finalize_loop_timing(loop_start)
@@ -329,6 +348,12 @@ class UniqueAI:
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
+            self._debug_info_manager.add(
+                "llm_invocations",
+                LanguageModelInvocationReport(
+                    invocations=self._invocation_stats
+                ).model_dump(by_alias=True),
+            )
             reference_sources = {
                 ("url", reference.url)
                 if reference.url is not None
@@ -724,6 +749,9 @@ class UniqueAI:
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()
         )
+        self._invocation_stats.extend(
+            self._postprocessor_manager.get_invocation_stats()
+        )
 
         evaluation_times = self._evaluation_manager.get_execution_times()
         for name in selected_evaluation_names:
@@ -731,6 +759,7 @@ class UniqueAI:
             self._current_loop_timing["evaluation"][name_str] = evaluation_times.get(
                 name_str, 0
             )
+        self._invocation_stats.extend(self._evaluation_manager.get_invocation_stats())
 
         if evaluation_results.success and not all(
             result.is_positive for result in evaluation_results.unpack()
@@ -837,6 +866,9 @@ class UniqueAI:
             tool_calls
         )
         execution_total = round(time.perf_counter() - execution_start, 3)
+
+        for response in tool_call_responses:
+            self._invocation_stats.extend(response.invocation_stats)
 
         tool_times: dict[str, float] = {}
         for response in tool_call_responses:
