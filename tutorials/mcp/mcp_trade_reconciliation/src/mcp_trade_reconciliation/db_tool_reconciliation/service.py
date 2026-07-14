@@ -686,11 +686,27 @@ def derive_break_actions() -> dict[str, Any]:
         email_rows = cur.fetchall()
         cur.execute(f"SELECT * FROM {CUSTOMER_TABLE} ORDER BY id ASC")
         customer_rows = cur.fetchall()
+        # Book rows already linked to MATCHED email rows are not available to the
+        # rows analysed here — same reservation as _load_for_matching (read-only,
+        # so no FOR UPDATE; the emails in scope are UNMATCHED and hold no links).
+        cur.execute(
+            f"SELECT matched_customer_cf_id FROM {COUNTERPARTY_TABLE} "
+            "WHERE matched_customer_cf_id IS NOT NULL"
+        )
+        used_customer_ids = {
+            r["matched_customer_cf_id"] for r in cur.fetchall() if r["matched_customer_cf_id"] is not None
+        }
 
     actions: list[dict[str, Any]] = []
     for email_row in email_rows:
-        # Skip rows that would reconcile cleanly — those aren't breaks.
-        if _find_match_for_email(email_row, customer_rows, set()).matched:
+        # Skip rows that would reconcile cleanly on Match_Cashflows — those aren't
+        # breaks. Reserve the book row each would claim (same id order and
+        # first-wins semantics as match_cashflows) so a later email competing for
+        # the same book line is reported as the break it really is.
+        outcome = _find_match_for_email(email_row, customer_rows, used_customer_ids)
+        if outcome.matched:
+            if outcome.customer_cf_id is not None:
+                used_customer_ids.add(outcome.customer_cf_id)
             continue
         actions.append(_classify_break(email_row, customer_rows))
     return {"count": len(actions), "actions": actions}
