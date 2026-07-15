@@ -14,6 +14,8 @@ from unique_toolkit.chat.schemas import (
     ChatMessageTool,
     ChatMessageToolResponse,
 )
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
@@ -21,6 +23,40 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelToolMessage,
 )
+
+
+class TestIncludeSourceChunksInToolMessage:
+    def _make_history_manager(self) -> HistoryManager:
+        hm = HistoryManager.__new__(HistoryManager)
+        hm._loop_history = []
+        hm._source_enumerator = 0
+        hm._logger = MagicMock()
+        return hm
+
+    @pytest.mark.ai
+    def test_appends_serialized_sources_when_flag_set(self) -> None:
+        hm = self._make_history_manager()
+        chunk = ContentChunk(
+            id="cont_abcdefghijklmnopqrstuv",
+            chunk_id="chunk_123",
+            key="report.pdf",
+            text="excerpt",
+        )
+        response = ToolCallResponse(
+            id="call_1",
+            name="RecursiveSummarize",
+            content="Summary text",
+            content_chunks=[chunk],
+            include_source_chunks_in_tool_message=True,
+            system_reminder="cite sources",
+        )
+
+        message = hm._get_tool_call_result_for_loop_history(response)
+
+        assert isinstance(message.content, str)
+        assert "Summary text" in message.content
+        assert "source_number" in message.content
+        assert "cite sources" in message.content
 
 
 class TestExtractMessageTools:

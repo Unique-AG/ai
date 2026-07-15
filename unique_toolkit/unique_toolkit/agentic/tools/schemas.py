@@ -27,6 +27,14 @@ class ToolCallResponse(BaseModel):
         default="",
         description="A reminder for the agent to consider when using the tool that will be appended to the tool call response",
     )
+    include_source_chunks_in_tool_message: bool = Field(
+        default=False,
+        description=(
+            "When true and content_chunks are present, append serialized source "
+            "metadata to the tool message content (in addition to any non-empty "
+            "content string). Enables citation of summarized documents."
+        ),
+    )
 
     @property
     def successful(self) -> bool:

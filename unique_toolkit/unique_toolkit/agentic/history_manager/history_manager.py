@@ -183,16 +183,19 @@ class HistoryManager:
         )
 
         content = tool_response.content
-        if content == "":
-            content_chunks = (
-                tool_response.content_chunks or []
-            )  # it can be that the tool response does not have content chunks
-
+        content_chunks = tool_response.content_chunks or []
+        should_serialize_sources = content == "" or (
+            tool_response.include_source_chunks_in_tool_message and content_chunks
+        )
+        if should_serialize_sources:
             stringified_sources, sources = transform_chunks_to_string(
                 content_chunks,
                 self._source_enumerator,
             )
-            content = stringified_sources
+            if content == "":
+                content = stringified_sources
+            else:
+                content = f"{content}\n\n{stringified_sources}"
 
             self._source_enumerator += len(sources)
 

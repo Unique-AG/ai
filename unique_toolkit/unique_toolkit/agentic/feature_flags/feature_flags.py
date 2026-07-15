@@ -102,6 +102,14 @@ class FeatureFlags(BaseSettings):
         ),
     )
 
+    enable_recursive_summarize_un_xxxxx: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description=(
+            "Enable the RecursiveSummarize experimental tool in Unique AI spaces "
+            "(UN-XXXXX placeholder). Global on/off only."
+        ),
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_prefix="FEATURE_FLAG_",

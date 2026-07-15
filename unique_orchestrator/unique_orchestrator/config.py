@@ -23,6 +23,7 @@ from unique_toolkit._common.validators import (
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
 )
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
@@ -49,6 +50,10 @@ from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool import (
     RetrieveSearchScopeConfig,
     RetrieveSearchScopeTool,
+)
+from unique_toolkit.agentic.tools.experimental.recursive_summarize import (
+    RecursiveSummarizeConfig,
+    RecursiveSummarizeTool,
 )
 from unique_toolkit.agentic.tools.experimental.todo import (
     TodoConfig,
@@ -442,6 +447,12 @@ class ExperimentalConfig(BaseToolConfig):
         default_factory=TodoConfig,
     )
 
+    recursive_summarize_config: RecursiveSummarizeConfig = Field(
+        title="Recursive Summarize Tool",
+        description="Configuration for the recursive document summarize tool",
+        default_factory=RecursiveSummarizeConfig,
+    )
+
     uploaded_search_tool_config: UploadedSearchToolConfig = UploadedSearchToolConfig()
 
     ask_user_tool_config: AskUserToolConfig = Field(
@@ -608,6 +619,38 @@ class UniqueAIConfig(BaseToolConfig):
         elif not config.enabled and has_tool:
             self.space.tools = [
                 t for t in self.space.tools if t.name != TodoWriteTool.name
+            ]
+
+        return self
+
+    @model_validator(mode="after")
+    def inject_recursive_summarize_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = RecursiveSummarizeTool.name in tool_names
+        config = self.agent.experimental.recursive_summarize_config
+        ff_on = feature_flags.enable_recursive_summarize_un_xxxxx.is_enabled()
+        effective_enabled = config.enabled and ff_on
+
+        if effective_enabled and not has_tool:
+            config.language_model = self.space.language_model
+            config.model_max_input_tokens = (
+                self.space.language_model.token_limits.token_limit_input
+            )
+            config.model_max_output_tokens = (
+                self.space.language_model.token_limits.token_limit_output
+            )
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=RecursiveSummarizeTool.name,
+                    display_name=config.display_name,
+                    configuration=config,
+                )
+            )
+        elif not effective_enabled and has_tool:
+            self.space.tools = [
+                t
+                for t in self.space.tools
+                if t.name != RecursiveSummarizeTool.name
             ]
 
         return self
