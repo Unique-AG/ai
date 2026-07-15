@@ -197,6 +197,9 @@ class ContextRelevancyEvaluator:
             result_content = EvaluationSchemaStructuredOutput.model_validate(
                 result.choices[0].message.parsed
             )
+            evaluation_result = parse_eval_metric_result_structured_output(
+                result_content, EvaluationMetricName.CONTEXT_RELEVANCY
+            )
         except ValidationError as e:
             error_message = "Error occurred during structured output validation of the context relevancy evaluation."
             raise EvaluatorException(
@@ -205,10 +208,18 @@ class ContextRelevancyEvaluator:
                 exception=e,
                 invocation_stats=invocation_stats,
             )
+        except Exception as e:
+            # Catches anything else reading the response (e.g. an empty
+            # `choices` list) -- must still carry invocation_stats, not just
+            # the validation-specific failure above.
+            error_message = "Error occurred while reading the structured output response for context relevancy evaluation."
+            raise EvaluatorException(
+                error_message=f"{error_message}: {e}",
+                user_message=error_message,
+                exception=e,
+                invocation_stats=invocation_stats,
+            )
 
-        evaluation_result = parse_eval_metric_result_structured_output(
-            result_content, EvaluationMetricName.CONTEXT_RELEVANCY
-        )
         evaluation_result.invocation_stats = invocation_stats
         return evaluation_result
 
@@ -239,27 +250,36 @@ class ContextRelevancyEvaluator:
             else []
         )
 
-        result_content = result.choices[0].message.content
-        if not result_content or not isinstance(result_content, str):
-            error_message = "Context relevancy evaluation did not return a result."
-            raise EvaluatorException(
-                error_message=error_message,
-                user_message=error_message,
-                invocation_stats=invocation_stats,
-            )
-
         try:
+            result_content = result.choices[0].message.content
+            if not result_content or not isinstance(result_content, str):
+                error_message = "Context relevancy evaluation did not return a result."
+                raise EvaluatorException(
+                    error_message=error_message,
+                    user_message=error_message,
+                    invocation_stats=invocation_stats,
+                )
             evaluation_result = parse_eval_metric_result(
                 result_content, EvaluationMetricName.CONTEXT_RELEVANCY
             )
         except EvaluatorException as e:
-            # parse_eval_metric_result raises its own EvaluatorException (with
-            # no invocation_stats, since it has no usage context) -- attach
-            # ours if it didn't already carry stats, instead of letting it
-            # propagate stats-less.
+            # Covers both the raise above and parse_eval_metric_result's own
+            # EvaluatorException (which has no invocation_stats, since it has
+            # no usage context) -- attach ours if it didn't already carry
+            # stats, instead of letting it propagate stats-less.
             if not e.invocation_stats:
                 e.invocation_stats = invocation_stats
             raise
+        except Exception as e:
+            # Catches anything else reading the response (e.g. an empty
+            # `choices` list).
+            error_message = "Error occurred while reading the context relevancy evaluation response."
+            raise EvaluatorException(
+                error_message=f"{error_message}: {e}",
+                user_message=error_message,
+                exception=e,
+                invocation_stats=invocation_stats,
+            )
         evaluation_result.invocation_stats = invocation_stats
         return evaluation_result
 

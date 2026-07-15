@@ -16,6 +16,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelCompletionChoice,
+    LanguageModelTokenUsage,
 )
 from unique_toolkit.language_model.service import LanguageModelResponse
 
@@ -271,3 +272,73 @@ async def test_analyze__raises_evaluator_exception__with_unknown_error(
         assert "Unknown error occurred during context relevancy metric analysis" in str(
             exc_info.value
         )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_analyze__preserves_invocation_stats__on_regular_output_read_error(
+    context_relevancy_evaluator: MagicMock,
+    sample_evaluation_input: EvaluationMetricInput,
+    basic_evaluation_config: EvaluationMetricConfig,
+) -> None:
+    """
+    Purpose: A billed LLM call that returns no choices must still surface its
+    usage, instead of losing it to the generic error path.
+    Why this matters: `result.choices[0]` access is not otherwise guarded; an
+    empty `choices` list must not silently drop invocation_stats.
+    """
+    mock_result: LanguageModelResponse = LanguageModelResponse(
+        choices=[],
+        usage=LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=2, total_tokens=3
+        ),
+    )
+
+    with patch.object(
+        context_relevancy_evaluator.language_model_service,
+        "complete_async",
+        return_value=mock_result,
+    ):
+        with pytest.raises(EvaluatorException) as exc_info:
+            await context_relevancy_evaluator.analyze(
+                sample_evaluation_input, basic_evaluation_config
+            )
+
+    assert len(exc_info.value.invocation_stats) == 1
+    assert exc_info.value.invocation_stats[0].token_usage.total_tokens == 3
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_analyze__preserves_invocation_stats__on_structured_output_read_error(
+    context_relevancy_evaluator: MagicMock,
+    sample_evaluation_input: EvaluationMetricInput,
+    structured_evaluation_config: EvaluationMetricConfig,
+) -> None:
+    """
+    Purpose: Same as the regular-output case, for the structured-output path.
+    """
+    mock_result: LanguageModelResponse = LanguageModelResponse(
+        choices=[],
+        usage=LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=2, total_tokens=3
+        ),
+    )
+    structured_output_schema: type[EvaluationSchemaStructuredOutput] = (
+        EvaluationSchemaStructuredOutput
+    )
+
+    with patch.object(
+        context_relevancy_evaluator.language_model_service,
+        "complete_async",
+        return_value=mock_result,
+    ):
+        with pytest.raises(EvaluatorException) as exc_info:
+            await context_relevancy_evaluator.analyze(
+                sample_evaluation_input,
+                structured_evaluation_config,
+                structured_output_schema,
+            )
+
+    assert len(exc_info.value.invocation_stats) == 1
+    assert exc_info.value.invocation_stats[0].token_usage.total_tokens == 3
