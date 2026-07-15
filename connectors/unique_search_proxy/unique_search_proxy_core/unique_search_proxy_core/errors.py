@@ -78,6 +78,11 @@ class RateLimitedError(ProxyError):
         retry_after_seconds: int | None = None,
         **kwargs: Any,
     ) -> None:
+        # Always retryable regardless of what a caller passes (e.g. the SDK's
+        # generic error-detail mapping forwards `retryable` from the wire
+        # payload for every error type) — drop it instead of colliding with
+        # the hardcoded value below.
+        kwargs.pop("retryable", None)
         super().__init__(message, retryable=True, **kwargs)
         self.retry_after_seconds = retry_after_seconds
 

@@ -19,7 +19,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from qa_datasets import QAItem, load_simpleqa
+from qa_datasets import QAItem, load_dataset
 from serp_records import (
     BenchmarkConfig,
     EngineConfig,
@@ -43,21 +43,17 @@ ENGINE_CONFIGS = [
     EngineConfig(engine="brave", fetch_size=10),
     # control arm: single-excerpt snippets — isolates how much of Brave's win
     # is evidence volume (extra_snippets default) vs retrieval quality
-    EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
+    # EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
     EngineConfig(engine="perplexity", fetch_size=10),
 ]
-BENCHMARK_CONFIG = BenchmarkConfig(
-    dataset="simpleqa",
-    sample_n=300,
-    seed=20260714,
-)
+BENCHMARK_CONFIGS = [
+    BenchmarkConfig(dataset="simpleqa", sample_n=10, seed=20260714),
+    # freshness slice: full valid-premise TEST split (376 items, ~⅓ fast-changing)
+    # BenchmarkConfig(dataset="freshqa", sample_n=None, seed=20260714),
+]
 PROXY_BASE_URL = "http://localhost:2349"
 CONCURRENCY = 8
 RESULTS_DIR = Path(__file__).parent / "results"
-
-# %% Load dataset
-items = load_simpleqa(sample_n=BENCHMARK_CONFIG.sample_n, seed=BENCHMARK_CONFIG.seed)
-print(f"{len(items)} questions loaded, e.g.: {items[0].question!r}")
 
 # %% Search client (provider keys live server-side in the proxy)
 transport = UniqueSearchProxyClient(base_url=PROXY_BASE_URL)
@@ -118,35 +114,48 @@ async def fetch_and_store(
 async def fetch_all(
     client: SearchClient,
     engine_configs: list[EngineConfig],
-    benchmark_config: BenchmarkConfig,
-    items: list[QAItem],
+    benchmark_configs: list[BenchmarkConfig],
 ) -> None:
     tasks = []
-    for engine_config in engine_configs:
-        path = results_path(RESULTS_DIR, engine_config, benchmark_config)
-        check_config(path, engine_config, benchmark_config)
-        done = completed_ids(path)
-        todo = [item for item in items if item.item_id not in done]
-        print(f"{engine_config.slug}: {len(todo)} to fetch ({len(done)} already done)")
-        tasks += [fetch_and_store(client, engine_config, item, path) for item in todo]
+    for benchmark_config in benchmark_configs:
+        items = load_dataset(
+            benchmark_config.dataset, benchmark_config.sample_n, benchmark_config.seed
+        )
+        print(f"{benchmark_config.slug}: {len(items)} questions")
+        for engine_config in engine_configs:
+            path = results_path(RESULTS_DIR, engine_config, benchmark_config)
+            check_config(path, engine_config, benchmark_config)
+            done = completed_ids(path)
+            todo = [item for item in items if item.item_id not in done]
+            print(
+                f"  {engine_config.slug}: {len(todo)} to fetch "
+                f"({len(done)} already done)"
+            )
+            tasks += [
+                fetch_and_store(client, engine_config, item, path) for item in todo
+            ]
     await asyncio.gather(*tasks)
 
 
 # %% Run
 await fetch_all(  # noqa: F704 — cellscript, run in the interactive window
-    search_client, ENGINE_CONFIGS, BENCHMARK_CONFIG, items
+    search_client, ENGINE_CONFIGS, BENCHMARK_CONFIGS
 )
 
 # %% Sanity check (latest attempt per item; superseded retries excluded)
-for engine_config in ENGINE_CONFIGS:
-    records = latest_records(results_path(RESULTS_DIR, engine_config, BENCHMARK_CONFIG))
-    errors = [r for r in records if r.error]
-    latencies = sorted(r.latency_s for r in records if r.error is None)
-    line = f"{engine_config.slug}: {len(records)} items, {len(errors)} errors"
-    if latencies:
-        p50 = latencies[len(latencies) // 2]
-        p95 = latencies[int(len(latencies) * 0.95)]
-        line += f", latency p50={p50:.2f}s p95={p95:.2f}s"
-    print(line)
-    for record in errors[:3]:
-        print(f"  {record.item_id}: {record.error}")
+for benchmark_config in BENCHMARK_CONFIGS:
+    print(benchmark_config.slug)
+    for engine_config in ENGINE_CONFIGS:
+        records = latest_records(
+            results_path(RESULTS_DIR, engine_config, benchmark_config)
+        )
+        errors = [r for r in records if r.error]
+        latencies = sorted(r.latency_s for r in records if r.error is None)
+        line = f"  {engine_config.slug}: {len(records)} items, {len(errors)} errors"
+        if latencies:
+            p50 = latencies[len(latencies) // 2]
+            p95 = latencies[int(len(latencies) * 0.95)]
+            line += f", latency p50={p50:.2f}s p95={p95:.2f}s"
+        print(line)
+        for record in errors[:3]:
+            print(f"    {record.item_id}: {record.error}")

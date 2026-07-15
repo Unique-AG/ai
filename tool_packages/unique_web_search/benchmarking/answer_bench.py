@@ -27,7 +27,7 @@ from answering import (
     search_engine_slug,
 )
 from openai import AsyncOpenAI
-from qa_datasets import load_simpleqa
+from qa_datasets import load_dataset
 from serp_records import (
     BenchmarkConfig,
     EngineConfig,
@@ -49,18 +49,25 @@ SEARCH_ENGINES: list[EngineConfig | None] = [
     EngineConfig(engine="perplexity", fetch_size=10),
     None,  # no search — closed-book baseline
 ]
-BENCHMARK_CONFIG = BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714)
-ANSWERER_CONFIG = AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10)
+BENCHMARK_CONFIGS = [
+    BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714),
+    BenchmarkConfig(dataset="freshqa", sample_n=None, seed=20260714),
+]
+# First entry is the strongest answerer — the inspector's default view.
+ANSWERER_CONFIGS = [
+    AnswererConfig(model="AZURE_GPT_54_2026_0305", top_k=10),
+    # AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10),
+]
 CONCURRENCY = 4
 RESULTS_DIR = Path(__file__).parent / "results"
 
 
 # %% Input loading: SERP records for engine arms, dataset questions closed-book
-def load_inputs(engine: EngineConfig | None) -> list[AnswerInput]:
+def load_inputs(
+    engine: EngineConfig | None, benchmark: BenchmarkConfig
+) -> list[AnswerInput]:
     if engine is None:
-        items = load_simpleqa(
-            sample_n=BENCHMARK_CONFIG.sample_n, seed=BENCHMARK_CONFIG.seed
-        )
+        items = load_dataset(benchmark.dataset, benchmark.sample_n, benchmark.seed)
         return [
             AnswerInput(
                 dataset=item.dataset,
@@ -71,7 +78,7 @@ def load_inputs(engine: EngineConfig | None) -> list[AnswerInput]:
             )
             for item in items
         ]
-    serps = latest_records(results_path(RESULTS_DIR, engine, BENCHMARK_CONFIG))
+    serps = latest_records(results_path(RESULTS_DIR, engine, benchmark))
     if not serps:
         print(f"WARNING: {engine.slug}: no SERP records — run serp_bench.py first")
     fetch_errors = [r for r in serps if r.error is not None]
@@ -117,38 +124,53 @@ async def answer_and_store(
 async def answer_all(
     client: AsyncOpenAI,
     search_engines: list[EngineConfig | None],
-    answerer: AnswererConfig,
+    benchmark_configs: list[BenchmarkConfig],
+    answerers: list[AnswererConfig],
 ) -> None:
     tasks = []
-    for engine in search_engines:
-        slug = search_engine_slug(engine)
-        path = answers_path(RESULTS_DIR, slug, BENCHMARK_CONFIG, answerer)
-        check_answers_config(path, slug, answerer)
-        done = answered_ids(path)
-        todo = [item for item in load_inputs(engine) if item.item_id not in done]
-        print(f"{slug}: {len(todo)} to answer ({len(done)} already done)")
-        tasks += [answer_and_store(client, answerer, slug, item, path) for item in todo]
+    for benchmark in benchmark_configs:
+        for answerer in answerers:
+            print(f"{benchmark.slug} × {answerer.slug}")
+            for engine in search_engines:
+                slug = search_engine_slug(engine)
+                path = answers_path(RESULTS_DIR, slug, benchmark, answerer)
+                check_answers_config(path, slug, answerer)
+                done = answered_ids(path)
+                todo = [
+                    item
+                    for item in load_inputs(engine, benchmark)
+                    if item.item_id not in done
+                ]
+                print(f"  {slug}: {len(todo)} to answer ({len(done)} already done)")
+                tasks += [
+                    answer_and_store(client, answerer, slug, item, path)
+                    for item in todo
+                ]
     await asyncio.gather(*tasks)
 
 
 # %% Run
 await answer_all(  # noqa: F704 — cellscript, run in the interactive window
-    answer_client, SEARCH_ENGINES, ANSWERER_CONFIG
+    answer_client, SEARCH_ENGINES, BENCHMARK_CONFIGS, ANSWERER_CONFIGS
 )
 
 # %% Sanity check (latest attempt per item; superseded retries excluded)
-for engine in SEARCH_ENGINES:
-    slug = search_engine_slug(engine)
-    path = answers_path(RESULTS_DIR, slug, BENCHMARK_CONFIG, ANSWERER_CONFIG)
-    answers = latest_by_item(load_jsonl(path, AnswerRecord))
-    errors = [a for a in answers if a.error]
-    declined = [
-        a
-        for a in answers
-        if a.error is None and a.answer.lower().startswith("i don't know")
-    ]
-    print(
-        f"{slug}: {len(answers)} items, {len(errors)} errors, {len(declined)} declined"
-    )
-    for record in errors[:3]:
-        print(f"  {record.item_id}: {record.error}")
+for benchmark in BENCHMARK_CONFIGS:
+    for answerer in ANSWERER_CONFIGS:
+        print(f"{benchmark.slug} × {answerer.slug}")
+        for engine in SEARCH_ENGINES:
+            slug = search_engine_slug(engine)
+            path = answers_path(RESULTS_DIR, slug, benchmark, answerer)
+            answers = latest_by_item(load_jsonl(path, AnswerRecord))
+            errors = [a for a in answers if a.error]
+            declined = [
+                a
+                for a in answers
+                if a.error is None and a.answer.lower().startswith("i don't know")
+            ]
+            print(
+                f"  {slug}: {len(answers)} items, {len(errors)} errors, "
+                f"{len(declined)} declined"
+            )
+            for record in errors[:3]:
+                print(f"    {record.item_id}: {record.error}")

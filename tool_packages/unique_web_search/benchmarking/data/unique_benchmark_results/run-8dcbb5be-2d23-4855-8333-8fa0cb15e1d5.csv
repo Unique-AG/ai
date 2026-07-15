@@ -1,0 +1,11 @@
+run_id,dataset_row_index,assistant_id,status,error,latency_ms,cost_usd,input.golden_answer,input.query
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,0,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,7255,,"""The Last Sunset""","What is the title of Series 1, Episode 17 of *Space: 1999*?"
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,1,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,7206,,24,"How many people were injured in the Srinagar bombing on March 6, 2022?"
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,2,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,6270,,Michelangelo Buonarroti,Who was the first Western artist whose biography was published while he was alive?
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,3,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,7305,,"October 12, 2003","On what day, month, and year did the 2nd ASEM Environment Ministers' Meeting (ASEMEnvMM2) begin?"
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,4,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,6763,,What do you think I'm gonna do? Blow my brains out?,What were Terry Kath's famously ironic last words?
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,5,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,7413,,88.47%,What percentage of voters were in favor of the constitutional referendum held in Ghana on 27 April 1960?
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,6,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,10369,,55,How many years did Magen Fieramusca receive for killing Heidi Broussard?
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,7,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,4795,,Finn-Dorset,What breed was Dolly the Sheep?
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,8,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,5364,,Aldo Carlos Neri,Who was Raúl Alfonsín's first Minister of Health and Social Development?
+8dcbb5be-2d23-4855-8333-8fa0cb15e1d5,9,graph[1]:assistant_hxr4ppuva5qc4fs1pows4slp,completed,,7441,,65W,"What is the Thermal Design Power, in watts, of the Intel® Core™ i7-9700E Processor that has 8 total cores?"

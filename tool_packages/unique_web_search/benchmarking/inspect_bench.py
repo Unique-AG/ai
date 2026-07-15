@@ -2,10 +2,14 @@
 # # Benchmark — results inspector
 #
 # Reads the results of all three stages and writes a single self-contained
-# `results/inspect.html`: a per-arm summary table plus a filterable per-item
-# drill-down showing each arm's SERP, answer, and grade side by side.
+# `results/inspect.html`: dataset and answerer dropdowns (defaulting to the
+# strongest answerer), a per-arm summary table with optional category slicing
+# (e.g. FreshQA fact_type), and a filterable per-item drill-down showing each
+# arm's SERP, answer, and grade side by side.
 #
-# Pure read — no proxy, no gateway. Re-run after any benchmark run:
+# Pure read against results/ and the dataset cache (the dataset is reloaded
+# only to map items to categories; downloads once if the cache is cold).
+# Re-run after any benchmark run:
 #
 #     uv run python inspect_bench.py
 
@@ -18,6 +22,7 @@ from statistics import mean
 
 from answering import AnswererConfig, AnswerRecord, answers_path, search_engine_slug
 from grading import GraderConfig, GradeRecord, grades_path
+from qa_datasets import load_dataset
 from serp_records import (
     BenchmarkConfig,
     EngineConfig,
@@ -31,148 +36,241 @@ from serp_records import (
 SEARCH_ENGINES: list[EngineConfig | None] = [
     EngineConfig(engine="google", fetch_size=10),
     EngineConfig(engine="brave", fetch_size=10),
-    # EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
+    EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
     EngineConfig(engine="perplexity", fetch_size=10),
     None,  # no search — closed-book baseline
 ]
-BENCHMARK_CONFIG = BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714)
-ANSWERER_CONFIG = AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10)
-GRADER_CONFIG = GraderConfig(model="AZURE_GPT_41_2025_0414")
+BENCHMARK_CONFIGS = [
+    BenchmarkConfig(dataset="simpleqa", sample_n=300, seed=20260714),
+    BenchmarkConfig(dataset="freshqa", sample_n=None, seed=20260714),
+]
+# First entry is the strongest answerer — the dropdown's default view.
+ANSWERER_CONFIGS = [
+    AnswererConfig(model="AZURE_GPT_54_2026_0305", top_k=10),
+    AnswererConfig(model="AZURE_GPT_41_2025_0414", top_k=10),
+]
+# Judge pinned to the strongest available model (currently GPT 5.4); see
+# grade_bench.py — never varied per run.
+GRADER_CONFIG = GraderConfig(model="AZURE_GPT_54_2026_0305")
 RESULTS_DIR = Path(__file__).parent / "results"
 OUT_PATH = RESULTS_DIR / "inspect.html"
 
-# %% Collect per-arm records
-arms: list[str] = []
-serps: dict[str, dict[str, SerpRecord]] = {}
-answers: dict[str, dict[str, AnswerRecord]] = {}
-grades: dict[str, dict[str, GradeRecord]] = {}
-for engine in SEARCH_ENGINES:
-    slug = search_engine_slug(engine)
-    arms.append(slug)
-    serps[slug] = (
-        {}
-        if engine is None
-        else {
-            r.item_id: r
-            for r in latest_by_item(
-                load_jsonl(
-                    results_path(RESULTS_DIR, engine, BENCHMARK_CONFIG), SerpRecord
-                )
-            )
-        }
-    )
-    answers[slug] = {
-        r.item_id: r
-        for r in latest_by_item(
-            load_jsonl(
-                answers_path(RESULTS_DIR, slug, BENCHMARK_CONFIG, ANSWERER_CONFIG),
-                AnswerRecord,
-            )
-        )
-    }
-    grades[slug] = {
-        r.item_id: r
-        for r in latest_by_item(
-            load_jsonl(
-                grades_path(
-                    RESULTS_DIR, slug, BENCHMARK_CONFIG, ANSWERER_CONFIG, GRADER_CONFIG
-                ),
-                GradeRecord,
-            )
-        )
-    }
-
-# %% Build payload
-item_ids = sorted(
-    {i for arm in arms for i in (answers[arm] | grades[arm] | serps[arm])}
-)
+arms = [search_engine_slug(engine) for engine in SEARCH_ENGINES]
 
 
-def item_meta(item_id: str) -> tuple[str, str]:
-    for arm in arms:
-        rec = answers[arm].get(item_id) or serps[arm].get(item_id)
-        if rec:
-            return rec.question, rec.gold_answer
-    return "?", "?"
-
-
-items = []
-for item_id in item_ids:
-    question, gold = item_meta(item_id)
-    row: dict = {"id": item_id, "q": question, "gold": gold, "arms": {}}
-    for arm in arms:
-        serp, answer, grade = (
-            serps[arm].get(item_id),
-            answers[arm].get(item_id),
-            grades[arm].get(item_id),
-        )
-        error = (serp.error if serp else None) or (answer.error if answer else None)
-        row["arms"][arm] = {
-            "grade": grade.grade if grade and grade.error is None else None,
-            "answer": answer.answer if answer else None,
-            "error": error,
-            "latency": serp.latency_s if serp else None,
-            "answerLatency": answer.latency_s if answer else None,
-            "results": [
-                {"u": r.url, "t": html.unescape(r.title), "s": html.unescape(r.snippet)}
-                for r in (serp.results if serp else [])
-            ],
-        }
-    items.append(row)
-
-summary = []
-for arm in arms:
-    graded = [g for g in grades[arm].values() if g.error is None]
+# %% Per-arm statistics over an item subset (a category slice or everything)
+def arm_stats(
+    arm: str,
+    serp_map: dict[str, SerpRecord],
+    answer_map: dict[str, AnswerRecord],
+    grade_map: dict[str, GradeRecord],
+    ids: set[str],
+) -> dict:
+    graded = [g for i in ids if (g := grade_map.get(i)) and g.error is None]
     n = len(graded)
     correct = sum(g.grade == "CORRECT" for g in graded)
-    answered = [a for a in answers[arm].values() if a.error is None]
+    answered = [a for i in ids if (a := answer_map.get(i)) and a.error is None]
     declined = sum(a.answer.lower().startswith("i don't know") for a in answered)
-    serp_ok = [s for s in serps[arm].values() if s.error is None]
+    serp_ok = [s for i in ids if (s := serp_map.get(i)) and s.error is None]
     evidence = [
         sum(len(r.snippet) + len(r.title) for r in s.results) for s in serp_ok
     ] or [0]
-    summary.append(
-        {
-            "arm": arm,
-            "n": n,
-            "correct": correct,
-            "incorrect": sum(g.grade == "INCORRECT" for g in graded),
-            "notAttempted": sum(g.grade == "NOT_ATTEMPTED" for g in graded),
-            "accuracy": correct / n if n else 0,
-            "ci": 1.96 * math.sqrt(correct / n * (1 - correct / n) / n) if n else 0,
-            "declined": declined,
-            "searchMeanS": round(mean([s.latency_s for s in serp_ok]), 2)
-            if serp_ok
-            else None,
-            "evidenceChars": round(mean(evidence)),
-            "serpErrors": sum(s.error is not None for s in serps[arm].values()),
+    accuracy = correct / n if n else 0
+    return {
+        "arm": arm,
+        "n": n,
+        "correct": correct,
+        "incorrect": sum(g.grade == "INCORRECT" for g in graded),
+        "notAttempted": sum(g.grade == "NOT_ATTEMPTED" for g in graded),
+        "accuracy": accuracy,
+        "ci": 1.96 * math.sqrt(accuracy * (1 - accuracy) / n) if n else 0,
+        "declined": declined,
+        "searchMeanS": round(mean([s.latency_s for s in serp_ok]), 2)
+        if serp_ok
+        else None,
+        "evidenceChars": round(mean(evidence)),
+        "serpErrors": sum(
+            1 for i in ids if (s := serp_map.get(i)) and s.error is not None
+        ),
+    }
+
+
+def pair_stats(grades_by_arm: dict[str, dict[str, GradeRecord]], ids: set[str]) -> list:
+    baseline = arms[0]
+    rows = []
+    for arm in arms[1:]:
+        shared = [
+            i
+            for i in sorted(ids)
+            if (b := grades_by_arm[baseline].get(i))
+            and b.error is None
+            and (a := grades_by_arm[arm].get(i))
+            and a.error is None
+        ]
+        base_c = {i: grades_by_arm[baseline][i].grade == "CORRECT" for i in shared}
+        arm_c = {i: grades_by_arm[arm][i].grade == "CORRECT" for i in shared}
+        rows.append(
+            {
+                "arm": arm,
+                "baseline": baseline,
+                "armOnly": sum(arm_c[i] and not base_c[i] for i in shared),
+                "baseOnly": sum(base_c[i] and not arm_c[i] for i in shared),
+                "shared": len(shared),
+            }
+        )
+    return rows
+
+
+# %% Collect one payload block per dataset
+def collect_dataset(benchmark: BenchmarkConfig) -> dict:
+    category_by_id = {
+        item.item_id: item.category
+        for item in load_dataset(benchmark.dataset, benchmark.sample_n, benchmark.seed)
+    }
+
+    serps: dict[str, dict[str, SerpRecord]] = {}
+    for engine in SEARCH_ENGINES:
+        arm = search_engine_slug(engine)
+        serps[arm] = (
+            {}
+            if engine is None
+            else {
+                r.item_id: r
+                for r in latest_by_item(
+                    load_jsonl(results_path(RESULTS_DIR, engine, benchmark), SerpRecord)
+                )
+            }
+        )
+
+    answers: dict[str, dict[str, dict[str, AnswerRecord]]] = {}
+    grades: dict[str, dict[str, dict[str, GradeRecord]]] = {}
+    for answerer in ANSWERER_CONFIGS:
+        answers[answerer.slug] = {}
+        grades[answerer.slug] = {}
+        for arm in arms:
+            answers[answerer.slug][arm] = {
+                r.item_id: r
+                for r in latest_by_item(
+                    load_jsonl(
+                        answers_path(RESULTS_DIR, arm, benchmark, answerer),
+                        AnswerRecord,
+                    )
+                )
+            }
+            grades[answerer.slug][arm] = {
+                r.item_id: r
+                for r in latest_by_item(
+                    load_jsonl(
+                        grades_path(
+                            RESULTS_DIR, arm, benchmark, answerer, GRADER_CONFIG
+                        ),
+                        GradeRecord,
+                    )
+                )
+            }
+
+    item_ids = sorted(
+        {i for arm in arms for i in serps[arm]}
+        | {
+            i
+            for answerer in ANSWERER_CONFIGS
+            for arm in arms
+            for i in answers[answerer.slug][arm]
         }
     )
 
-baseline = arms[0]
-pairs = []
-for arm in arms[1:]:
-    shared = [
-        i
-        for i in item_ids
-        if grades[baseline].get(i)
-        and grades[baseline][i].error is None
-        and grades[arm].get(i)
-        and grades[arm][i].error is None
-    ]
-    base_c = {i: grades[baseline][i].grade == "CORRECT" for i in shared}
-    arm_c = {i: grades[arm][i].grade == "CORRECT" for i in shared}
-    pairs.append(
-        {
-            "arm": arm,
-            "baseline": baseline,
-            "armOnly": sum(arm_c[i] and not base_c[i] for i in shared),
-            "baseOnly": sum(base_c[i] and not arm_c[i] for i in shared),
-            "shared": len(shared),
-        }
-    )
+    def item_meta(item_id: str) -> tuple[str, str]:
+        for arm in arms:
+            if rec := serps[arm].get(item_id):
+                return rec.question, rec.gold_answer
+        for answerer in ANSWERER_CONFIGS:
+            for arm in arms:
+                if rec := answers[answerer.slug][arm].get(item_id):
+                    return rec.question, rec.gold_answer
+        return "?", "?"
 
-payload = {"arms": arms, "summary": summary, "pairs": pairs, "items": items}
+    items = []
+    for item_id in item_ids:
+        question, gold = item_meta(item_id)
+        row: dict = {
+            "id": item_id,
+            "q": question,
+            "gold": gold,
+            "cat": category_by_id.get(item_id),
+            "serps": {},
+            "answers": {},
+        }
+        for arm in arms:
+            if serp := serps[arm].get(item_id):
+                row["serps"][arm] = {
+                    "latency": serp.latency_s,
+                    "error": serp.error,
+                    "results": [
+                        {
+                            "u": r.url,
+                            "t": html.unescape(r.title),
+                            "s": html.unescape(r.snippet),
+                        }
+                        for r in serp.results
+                    ],
+                }
+        for answerer in ANSWERER_CONFIGS:
+            per_arm = {}
+            for arm in arms:
+                answer = answers[answerer.slug][arm].get(item_id)
+                grade = grades[answerer.slug][arm].get(item_id)
+                if answer is None and grade is None:
+                    continue
+                per_arm[arm] = {
+                    "grade": grade.grade if grade and grade.error is None else None,
+                    "answer": answer.answer if answer else None,
+                    "error": answer.error if answer else None,
+                    "answerLatency": answer.latency_s if answer else None,
+                }
+            row["answers"][answerer.slug] = per_arm
+        items.append(row)
+
+    categories = sorted({c for c in category_by_id.values() if c})
+    ids_by_slice = {"all": set(item_ids)} | {
+        cat: {i for i in item_ids if category_by_id.get(i) == cat} for cat in categories
+    }
+    summaries: dict = {}
+    pairs: dict = {}
+    for answerer in ANSWERER_CONFIGS:
+        summaries[answerer.slug] = {
+            slice_key: [
+                arm_stats(
+                    arm,
+                    serps[arm],
+                    answers[answerer.slug][arm],
+                    grades[answerer.slug][arm],
+                    ids,
+                )
+                for arm in arms
+            ]
+            for slice_key, ids in ids_by_slice.items()
+        }
+        pairs[answerer.slug] = {
+            slice_key: pair_stats(grades[answerer.slug], ids)
+            for slice_key, ids in ids_by_slice.items()
+        }
+
+    return {
+        "key": benchmark.slug,
+        "label": benchmark.slug,
+        "categories": categories,
+        "summaries": summaries,
+        "pairs": pairs,
+        "items": items,
+    }
+
+
+payload = {
+    "arms": arms,
+    "answerers": [{"key": a.slug, "label": a.model} for a in ANSWERER_CONFIGS],
+    "grader": GRADER_CONFIG.model,
+    "datasets": [collect_dataset(benchmark) for benchmark in BENCHMARK_CONFIGS],
+}
 
 # %% Render
 TEMPLATE = """<!doctype html>
@@ -194,11 +292,15 @@ TEMPLATE = """<!doctype html>
   table.summary th { background: #f6f8fa; font-weight: 600; }
   .pairs { margin: 8px 0 0; color: #57606a; font-size: 13px; }
   .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-              margin: 18px 0 10px; }
+              margin: 0 0 10px; }
+  header .controls { margin-bottom: 12px; }
+  main .controls { margin-top: 18px; }
   .controls label { font-size: 12px; color: #57606a; display: block; }
   .controls select, .controls input { font: inherit; padding: 3px 6px;
     border: 1px solid #d1d9e0; border-radius: 6px; background: #fff; }
   .controls input { width: 260px; }
+  .pin { display: inline-block; padding: 3px 6px; border: 1px solid #d1d9e0;
+         border-radius: 6px; background: #f6f8fa; color: #57606a; }
   #count { color: #57606a; font-size: 13px; }
   .item { background: #fff; border: 1px solid #d1d9e0; border-radius: 8px;
           margin-bottom: 8px; }
@@ -233,6 +335,7 @@ TEMPLATE = """<!doctype html>
 </head>
 <body>
 <header><h1>Web search benchmark — inspector</h1>
+  <div class="controls" id="viewbar"></div>
   <table class="summary" id="summary"></table>
   <div class="pairs" id="pairs"></div>
 </header>
@@ -247,87 +350,131 @@ const esc = s => (s ?? "").replace(/[&<>"']/g,
 const snip = s => esc(s).replaceAll("&lt;strong&gt;", "<strong>")
                         .replaceAll("&lt;/strong&gt;", "</strong>");
 const badge = g => `<span class="badge g-${g ?? "none"}">${g ?? "missing"}</span>`;
-
-// summary table
 const fmtPct = x => (100 * x).toFixed(1) + "%";
-document.getElementById("summary").innerHTML =
-  "<tr><th>arm</th><th>n</th><th>correct</th><th>incorrect</th>" +
-  "<th>not_attempted</th><th>accuracy</th><th>declined</th>" +
-  "<th>mean search time</th><th>evidence chars/q</th><th>serp errors</th></tr>" +
-  DATA.summary.map(s => `<tr><td>${esc(s.arm)}</td><td>${s.n}</td>
-    <td>${s.correct}</td><td>${s.incorrect}</td><td>${s.notAttempted}</td>
-    <td><b>${fmtPct(s.accuracy)}</b> ±${(100 * s.ci).toFixed(1)}pp</td>
-    <td>${s.declined}</td><td>${s.searchMeanS != null ? s.searchMeanS + "s" : "—"}</td>
-    <td>${s.evidenceChars}</td><td>${s.serpErrors}</td></tr>`
-  ).join("");
-document.getElementById("pairs").innerHTML = DATA.pairs.map(p =>
-  `paired vs <b>${esc(p.baseline)}</b>: <b>${esc(p.arm)}</b> wins ${p.armOnly}, ` +
-  `loses ${p.baseOnly} (of ${p.shared} shared)`).join(" · ");
 
-// controls: one grade filter per arm + text search
+// view state: which dataset / answerer / category slice is shown
+let dsIndex = 0;
+let answererKey = DATA.answerers[0].key;
+let category = "all";
+const ds = () => DATA.datasets[dsIndex];
+
+function addSelect(parent, labelText, options, onChange) {
+  const wrap = document.createElement("span");
+  wrap.innerHTML = `<label>${esc(labelText)}</label>`;
+  const sel = document.createElement("select");
+  for (const opt of options) sel.add(new Option(opt.label, opt.value));
+  sel.onchange = () => onChange(sel.value);
+  wrap.appendChild(sel);
+  parent.appendChild(wrap);
+  return wrap;
+}
+
+// header: dataset + answerer + category dropdowns, pinned grader
+const viewbar = document.getElementById("viewbar");
+addSelect(viewbar, "dataset", DATA.datasets.map((d, i) =>
+  ({label: d.label, value: i})), v => {
+    dsIndex = +v; rebuildCategorySelect(); renderAll(); });
+const catWrap = addSelect(viewbar, "subset", [{label: "all", value: "all"}],
+  v => { category = v; renderAll(); });
+const catSel = catWrap.querySelector("select");
+function rebuildCategorySelect() {
+  category = "all";
+  catSel.innerHTML = "";
+  for (const opt of ["all", ...ds().categories]) catSel.add(new Option(opt, opt));
+  catWrap.style.display = ds().categories.length ? "" : "none";
+}
+addSelect(viewbar, "answerer", DATA.answerers.map(a =>
+  ({label: a.label, value: a.key})), v => { answererKey = v; renderAll(); });
+const graderWrap = document.createElement("span");
+graderWrap.innerHTML =
+  `<label>grader (pinned)</label><span class="pin">${esc(DATA.grader)}</span>`;
+viewbar.appendChild(graderWrap);
+
+// item controls: one grade filter per arm, text search
 const controls = document.getElementById("controls");
 const filters = {};
 for (const arm of DATA.arms) {
-  const wrap = document.createElement("span");
-  wrap.innerHTML = `<label>${esc(arm)}</label>`;
-  const sel = document.createElement("select");
-  for (const opt of ["any", "CORRECT", "INCORRECT", "NOT_ATTEMPTED", "missing"])
-    sel.add(new Option(opt, opt));
-  sel.onchange = () => { filters[arm] = sel.value; render(); };
   filters[arm] = "any";
-  wrap.appendChild(sel);
-  controls.insertBefore(wrap, document.getElementById("count"));
+  addSelect(controls, arm,
+    ["any", "CORRECT", "INCORRECT", "NOT_ATTEMPTED", "missing"].map(o =>
+      ({label: o, value: o})), v => { filters[arm] = v; render(); });
 }
 const searchWrap = document.createElement("span");
 searchWrap.innerHTML = "<label>search question / answer / gold</label>";
 const search = document.createElement("input");
 search.oninput = () => render();
 searchWrap.appendChild(search);
-controls.insertBefore(searchWrap, document.getElementById("count"));
+controls.appendChild(searchWrap);
+controls.appendChild(document.getElementById("count"));
+
+function renderSummary() {
+  const rows = ds().summaries[answererKey]?.[category] ?? [];
+  document.getElementById("summary").innerHTML =
+    "<tr><th>arm</th><th>n</th><th>correct</th><th>incorrect</th>" +
+    "<th>not_attempted</th><th>accuracy</th><th>declined</th>" +
+    "<th>mean search time</th><th>evidence chars/q</th><th>serp errors</th></tr>" +
+    rows.map(s => `<tr><td>${esc(s.arm)}</td><td>${s.n}</td>
+      <td>${s.correct}</td><td>${s.incorrect}</td><td>${s.notAttempted}</td>
+      <td><b>${fmtPct(s.accuracy)}</b> ±${(100 * s.ci).toFixed(1)}pp</td>
+      <td>${s.declined}</td><td>${s.searchMeanS != null ? s.searchMeanS + "s" : "—"}</td>
+      <td>${s.evidenceChars}</td><td>${s.serpErrors}</td></tr>`
+    ).join("");
+  document.getElementById("pairs").innerHTML =
+    (ds().pairs[answererKey]?.[category] ?? []).map(p =>
+      `paired vs <b>${esc(p.baseline)}</b>: <b>${esc(p.arm)}</b> wins ${p.armOnly}, ` +
+      `loses ${p.baseOnly} (of ${p.shared} shared)`).join(" · ");
+}
 
 function matches(item) {
+  if (category !== "all" && item.cat !== category) return false;
+  const byArm = item.answers[answererKey] ?? {};
   for (const arm of DATA.arms) {
     const want = filters[arm];
     if (want === "any") continue;
-    const grade = item.arms[arm]?.grade ?? "missing";
+    const grade = byArm[arm]?.grade ?? "missing";
     if (grade !== want) return false;
   }
   const needle = search.value.toLowerCase();
   if (!needle) return true;
-  const hay = [item.q, item.gold,
-    ...DATA.arms.map(a => item.arms[a]?.answer ?? "")].join(" ").toLowerCase();
+  const hay = [item.q, item.gold, item.cat ?? "",
+    ...DATA.arms.map(a => byArm[a]?.answer ?? "")].join(" ").toLowerCase();
   return hay.includes(needle);
 }
 
 function detailHtml(item) {
+  const byArm = item.answers[answererKey] ?? {};
   const cols = DATA.arms.map(arm => {
-    const d = item.arms[arm] ?? {};
-    const results = (d.results ?? []).map((r, i) => `<div class="res">
+    const serp = item.serps[arm];
+    const d = byArm[arm] ?? {};
+    const error = serp?.error ?? d.error;
+    const results = (serp?.results ?? []).map((r, i) => `<div class="res">
       <span class="t">[${i + 1}] ${esc(r.t)}</span><br>
       <a href="${esc(r.u)}" target="_blank" rel="noreferrer">${esc(r.u)}</a>
       <div class="s">${snip(r.s)}</div></div>`).join("");
     return `<div class="arm-col"><h3>${esc(arm)} ${badge(d.grade)}
-      ${d.latency != null ? `<span class="id">serp ${d.latency}s</span>` : ""}
+      ${serp?.latency != null ? `<span class="id">serp ${serp.latency}s</span>` : ""}
       ${d.answerLatency != null ? `<span class="id">answer ${d.answerLatency}s</span>` : ""}</h3>
-      ${d.error ? `<div class="err">${esc(d.error)}</div>` : ""}
+      ${error ? `<div class="err">${esc(error)}</div>` : ""}
       ${d.answer != null ? `<div class="answer">${esc(d.answer)}</div>` : ""}
       ${results}</div>`;
   }).join("");
-  return `<div class="gold">gold: <b>${esc(item.gold)}</b></div>${cols}`;
+  const cat = item.cat ? ` · <span class="id">${esc(item.cat)}</span>` : "";
+  return `<div class="gold">gold: <b>${esc(item.gold)}</b>${cat}</div>${cols}`;
 }
 
 function render() {
   const list = document.getElementById("list");
   list.innerHTML = "";
-  const visible = DATA.items.filter(matches);
+  const visible = ds().items.filter(matches);
   document.getElementById("count").textContent =
-    `${visible.length} / ${DATA.items.length} items`;
+    `${visible.length} / ${ds().items.length} items`;
   for (const item of visible) {
+    const byArm = item.answers[answererKey] ?? {};
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `<div class="item-head"><span class="id">${esc(item.id)}</span>
       <span class="q">${esc(item.q)}</span>
-      ${DATA.arms.map(a => badge(item.arms[a]?.grade)).join(" ")}</div>`;
+      ${DATA.arms.map(a => badge(byArm[a]?.grade)).join(" ")}</div>`;
     div.querySelector(".item-head").onclick = () => {
       const open = div.querySelector(".detail");
       if (open) { open.remove(); return; }
@@ -339,11 +486,14 @@ function render() {
     list.appendChild(div);
   }
 }
-render();
+
+function renderAll() { renderSummary(); render(); }
+rebuildCategorySelect();
+renderAll();
 </script>
 </body>
 </html>
 """
 
 OUT_PATH.write_text(TEMPLATE.replace("__DATA__", json.dumps(payload)), encoding="utf-8")
-print(f"{OUT_PATH} ({OUT_PATH.stat().st_size / 1e6:.1f} MB, {len(items)} items)")
+print(f"{OUT_PATH} ({OUT_PATH.stat().st_size / 1e6:.1f} MB)")

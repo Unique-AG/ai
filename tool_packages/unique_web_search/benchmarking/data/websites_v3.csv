@@ -1,0 +1,215 @@
+﻿url,type,country
+https://www.reuters.com/,News & Media,International
+https://www.ft.com/,News & Media,UK
+https://www.wsj.com/,News & Media,US
+https://www.cnbc.com/,News & Media,US
+https://finance.yahoo.com/,Financial Platform,US
+https://www.morningstar.com/,Data Provider,US
+https://www.businesstimes.com.sg/,News & Media,Singapore
+https://www.straitstimes.com/,News & Media,Singapore
+https://www.channelnewsasia.com/,News & Media,Singapore
+https://www.dealstreetasia.com/,News & Media,Singapore
+https://asia.nikkei.com/,News & Media,Japan
+https://www.scmp.com/,News & Media,Hong Kong
+https://www.nzz.ch/,News & Media,Switzerland
+https://www.letemps.ch/,News & Media,Switzerland
+https://www.handelszeitung.ch/,News & Media,Switzerland
+https://www.swissinfo.ch/,News & Media,Switzerland
+https://www.fnlondon.com/,News & Media,UK
+https://www.politico.eu/,News & Media,EU
+https://www.six-group.com/en/home.html,Stock Exchange,Switzerland
+https://deutsche-boerse.com/,Stock Exchange,Germany
+https://www.euronext.com/,Stock Exchange,EU
+https://www.londonstockexchange.com/,Stock Exchange,UK
+https://www.nyse.com/,Stock Exchange,US
+https://www.nasdaq.com/,Stock Exchange,US
+https://www.sgx.com/,Stock Exchange,Singapore
+https://www.mas.gov.sg/,Central Bank/Regulator,Singapore
+http://www.aseanexchanges.org/,International Organization,International
+https://www.snb.ch/,Central Bank/Regulator,Switzerland
+https://www.finma.ch/,Central Bank/Regulator,Switzerland
+https://www.ecb.europa.eu/,Central Bank/Regulator,EU
+https://www.bis.org/,International Organization,International
+https://www.federalreserve.gov/,Central Bank/Regulator,US
+https://www.boj.or.jp/en/,Central Bank/Regulator,Japan
+http://www.pbc.gov.cn/,Central Bank/Regulator,China
+https://www.hkma.gov.hk/,Central Bank/Regulator,Hong Kong
+https://www.oecd.org/,International Organization,International
+https://www.imf.org/,International Organization,International
+https://www.worldbank.org/ext/en/home,International Organization,International
+https://kof.ethz.ch/,Research Institution,Switzerland
+https://www.adb.org/,International Organization,International
+https://www.ipscommons.sg/,Research Institution,Singapore
+https://www.iseas.edu.sg/,Research Institution,Singapore
+https://lkyspp.nus.edu.sg/,Research Institution,Singapore
+https://www.bloomberg.com/professional,Financial Platform,US
+https://www.factset.com,Data Provider,US
+https://www.capitaliq.spglobal.com,Data Provider,US
+https://www.pitchbook.com,Data Provider,US
+https://www.preqin.com,Data Provider,UK
+https://www.dealogic.com,Data Provider,International
+https://www.tradingview.com,Financial Platform,International
+https://www.investing.com,Financial Platform,International
+https://www.marketwatch.com,News & Media,US
+https://www.yahoo.com/finance,Financial Platform,US
+https://www.gurufocus.com,Financial Platform,US
+https://www.tikr.com,Financial Platform,US
+https://www.seekingalpha.com,Financial Platform,US
+https://www.valueline.com,Data Provider,US
+https://www.zacks.com,Data Provider,US
+https://www.argusresearch.com,Data Provider,US
+https://www.streetinsider.com,News & Media,US
+https://www.sec.gov/edgar,Central Bank/Regulator,US
+https://www.treasury.gov/resource-center/data-chart-center,Government/Treasury,US
+https://www.cftc.gov/MarketReports,Central Bank/Regulator,US
+https://www.finra.org,Central Bank/Regulator,US
+https://www.nasdaq.com/market-activity,Stock Exchange,US
+https://www.nyse.com/market-data,Stock Exchange,US
+https://www.cboe.com/market-data,Stock Exchange,US
+https://www.cmegroup.com,Stock Exchange,US
+https://www.ice.com,Stock Exchange,US
+https://www.satellite-image.com,Other Services,International
+https://www.similarweb.com,Other Services,International
+https://www.creditriskmonitor.com,Data Provider,US
+https://www.breakingviews.com,News & Media,International
+https://www.six-group.com/exchanges,Stock Exchange,Switzerland
+https://www.swissquote.ch/en/trading,Financial Platform,Switzerland
+https://www.eurex.com/ec-en,Stock Exchange,Germany
+https://www.cash.ch,News & Media,Switzerland
+https://www.finews.ch,News & Media,Switzerland
+https://www.nzz.ch/finanzen,News & Media,Switzerland
+https://www.euronext.com/en/markets,Stock Exchange,EU
+https://www.boursorama.com,Financial Platform,France
+https://www.zonebourse.com,Financial Platform,France
+https://www.investir.fr,Financial Platform,France
+https://www.lesechos.fr/finance-marches,News & Media,France
+https://www.latribune.fr/bourse,News & Media,France
+https://www.boursier.com,Financial Platform,France
+https://www.amf-france.org,Central Bank/Regulator,France
+https://www.xetra.com,Stock Exchange,Germany
+https://www.boerse-frankfurt.de,Stock Exchange,Germany
+https://www.tradegate.de,Stock Exchange,Germany
+https://www.finanzen.net,Financial Platform,Germany
+https://www.onvista.de,Financial Platform,Germany
+https://www.wallstreet-online.de,Financial Platform,Germany
+https://www.boerse.de,Financial Platform,Germany
+https://www.handelsblatt.com/finanzen,News & Media,Germany
+https://www.manager-magazin.de/finanzen,News & Media,Germany
+https://www.wiwo.de/finanzen,News & Media,Germany
+https://www.bafin.de,Central Bank/Regulator,Germany
+https://www.bundesbank.de/en/statistics,Central Bank/Regulator,Germany
+https://www.treasurydirect.gov,Government/Treasury,US
+https://www.deutsche-finanzagentur.de,Government/Treasury,Germany
+https://www.aft.gouv.fr,Government/Treasury,France
+https://www.burgiss.com,Data Provider,US
+https://www.cobaltlp.com,Data Provider,International
+https://www.forexfactory.com,Financial Platform,International
+https://www.xe.com,Other Services,International
+https://www.oanda.com,Financial Platform,International
+https://www.lme.com,Stock Exchange,UK
+https://www.msci.com/esg,ESG/Sustainability,US
+https://www.sustainalytics.com,ESG/Sustainability,International
+https://www.cdp.net,ESG/Sustainability,International
+https://www.sasb.org,ESG/Sustainability,US
+https://www.linkedin.com,Career/HR,US
+https://www.glassdoor.com,Career/HR,US
+https://www.vault.com,Career/HR,US
+https://www.efinancialcareers.com,Career/HR,International
+https://fred.stlouisfed.org,Data Provider,US
+https://www.oecd.org/statistics,International Organization,International
+https://www.worldbank.org/en/data,International Organization,International
+https://www.imf.org/en/Data,International Organization,International
+https://www.bankofengland.co.uk/,Central Bank/Regulator,UK
+https://www.census.gov/,Government/Treasury,US
+https://tradingeconomics.com/,Data Provider,International
+https://www.bloomberg.com/,News & Media,US
+https://www.bls.gov/,Government/Treasury,US
+https://ycharts.com/,Data Provider,US
+https://www.newyorkfed.org/markets/reference-rates/sofr,Central Bank/Regulator,US
+https://www.ecb.europa.eu/stats/financial_markets_and_interest_rates/euro_short-term_rate/html/index.en.html,Central Bank/Regulator,EU
+https://www.bankofengland.co.uk/markets/sonia-benchmark,Central Bank/Regulator,UK
+https://www.boj.or.jp/en/statistics/market/short/tonarate/,Central Bank/Regulator,Japan
+https://www.bankofcanada.ca/rates/interest-rates/corra/,Central Bank/Regulator,Canada
+https://www.rba.gov.au/statistics/interest-rates/aonia/,Central Bank/Regulator,Australia
+https://www.six-group.com/en/products-services/financial-information/indices/benchmarks/saron.html,Stock Exchange,Switzerland
+https://www.riksbank.se/en-gb/statistics/search-interest--exchange-rates/swedish-reference-rate-swest-r/,Central Bank/Regulator,Sweden
+https://www.norges-bank.no/en/topics/Statistics/nowa/,Central Bank/Regulator,Norway
+https://ec.europa.eu/eurostat/,Government/Treasury,EU
+https://sdw.ecb.europa.eu/,Central Bank/Regulator,EU
+https://www.destatis.de/,Government/Treasury,Germany
+https://www.insee.fr/,Government/Treasury,France
+https://www.istat.it/,Government/Treasury,Italy
+https://www.ine.es/,Government/Treasury,Spain
+https://www.ons.gov.uk/,Government/Treasury,UK
+https://www.deutsche-finanzagentur.de/en/,Government/Treasury,Germany
+https://www.aft.gouv.fr/,Government/Treasury,France
+https://www.dmo.gov.uk/,Government/Treasury,UK
+https://www.dt.mef.gov.it/en/debt-management/,Government/Treasury,Italy
+https://www.tesoro.es/,Government/Treasury,Spain
+https://english.dsta.nl/,Government/Treasury,Netherlands
+https://www.debtagency.be/,Government/Treasury,Belgium
+https://www.oebfa.at/en/,Government/Treasury,Austria
+https://www.riksgalden.se/en/,Government/Treasury,Sweden
+https://www.norges-bank.no/,Central Bank/Regulator,Norway
+https://www.riksbank.se/,Central Bank/Regulator,Sweden
+https://www.six-group.com/,Stock Exchange,Switzerland
+https://www.scb.se/,Government/Treasury,Sweden
+https://www.ssb.no/,Government/Treasury,Norway
+https://www.stat.fi/,Government/Treasury,Finland
+https://www.cbs.nl/,Government/Treasury,Netherlands
+https://www150.statcan.gc.ca/,Government/Treasury,Canada
+https://www.bankofcanada.ca/,Central Bank/Regulator,Canada
+https://www.esri.cao.go.jp/en/sna/,Government/Treasury,Japan
+https://www.stat.go.jp/english/,Government/Treasury,Japan
+https://www.abs.gov.au/,Government/Treasury,Australia
+https://www.rba.gov.au/,Central Bank/Regulator,Australia
+https://www.stats.govt.nz/,Government/Treasury,New Zealand
+https://www.rbnz.govt.nz/,Central Bank/Regulator,New Zealand
+https://www.cmegroup.com/,Stock Exchange,US
+https://www.eurex.com/,Stock Exchange,Germany
+https://www.theice.com/,Stock Exchange,US
+https://www.jpx.co.jp/english/derivatives/,Stock Exchange,Japan
+https://www.m-x.ca/en,Stock Exchange,Canada
+https://www.sifma.org/resources/general/holiday-schedule/,Other Services,US
+https://www.ecb.europa.eu/press/pr/other/t2calendar/html/index.en.html,Central Bank/Regulator,EU
+https://www.cftc.gov/MarketReports/SwapsReports/index.htm,Central Bank/Regulator,US
+https://www.finra.org/filing-reporting/trace,Central Bank/Regulator,US
+https://www.newyorkfed.org/markets/desk-operations,Central Bank/Regulator,US
+https://www.newyorkfed.org/data-and-statistics/tri-party,Central Bank/Regulator,US
+https://www.sec.gov/data/foiadocsfailsdatahtm,Central Bank/Regulator,US
+https://www.ons.gov.uk/economy/inflationandpriceindices,Government/Treasury,UK
+https://www.clevelandfed.org/indicators-and-data/inflation-nowcasting,Central Bank/Regulator,US
+https://home.treasury.gov/,Government/Treasury,US
+https://www.ntma.ie/,Government/Treasury,Ireland
+https://www.igcp.pt/,Government/Treasury,Portugal
+https://www.pdma.gr/en,Government/Treasury,Greece
+https://www.treasuryfinland.fi/funding/,Government/Treasury,Finland
+https://www.efv.admin.ch/efv/en/home.html,Government/Treasury,Switzerland
+https://www.nationalbanken.dk/en/market-and-payments/government-debt,Central Bank/Regulator,Denmark
+https://www.bankofcanada.ca/markets/government-securities-auctions/,Central Bank/Regulator,Canada
+https://www.mof.go.jp/english/jgbs/,Government/Treasury,Japan
+https://stats.oecd.org/,International Organization,International
+https://data.worldbank.org/,International Organization,International
+https://www.nber.org/,Research Institution,US
+https://www.ssrn.com/,Research Institution,International
+https://www.bea.gov/,Government/Treasury,US
+https://www.newyorkfed.org/,Central Bank/Regulator,US
+https://fiscaldata.treasury.gov/,Government/Treasury,US
+https://www.treasurydirect.gov/,Government/Treasury,US
+https://www.cftc.gov/,Central Bank/Regulator,US
+https://www.finra.org/filing-reporting/trace/treasury-aggregate-statistics,Central Bank/Regulator,US
+https://www.financialresearch.gov/treasury-market-dashboard/,Central Bank/Regulator,US
+https://www.fhfa.gov/DataTools/Downloads/Pages/House-Price-Index.aspx,Central Bank/Regulator,US
+https://www.freddiemac.com/pmms,Other Services,US
+https://www.atlantafed.org/,Central Bank/Regulator,US
+https://www.eia.gov/,Government/Treasury,US
+https://www.tsa.gov/coronavirus/passenger-throughput,Government/Treasury,US
+https://www.reuters.com/markets/,News & Media,International
+https://www.wsj.com/news/markets,News & Media,US
+https://www.bloomberg.com/markets,News & Media,US
+https://www.cnbc.com/world/?region=world,News & Media,US
+https://www.mba.org/news-and-research/surveys-and-indices/mortgage-applications,Other Services,US
+https://capitalmarkets.fanniemae.com/tools-resources/mortgage-backed-securities,Other Services,US
+https://www.freddiemac.com/mbs/html/disclosure_data.html,Other Services,US
+https://www.ginniemae.gov/investors/disclosures/Pages/default.aspx,Other Services,US
+https://www.spglobal.com/spdji/en/,Data Provider,US
