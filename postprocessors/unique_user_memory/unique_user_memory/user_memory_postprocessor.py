@@ -1,3 +1,4 @@
+from collections.abc import Awaitable, Callable
 from logging import Logger
 
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
@@ -54,14 +55,14 @@ class UserMemoryPostprocessor(Postprocessor):
         if not user_id or not company_id:
             return
 
-        on_update_start = None
-        on_update_end = None
+        on_update_start: Callable[[], Awaitable[None]] | None = None
+        on_update_end: Callable[[], Awaitable[None]] | None = None
         if self._config.updating_notice_enabled:
             original_text = loop_response.message.text or ""
             message_id = loop_response.message.id
             references = loop_response.message.references
 
-            async def on_update_start() -> None:
+            async def _on_update_start() -> None:
                 await self._set_message_content(
                     content=original_text + _UPDATING_NOTICE,
                     message_id=message_id,
@@ -69,13 +70,16 @@ class UserMemoryPostprocessor(Postprocessor):
                     action="show updating notice",
                 )
 
-            async def on_update_end() -> None:
+            async def _on_update_end() -> None:
                 await self._set_message_content(
                     content=original_text,
                     message_id=message_id,
                     references=references,
                     action="remove updating notice",
                 )
+
+            on_update_start = _on_update_start
+            on_update_end = _on_update_end
 
         self._new_memory = await consolidate_user_memory(
             current_memory=self._state.text,
