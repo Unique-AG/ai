@@ -37,7 +37,10 @@ class PerplexitySearch(SearchEngine[PerplexityConfig]):
         self,
         query: str,
         params: ExposedParams | None,
+        *,
+        invocation_stats=None,
     ) -> list[WebSearchResult]:
+        del query, params, invocation_stats
         raise NotImplementedError(
             "Perplexity search is not supported in the legacy mode"
         )

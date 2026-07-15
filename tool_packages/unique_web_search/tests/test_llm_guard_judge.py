@@ -3,7 +3,9 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.content_processing.processing_strategies.llm_guard_judge import (
     JudgeAndSanitizeResponse,
     LLMGuardJudge,
@@ -50,10 +52,13 @@ def _make_config(
     )
 
 
-def _mock_llm_service(parsed_response: dict) -> Mock:
+def _mock_llm_service(
+    parsed_response: dict, usage: LanguageModelTokenUsage | None = None
+) -> Mock:
     service = Mock()
     mock_resp = Mock()
     mock_resp.choices = [Mock(message=Mock(parsed=parsed_response))]
+    mock_resp.usage = usage
     service.complete_async = AsyncMock(return_value=mock_resp)
     return service
 
@@ -414,3 +419,151 @@ class TestLLMGuardJudgeComplete:
 
         with pytest.raises(ValueError, match="no parsed response"):
             await judge.sanitize_page(page=fake_page, query=fake_query)
+
+
+class TestLLMGuardJudgeUsage:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_always_sanitize__usage_recorded_on_debug_info(
+        self, fake_page: WebSearchResult, fake_query: str
+    ) -> None:
+        config = _make_config(SanitizeMode.ALWAYS_SANITIZE)
+        llm_service = _mock_llm_service(
+            {"reasoning": "Clean.", "sanitized_content": "Sanitized."},
+            usage=LanguageModelTokenUsage(
+                completion_tokens=1, prompt_tokens=2, total_tokens=3
+            ),
+        )
+        judge = LLMGuardJudge(config=config, llm_service=llm_service)
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        await judge(page=fake_page, query=fake_query, debug_info=debug_info)
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert stat.model_name == config.language_model.name
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=2, total_tokens=3
+        )
+        assert stat.source == "web_search_llm_guard_judge"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_judge_only__usage_recorded_on_debug_info(
+        self, fake_page: WebSearchResult, fake_query: str
+    ) -> None:
+        config = _make_config(SanitizeMode.JUDGE_ONLY)
+        llm_service = _mock_llm_service(
+            {"reasoning": "Clean.", "needs_sanitization": False},
+            usage=LanguageModelTokenUsage(
+                completion_tokens=1, prompt_tokens=1, total_tokens=2
+            ),
+        )
+        judge = LLMGuardJudge(config=config, llm_service=llm_service)
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        await judge(page=fake_page, query=fake_query, debug_info=debug_info)
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert stat.model_name == config.language_model.name
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=1, total_tokens=2
+        )
+        assert stat.source == "web_search_llm_guard_judge"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_judge_then_sanitize__flagged__sums_usage_from_both_calls(
+        self, fake_page: WebSearchResult, fake_query: str
+    ) -> None:
+        config = _make_config(sanitize_mode=SanitizeMode.JUDGE_THEN_SANITIZE)
+        judge = LLMGuardJudge(config=config, llm_service=Mock())
+
+        judge_response = Mock()
+        judge_response.choices = [
+            Mock(
+                message=Mock(
+                    parsed={"reasoning": "Flagged.", "needs_sanitization": True}
+                )
+            )
+        ]
+        judge_response.usage = LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=1, total_tokens=2
+        )
+
+        sanitize_response = Mock()
+        sanitize_response.choices = [
+            Mock(
+                message=Mock(
+                    parsed={
+                        "reasoning": "Sanitized.",
+                        "sanitized_content": "Redacted.",
+                    }
+                )
+            )
+        ]
+        sanitize_response.usage = LanguageModelTokenUsage(
+            completion_tokens=10, prompt_tokens=20, total_tokens=30
+        )
+
+        judge._llm_service.complete_async = AsyncMock(
+            side_effect=[judge_response, sanitize_response]
+        )
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        result = await judge(page=fake_page, query=fake_query, debug_info=debug_info)
+
+        assert result.content == "Redacted."
+        assert len(debug_info.invocation_stats) == 2
+        judge_stat, sanitize_stat = debug_info.invocation_stats
+        assert judge_stat.model_name == config.language_model.name
+        assert judge_stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=1, total_tokens=2
+        )
+        assert judge_stat.source == "web_search_llm_guard_judge"
+        assert sanitize_stat.model_name == config.language_model.name
+        assert sanitize_stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=10, prompt_tokens=20, total_tokens=30
+        )
+        assert sanitize_stat.source == "web_search_llm_guard_judge"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_judge_then_sanitize__not_flagged__usage_from_judge_call_only(
+        self, fake_page: WebSearchResult, fake_query: str
+    ) -> None:
+        config = _make_config(sanitize_mode=SanitizeMode.JUDGE_THEN_SANITIZE)
+        llm_service = _mock_llm_service(
+            {"reasoning": "Clean.", "needs_sanitization": False},
+            usage=LanguageModelTokenUsage(
+                completion_tokens=1, prompt_tokens=1, total_tokens=2
+            ),
+        )
+        judge = LLMGuardJudge(config=config, llm_service=llm_service)
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        await judge(page=fake_page, query=fake_query, debug_info=debug_info)
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert stat.model_name == config.language_model.name
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=1, total_tokens=2
+        )
+        assert stat.source == "web_search_llm_guard_judge"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_no_debug_info__does_not_raise(
+        self, fake_page: WebSearchResult, fake_query: str
+    ) -> None:
+        config = _make_config(SanitizeMode.ALWAYS_SANITIZE)
+        llm_service = _mock_llm_service(
+            {"reasoning": "Clean.", "sanitized_content": "Sanitized."}
+        )
+        judge = LLMGuardJudge(config=config, llm_service=llm_service)
+
+        result = await judge(page=fake_page, query=fake_query)
+
+        assert result.content == "Sanitized."

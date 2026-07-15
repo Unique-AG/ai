@@ -94,7 +94,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self._mode_strategy = get_mode_strategy(self.config.web_search_mode_config)
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
@@ -168,7 +167,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         try:
             if screening_service is not None:
                 screening_result = await screening_service(
-                    parameters_dump, web_search_message_logger
+                    parameters_dump, web_search_message_logger, debug_info=debug_info
                 )
 
                 debug_info.steps.append(
@@ -185,6 +184,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                         content=screening_service.build_rejection_response(
                             screening_result
                         ),
+                        invocation_stats=debug_info.invocation_stats,
                     )
 
             with metric_scope(
@@ -214,6 +214,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
                 system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
+                invocation_stats=debug_info.invocation_stats,
             )
 
         except Exception as e:
@@ -233,6 +234,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 error_message=str(e),
+                invocation_stats=debug_info.invocation_stats,
             )
 
     def _get_executor(

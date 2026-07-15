@@ -1,7 +1,9 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.argument_screening import (
     DEFAULT_GUIDELINES,
     DEFAULT_REJECTION_RESPONSE_TEMPLATE,
@@ -171,6 +173,63 @@ class TestArgumentScreeningService:
 
         assert result.go is False
         assert "credit card number" in result.reason
+
+    @pytest.mark.asyncio
+    async def test_carries_usage_into_debug_info(
+        self,
+        enabled_config,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
+    ):
+        mock_response = Mock()
+        mock_response.choices = [
+            Mock(message=Mock(parsed={"go": True, "reason": "Safe query"}))
+        ]
+        mock_response.usage = LanguageModelTokenUsage(
+            completion_tokens=5, prompt_tokens=42, total_tokens=47
+        )
+        mock_language_model_service.complete_async.return_value = mock_response
+
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=enabled_config,
+        )
+        debug_info = WebSearchDebugInfo(parameters={})
+        await service(
+            {"query": "Python best practices"},
+            mock_message_log_callback,
+            debug_info=debug_info,
+        )
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert stat.model_name == "test-model"
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=5, prompt_tokens=42, total_tokens=47
+        )
+        assert stat.source == "web_search_argument_screening"
+
+    @pytest.mark.asyncio
+    async def test_debug_info_usage_untouched_when_screening_disabled(
+        self,
+        disabled_config,
+        mock_language_model_service,
+        mock_language_model,
+        mock_message_log_callback,
+    ):
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=disabled_config,
+        )
+        debug_info = WebSearchDebugInfo(parameters={})
+        await service(
+            {"query": "test query"}, mock_message_log_callback, debug_info=debug_info
+        )
+
+        assert debug_info.invocation_stats == []
 
     @pytest.mark.asyncio
     async def test_raises_when_response_unparseable(

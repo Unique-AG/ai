@@ -129,7 +129,10 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         await self._message_log_callback.log_queries([step.query_or_url])
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
-            results = await self.search_service.search(step.query_or_url)
+            results = await self.search_service.search(
+                step.query_or_url,
+                invocation_stats=self.debug_info.invocation_stats,
+            )
 
         await self._message_log_callback.log_web_search_results(results)
 

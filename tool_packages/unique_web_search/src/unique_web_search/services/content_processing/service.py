@@ -5,6 +5,7 @@ from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.language_model import LanguageModelService, TypeDecoder, TypeEncoder
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.content_processing.cleaning import (
     CharacterSanitize,
     LineRemoval,
@@ -84,12 +85,16 @@ class ContentProcessor:
         self,
         query: str,
         pages: list[WebSearchResult],
+        debug_info: WebSearchDebugInfo | None = None,
     ) -> list[WebPageChunk]:
         """
         Preprocess the pages content.
         Args:
             query: The search query.
             pages: list of pages.
+            debug_info: when given, receives per-invocation usage stats from any
+                LLM processing strategy (summarization, guard/judge, keyword
+                privacy filtering) via `debug_info.add_invocation(...)`.
         Returns:
             list[WebPageChunk]: List of processed webpage chunks.
         """
@@ -98,7 +103,7 @@ class ContentProcessor:
         pages = [self._clean_content(page) for page in pages]
 
         ## Apply Processing Strategies
-        processed_pages = await self._process_pages(query, pages)
+        processed_pages = await self._process_pages(query, pages, debug_info)
 
         ## Split pages to chunks
         pages_chunks = self._split_pages_to_chunks(processed_pages)
@@ -124,6 +129,7 @@ class ContentProcessor:
         self,
         query: str,
         pages: list[WebSearchResult],
+        debug_info: WebSearchDebugInfo | None = None,
     ) -> list[WebSearchResult]:
         # Apply processing strategy with regex preprocessing as baseline
         active_strategies = [
@@ -137,7 +143,7 @@ class ContentProcessor:
         async def process_single_page(page: WebSearchResult) -> WebSearchResult:
             for strategy in self._processing_strategies:
                 if strategy.is_enabled:
-                    page = await strategy(page=page, query=query)
+                    page = await strategy(page=page, query=query, debug_info=debug_info)
             return page
 
         safe_task_executor = SafeTaskExecutor(logger=_LOGGER)

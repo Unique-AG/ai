@@ -3,7 +3,9 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.content_processing.processing_strategies.llm_process import (
     LLMProcess,
     LLMProcessorConfig,
@@ -297,3 +299,86 @@ class TestLLMProcessDispatch:
         )
         result = await processor(page=fake_page, query="test query")
         assert result.url == fake_page.url
+
+
+# ---------------------------------------------------------------------------
+# Token usage capture (via the debug_info side-channel)
+# ---------------------------------------------------------------------------
+
+
+class TestLLMProcessUsage:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_summarize__usage_recorded_on_debug_info(
+        self, fake_page: WebSearchResult
+    ) -> None:
+        config = LLMProcessorConfig(
+            enabled=True,
+            min_tokens=0,
+            privacy_filter=PrivacyFilterConfig(sanitize=False),
+        )
+        mock_llm_service = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [
+            Mock(
+                message=Mock(
+                    parsed={"snippet": "Sum snippet", "summary": "Sum content"}
+                )
+            )
+        ]
+        mock_resp.usage = LanguageModelTokenUsage(
+            completion_tokens=4, prompt_tokens=8, total_tokens=12
+        )
+        mock_llm_service.complete_async = AsyncMock(return_value=mock_resp)
+
+        processor = LLMProcess(
+            config=config,
+            llm_service=mock_llm_service,
+            encoder=_simple_encoder,
+            decoder=_simple_decoder,
+        )
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        await processor(page=fake_page, query="test query", debug_info=debug_info)
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert stat.model_name == config.language_model.name
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=4, prompt_tokens=8, total_tokens=12
+        )
+        assert stat.source == "web_search_llm_process"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_no_debug_info__does_not_raise(
+        self, fake_page: WebSearchResult
+    ) -> None:
+        config = LLMProcessorConfig(
+            enabled=True,
+            min_tokens=0,
+            privacy_filter=PrivacyFilterConfig(sanitize=False),
+        )
+        mock_llm_service = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [
+            Mock(
+                message=Mock(
+                    parsed={"snippet": "Sum snippet", "summary": "Sum content"}
+                )
+            )
+        ]
+        mock_resp.usage = LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=1, total_tokens=2
+        )
+        mock_llm_service.complete_async = AsyncMock(return_value=mock_resp)
+
+        processor = LLMProcess(
+            config=config,
+            llm_service=mock_llm_service,
+            encoder=_simple_encoder,
+            decoder=_simple_decoder,
+        )
+        result = await processor(page=fake_page, query="test query")
+
+        assert result.content == "Sum content"

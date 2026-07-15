@@ -38,5 +38,8 @@ class BraveSearch(SearchEngine[BraveConfig]):
         self,
         query: str,
         params: ExposedParams | None,
+        *,
+        invocation_stats=None,
     ) -> list[WebSearchResult]:
+        del query, params, invocation_stats
         raise NotImplementedError("Brave search is not supported in the legacy mode")
