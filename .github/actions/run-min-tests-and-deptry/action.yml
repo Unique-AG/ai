@@ -31,8 +31,6 @@ runs:
     - name: Install package (min deps)
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      env:
-        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
         # Use uv pip install instead of uv lock + uv sync because
         # UV_NO_WORKSPACE=1 does not prevent uv lock from checking workspace
@@ -40,37 +38,26 @@ runs:
         # (e.g. 3.11 for the SDK) is older than the workspace constraint (3.12).
         # uv pip install is fully workspace-agnostic.
         uv venv --python "${{ inputs.python_version }}"
+        echo "VIRTUAL_ENV=${{ github.workspace }}/${{ inputs.package_dir }}/.venv" >> "$GITHUB_ENV"
 
-        EXTRAS=""
-        for e in $(echo "${{ inputs.extras }}" | tr ',' ' '); do
-          [ -n "$e" ] && EXTRAS="${EXTRAS:+$EXTRAS,}$e"
-        done
-
+        EXTRAS="${{ inputs.extras }}"
         if [ -n "$EXTRAS" ]; then
-          PKG_SPEC="-e .[$EXTRAS]"
+          uv pip install -e ".[$EXTRAS]" --resolution lowest-direct
         else
-          PKG_SPEC="-e ."
+          uv pip install -e . --resolution lowest-direct
         fi
-
-        uv pip install $PKG_SPEC --resolution lowest-direct
 
     - name: Reinstall workspace packages from source
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      env:
-        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
         # External deps stay at their lowest-direct versions; workspace packages
         # must always reflect current source code, not a stale PyPI snapshot.
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        MEMBERS_FILE="$(mktemp)"
+        trap 'rm -f "$MEMBERS_FILE"' EXIT
 
-        # Emit "<name>\t<path>" for every workspace member
-        while IFS=$'\t' read -r name path; do
-          [ -z "$name" ] && continue
-          if uv pip show "$name" >/dev/null 2>&1; then
-            uv pip install --no-deps -e "$path"
-          fi
-        done < <(python3 - "$REPO_ROOT" <<'EOF'
+        python3 - "$REPO_ROOT" >"$MEMBERS_FILE" <<'EOF'
         import tomllib, pathlib, sys
         repo_root = pathlib.Path(sys.argv[1])
         with open(repo_root / "pyproject.toml", "rb") as f:
@@ -87,37 +74,42 @@ runs:
                 if name:
                     print(f"{name}\t{member_dir}")
         EOF
-        )
+
+        while IFS=$'\t' read -r name path; do
+          [ -z "$name" ] && continue
+          if uv pip show "$name" >/dev/null 2>&1; then
+            uv pip install --no-deps -e "$path"
+          fi
+        done < "$MEMBERS_FILE"
 
     - name: Install dev tools
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      env:
-        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
         # Root dev group: pytest, ruff, deptry, etc.
         uv export --directory "$REPO_ROOT" --frozen --only-group dev --no-hashes | uv pip install -r -
         # Package-level dev group: package-specific test deps (e.g. responses for unique_six)
-        uv export --frozen --only-group dev --no-hashes 2>/dev/null | uv pip install -r - 2>/dev/null || true
+        if python3 <<'EOF'
+        import tomllib, pathlib, sys
+        dev = tomllib.loads(pathlib.Path("pyproject.toml").read_bytes()).get("dependency-groups", {}).get("dev")
+        sys.exit(0 if dev is not None else 1)
+        EOF
+        then
+          uv export --frozen --only-group dev --no-hashes | uv pip install -r -
+        fi
 
     - name: Show installed packages
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      env:
-        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: uv pip list
 
     - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      env:
-        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: .venv/bin/deptry .
 
     - name: Run tests with min dependencies
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      env:
-        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: .venv/bin/pytest ${{ inputs.test_args }}
