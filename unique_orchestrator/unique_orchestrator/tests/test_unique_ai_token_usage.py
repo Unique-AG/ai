@@ -130,7 +130,7 @@ class TestAccumulateUsage:
         assert len(ua._invocation_stats) == 1
         entry = ua._invocation_stats[0]
         assert entry.model_name == MODEL_NAME
-        assert entry.source == "main_loop"
+        assert entry.source == "main_loop[1]"
         assert entry.token_usage == LanguageModelTokenUsage(
             completion_tokens=10, prompt_tokens=20, total_tokens=30
         )
@@ -165,7 +165,10 @@ class TestAccumulateUsage:
             30,
             3,
         ]
-        assert all(entry.source == "main_loop" for entry in ua._invocation_stats)
+        assert [entry.source for entry in ua._invocation_stats] == [
+            "main_loop[1]",
+            "main_loop[2]",
+        ]
 
     @pytest.mark.asyncio
     async def test_main_loop__none_mixed_with_real__none_is_skipped(self):
@@ -224,7 +227,7 @@ class TestRunTokenUsageIntegration:
         }
         assert len(payload["invocations"]) == 1
         assert payload["invocations"][0]["modelName"] == MODEL_NAME
-        assert payload["invocations"][0]["source"] == "main_loop"
+        assert payload["invocations"][0]["source"] == "main_loop[1]"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -284,7 +287,7 @@ class TestRunTokenUsageIntegration:
             "cacheWriteTokens": None,
         }
         sources = [inv["source"] for inv in payload["invocations"]]
-        assert sources == ["main_loop", "FollowUpPostprocessor"]
+        assert sources == ["main_loop[1]", "FollowUpPostprocessor"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -333,7 +336,7 @@ class TestRunTokenUsageIntegration:
             "cacheWriteTokens": None,
         }
         sources = [inv["source"] for inv in payload["invocations"]]
-        assert sources == ["main_loop", "planning"]
+        assert sources == ["main_loop[1]", "planning"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -361,7 +364,7 @@ class TestRunTokenUsageIntegration:
         }
         payload = calls_by_key["llm_invocations"]
         sources = [inv["source"] for inv in payload["invocations"]]
-        assert sources == ["main_loop"]
+        assert sources == ["main_loop[1]"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -416,7 +419,7 @@ class TestRunTokenUsageIntegration:
             "cacheWriteTokens": None,
         }
         sources = [inv["source"] for inv in payload["invocations"]]
-        assert sources == ["main_loop", "WebSearch"]
+        assert sources == ["main_loop[1]", "WebSearch"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio

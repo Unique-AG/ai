@@ -280,7 +280,7 @@ class UniqueAI:
                         LanguageModelInvocationStats.from_usage(
                             self._config.space.language_model.name,
                             loop_response.usage,
-                            source="main_loop",
+                            source=f"main_loop[{i + 1}]",
                         )
                     )
                 # TODO(UN-20907): if _plan_or_execute() above raises an exception that
