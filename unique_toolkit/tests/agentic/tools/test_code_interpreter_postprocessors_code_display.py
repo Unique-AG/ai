@@ -201,7 +201,7 @@ async def test_show_executed_code_postprocessor__run__no_op__when_fence_ff_on() 
     config = ShowExecutedCodePostprocessorConfig()
 
     with (
-        patch(CODE_DISPLAY_FF, AsyncMock(return_value=False)),
+        patch(CODE_DISPLAY_FF, AsyncMock(return_value=True)),
         patch.object(asyncio, "sleep") as mock_sleep,
     ):
         postprocessor = ShowExecutedCodePostprocessor(
