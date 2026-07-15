@@ -34,6 +34,15 @@ class UserMemoryConfig(BaseModel):
         le=8000,
         description="Maximum size of the memory profile in tokens.",
     )
+    consolidation_gate_enabled: bool = Field(
+        default=True,
+        description=(
+            "When true, a cheap single-word LLM 'gate' decides whether the turn "
+            "warrants a full memory rewrite before the expensive consolidation "
+            "runs. Ordinary turns (small talk, questions) short-circuit as a NOOP. "
+            "Set to false to always run the full consolidation call."
+        ),
+    )
     root_folder: Annotated[str, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default="user-memory",
         min_length=1,
