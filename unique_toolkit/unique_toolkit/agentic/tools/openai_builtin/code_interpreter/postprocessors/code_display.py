@@ -63,7 +63,7 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
 
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
-        self._is_enabled = await is_flag_enabled(
+        self._is_enabled = self._config.enable and not await is_flag_enabled(
             FeatureFlagNames.enable_code_execution_fence_un_17972,
             company_id=self._company_id or "",
         )
