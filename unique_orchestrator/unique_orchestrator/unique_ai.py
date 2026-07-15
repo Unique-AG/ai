@@ -283,6 +283,15 @@ class UniqueAI:
                             source="main_loop",
                         )
                     )
+                # TODO(UN-20907): if _plan_or_execute() above raises an exception that
+                # propagates out of this loop uncaught, execution never reaches this
+                # drain call -- any planning-step usage recorded on the runner this
+                # iteration is lost. In practice this is not planning-specific: an
+                # uncaught abort here also skips the debug_info["llm_invocations"]
+                # write entirely (see the `finally` at the end of run()), so every
+                # usage source (main_loop, evaluations, postprocessors) is equally
+                # absent from that turn, not just planning. Revisit only if partial
+                # debug_info persistence on an aborted run becomes a requirement.
                 if isinstance(self._loop_iteration_runner, SupportsInvocationStats):
                     self._invocation_stats.extend(
                         self._loop_iteration_runner.get_invocation_stats()
