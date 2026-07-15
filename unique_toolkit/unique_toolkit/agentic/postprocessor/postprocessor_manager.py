@@ -21,6 +21,9 @@ class Postprocessor(ABC):
     def get_name(self) -> str:
         return self.name
 
+    def affects_assistant_message(self) -> bool:
+        return True
+
     async def run(self, loop_response: LanguageModelStreamResponse) -> object | None:
         raise NotImplementedError("Subclasses must implement this method.")
 
@@ -49,9 +52,7 @@ class ResponsesApiPostprocessor(ABC):
     def get_name(self) -> str:
         return self.name
 
-    async def run(
-        self, loop_response: ResponsesLanguageModelStreamResponse
-    ) -> object | None:
+    async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
         raise NotImplementedError("Subclasses must implement this method.")
 
     def apply_postprocessing_to_response(
@@ -154,40 +155,43 @@ class PostprocessorManager:
         postprocessors = self._get_valid_postprocessors_for_loop_response(loop_response)
 
         tasks = [
-            task_executor.execute_async(
-                self.execute_postprocessors,
-                loop_response=loop_response,
-                postprocessor_instance=postprocessor,
+            asyncio.create_task(
+                task_executor.execute_async(
+                    self.execute_postprocessors,
+                    loop_response=loop_response,
+                    postprocessor_instance=postprocessor,
+                )
             )
             for postprocessor in postprocessors
         ]
-        postprocessor_results = await asyncio.gather(*tasks)
 
-        successful_postprocessors: list[Postprocessor | ResponsesApiPostprocessor] = []
-        for i in range(len(postprocessors)):
-            if postprocessor_results[i].success:
-                successful_postprocessors.append(postprocessors[i])
+        message_postprocessor_indices = [
+            i
+            for i, postprocessor in enumerate(postprocessors)
+            if postprocessor.affects_assistant_message()
+        ]
+        message_postprocessor_results = await asyncio.gather(
+            *(tasks[i] for i in message_postprocessor_indices)
+        )
 
         # TODO(UN-19522): make Postprocessor generic over response type to eliminate these ignores
         modification_results = [
             postprocessor.apply_postprocessing_to_response(loop_response)  # pyright: ignore[reportArgumentType]
-            for postprocessor in successful_postprocessors
+            for i, result in zip(
+                message_postprocessor_indices,
+                message_postprocessor_results,
+                strict=True,
+            )
+            if result.success
+            for postprocessor in [postprocessors[i]]
         ]
 
-        has_been_modified = any(modification_results)
-
-        if has_been_modified:
-            self._chat_service.modify_assistant_message(
+        if any(modification_results):
+            await self._chat_service.modify_assistant_message_async(
                 content=loop_response.message.text,
                 message_id=loop_response.message.id,
                 references=loop_response.message.references,
             )
-
-        return {
-            postprocessors[i].get_name(): postprocessor_results[i].unpack()
-            for i in range(len(postprocessors))
-            if postprocessor_results[i].success
-        }
 
     def get_execution_times(self) -> dict[str, float]:
         return self._execution_times.copy()

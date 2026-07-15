@@ -28,11 +28,16 @@ from unique_user_memory.user_memory_prompts import (
     consolidation_system_prompt,
     consolidation_user_prompt,
     empty_profile,
+    memory_gate_system_prompt,
+    memory_gate_user_prompt,
 )
 
 MEMORY_FILENAME = "memory.md"
 MIME_TYPE = "text/markdown"
 _LLM_OUTPUT_HEADROOM_TOKENS = 200
+# The gate only ever replies with the single word UPDATE or NOOP; a tiny
+# output budget keeps the common (NOOP) path cheap and fast.
+_GATE_MAX_TOKENS = 4
 # When condensing an oversized profile, aim below the hard cap so the LLM
 # output leaves headroom and the hard-cut safety net rarely has to fire.
 _CONDENSE_TARGET_RATIO = 0.9
@@ -551,6 +556,91 @@ async def upload_user_memory(
         return False
 
 
+async def should_consolidate_memory(
+    *,
+    current_memory: str,
+    user_id: str,
+    user_message: str,
+    assistant_message: str,
+    language_model: LanguageModelInfo,
+    event: ChatEvent,
+    logger: Logger,
+) -> bool:
+    """Cheaply decide whether the turn warrants a full memory rewrite.
+
+    Runs a focused LLM call capped at a few output tokens that answers
+    ``UPDATE`` or ``NOOP``. Returns ``False`` only on an explicit ``NOOP``
+    so the caller can skip the expensive full-profile regeneration. Any
+    error (or ambiguous output) falls back to ``True`` so behaviour stays
+    identical to the pre-gate path.
+    """
+    try:
+        llm_service = LanguageModelService(event)
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] cannot construct LanguageModelService for gate: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return True
+
+    messages = LanguageModelMessages(
+        [
+            LanguageModelSystemMessage(content=memory_gate_system_prompt()),
+            LanguageModelUserMessage(
+                content=memory_gate_user_prompt(
+                    user_id=user_id,
+                    existing_memory=current_memory,
+                    user_message=_sanitize_for_xml_context(user_message or ""),
+                    assistant_message=_sanitize_for_xml_context(
+                        assistant_message or ""
+                    ),
+                )
+            ),
+        ]
+    )
+
+    try:
+        response = await llm_service.complete_async(
+            messages=messages,
+            model_name=language_model.name,
+            other_options={"max_tokens": _GATE_MAX_TOKENS},
+        )
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] gate LLM call failed (model=%s): [%s] %s",
+            language_model.name,
+            type(exc).__name__,
+            exc,
+        )
+        return True
+
+    try:
+        raw = response.choices[0].message.content or ""
+    except Exception as exc:
+        logger.warning(
+            "[user-memory] could not extract content from gate response: [%s] %s",
+            type(exc).__name__,
+            exc,
+        )
+        return True
+
+    if not isinstance(raw, str):
+        logger.warning(
+            "[user-memory] gate returned non-string content (%s)",
+            type(raw).__name__,
+        )
+        return True
+
+    decision = raw.strip().upper()
+    if decision.startswith("NOOP"):
+        logger.info("[user-memory] gate decided NOOP - skipping consolidation")
+        return False
+
+    logger.info("[user-memory] gate decided UPDATE - consolidating")
+    return True
+
+
 async def consolidate_user_memory(
     *,
     current_memory: str,
@@ -581,6 +671,17 @@ async def consolidate_user_memory(
             max_tokens=config.max_tokens,
             language_model=language_model,
         )
+
+    if config.consolidation_gate_enabled and not await should_consolidate_memory(
+        current_memory=safe_current,
+        user_id=user_id,
+        user_message=user_message,
+        assistant_message=assistant_message,
+        language_model=language_model,
+        event=event,
+        logger=logger,
+    ):
+        return safe_current
 
     if not safe_current.strip():
         safe_current = empty_profile(user_id)

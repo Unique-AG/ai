@@ -40,6 +40,9 @@ class UserMemoryPostprocessor(Postprocessor):
         self._logger = logger
         self._new_memory: str | None = None
 
+    def affects_assistant_message(self) -> bool:
+        return False
+
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
         self._logger.info("[user-memory] running postprocessor")
         user_id = self._event.user_id

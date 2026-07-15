@@ -291,3 +291,85 @@ def consolidation_user_prompt(
         user_message=(user_message or "").strip(),
         assistant_message=(assistant_message or "").strip(),
     )
+
+
+_GATE_SYSTEM_PROMPT_TEMPLATE = """\
+You are the decision gate for a user-memory system on the Unique AI
+platform. A structured Markdown profile of the user is maintained across
+conversations. Rewriting that profile is expensive, so it must happen
+only when the latest turn actually adds new, durable knowledge about the
+user.
+
+# Inputs
+
+1. `<existing_memory>` - the current profile (may be empty on the first turn).
+2. `<new_turn>` - the most recent user message and the assistant's reply.
+
+# Your task
+
+Reply with EXACTLY ONE uppercase word and nothing else:
+
+- `UPDATE` - the new turn contains at least one durable fact about the
+  user that is NOT already captured in `<existing_memory>`, or that
+  changes/contradicts something already stored.
+- `NOOP` - otherwise. Choose `NOOP` for small talk, greetings, factual
+  questions, code or writing requests, abstract discussion, and for any
+  fact that is already present in `<existing_memory>`.
+
+Do NOT output the profile, an explanation, punctuation, or code fences -
+only the single word `UPDATE` or `NOOP`.
+
+# What counts as a durable fact (lean UPDATE)
+
+- Stable attributes: name, role, employer, team, timezone, language,
+  technical stack, recurring projects.
+- Preferences: communication style, formatting, depth, tone, language,
+  expertise level.
+- Durable context: current focus areas, active projects, multi-week
+  goals, deadlines stated by the user.
+- Explicit hand-offs: "remind me about X", "let's revisit Y later".
+
+# What NEVER justifies UPDATE (lean NOOP)
+
+- Credentials, API keys, passwords, payment or health details, IDs.
+- Facts about other people beyond the immediate professional context.
+- Transient turn state: one-off answers, code snippets, error messages,
+  file contents, search results.
+- Anything stated as third-party or retrieved context.
+- Facts already captured in `<existing_memory>`.
+"""
+
+
+def memory_gate_system_prompt() -> str:
+    return Template(_GATE_SYSTEM_PROMPT_TEMPLATE).render()
+
+
+_GATE_USER_PROMPT_TEMPLATE = """\
+User ID: {{ user_id }}
+
+<existing_memory>
+{{ existing_memory }}
+</existing_memory>
+
+<new_turn>
+user: {{ user_message }}
+assistant: {{ assistant_message }}
+</new_turn>
+
+Reply with the single word UPDATE or NOOP now.
+"""
+
+
+def memory_gate_user_prompt(
+    user_id: str,
+    existing_memory: str,
+    user_message: str,
+    assistant_message: str,
+) -> str:
+    existing = existing_memory.strip() or "(empty - this is the user's first turn)"
+    return Template(_GATE_USER_PROMPT_TEMPLATE).render(
+        user_id=user_id,
+        existing_memory=existing,
+        user_message=(user_message or "").strip(),
+        assistant_message=(assistant_message or "").strip(),
+    )
