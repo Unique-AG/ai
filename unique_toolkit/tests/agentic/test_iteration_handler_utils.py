@@ -25,6 +25,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    LanguageModelTokenUsage,
     LanguageModelUserMessage,
 )
 
@@ -34,6 +35,7 @@ def create_stream_response(
     text: str = "Response text",
     tool_calls: list[LanguageModelFunction] | None = None,
     references: list[ContentReference] | None = None,
+    usage: LanguageModelTokenUsage | None = None,
 ) -> LanguageModelStreamResponse:
     """Helper function to create LanguageModelStreamResponse instances for testing."""
     return LanguageModelStreamResponse(
@@ -47,6 +49,7 @@ def create_stream_response(
             references=references or [],
         ),
         tool_calls=tool_calls,
+        usage=usage,
     )
 
 
@@ -267,6 +270,82 @@ class TestRunForcedToolsIteration:
         assert len(result.tool_calls) == 2
         assert result.tool_calls[0].name == "Tool1"
         assert result.tool_calls[1].name == "Tool2"
+
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
+        new_callable=AsyncMock,
+    )
+    async def test_run_forced_tools_iteration__sums_usage__from_multiple_responses(
+        self,
+        mock_stream: AsyncMock,
+        base_kwargs: _LoopIterationRunnerKwargs,
+    ) -> None:
+        """
+        Purpose: Verify token usage is summed, not just taken from the first
+        response, across all forced-tool-choice calls in one iteration.
+        Why this matters: each tool choice is a separate, real, billable LLM
+        call — dropping all but the first response's usage would silently
+        undercount actual token spend for any iteration with 2+ forced tools.
+        """
+        mock_stream.side_effect = [
+            create_stream_response(
+                usage=LanguageModelTokenUsage(
+                    completion_tokens=10, prompt_tokens=20, total_tokens=30
+                )
+            ),
+            create_stream_response(
+                usage=LanguageModelTokenUsage(
+                    completion_tokens=1, prompt_tokens=2, total_tokens=3
+                )
+            ),
+        ]
+
+        tool_choices: list[ChatCompletionNamedToolChoiceParam] = [
+            {"type": "function", "function": {"name": "Tool1"}},
+            {"type": "function", "function": {"name": "Tool2"}},
+        ]
+        base_kwargs["tool_choices"] = tool_choices
+        base_kwargs["tools"] = [create_mock_tool("Tool1"), create_mock_tool("Tool2")]
+
+        result = await run_forced_tools_iteration(loop_runner_kwargs=base_kwargs)
+
+        assert result.usage == LanguageModelTokenUsage(
+            completion_tokens=11,
+            prompt_tokens=22,
+            total_tokens=33,
+        )
+
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
+        new_callable=AsyncMock,
+    )
+    async def test_run_forced_tools_iteration__usage_none_on_all_responses__returns_none(
+        self,
+        mock_stream: AsyncMock,
+        base_kwargs: _LoopIterationRunnerKwargs,
+    ) -> None:
+        """
+        Purpose: When no response carries usage (e.g. unsupported provider),
+        the merged result must be None, not a zeroed-out usage object that
+        would falsely imply zero tokens were spent.
+        """
+        mock_stream.side_effect = [
+            create_stream_response(),
+            create_stream_response(),
+        ]
+
+        tool_choices: list[ChatCompletionNamedToolChoiceParam] = [
+            {"type": "function", "function": {"name": "Tool1"}},
+            {"type": "function", "function": {"name": "Tool2"}},
+        ]
+        base_kwargs["tool_choices"] = tool_choices
+        base_kwargs["tools"] = [create_mock_tool("Tool1"), create_mock_tool("Tool2")]
+
+        result = await run_forced_tools_iteration(loop_runner_kwargs=base_kwargs)
+
+        assert result.usage is None
 
     @pytest.mark.ai
     @patch(

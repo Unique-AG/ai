@@ -6,6 +6,7 @@ from unique_toolkit.agentic.loop_runner.base import (
     _LoopIterationRunnerKwargs,
 )
 from unique_toolkit.chat.functions import LanguageModelStreamResponse
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -103,5 +104,6 @@ async def run_forced_tools_iteration(
     response = responses[0]
     response.tool_calls = tool_calls if len(tool_calls) > 0 else None
     response.message.references = references
+    response.usage = LanguageModelTokenUsage.sum_usages(r.usage for r in responses)
 
     return response

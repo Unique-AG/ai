@@ -28,6 +28,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
+    LanguageModelTokenUsage,
     LanguageModelTool,
     LanguageModelToolDescription,
 )
@@ -592,6 +593,7 @@ async def stream_complete_with_references_openai(
         "model": model_name_,
         "temperature": temperature,
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
     if tool_choice is not None:
         stream_kwargs["tool_choice"] = tool_choice
@@ -600,10 +602,15 @@ async def stream_complete_with_references_openai(
 
     full_text: str = start_text or ""
     tool_calls_fragments: dict[int, dict[str, Any]] = {}
+    usage: LanguageModelTokenUsage | None = None
     try:
         stream = await client.chat.completions.create(**stream_kwargs)
         async with stream:
             async for chunk in stream:
+                # stream_options.include_usage sends one terminal chunk with the
+                # final cumulative totals, not a per-chunk delta -- overwrite, don't sum.
+                if chunk.usage is not None:
+                    usage = LanguageModelTokenUsage.model_validate(chunk.usage)
                 if not chunk.choices:
                     continue
                 choice_ = chunk.choices[0]
@@ -653,6 +660,7 @@ async def stream_complete_with_references_openai(
                 references=references_,
             ),
             tool_calls=tool_calls_list,
+            usage=usage,
         )
     except Exception as e:
         logger.error("Error streaming completion (model=%s): %s", model_name_, e)

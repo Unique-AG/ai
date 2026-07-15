@@ -42,8 +42,4 @@ def _extract_usage(event: ResponseCompletedEvent) -> LanguageModelTokenUsage | N
     usage = event.response.usage
     if usage is None:
         return None
-    return LanguageModelTokenUsage(
-        prompt_tokens=usage.input_tokens,
-        completion_tokens=usage.output_tokens,
-        total_tokens=usage.total_tokens,
-    )
+    return LanguageModelTokenUsage.model_validate(usage)

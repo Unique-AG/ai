@@ -4,7 +4,7 @@ import json
 import math
 from collections.abc import Sequence
 from enum import StrEnum
-from typing import Any, Literal, Self, TypeAlias, TypeVar, cast, override
+from typing import Any, Iterable, Literal, Self, TypeAlias, TypeVar, cast, override
 from uuid import uuid4
 
 from humps import camelize
@@ -157,12 +157,160 @@ class LanguageModelFunction(BaseModel):
             )
 
 
+def _variants(*names: str) -> list[str]:
+    """Expand each snake_case candidate into its snake_case and camelCase spellings."""
+    expanded: list[str] = []
+    for name in names:
+        expanded.append(name)
+        camel = camelize(name)
+        if camel != name:
+            expanded.append(camel)
+    return expanded
+
+
+def _first_value(source: object, keys: Sequence[str]) -> object | None:
+    """First non-`None` value found under any of `keys`; `source` is a dict or SDK object."""
+    if source is None:
+        return None
+    for key in keys:
+        value = (
+            source.get(key) if isinstance(source, dict) else getattr(source, key, None)
+        )
+        if value is not None:
+            return value
+    return None
+
+
+def _first_int(source: object, keys: Sequence[str]) -> int | None:
+    value = _first_value(source, keys)
+    if not isinstance(value, (int, float, str)):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class LanguageModelTokenUsage(BaseModel):
     model_config = model_config
 
     completion_tokens: int | None = None
     prompt_tokens: int | None = None
     total_tokens: int | None = None
+    reasoning_tokens: int | None = None  # subset of completion_tokens
+    cached_tokens: int | None = None  # subset of prompt_tokens (cache read)
+    cache_write_tokens: int | None = None  # separate cost line, not cached_tokens
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_provider_usage(cls, data: Any) -> Any:
+        """Map Chat/Responses/Anthropic/litellm usage shapes onto this model's fields.
+
+        Only fills fields absent from the payload; never overwrites an explicit value
+        or invents 0 for a field the provider didn't report. Accepts a raw gateway
+        dict directly, or an SDK usage object (``CompletionUsage``/``ResponseUsage``)
+        via its own ``model_dump()`` -- callers never need to convert it themselves.
+        """
+        dump = getattr(data, "model_dump", None)
+        if dump is not None:
+            data = dump()
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+
+        def present(field: str) -> bool:
+            return field in data or camelize(field) in data
+
+        def fill(field: str, *sources: tuple[object, Sequence[str]]) -> None:
+            if present(field):
+                return
+            for source, keys in sources:
+                value = _first_int(source, keys)
+                if value is not None:
+                    data[field] = value
+                    return
+
+        fill("prompt_tokens", (data, _variants("input_tokens")))
+        fill("completion_tokens", (data, _variants("output_tokens")))
+        if not present("total_tokens"):
+            prompt_tokens = _first_int(data, _variants("prompt_tokens", "input_tokens"))
+            completion_tokens = _first_int(
+                data, _variants("completion_tokens", "output_tokens")
+            )
+            if prompt_tokens is not None and completion_tokens is not None:
+                data["total_tokens"] = prompt_tokens + completion_tokens
+
+        prompt_details = _first_value(
+            data, _variants("prompt_tokens_details", "input_tokens_details")
+        )
+        completion_details = _first_value(
+            data, _variants("completion_tokens_details", "output_tokens_details")
+        )
+
+        fill("reasoning_tokens", (completion_details, _variants("reasoning_tokens")))
+        fill(
+            "cached_tokens",
+            (prompt_details, _variants("cached_tokens")),
+            # Anthropic (via litellm) also reports this top-level, unnested.
+            (data, _variants("cache_read_input_tokens")),
+        )
+        fill(
+            "cache_write_tokens",
+            (
+                prompt_details,
+                # cache_creation_tokens is Anthropic's name for the same concept.
+                _variants("cache_write_tokens", "cache_creation_tokens"),
+            ),
+            (data, _variants("cache_creation_input_tokens")),
+        )
+
+        return data
+
+    @classmethod
+    def sum_usages(
+        cls, usages: Iterable[LanguageModelTokenUsage | None]
+    ) -> LanguageModelTokenUsage | None:
+        """Sum usages, skipping `None` entries; returns `None` if none are present.
+
+        Per field: if no entry reported it, the sum stays `None` too -- otherwise a
+        field no provider ever reports (e.g. cache_write_tokens) would sum to a
+        misleading `0` ("confirmed zero") instead of "unknown".
+        """
+        present = [u for u in usages if u is not None]
+        if not present:
+            return None
+
+        def sum_field(attr: str) -> int | None:
+            values = [getattr(u, attr) for u in present]
+            if all(v is None for v in values):
+                return None
+            return sum(v or 0 for v in values)
+
+        fields = (
+            "completion_tokens",
+            "prompt_tokens",
+            "total_tokens",
+            "reasoning_tokens",
+            "cached_tokens",
+            "cache_write_tokens",
+        )
+        summed = {field: sum_field(field) for field in fields}
+
+        # An invocation can omit `total_tokens` while still reporting
+        # completion/prompt tokens (e.g. a manually-constructed usage, or a
+        # provider quirk). Naively summing `total_tokens` across invocations then
+        # undercounts it relative to the summed completion/prompt tokens for the
+        # same set of calls. completion_tokens + prompt_tokens is always at least
+        # as accurate when both are known, so prefer it over the raw summed total.
+        if (
+            summed["completion_tokens"] is not None
+            and summed["prompt_tokens"] is not None
+        ):
+            derived_total = summed["completion_tokens"] + summed["prompt_tokens"]
+            if summed["total_tokens"] is None or derived_total > summed["total_tokens"]:
+                summed["total_tokens"] = derived_total
+
+        return cls(**summed)
 
 
 class LanguageModelStreamResponse(BaseModel):
@@ -631,6 +779,7 @@ class LanguageModelResponse(BaseModel):
     model_config = model_config
 
     choices: list[LanguageModelCompletionChoice]
+    usage: LanguageModelTokenUsage | None = None
 
     @classmethod
     def from_stream_response(cls, response: LanguageModelStreamResponse):
@@ -640,7 +789,7 @@ class LanguageModelResponse(BaseModel):
             finish_reason="",
         )
 
-        return cls(choices=[choice])
+        return cls(choices=[choice], usage=response.usage)
 
 
 # The OpenAI SDK's ReasoningEffort type alias is generated from an older OpenAPI spec and is
