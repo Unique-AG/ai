@@ -713,7 +713,9 @@ class UniqueAI:
         # `object | None` (generic channel), so re-narrow the one we own.
         self._generated_files_info = cast(
             "ArtifactsDebugInfo | None",
-            postprocessor_outputs.get(DisplayCodeInterpreterFilesPostProcessor.__name__),
+            postprocessor_outputs.get(
+                DisplayCodeInterpreterFilesPostProcessor.__name__
+            ),
         )
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()
