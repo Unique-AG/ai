@@ -694,9 +694,9 @@ async def consolidate_user_memory(
     ):
         return safe_current
 
-    if on_update_start is not None:
-        await on_update_start()
     try:
+        if on_update_start is not None:
+            await on_update_start()
         return await _rewrite_user_memory(
             safe_current=safe_current,
             user_id=user_id,

@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -508,6 +509,46 @@ async def test_consolidate_user_memory_invokes_update_end_on_rewrite_error(
     assert result == current
     on_start.assert_awaited_once()
     on_end.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_invokes_update_end_when_start_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # on_update_start may show the notice and then be cancelled. CancelledError
+    # is a BaseException (not caught in _set_message_content), so the cleanup
+    # callback must still run to remove the transient notice.
+    current = empty_profile("user_1")
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+    on_start = AsyncMock(side_effect=asyncio.CancelledError)
+    on_end = AsyncMock()
+
+    with pytest.raises(asyncio.CancelledError):
+        await consolidate_user_memory(
+            current_memory=current,
+            user_id="user_1",
+            user_message="remember I like concise answers",
+            assistant_message="noted",
+            config=UserMemoryConfig(),
+            language_model=_TEST_LANGUAGE_MODEL,
+            event=MagicMock(),
+            logger=MagicMock(),
+            on_update_start=on_start,
+            on_update_end=on_end,
+        )
+
+    on_start.assert_awaited_once()
+    on_end.assert_awaited_once()
+    llm_service.complete_async.assert_not_awaited()
 
 
 @pytest.mark.asyncio
