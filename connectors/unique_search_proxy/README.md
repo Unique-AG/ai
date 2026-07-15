@@ -2,9 +2,11 @@
 
 Platform services need web search, grounded agent research, and URL crawling — but should not embed provider SDKs, manage API keys, or configure corporate egress in every pod. **Unique Search Proxy** centralises that: one deployable service, one HTTP contract, three Python packages with a strict separation of concerns.
 
----
+## Recommended for all tenants
 
-## 1. The problem and the solution
+**Search Proxy is the recommended way** for every tenant to run Web Search. Callers (notably `assistants-core` via `unique_web_search`) should talk only to the `search-proxy` pod; that pod owns provider credentials and internet egress. Network policies can then keep assistant pods cluster-internal for web access.
+
+**Legacy direct-provider calls** (Search Proxy disabled — `SEARCH_PROXY_BASE_URL` unset) remain available for engines that already supported them. Behaviour is preserved, but **new providers and future development target Search Proxy only**. Today, **Brave** and **Perplexity** standard search are **proxy-only**.
 
 | Without the proxy | With the proxy |
 |-------------------|----------------|
@@ -12,16 +14,17 @@ Platform services need web search, grounded agent research, and URL crawling —
 | Secrets scattered across pods | Credentials live in the proxy pod only |
 | Egress/proxy config duplicated | Shared `HttpClientPool` handles outbound networking |
 | Tool schemas drift from runtime behaviour | **Core** defines contracts once; server and SDK share them |
+| Assistants need open-web egress | Assistants reach only `search-proxy`; providers from one pod |
 
 The proxy exposes three **capabilities**:
 
 1. **Standard search** — query a search engine, get normalised results (`google`, `brave`, `perplexity`)
-2. **Agent search** — grounded research via LLM agents (`bing`, `vertexai`); returns opaque text for the caller to parse
+2. **Agent search (grounding)** — grounded research via LLM agents (`bing`, `vertexai`); returns opaque text for the caller to parse
 3. **URL crawl** — fetch and extract page content (`Basic`, `Tavily`, `Jina`, `Firecrawl`)
 
 ---
 
-## 2. Three packages, three responsibilities
+## 1. Three packages, three responsibilities
 
 ```mermaid
 flowchart LR
@@ -59,7 +62,7 @@ flowchart LR
 
 ---
 
-## 3. How the system fits together
+## 2. How the system fits together
 
 Two paths connect the packages. Most confusion comes from treating them as one — they serve different lifecycle stages.
 
@@ -95,22 +98,22 @@ Path A never hits the network. Path B never re-derives schemas — it consumes t
 
 ---
 
-## 4. Capabilities at a glance
+## 3. Capabilities at a glance
 
-| Capability | Endpoint | Providers |
-|------------|----------|-----------|
-| Standard search | `POST /v1/search` | `google`, `brave`, `perplexity` |
-| Agent search | `POST /v1/agent-search` | `bing`, `vertexai` |
-| Agent search (stream) | `POST /v1/agent-search/stream` | `bing`, `vertexai` |
-| URL crawl | `POST /v1/crawl` | `Basic`, `Tavily`, `Jina`, `Firecrawl` |
-| Provider discovery | `GET /v1/configuration/providers` | — |
-| Health / metrics | `GET /health`, `/ready`, `/metrics` | — |
+| Capability | Endpoint | Providers | Kind |
+|------------|----------|-----------|------|
+| Standard search | `POST /v1/search` | `google`, `brave`, `perplexity` | Classic SERP-style APIs |
+| Agent search (grounding) | `POST /v1/agent-search` | `bing`, `vertexai` | Grounded agents / models |
+| Agent search (stream) | `POST /v1/agent-search/stream` | `bing`, `vertexai` | Same, streaming |
+| URL crawl | `POST /v1/crawl` | `Basic`, `Tavily`, `Jina`, `Firecrawl` | Page readers |
+| Provider discovery | `GET /v1/configuration/providers` | — | — |
+| Health / metrics | `GET /health`, `/ready`, `/metrics` | — | — |
 
 Endpoint details, payloads, and env vars → [Client README](unique_search_proxy_client/README.md).
 
 ---
 
-## 5. End-to-end flow (search)
+## 4. End-to-end flow (search)
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +138,7 @@ sequenceDiagram
 
 ---
 
-## 6. Design principles
+## 5. Design principles
 
 1. **Core owns contracts** — one source of truth for request/response shapes and config models.
 2. **Client owns execution** — secrets, egress, and provider SDKs stay in the proxy pod.
@@ -146,7 +149,7 @@ sequenceDiagram
 
 ---
 
-## 7. Repository layout
+## 6. Repository layout
 
 ```
 connectors/unique_search_proxy/
@@ -158,7 +161,7 @@ connectors/unique_search_proxy/
 
 ---
 
-## 8. Quick start
+## 7. Quick start
 
 Run the proxy locally:
 
