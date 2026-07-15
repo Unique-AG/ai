@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.a2a.evaluation.config import (
     SubAgentEvaluationConfig,
@@ -116,6 +117,38 @@ async def test_sub_agent_evaluation__multiple_assessments__carries_invocation_st
     complete_async_mock.assert_awaited_once()
     assert result.reason == "summary text"
     assert result.invocation_stats == [
+        LanguageModelInvocationStats.from_usage(
+            SubAgentEvaluationServiceConfig().summarization_model.name,
+            LanguageModelTokenUsage(
+                completion_tokens=12, prompt_tokens=34, total_tokens=46
+            ),
+            source=str(EvaluationMetricName.SUB_AGENT),
+        )
+    ]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_sub_agent_evaluation__preserves_invocation_stats__on_reason_read_error() -> (
+    None
+):
+    """A billed summarization call that returns no choices must still
+    surface its usage via EvaluatorException.invocation_stats, instead of
+    losing it when `response.choices[0]` raises."""
+    complete_async_mock = AsyncMock(
+        return_value=LanguageModelResponse(
+            choices=[],
+            usage=LanguageModelTokenUsage(
+                completion_tokens=12, prompt_tokens=34, total_tokens=46
+            ),
+        )
+    )
+    service = _make_service(complete_async_mock)
+
+    with pytest.raises(EvaluatorException) as exc_info:
+        await service.run(loop_response=MagicMock())
+
+    assert exc_info.value.invocation_stats == [
         LanguageModelInvocationStats.from_usage(
             SubAgentEvaluationServiceConfig().summarization_model.name,
             LanguageModelTokenUsage(

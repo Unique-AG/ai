@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from unique_toolkit._common.execution import failsafe
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
+from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationAssessmentMessage,
     EvaluationMetricName,
@@ -215,14 +216,11 @@ class SubAgentEvaluationService(Evaluation):
                 sub_agents_display_data.append(data)
 
         response = await self._get_reason(sub_agents_display_data)
-        reason = str(response.choices[0].message.content)
 
-        return EvaluationMetricResult(
-            name=self.get_name(),
-            value=value,
-            reason=reason,
-            is_positive=value == ChatMessageAssessmentLabel.GREEN,
-            invocation_stats=[
+        # Captured as soon as the (billable) LLM call returns, so a failure
+        # below can still report it instead of losing it.
+        invocation_stats = (
+            [
                 LanguageModelInvocationStats.from_usage(
                     self._config.summarization_model.name,
                     response.usage,
@@ -230,7 +228,28 @@ class SubAgentEvaluationService(Evaluation):
                 )
             ]
             if response.usage is not None
-            else [],
+            else []
+        )
+
+        try:
+            reason = str(response.choices[0].message.content)
+        except Exception as e:
+            error_message = (
+                "Error occurred while reading the sub-agent evaluation response."
+            )
+            raise EvaluatorException(
+                error_message=f"{error_message}: {e}",
+                user_message=error_message,
+                exception=e,
+                invocation_stats=invocation_stats,
+            )
+
+        return EvaluationMetricResult(
+            name=self.get_name(),
+            value=value,
+            reason=reason,
+            is_positive=value == ChatMessageAssessmentLabel.GREEN,
+            invocation_stats=invocation_stats,
         )
 
     @override
