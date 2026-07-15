@@ -16,6 +16,9 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 import httpx
 from openai import AsyncOpenAI
+from openai.types.chat.chat_completion_stream_options_param import (
+    ChatCompletionStreamOptionsParam,
+)
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
@@ -423,12 +426,24 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                 )
             )
 
+            # Extract rather than pass both explicitly and via **optional_create_kwargs:
+            # a caller-supplied other_options["stream_options"] would otherwise raise
+            # "got multiple values for keyword argument" -- or, if merged the other way,
+            # could silently drop include_usage and break usage reporting.
+            caller_stream_options = optional_create_kwargs.pop("stream_options", {})
+            stream_options: ChatCompletionStreamOptionsParam = {
+                "include_usage": True,
+            }
+            if "include_obfuscation" in caller_stream_options:
+                stream_options["include_obfuscation"] = caller_stream_options[
+                    "include_obfuscation"
+                ]
             try:
                 stream = await self._client.chat.completions.create(
                     model=model,
                     messages=gpt_messages,
                     stream=True,
-                    stream_options={"include_usage": True},
+                    stream_options=stream_options,
                     temperature=temperature,
                     **optional_create_kwargs,
                 )

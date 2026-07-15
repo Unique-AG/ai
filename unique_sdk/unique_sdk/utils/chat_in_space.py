@@ -22,7 +22,7 @@ def get_message_usage(message: Space.Message) -> Integrated.Usage | None:
     llm_invocations = debug_info.get("llm_invocations")
     if llm_invocations is None:
         return None
-    return llm_invocations["totalTokenUsage"]
+    return llm_invocations.get("totalTokenUsage")
 
 
 def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
@@ -32,7 +32,7 @@ def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
     """
     debug_info = message.get("debugInfo") or {}
     llm_invocations = debug_info.get("llm_invocations") or {}
-    return llm_invocations["invocations"] if llm_invocations else []
+    return llm_invocations.get("invocations") or []
 
 
 async def send_message_and_wait_for_completion(
@@ -66,6 +66,13 @@ async def send_message_and_wait_for_completion(
         poll_interval: Seconds between polls.
         max_wait: Maximum seconds to wait for completion.
         stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
+            Note: `debugInfo.llm_invocations` (see `get_message_usage`/`get_message_invocations`)
+            is written near the very end of the orchestrator's run -- after postprocessors and
+            evaluations, which happen after the visible text stream ends. With the default
+            `"stoppedStreamingAt"`, or even `"completedAt"` (set slightly before the debugInfo
+            write completes), the returned message's usage/invocations can still be incomplete
+            immediately after this function returns. Re-fetch the message after a short delay
+            if you need the full invocation list.
         correlation: Optional correlation data to link this message to a parent message in another chat.
             Should contain: parentMessageId, parentChatId, parentAssistantId.
         auto_approve_elicitation: When True, automatically approves elicitation requests during

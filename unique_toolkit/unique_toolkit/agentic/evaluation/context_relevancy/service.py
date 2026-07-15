@@ -148,6 +148,10 @@ class ContextRelevancyEvaluator:
             # Handle regular output
             return await self._handle_regular_output(input, config)
 
+        except EvaluatorException:
+            # Already carries whatever invocation_stats were captured before
+            # the failure -- don't re-wrap it and lose them.
+            raise
         except Exception as e:
             error_message = (
                 "Unknown error occurred during context relevancy metric analysis"
@@ -175,6 +179,20 @@ class ContextRelevancyEvaluator:
             other_options=config.additional_llm_options,
         )
 
+        # Captured as soon as the (billable) LLM call returns, so a validation
+        # failure below can still report it instead of losing it.
+        invocation_stats = (
+            [
+                LanguageModelInvocationStats.from_usage(
+                    config.language_model.name,
+                    result.usage,
+                    source="context_relevancy",
+                )
+            ]
+            if result.usage is not None
+            else []
+        )
+
         try:
             result_content = EvaluationSchemaStructuredOutput.model_validate(
                 result.choices[0].message.parsed
@@ -185,19 +203,13 @@ class ContextRelevancyEvaluator:
                 error_message=error_message,
                 user_message=error_message,
                 exception=e,
+                invocation_stats=invocation_stats,
             )
 
         evaluation_result = parse_eval_metric_result_structured_output(
             result_content, EvaluationMetricName.CONTEXT_RELEVANCY
         )
-        if result.usage is not None:
-            evaluation_result.invocation_stats = [
-                LanguageModelInvocationStats.from_usage(
-                    config.language_model.name,
-                    result.usage,
-                    source="context_relevancy",
-                )
-            ]
+        evaluation_result.invocation_stats = invocation_stats
         return evaluation_result
 
     async def _handle_regular_output(
@@ -213,25 +225,33 @@ class ContextRelevancyEvaluator:
             other_options=config.additional_llm_options,
         )
 
-        result_content = result.choices[0].message.content
-        if not result_content or not isinstance(result_content, str):
-            error_message = "Context relevancy evaluation did not return a result."
-            raise EvaluatorException(
-                error_message=error_message,
-                user_message=error_message,
-            )
-
-        evaluation_result = parse_eval_metric_result(
-            result_content, EvaluationMetricName.CONTEXT_RELEVANCY
-        )
-        if result.usage is not None:
-            evaluation_result.invocation_stats = [
+        # Captured as soon as the (billable) LLM call returns, so a failure
+        # below can still report it instead of losing it.
+        invocation_stats = (
+            [
                 LanguageModelInvocationStats.from_usage(
                     config.language_model.name,
                     result.usage,
                     source="context_relevancy",
                 )
             ]
+            if result.usage is not None
+            else []
+        )
+
+        result_content = result.choices[0].message.content
+        if not result_content or not isinstance(result_content, str):
+            error_message = "Context relevancy evaluation did not return a result."
+            raise EvaluatorException(
+                error_message=error_message,
+                user_message=error_message,
+                invocation_stats=invocation_stats,
+            )
+
+        evaluation_result = parse_eval_metric_result(
+            result_content, EvaluationMetricName.CONTEXT_RELEVANCY
+        )
+        evaluation_result.invocation_stats = invocation_stats
         return evaluation_result
 
     def _compose_msgs(

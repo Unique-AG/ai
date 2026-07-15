@@ -7,6 +7,7 @@ from unique_toolkit._common.execution import (
     Result,
     SafeTaskExecutor,
 )
+from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationAssessmentMessage,
     EvaluationMetricName,
@@ -188,12 +189,18 @@ class EvaluationManager:
         evaluation_name: EvaluationMetricName,
     ) -> EvaluationMetricResult:
         if not result.success:
+            invocation_stats = (
+                result.exception.invocation_stats
+                if isinstance(result.exception, EvaluatorException)
+                else []
+            )
             return EvaluationMetricResult(
                 name=evaluation_name,
                 is_positive=True,
                 value="RED",
                 reason=str(result.exception),
                 error=Exception("Evaluation result is not successful"),
+                invocation_stats=invocation_stats,
             )
         return result.unpack()
 
