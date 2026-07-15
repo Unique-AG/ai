@@ -20,7 +20,7 @@ def get_message_usage(message: Space.Message) -> Integrated.Usage | None:
     """
     debug_info = message.get("debugInfo") or {}
     llm_invocations = debug_info.get("llm_invocations")
-    if llm_invocations is None:
+    if not isinstance(llm_invocations, dict):
         return None
     return llm_invocations.get("totalTokenUsage")
 
@@ -31,7 +31,9 @@ def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
     Each entry has `modelName`, `tokenUsage`, and `source` keys.
     """
     debug_info = message.get("debugInfo") or {}
-    llm_invocations = debug_info.get("llm_invocations") or {}
+    llm_invocations = debug_info.get("llm_invocations")
+    if not isinstance(llm_invocations, dict):
+        return []
     return llm_invocations.get("invocations") or []
 
 

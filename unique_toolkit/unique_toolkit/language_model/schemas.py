@@ -294,7 +294,23 @@ class LanguageModelTokenUsage(BaseModel):
             "cached_tokens",
             "cache_write_tokens",
         )
-        return cls(**{field: sum_field(field) for field in fields})
+        summed = {field: sum_field(field) for field in fields}
+
+        # An invocation can omit `total_tokens` while still reporting
+        # completion/prompt tokens (e.g. a manually-constructed usage, or a
+        # provider quirk). Naively summing `total_tokens` across invocations then
+        # undercounts it relative to the summed completion/prompt tokens for the
+        # same set of calls. completion_tokens + prompt_tokens is always at least
+        # as accurate when both are known, so prefer it over the raw summed total.
+        if (
+            summed["completion_tokens"] is not None
+            and summed["prompt_tokens"] is not None
+        ):
+            derived_total = summed["completion_tokens"] + summed["prompt_tokens"]
+            if summed["total_tokens"] is None or derived_total > summed["total_tokens"]:
+                summed["total_tokens"] = derived_total
+
+        return cls(**summed)
 
 
 class LanguageModelStreamResponse(BaseModel):

@@ -62,6 +62,11 @@ class TestGetMessageUsage:
         message = {}
         assert get_message_usage(message) is None
 
+    @pytest.mark.ai
+    def test_get_message_usage__llm_invocations_not_a_dict__returns_none(self) -> None:
+        message = {"debugInfo": {"llm_invocations": "unexpected-string-payload"}}
+        assert get_message_usage(message) is None
+
 
 class TestGetMessageInvocations:
     @pytest.mark.ai
@@ -76,6 +81,13 @@ class TestGetMessageInvocations:
     @pytest.mark.ai
     def test_get_message_invocations__debug_info_missing__returns_empty(self) -> None:
         assert get_message_invocations({}) == []
+
+    @pytest.mark.ai
+    def test_get_message_invocations__llm_invocations_not_a_dict__returns_empty(
+        self,
+    ) -> None:
+        message = {"debugInfo": {"llm_invocations": ["unexpected", "list", "payload"]}}
+        assert get_message_invocations(message) == []
 
 
 @pytest.mark.asyncio

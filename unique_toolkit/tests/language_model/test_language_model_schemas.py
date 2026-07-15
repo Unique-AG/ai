@@ -281,6 +281,37 @@ class TestLanguageModelTokenUsageProviderNormalization:
         assert total is not None
         assert total.cache_write_tokens == 5413
 
+    def test_sum_usages__missing_total_on_one_entry__derives_from_completion_and_prompt(
+        self,
+    ):
+        """A manually-constructed or non-conforming usage entry can omit
+        `total_tokens` while still reporting completion/prompt tokens. Naively
+        summing `total_tokens` would then undercount relative to the summed
+        completion + prompt tokens for the same calls."""
+        total = LanguageModelTokenUsage.sum_usages(
+            [
+                LanguageModelTokenUsage(
+                    completion_tokens=10, prompt_tokens=20, total_tokens=30
+                ),
+                LanguageModelTokenUsage(completion_tokens=5, prompt_tokens=15),
+            ]
+        )
+
+        assert total is not None
+        assert total.completion_tokens == 15
+        assert total.prompt_tokens == 35
+        assert total.total_tokens == 50
+
+    def test_sum_usages__total_tokens_none_when_completion_or_prompt_unknown(self):
+        total = LanguageModelTokenUsage.sum_usages(
+            [LanguageModelTokenUsage(completion_tokens=10)]
+        )
+
+        assert total is not None
+        assert total.completion_tokens == 10
+        assert total.prompt_tokens is None
+        assert total.total_tokens is None
+
     def test_model_dump_by_alias__new_fields_camel_cased(self):
         usage = LanguageModelTokenUsage(
             completion_tokens=1,
