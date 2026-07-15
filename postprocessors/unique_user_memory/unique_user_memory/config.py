@@ -39,17 +39,15 @@ class UserMemoryConfig(BaseModel):
         description=(
             "When true, a cheap single-word LLM 'gate' decides whether the turn "
             "warrants a full memory rewrite before the expensive consolidation "
-            "runs. Ordinary turns (small talk, questions) short-circuit as a NOOP. "
-            "Set to false to always run the full consolidation call."
+            "runs."
         ),
     )
     updating_notice_enabled: bool = Field(
         default=True,
         description=(
-            "When true, a transient 'updating memory' notice is appended to the "
-            "assistant message while the (slow) memory rewrite runs, and removed "
-            "again once it completes. Ordinary turns that skip the rewrite never "
-            "show the notice."
+            "When true, a transient 'updating context memory' notice is appended to the "
+            "assistant message while the memory rewrite runs, and removed "
+            "again once it completes."
         ),
     )
     root_folder: Annotated[str, RJSFMetaTag.SpecialWidget.hidden()] = Field(
