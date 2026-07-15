@@ -248,9 +248,18 @@ class ContextRelevancyEvaluator:
                 invocation_stats=invocation_stats,
             )
 
-        evaluation_result = parse_eval_metric_result(
-            result_content, EvaluationMetricName.CONTEXT_RELEVANCY
-        )
+        try:
+            evaluation_result = parse_eval_metric_result(
+                result_content, EvaluationMetricName.CONTEXT_RELEVANCY
+            )
+        except EvaluatorException as e:
+            # parse_eval_metric_result raises its own EvaluatorException (with
+            # no invocation_stats, since it has no usage context) -- attach
+            # ours if it didn't already carry stats, instead of letting it
+            # propagate stats-less.
+            if not e.invocation_stats:
+                e.invocation_stats = invocation_stats
+            raise
         evaluation_result.invocation_stats = invocation_stats
         return evaluation_result
 

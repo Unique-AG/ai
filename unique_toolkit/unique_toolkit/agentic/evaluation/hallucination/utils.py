@@ -114,7 +114,12 @@ async def check_hallucination(
         )
         eval_result.invocation_stats = invocation_stats
         return eval_result
-    except EvaluatorException:
+    except EvaluatorException as e:
+        # parse_eval_metric_result raises its own EvaluatorException (with no
+        # invocation_stats, since it has no usage context) -- attach ours if
+        # it didn't already carry stats, instead of re-raising it stats-less.
+        if not e.invocation_stats:
+            e.invocation_stats = invocation_stats
         raise
     except Exception as e:
         error_message = "Error occurred during hallucination metric analysis"
