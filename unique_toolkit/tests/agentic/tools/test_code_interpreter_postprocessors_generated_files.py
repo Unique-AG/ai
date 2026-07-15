@@ -3,7 +3,7 @@
 import logging
 import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -517,6 +517,43 @@ def _make_display_files_postprocessor(
         user_id="u1",
         chat_id="ch1",
     )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_run__html_fence_ff_requires_fence_ff__when_fence_ff_off_but_html_fence_ff_on() -> (
+    None
+):
+    """
+    Purpose: Verify `_html_fence_ff_on` stays False when the code-execution fence FF is
+    off, even if the dedicated HTML-fence FF is on.
+    Why this matters: htmlWithSource fences only make sense alongside the code-execution
+    fence; resolving them independently would render invalid content.
+    Setup summary: Patch `is_flag_enabled` to return False for the fence FF and True for
+    the HTML-fence FF; call `run()`; assert both flags end up False.
+    """
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-html-fence-requires-fence",
+    )
+    message = SimpleNamespace(text="")
+    loop_response = _make_response(calls=[], annotations=[])
+    loop_response.message = message
+
+    async def fake_is_flag_enabled(flag, *, company_id):
+        return flag == gen_mod.FeatureFlagNames.enable_html_with_fence_un_17927
+
+    with patch.object(
+        gen_mod, "is_flag_enabled", AsyncMock(side_effect=fake_is_flag_enabled)
+    ):
+        await proc.run(loop_response)
+
+    assert proc._fence_ff_on is False
+    assert proc._html_fence_ff_on is False
 
 
 def _make_response(calls, annotations):

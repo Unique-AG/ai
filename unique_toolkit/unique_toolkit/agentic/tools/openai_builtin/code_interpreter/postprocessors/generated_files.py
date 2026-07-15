@@ -399,7 +399,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         # HTML uses htmlWithSource only when BOTH the code-execution fence FF AND the
         # dedicated HTML-fence FF are on. Default (FF off) keeps HtmlRendering so
         # existing deployments are unaffected.
-        self._html_fence_ff_on = await is_flag_enabled(
+        self._html_fence_ff_on = self._fence_ff_on and await is_flag_enabled(
             FeatureFlagNames.enable_html_with_fence_un_17927,
             company_id=self._company_id or "",
         )
