@@ -16,11 +16,16 @@ from openai.types.responses import (
     ResponseFunctionCallArgumentsDoneEvent,
     ResponseOutputItemAddedEvent,
     ResponseTextDeltaEvent,
+    ResponseUsage,
 )
 from openai.types.responses.response_function_tool_call_item import (
     ResponseFunctionToolCallItem,
 )
 from openai.types.responses.response_text_delta_event import Logprob
+from openai.types.responses.response_usage import (
+    InputTokensDetails,
+    OutputTokensDetails,
+)
 
 from unique_toolkit._common.event_bus import TypedEventBus
 from unique_toolkit.experimental._internal.streaming import TextFlushed, TextState
@@ -473,7 +478,13 @@ async def test_AI_responses_completed_event_handler__on_completed__extracts_usag
     Setup summary: Build minimal event object; on_completed; assert usage and output list.
     """
     event_handler = ResponsesCompletedEventHandler()
-    usage_obj = SimpleNamespace(input_tokens=3, output_tokens=5, total_tokens=8)
+    usage_obj = ResponseUsage(
+        input_tokens=3,
+        output_tokens=5,
+        total_tokens=8,
+        input_tokens_details=InputTokensDetails(cached_tokens=0),
+        output_tokens_details=OutputTokensDetails(reasoning_tokens=0),
+    )
     out_item = object()
     response = SimpleNamespace(usage=usage_obj, output=[out_item])
     event = SimpleNamespace(response=response)

@@ -38,7 +38,7 @@ class Base(BaseSettings):
     active_search_engines: list[str] = ["google"]
 
     # Default Crawlers
-    active_inhouse_crawlers: list[str] = ["basic", "crawl4ai"]
+    active_inhouse_crawlers: list[str] = ["basic"]
 
     # Unique Search Proxy service (routes migrated search engines and crawlers)
     search_proxy_base_url: str | None = None

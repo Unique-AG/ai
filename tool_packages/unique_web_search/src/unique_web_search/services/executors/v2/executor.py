@@ -159,7 +159,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
         self, step_name: str, results: list[WebSearchResult]
     ) -> list[WebSearchResult]:
         """Crawl URLs for the given search results and fill content. Call when results non-empty."""
-        crawler = self.crawler_service.config.crawler_type.value
+        crawler = self.crawler_service.config.crawler.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {crawler}")
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
@@ -195,7 +195,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
                 config=step.model_dump(),
             )
         )
-        crawler = self.crawler_service.config.crawler_type.value
+        crawler = self.crawler_service.config.crawler.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):

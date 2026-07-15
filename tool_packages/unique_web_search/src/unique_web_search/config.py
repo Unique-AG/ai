@@ -180,7 +180,7 @@ class WebSearchConfig(BaseToolConfig):
         default_factory=DefaultCrawler,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         title="Web Page Reader",
         description="Choose and configure how web pages are fetched and converted to readable text.",
-        discriminator="crawler_type",
+        discriminator="crawler",
     )
 
     content_processor_config: ContentProcessorConfig = Field(

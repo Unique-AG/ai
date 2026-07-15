@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from unique_search_proxy_core.param_policy.derive import derive_request_model
 from unique_search_proxy_core.param_policy.request_base import CrawlRequestBase
-from unique_search_proxy_core.schema import CrawlUrlResult, deployment_model_config
+from unique_search_proxy_core.schema import CrawlUrlResult, camelized_model_config
 
 if TYPE_CHECKING:
     from httpx import AsyncClient
@@ -29,7 +29,12 @@ class CrawlerType(StrEnum):
 class BaseCrawlerConfig(BaseModel, Generic[CrawlerTypeT]):
     """Deployment config for a crawler; each crawler narrows ``crawler`` with a Literal."""
 
-    model_config = deployment_model_config
+    # Mirrors ``BaseSearchEngineConfig``: no ``extra='forbid'``. Emitting
+    # ``additionalProperties: false`` on every branch of the ``crawlerConfig``
+    # discriminated ``oneOf`` breaks the RJSF admin form, which carries sibling
+    # default fields across branches and then matches zero subschemas. Runtime
+    # ``/v1/crawl`` request bodies stay strict via ``CrawlRequestBase``.
+    model_config = camelized_model_config
 
     #: Name of the derived request model; set by every concrete crawler config.
     _request_model_name: ClassVar[str]

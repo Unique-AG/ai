@@ -52,7 +52,6 @@ def test_loop_token_reducer_get_encoder_with_gpt():
     reducer = LoopTokenReducer(
         event=event,
         max_history_tokens=1000,
-        has_uploaded_content_config=False,
         logger=None,
         reference_manager=reference_manager,
         language_model=language_model,
@@ -98,7 +97,6 @@ def test_loop_token_reducer_get_encoder_with_qwen():
     reducer = LoopTokenReducer(
         event=event,
         max_history_tokens=1000,
-        has_uploaded_content_config=False,
         logger=None,
         reference_manager=reference_manager,
         language_model=language_model,
@@ -144,7 +142,6 @@ def test_loop_token_reducer_count_message_tokens():
     reducer = LoopTokenReducer(
         event=event,
         max_history_tokens=1000,
-        has_uploaded_content_config=False,
         logger=None,
         reference_manager=reference_manager,
         language_model=language_model,

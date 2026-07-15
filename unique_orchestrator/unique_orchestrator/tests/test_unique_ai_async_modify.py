@@ -3,6 +3,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    DisplayCodeInterpreterFilesPostProcessor,
+)
 
 from unique_orchestrator.unique_ai import UniqueAI
 
@@ -53,10 +56,12 @@ def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
     mock_postprocessor_manager = MagicMock()
     mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
     mock_postprocessor_manager.get_execution_times.return_value = {}
+    mock_postprocessor_manager.get_invocation_stats.return_value = []
 
     mock_evaluation_manager = MagicMock()
     mock_evaluation_manager.run_evaluations = AsyncMock(return_value=[])
     mock_evaluation_manager.get_execution_times.return_value = {}
+    mock_evaluation_manager.get_invocation_stats.return_value = []
 
     dummy_event = MagicMock()
     dummy_event.payload.assistant_message.id = "assist_1"
@@ -85,8 +90,11 @@ def _make_ua(monkeypatch, *, feature_flag_enabled: bool = False):
     ua._mcp_servers = []
     ua._execution_times = []
     ua._current_loop_timing = {}
+    ua._generated_files_info = None
+    ua._invocation_stats = []
     ua.current_iteration_index = 0
     ua._skill_choices = []
+    ua._loop_iteration_runner = MagicMock()
 
     return ua
 
@@ -103,6 +111,7 @@ async def test_run_calls_modify_async_when_feature_flag_disabled(monkeypatch):
     empty_response.message.references = []
     empty_response.tool_calls = None
     empty_response.is_empty.return_value = True
+    empty_response.usage = None
 
     ua._plan_or_execute = AsyncMock(return_value=empty_response)
 
@@ -126,3 +135,23 @@ async def test_process_plan_calls_modify_async_on_empty_response(monkeypatch):
 
     assert result is True
     ua._chat_service.modify_assistant_message_async.assert_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_handle_no_tool_calls_stores_returned_artifacts_for_analytics(
+    monkeypatch,
+):
+    ua = _make_ua(monkeypatch)
+    artifacts = {"count": 1, "filetypes": ["csv"]}
+    ua._postprocessor_manager.run_postprocessors.return_value = {
+        DisplayCodeInterpreterFilesPostProcessor.__name__: artifacts
+    }
+    ua._current_loop_timing = {"post_processing": {}, "evaluation": {}}
+
+    response = MagicMock()
+    response.model_copy.return_value = response
+
+    await ua._handle_no_tool_calls(response)
+
+    assert ua._generated_files_info == artifacts

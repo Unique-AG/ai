@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
 from pydantic import Field, model_validator
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
+from unique_search_proxy_core.schema import DeactivatedNone
 
 TavilyExtractDepth = Literal["basic", "advanced"]
 TavilyExtractFormat = Literal["markdown", "text"]
+
+StrOrNone: TypeAlias = Annotated[str, Field(title="String")] | DeactivatedNone
+ChunksPerSourceOrNone: TypeAlias = (
+    Annotated[int, Field(title="Integer", ge=1, le=5)] | DeactivatedNone
+)
 
 
 class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
@@ -15,7 +22,13 @@ class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
 
     _request_model_name: ClassVar[str] = "TavilyCrawlRequest"
 
-    crawler: Literal[CrawlerType.TAVILY] = CrawlerType.TAVILY
+    crawler: Annotated[
+        Literal[CrawlerType.TAVILY], RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
+        default=CrawlerType.TAVILY,
+        title="Crawler",
+        description="Provider discriminator; must be `Tavily` for this config.",
+    )
 
     extract_depth: TavilyExtractDepth = Field(
         default="advanced",
@@ -30,7 +43,7 @@ class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
         title="Output format",
         description="Extracted content format: `markdown` or `text`.",
     )
-    query: str | None = Field(
+    query: StrOrNone = Field(
         default=None,
         title="Rerank query",
         description=(
@@ -38,10 +51,8 @@ class TavilyConfig(BaseCrawlerConfig[CrawlerType.TAVILY]):
             "`chunks_per_source` may be used."
         ),
     )
-    chunks_per_source: int | None = Field(
+    chunks_per_source: ChunksPerSourceOrNone = Field(
         default=None,
-        ge=1,
-        le=5,
         title="Chunks per source",
         description=(
             "Max relevant chunks per URL when `query` is set (1–5). "

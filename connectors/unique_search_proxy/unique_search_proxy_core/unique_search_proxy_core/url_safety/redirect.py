@@ -17,6 +17,13 @@ _LOGGER = logging.getLogger(__name__)
 
 _REDIRECT_STATUS_CODES = frozenset({301, 302, 303, 307, 308})
 
+# Browser-like UA avoids CDN bot stalls (e.g. Akamai) that make fail-closed
+# redirect probing falsely block legitimate public pages.
+_REDIRECT_PROBE_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+
 ValidateUrlFn = Callable[[str], Awaitable[tuple[str, str] | None]]
 
 
@@ -32,7 +39,11 @@ async def resolve_redirect_chain(
     """
     current = url
     timeout = url_safety_settings.redirect_timeout_seconds
-    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
+    async with httpx.AsyncClient(
+        follow_redirects=False,
+        timeout=timeout,
+        headers={"User-Agent": _REDIRECT_PROBE_USER_AGENT},
+    ) as client:
         for _ in range(url_safety_settings.max_redirect_hops):
             error = await validate_url(current)
             if error is not None:

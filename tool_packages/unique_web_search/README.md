@@ -1,80 +1,95 @@
 # Unique Web Search
 
-A powerful, configurable web search tool for retrieving and processing the latest information from the internet. This package provides intelligent search capabilities with support for multiple search engines, web crawlers, and content processing strategies.
+Configurable web search tool for Unique assistants: search the web, read pages, and return citation-ready content chunks.
+
+## Search Proxy (recommended)
+
+Outbound web access should go through **Unique Search Proxy** (`connectors/unique_search_proxy/`). When `SEARCH_PROXY_BASE_URL` is set, search and crawl calls use `unique-search-proxy-sdk`; credentials and provider egress stay on the proxy pod.
+
+| Mode | When | Behaviour |
+|------|------|-----------|
+| **Proxy (recommended)** | `SEARCH_PROXY_BASE_URL` set | `_proxy_search` / `_proxy_crawl` via the SDK |
+| **Legacy** | URL unset | Direct provider calls from this process (`_legacy_search` / `_legacy_crawl`) |
+
+- **New standard engines (Brave, Perplexity) are proxy-only** — legacy raises.
+- **Custom API** always runs locally (never routed through the proxy).
+- Future provider work targets Search Proxy only; legacy is preserved for migrated engines.
+
+Packages involved: [`unique-search-proxy-core`](../../connectors/unique_search_proxy/unique_search_proxy_core/README.md) (schemas), [`unique-search-proxy-sdk`](../../connectors/unique_search_proxy/unique_search_proxy_sdk/README.md) (HTTP), [`unique-search-proxy`](../../connectors/unique_search_proxy/unique_search_proxy_client/README.md) (server). System overview: [`connectors/unique_search_proxy/README.md`](../../connectors/unique_search_proxy/README.md).
 
 ## Architecture
 
-The following diagram illustrates the complete architecture and workflow of the unique_web_search package:
-
 ![Web Search Tool Architecture](docs/images/architecture-diagram.svg)
 
-## Key Features
+## Search engine kinds
 
-- **Dual Execution Modes**:
-  - **V1 (Traditional)**: Query refinement with single or multiple search strategies
-  - **V2 (Step-based Planning)**: Advanced research planning with parallel execution
-  
-- **Multiple Search Engines**:
-  - Google Search
-  - Bing Search
-  - Brave Search
-  - Jina Search
-  - Tavily Search
-  - Firecrawl Search
-  - VertexAI (Gemini with Grounding)
-  - Custom API (integrate any compatible web search API)
+### Standard search
 
-- **Multiple Web Crawlers**:
-  - Basic HTTP Crawler
-  - Crawl4AI
-  - Jina Reader
-  - Tavily Crawler
-  - Firecrawl Crawler
+Query → normalised results (URL / title / snippet / optional content). Optional page crawl via the configured crawler.
 
-- **Intelligent Content Processing**:
-  - LLM-based summarization
-  - Token-based truncation
-  - Relevancy scoring and sorting
-  - Content chunking and optimization
+| Engine | Proxy | Notes |
+|--------|-------|-------|
+| Google | legacy + proxy | Requires scraping by default |
+| Brave | **proxy-only** | Rich snippets; `ExposableParam` knobs |
+| Perplexity | **proxy-only** | Content extraction knobs; `ExposableParam` |
+| Custom API | always local | Your REST endpoint |
 
-- **Query Refinement**:
-  - **BASIC Mode**: Single optimized search query
-  - **ADVANCED Mode**: Multiple targeted search queries for complex research
+Standard engines that live in proxy-core use **`ExposableParam`** (`expose` + `value`) for optional provider knobs. See [Search Engines README](./src/unique_web_search/services/search_engine/README.md).
 
-- **Performance Optimized**:
-  - Parallel execution of search and crawl operations
-  - Token limit management
-  - Configurable timeouts and error handling
+### Agent search (grounding)
 
-## Detailed Subsystem Docs
+An upstream AI agent / grounded model searches and returns opaque text that this tool parses into `WebSearchResult`s.
 
-For deeper dives into each subsystem, see the dedicated READMEs:
+| Engine | Proxy | Notes |
+|--------|-------|-------|
+| Bing (Azure AI Foundry grounding) | legacy + proxy | Configurable `requires_scraping` |
+| VertexAI (Gemini grounding) | legacy + proxy | Configurable `requires_scraping` |
 
-- [Search Engines](./unique_web_search/services/search_engine/README.md) &mdash; full catalogue of supported engines, configuration, and usage examples.
-- [Crawlers](./unique_web_search/services/crawlers/README.md) &mdash; comparison of crawling strategies (Basic, Crawl4AI, Tavily, Firecrawl, Jina) with setup guides.
-- [Executors](./unique_web_search/services/executors/README.md) &mdash; orchestration layer (V1 & V2) covering query refinement, planning, logging, and best practices.
+Agent engines do **not** use `ExposableParam`.
+
+## Web crawlers (page readers)
+
+| Crawler | Auth | Notes |
+|---------|------|-------|
+| Basic | none | HTTP + content-type toggles; tool-local `url_blocked_patterns` (legacy) |
+| Tavily | `TAVILY_API_KEY` | Extract API |
+| Jina | `JINA_API_KEY` | Reader API |
+| Firecrawl | `FIRECRAWL_API_KEY` | Batch scrape |
+
+No Crawl4AI. Crawler configs have **no exposable LLM knobs**.
+
+## Execution modes
+
+| Mode | Status | Behaviour |
+|------|--------|-----------|
+| **V1** | Stable | Refine query → search → crawl → process |
+| **V2** | Stable | Parallel plan steps (search / read URL) |
+| **V3** | Experimental | Agent loop: snippet `search` vs on-demand `read_urls` |
+
+Proxy vs legacy is transparent to executors.
+
+## Detailed subsystem docs
+
+- [Search Engines](./src/unique_web_search/services/search_engine/README.md)
+- [Crawlers](./src/unique_web_search/services/crawlers/README.md)
+- [Executors](./src/unique_web_search/services/executors/README.md)
 
 ## Configuration
 
-The tool uses environment variables and configuration files to manage API keys and settings. Key configuration areas include:
-
-- Search engine selection and API keys
-- Crawler selection and configuration
-- Content processing strategies (SUMMARIZE, TRUNCATE, NONE)
-- Token limits and relevancy thresholds
-- Proxy configuration
-- Debug and monitoring options
+- `SEARCH_PROXY_BASE_URL` — enables the Search Proxy client
+- Provider API keys (on the proxy pod when proxy is enabled; otherwise on assistants-core for legacy)
+- Search / crawler / content-processing settings via `WebSearchConfig`
 
 ## Dependency management (uv.lock + min/latest testing)
 
 This package is a **library** and uses `uv` for dependency management.
 
-We run tests additionally with minimal dependencies to ensure that the listed ranges are valid. NOTE: We use lowest-direct, not lowest. 
-Lowest attempts to use the lowest possible dependency versions _tarnsitively_ causing issues if a dependency has incorrect metadata. Example:
+We run tests additionally with minimal dependencies to ensure that the listed ranges are valid. NOTE: We use lowest-direct, not lowest.
+Lowest attempts to use the lowest possible dependency versions _transitively_ causing issues if a dependency has incorrect metadata. Example:
 - google-cloud-aiplatform says it works with shapely<3.0.0.
 - The lowest resolver assumes 1.0 which needs python 2 -> breaks
 Therefore we use lowest-direct which only sets our direct dependencies to lowest. However, this only correctly verifies our min dependencies
-if our code correctly lists all the required dependencies and never imports a transitive dependency. We therefore use deptry to ansure we
+if our code correctly lists all the required dependencies and never imports a transitive dependency. We therefore use deptry to ensure we
 don't use transitive dependencies and that we have no unused dependencies.
 
 ### Test locally
@@ -88,28 +103,12 @@ uv run pytest
 uv run deptry
 ```
 
-
-
 - **Min deps**:
 
 ```bash
 cd tool_packages/unique_web_search
 uv venv
-# Install runtime deps at minimum versions
 uv pip install -e . --resolution=lowest-direct
-# Install dev deps from [dependency-groups] (we only care about runtime dep minimums)
 uv export --only-group dev --no-hashes | uv pip install -r -
-# Use --no-sync to prevent uv from "fixing" the versions
 uv run --no-sync pytest
 ```
-
-## Workflow
-
-1. **Input**: User query or structured search plan
-2. **Configuration**: Load settings and initialize services
-3. **Execution**: 
-   - V1: Query refinement → Search → Crawl → Process
-   - V2: Execute planned steps in parallel → Process
-4. **Content Processing**: Clean, summarize/truncate, and chunk content
-5. **Optimization**: Reduce to token limits and sort by relevance
-6. **Output**: Return structured content chunks optimized for LLM consumption

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from unique_toolkit._common.execution import failsafe
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
+from unique_toolkit.agentic.evaluation.exception import EvaluatorException
 from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationAssessmentMessage,
     EvaluationMetricName,
@@ -31,7 +32,13 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
 )
 from unique_toolkit.language_model.builder import MessagesBuilder
-from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelResponse,
+    LanguageModelStreamResponse,
+)
 from unique_toolkit.language_model.service import LanguageModelService
 
 logger = logging.getLogger(__name__)
@@ -208,13 +215,41 @@ class SubAgentEvaluationService(Evaluation):
 
                 sub_agents_display_data.append(data)
 
-        reason = await self._get_reason(sub_agents_display_data)
+        response = await self._get_reason(sub_agents_display_data)
+
+        # Captured as soon as the (billable) LLM call returns, so a failure
+        # below can still report it instead of losing it.
+        invocation_stats = (
+            [
+                LanguageModelInvocationStats.from_usage(
+                    self._config.summarization_model.name,
+                    response.usage,
+                    source=str(self.get_name()),
+                )
+            ]
+            if response.usage is not None
+            else []
+        )
+
+        try:
+            reason = str(response.choices[0].message.content)
+        except Exception as e:
+            error_message = (
+                "Error occurred while reading the sub-agent evaluation response."
+            )
+            raise EvaluatorException(
+                error_message=f"{error_message}: {e}",
+                user_message=error_message,
+                exception=e,
+                invocation_stats=invocation_stats,
+            )
 
         return EvaluationMetricResult(
             name=self.get_name(),
             value=value,
             reason=reason,
             is_positive=value == ChatMessageAssessmentLabel.GREEN,
+            invocation_stats=invocation_stats,
         )
 
     @override
@@ -250,7 +285,9 @@ class SubAgentEvaluationService(Evaluation):
             type=self.get_assessment_type(),
         )
 
-    async def _get_reason(self, sub_agents_display_data: list[dict[str, Any]]) -> str:
+    async def _get_reason(
+        self, sub_agents_display_data: list[dict[str, Any]]
+    ) -> LanguageModelResponse:
         messages = (
             MessagesBuilder()
             .system_message_append(self._config.summarization_system_message)
@@ -262,10 +299,8 @@ class SubAgentEvaluationService(Evaluation):
             .build()
         )
 
-        reason = await self._language_model_service.complete_async(
+        return await self._language_model_service.complete_async(
             messages=messages,
             model_name=self._config.summarization_model.name,
             temperature=0.0,
         )
-
-        return str(reason.choices[0].message.content)

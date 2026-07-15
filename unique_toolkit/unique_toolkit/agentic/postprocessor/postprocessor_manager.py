@@ -5,6 +5,9 @@ from logging import Logger
 
 from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
     ResponsesLanguageModelStreamResponse,
@@ -18,7 +21,7 @@ class Postprocessor(ABC):
     def get_name(self) -> str:
         return self.name
 
-    async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+    async def run(self, loop_response: LanguageModelStreamResponse) -> object | None:
         raise NotImplementedError("Subclasses must implement this method.")
 
     def apply_postprocessing_to_response(
@@ -33,6 +36,11 @@ class Postprocessor(ABC):
             "Subclasses must implement this method to remove post-processing from the message."
         )
 
+    @property
+    def invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Override in subclasses whose `run()` makes its own LLM call(s)."""
+        return []
+
 
 class ResponsesApiPostprocessor(ABC):
     def __init__(self, name: str):
@@ -41,7 +49,9 @@ class ResponsesApiPostprocessor(ABC):
     def get_name(self) -> str:
         return self.name
 
-    async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
+    async def run(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> object | None:
         raise NotImplementedError("Subclasses must implement this method.")
 
     def apply_postprocessing_to_response(
@@ -55,6 +65,14 @@ class ResponsesApiPostprocessor(ABC):
         raise NotImplementedError(
             "Subclasses must implement this method to remove post-processing from the message."
         )
+
+    @property
+    def invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Per-LLM-call stats from any call(s) this postprocessor made in its last `run()`.
+
+        Default empty — override in subclasses that make their own LLM calls.
+        """
+        return []
 
 
 class PostprocessorManager:
@@ -86,6 +104,7 @@ class PostprocessorManager:
         self._chat_service = chat_service
         self._postprocessors: list[Postprocessor | ResponsesApiPostprocessor] = []
         self._execution_times: dict[str, float] = {}
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
 
         # Allow to add postprocessors that should be run before or after the others.
         self._first_postprocessor: Postprocessor | ResponsesApiPostprocessor | None = (
@@ -124,8 +143,9 @@ class PostprocessorManager:
     async def run_postprocessors(
         self,
         loop_response: LanguageModelStreamResponse,
-    ) -> None:
+    ) -> dict[str, object | None]:
         self._execution_times = {}
+        self._invocation_stats = []
 
         task_executor = SafeTaskExecutor(
             logger=self._logger,
@@ -163,19 +183,31 @@ class PostprocessorManager:
                 references=loop_response.message.references,
             )
 
+        return {
+            postprocessors[i].get_name(): postprocessor_results[i].unpack()
+            for i in range(len(postprocessors))
+            if postprocessor_results[i].success
+        }
+
     def get_execution_times(self) -> dict[str, float]:
         return self._execution_times.copy()
+
+    def get_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Per-LLM-call stats from every postprocessor that made its own LLM call(s)."""
+        return list(self._invocation_stats)
 
     async def execute_postprocessors(
         self,
         loop_response: LanguageModelStreamResponse,
         postprocessor_instance: Postprocessor | ResponsesApiPostprocessor,
-    ) -> None:
+    ) -> object | None:
         start = time.perf_counter()
-        await postprocessor_instance.run(loop_response)  # pyright: ignore[reportArgumentType]  # TODO(UN-19522)
+        result = await postprocessor_instance.run(loop_response)  # pyright: ignore[reportArgumentType]  # TODO(UN-19522)
         self._execution_times[postprocessor_instance.name] = round(
             time.perf_counter() - start, 3
         )
+        self._invocation_stats.extend(postprocessor_instance.invocation_stats)
+        return result
 
     async def remove_from_text(
         self,

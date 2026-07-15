@@ -6,6 +6,9 @@ from .functions import (
     stream_complete_with_references_openai as stream_complete_with_references_openai,
 )
 from .infos import LanguageModel, LanguageModelName, TypeDecoder, TypeEncoder
+from .invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from .prompt import (
     Prompt,
 )
@@ -62,6 +65,7 @@ __all__ = [
     "LanguageModelCompletionChoice",
     "LanguageModelFunction",
     "LanguageModelFunctionCall",
+    "LanguageModelInvocationStats",
     "LanguageModelMessage",
     "LanguageModelMessageRole",
     "LanguageModelMessages",

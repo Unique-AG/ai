@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
@@ -9,6 +11,17 @@ from unique_sdk.utils.file_io import upload_file
 from unique_sdk.utils.file_io import (
     wait_for_ingestion_completion as _wait_for_ingestion_completion,
 )
+
+
+def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
+    """Per-LLM-invocation stats for a completed Space message, read from
+    `debugInfo.llm_invocations` (a plain list, one entry per LLM call).
+
+    Each entry has `modelName`, `tokenUsage`, and `source` keys.
+    """
+    debug_info = message.get("debugInfo") or {}
+    llm_invocations = debug_info.get("llm_invocations")
+    return llm_invocations if isinstance(llm_invocations, list) else []
 
 
 async def send_message_and_wait_for_completion(
@@ -23,10 +36,10 @@ async def send_message_and_wait_for_completion(
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     stop_condition: Literal["stoppedStreamingAt", "completedAt"] = "stoppedStreamingAt",
-    correlation: "Space.Correlation | None" = None,
+    correlation: Space.Correlation | None = None,
     auto_approve_elicitation: bool | None = None,
-    on_message_update: Callable[["Space.Message"], Awaitable[None]] | None = None,
-) -> "Space.Message":
+    on_message_update: Callable[[Space.Message], Awaitable[None]] | None = None,
+) -> Space.Message:
     """
     Sends a prompt asynchronously and polls for completion. (until stoppedStreamingAt is not None)
 
@@ -42,6 +55,13 @@ async def send_message_and_wait_for_completion(
         poll_interval: Seconds between polls.
         max_wait: Maximum seconds to wait for completion.
         stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
+            Note: `debugInfo.llm_invocations` (see `get_message_invocations`) is written
+            near the very end of the orchestrator's run -- after postprocessors and
+            evaluations, which happen after the visible text stream ends. With the default
+            `"stoppedStreamingAt"`, or even `"completedAt"` (set slightly before the debugInfo
+            write completes), the returned message's invocations can still be incomplete
+            immediately after this function returns. Re-fetch the message after a short delay
+            if you need the full invocation list.
         correlation: Optional correlation data to link this message to a parent message in another chat.
             Should contain: parentMessageId, parentChatId, parentAssistantId.
         auto_approve_elicitation: When True, automatically approves elicitation requests during
@@ -91,6 +111,11 @@ async def send_message_and_wait_for_completion(
                 last_update_signature = update_signature
         if answer.get(stop_condition) is not None:
             try:
+                # debugInfo/llm_invocations is written via update_debug_info_async(),
+                # which always targets the original USER message, not the
+                # assistant reply (assistant=False in
+                # ChatService._construct_message_modify_params) — re-fetch by
+                # `message_id`, not the polled assistant message's own id.
                 user_message = await Message.retrieve_async(
                     user_id, company_id, message_id, chatId=chat_id
                 )
@@ -116,7 +141,7 @@ async def chat_against_file(
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
     should_delete_chat: bool = True,
-) -> "Space.Message":
+) -> Space.Message:
     """
     Chat against a file by uploading it, sending a message and waiting for a reply.
     Args:

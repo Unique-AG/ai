@@ -8,6 +8,7 @@ from unique_web_search.services.search_engine.registry import (
     SEARCH_ENGINE_REGISTRY,
     get_search_engine_mode,
     get_search_engine_service,
+    resolve_search_engine_mode,
 )
 
 SEARCH_ENGINE_REGISTRY.autodiscover(__path__, __name__, exclude=frozenset({"schema"}))
@@ -68,6 +69,7 @@ __all__ = [
     "SearchEngineMode",
     "SearchEngineType",
     "get_search_engine_mode",
+    "resolve_search_engine_mode",
     "GoogleConfig",
     "GoogleSearch",
     "BingSearchConfig",

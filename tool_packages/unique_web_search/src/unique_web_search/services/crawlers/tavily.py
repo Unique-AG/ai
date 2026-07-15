@@ -1,50 +1,27 @@
 import asyncio
-from typing import Literal
 
 from tavily import AsyncTavilyClient
+from typing_extensions import override
+from unique_search_proxy_core.crawlers.base import CrawlerType
+from unique_search_proxy_core.crawlers.tavily.schema import TavilyConfig
 
 from unique_web_search.client_settings import get_tavily_search_settings
-from unique_web_search.services.crawlers.base import (
-    BaseCrawler,
-    BaseCrawlerConfigExperimental,
-    CrawlerType,
-)
+from unique_web_search.services.crawlers.base import BaseCrawler
+from unique_web_search.services.crawlers.registry import register_crawler
 from unique_web_search.services.crawlers.url_safety import ResolvedCrawlTarget
-from unique_web_search.services.proxy.bridge import (
-    open_search_proxy_client,
+
+
+@register_crawler(
+    name="tavily",
+    key=CrawlerType.TAVILY,
+    config_cls=TavilyConfig,
+    config_display_name="Tavily",
 )
-from unique_web_search.services.proxy.mappers import map_crawl_response
-
-
-class TavilyCrawlerConfig(BaseCrawlerConfigExperimental[CrawlerType.TAVILY]):
-    crawler_type: Literal[CrawlerType.TAVILY] = CrawlerType.TAVILY
-    depth: Literal["basic", "advanced"] = "advanced"
-
-
-class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
-    supports_proxy_crawl = True
-
-    def __init__(self, config: TavilyCrawlerConfig):
+class TavilyCrawler(BaseCrawler[TavilyConfig]):
+    def __init__(self, config: TavilyConfig):
         super().__init__(config)
 
-    # TODO: find a tracking solution
-    # @track(
-    #     tags=["tavily", "scrape"],
-    # )
-    async def _proxy_crawl(self, urls: list[str]) -> list[str]:
-        async with open_search_proxy_client(
-            timeout=float(self.config.timeout),
-        ) as client:
-            response = await client.crawl.tavily(
-                urls=urls,
-                timeout=int(self.config.timeout),
-                extract_depth=self.config.depth,
-                format="markdown",
-                include_images=False,
-                include_favicon=False,
-            )
-            return map_crawl_response(response, urls)
-
+    @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         urls = [target.normalized_url for target in targets]
 
@@ -60,11 +37,14 @@ class TavilyCrawler(BaseCrawler[TavilyCrawlerConfig]):
         async def process_batch(batch_urls: list[str]) -> dict:
             batch_response = await client.extract(
                 urls=batch_urls,
-                format="markdown",
-                include_images=False,
-                extract_depth=self.config.depth,
+                format=self.config.format,
+                include_images=self.config.include_images,
+                extract_depth=self.config.extract_depth,
                 timeout=self.config.timeout,
-                include_favicon=False,
+                include_favicon=self.config.include_favicon,
+                include_usage=self.config.include_usage,
+                query=self.config.query,  # type: ignore[arg-type]
+                chunks_per_source=self.config.chunks_per_source,  # type: ignore[arg-type]
             )
             return batch_response
 

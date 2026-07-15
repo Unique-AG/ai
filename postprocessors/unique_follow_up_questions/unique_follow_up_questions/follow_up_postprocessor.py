@@ -4,6 +4,9 @@ from unique_toolkit.agentic.history_manager.history_manager import HistoryManage
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelMessages,
@@ -42,8 +45,15 @@ class FollowUpPostprocessor(Postprocessor):
         self._language = event.payload.user_message.language
         self._historyManager = historyManager
         self._llm_service = llm_service
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
+
+    @property
+    def invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        return list(self._invocation_stats)
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+        # Reset so a re-run reports one entry per actual LLM call of this run.
+        self._invocation_stats = []
         history = await self._historyManager.get_user_visible_chat_history(
             loop_response.message.text,
             self.remove_from_text,
@@ -176,12 +186,28 @@ class FollowUpPostprocessor(Postprocessor):
                     model_name=self._config.language_model.name,
                     structured_output_model=FollowUpQuestionsOutput,
                 )
-                parsed_content = response.choices[0].message.parsed
             else:
                 response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
                 )
+
+            # Record usage as soon as the (billable) LLM call itself succeeds,
+            # before any parsing/validation below that could raise -- an
+            # already-billed call must not be dropped just because the
+            # response content failed to parse.
+            if response.usage is not None:
+                self._invocation_stats.append(
+                    LanguageModelInvocationStats.from_usage(
+                        self._config.language_model.name,
+                        response.usage,
+                        source="follow_up_questions",
+                    )
+                )
+
+            if self._config.use_structured_output:
+                parsed_content = response.choices[0].message.parsed
+            else:
                 content = response.choices[0].message.content
                 if not isinstance(content, str):
                     raise ValueError("Language model response content must be a string")

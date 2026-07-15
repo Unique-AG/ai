@@ -1,13 +1,12 @@
 import asyncio
 import time
 from logging import Logger, getLogger
-from typing import Any, Generic, Literal, TypeVar, overload
+from typing import Any, Generic, Literal, TypeVar, cast, overload
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
 )
 from openai.types.responses import (
-    ResponseIncludable,
     ToolParam,
     response_create_params,
 )
@@ -30,6 +29,9 @@ from unique_toolkit.agentic.tools.names import (
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    CodeInterpreterActivatorTool,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToolManager
 from unique_toolkit.agentic.tools.run_context import ToolRunContext
@@ -264,6 +266,14 @@ class _ToolManager(Generic[_ApiMode]):
                     exc_info=result.exception,
                 )
 
+        # Activator tools are regular function tools that lazily provision a
+        # built-in tool when the model calls them. They are offered up front and
+        # swapped for the provisioned built-in in `_activate_deferred_tools`.
+        if self._builtin_tool_manager is not None and self._api_mode == "responses":
+            self._internal_tools.extend(
+                self._builtin_tool_manager.get_activator_tools()
+            )
+
         # Combine all types of tools
         self.available_tools = (
             self._internal_tools
@@ -369,13 +379,45 @@ class _ToolManager(Generic[_ApiMode]):
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools]
 
-    def add_tool(self, tool: Tool[Any]) -> None:
+    @overload
+    def add_tool(
+        self, tool: Tool[Any], kind: Literal["internal", "mcp"] = "internal"
+    ) -> None: ...
+
+    @overload
+    def add_tool(
+        self, tool: OpenAIBuiltInTool[Any], kind: Literal["builtin"]
+    ) -> None: ...
+
+    @overload
+    def add_tool(self, tool: SubAgentTool, kind: Literal["sub_agent"]) -> None: ...
+
+    def add_tool(
+        self,
+        tool: Tool[Any] | OpenAIBuiltInTool[Any] | SubAgentTool,
+        kind: Literal["internal", "builtin", "mcp", "sub_agent"] = "internal",
+    ) -> None:
         """Inject an externally constructed tool into the manager.
 
         Use this for tools that require custom constructor arguments (e.g. a
         shared registry) that cannot be built through ToolFactory.
+
+        Args:
+            tool: The tool instance to register. Its accepted type is narrowed
+                by ``kind`` via the overloads above.
+            kind: Which category the tool belongs to. Determines the internal
+                tracking list it is added to ("internal", "builtin", "mcp" or
+                "sub_agent"). Defaults to "internal".
         """
-        self._internal_tools.append(tool)
+        if kind == "builtin":
+            self._builtin_tools.append(cast(OpenAIBuiltInTool[Any], tool))
+        elif kind == "sub_agent":
+            self._sub_agents.append(cast(SubAgentTool, tool))
+        elif kind == "mcp":
+            self._mcp_tools.append(cast(Tool[Any], tool))
+        else:
+            self._internal_tools.append(cast(Tool[Any], tool))
+
         self.available_tools.append(tool)
         self._tools.append(tool)
 
@@ -488,7 +530,28 @@ class _ToolManager(Generic[_ApiMode]):
                 ]
 
         tool_call_responses = await self._execute_parallelized(tool_calls)
+        self._activate_deferred_tools()
         return tool_call_responses
+
+    def _activate_deferred_tools(self) -> None:
+        """Swap any activated activator for its provisioned built-in tool.
+
+        Runs after tool execution. When a ``CodeInterpreterActivatorTool`` has
+        been activated (its ``run`` provisioned the built-in), replace it in the
+        active tool set with the built-in so subsequent loop iterations offer the
+        real ``code_interpreter`` tool instead of the activator function.
+
+        Idempotent by construction: the activator is removed via
+        ``exclude_tool`` once handled, so later passes over ``_tools`` cannot
+        process it again.
+        """
+        if self._api_mode != "responses":
+            return
+        for tool in list(self._tools):
+            if isinstance(tool, CodeInterpreterActivatorTool) and tool.is_activated:
+                built_tool = tool.get_activated_tool()
+                self.exclude_tool(tool.name)
+                self.add_tool(built_tool, kind="builtin")
 
     async def _execute_parallelized(
         self,
@@ -525,6 +588,10 @@ class _ToolManager(Generic[_ApiMode]):
             unpacked_tool_call_result.debug_info["is_forced"] = (
                 tool_calls[i].name in self.get_tool_choices()
             )
+            if any(tool.name == tool_calls[i].name for tool in self._sub_agents):
+                unpacked_tool_call_result.debug_info["is_sub_agent"] = True
+            if any(tool.name == tool_calls[i].name for tool in self._mcp_tools):
+                unpacked_tool_call_result.debug_info["is_mcp"] = True
             tool_call_results_unpacked.append(unpacked_tool_call_result)
 
         return tool_call_results_unpacked
@@ -815,7 +882,3 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             chat_service=chat_service,
             language_model_service=language_model_service,
         )
-
-    def get_required_include_params(self) -> list[ResponseIncludable]:
-        """Return Responses API include params required by all active built-in tools."""
-        return self._builtin_tool_manager.get_required_include_params()

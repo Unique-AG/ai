@@ -293,14 +293,12 @@ class TestUniqueAIConfigOpenFileValidator:
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
 
-class TestUniqueAIConfigGpt55ResponsesApiValidator:
-    """Test suite for UniqueAIConfig.enable_responses_api_for_gpt_55_and_gpt_55_pro validator.
+class TestUniqueAIConfigGpt55AndGpt56ResponsesApiValidator:
+    """Tests for the GPT-5.5 and GPT-5.6 Responses API validator.
 
-    GPT-5.5 (AZURE_GPT_55_2026_0424) and GPT-5.5-Pro (AZURE_GPT_55_PRO_2026_0424)
-    reject requests that combine `tools` with `reasoning_effort` on
-    /v1/chat/completions and demand /v1/responses. The validator forces the
-    Responses API on when either of these models is selected, regardless of
-    which tools are configured.
+    These models reject requests that combine `tools` with `reasoning_effort`
+    on /v1/chat/completions and demand /v1/responses. The validator forces the
+    Responses API on regardless of which tools are configured.
     Tracked in Jira: UN-20123.
     """
 
@@ -309,13 +307,20 @@ class TestUniqueAIConfigGpt55ResponsesApiValidator:
         [
             LanguageModelName.AZURE_GPT_55_2026_0424,
             LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.LITELLM_OPENAI_GPT_55,
+            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
         ],
     )
     def test_enables_responses_api_for_affected_models(
         self, model_name: LanguageModelName
     ):
-        """When the selected model is GPT-5.5 or GPT-5.5-Pro, the validator must
-        auto-enable use_responses_api so the runner routes to /v1/responses."""
+        """Affected models must route through /v1/responses."""
         model = LanguageModelInfo.from_name(model_name)
 
         config = UniqueAIConfig(
@@ -329,14 +334,20 @@ class TestUniqueAIConfigGpt55ResponsesApiValidator:
         [
             LanguageModelName.AZURE_GPT_55_2026_0424,
             LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.LITELLM_OPENAI_GPT_55,
+            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
         ],
     )
     def test_enables_responses_api_for_affected_models_with_tools(
         self, model_name: LanguageModelName
     ):
-        """The auto-enable must apply even when tools other than Code Interpreter
-        are configured — the GPT-5.5(-Pro) transport requirement is independent
-        of the Code Interpreter validator above."""
+        """The transport requirement is independent of configured tools."""
         model = LanguageModelInfo.from_name(model_name)
 
         config = UniqueAIConfig(
@@ -349,10 +360,7 @@ class TestUniqueAIConfigGpt55ResponsesApiValidator:
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
     def test_does_not_enable_responses_api_for_other_models(self):
-        """When the selected model is neither GPT-5.5 nor GPT-5.5-Pro, the
-        validator must be a no-op even if the model supports the Responses API.
-        Otherwise the TEMP FIX could mask real configuration issues for
-        unaffected models."""
+        """The validator must not affect unrelated Responses-capable models."""
         config = _make_config(tools=[], supports_responses_api=True)
 
         assert config.agent.experimental.responses_api_config.use_responses_api is False
@@ -362,13 +370,20 @@ class TestUniqueAIConfigGpt55ResponsesApiValidator:
         [
             LanguageModelName.AZURE_GPT_55_2026_0424,
             LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.LITELLM_OPENAI_GPT_55,
+            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
         ],
     )
     def test_keeps_responses_api_enabled_when_already_enabled(
         self, model_name: LanguageModelName
     ):
-        """When use_responses_api is already True for an affected model, the
-        validator must leave it True (i.e. it is idempotent for those models)."""
+        """The validator must remain idempotent."""
         from unique_orchestrator.config import ExperimentalConfig, ResponsesApiConfig
 
         model = LanguageModelInfo.from_name(model_name)

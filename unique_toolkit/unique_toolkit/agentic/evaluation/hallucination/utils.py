@@ -18,6 +18,9 @@ from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.infos import ModelCapabilities
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -73,29 +76,58 @@ async def check_hallucination(
 
     try:
         msgs = _get_msgs(input, config)
-
         result = await LanguageModelService.complete_async_util(
             company_id=company_id, user_id=user_id, messages=msgs, model_name=model_name
         )
-        result_content = result.choices[0].message.content
-        if not result_content or not isinstance(result_content, str):
-            error_message = "Hallucination evaluation did not return a text result."
-            raise EvaluatorException(
-                error_message=error_message,
-                user_message=error_message,
-            )
-        result = parse_eval_metric_result(
-            result_content,
-            EvaluationMetricName.HALLUCINATION,
-        )
-
-        return result
     except Exception as e:
         error_message = "Error occurred during hallucination metric analysis"
         raise EvaluatorException(
             error_message=f"{error_message}: {e}",
             user_message=error_message,
             exception=e,
+        )
+
+    # Captured as soon as the (billable) LLM call returns, so a failure below
+    # (empty content, parsing) can still report it instead of losing it.
+    invocation_stats = (
+        [
+            LanguageModelInvocationStats.from_usage(
+                model_name, result.usage, source="hallucination"
+            )
+        ]
+        if result.usage is not None
+        else []
+    )
+
+    try:
+        result_content = result.choices[0].message.content
+        if not result_content or not isinstance(result_content, str):
+            error_message = "Hallucination evaluation did not return a text result."
+            raise EvaluatorException(
+                error_message=error_message,
+                user_message=error_message,
+                invocation_stats=invocation_stats,
+            )
+        eval_result = parse_eval_metric_result(
+            result_content,
+            EvaluationMetricName.HALLUCINATION,
+        )
+        eval_result.invocation_stats = invocation_stats
+        return eval_result
+    except EvaluatorException as e:
+        # parse_eval_metric_result raises its own EvaluatorException (with no
+        # invocation_stats, since it has no usage context) -- attach ours if
+        # it didn't already carry stats, instead of re-raising it stats-less.
+        if not e.invocation_stats:
+            e.invocation_stats = invocation_stats
+        raise
+    except Exception as e:
+        error_message = "Error occurred during hallucination metric analysis"
+        raise EvaluatorException(
+            error_message=f"{error_message}: {e}",
+            user_message=error_message,
+            exception=e,
+            invocation_stats=invocation_stats,
         )
 
 

@@ -64,7 +64,7 @@ ApiRequestMethodType, ApiRequestMethodField = conditional_type(
 
 
 class CustomAPIConfig(BaseModel):
-    model_config = get_configuration_dict(title="Customized API Search")
+    model_config = get_configuration_dict(title="Customized API")
 
     engine: Literal[LocalSearchEngineType.CUSTOM_API] = LocalSearchEngineType.CUSTOM_API
 
@@ -93,7 +93,7 @@ class CustomAPIConfig(BaseModel):
     key=LocalSearchEngineType.CUSTOM_API,
     config_cls=CustomAPIConfig,
     mode=SearchEngineMode.STANDARD,
-    config_display_name="Customized API Search",
+    config_display_name="Customized API",
 )
 class CustomAPI(SearchEngine[CustomAPIConfig]):
     def __init__(self, config: CustomAPIConfig):

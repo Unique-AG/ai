@@ -22,7 +22,7 @@ from unique_web_search.services.search_engine.schema import (
     key=SearchEngineType.PERPLEXITY,
     config_cls=PerplexityConfig,
     mode=SearchEngineMode.STANDARD,
-    config_display_name="Perplexity Search",
+    config_display_name="Perplexity",
 )
 class PerplexitySearch(SearchEngine[PerplexityConfig]):
     def __init__(self, *args, **kwargs):

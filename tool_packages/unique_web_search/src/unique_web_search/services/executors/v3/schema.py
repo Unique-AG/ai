@@ -176,11 +176,3 @@ class WebSearchV3ToolParameters(ExposedParams):
             lines.append(f'  - For `"{cmd.value}"`: `{_inline_json(payload_model)}`.')
 
         return "\n".join(lines)
-
-    def get_display_name_suffix(self) -> str:
-        if self.command == Command.SEARCH:
-            return " - Searching"
-        elif self.command == Command.FETCH_URLS:
-            return " - Reading Pages"
-        else:
-            raise ValueError(f"Invalid command: {self.command}")

@@ -1,6 +1,6 @@
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import Logger
 from typing import Any, cast, overload
 
@@ -8,6 +8,7 @@ import jinja2
 from typing_extensions import deprecated
 from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+    AnalyticsLanguageModel,
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
@@ -20,6 +21,7 @@ from unique_toolkit.agentic.history_manager.utils import (
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
+    SupportsInvocationStats,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
@@ -30,6 +32,12 @@ from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingMan
 from unique_toolkit.agentic.tools.experimental.open_file_tool import (
     OpenFileToolRuntime,
     OpenFileToolRuntimeConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    DisplayCodeInterpreterFilesPostProcessor,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    ArtifactsDebugInfo,
 )
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
@@ -42,6 +50,9 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
@@ -196,6 +207,8 @@ class UniqueAI:
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
         self._loop_debug_params: list[dict[str, Any]] = []
+        self._generated_files_info: ArtifactsDebugInfo | None = None
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -221,6 +234,11 @@ class UniqueAI:
 
         self._execution_times = []
         self._loop_debug_params = []
+        # Reset per-run artifact analytics too: a later run that exits without
+        # reaching _handle_no_tool_calls (tool takes control / empty response /
+        # cancellation) must not report the previous run's artifacts.
+        self._generated_files_info = None
+        self._invocation_stats = []
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
@@ -256,14 +274,34 @@ class UniqueAI:
                     time.perf_counter() - planning_start, 3
                 )
                 self._logger.info("Done with _plan_or_execute")
+                if loop_response.usage is not None:
+                    self._invocation_stats.append(
+                        LanguageModelInvocationStats.from_usage(
+                            self._config.space.language_model.name,
+                            loop_response.usage,
+                            source=f"main_loop[{i + 1}]",
+                        )
+                    )
+                # TODO(UN-20907): if _plan_or_execute() above raises an exception that
+                # propagates out of this loop uncaught, execution never reaches this
+                # drain call -- any planning-step usage recorded on the runner this
+                # iteration is lost. In practice this is not planning-specific: an
+                # uncaught abort here also skips the debug_info["llm_invocations"]
+                # write entirely (see the `finally` at the end of run()), so every
+                # usage source (main_loop, evaluations, postprocessors) is equally
+                # absent from that turn, not just planning. Revisit only if partial
+                # debug_info persistence on an aborted run becomes a requirement.
+                if isinstance(self._loop_iteration_runner, SupportsInvocationStats):
+                    self._invocation_stats.extend(
+                        self._loop_iteration_runner.get_invocation_stats()
+                    )
 
                 if await self._chat_service.cancellation.check_cancellation_async():
                     self._finalize_loop_timing(loop_start)
                     break
 
-                self._reference_manager.add_references(
-                    loop_response.message.references or []
-                )
+                references = loop_response.message.references or []
+                self._reference_manager.add_references(references)
                 self._last_assistant_text = (
                     loop_response.message.original_text or loop_response.message.text
                 )
@@ -316,14 +354,62 @@ class UniqueAI:
                 },
             )
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
+            skills_debug_info = self._get_activated_skills_debug_info()
+            self._debug_info_manager.add("skills", skills_debug_info)
             self._debug_info_manager.add(
-                "skills",
-                self._get_activated_skills_debug_info(),
+                "llm_invocations",
+                [
+                    invocation.model_dump(by_alias=True)
+                    for invocation in self._invocation_stats
+                ],
             )
-
+            reference_sources = {
+                ("url", reference.url)
+                if reference.url is not None
+                else ("source", reference.source, reference.source_id)
+                for references in self._reference_manager.get_references()
+                for reference in references
+            }
+            language_model = self._config.space.language_model
+            tool_display_names = {
+                str(tool.name): tool.display_name() or str(tool.name)
+                for tool in self._tool_manager.available_tools
+            }
             tool_names = [
                 tool["name"] for tool in self._debug_info_manager.get()["tools"]
             ]
+
+            total_time_to_answer_ms: int | None = None
+            if not self._chat_service.cancellation.is_cancelled:
+                if self._config.agent.input_token_distribution.enable_tool_call_persistence:
+                    await self._persist_tool_calls()
+                completed_message = (
+                    await self._chat_service.modify_assistant_message_async(
+                        set_completed_at=not self._tool_took_control,
+                    )
+                )
+                total_time_to_answer_ms = self._calculate_total_time_to_answer_ms(
+                    user_message_created_at=self._event.payload.user_message.created_at,
+                    assistant_completed_at=getattr(
+                        completed_message, "completed_at", None
+                    ),
+                )
+
+            self._debug_info_manager.add_analytics(
+                skills_debug_info,
+                language_model=AnalyticsLanguageModel(
+                    name=str(language_model.name),
+                    family=str(language_model.family),
+                    provider=str(language_model.provider),
+                ),
+                tool_display_names=tool_display_names,
+                references=len(reference_sources),
+                user_prompt_length=len(self._event.payload.user_message.text),
+                answer_length=len(self._last_assistant_text or ""),
+                loop_iteration_count=len(self._execution_times),
+                total_time_to_answer_ms=total_time_to_answer_ms,
+                artifacts=self._generated_files_info,
+            )
 
             # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
             if "DeepResearch" not in tool_names:
@@ -332,15 +418,29 @@ class UniqueAI:
                     **self._debug_info_manager.get(),
                 }
                 await self._chat_service.update_debug_info_async(debug_info=debug_info)
-
-            if not self._chat_service.cancellation.is_cancelled:
-                if self._config.agent.input_token_distribution.enable_tool_call_persistence:
-                    await self._persist_tool_calls()
-                await self._chat_service.modify_assistant_message_async(
-                    set_completed_at=not self._tool_took_control,
-                )
         finally:
             sub.cancel()
+
+    @staticmethod
+    def _calculate_total_time_to_answer_ms(
+        user_message_created_at: str,
+        assistant_completed_at: datetime | None,
+    ) -> int | None:
+        if assistant_completed_at is None:
+            return None
+
+        try:
+            user_created_at = datetime.fromisoformat(user_message_created_at)
+        except (ValueError, TypeError):
+            # ValueError: malformed timestamp; TypeError: created_at not a str.
+            return None
+
+        if user_created_at.tzinfo is None:
+            user_created_at = user_created_at.replace(tzinfo=timezone.utc)
+        if assistant_completed_at.tzinfo is None:
+            assistant_completed_at = assistant_completed_at.replace(tzinfo=timezone.utc)
+
+        return round((assistant_completed_at - user_created_at).total_seconds() * 1000)
 
     def _record_loop_debug_params(self, other_options: dict) -> None:
         reasoning = other_options.get("reasoning")
@@ -642,13 +742,24 @@ class UniqueAI:
             loop_response.model_copy(deep=True),
         )
 
-        _, evaluation_results = await asyncio.gather(
+        postprocessor_result, evaluation_results = await asyncio.gather(
             postprocessor_result,
             evaluation_results,
         )
-
+        postprocessor_outputs = postprocessor_result.unpack() or {}
+        # run_postprocessors erases each postprocessor's return type to
+        # `object | None` (generic channel), so re-narrow the one we own.
+        self._generated_files_info = cast(
+            "ArtifactsDebugInfo | None",
+            postprocessor_outputs.get(
+                DisplayCodeInterpreterFilesPostProcessor.__name__
+            ),
+        )
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()
+        )
+        self._invocation_stats.extend(
+            self._postprocessor_manager.get_invocation_stats()
         )
 
         evaluation_times = self._evaluation_manager.get_execution_times()
@@ -657,6 +768,7 @@ class UniqueAI:
             self._current_loop_timing["evaluation"][name_str] = evaluation_times.get(
                 name_str, 0
             )
+        self._invocation_stats.extend(self._evaluation_manager.get_invocation_stats())
 
         if evaluation_results.success and not all(
             result.is_positive for result in evaluation_results.unpack()
@@ -701,7 +813,12 @@ class UniqueAI:
         # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
         # redundant and noisy to also list it here.
 
-        tool_names_not_to_log: set[str] = {"DeepResearch", "Skill", "AskUser"}
+        tool_names_not_to_log: set[str] = {
+            "DeepResearch",
+            "Skill",
+            "AskUser",
+            "ActivatePython",
+        }
 
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:
@@ -758,6 +875,9 @@ class UniqueAI:
             tool_calls
         )
         execution_total = round(time.perf_counter() - execution_start, 3)
+
+        for response in tool_call_responses:
+            self._invocation_stats.extend(response.invocation_stats)
 
         tool_times: dict[str, float] = {}
         for response in tool_call_responses:

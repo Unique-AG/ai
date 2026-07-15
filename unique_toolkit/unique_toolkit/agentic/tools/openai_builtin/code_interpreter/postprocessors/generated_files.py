@@ -5,7 +5,7 @@ import re
 import time
 from dataclasses import dataclass
 from mimetypes import guess_type
-from typing import NamedTuple, override
+from typing import NamedTuple, TypedDict, override
 
 import httpx
 from openai import AsyncOpenAI
@@ -44,6 +44,18 @@ from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 logger = logging.getLogger(__name__)
+
+
+class ArtifactsDebugInfo(TypedDict):
+    """This turn's successfully-created artifacts, for analytics.
+
+    Feeds analytics.artifacts_created_count / artifacts_created_filetype. The
+    postprocessor returns this to the orchestrator, which owns the
+    ``DebugInfoManager`` and records it.
+    """
+
+    count: int
+    filetypes: list[str]
 
 
 class _ChatLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
@@ -382,7 +394,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
         )
 
     @override
-    async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
+    async def run(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> ArtifactsDebugInfo | None:
         run_t0 = time.monotonic()
         self._log.info("run() started — fetching and uploading code interpreter files")
 
@@ -478,6 +492,39 @@ class DisplayCodeInterpreterFilesPostProcessor(
             load_ms,
             download_upload_ms,
             save_ms,
+        )
+
+        return self._compute_artifacts_debug_info(loop_response)
+
+    def _compute_artifacts_debug_info(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> ArtifactsDebugInfo | None:
+        """Compute this turn's successfully-created artifacts.
+
+        Feeds analytics.artifacts_created_count / artifacts_created_filetype.
+
+        Returns ``None`` when the Code Interpreter did not execute this turn
+        (``code_interpreter_calls`` empty). The postprocessor is registered
+        whenever the tool is *enabled*, so ``run()`` also fires on turns where the
+        model never invoked it — returning ``None`` there keeps analytics.artifacts_*
+        as null ("did not run") rather than 0/[] ("ran, created nothing"). When it
+        did run, count is scoped to this response's ``container_files`` (not
+        ``self._content_map``, which also holds prior-message files from short-term
+        memory), successful uploads only, with a deduped, sorted set of file
+        extensions.
+        """
+        # Interpreter did not run this turn → leave artifacts null, not 0/[].
+        if not loop_response.code_interpreter_calls:
+            return None
+
+        created_filenames = {
+            cf.filename
+            for cf in loop_response.container_files
+            if self._content_map.get(cf.filename) is not None
+        }
+        return ArtifactsDebugInfo(
+            count=len(created_filenames),
+            filetypes=sorted({_artifact_filetype(name) for name in created_filenames}),
         )
 
     @override
@@ -922,6 +969,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
             len(content_infos),
             (time.monotonic() - t0) * 1000,
         )
+
+
+def _artifact_filetype(filename: str) -> str:
+    """Lower-cased file extension for analytics, e.g. 'chart.png' -> 'png'.
+
+    Returns '' for an extensionless filename.
+    """
+    return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
 
 def _get_file_type(filename: str) -> CodeInterpreterFileType:

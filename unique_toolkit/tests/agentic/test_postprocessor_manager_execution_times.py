@@ -150,3 +150,34 @@ class TestPostprocessorManagerExecutionTimes:
         )
 
         mock_postprocessor.run.assert_called_once_with(mock_loop_response)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_execute_postprocessors_returns_run_result(
+        self, manager, mock_postprocessor
+    ) -> None:
+        mock_loop_response = MagicMock()
+        expected = {"count": 1, "filetypes": ["csv"]}
+        mock_postprocessor.run.return_value = expected
+
+        result = await manager.execute_postprocessors(
+            loop_response=mock_loop_response,
+            postprocessor_instance=mock_postprocessor,
+        )
+
+        assert result == expected
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run_postprocessors_returns_results_by_name(
+        self, manager, mock_postprocessor
+    ) -> None:
+        expected = {"count": 1, "filetypes": ["csv"]}
+        mock_postprocessor.get_name.return_value = "source_handler"
+        mock_postprocessor.run.return_value = expected
+        mock_postprocessor.apply_postprocessing_to_response.return_value = False
+        manager.add_postprocessor(mock_postprocessor)
+
+        outputs = await manager.run_postprocessors(MagicMock())
+
+        assert outputs == {"source_handler": expected}

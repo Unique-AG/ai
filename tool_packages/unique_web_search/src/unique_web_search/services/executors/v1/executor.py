@@ -299,7 +299,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         return search_results
 
     async def _crawl(self, web_search_results: list[WebSearchResult]) -> list[str]:
-        crawler = self.crawler_service.config.crawler_type.value
+        crawler = self.crawler_service.config.crawler.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
         with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
@@ -315,7 +315,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
             StepDebugInfo(
                 step_name="crawl",
                 execution_time=delta_time,
-                config=self.crawler_service.config.crawler_type.name,
+                config=self.crawler_service.config.crawler.name,
                 extra={
                     "number_of_results": len(web_search_results),
                     "contents": [result.model_dump() for result in web_search_results],

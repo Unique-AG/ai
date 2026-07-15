@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from unique_web_search.service import WebSearchTool
+from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
@@ -34,7 +35,9 @@ class TestWebSearchToolDescription:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.tool_parameter_calls = None  # type: ignore
+        tool.search_engine_service = Mock()
 
         result = tool.tool_description()
 
@@ -68,6 +71,7 @@ class TestWebSearchToolDescription:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.tool_parameter_calls = None  # type: ignore
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
@@ -107,6 +111,8 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.search_engine_service = Mock()
 
         result: str = tool.tool_description_for_system_prompt()
 
@@ -137,6 +143,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -154,13 +161,15 @@ class TestWebSearchToolDescriptionForSystemPrompt:
     ) -> None:
         """
         Purpose: Verify legacy V2 prompts using the pre-Jinja ``$max_steps``
-        placeholder still get max_steps substituted after the move to
-        Jinja-based rendering.
+        placeholder still get max_steps substituted after config validation
+        rewrites them to Jinja syntax.
         Why this matters: V2 prompts persisted in the database before the
         Jinja migration must keep working without manual config updates.
-        Setup summary: Mock V2 config with the legacy ``$max_steps`` syntax.
+        Setup summary: Real WebSearchV2Config with the legacy ``$max_steps`` syntax.
         """
         from unique_search_proxy_core.search_engines import SearchEngineType
+
+        from unique_web_search.services.executors.v2.config import WebSearchV2Config
 
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
@@ -170,11 +179,18 @@ class TestWebSearchToolDescriptionForSystemPrompt:
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
 
-        mock_web_search_config_v2.web_search_mode_config.tool_description_for_system_prompt = "Legacy V2 system prompt — must not exceed $max_steps steps."
+        mode_config = WebSearchV2Config(
+            tool_description_for_system_prompt=(
+                "Legacy V2 system prompt — must not exceed $max_steps steps."
+            ),
+            max_steps=5,
+        )
+        mock_web_search_config_v2.web_search_mode_config = mode_config
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -209,6 +225,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         mock_engine = Mock()
         mock_engine.config.engine = SearchEngineType.GOOGLE
         tool.search_engine_service = mock_engine
@@ -245,6 +262,7 @@ class TestWebSearchToolFormatInformation:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
 
         result: str = tool.tool_format_information_for_system_prompt()
 
@@ -272,6 +290,7 @@ class TestWebSearchToolFormatInformation:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
 
         result: str = tool.tool_format_information_for_system_prompt()
 
@@ -306,6 +325,7 @@ class TestWebSearchToolEvaluationCheckList:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
 
         result: list = tool.evaluation_check_list()
 
@@ -350,6 +370,7 @@ class TestWebSearchToolGetExecutor:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.search_engine_service = Mock()
         tool._language_model_service = Mock()
         tool.crawler_service = Mock()
@@ -410,6 +431,7 @@ class TestWebSearchToolGetExecutor:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.search_engine_service = Mock()
         tool._language_model_service = Mock()
         tool.crawler_service = Mock()
@@ -434,62 +456,6 @@ class TestWebSearchToolGetExecutor:
         )
 
         assert isinstance(result, WebSearchV1Executor)
-
-    @pytest.mark.ai
-    def test_get_executor__raises_value_error__when_parameters_is_invalid(
-        self,
-        mock_web_search_config_v1: Mock,
-        mocker: Any,
-    ) -> None:
-        """
-        Purpose: Verify _get_executor raises ValueError for invalid parameters type.
-        Why this matters: Ensures type safety and proper error handling.
-        Setup summary: Mock WebSearchTool with invalid parameters type.
-        """
-        mocker.patch("unique_web_search.service.get_search_engine_service")
-        mocker.patch("unique_web_search.service.get_crawler_service")
-        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
-        mocker.patch("unique_web_search.service.ContentProcessor")
-
-        # Mock QueryElicitationService
-        mock_elicitation_service = Mock()
-        mocker.patch(
-            "unique_web_search.service.QueryElicitationService",
-            return_value=mock_elicitation_service,
-        )
-
-        mocker.patch.object(
-            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
-        )
-
-        tool = WebSearchTool.__new__(WebSearchTool)
-        tool.config = mock_web_search_config_v1
-        tool.exposed_params_cls = None
-        tool._chat_service = Mock()
-        tool._display_name = "Web Search"
-        tool.settings = Mock()
-        tool.settings.display_name = "Web Search"
-        tool.search_engine_service = Mock()
-        tool._language_model_service = Mock()
-        tool.crawler_service = Mock()
-        tool.company_id = "test-company"
-        tool.content_processor = Mock()
-        tool.chunk_relevancy_sorter = Mock()
-        tool.content_reducer = Mock()
-        tool._tool_progress_reporter = None
-
-        tool_call = Mock()
-        parameters = "invalid"  # type: ignore
-        debug_info = Mock()
-        web_search_message_logger = Mock()
-
-        with pytest.raises(ValueError) as exc_info:
-            tool._get_executor(
-                tool_call, parameters, debug_info, web_search_message_logger
-            )  # type: ignore
-
-        assert isinstance(exc_info.value, ValueError)
-        assert "Invalid parameters" in str(exc_info.value)
 
 
 class TestWebSearchToolPrepareMessageLogsEntries:
@@ -540,6 +506,7 @@ class TestWebSearchToolGetEvaluationChecksBasedOnToolResponse:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
 
         tool_response = Mock()
         tool_response.content_chunks = []
@@ -572,6 +539,7 @@ class TestWebSearchToolGetEvaluationChecksBasedOnToolResponse:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
 
         tool_response = Mock()
         tool_response.content_chunks = sample_content_chunks
@@ -637,6 +605,7 @@ class TestWebSearchToolRun:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -732,6 +701,7 @@ class TestWebSearchToolRun:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -809,6 +779,7 @@ class TestWebSearchToolRun:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.tool_parameter_calls = WebSearchV3ToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -885,6 +856,7 @@ class TestWebSearchToolRun:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
@@ -970,6 +942,7 @@ class TestWebSearchToolRun:
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v1
         tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
         tool.tool_parameter_calls = WebSearchToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()

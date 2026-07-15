@@ -77,7 +77,7 @@ unique-cli mcp [--chat-id <id>] [--message-id <id>] [PAYLOAD | --file <path> | -
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
 | `--chat-id` | `-c` | Yes | Chat ID for the conversation context |
-| `--message-id` | `-m` | Yes | Message ID for the conversation context |
+| `--message-id` | `-m` | No | Message ID for the conversation context. Optional — resolved from `$UNIQUE_TURN_IDENTITY_FILE` (preferred) or `$UNIQUE_MESSAGE_ID` when omitted. |
 | `PAYLOAD` | | One of three | Inline JSON string |
 | `--file` | `-f` | One of three | Path to a JSON file |
 | `--stdin` | | One of three | Read JSON from stdin |

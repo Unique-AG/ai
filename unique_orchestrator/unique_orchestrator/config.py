@@ -348,6 +348,11 @@ class HistoryConfig(BaseToolConfig):
         description="Persist tool calls and reconstruct tool call history across turns.",
     )
 
+    serialize_uploaded_files_in_user_message: bool = Field(
+        default=False,
+        description="Include an indication of each uploaded file in the user message.",
+    )
+
     def max_history_tokens(self, max_input_token: int) -> int:
         return int(self.percent_for_history * max_input_token)
 
@@ -541,20 +546,27 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
-    def enable_responses_api_for_gpt_55_and_gpt_55_pro(self) -> "UniqueAIConfig":
-        """Auto-enable the Responses API for GPT-5.5 (AZURE_GPT_55_2026_0424) and GPT-5.5-Pro (AZURE_GPT_55_PRO_2026_0424).
+    def enable_responses_api_for_gpt_55_and_gpt_56_models(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API for GPT-5.5 and GPT-5.6 models.
 
-        TEMP FIX: gpt-5.5-2026-04-24 and gpt-5.5-pro-2026-04-24 reject requests that combine `tools` with
-        `reasoning_effort` on /v1/chat/completions and demands /v1/responses.
+        TEMP FIX: GPT-5.5 and GPT-5.6 reject requests that combine `tools` with
+        `reasoning_effort` on /v1/chat/completions and demand /v1/responses.
         Forcing the Responses API here avoids the OpenAI 400 error until the
         runner can pick the right transport based on model capabilities.
         Tracked in Jira: UN-20123.
         """
-        if (
-            self.space.language_model.name == LanguageModelName.AZURE_GPT_55_2026_0424
-            or self.space.language_model.name
-            == LanguageModelName.AZURE_GPT_55_PRO_2026_0424
-        ):
+        if self.space.language_model.name in {
+            LanguageModelName.AZURE_GPT_55_2026_0424,
+            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+            LanguageModelName.AZURE_GPT_56_SOL_2026_0709,
+            LanguageModelName.AZURE_GPT_56_TERRA_2026_0709,
+            LanguageModelName.AZURE_GPT_56_LUNA_2026_0709,
+            LanguageModelName.LITELLM_OPENAI_GPT_55,
+            LanguageModelName.LITELLM_OPENAI_GPT_55_PRO,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_SOL,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_TERRA,
+            LanguageModelName.LITELLM_OPENAI_GPT_56_LUNA,
+        }:
             self.agent.experimental.responses_api_config.use_responses_api = True
         return self
 

@@ -1,104 +1,57 @@
-import operator
-from functools import reduce
-from typing import TypeAlias
+from pydantic import BaseModel
+from unique_search_proxy_core.crawlers import CrawlerType
+from unique_search_proxy_core.crawlers.firecrawl.schema import FirecrawlConfig
+from unique_search_proxy_core.crawlers.jina.schema import JinaConfig
+from unique_search_proxy_core.crawlers.tavily.schema import TavilyConfig
 
-from unique_web_search.services.crawlers.base import (
-    CrawlerType,
+from unique_web_search.services.crawlers.base import BaseCrawler
+from unique_web_search.services.crawlers.registry import (
+    CRAWLER_REGISTRY,
+    get_crawler_service,
 )
-from unique_web_search.services.crawlers.basic import (
+
+CRAWLER_REGISTRY.autodiscover(
+    __path__,
+    __name__,
+    exclude=frozenset({"url_safety", "utils", "registry"}),
+)
+
+from unique_web_search.services.crawlers.basic import (  # noqa: E402
+    BasicConfig,
     BasicCrawler,
-    BasicCrawlerConfig,
 )
-from unique_web_search.services.crawlers.crawl4ai import (
-    Crawl4AiCrawler,
-    Crawl4AiCrawlerConfig,
-)
-from unique_web_search.services.crawlers.firecrawl import (
+from unique_web_search.services.crawlers.firecrawl import (  # noqa: E402
     FirecrawlCrawler,
-    FirecrawlCrawlerConfig,
 )
-from unique_web_search.services.crawlers.jina import (
-    JinaCrawler,
-    JinaCrawlerConfig,
-)
-from unique_web_search.services.crawlers.tavily import (
-    TavilyCrawler,
-    TavilyCrawlerConfig,
-)
+from unique_web_search.services.crawlers.jina import JinaCrawler  # noqa: E402
+from unique_web_search.services.crawlers.tavily import TavilyCrawler  # noqa: E402
 
-CrawlerTypes = (
-    BasicCrawler | Crawl4AiCrawler | FirecrawlCrawler | JinaCrawler | TavilyCrawler
-)
+CrawlerTypes = BasicCrawler | FirecrawlCrawler | JinaCrawler | TavilyCrawler
 
-CrawlerConfigTypes = (
-    BasicCrawlerConfig
-    | Crawl4AiCrawlerConfig
-    | FirecrawlCrawlerConfig
-    | JinaCrawlerConfig
-    | TavilyCrawlerConfig
-)
+CrawlerConfigTypes = BasicConfig | FirecrawlConfig | JinaConfig | TavilyConfig
 
-CRAWLER_NAME_TO_CONFIG = {
-    "basic": BasicCrawlerConfig,
-    "crawl4ai": Crawl4AiCrawlerConfig,
-    "firecrawl": FirecrawlCrawlerConfig,
-    "jina": JinaCrawlerConfig,
-    "tavily": TavilyCrawlerConfig,
-}
+CRAWLER_NAME_TO_CONFIG = CRAWLER_REGISTRY.name_to_config()
 
 
-def get_crawler_service(
-    crawler_config: CrawlerConfigTypes,
-):
-    match crawler_config.crawler_type:
-        case CrawlerType.BASIC:
-            return BasicCrawler(crawler_config)
-        case CrawlerType.CRAWL4AI:
-            return Crawl4AiCrawler(crawler_config)
-        case CrawlerType.TAVILY:
-            return TavilyCrawler(crawler_config)
-        case CrawlerType.FIRECRAWL:
-            return FirecrawlCrawler(crawler_config)
-        case CrawlerType.JINA:
-            return JinaCrawler(crawler_config)
+def get_crawler_config_types_from_names(crawler_names: list[str]) -> type[BaseModel]:
+    return CRAWLER_REGISTRY.config_types_from_names(crawler_names)
 
 
-def get_crawler_config_types_from_names(crawler_names: list[str]) -> TypeAlias:
-    assert len(crawler_names) >= 1, "At least one crawler must be active"
-
-    selected_types = [
-        CRAWLER_NAME_TO_CONFIG[name.lower()]
-        for name in crawler_names
-        if name.lower() in CRAWLER_NAME_TO_CONFIG
-    ]
-    if not selected_types:
-        raise ValueError(f"No crawler config found for names: {crawler_names}")
-    if len(selected_types) == 1:
-        return selected_types[0]
-    # Use reduce to create Union[Type1, Type2, Type3, ...]
-    return reduce(operator.or_, selected_types)
-
-
-def get_default_crawler_config(
-    crawler_names: list[str],
-) -> CrawlerConfigTypes:
-    assert len(crawler_names) >= 1, "At least one crawler must be active"
-
-    return CRAWLER_NAME_TO_CONFIG[crawler_names[0]]
+def get_default_crawler_config(crawler_names: list[str]) -> type[BaseModel]:
+    return CRAWLER_REGISTRY.default_config(crawler_names)
 
 
 __all__ = [
     "BasicCrawler",
-    "BasicCrawlerConfig",
-    "Crawl4AiCrawler",
-    "Crawl4AiCrawlerConfig",
+    "BasicConfig",
     "FirecrawlCrawler",
-    "FirecrawlCrawlerConfig",
+    "FirecrawlConfig",
     "JinaCrawler",
-    "JinaCrawlerConfig",
+    "JinaConfig",
     "TavilyCrawler",
-    "TavilyCrawlerConfig",
+    "TavilyConfig",
     "CrawlerType",
+    "BaseCrawler",
     "get_crawler_service",
     "CrawlerConfigTypes",
     "CrawlerTypes",

@@ -1,7 +1,13 @@
 import pytest
 from pydantic import ValidationError
+from unique_search_proxy_core.crawlers.base import CrawlerType
+from unique_search_proxy_core.crawlers.basic.schema import (
+    BasicConfig as _CoreBasicConfig,
+)
 from unique_search_proxy_core.search_engines import SearchEngineType
-from unique_search_proxy_core.search_engines.google.schema import GoogleConfig
+from unique_search_proxy_core.search_engines.google.schema import (
+    GoogleConfig as _CoreGoogleConfig,
+)
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -21,8 +27,7 @@ from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
 )
 from unique_web_search.services.argument_screening import ArgumentScreeningConfig
-from unique_web_search.services.crawlers.base import CrawlerType
-from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
+from unique_web_search.services.crawlers.registry import CRAWLER_REGISTRY
 from unique_web_search.services.executors.base_config import WebSearchMode
 from unique_web_search.services.executors.v1.config import (
     QueryRefinementConfig,
@@ -31,6 +36,13 @@ from unique_web_search.services.executors.v1.config import (
 )
 from unique_web_search.services.executors.v2.config import WebSearchV2Config
 from unique_web_search.services.executors.v3.config import WebSearchV3Config
+from unique_web_search.services.search_engine.registry import SEARCH_ENGINE_REGISTRY
+
+# ActivatedSearchEngine / ActivatedCrawler use the registry's titled subclass.
+GoogleConfig = SEARCH_ENGINE_REGISTRY[SearchEngineType.GOOGLE].config_cls
+assert issubclass(GoogleConfig, _CoreGoogleConfig)
+BasicConfig = CRAWLER_REGISTRY[CrawlerType.BASIC].config_cls
+assert issubclass(BasicConfig, _CoreBasicConfig)
 
 
 class TestQueryElicitationConfig:
@@ -177,6 +189,19 @@ class TestWebSearchV2Config:
             == "Custom system prompt description"
         )
 
+    def test_web_search_v2_config_migrates_legacy_max_steps_placeholder(self):
+        """Legacy ``$max_steps`` is rewritten to Jinja at config validation time."""
+        config = WebSearchV2Config(
+            tool_description_for_system_prompt=(
+                "Do not exceed $max_steps research steps."
+            ),
+        )
+        assert (
+            config.tool_description_for_system_prompt
+            == "Do not exceed {{ max_steps }} research steps."
+        )
+        assert "$max_steps" not in config.tool_description_for_system_prompt
+
     def test_web_search_v2_config_mode_validator_with_beta_suffix(self):
         """Test WebSearchV2Config mode validator handles 'v2 (beta)' string."""
         config = WebSearchV2Config(mode="v2 (beta)")
@@ -302,14 +327,14 @@ class TestWebSearchConfig:
         assert config.limit_token_sources == 60_000
         assert config.percentage_of_input_tokens_for_sources == 0.4
         assert config.language_model_max_input_tokens is None
-        assert isinstance(config.crawler_config, BasicCrawlerConfig)
+        assert isinstance(config.crawler_config, BasicConfig)
         assert config.debug is False
 
     def test_web_search_config_custom_values(self, mock_language_model_info):
         """Test WebSearchConfig with custom values."""
         search_engine_config = GoogleConfig()
 
-        crawler_config = BasicCrawlerConfig(crawler_type=CrawlerType.BASIC, timeout=60)
+        crawler_config = BasicConfig(crawler=CrawlerType.BASIC, timeout=60)
 
         config = WebSearchConfig(
             language_model=mock_language_model_info,
@@ -592,8 +617,8 @@ class TestWebSearchConfig:
             web_search_active_mode=WebSearchMode.V1,
             web_search_mode_config_v1=v1_config,
             search_engine_config=GoogleConfig(),
-            crawler_config=BasicCrawlerConfig(
-                crawler_type=CrawlerType.BASIC,
+            crawler_config=BasicConfig(
+                crawler=CrawlerType.BASIC,
                 timeout=45,
             ),
             evaluation_check_list=[EvaluationMetricName.HALLUCINATION],
@@ -605,7 +630,7 @@ class TestWebSearchConfig:
         assert config.percentage_of_input_tokens_for_sources == 0.35
         assert config.language_model_max_input_tokens == 120_000
         assert config.search_engine_config.engine == SearchEngineType.GOOGLE
-        assert config.crawler_config.crawler_type == CrawlerType.BASIC
+        assert config.crawler_config.crawler == CrawlerType.BASIC
         assert config.crawler_config.timeout == 45
         assert EvaluationMetricName.HALLUCINATION in config.evaluation_check_list
         assert config.web_search_mode_config.mode == WebSearchMode.V1
@@ -628,8 +653,8 @@ class TestWebSearchConfig:
             web_search_active_mode=WebSearchMode.V2,
             web_search_mode_config_v2=v2_config,
             search_engine_config=GoogleConfig(),
-            crawler_config=BasicCrawlerConfig(
-                crawler_type=CrawlerType.BASIC,
+            crawler_config=BasicConfig(
+                crawler=CrawlerType.BASIC,
                 timeout=45,
             ),
             evaluation_check_list=[EvaluationMetricName.HALLUCINATION],

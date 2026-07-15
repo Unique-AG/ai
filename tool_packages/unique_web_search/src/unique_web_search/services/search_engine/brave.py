@@ -20,7 +20,7 @@ from unique_web_search.services.search_engine.schema import (
     key=SearchEngineType.BRAVE,
     config_cls=BraveConfig,
     mode=SearchEngineMode.STANDARD,
-    config_display_name="Brave Search",
+    config_display_name="Brave",
 )
 class BraveSearch(SearchEngine[BraveConfig]):
     def __init__(

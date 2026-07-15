@@ -1,14 +1,32 @@
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import Annotated, ClassVar, Literal, TypeAlias
 
 from pydantic import Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_search_proxy_core.crawlers.base import BaseCrawlerConfig, CrawlerType
+from unique_search_proxy_core.schema import DeactivatedNone
 
 JinaReturnFormat = Literal["markdown", "html", "text", "screenshot", "pageshot"]
 JinaEngine = Literal["auto", "browser", "direct", "cf-browser-rendering"]
 JinaRetainImages = Literal["none", "all", "alt", "all_p", "alt_p"]
+
+StrOrNone: TypeAlias = Annotated[str, Field(title="String")] | DeactivatedNone
+PageTimeoutOrNone: TypeAlias = (
+    Annotated[int, Field(title="Integer", ge=1, le=180)] | DeactivatedNone
+)
+CssSelectorListOrNone: TypeAlias = (
+    Annotated[
+        list[str],
+        Field(title="CSS Selectors"),
+        RJSFMetaTag({"ui:options": {"orderable": False}}),
+    ]
+    | DeactivatedNone
+)
+RetainImagesOrNone: TypeAlias = (
+    Annotated[JinaRetainImages, Field(title="Retain Images")] | DeactivatedNone
+)
 
 
 class JinaConfig(BaseCrawlerConfig[CrawlerType.JINA]):
@@ -16,7 +34,13 @@ class JinaConfig(BaseCrawlerConfig[CrawlerType.JINA]):
 
     _request_model_name: ClassVar[str] = "JinaCrawlRequest"
 
-    crawler: Literal[CrawlerType.JINA] = CrawlerType.JINA
+    crawler: Annotated[
+        Literal[CrawlerType.JINA], RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
+        default=CrawlerType.JINA,
+        title="Crawler",
+        description="Provider discriminator; must be `Jina` for this config.",
+    )
 
     return_format: JinaReturnFormat = Field(
         default="markdown",
@@ -34,10 +58,8 @@ class JinaConfig(BaseCrawlerConfig[CrawlerType.JINA]):
             "`cf-browser-rendering` for JS-heavy sites."
         ),
     )
-    page_timeout: int | None = Field(
+    page_timeout: PageTimeoutOrNone = Field(
         default=None,
-        ge=1,
-        le=180,
         title="Page load timeout",
         description=(
             "Max seconds to wait for the page to load (Jina Reader). "
@@ -56,17 +78,17 @@ class JinaConfig(BaseCrawlerConfig[CrawlerType.JINA]):
         title="Bypass cache",
         description="Bypass Jina cache and fetch fresh content.",
     )
-    target_selector: list[str] | None = Field(
+    target_selector: CssSelectorListOrNone = Field(
         default=None,
         title="Target selector",
         description="CSS selectors to focus extraction on specific page elements.",
     )
-    wait_for_selector: list[str] | None = Field(
+    wait_for_selector: CssSelectorListOrNone = Field(
         default=None,
         title="Wait for selector",
         description="CSS selectors to wait for before returning content.",
     )
-    remove_selector: list[str] | None = Field(
+    remove_selector: CssSelectorListOrNone = Field(
         default=None,
         title="Remove selector",
         description="CSS selectors for page regions to strip (headers, footers, etc.).",
@@ -91,22 +113,22 @@ class JinaConfig(BaseCrawlerConfig[CrawlerType.JINA]):
         title="Include iframes",
         description="Include iframe content in the reader response.",
     )
-    retain_images: JinaRetainImages | None = Field(
+    retain_images: RetainImagesOrNone = Field(
         default=None,
         title="Retain images",
         description="Control which images are retained in markdown output.",
     )
-    locale: str | None = Field(
+    locale: StrOrNone = Field(
         default=None,
         title="Locale",
         description="Browser locale used to render the page (e.g. `en-US`).",
     )
-    referer: str | None = Field(
+    referer: StrOrNone = Field(
         default=None,
         title="Referer",
         description="Referer header sent when fetching the target URL.",
     )
-    proxy_url: str | None = Field(
+    proxy_url: StrOrNone = Field(
         default=None,
         title="Proxy URL",
         description="Proxy URL used by Jina Reader to access the target page.",
