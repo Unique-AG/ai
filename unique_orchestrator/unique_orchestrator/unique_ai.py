@@ -229,6 +229,10 @@ class UniqueAI:
 
         self._execution_times = []
         self._loop_debug_params = []
+        # Reset per-run artifact analytics too: a later run that exits without
+        # reaching _handle_no_tool_calls (tool takes control / empty response /
+        # cancellation) must not report the previous run's artifacts.
+        self._generated_files_info = None
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
