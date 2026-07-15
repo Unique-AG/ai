@@ -6,6 +6,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder import
     CodeInterpreterBuilder,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors import (
+    ArtifactsDebugInfo,
     DisplayCodeInterpreterFilesPostProcessor,
     DisplayCodeInterpreterFilesPostProcessorConfig,
     ShowExecutedCodePostprocessor,
@@ -26,4 +27,5 @@ __all__ = [
     "ShowExecutedCodePostprocessorConfig",
     "DisplayCodeInterpreterFilesPostProcessor",
     "DisplayCodeInterpreterFilesPostProcessorConfig",
+    "ArtifactsDebugInfo",
 ]

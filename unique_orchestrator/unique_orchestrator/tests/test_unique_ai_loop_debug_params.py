@@ -480,6 +480,34 @@ class TestRunLoopDebugParams:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__generated_files_info__reset_at_start_prevents_stale_artifacts(
+        self, monkeypatch
+    ) -> None:
+        """
+        Purpose: Verify run() resets _generated_files_info at the start, so a rerun
+        that exits without reaching _handle_no_tool_calls does not report the previous
+        run's artifacts.
+        Why this matters: _generated_files_info persists on the UniqueAI instance;
+        without a reset it leaks a prior run's artifact count/filetypes into the
+        current answer's analytics (Cursor bot, UN-22110).
+        Setup summary: Seed a stale value, force an early loop exit via _process_plan
+        returning True (a tool took control — _handle_no_tool_calls never runs), and
+        assert add_analytics received artifacts=None.
+        """
+        ua = self._build_run_ua(monkeypatch)
+        # Leftover from a hypothetical previous run on the same instance.
+        ua._generated_files_info = {"count": 99, "filetypes": ["stale"]}
+        # Exit the loop as if a tool took control: _handle_no_tool_calls (which sets
+        # _generated_files_info) is skipped, but finalization still calls add_analytics.
+        ua._process_plan = AsyncMock(return_value=True)  # type: ignore[method-assign]
+
+        await ua.run()
+
+        analytics_call = ua._debug_info_manager.add_analytics.call_args
+        assert analytics_call.kwargs["artifacts"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__loop_params__contains_one_entry_per_iteration(
         self, monkeypatch
     ) -> None:

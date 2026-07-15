@@ -2,6 +2,9 @@ from typing import Any, Required, TypedDict
 
 from unique_toolkit.agentic.tools.openai_builtin import OpenAICodeInterpreterTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    ArtifactsDebugInfo,
+)
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool_manager import ToolManager
 from unique_toolkit.language_model.schemas import (
@@ -55,7 +58,7 @@ class Analytics(TypedDict):
 
 class DebugInfoManager:
     def __init__(self):
-        self.debug_info = {"tools": []}
+        self.debug_info: dict[str, Any] = {"tools": []}
 
     def extract_tool_debug_info(
         self,
@@ -106,6 +109,7 @@ class DebugInfoManager:
         answer_length: int = 0,
         loop_iteration_count: int = 0,
         total_time_to_answer_ms: int | None = None,
+        artifacts: ArtifactsDebugInfo | None = None,
     ) -> None:
         """Add a stable 'analytics' snapshot for downstream ROI/usage reporting.
 
@@ -121,6 +125,10 @@ class DebugInfoManager:
             _to_analytics_tool_entry(tool, tool_display_names)
             for tool in self.debug_info.get("tools", [])
         ]
+        # Artifacts are recorded at the postprocessor seam (Code Interpreter's
+        # DisplayCodeInterpreterFilesPostProcessor) into debug_info["artifacts"].
+        # Absent when no Code Interpreter ran this turn → both fields stay None,
+        # preserving the always-present, null-when-unknown contract.
         analytics = Analytics(
             tools_used=analytics_tools,
             tool_call_count=len(analytics_tools),
@@ -140,10 +148,8 @@ class DebugInfoManager:
             subagent_names_used=_unique_tool_names(analytics_tools, "is_sub_agent"),
             mcp_tool_names_used=_unique_tool_names(analytics_tools, "is_mcp"),
             total_time_to_answer_ms=total_time_to_answer_ms,
-            # Reserved placeholders — schema present so consumers can rely on the
-            # keys, populated in a follow-up step (artifacts instrumentation).
-            artifacts_created_count=None,
-            artifacts_created_filetype=None,
+            artifacts_created_count=artifacts["count"] if artifacts else None,
+            artifacts_created_filetype=artifacts["filetypes"] if artifacts else None,
         )
         self.add("analytics", analytics)
 
