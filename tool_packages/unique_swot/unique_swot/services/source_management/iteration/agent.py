@@ -5,6 +5,7 @@ from jinja2 import Template
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.orchestrator.service import StepNotifier
 from unique_swot.services.source_management.iteration.config import (
@@ -14,6 +15,7 @@ from unique_swot.services.source_management.iteration.schema import (
     SourceIterationResults,
 )
 from unique_swot.utils import (
+    SWOT_SOURCE_ITERATION,
     generate_structured_output,
     generate_unique_id,
     get_content_chunk_title,
@@ -36,7 +38,11 @@ class SourceIterationAgent:
         self._content_map = {}
 
     async def iterate(
-        self, *, contents: list[Content], step_notifier: StepNotifier
+        self,
+        *,
+        contents: list[Content],
+        step_notifier: StepNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> AsyncIterator[Content]:
         system_prompt = self._compose_system_prompt(
             objective=self._source_iteration_config.prompt_config.objective
@@ -55,6 +61,8 @@ class SourceIterationAgent:
             llm=self._llm,
             llm_service=self._llm_service,
             output_model=SourceIterationResults,
+            invocation_stats=invocation_stats,
+            source=SWOT_SOURCE_ITERATION,
         )
 
         fallback_notification_message = (

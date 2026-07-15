@@ -18,6 +18,7 @@ from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessageRole,
 )
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelToolDescription
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
@@ -131,6 +132,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
         company_name = session_config.swot_analysis.company_listing.name
         progress_notifier = self._get_progress_notifier(company_name=company_name)
+        invocation_stats: list[LanguageModelInvocationStats] = []
 
         try:
             plan = SWOTPlan.model_validate(tool_call.arguments)
@@ -191,7 +193,9 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
             # Generate markdown report
-            result = await orchestrator.run(plan=plan)
+            result = await orchestrator.run(
+                plan=plan, invocation_stats=invocation_stats
+            )
 
             if result.is_empty():
                 await progress_notifier.finish()
@@ -204,6 +208,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                     name=self.name,
                     content="No SWOT analysis results found for the company. Please try again with a different company or configuration.",
                     content_chunks=[],
+                    invocation_stats=invocation_stats,
                 )
 
             await progress_notifier.update(progress=90)
@@ -222,7 +227,9 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
             summarization_result = await summarization_agent.summarize(
-                company_name=company_name, markdown_report=executive_summary
+                company_name=company_name,
+                markdown_report=executive_summary,
+                invocation_stats=invocation_stats,
             )
 
             report_handler.deliver_report(
@@ -243,6 +250,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 name=self.name,
                 content=summarization_result,
                 content_chunks=citation_manager.get_referenced_content_chunks(),
+                invocation_stats=invocation_stats,
             )
 
         except Exception as e:
@@ -257,6 +265,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
                 name=self.name,
                 content=f"Error running SWOT plan: {e}",
                 content_chunks=[],
+                invocation_stats=invocation_stats,
             )
 
         finally:

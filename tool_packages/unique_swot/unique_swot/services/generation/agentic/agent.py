@@ -7,6 +7,7 @@ from tqdm.asyncio import tqdm
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.generation.agentic.config import AgenticGeneratorConfig
 from unique_swot.services.generation.agentic.exceptions import (
@@ -85,6 +86,7 @@ class GenerationAgent:
         source_registry: SourceRegistry,
         step_notifier: StepNotifier,
         progress_notifier: ProgressNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> SWOTReportComponents:
         match self._generation_mode:
             case GenerationMode.INTERLEAVED:
@@ -96,6 +98,7 @@ class GenerationAgent:
                     source_registry=source_registry,
                     step_notifier=step_notifier,
                     progress_notifier=progress_notifier,
+                    invocation_stats=invocation_stats,
                 )
             case GenerationMode.EXTRACT_FIRST:
                 return await self._generate_extract_first(
@@ -106,6 +109,7 @@ class GenerationAgent:
                     source_registry=source_registry,
                     step_notifier=step_notifier,
                     progress_notifier=progress_notifier,
+                    invocation_stats=invocation_stats,
                 )
             case _:
                 raise ValueError(
@@ -126,6 +130,7 @@ class GenerationAgent:
         source_registry: SourceRegistry,
         step_notifier: StepNotifier,
         progress_notifier: ProgressNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> SWOTReportComponents:
         step_size, progress_sequence = create_progress_sequence(
             start=10, stop=80, steps=total_steps
@@ -143,6 +148,7 @@ class GenerationAgent:
                 company_name=self._company_name,
                 content=content,
                 step_notifier=step_notifier,
+                invocation_stats=invocation_stats,
             )
 
             if not source_selection_result.should_select:
@@ -157,6 +163,7 @@ class GenerationAgent:
                 step_notifier=step_notifier,
                 source_registry=source_registry,
                 progress_notifier=progress_notifier,
+                invocation_stats=invocation_stats,
             )
 
         return self._get_swot_report_components()
@@ -175,6 +182,7 @@ class GenerationAgent:
         source_registry: SourceRegistry,
         step_notifier: StepNotifier,
         progress_notifier: ProgressNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> SWOTReportComponents:
         step_size, progress_sequence = create_progress_sequence(
             start=10, stop=60, steps=total_steps
@@ -194,6 +202,7 @@ class GenerationAgent:
                 company_name=self._company_name,
                 content=content,
                 step_notifier=step_notifier,
+                invocation_stats=invocation_stats,
             )
 
             if not source_selection_result.should_select:
@@ -257,6 +266,7 @@ class GenerationAgent:
                             notification_title=self.notification_title,
                             prompts_config=self._config.prompts_config.extraction_prompt_config,
                             component_definition_prompt_config=self._config.prompts_config.definition_prompt_config,
+                            invocation_stats=invocation_stats,
                         )
                         accumulated_facts[component].extend(facts)
                     except FailedToExtractFactsException:
@@ -313,6 +323,7 @@ class GenerationAgent:
                 swot_report_registry=self._swot_report_registry,
                 executor=self._executor,
                 config=self._config,
+                invocation_stats=invocation_stats,
             )
 
             await progress_notifier.increment(
@@ -336,6 +347,7 @@ class GenerationAgent:
         plan: SWOTPlan,
         step_notifier: StepNotifier,
         progress_notifier: ProgressNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ):
         _LOGGER.info("Starting SWOT Analysis generation Agent")
         # Prepare the source splits
@@ -399,6 +411,7 @@ class GenerationAgent:
                             swot_report_registry=self._swot_report_registry,
                             executor=self._executor,
                             config=self._config,
+                            invocation_stats=invocation_stats,
                         )
                     case SWOTOperation.MODIFY:
                         _LOGGER.warning(
@@ -415,6 +428,7 @@ class GenerationAgent:
                             swot_report_registry=self._swot_report_registry,
                             executor=self._executor,
                             config=self._config,
+                            invocation_stats=invocation_stats,
                         )
                     case SWOTOperation.NOT_REQUESTED:
                         continue

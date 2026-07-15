@@ -79,7 +79,7 @@ def _make_source_iterator():
         for content in contents:
             yield content
 
-    async def _iterate(contents, step_notifier):
+    async def _iterate(contents, step_notifier, invocation_stats=None):
         return _iterate_impl(contents, step_notifier)
 
     source_iterator.iterate = _iterate

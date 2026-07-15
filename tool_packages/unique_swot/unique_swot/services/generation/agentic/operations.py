@@ -5,6 +5,7 @@ from typing import Any, Sequence
 from jinja2 import Template
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.generation.agentic.commands import (
     create_new_section,
@@ -39,7 +40,11 @@ from unique_swot.services.generation.models.plan import (
 )
 from unique_swot.services.generation.models.registry import SWOTReportRegistry
 from unique_swot.services.orchestrator.service import StepNotifier
-from unique_swot.utils import generate_structured_output, generate_unique_id
+from unique_swot.utils import (
+    SWOT_GENERATION,
+    generate_structured_output,
+    generate_unique_id,
+)
 
 _LOGGER = getLogger(__name__)
 
@@ -56,6 +61,7 @@ async def handle_generate_operation(
     swot_report_registry: SWOTReportRegistry,
     executor: AgenticPlanExecutor,
     config: AgenticGeneratorConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> None:
     try:
         # Extract the items for the component
@@ -69,6 +75,7 @@ async def handle_generate_operation(
             notification_title=notification_title,
             prompts_config=config.prompts_config.extraction_prompt_config,
             component_definition_prompt_config=config.prompts_config.definition_prompt_config,
+            invocation_stats=invocation_stats,
         )
 
         # Skip if list of facts is empty
@@ -91,6 +98,7 @@ async def handle_generate_operation(
             notification_title=notification_title,
             swot_report_registry=swot_report_registry,
             prompts_config=config.prompts_config.plan_prompt_config,
+            invocation_stats=invocation_stats,
         )
 
         # Execute the generation for the component
@@ -104,6 +112,7 @@ async def handle_generate_operation(
             company_name=company_name,
             executor=executor,
             prompts_config=config.prompts_config.commands_prompt_config,
+            invocation_stats=invocation_stats,
         )
         # Register or update the sections in the registry
         _handle_execution_results(
@@ -150,6 +159,7 @@ async def extract_facts(
     notification_title: str,
     prompts_config: ExtractionPromptConfig,
     component_definition_prompt_config: ComponentDefinitionPromptConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> list[str]:
     component_definition = get_component_definition(
         component, component_definition_prompt_config
@@ -172,6 +182,8 @@ async def extract_facts(
         llm_service=llm_service,
         llm=llm,
         output_model=SWOTExtractionFactsList,
+        invocation_stats=invocation_stats,
+        source=SWOT_GENERATION,
     )
 
     if extracted_facts is None:
@@ -198,6 +210,7 @@ async def _generate_plan(
     notification_title: str,
     swot_report_registry: SWOTReportRegistry,
     prompts_config: PlanPromptConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> GenerationPlan:
     system_prompt = Template(prompts_config.system_prompt).render(
         company_name=company_name,
@@ -222,6 +235,8 @@ async def _generate_plan(
         llm_service=llm_service,
         llm=llm,
         output_model=GenerationPlan,
+        invocation_stats=invocation_stats,
+        source=SWOT_GENERATION,
     )
     if plan is None:
         _LOGGER.error(f"Failed to generate plan for component {component}")
@@ -248,6 +263,7 @@ async def _execute_plan(
     company_name: str,
     executor: AgenticPlanExecutor,
     prompts_config: CommandsPromptConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> Sequence[Exception | Any]:
     for command in plan.commands:
         match command.command:
@@ -262,6 +278,7 @@ async def _execute_plan(
                     command=command,
                     fact_id_map=fact_id_map,
                     prompts_config=prompts_config.create_new_section_prompt_config,
+                    invocation_stats=invocation_stats,
                 )
 
             case GenerationPlanCommandType.UPDATE_SECTION:
@@ -276,6 +293,7 @@ async def _execute_plan(
                     fact_id_map=fact_id_map,
                     swot_report_registry=swot_report_registry,
                     prompts_config=prompts_config.update_existing_section_prompt_config,
+                    invocation_stats=invocation_stats,
                 )
             case _:
                 raise InvalidCommandException(f"Invalid command: {command.command}")
@@ -330,6 +348,7 @@ async def _generate_cluster_plan(
     llm_service: LanguageModelService,
     notification_title: str,
     prompts_config: ClusterPlanPromptConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> GenerationPlan:
     """One-shot clustering planner that groups all accumulated facts into sections."""
     system_prompt = Template(prompts_config.system_prompt).render(
@@ -349,6 +368,8 @@ async def _generate_cluster_plan(
         llm_service=llm_service,
         llm=llm,
         output_model=GenerationPlan,
+        invocation_stats=invocation_stats,
+        source=SWOT_GENERATION,
     )
     if plan is None:
         _LOGGER.error(f"Failed to generate cluster plan for component {component}")
@@ -376,6 +397,7 @@ async def handle_accumulated_generate_operation(
     swot_report_registry: SWOTReportRegistry,
     executor: AgenticPlanExecutor,
     config: AgenticGeneratorConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> None:
     """Plan and generate sections from pre-accumulated facts (extract-first mode)."""
     try:
@@ -388,6 +410,7 @@ async def handle_accumulated_generate_operation(
             llm_service=llm_service,
             notification_title=notification_title,
             prompts_config=config.prompts_config.cluster_plan_prompt_config,
+            invocation_stats=invocation_stats,
         )
 
         results = await _execute_plan(
@@ -400,6 +423,7 @@ async def handle_accumulated_generate_operation(
             company_name=company_name,
             executor=executor,
             prompts_config=config.prompts_config.commands_prompt_config,
+            invocation_stats=invocation_stats,
         )
 
         _handle_execution_results(

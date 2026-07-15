@@ -4,6 +4,7 @@ from logging import getLogger
 from jinja2 import Template
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.generation.agentic.exceptions import (
     FailedToCreateNewSectionException,
@@ -23,7 +24,7 @@ from unique_swot.services.generation.models.base import (
 )
 from unique_swot.services.generation.models.plan import GenerationPlanCommand
 from unique_swot.services.generation.models.registry import SWOTReportRegistry
-from unique_swot.utils import generate_structured_output
+from unique_swot.utils import SWOT_GENERATION, generate_structured_output
 
 _LOGGER = getLogger(__name__)
 
@@ -38,6 +39,7 @@ async def create_new_section(
     command: GenerationPlanCommand,
     fact_id_map: dict[str, str],
     prompts_config: CreateNewSectionPromptConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> SWOTReportComponentSection:
     ## Prepare a fact view for the prompt
     facts = {
@@ -67,6 +69,8 @@ async def create_new_section(
         llm_service=llm_service,
         llm=llm,
         output_model=SWOTReportComponentSection,
+        invocation_stats=invocation_stats,
+        source=SWOT_GENERATION,
     )
 
     ## Validate the result
@@ -91,6 +95,7 @@ async def update_existing_section(
     fact_id_map: dict[str, str],
     swot_report_registry: SWOTReportRegistry,
     prompts_config: UpdateExistingSectionPromptConfig,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> SWOTReportComponentSection:
     ## Validate the command
     if command.target_section_id is None:
@@ -139,6 +144,8 @@ async def update_existing_section(
         llm_service=llm_service,
         llm=llm,
         output_model=SWOTReportComponentSection,
+        invocation_stats=invocation_stats,
+        source=SWOT_GENERATION,
     )
     ## Validate the result
     if updated_section is None:
