@@ -92,7 +92,7 @@ runs:
         # Package-level dev group: package-specific test deps (e.g. responses for unique_six)
         if python3 <<'EOF'
         import tomllib, pathlib, sys
-        dev = tomllib.loads(pathlib.Path("pyproject.toml").read_bytes()).get("dependency-groups", {}).get("dev")
+        dev = tomllib.loads(pathlib.Path("pyproject.toml").read_text()).get("dependency-groups", {}).get("dev")
         sys.exit(0 if dev is not None else 1)
         EOF
         then
