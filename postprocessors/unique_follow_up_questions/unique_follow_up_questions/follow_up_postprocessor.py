@@ -186,17 +186,16 @@ class FollowUpPostprocessor(Postprocessor):
                     model_name=self._config.language_model.name,
                     structured_output_model=FollowUpQuestionsOutput,
                 )
-                parsed_content = response.choices[0].message.parsed
             else:
                 response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
                 )
-                content = response.choices[0].message.content
-                if not isinstance(content, str):
-                    raise ValueError("Language model response content must be a string")
-                parsed_content = convert_string_to_json(content)
 
+            # Record usage as soon as the (billable) LLM call itself succeeds,
+            # before any parsing/validation below that could raise -- an
+            # already-billed call must not be dropped just because the
+            # response content failed to parse.
             if response.usage is not None:
                 self._invocation_stats.append(
                     LanguageModelInvocationStats.from_usage(
@@ -205,6 +204,15 @@ class FollowUpPostprocessor(Postprocessor):
                         source="follow_up_questions",
                     )
                 )
+
+            if self._config.use_structured_output:
+                parsed_content = response.choices[0].message.parsed
+            else:
+                content = response.choices[0].message.content
+                if not isinstance(content, str):
+                    raise ValueError("Language model response content must be a string")
+                parsed_content = convert_string_to_json(content)
+
             return FollowUpQuestionsOutput.model_validate(parsed_content)
 
         except Exception as e:
