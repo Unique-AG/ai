@@ -7,7 +7,6 @@ from .functions import (
 )
 from .infos import LanguageModel, LanguageModelName, TypeDecoder, TypeEncoder
 from .invocation_stats import (
-    LanguageModelInvocationReport,
     LanguageModelInvocationStats,
 )
 from .prompt import (
@@ -66,7 +65,6 @@ __all__ = [
     "LanguageModelCompletionChoice",
     "LanguageModelFunction",
     "LanguageModelFunctionCall",
-    "LanguageModelInvocationReport",
     "LanguageModelInvocationStats",
     "LanguageModelMessage",
     "LanguageModelMessageRole",

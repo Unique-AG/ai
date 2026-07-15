@@ -4,74 +4,35 @@ import pytest
 
 from unique_sdk.utils.chat_in_space import (
     get_message_invocations,
-    get_message_usage,
     send_message_and_wait_for_completion,
 )
 
-_REPORT_PAYLOAD = {
-    "invocations": [
-        {
-            "modelName": "AZURE_GPT_4o_2024_1120",
-            "tokenUsage": {
-                "completionTokens": 10,
-                "promptTokens": 30,
-                "totalTokens": 40,
-            },
-            "source": "main_loop",
+_INVOCATIONS_PAYLOAD = [
+    {
+        "modelName": "AZURE_GPT_4o_2024_1120",
+        "tokenUsage": {
+            "completionTokens": 10,
+            "promptTokens": 30,
+            "totalTokens": 40,
         },
-        {
-            "modelName": "litellm:anthropic-claude-sonnet-4-5",
-            "tokenUsage": {
-                "completionTokens": 2,
-                "promptTokens": 4,
-                "totalTokens": 6,
-            },
-            "source": "hallucination",
-        },
-    ],
-    "totalTokenUsage": {
-        "completionTokens": 12,
-        "promptTokens": 34,
-        "totalTokens": 46,
+        "source": "main_loop",
     },
-}
-
-
-class TestGetMessageUsage:
-    @pytest.mark.ai
-    def test_get_message_usage__present__returns_totals(self) -> None:
-        message = {"debugInfo": {"llm_invocations": _REPORT_PAYLOAD}}
-        assert get_message_usage(message) == {
-            "completionTokens": 12,
-            "promptTokens": 34,
-            "totalTokens": 46,
-        }
-
-    @pytest.mark.ai
-    def test_get_message_usage__no_llm_invocations_key__returns_none(self) -> None:
-        message = {"debugInfo": {"execution_time": {"total_time": 1.0}}}
-        assert get_message_usage(message) is None
-
-    @pytest.mark.ai
-    def test_get_message_usage__debug_info_none__returns_none(self) -> None:
-        message = {"debugInfo": None}
-        assert get_message_usage(message) is None
-
-    @pytest.mark.ai
-    def test_get_message_usage__debug_info_missing__returns_none(self) -> None:
-        message = {}
-        assert get_message_usage(message) is None
-
-    @pytest.mark.ai
-    def test_get_message_usage__llm_invocations_not_a_dict__returns_none(self) -> None:
-        message = {"debugInfo": {"llm_invocations": "unexpected-string-payload"}}
-        assert get_message_usage(message) is None
+    {
+        "modelName": "litellm:anthropic-claude-sonnet-4-5",
+        "tokenUsage": {
+            "completionTokens": 2,
+            "promptTokens": 4,
+            "totalTokens": 6,
+        },
+        "source": "hallucination",
+    },
+]
 
 
 class TestGetMessageInvocations:
     @pytest.mark.ai
     def test_get_message_invocations__present__returns_entries(self) -> None:
-        message = {"debugInfo": {"llm_invocations": _REPORT_PAYLOAD}}
+        message = {"debugInfo": {"llm_invocations": _INVOCATIONS_PAYLOAD}}
         invocations = get_message_invocations(message)
         assert len(invocations) == 2
         assert invocations[0]["modelName"] == "AZURE_GPT_4o_2024_1120"
@@ -79,14 +40,35 @@ class TestGetMessageInvocations:
         assert invocations[1]["tokenUsage"]["totalTokens"] == 6
 
     @pytest.mark.ai
+    def test_get_message_invocations__empty_list__returns_empty(self) -> None:
+        """An empty list is the real "no usage reported" identity value --
+        still returned as-is, not treated as missing."""
+        message = {"debugInfo": {"llm_invocations": []}}
+        assert get_message_invocations(message) == []
+
+    @pytest.mark.ai
+    def test_get_message_invocations__no_llm_invocations_key__returns_empty(
+        self,
+    ) -> None:
+        message = {"debugInfo": {"execution_time": {"total_time": 1.0}}}
+        assert get_message_invocations(message) == []
+
+    @pytest.mark.ai
+    def test_get_message_invocations__debug_info_none__returns_empty(self) -> None:
+        message = {"debugInfo": None}
+        assert get_message_invocations(message) == []
+
+    @pytest.mark.ai
     def test_get_message_invocations__debug_info_missing__returns_empty(self) -> None:
         assert get_message_invocations({}) == []
 
     @pytest.mark.ai
-    def test_get_message_invocations__llm_invocations_not_a_dict__returns_empty(
+    def test_get_message_invocations__llm_invocations_not_a_list__returns_empty(
         self,
     ) -> None:
-        message = {"debugInfo": {"llm_invocations": ["unexpected", "list", "payload"]}}
+        """Guards against a stale/pre-migration debugInfo blob that still has
+        the old {"invocations": [...], "totalTokenUsage": {...}} shape."""
+        message = {"debugInfo": {"llm_invocations": _INVOCATIONS_PAYLOAD[0]}}
         assert get_message_invocations(message) == []
 
 

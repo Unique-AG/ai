@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.invocation_stats import (
-    LanguageModelInvocationReport,
     LanguageModelInvocationStats,
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
@@ -38,73 +37,7 @@ class TestLanguageModelInvocationStatsFromUsage:
             LanguageModelInvocationStats.from_usage("gpt-4-test", usage)  # type: ignore[call-arg]
 
 
-class TestLanguageModelInvocationReportTotals:
-    @pytest.mark.ai
-    def test_empty_invocations__total_is_none(self) -> None:
-        report = LanguageModelInvocationReport()
-
-        assert report.invocations == []
-        assert report.total_token_usage is None
-
-    @pytest.mark.ai
-    def test_multiple_invocations__total_token_usage_sums_across_all(self) -> None:
-        stats_a = LanguageModelInvocationStats(
-            model_name="gpt-4-test",
-            token_usage=LanguageModelTokenUsage(
-                completion_tokens=10,
-                prompt_tokens=20,
-                total_tokens=30,
-                reasoning_tokens=5,
-                cached_tokens=8,
-            ),
-            source="main_loop",
-        )
-        stats_b = LanguageModelInvocationStats(
-            model_name="gpt-4-test",
-            token_usage=LanguageModelTokenUsage(
-                completion_tokens=1, prompt_tokens=2, total_tokens=3
-            ),
-            source="hallucination",
-        )
-        report = LanguageModelInvocationReport(invocations=[stats_a, stats_b])
-
-        assert report.total_token_usage == LanguageModelTokenUsage(
-            completion_tokens=11,
-            prompt_tokens=22,
-            total_tokens=33,
-            reasoning_tokens=5,
-            cached_tokens=8,
-            cache_write_tokens=None,
-        )
-
-    @pytest.mark.ai
-    def test_all_invocations_missing_a_field__total_stays_none_not_zero(self) -> None:
-        """If no invocation ever reported cache_write_tokens (the provider never
-        emits it), the total must stay `None` ("unknown"), not `0`
-        ("confirmed zero") -- summing must not invent data no entry has."""
-        stats_a = LanguageModelInvocationStats(
-            model_name="gpt-4-test",
-            token_usage=LanguageModelTokenUsage(
-                completion_tokens=10, prompt_tokens=20, total_tokens=30
-            ),
-            source="main_loop",
-        )
-        stats_b = LanguageModelInvocationStats(
-            model_name="gpt-4-test",
-            token_usage=LanguageModelTokenUsage(
-                completion_tokens=1, prompt_tokens=2, total_tokens=3
-            ),
-            source="hallucination",
-        )
-        report = LanguageModelInvocationReport(invocations=[stats_a, stats_b])
-
-        assert report.total_token_usage is not None
-        assert report.total_token_usage.reasoning_tokens is None
-        assert report.total_token_usage.cached_tokens is None
-        assert report.total_token_usage.cache_write_tokens is None
-
-
-class TestLanguageModelInvocationReportSerialization:
+class TestLanguageModelInvocationStatsSerialization:
     @pytest.mark.ai
     def test_model_dump_by_alias__camel_case_shape(self) -> None:
         stats = LanguageModelInvocationStats(
@@ -114,26 +47,12 @@ class TestLanguageModelInvocationReportSerialization:
             ),
             source="main_loop",
         )
-        report = LanguageModelInvocationReport(invocations=[stats])
 
-        dumped = report.model_dump(by_alias=True)
+        dumped = stats.model_dump(by_alias=True)
 
         assert dumped == {
-            "invocations": [
-                {
-                    "modelName": "gpt-4-test",
-                    "tokenUsage": {
-                        "completionTokens": 10,
-                        "promptTokens": 20,
-                        "totalTokens": 30,
-                        "reasoningTokens": None,
-                        "cachedTokens": None,
-                        "cacheWriteTokens": None,
-                    },
-                    "source": "main_loop",
-                }
-            ],
-            "totalTokenUsage": {
+            "modelName": "gpt-4-test",
+            "tokenUsage": {
                 "completionTokens": 10,
                 "promptTokens": 20,
                 "totalTokens": 30,
@@ -141,17 +60,7 @@ class TestLanguageModelInvocationReportSerialization:
                 "cachedTokens": None,
                 "cacheWriteTokens": None,
             },
-        }
-
-    @pytest.mark.ai
-    def test_model_dump_by_alias__empty_report(self) -> None:
-        report = LanguageModelInvocationReport()
-
-        dumped = report.model_dump(by_alias=True)
-
-        assert dumped == {
-            "invocations": [],
-            "totalTokenUsage": None,
+            "source": "main_loop",
         }
 
 
@@ -288,19 +197,6 @@ class TestLanguageModelInvocationStatsNoProtectedNamespaceWarning:
                 ),
                 source="main_loop",
             )
-
-        protected_namespace_warnings = [
-            warning
-            for warning in caught
-            if "protected namespace" in str(warning.message)
-        ]
-        assert protected_namespace_warnings == []
-
-    @pytest.mark.ai
-    def test_report_construction__emits_no_protected_namespace_warning(self) -> None:
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            LanguageModelInvocationReport()
 
         protected_namespace_warnings = [
             warning

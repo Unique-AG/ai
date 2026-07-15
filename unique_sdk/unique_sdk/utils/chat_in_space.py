@@ -5,7 +5,6 @@ import warnings
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, Literal
 
-from unique_sdk.api_resources._integrated import Integrated
 from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space
 from unique_sdk.utils.file_io import upload_file
@@ -14,27 +13,15 @@ from unique_sdk.utils.file_io import (
 )
 
 
-def get_message_usage(message: Space.Message) -> Integrated.Usage | None:
-    """Total token usage for a completed Space message, read from
-    `debugInfo.llm_invocations.totalTokenUsage`.
-    """
-    debug_info = message.get("debugInfo") or {}
-    llm_invocations = debug_info.get("llm_invocations")
-    if not isinstance(llm_invocations, dict):
-        return None
-    return llm_invocations.get("totalTokenUsage")
-
-
 def get_message_invocations(message: Space.Message) -> list[dict[str, Any]]:
-    """Per-LLM-invocation stats for a completed Space message.
+    """Per-LLM-invocation stats for a completed Space message, read from
+    `debugInfo.llm_invocations` (a plain list, one entry per LLM call).
 
     Each entry has `modelName`, `tokenUsage`, and `source` keys.
     """
     debug_info = message.get("debugInfo") or {}
     llm_invocations = debug_info.get("llm_invocations")
-    if not isinstance(llm_invocations, dict):
-        return []
-    return llm_invocations.get("invocations") or []
+    return llm_invocations if isinstance(llm_invocations, list) else []
 
 
 async def send_message_and_wait_for_completion(
@@ -68,11 +55,11 @@ async def send_message_and_wait_for_completion(
         poll_interval: Seconds between polls.
         max_wait: Maximum seconds to wait for completion.
         stop_condition: Defines when to expect a response back, when the assistant stop streaming or when it completes the message. (default: "stoppedStreamingAt")
-            Note: `debugInfo.llm_invocations` (see `get_message_usage`/`get_message_invocations`)
-            is written near the very end of the orchestrator's run -- after postprocessors and
+            Note: `debugInfo.llm_invocations` (see `get_message_invocations`) is written
+            near the very end of the orchestrator's run -- after postprocessors and
             evaluations, which happen after the visible text stream ends. With the default
             `"stoppedStreamingAt"`, or even `"completedAt"` (set slightly before the debugInfo
-            write completes), the returned message's usage/invocations can still be incomplete
+            write completes), the returned message's invocations can still be incomplete
             immediately after this function returns. Re-fetch the message after a short delay
             if you need the full invocation list.
         correlation: Optional correlation data to link this message to a parent message in another chat.

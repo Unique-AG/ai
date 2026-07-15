@@ -8,7 +8,7 @@ Lives in its own module (not ``schemas.py``) because it needs
 from typing import Annotated, Self
 
 from humps import camelize
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
+from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
@@ -68,18 +68,3 @@ class LanguageModelInvocationStats(BaseModel):
         source: str,
     ) -> Self:
         return cls(model_name=model_name, token_usage=token_usage, source=source)
-
-
-class LanguageModelInvocationReport(BaseModel):
-    """All LLM invocations of one orchestration turn, with an aggregated total."""
-
-    model_config = model_config
-
-    invocations: list[LanguageModelInvocationStats] = Field(default_factory=list)
-
-    @computed_field
-    @property
-    def total_token_usage(self) -> LanguageModelTokenUsage | None:
-        return LanguageModelTokenUsage.sum_usages(
-            invocation.token_usage for invocation in self.invocations
-        )
