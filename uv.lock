@@ -12,13 +12,13 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "2026-06-29T11:26:51.762116Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-crawl4ai = "2026-06-19T23:00:00Z"
+crawl4ai = "2026-06-19T22:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
@@ -26,9 +26,9 @@ unique-mcp = false
 unique-orchestrator = false
 unique-follow-up-questions = false
 unique-user-memory = false
-langsmith = "2026-06-20T23:00:00Z"
+langsmith = "2026-06-20T22:00:00Z"
 unique-six = false
-pydantic-settings = "2026-06-20T23:00:00Z"
+pydantic-settings = "2026-06-20T22:00:00Z"
 unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
@@ -5166,20 +5166,12 @@ dependencies = [
     { name = "unique-toolkit" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "unique-sdk" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "pydantic", specifier = ">=2.8.2" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
-
-[package.metadata.requires-dev]
-dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"

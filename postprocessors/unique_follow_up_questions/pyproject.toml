@@ -17,11 +17,6 @@ dependencies = [
     "unique-toolkit>=2026.28.0",
 ]
 
-[dependency-groups]
-dev = [
-    "unique-sdk>=0.11.12",
-]
-
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8"]
 build-backend = "uv_build"
@@ -34,11 +29,9 @@ exclude-newer = "2 weeks"
 constraint-dependencies = ["lxml>=6.1.0"]
 
 [tool.uv.exclude-newer-package]
-"unique-sdk" = false
 "unique-toolkit" = false
 
 [tool.uv.sources]
-unique-sdk = { workspace = true }
 unique-toolkit = { workspace = true }
 
 [tool.poe.tasks]
