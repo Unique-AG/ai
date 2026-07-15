@@ -51,7 +51,6 @@ from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.invocation_stats import (
-    LanguageModelInvocationReport,
     LanguageModelInvocationStats,
 )
 from unique_toolkit.language_model.schemas import (
@@ -359,9 +358,10 @@ class UniqueAI:
             self._debug_info_manager.add("skills", skills_debug_info)
             self._debug_info_manager.add(
                 "llm_invocations",
-                LanguageModelInvocationReport(
-                    invocations=self._invocation_stats
-                ).model_dump(by_alias=True),
+                [
+                    invocation.model_dump(by_alias=True)
+                    for invocation in self._invocation_stats
+                ],
             )
             reference_sources = {
                 ("url", reference.url)

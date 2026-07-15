@@ -217,7 +217,10 @@ class TestRunTokenUsageIntegration:
         }
         assert "llm_invocations" in calls_by_key
         payload = calls_by_key["llm_invocations"]
-        assert payload["totalTokenUsage"] == {
+        assert len(payload) == 1
+        assert payload[0]["modelName"] == MODEL_NAME
+        assert payload[0]["source"] == "main_loop[1]"
+        assert payload[0]["tokenUsage"] == {
             "completionTokens": 12,
             "promptTokens": 34,
             "totalTokens": 46,
@@ -225,17 +228,14 @@ class TestRunTokenUsageIntegration:
             "cachedTokens": None,
             "cacheWriteTokens": None,
         }
-        assert len(payload["invocations"]) == 1
-        assert payload["invocations"][0]["modelName"] == MODEL_NAME
-        assert payload["invocations"][0]["source"] == "main_loop[1]"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__no_usage_on_any_response__llm_invocations_report_is_empty(
+    async def test_run__no_usage_on_any_response__llm_invocations_is_empty(
         self,
     ):
         """When usage is never populated (e.g. no supporting provider),
-        the 'llm_invocations' key must still be present with an empty report,
+        the 'llm_invocations' key must still be present as an empty list,
         not absent/silent."""
         ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
 
@@ -245,17 +245,14 @@ class TestRunTokenUsageIntegration:
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
         assert "llm_invocations" in calls_by_key
-        assert calls_by_key["llm_invocations"] == {
-            "invocations": [],
-            "totalTokenUsage": None,
-        }
+        assert calls_by_key["llm_invocations"] == []
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_run__postprocessor_usage__added_to_loop_usage(self):
         """FollowUpPostprocessor (and any postprocessor) makes its own LLM
-        call outside _plan_or_execute() -- its usage must be added to the
-        same total, not silently dropped."""
+        call outside _plan_or_execute() -- its usage must appear as its own
+        entry in the list, not silently dropped."""
         loop_response = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=12, prompt_tokens=34, total_tokens=46
@@ -278,16 +275,10 @@ class TestRunTokenUsageIntegration:
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
         payload = calls_by_key["llm_invocations"]
-        assert payload["totalTokenUsage"] == {
-            "completionTokens": 15,
-            "promptTokens": 41,
-            "totalTokens": 56,
-            "reasoningTokens": None,
-            "cachedTokens": None,
-            "cacheWriteTokens": None,
-        }
-        sources = [inv["source"] for inv in payload["invocations"]]
+        sources = [inv["source"] for inv in payload]
         assert sources == ["main_loop[1]", "FollowUpPostprocessor"]
+        assert payload[0]["tokenUsage"]["totalTokens"] == 46
+        assert payload[1]["tokenUsage"]["totalTokens"] == 10
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -297,7 +288,7 @@ class TestRunTokenUsageIntegration:
         """PlanningMiddleware (and any loop-runner wrapper implementing
         SupportsInvocationStats) makes its own LLM call outside the main
         completion -- e.g. a planning step before the iteration -- and its
-        usage must be folded into the same total, not silently dropped."""
+        usage must appear as its own entry in the list, not silently dropped."""
         loop_response = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=12, prompt_tokens=34, total_tokens=46
@@ -327,16 +318,10 @@ class TestRunTokenUsageIntegration:
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
         payload = calls_by_key["llm_invocations"]
-        assert payload["totalTokenUsage"] == {
-            "completionTokens": 14,
-            "promptTokens": 42,
-            "totalTokens": 56,
-            "reasoningTokens": None,
-            "cachedTokens": None,
-            "cacheWriteTokens": None,
-        }
-        sources = [inv["source"] for inv in payload["invocations"]]
+        sources = [inv["source"] for inv in payload]
         assert sources == ["main_loop[1]", "planning"]
+        assert payload[0]["tokenUsage"]["totalTokens"] == 46
+        assert payload[1]["tokenUsage"]["totalTokens"] == 10
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -363,7 +348,7 @@ class TestRunTokenUsageIntegration:
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
         payload = calls_by_key["llm_invocations"]
-        sources = [inv["source"] for inv in payload["invocations"]]
+        sources = [inv["source"] for inv in payload]
         assert sources == ["main_loop[1]"]
 
     @pytest.mark.ai
@@ -410,16 +395,10 @@ class TestRunTokenUsageIntegration:
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
         payload = calls_by_key["llm_invocations"]
-        assert payload["totalTokenUsage"] == {
-            "completionTokens": 13,
-            "promptTokens": 36,
-            "totalTokens": 49,
-            "reasoningTokens": None,
-            "cachedTokens": None,
-            "cacheWriteTokens": None,
-        }
-        sources = [inv["source"] for inv in payload["invocations"]]
+        sources = [inv["source"] for inv in payload]
         assert sources == ["main_loop[1]", "WebSearch"]
+        assert payload[0]["tokenUsage"]["totalTokens"] == 46
+        assert payload[1]["tokenUsage"]["totalTokens"] == 3
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -474,15 +453,9 @@ class TestRunTokenUsageIntegration:
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
         payload = calls_by_key["llm_invocations"]
-        assert payload["totalTokenUsage"] == {
-            "completionTokens": 5,
-            "promptTokens": 7,
-            "totalTokens": 12,
-            "reasoningTokens": None,
-            "cachedTokens": None,
-            "cacheWriteTokens": None,
-        }
-        assert len(payload["invocations"]) == 2
+        assert len(payload) == 2
+        assert payload[0]["tokenUsage"]["totalTokens"] == 3
+        assert payload[1]["tokenUsage"]["totalTokens"] == 9
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -503,12 +476,5 @@ class TestRunTokenUsageIntegration:
             args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
         }
         payload = calls_by_key["llm_invocations"]
-        assert payload["totalTokenUsage"] == {
-            "completionTokens": 5,
-            "promptTokens": 5,
-            "totalTokens": 10,
-            "reasoningTokens": None,
-            "cachedTokens": None,
-            "cacheWriteTokens": None,
-        }
-        assert len(payload["invocations"]) == 1
+        assert len(payload) == 1
+        assert payload[0]["tokenUsage"]["totalTokens"] == 10
