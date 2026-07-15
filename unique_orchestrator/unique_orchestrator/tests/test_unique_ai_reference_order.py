@@ -68,6 +68,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
             self.message = MagicMock()
             self.message.references = []
             self.message.text = ""
+            self.usage = None
 
         def is_empty(self):
             return False
