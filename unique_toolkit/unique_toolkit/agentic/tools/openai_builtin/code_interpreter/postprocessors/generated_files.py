@@ -46,16 +46,22 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 logger = logging.getLogger(__name__)
 
 
+_BYTES_PER_MB = 1024 * 1024
+
+
 class ArtifactsDebugInfo(TypedDict):
     """This turn's successfully-created artifacts, for analytics.
 
-    Feeds analytics.artifacts_created_count / artifacts_created_filetype. The
-    postprocessor returns this to the orchestrator, which owns the
-    ``DebugInfoManager`` and records it.
+    Feeds analytics.artifacts_created_count / artifacts_created_filetype /
+    output_size. The postprocessor returns this to the orchestrator, which
+    owns the ``DebugInfoManager`` and records it.
     """
 
     count: int
     filetypes: list[str]
+    # Total size of this turn's successfully-created artifacts, in MiB
+    # (bytes / 1024**2). 0.0 when the interpreter ran but produced nothing.
+    output_size: float
 
 
 class _ChatLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
@@ -380,6 +386,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 chat_id=chat_id,
             )
 
+        # Cleared at the start of each run(); holds this-turn download sizes.
+        self._file_size_map: dict[str, int] = {}
+
     def _build_retry(self) -> AsyncRetrying:
         """Build a tenacity retry policy from the current config.
 
@@ -406,6 +415,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
             len(container_files),
             [cf.filename for cf in container_files],
         )
+
+        # Per-turn byte sizes of successfully uploaded files. Not persisted to
+        # short-term memory — only feeds this turn's analytics.output_size.
+        self._file_size_map: dict[str, int] = {}
 
         phase_t0 = time.monotonic()
         try:
@@ -501,17 +514,19 @@ class DisplayCodeInterpreterFilesPostProcessor(
     ) -> ArtifactsDebugInfo | None:
         """Compute this turn's successfully-created artifacts.
 
-        Feeds analytics.artifacts_created_count / artifacts_created_filetype.
+        Feeds analytics.artifacts_created_count / artifacts_created_filetype /
+        output_size.
 
         Returns ``None`` when the Code Interpreter did not execute this turn
         (``code_interpreter_calls`` empty). The postprocessor is registered
         whenever the tool is *enabled*, so ``run()`` also fires on turns where the
         model never invoked it — returning ``None`` there keeps analytics.artifacts_*
-        as null ("did not run") rather than 0/[] ("ran, created nothing"). When it
-        did run, count is scoped to this response's ``container_files`` (not
-        ``self._content_map``, which also holds prior-message files from short-term
-        memory), successful uploads only, with a deduped, sorted set of file
-        extensions.
+        / output_size as null ("did not run") rather than 0/[]/0.0 ("ran, created
+        nothing"). When it did run, metrics are scoped to this response's
+        ``container_files`` (not ``self._content_map``, which also holds
+        prior-message files from short-term memory), successful uploads only, with
+        a deduped, sorted set of file extensions and total size in MiB from
+        ``self._file_size_map`` (populated at download time).
         """
         # Interpreter did not run this turn → leave artifacts null, not 0/[].
         if not loop_response.code_interpreter_calls:
@@ -522,9 +537,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
             for cf in loop_response.container_files
             if self._content_map.get(cf.filename) is not None
         }
+        total_bytes = sum(
+            self._file_size_map.get(name, 0) for name in created_filenames
+        )
         return ArtifactsDebugInfo(
             count=len(created_filenames),
             filetypes=sorted({_artifact_filetype(name) for name in created_filenames}),
+            output_size=total_bytes / _BYTES_PER_MB,
         )
 
     @override
@@ -763,6 +782,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 upload_ms,
                 pipeline_ms,
             )
+            # Record size only on successful upload so failed downloads don't
+            # inflate analytics.output_size (mirrors content_map success gating).
+            self._file_size_map[container_file.filename] = len(file_bytes)
             return _ContentInfo(filename=container_file.filename, content_id=content.id)
 
     async def _download_file_bytes_with_progress(
