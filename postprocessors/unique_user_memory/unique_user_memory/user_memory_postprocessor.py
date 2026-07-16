@@ -15,6 +15,7 @@ from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     UserMemoryState,
     consolidate_user_memory,
+    noop_update_callback,
     upload_user_memory,
 )
 
@@ -34,6 +35,7 @@ class UserMemoryPostprocessor(Postprocessor):
         event: ChatEvent,
         state: UserMemoryState,
         logger: Logger,
+        chat_service: ChatService,
     ) -> None:
         super().__init__(name="UserMemoryPostprocessor")
         self._config = config
@@ -46,7 +48,7 @@ class UserMemoryPostprocessor(Postprocessor):
         self._state = state
         self._logger = logger
         self._new_memory: str | None = None
-        self._chat_service: ChatService | None = None
+        self._chat_service: ChatService = chat_service
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> None:
         self._logger.info("[user-memory] running postprocessor")
@@ -55,8 +57,8 @@ class UserMemoryPostprocessor(Postprocessor):
         if not user_id or not company_id:
             return
 
-        on_update_start: Callable[[], Awaitable[None]] | None = None
-        on_update_end: Callable[[], Awaitable[None]] | None = None
+        on_update_start: Callable[[], Awaitable[None]] = noop_update_callback
+        on_update_end: Callable[[], Awaitable[None]] = noop_update_callback
         if self._config.updating_notice_enabled:
             original_text = loop_response.message.text or ""
             message_id = loop_response.message.id
@@ -120,8 +122,6 @@ class UserMemoryPostprocessor(Postprocessor):
         action: str,
     ) -> None:
         try:
-            if self._chat_service is None:
-                self._chat_service = ChatService(self._event)
             await self._chat_service.modify_assistant_message_async(
                 content=content,
                 message_id=message_id,

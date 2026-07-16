@@ -385,6 +385,7 @@ async def _build_common(
                     event=event,
                     state=user_memory_state,
                     logger=logger,
+                    chat_service=chat_service,
                 )
             )
 

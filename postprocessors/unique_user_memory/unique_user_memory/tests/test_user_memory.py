@@ -18,6 +18,7 @@ from unique_user_memory.user_memory import (
     enforce_token_cap,
     ensure_user_memory_folder,
     fit_user_memory,
+    noop_update_callback,
     should_consolidate_memory,
     upload_user_memory,
 )
@@ -591,6 +592,7 @@ async def test_user_memory_postprocessor_shows_and_removes_updating_notice(
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=MagicMock(),
+        chat_service=chat_service,
     )
 
     await postprocessor.run(loop_response)
@@ -610,8 +612,8 @@ async def test_user_memory_postprocessor_skips_notice_when_disabled(
     updated_memory = "# User Memory\n\n## Identity\n- Updated"
 
     async def fake_consolidate(*, on_update_start, on_update_end, **kwargs) -> str:  # type: ignore[no-untyped-def]
-        assert on_update_start is None
-        assert on_update_end is None
+        assert on_update_start is noop_update_callback
+        assert on_update_end is noop_update_callback
         return updated_memory
 
     monkeypatch.setattr(
@@ -642,6 +644,7 @@ async def test_user_memory_postprocessor_skips_notice_when_disabled(
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=MagicMock(),
+        chat_service=chat_service,
     )
 
     await postprocessor.run(loop_response)
@@ -942,6 +945,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
+        chat_service=chat_service,
     )
 
     await postprocessor.run(loop_response)
@@ -978,12 +982,14 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
+    chat_service = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
+        chat_service=chat_service,
     )
 
     await postprocessor.run(loop_response)

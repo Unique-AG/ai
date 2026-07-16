@@ -36,6 +36,15 @@ from unique_user_memory.user_memory_prompts import (
 MEMORY_FILENAME = "memory.md"
 MIME_TYPE = "text/markdown"
 _LLM_OUTPUT_HEADROOM_TOKENS = 200
+
+
+async def noop_update_callback() -> None:
+    """Default update hook that does nothing.
+
+    Used as the default for ``on_update_start`` / ``on_update_end`` so callers
+    that do not need update notifications can be awaited unconditionally.
+    """
+    return None
 # The gate only ever replies with the single word UPDATE or NOOP; a tiny
 # output budget keeps the common (NOOP) path cheap and fast.
 _GATE_MAX_TOKENS = 4
@@ -652,8 +661,8 @@ async def consolidate_user_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
-    on_update_start: Callable[[], Awaitable[None]] | None = None,
-    on_update_end: Callable[[], Awaitable[None]] | None = None,
+    on_update_start: Callable[[], Awaitable[None]] = noop_update_callback,
+    on_update_end: Callable[[], Awaitable[None]] = noop_update_callback,
 ) -> str:
     """Consolidate the latest turn into the user's memory profile.
 
@@ -695,8 +704,7 @@ async def consolidate_user_memory(
         return safe_current
 
     try:
-        if on_update_start is not None:
-            await on_update_start()
+        await on_update_start()
         return await _rewrite_user_memory(
             safe_current=safe_current,
             user_id=user_id,
@@ -708,8 +716,7 @@ async def consolidate_user_memory(
             logger=logger,
         )
     finally:
-        if on_update_end is not None:
-            await on_update_end()
+        await on_update_end()
 
 
 async def _rewrite_user_memory(
