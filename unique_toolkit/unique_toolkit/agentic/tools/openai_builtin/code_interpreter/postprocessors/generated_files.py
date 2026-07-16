@@ -418,7 +418,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         # Per-turn byte sizes of successfully uploaded files. Not persisted to
         # short-term memory — only feeds this turn's analytics.output_size.
-        self._file_size_map: dict[str, int] = {}
+        self._file_size_map = {}
 
         phase_t0 = time.monotonic()
         try:
