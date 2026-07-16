@@ -165,6 +165,75 @@ def test_model_choice_uses_selected_model_when_selection_is_enabled() -> None:
 
 
 @pytest.mark.ai
+def test_model_choice_applies_switchable_temperature_when_defined() -> None:
+    """
+    Purpose: Verify per-model temperature from switchable_language_models is applied.
+    Why this matters: Admins can configure different temperatures per selectable model.
+    Setup summary: Configure an allowlisted model with temperature 0.3; assert experimental temp updates.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "temperature": 0.3,
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={"experimental": {"temperature": 0.5}},
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.temperature == 0.3
+
+
+@pytest.mark.ai
+def test_model_choice_keeps_experimental_temperature_when_switchable_has_none() -> None:
+    """
+    Purpose: Verify space default temperature remains when the chosen model has no override.
+    Why this matters: Fallback behavior must preserve existing spaces without per-model temps.
+    Setup summary: Allowlisted model without temperature; assert experimental temp unchanged.
+    """
+    default_model = _make_model("default-model")
+    selected_model = _make_model("selected-model")
+    config = UniqueAIConfig(
+        space=UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                }
+            ],
+            language_model=default_model,
+            tools=[],
+        ),
+        agent={"experimental": {"temperature": 0.5}},
+    )
+
+    config = _apply_model_choice_override(
+        event=_make_event(selected_model, has_model_choice_override=True),
+        logger=MagicMock(),
+        config=config,
+    )
+
+    assert config.space.language_model == selected_model
+    assert config.agent.experimental.temperature == 0.5
+
+
+@pytest.mark.ai
 def test_record_language_model_debug_info_uses_effective_model() -> None:
     """
     Purpose: Verify debug info records the active language model.
@@ -186,13 +255,17 @@ def test_record_language_model_debug_info_uses_effective_model() -> None:
         config=config,
     )
 
-    debug_info_manager.add.assert_called_once_with(
+    debug_info_manager.add.assert_any_call(
         "language_model",
         {
             "name": "selected-model",
             "provider": "AZURE",
             "family": "unknown",
         },
+    )
+    debug_info_manager.add.assert_any_call(
+        "temperature_requested",
+        config.agent.experimental.temperature,
     )
 
 

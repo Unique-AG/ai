@@ -444,17 +444,24 @@ class UniqueAI:
 
     def _record_loop_debug_params(self, other_options: dict) -> None:
         reasoning = other_options.get("reasoning")
-        thinking_level: str = (
+        reasoning_effort = (
             other_options.get("reasoning_effort")
             if not isinstance(reasoning, dict)
             else reasoning.get("effort")
-        ) or "None"
+        )
+        thinking_level: str = reasoning_effort or "None"
         self._loop_debug_params.append(
             {
                 "loop_number": self.current_iteration_index,
                 "thinking_level": thinking_level,
             }
         )
+        model_info = self._config.space.language_model
+        resolved_temperature, _ = model_info.resolve_temp_and_reasoning(
+            self._config.agent.experimental.temperature,
+            reasoning_effort=reasoning_effort,
+        )
+        self._debug_info_manager.add("temperature", resolved_temperature)
 
     def _get_activated_skills_debug_info(self) -> list[dict[str, str | bool]]:
         skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)

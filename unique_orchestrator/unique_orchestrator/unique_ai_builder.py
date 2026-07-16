@@ -234,6 +234,18 @@ def _apply_model_choice_override(
 
     config_data = config.model_dump()
     config_data["space"]["language_model"] = selected_model
+
+    switchable_entry = _find_switchable_language_model_entry(
+        selected_model=selected_model,
+        switchable_language_models=config.space.switchable_language_models,
+    )
+    if switchable_entry is not None and switchable_entry.temperature is not None:
+        config_data.setdefault("agent", {})
+        config_data["agent"].setdefault("experimental", {})
+        config_data["agent"]["experimental"]["temperature"] = (
+            switchable_entry.temperature
+        )
+
     validated_config = UniqueAIConfig.model_validate(config_data)
 
     logger.info(
@@ -256,6 +268,21 @@ def _record_language_model_debug_info(
             include={"name", "provider", "family"},
         ),
     )
+    debug_info_manager.add(
+        "temperature_requested",
+        config.agent.experimental.temperature,
+    )
+
+
+def _find_switchable_language_model_entry(
+    *,
+    selected_model: LanguageModelInfo,
+    switchable_language_models: list[SwitchableLanguageModelConfig],
+) -> SwitchableLanguageModelConfig | None:
+    for switchable_model in switchable_language_models:
+        if selected_model == switchable_model.language_model:
+            return switchable_model
+    return None
 
 
 def _is_switchable_language_model_choice(

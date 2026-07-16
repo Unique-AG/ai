@@ -96,6 +96,13 @@ class SwitchableLanguageModelConfig(BaseToolConfig):
             "`languageModel`."
         ),
     )
+    temperature: float | None = Field(
+        default=None,
+        description=(
+            "Optional per-model temperature override applied when chat users "
+            "select this model."
+        ),
+    )
 
 
 class SpaceConfigBase(BaseToolConfig, Generic[T]):
