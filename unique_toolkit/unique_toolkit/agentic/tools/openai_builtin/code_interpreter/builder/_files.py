@@ -1,7 +1,8 @@
 import asyncio
 import logging
+from dataclasses import dataclass
 
-from openai import AsyncOpenAI
+from openai import APIStatusError, AsyncOpenAI
 from tenacity import (
     AsyncRetrying,
     before_sleep_log,
@@ -24,6 +25,39 @@ logger = logging.getLogger(__name__)
 
 UPLOAD_MAX_RETRIES = 2
 UPLOAD_RETRY_BASE_DELAY = 0.5
+
+# The `/public/openai-proxy/containers/*/files` route enforces a request-body
+# size cap (see UN-23109); Azure OpenAI/node-chat surfaces this as an
+# `APIStatusError` with this status code. Anything else is treated as a
+# generic, non-actionable upload failure.
+REQUEST_ENTITY_TOO_LARGE_STATUS_CODE = 413
+
+
+@dataclass(frozen=True)
+class FailedFileUpload:
+    """A file that could not be uploaded to the code execution container."""
+
+    content: Content
+    reason: str
+
+
+def describe_upload_error(exc: Exception) -> str:
+    """Turn an upload exception into a short, user-actionable reason.
+
+    Special-cases the HTTP 413 "request body too large" response (see
+    UN-23109) so the model can tell the user the file was too large instead
+    of claiming it is simply missing. Falls back to a generic message for
+    every other failure so we never swallow the error silently.
+    """
+    if isinstance(exc, APIStatusError) and exc.status_code == (
+        REQUEST_ENTITY_TOO_LARGE_STATUS_CODE
+    ):
+        return (
+            "the file is too large to upload for code execution "
+            "(exceeds the maximum allowed upload size)"
+        )
+
+    return f"upload failed ({exc})"
 
 
 def build_upload_retry() -> AsyncRetrying:
@@ -98,7 +132,7 @@ async def upload_files_to_container(
     uploaded_files: list[Content],
     memory: CodeExecutionShortTermMemorySchema,
     content_service: ContentService,
-) -> tuple[CodeExecutionShortTermMemorySchema, bool]:
+) -> tuple[CodeExecutionShortTermMemorySchema, bool, list[FailedFileUpload]]:
     async def _check_and_upload(content: Content) -> str | None:
         if check_file_already_uploaded(content_id=content.id, memory=memory):
             return None
@@ -124,12 +158,23 @@ async def upload_files_to_container(
     )
 
     updated = False
+    failed_uploads: list[FailedFileUpload] = []
     for content, result in zip(unique_contents, results):
-        if result.success and (filepath := result.unpack()) is not None:
-            memory.file_paths[content.id] = filepath
-            updated = True
+        if result.success:
+            if (filepath := result.unpack()) is not None:
+                memory.file_paths[content.id] = filepath
+                updated = True
+        elif result.exception is not None:
+            # Do not silently drop the file (UN-23109): the model must be
+            # told the upload failed instead of just seeing the file vanish.
+            failed_uploads.append(
+                FailedFileUpload(
+                    content=content,
+                    reason=describe_upload_error(result.exception),
+                )
+            )
 
-    return memory, updated
+    return memory, updated, failed_uploads
 
 
 async def resolve_kb_contents(

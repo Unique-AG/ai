@@ -12,6 +12,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._conta
     create_container,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.builder._files import (
+    FailedFileUpload,
     resolve_kb_contents,
     upload_files_to_container,
 )
@@ -137,13 +138,22 @@ class CodeInterpreterBuilder:
             files_to_upload.extend(kb_files)
 
         files_updated = False
+        failed_uploads: list[FailedFileUpload] = []
         if files_to_upload:
-            memory, files_updated = await upload_files_to_container(
+            memory, files_updated, failed_uploads = await upload_files_to_container(
                 client=client,
                 uploaded_files=files_to_upload,
                 content_service=content_service,
                 memory=memory,
             )
+            for failed_upload in failed_uploads:
+                logger.warning(
+                    "File %s (%s) could not be uploaded to container %s: %s",
+                    failed_upload.content.id,
+                    failed_upload.content.key,
+                    memory.container_id,
+                    failed_upload.reason,
+                )
 
         if container_updated or files_updated:
             await memory_manager.save_async(memory)
@@ -155,6 +165,11 @@ class CodeInterpreterBuilder:
                 if content.id in memory.file_paths
             ]
 
+        failed_upload_descriptions = [
+            f"{failed_upload.content.key}: {failed_upload.reason}"
+            for failed_upload in failed_uploads
+        ]
+
         return OpenAICodeInterpreterTool(
             config=config,
             container_id=memory.container_id,
@@ -163,4 +178,5 @@ class CodeInterpreterBuilder:
             user_uploaded_files=_extract_paths(user_uploaded_files),
             kb_uploaded_files=_extract_paths(kb_files),
             code_execution_files=_extract_paths(code_execution_files),
+            failed_uploads=failed_upload_descriptions,
         )
