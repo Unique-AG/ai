@@ -205,3 +205,18 @@ def test_version_flag() -> None:
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
     assert "uqadm" in result.output
+
+
+def test_main_converts_env_credentials_error_to_exit_2() -> None:
+    """main() turns a MissingEnvCredentialsError from app() into exit code 2."""
+    from unittest.mock import patch
+
+    import pytest
+
+    from uqadm.cli import main
+    from uqadm.core.env import MissingEnvCredentialsError
+
+    with patch("uqadm.cli.app", side_effect=MissingEnvCredentialsError("no creds")):
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+    assert exc_info.value.code == 2

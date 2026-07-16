@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import MagicMock, patch
 
-from uqadm.space.migrate import build_module_updates_from_pairs
+import pytest
+
+from uqadm.space.migrate import build_module_updates_from_pairs, cmd_migrate
 
 
 def test_build_module_updates_from_pairs_returns_destination_module_id() -> None:
@@ -69,3 +72,35 @@ def test_build_module_updates_from_pairs_handles_multiple_entries() -> None:
 
 def test_build_module_updates_from_pairs_empty() -> None:
     assert build_module_updates_from_pairs([]) == []
+
+
+# --- cmd_migrate integration (with mocks) ---
+
+
+@patch("uqadm.space.migrate.Space.get_space")
+@patch("uqadm.core.cli_auth.config_for_slot")
+def test_cmd_migrate_dry_run_create_loads_both_slots(
+    mock_cfg: MagicMock,
+    mock_get: MagicMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Dry-run create migration loads source and destination slots then stops."""
+    mock_cfg.side_effect = [
+        MagicMock(user_id="us", company_id="c1", api_base="https://api.example"),
+        MagicMock(user_id="ud", company_id="c1", api_base="https://api.example"),
+    ]
+    mock_get.return_value = {"name": "S", "fallbackModule": "m", "modules": []}
+
+    cmd_migrate(
+        "src:space_a",
+        "dst",
+        dry_run=True,
+        with_knowledge=False,
+        cwd=None,
+    )
+
+    out = capsys.readouterr().out
+    assert "Loading source slot 'src'" in out
+    assert "Loading destination slot 'dst'" in out
+    assert "Dry-run: would create_space" in out
+    assert mock_cfg.call_count == 2

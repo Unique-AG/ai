@@ -10,6 +10,7 @@ from uqadm.env.create import cmd_env_create
 from uqadm.env.delete import cmd_env_delete
 from uqadm.env.list import cmd_env_list
 from uqadm.env.set_default import cmd_env_set_default
+from uqadm.env.show import cmd_env_show
 
 # helpers
 
@@ -183,6 +184,23 @@ def test_set_default_rejects_missing_slot(
 
     with pytest.raises(typer.Exit):
         cmd_env_set_default("nonexistent")
+
+
+# --- env show ---
+
+
+def test_show_prints_resolved_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("UQADM_HOME", str(tmp_path))
+    monkeypatch.delenv("UQADM_AUTH_FROM_ENV", raising=False)
+    envs = tmp_path / "envs"
+    envs.mkdir()
+    _make_slot(envs, "qa", user_id="user_qa", company_id="co_qa")
+    cmd_env_show("qa", cwd=None)
+    out = capsys.readouterr().out
+    assert "user_qa" in out
+    assert "co_qa" in out
 
 
 # --- env delete ---

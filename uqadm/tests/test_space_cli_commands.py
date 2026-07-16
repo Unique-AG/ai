@@ -109,3 +109,56 @@ def test_space_ingestion_set_invalid_space_id_exits_2(
     )
     assert result.exit_code == 2
     mock_set.assert_not_called()
+
+
+@patch("uqadm.space.cmd_export")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
+def test_space_export_cli(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_export: MagicMock,
+) -> None:
+    mock_cfg.return_value = MagicMock()
+    result = _runner().invoke(app, ["space", "export", "asst_abc", "--slot", "qa"])
+    assert result.exit_code == 0
+    mock_export.assert_called_once()
+    assert mock_export.call_args.args[0] == "asst_abc"
+
+
+@patch("uqadm.space.cmd_upsert")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
+def test_space_upsert_create_cli(
+    mock_resolve: MagicMock,
+    mock_upsert: MagicMock,
+    tmp_path: Path,
+) -> None:
+    snapshot = tmp_path / "space.json"
+    snapshot.write_text("{}", encoding="utf-8")
+    result = _runner().invoke(
+        app,
+        ["space", "upsert", "-f", str(snapshot), "--slot", "qa", "--dry-run"],
+    )
+    assert result.exit_code == 0
+    mock_upsert.assert_called_once()
+    kw = mock_upsert.call_args.kwargs
+    assert kw["target_space_id"] is None
+    assert kw["dry_run"] is True
+
+
+@patch("uqadm.space.cmd_delete")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
+def test_space_delete_cli(
+    mock_resolve: MagicMock,
+    mock_cfg: MagicMock,
+    mock_delete: MagicMock,
+) -> None:
+    mock_cfg.return_value = MagicMock()
+    result = _runner().invoke(
+        app,
+        ["space", "delete", "asst_abc", "--slot", "qa", "-y"],
+    )
+    assert result.exit_code == 0
+    mock_delete.assert_called_once()
+    assert mock_delete.call_args.args[0] == "asst_abc"

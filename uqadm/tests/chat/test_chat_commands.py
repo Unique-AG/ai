@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -129,3 +129,39 @@ def test_cmd_send_prints_reply_text(
 
     out = capsys.readouterr().out
     assert "Hello from assistant" in out
+
+
+# --- cmd_history integration (with mocks) ---
+
+
+def test_cmd_history_prints_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("UQADM_HOME", str(tmp_path))
+    envs = tmp_path / "envs"
+    envs.mkdir()
+    (envs / ".qa.env").write_text(
+        "UNIQUE_USER_ID=u1\nUNIQUE_COMPANY_ID=c1\n",
+        encoding="utf-8",
+    )
+
+    history = [{"role": "user", "text": "hi"}]
+    with patch(
+        "uqadm.chat.history.load_history",
+        new=MagicMock(return_value=(None, history)),
+    ):
+        from uqadm.chat.history import cmd_history
+
+        cmd_history(
+            "chat_1",
+            slot="qa",
+            max_tokens=1000,
+            percent=0.5,
+            max_messages=10,
+            show_full=False,
+            as_json=True,
+            cwd=None,
+        )
+
+    out = capsys.readouterr().out
+    assert '"text": "hi"' in out
