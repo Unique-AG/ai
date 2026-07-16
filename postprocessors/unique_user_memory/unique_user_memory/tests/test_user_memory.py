@@ -949,8 +949,9 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         chat_service=chat_service,
     )
 
-    await postprocessor.run(loop_response)
+    updated = await postprocessor.run(loop_response)
 
+    assert updated is True
     upload.assert_awaited_once_with(
         scope_id="scope_1",
         content=updated_memory,
@@ -993,8 +994,9 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
         chat_service=chat_service,
     )
 
-    await postprocessor.run(loop_response)
+    updated = await postprocessor.run(loop_response)
 
+    assert updated is False
     assert all(
         call.args != ("[user-memory] memory updated and uploaded successfully",)
         for call in logger.info.call_args_list
