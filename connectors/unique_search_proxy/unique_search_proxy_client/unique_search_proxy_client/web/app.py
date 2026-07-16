@@ -17,6 +17,7 @@ from unique_search_proxy_client.web.logging_config import (
     build_logging_config,
     configure_logging,
 )
+from unique_search_proxy_client.web.middleware.context import RequestContextMiddleware
 from unique_search_proxy_client.web.monitoring import setup_prometheus
 from unique_search_proxy_client.web.startup_report import (
     log_startup_settings_report,
@@ -67,7 +68,9 @@ def create_app() -> FastAPI:
             "Unified web egress proxy for search engines and crawlers. "
             "Use **Try it out** on `/v1/search` and `/v1/crawl` — pick an example "
             "from the request-body dropdown (snippets-only Google search, crawl with "
-            "HTML markdown, etc.). Requires provider env vars (e.g. "
+            "HTML markdown, etc.). `/v1/*` routes accept tenant context headers "
+            "(`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`; "
+            "defaults `local` in Swagger). Requires provider env vars (e.g. "
             "`GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls."
         ),
         version="0.2.0",
@@ -82,6 +85,7 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(application)
     setup_prometheus(application)
+    application.add_middleware(RequestContextMiddleware)
     application.include_router(health_router)
     application.include_router(v1_router)
     return application

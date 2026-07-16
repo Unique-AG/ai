@@ -1,5 +1,12 @@
 """Shared types for Unique Search Proxy (no FastAPI / server dependencies)."""
 
+from unique_search_proxy_core.context import (
+    CHAT_ID_HEADER,
+    COMPANY_ID_HEADER,
+    LOCAL_REQUEST_CONTEXT,
+    USER_ID_HEADER,
+    RequestContext,
+)
 from unique_search_proxy_core.errors import (
     BadRequestProxyError,
     EmptySearchResultsError,
@@ -22,6 +29,11 @@ from unique_search_proxy_core.schema import (
 )
 
 __all__ = [
+    "CHAT_ID_HEADER",
+    "COMPANY_ID_HEADER",
+    "LOCAL_REQUEST_CONTEXT",
+    "RequestContext",
+    "USER_ID_HEADER",
     "BadRequestProxyError",
     "CrawlResponse",
     "EmptySearchResultsError",

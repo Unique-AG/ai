@@ -7,6 +7,7 @@ from httpx import HTTPError
 from pydantic import Field
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.vertexai.schema import VertexAIAgentConfig
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
@@ -66,8 +67,10 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         self,
         config: VertexAIConfig,
         language_model_service: LanguageModelService,
+        *,
+        request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
     ):
-        super().__init__(config=config)
+        super().__init__(config=config, request_context=request_context)
         self._client = get_vertex_client()
         self.is_configured = search_proxy_client_enabled or self._client is not None
 

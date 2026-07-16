@@ -4,6 +4,7 @@ from typing import Any, Literal, TypeVar, override
 from httpx import AsyncClient
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
@@ -96,8 +97,13 @@ class CustomAPIConfig(BaseModel):
     config_display_name="Customized API",
 )
 class CustomAPI(SearchEngine[CustomAPIConfig]):
-    def __init__(self, config: CustomAPIConfig):
-        super().__init__(config)
+    def __init__(
+        self,
+        config: CustomAPIConfig,
+        *,
+        request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
+    ):
+        super().__init__(config, request_context=request_context)
         self.api_endpoint = config.api_endpoint
         self.is_configured = True  # No possibility to check if the API is configured from our side. So we assume it is configured.
 

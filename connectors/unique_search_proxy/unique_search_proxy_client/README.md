@@ -249,9 +249,9 @@ uv run python scripts/generate_sdk.py
 
 ## 8. Dev testing
 
-1. Start the server and configure `.env`.
-2. **Swagger** — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset.
-3. **CLI** — same presets from the terminal:
+1. Start the server and configure `.env` (`.env.example` sets `REQUIRE_CONTEXT_HEADERS=false` for local use; production keeps enforcement enabled).
+2. **Swagger** — `/docs` → **Try it out** on `/v1/search` or `/v1/crawl` → pick an **Examples** preset. Context headers default to `local` in the UI.
+3. **CLI** — same presets from the terminal (`scripts/try_presets.py` sends the same local context headers):
 
 ```bash
 uv run python scripts/try_presets.py list

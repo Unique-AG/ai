@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from pydantic import BaseModel
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.crawlers.base import CrawlerType
 
 from unique_web_search.services._registry import BaseSpec, Registry
@@ -37,9 +38,16 @@ def register_crawler(
     )
 
 
-def get_crawler_service(crawler_config: object):
+def get_crawler_service(
+    crawler_config: object,
+    *,
+    request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
+):
     crawler = getattr(crawler_config, "crawler")
-    return CRAWLER_REGISTRY[crawler].impl_cls(crawler_config)
+    return CRAWLER_REGISTRY[crawler].impl_cls(
+        crawler_config,
+        request_context=request_context,
+    )
 
 
 __all__ = [
