@@ -56,6 +56,10 @@ def _build_run_ua(loop_responses: list[MagicMock], max_iterations: int):
     mock_config.effective_max_loop_iterations = max_iterations
     mock_config.agent.prompt_config.user_metadata = []
     mock_config.space.language_model.name = MODEL_NAME
+    mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (
+        0.0,
+        None,
+    )
 
     mock_history_manager = MagicMock()
     mock_history_manager.get_history_for_model_call = AsyncMock(

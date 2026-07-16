@@ -449,18 +449,38 @@ class UniqueAI:
         return round((assistant_completed_at - user_created_at).total_seconds() * 1000)
 
     def _record_loop_debug_params(self, other_options: dict) -> None:
-        reasoning = other_options.get("reasoning")
-        thinking_level: str = (
-            other_options.get("reasoning_effort")
-            if not isinstance(reasoning, dict)
-            else reasoning.get("effort")
-        ) or "None"
+        reasoning_effort = self._resolve_effective_reasoning_effort(other_options)
+        thinking_level: str = reasoning_effort or "None"
         self._loop_debug_params.append(
             {
                 "loop_number": self.current_iteration_index,
                 "thinking_level": thinking_level,
             }
         )
+        model_info = self._config.space.language_model
+        resolved_temperature, _ = model_info.resolve_temp_and_reasoning(
+            self._config.agent.experimental.temperature,
+            reasoning_effort=reasoning_effort,
+        )
+        self._debug_info_manager.add("temperature", resolved_temperature)
+
+    def _resolve_effective_reasoning_effort(self, other_options: dict) -> str | None:
+        """Read the reasoning effort from the same source the active LLM API uses.
+
+        Mirrors ``resolve_other_options``: the completions API reads the flat
+        ``reasoning_effort`` key, while the responses API prefers the nested
+        ``reasoning.effort`` and falls back to the flat key. Keeping this in sync
+        ensures the debug temperature matches what is actually sent to the model.
+        """
+        use_responses_api = (
+            self._config.agent.experimental.responses_api_config.use_responses_api
+            or self._config.agent.experimental.use_responses_api
+        )
+        if use_responses_api:
+            reasoning = other_options.get("reasoning")
+            if isinstance(reasoning, dict) and reasoning.get("effort") is not None:
+                return reasoning.get("effort")
+        return other_options.get("reasoning_effort")
 
     def _get_activated_skills_debug_info(self) -> list[dict[str, str | bool]]:
         skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)
