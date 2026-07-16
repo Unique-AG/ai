@@ -62,6 +62,7 @@ from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
     SupportCompleteWithReferences,
 )
+from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders.inject_tool_reminders import (
     inject_tool_reminders_into_user_message,
@@ -208,6 +209,9 @@ class UniqueAI:
         self._current_loop_timing: dict[str, Any] = {}
         self._loop_debug_params: list[dict[str, Any]] = []
         self._generated_files_info: ArtifactsDebugInfo | None = None
+        # None when the user-memory postprocessor is not activated for this turn;
+        # True/False when it ran and did/didn't update the stored memory profile.
+        self._context_memory_updated: bool | None = None
         self._invocation_stats: list[LanguageModelInvocationStats] = []
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
@@ -238,6 +242,7 @@ class UniqueAI:
         # reaching _handle_no_tool_calls (tool takes control / empty response /
         # cancellation) must not report the previous run's artifacts.
         self._generated_files_info = None
+        self._context_memory_updated = None
         self._invocation_stats = []
         run_start = time.perf_counter()
 
@@ -409,6 +414,7 @@ class UniqueAI:
                 loop_iteration_count=len(self._execution_times),
                 total_time_to_answer_ms=total_time_to_answer_ms,
                 artifacts=self._generated_files_info,
+                context_memory_updated=self._context_memory_updated,
             )
 
             # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
@@ -443,18 +449,38 @@ class UniqueAI:
         return round((assistant_completed_at - user_created_at).total_seconds() * 1000)
 
     def _record_loop_debug_params(self, other_options: dict) -> None:
-        reasoning = other_options.get("reasoning")
-        thinking_level: str = (
-            other_options.get("reasoning_effort")
-            if not isinstance(reasoning, dict)
-            else reasoning.get("effort")
-        ) or "None"
+        reasoning_effort = self._resolve_effective_reasoning_effort(other_options)
+        thinking_level: str = reasoning_effort or "None"
         self._loop_debug_params.append(
             {
                 "loop_number": self.current_iteration_index,
                 "thinking_level": thinking_level,
             }
         )
+        model_info = self._config.space.language_model
+        resolved_temperature, _ = model_info.resolve_temp_and_reasoning(
+            self._config.agent.experimental.temperature,
+            reasoning_effort=reasoning_effort,
+        )
+        self._debug_info_manager.add("temperature", resolved_temperature)
+
+    def _resolve_effective_reasoning_effort(self, other_options: dict) -> str | None:
+        """Read the reasoning effort from the same source the active LLM API uses.
+
+        Mirrors ``resolve_other_options``: the completions API reads the flat
+        ``reasoning_effort`` key, while the responses API prefers the nested
+        ``reasoning.effort`` and falls back to the flat key. Keeping this in sync
+        ensures the debug temperature matches what is actually sent to the model.
+        """
+        use_responses_api = (
+            self._config.agent.experimental.responses_api_config.use_responses_api
+            or self._config.agent.experimental.use_responses_api
+        )
+        if use_responses_api:
+            reasoning = other_options.get("reasoning")
+            if isinstance(reasoning, dict) and reasoning.get("effort") is not None:
+                return reasoning.get("effort")
+        return other_options.get("reasoning_effort")
 
     def _get_activated_skills_debug_info(self) -> list[dict[str, str | bool]]:
         skill_tool = self._tool_manager.get_tool_by_name(SkillTool.name)
@@ -754,6 +780,12 @@ class UniqueAI:
             postprocessor_outputs.get(
                 DisplayCodeInterpreterFilesPostProcessor.__name__
             ),
+        )
+        # Absent key => postprocessor not activated this turn (stays None);
+        # present => bool telling whether the memory profile was updated.
+        self._context_memory_updated = cast(
+            "bool | None",
+            postprocessor_outputs.get(UserMemoryPostprocessor.__name__),
         )
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()

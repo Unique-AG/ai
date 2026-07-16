@@ -136,7 +136,11 @@ from .api_resources._agentic_table import (
     AgreementStatus as AgreementStatus,
     RowVerificationStatus as RowVerificationStatus,
     MagicTableAction as MagicTableAction,
+    MagicTableActionResult as MagicTableActionResult,
     MagicTableActivityResponse as MagicTableActivityResponse,
+    MagicTableArtifact as MagicTableArtifact,
+    MagicTableArtifactState as MagicTableArtifactState,
     MagicTableArtifactType as MagicTableArtifactType,
     MagicTableMetadataEntry as MagicTableMetadataEntry,
+    CreatedAgenticTableSheet as CreatedAgenticTableSheet,
 )

@@ -44,9 +44,13 @@ class Analytics(TypedDict):
     answer_length: int
     artifacts_created_count: int | None
     artifacts_created_filetype: list[str] | None
+    context_memory_updated: bool | None
     language_model: AnalyticsLanguageModel
     loop_iteration_count: int
     mcp_tool_names_used: list[AnalyticsToolName]
+    # Total size of artifacts/files created this turn, in MiB. None when Code
+    # Interpreter did not run; 0.0 when it ran but produced nothing.
+    output_size: float | None
     references_count: int
     skills_used: list[AnalyticsSkill]
     subagent_names_used: list[AnalyticsToolName]
@@ -110,6 +114,7 @@ class DebugInfoManager:
         loop_iteration_count: int = 0,
         total_time_to_answer_ms: int | None = None,
         artifacts: ArtifactsDebugInfo | None = None,
+        context_memory_updated: bool | None = None,
     ) -> None:
         """Add a stable 'analytics' snapshot for downstream ROI/usage reporting.
 
@@ -127,8 +132,8 @@ class DebugInfoManager:
         ]
         # Artifacts are recorded at the postprocessor seam (Code Interpreter's
         # DisplayCodeInterpreterFilesPostProcessor) into debug_info["artifacts"].
-        # Absent when no Code Interpreter ran this turn → both fields stay None,
-        # preserving the always-present, null-when-unknown contract.
+        # Absent when no Code Interpreter ran this turn → artifact fields stay
+        # None, preserving the always-present, null-when-unknown contract.
         analytics = Analytics(
             tools_used=analytics_tools,
             tool_call_count=len(analytics_tools),
@@ -150,6 +155,10 @@ class DebugInfoManager:
             total_time_to_answer_ms=total_time_to_answer_ms,
             artifacts_created_count=artifacts["count"] if artifacts else None,
             artifacts_created_filetype=artifacts["filetypes"] if artifacts else None,
+            output_size=artifacts["output_size"] if artifacts else None,
+            # None when the user-memory postprocessor is not activated for this
+            # turn; True/False when it ran and did/didn't update the profile.
+            context_memory_updated=context_memory_updated,
         )
         self.add("analytics", analytics)
 

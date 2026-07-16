@@ -10,6 +10,7 @@ from pydantic import (
 from unique_sdk import (
     AgenticTableSheetState,
     AgreementStatus,
+    MagicTableArtifactState,
     MagicTableArtifactType,
     SelectionMethod,
 )
@@ -400,4 +401,54 @@ class MagicTableSheet(BaseModel):
     )
     magic_table_sheet_metadata: list[RowMetadataEntry] = Field(
         default_factory=list, description="The metadata for the sheet"
+    )
+
+
+class CreatedMagicTableSheet(BaseModel):
+    """Response of `POST /magic-table` (create sheet in a space)."""
+
+    model_config = get_configuration_dict()
+    sheet_id: str
+    due_diligence_id: str = Field(
+        description="Identifier of the due-diligence record backing this sheet."
+    )
+    name: str
+    state: AgenticTableSheetState
+    chat_id: str | None = Field(
+        default=None, description="Chat that owns the sheet (may be null)."
+    )
+    created_by: str
+    company_id: str
+    created_at: str
+    due_at: str | None = None
+
+
+class MagicTableArtifact(BaseModel):
+    """Export artifact of a sheet as returned by `GET /magic-table/{tableId}/artifacts`."""
+
+    model_config = get_configuration_dict()
+    id: str
+    name: str | None = None
+    content_id: str | None = Field(
+        default=None,
+        description="Content id of the generated file. Only present once the artifact is DONE; download it via the Content API.",
+    )
+    mime_type: str | None = None
+    artifact_type: MagicTableArtifactType
+    artifact_state: MagicTableArtifactState = Field(
+        description="IN_PROGRESS while the agent is generating the export, DONE when ready."
+    )
+    created_at: str
+    updated_at: str
+
+
+class SheetMetadataEntryInput(BaseModel):
+    """Input entry for creating sheet metadata (key/value pairs) on a sheet."""
+
+    model_config = get_configuration_dict()
+    key: str
+    value: str
+    exact_filter: bool = Field(
+        default=False,
+        description="Whether the metadata is to be used for strict filtering",
     )

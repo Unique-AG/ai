@@ -50,12 +50,17 @@ class UserMemoryPostprocessor(Postprocessor):
         self._new_memory: str | None = None
         self._chat_service: ChatService = chat_service
 
-    async def run(self, loop_response: LanguageModelStreamResponse) -> None:
+    async def run(self, loop_response: LanguageModelStreamResponse) -> bool:
+        """Consolidate and upload user memory for this turn.
+
+        Returns True if the memory profile changed and was uploaded, False
+        otherwise (no user/company, NOOP consolidation, or failed upload).
+        """
         self._logger.info("[user-memory] running postprocessor")
         user_id = self._event.user_id
         company_id = self._event.company_id
         if not user_id or not company_id:
-            return
+            return False
 
         on_update_start: Callable[[], Awaitable[None]] = noop_update_callback
         on_update_end: Callable[[], Awaitable[None]] = noop_update_callback
@@ -98,7 +103,7 @@ class UserMemoryPostprocessor(Postprocessor):
 
         if self._new_memory == self._state.text:
             self._logger.debug("[user-memory] consolidation NOOP - skipping upload")
-            return
+            return False
 
         uploaded = await upload_user_memory(
             scope_id=self._state.scope_id,
@@ -109,9 +114,10 @@ class UserMemoryPostprocessor(Postprocessor):
         )
         if not uploaded:
             self._logger.warning("[user-memory] memory update was not uploaded")
-            return
+            return False
 
         self._logger.info("[user-memory] memory updated and uploaded successfully")
+        return True
 
     async def _set_message_content(
         self,

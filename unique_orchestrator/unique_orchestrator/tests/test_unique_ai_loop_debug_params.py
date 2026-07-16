@@ -44,6 +44,10 @@ def _build_unique_ai(**overrides):
 
     mock_config = MagicMock()
     mock_config.agent.prompt_config.user_metadata = []
+    mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (
+        0.0,
+        None,
+    )
 
     mock_debug_info_manager = MagicMock()
     mock_debug_info_manager.get.return_value = {}
@@ -287,6 +291,10 @@ class TestRunLoopDebugParams:
         mock_config.space.language_model.name = "AZURE_GPT_5_2025_0807"
         mock_config.space.language_model.family = "openai"
         mock_config.space.language_model.provider = "AZURE"
+        mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (
+            0.0,
+            None,
+        )
 
         mock_history_manager = MagicMock()
         mock_history_manager.get_history_for_model_call = AsyncMock(
@@ -497,7 +505,11 @@ class TestRunLoopDebugParams:
         """
         ua = self._build_run_ua(monkeypatch)
         # Leftover from a hypothetical previous run on the same instance.
-        ua._generated_files_info = {"count": 99, "filetypes": ["stale"]}
+        ua._generated_files_info = {
+            "count": 99,
+            "filetypes": ["stale"],
+            "output_size": 9.9,
+        }
         # Exit the loop as if a tool took control: _handle_no_tool_calls (which sets
         # _generated_files_info) is skipped, but finalization still calls add_analytics.
         ua._process_plan = AsyncMock(return_value=True)  # type: ignore[method-assign]
