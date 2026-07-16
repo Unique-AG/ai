@@ -11,12 +11,12 @@ from unique_sdk import Space
 from unique_sdk.cli.config import Config
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.core.cli_auth import load_config_or_exit
 from uqadm.core.endpoint import (
     EndpointParseError,
     parse_endpoint,
     parse_source_endpoint,
 )
-from uqadm.core.cli_auth import load_config_or_exit
 from uqadm.core.env import normalize_api_base
 
 

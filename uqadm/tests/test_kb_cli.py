@@ -34,14 +34,20 @@ def test_kb_mkdir_cli_invokes_helper(
     assert call_kw["extra_paths"] == ["/A", "/B"]
 
 
-@patch("uqadm.core.cli_auth.resolve_slot", side_effect=MissingDefaultSlotError("no default"))
+@patch(
+    "uqadm.core.cli_auth.resolve_slot",
+    side_effect=MissingDefaultSlotError("no default"),
+)
 def test_kb_mkdir_missing_default_slot_exits_2(mock_resolve: MagicMock) -> None:
     result = _runner().invoke(app, ["kb", "mkdir", "/A"])
     assert result.exit_code == 2
     assert "no default" in (result.output or result.stderr or "")
 
 
-@patch("uqadm.core.cli_auth.config_for_slot", side_effect=MissingSlotEnvFileError("missing env"))
+@patch(
+    "uqadm.core.cli_auth.config_for_slot",
+    side_effect=MissingSlotEnvFileError("missing env"),
+)
 @patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_mkdir_missing_env_exits_2(
     mock_resolve: MagicMock, mock_cfg: MagicMock

@@ -170,7 +170,7 @@ def cmd_diff(
     except EndpointParseError as exc:
         typer.echo(str(exc), err=True)
         sys.exit(2)
-    
+
     cfg_a = load_config_or_exit(slot_a, cwd)
 
     try:
