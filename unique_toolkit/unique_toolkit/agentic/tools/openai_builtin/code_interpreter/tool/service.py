@@ -28,6 +28,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         user_uploaded_files: list[str] | None = None,
         kb_uploaded_files: list[str] | None = None,
         code_execution_files: list[str] | None = None,
+        failed_uploads: list[str] | None = None,
     ) -> None:
         self._config = config
 
@@ -41,6 +42,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         self._user_uploaded_files = user_uploaded_files
         self._kb_uploaded_files = kb_uploaded_files
         self._code_interpreter_artifacts = code_execution_files
+        self._failed_uploads = failed_uploads
 
     @property
     @override
@@ -83,6 +85,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             user_uploaded_files=self._user_uploaded_files,
             kb_uploaded_files=self._kb_uploaded_files,
             code_interpreter_artifacts=self._code_interpreter_artifacts,
+            failed_uploads=self._failed_uploads,
         )
         return ToolPrompts(
             name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter
