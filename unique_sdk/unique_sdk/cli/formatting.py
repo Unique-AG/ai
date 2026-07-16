@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from unique_sdk.api_resources._agentic_table import (
         AgenticTableCell,
         AgenticTableSheet,
+        MagicTableArtifact,
     )
     from unique_sdk.api_resources._mcp import MCP
     from unique_sdk.api_resources._scheduled_task import ScheduledTask
@@ -439,4 +440,31 @@ def format_agentic_table_cell_history(cell: AgenticTableCell) -> str:
         text = (entry.get("text") or "").strip()
         for text_line in text.splitlines():
             lines.append(f"    {text_line}")
+    return "\n".join(lines)
+
+
+def format_agentic_table_artifacts(artifacts: list[MagicTableArtifact]) -> str:
+    """Format a sheet's export artifacts as a table.
+
+    ``contentId`` is only populated once an artifact reaches the ``DONE`` state;
+    pending/in-progress artifacts show ``-`` in the CONTENT column.
+    """
+    if not artifacts:
+        return "No export artifacts found."
+
+    header = ["TYPE", "STATE", "ID", "CONTENT", "UPDATED"]
+    rows: list[list[str]] = [header]
+    for artifact in artifacts:
+        rows.append(
+            [
+                str(artifact.get("artifactType", "?")),
+                str(artifact.get("artifactState", "?")),
+                artifact.get("id", "?"),
+                artifact.get("contentId") or "-",
+                _format_date(artifact.get("updatedAt")),
+            ]
+        )
+
+    lines = [f"{len(artifacts)} export artifact(s):\n"]
+    lines.extend(_pad_columns(rows))
     return "\n".join(lines)

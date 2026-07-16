@@ -13,6 +13,7 @@ from unique_sdk.cli.commands.agentic_table import (
     cmd_cell_history,
     cmd_get_cell,
     cmd_get_sheet,
+    cmd_list_exports,
     is_error_output,
 )
 from unique_sdk.cli.config import Config
@@ -32,6 +33,25 @@ _SHEET = {
         {"rowOrder": 1, "columnOrder": 0, "text": "What is the fee?"},
     ],
 }
+
+_ARTIFACTS = [
+    {
+        "id": "artifact_1",
+        "artifactType": "FULL_REPORT",
+        "artifactState": "DONE",
+        "contentId": "cont_export",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:01:00.000Z",
+    },
+    {
+        "id": "artifact_2",
+        "artifactType": "QUESTIONS",
+        "artifactState": "IN_PROGRESS",
+        "contentId": None,
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-01-01T00:00:30.000Z",
+    },
+]
 
 _CELL = {
     "sheetId": "mt_1",
@@ -176,6 +196,45 @@ def test_cmd_cell_history_handles_no_entries() -> None:
     assert "(no log entries)" in out
 
 
+# -- list-exports ----------------------------------------------------------
+
+
+def test_cmd_list_exports_human_readable() -> None:
+    with _patch("list_artifacts", return_value=_ARTIFACTS) as mock_list:
+        out = cmd_list_exports(_state(), "mt_1")
+
+    assert "2 export artifact(s):" in out
+    assert "FULL_REPORT" in out and "DONE" in out
+    assert "cont_export" in out
+    assert "QUESTIONS" in out and "IN_PROGRESS" in out
+    kwargs = mock_list.await_args.kwargs
+    assert kwargs["tableId"] == "mt_1"
+
+
+def test_cmd_list_exports_json() -> None:
+    with _patch("list_artifacts", return_value=_ARTIFACTS):
+        out = cmd_list_exports(_state(), "mt_1", output_json=True)
+
+    parsed = json.loads(out)
+    assert [a["id"] for a in parsed] == ["artifact_1", "artifact_2"]
+
+
+def test_cmd_list_exports_handles_empty() -> None:
+    with _patch("list_artifacts", return_value=[]):
+        out = cmd_list_exports(_state(), "mt_1")
+
+    assert out == "No export artifacts found."
+
+
+def test_cmd_list_exports_maps_403() -> None:
+    with _patch(
+        "list_artifacts", side_effect=UniqueError("Forbidden", http_status=403)
+    ):
+        out = cmd_list_exports(_state(), "mt_1")
+
+    assert out == "agentic-table: permission denied"
+
+
 # -- error detector + CLI wiring ------------------------------------------
 
 
@@ -218,6 +277,23 @@ def test_cli_get_cell_wiring(mock_cmd: object) -> None:
     kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
     assert kwargs["row_order"] == 1
     assert kwargs["column_order"] == 2
+
+
+@patch("unique_sdk.cli.cli.cmd_list_exports")
+def test_cli_list_exports_wiring(mock_cmd: object) -> None:
+    mock_cmd.return_value = "ok"  # type: ignore[attr-defined]
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli_main,
+        ["agentic-table", "list-exports", "mt_1", "--json"],
+        env={"UNIQUE_USER_ID": "u1", "UNIQUE_COMPANY_ID": "c1"},
+    )
+
+    assert result.exit_code == 0
+    kwargs = mock_cmd.call_args.kwargs  # type: ignore[attr-defined]
+    assert kwargs["output_json"] is True
+    assert mock_cmd.call_args.args[1] == "mt_1"  # type: ignore[attr-defined]
 
 
 @patch("unique_sdk.cli.cli.cmd_get_sheet")

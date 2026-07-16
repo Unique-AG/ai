@@ -13,6 +13,7 @@ from unique_sdk.cli.commands.agentic_table import (
     cmd_cell_history,
     cmd_get_cell,
     cmd_get_sheet,
+    cmd_list_exports,
 )
 from unique_sdk.cli.commands.agentic_table import (
     is_error_output as _is_agentic_table_error_output,
@@ -2268,6 +2269,7 @@ Subcommands:
   get-sheet      Show a sheet summary (state, row count, metadata, cells)
   get-cell       Show a single cell by row/column order
   cell-history   Show a single cell's log/edit history
+  list-exports   List a sheet's export artifacts (reports, question exports)
 
 \b
 Examples:
@@ -2275,6 +2277,7 @@ Examples:
   unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
   unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
   unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2 --json
+  unique-cli agentic-table list-exports mt_abc123
 """
 
 
@@ -2408,6 +2411,38 @@ def agentic_table_cell_history(
             table_id,
             row_order=row_order,
             column_order=column_order,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="list-exports")
+@click.argument("table_id")
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_list_exports(
+    ctx: click.Context,
+    table_id: str,
+    output_json: bool,
+) -> None:
+    """List a sheet's export artifacts.
+
+    \b
+    Shows generated exports (full report, question export, agentic report)
+    with their state and, once ready, the content id to download.
+
+    \b
+    Examples:
+      unique-cli agentic-table list-exports mt_abc123
+      unique-cli agentic-table list-exports mt_abc123 --json
+    """
+    emit(
+        cmd_list_exports(
+            LazyState.get(ctx),
+            table_id,
             output_json=output_json,
         ),
         is_error=_is_agentic_table_error_output,

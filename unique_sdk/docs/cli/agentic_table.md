@@ -115,3 +115,35 @@ Cell history (row 1, col 2) — 1 entry
 - 2026-01-02 09:30  ASSISTANT  [msg_9]
     Answered from source [source1]
 ```
+
+---
+
+## agentic-table list-exports
+
+List a sheet's export artifacts (full report, question export, agentic report). `CONTENT` is populated once an artifact reaches the `DONE` state; pending artifacts show `-`.
+
+**Synopsis:**
+
+```
+agentic-table list-exports <table_id> [--json]
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--json` | Print the raw artifact list as JSON |
+
+**Example:**
+
+```bash
+unique-cli agentic-table list-exports mt_abc123
+```
+
+```
+2 export artifact(s):
+
+TYPE         STATE        ID          CONTENT       UPDATED
+FULL_REPORT  DONE         artifact_1  cont_export   2026-01-01 00:01
+QUESTIONS    IN_PROGRESS  artifact_2  -             2026-01-01 00:00
+```

@@ -18,6 +18,7 @@ import json
 from unique_sdk._error import UniqueError
 from unique_sdk.api_resources._agentic_table import AgenticTable
 from unique_sdk.cli.formatting import (
+    format_agentic_table_artifacts,
     format_agentic_table_cell,
     format_agentic_table_cell_history,
     format_agentic_table_sheet,
@@ -124,3 +125,26 @@ def cmd_cell_history(
     if output_json:
         return json.dumps(cell.get("logEntries") or [], indent=2, default=str)
     return format_agentic_table_cell_history(cell)
+
+
+def cmd_list_exports(
+    state: ShellState,
+    table_id: str,
+    *,
+    output_json: bool = False,
+) -> str:
+    """List a sheet's export artifacts (reports, question exports)."""
+    try:
+        artifacts = asyncio.run(
+            AgenticTable.list_artifacts(
+                user_id=state.config.user_id,
+                company_id=state.config.company_id,
+                tableId=table_id,
+            )
+        )
+    except UniqueError as exc:
+        return _error(exc)
+
+    if output_json:
+        return json.dumps(artifacts, indent=2, default=str)
+    return format_agentic_table_artifacts(artifacts)
