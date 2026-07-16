@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from unique_sdk import (
     AgenticTableSheetState,
+    MagicTableArtifactState,
     MagicTableArtifactType,
 )
 
@@ -281,6 +282,10 @@ class TestWaitForArtifacts:
         responses = [
             [
                 self._artifact("QUESTIONS", "IN_PROGRESS", "artifact_q"),
+                self._artifact("FULL_REPORT", "IN_PROGRESS"),
+            ],
+            [
+                self._artifact("QUESTIONS", "DONE", "artifact_q"),
                 self._artifact("FULL_REPORT", "DONE"),
             ],
         ]
@@ -291,10 +296,43 @@ class TestWaitForArtifacts:
         assert len(artifacts) == 1
         assert artifacts[0].artifact_type == MagicTableArtifactType.FULL_REPORT
 
+    async def test_ignores_done_artifact_left_over_from_previous_generation(
+        self, service
+    ):
+        responses = [
+            [self._artifact("FULL_REPORT", "DONE")],
+            [self._artifact("FULL_REPORT", "IN_PROGRESS")],
+            [self._artifact("FULL_REPORT", "DONE")],
+        ]
+        with _patch("list_artifacts", side_effect=responses):
+            artifacts = await service.wait_for_artifacts(
+                [MagicTableArtifactType.FULL_REPORT], timeout=10, poll_interval=0
+            )
+        assert len(artifacts) == 1
+        assert artifacts[0].artifact_state == MagicTableArtifactState.DONE
+
+    async def test_ignores_error_artifact_left_over_from_previous_generation(
+        self, service
+    ):
+        responses = [
+            [self._artifact("FULL_REPORT", "ERROR")],
+            [self._artifact("FULL_REPORT", "IN_PROGRESS")],
+            [self._artifact("FULL_REPORT", "DONE")],
+        ]
+        with _patch("list_artifacts", side_effect=responses):
+            artifacts = await service.wait_for_artifacts(
+                [MagicTableArtifactType.FULL_REPORT], timeout=10, poll_interval=0
+            )
+        assert len(artifacts) == 1
+        assert artifacts[0].artifact_state == MagicTableArtifactState.DONE
+
     async def test_raises_on_error_state(self, service):
         with _patch(
             "list_artifacts",
-            return_value=[self._artifact("FULL_REPORT", "ERROR")],
+            side_effect=[
+                [self._artifact("FULL_REPORT", "IN_PROGRESS")],
+                [self._artifact("FULL_REPORT", "ERROR")],
+            ],
         ):
             with pytest.raises(AgenticTableArtifactError):
                 await service.wait_for_artifacts(

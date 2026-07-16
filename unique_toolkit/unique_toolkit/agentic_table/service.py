@@ -772,7 +772,14 @@ class AgenticTableService:
         """Wait until artifacts of the given types are DONE, by polling ``list_artifacts``.
 
         Artifact records are upserted per type: triggering an export flips the record
-        of that type to IN_PROGRESS and back to DONE when the file is ready.
+        of that type to IN_PROGRESS and back to DONE when the file is ready. A
+        terminal state is accepted only after IN_PROGRESS has been observed for
+        that artifact type, so a result left over from an earlier generation is
+        not mistaken for the newly triggered one.
+
+        Because the API exposes only the current artifact state, a complete
+        IN_PROGRESS-to-terminal transition between two polls cannot be observed.
+        Keep ``poll_interval`` shorter than the expected minimum generation time.
 
         Args:
             artifact_types: The artifact types to wait for (as passed to ``generate_artifacts``).
@@ -787,12 +794,23 @@ class AgenticTableService:
             AgenticTableRunTimeoutError: Not all artifacts were DONE within ``timeout``.
         """
         wanted = set(artifact_types)
+        started: set[MagicTableArtifactType] = set()
         deadline = time.monotonic() + timeout
         while True:
             artifacts = await self.list_artifacts()
-            relevant = [a for a in artifacts if a.artifact_type in wanted]
+            current = {
+                a.artifact_type: a for a in artifacts if a.artifact_type in wanted
+            }
+            started.update(
+                artifact_type
+                for artifact_type, artifact in current.items()
+                if artifact.artifact_state == MagicTableArtifactState.IN_PROGRESS
+            )
             failed = [
-                a for a in relevant if a.artifact_state == MagicTableArtifactState.ERROR
+                artifact
+                for artifact_type, artifact in current.items()
+                if artifact_type in started
+                and artifact.artifact_state == MagicTableArtifactState.ERROR
             ]
             if failed:
                 raise AgenticTableArtifactError(
@@ -800,9 +818,10 @@ class AgenticTableService:
                     f"on sheet {self.table_id}."
                 )
             done = {
-                a.artifact_type: a
-                for a in relevant
-                if a.artifact_state == MagicTableArtifactState.DONE
+                artifact_type: artifact
+                for artifact_type, artifact in current.items()
+                if artifact_type in started
+                and artifact.artifact_state == MagicTableArtifactState.DONE
             }
             if wanted <= set(done.keys()):
                 return [done[t] for t in artifact_types]
