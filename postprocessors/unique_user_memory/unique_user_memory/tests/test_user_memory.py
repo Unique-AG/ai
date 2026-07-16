@@ -939,6 +939,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
+    chat_service = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
