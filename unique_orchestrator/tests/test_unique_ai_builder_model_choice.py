@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import ValidationError
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
@@ -197,6 +198,30 @@ def test_model_choice_applies_switchable_temperature_when_defined() -> None:
 
     assert config.space.language_model == selected_model
     assert config.agent.experimental.temperature == 0.3
+
+
+@pytest.mark.ai
+def test_switchable_temperature_out_of_bounds_is_rejected() -> None:
+    """
+    Purpose: Verify an out-of-range per-model temperature fails at config load.
+    Why this matters: The value is copied into agent.experimental.temperature (0.0–10.0);
+    matching bounds surface the error early instead of on user model selection.
+    Setup summary: Build a space config with temperature 15.0; assert ValidationError.
+    """
+    selected_model = _make_model("selected-model")
+    with pytest.raises(ValidationError):
+        UniqueAISpaceConfig(
+            allow_model_switching=True,
+            switchable_language_models=[
+                {
+                    "displayName": "Selected Model",
+                    "languageModel": selected_model,
+                    "temperature": 15.0,
+                }
+            ],
+            language_model=_make_model("default-model"),
+            tools=[],
+        )
 
 
 @pytest.mark.ai
