@@ -601,6 +601,48 @@ class TestAddAnalytics:
         assert analytics["artifacts_created_filetype"] is None
 
     @pytest.mark.ai
+    def test_add_analytics__context_memory_updated__populated_from_argument(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify the context_memory_updated field mirrors the argument.
+        Why this matters: This is the wiring that surfaces whether the user-memory
+        postprocessor updated the stored profile this turn.
+        Setup summary: Pass True/False; assert the field mirrors it.
+        """
+        for value in (True, False):
+            debug_info_manager.add_analytics(
+                [],
+                language_model=self.language_model,
+                tool_display_names=self.tool_display_names,
+                context_memory_updated=value,
+            )
+
+            analytics = debug_info_manager.get()["analytics"]
+            assert analytics["context_memory_updated"] is value
+
+    @pytest.mark.ai
+    def test_add_analytics__context_memory_updated__none_when_not_activated(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """
+        Purpose: Verify context_memory_updated is None when the user-memory
+        postprocessor is not activated (argument omitted) — the always-present,
+        null-when-unknown contract.
+        Setup summary: Call add_analytics without the argument; assert key present
+        and None.
+        """
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        analytics = debug_info_manager.get()["analytics"]
+        assert "context_memory_updated" in analytics
+        assert analytics["context_memory_updated"] is None
+
+    @pytest.mark.ai
     def test_add_analytics__does_not_remove_top_level_tools_or_skills_keys(
         self, debug_info_manager: DebugInfoManager
     ) -> None:

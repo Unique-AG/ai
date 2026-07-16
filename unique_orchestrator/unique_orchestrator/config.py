@@ -301,8 +301,8 @@ class UniqueAIServices(BaseToolConfig):
     )
 
     user_memory_config: UserMemoryConfig = Field(
-        title="User Memory (Experimental)",
-        description="Configuration for persistent user memory. Experimental feature - requires activation via feature flag.",
+        title="Context Memory",
+        description="Configuration for persistent context memory.",
         default_factory=UserMemoryConfig,
     )
 

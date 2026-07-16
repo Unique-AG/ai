@@ -62,6 +62,7 @@ from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
     SupportCompleteWithReferences,
 )
+from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders.inject_tool_reminders import (
     inject_tool_reminders_into_user_message,
@@ -208,6 +209,9 @@ class UniqueAI:
         self._current_loop_timing: dict[str, Any] = {}
         self._loop_debug_params: list[dict[str, Any]] = []
         self._generated_files_info: ArtifactsDebugInfo | None = None
+        # None when the user-memory postprocessor is not activated for this turn;
+        # True/False when it ran and did/didn't update the stored memory profile.
+        self._context_memory_updated: bool | None = None
         self._invocation_stats: list[LanguageModelInvocationStats] = []
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
@@ -238,6 +242,7 @@ class UniqueAI:
         # reaching _handle_no_tool_calls (tool takes control / empty response /
         # cancellation) must not report the previous run's artifacts.
         self._generated_files_info = None
+        self._context_memory_updated = None
         self._invocation_stats = []
         run_start = time.perf_counter()
 
@@ -409,6 +414,7 @@ class UniqueAI:
                 loop_iteration_count=len(self._execution_times),
                 total_time_to_answer_ms=total_time_to_answer_ms,
                 artifacts=self._generated_files_info,
+                context_memory_updated=self._context_memory_updated,
             )
 
             # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
@@ -754,6 +760,12 @@ class UniqueAI:
             postprocessor_outputs.get(
                 DisplayCodeInterpreterFilesPostProcessor.__name__
             ),
+        )
+        # Absent key => postprocessor not activated this turn (stays None);
+        # present => bool telling whether the memory profile was updated.
+        self._context_memory_updated = cast(
+            "bool | None",
+            postprocessor_outputs.get(UserMemoryPostprocessor.__name__),
         )
         self._current_loop_timing["post_processing"].update(
             self._postprocessor_manager.get_execution_times()
