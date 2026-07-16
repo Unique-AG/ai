@@ -47,6 +47,26 @@ class MissingSlotEnvFileError(FileNotFoundError):
     """Raised when neither ``.{slot}.env`` nor ``{slot}.env`` exists for a slot."""
 
 
+class MissingEnvCredentialsError(RuntimeError):
+    """Raised when ``UQADM_AUTH_FROM_ENV`` is set but required vars are absent."""
+
+
+_TRUTHY_ENV_VALUES = frozenset({"1", "true", "yes", "on"})
+
+
+def auth_from_env_enabled() -> bool:
+    """Whether to authenticate straight from the process environment.
+
+    When ``UQADM_AUTH_FROM_ENV`` is set to a truthy value (``1``, ``true``,
+    ``yes``, ``on`` — case-insensitive), uqadm reads credentials from the
+    already-exported ``UNIQUE_*``/toolkit variables and skips per-slot ``.env``
+    files entirely. Any other value (including ``0``/``false``) or an unset
+    variable leaves the file-based path in effect.
+    """
+    raw = os.environ.get("UQADM_AUTH_FROM_ENV")
+    return raw is not None and raw.strip().lower() in _TRUTHY_ENV_VALUES
+
+
 def _format_missing_slot_env_help(
     slot: str, searched_dirs: list[Path], hidden_name: str, visible_name: str
 ) -> str:
@@ -185,8 +205,35 @@ def clear_unique_env_vars() -> None:
         os.environ.pop(key, None)
 
 
-def load_slot(slot: str, cwd: Path | None = None) -> Path:
-    """Load the resolved slot env file into ``os.environ`` (override=True)."""
+def _require_min_credentials() -> None:
+    """Ensure the mandatory SDK vars are present when authing from the env."""
+    missing = [
+        key
+        for key in ("UNIQUE_USER_ID", "UNIQUE_COMPANY_ID")
+        if not _first_nonempty_env(key)
+    ]
+    if missing:
+        raise MissingEnvCredentialsError(
+            "uqadm: UQADM_AUTH_FROM_ENV is set but these required variables are "
+            f"missing from the environment: {', '.join(missing)}.\n\n"
+            "Set them directly (UNIQUE_USER_ID, UNIQUE_COMPANY_ID) or via toolkit "
+            "aliases (unique_auth_user_id, unique_auth_company_id), or unset "
+            "UQADM_AUTH_FROM_ENV to use a per-slot .env file instead."
+        )
+
+
+def load_slot(slot: str, cwd: Path | None = None) -> Path | None:
+    """Load slot credentials into ``os.environ``.
+
+    When ``UQADM_AUTH_FROM_ENV`` is set, credentials are taken from the current
+    environment (no file, no clearing) and ``None`` is returned. Otherwise the
+    resolved slot env file is loaded with ``override=True``.
+    """
+    if auth_from_env_enabled():
+        # The shell environment is the source of truth; do not clear it.
+        _sync_sdk_env_from_toolkit_aliases()
+        _require_min_credentials()
+        return None
     path = env_file_for_slot(slot, cwd)
     clear_unique_env_vars()
     _: bool = load_dotenv(path, override=True)

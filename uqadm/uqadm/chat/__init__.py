@@ -19,7 +19,9 @@ chat_app = typer.Typer(
 _STOP_ON_VALUES = {"stoppedStreamingAt", "completedAt"}
 _SLOT_HELP = (
     "Credential slot (loads .{SLOT}.env). "
-    "Omit to use the configured default (see `uqadm env set-default`)."
+    "Omit to use the configured default (see `uqadm env set-default`). "
+    "Ignored when UQADM_AUTH_FROM_ENV is set — credentials are read from the "
+    "process environment and no slot file is used."
 )
 
 

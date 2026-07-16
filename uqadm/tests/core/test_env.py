@@ -275,3 +275,133 @@ def test_load_slot_unique_api_base_url_with_path_passes_through_unchanged(
     )
     load_slot("pub", cwd=tmp_path)
     assert os.environ["UNIQUE_API_BASE"] == "http://localhost:8092/public"
+
+
+# --- UQADM_AUTH_FROM_ENV: authenticate from the process environment ----------
+
+
+def test_auth_from_env_unset_is_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    from uqadm.core.env import auth_from_env_enabled
+
+    monkeypatch.delenv("UQADM_AUTH_FROM_ENV", raising=False)
+    assert auth_from_env_enabled() is False
+
+
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "Yes", "on", " on "])
+def test_auth_from_env_truthy_values_enable(
+    value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from uqadm.core.env import auth_from_env_enabled
+
+    monkeypatch.setenv("UQADM_AUTH_FROM_ENV", value)
+    assert auth_from_env_enabled() is True
+
+
+@pytest.mark.parametrize("value", ["0", "false", "no", "off", "", "   ", "maybe"])
+def test_auth_from_env_non_truthy_values_disable(
+    value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from uqadm.core.env import auth_from_env_enabled
+
+    monkeypatch.setenv("UQADM_AUTH_FROM_ENV", value)
+    assert auth_from_env_enabled() is False
+
+
+def test_load_slot_from_env_needs_no_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the flag set, load_slot uses the environment and returns None."""
+    from uqadm.core.env import load_slot
+
+    monkeypatch.setenv("UQADM_AUTH_FROM_ENV", "1")
+    monkeypatch.setenv("UNIQUE_USER_ID", "u_env")
+    monkeypatch.setenv("UNIQUE_COMPANY_ID", "c_env")
+
+    # tmp_path deliberately contains no env file for the slot.
+    result = load_slot("does_not_exist", cwd=tmp_path)
+    assert result is None
+    assert os.environ["UNIQUE_USER_ID"] == "u_env"
+    assert os.environ["UNIQUE_COMPANY_ID"] == "c_env"
+
+
+def test_load_slot_from_env_does_not_clear_existing_vars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Env-auth must not wipe already-exported UNIQUE_* vars."""
+    from uqadm.core.env import load_slot
+
+    monkeypatch.setenv("UQADM_AUTH_FROM_ENV", "1")
+    monkeypatch.setenv("UNIQUE_USER_ID", "u_env")
+    monkeypatch.setenv("UNIQUE_COMPANY_ID", "c_env")
+    monkeypatch.setenv("UNIQUE_API_KEY", "sk_env")
+
+    load_slot("ignored")
+    assert os.environ["UNIQUE_API_KEY"] == "sk_env"
+
+
+def test_load_slot_from_env_syncs_toolkit_aliases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from uqadm.core.env import load_slot
+
+    monkeypatch.setenv("UQADM_AUTH_FROM_ENV", "1")
+    monkeypatch.delenv("UNIQUE_USER_ID", raising=False)
+    monkeypatch.delenv("UNIQUE_COMPANY_ID", raising=False)
+    monkeypatch.setenv("unique_auth_user_id", "u_toolkit")
+    monkeypatch.setenv("unique_auth_company_id", "c_toolkit")
+
+    load_slot("ignored")
+    assert os.environ["UNIQUE_USER_ID"] == "u_toolkit"
+    assert os.environ["UNIQUE_COMPANY_ID"] == "c_toolkit"
+
+
+def test_load_slot_from_env_missing_required_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from uqadm.core.env import MissingEnvCredentialsError, load_slot
+
+    monkeypatch.setenv("UQADM_AUTH_FROM_ENV", "1")
+    for key in (
+        "UNIQUE_USER_ID",
+        "UNIQUE_COMPANY_ID",
+        "unique_auth_user_id",
+        "unique_auth_company_id",
+        "UNIQUE_AUTH_USER_ID",
+        "UNIQUE_AUTH_COMPANY_ID",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    with pytest.raises(MissingEnvCredentialsError) as exc_info:
+        load_slot("ignored")
+    msg = str(exc_info.value)
+    assert "UNIQUE_USER_ID" in msg
+    assert "UNIQUE_COMPANY_ID" in msg
+
+
+def test_cli_env_auth_missing_credentials_exits_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("UQADM_HOME", str(tmp_path))
+    monkeypatch.setenv("UQADM_AUTH_FROM_ENV", "1")
+    for key in (
+        "UNIQUE_USER_ID",
+        "UNIQUE_COMPANY_ID",
+        "unique_auth_user_id",
+        "unique_auth_company_id",
+        "UNIQUE_AUTH_USER_ID",
+        "UNIQUE_AUTH_COMPANY_ID",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    try:
+        runner = CliRunner(mix_stderr=False)  # type: ignore[call-arg]
+    except TypeError:
+        runner = CliRunner()
+    result = runner.invoke(app, ["space", "list"])
+    assert result.exit_code == 2
+    try:
+        out = (result.stdout or "") + (result.stderr or "")
+    except ValueError:
+        out = result.output or ""
+    assert "UQADM_AUTH_FROM_ENV" in out
+    assert "UNIQUE_USER_ID" in out

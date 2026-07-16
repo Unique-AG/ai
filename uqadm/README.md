@@ -93,6 +93,27 @@ A **slot** is a short name (e.g. `qa`, `prod`, `1`) that maps to a `.env` file h
 
 If no file is found, `uqadm` prints a short guide to stderr and exits with code **2** — no Python traceback.
 
+### Authenticate from environment variables (no file)
+
+Set **`UQADM_AUTH_FROM_ENV`** to a truthy value (`1`, `true`, `yes`, `on` — case-insensitive) to skip slot files entirely and read credentials straight from the current environment. Any other value (including `0`/`false`) or leaving it unset keeps the file-based path:
+
+```bash
+export UQADM_AUTH_FROM_ENV=1
+export UNIQUE_USER_ID=user_...
+export UNIQUE_COMPANY_ID=company_...
+export UNIQUE_API_KEY=ukey_...        # optional
+uqadm space list                       # no --slot, no ~/.uqadm file needed
+```
+
+When this flag is set:
+
+- No `.env` file is read or required, and `~/.uqadm` is not touched.
+- `--slot` and the configured default slot are ignored for authentication; the process environment is the sole source of truth.
+- Existing `UNIQUE_*` / toolkit variables are **not** cleared, so toolkit-style aliases (`unique_auth_user_id`, `unique_app_key`, `unique_api_base_url`, …) are honored and mapped to their `UNIQUE_*` equivalents.
+- `UNIQUE_USER_ID` and `UNIQUE_COMPANY_ID` (or their toolkit aliases) are required; if either is missing, `uqadm` exits with code **2** and a short message.
+
+> Note: this is the opposite of the file-based path, which deliberately clears inherited `UNIQUE_*` variables to keep slots isolated. Use `UQADM_AUTH_FROM_ENV` for CI, containers, or any environment where credentials are already exported.
+
 ### Default slot
 
 Running `uqadm env set-default qa` writes the default slot to `~/.uqadm/config.toml`. All commands that accept `--slot` will use this default when the option is omitted.

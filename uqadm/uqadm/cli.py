@@ -10,7 +10,7 @@ import typer
 
 from uqadm import __version__
 from uqadm.chat import chat_app
-from uqadm.core.env import MissingSlotEnvFileError
+from uqadm.core.env import MissingEnvCredentialsError, MissingSlotEnvFileError
 from uqadm.env import env_app
 from uqadm.install import install_command
 from uqadm.kb import kb_app
@@ -66,6 +66,6 @@ def root_callback(
 def main() -> None:
     try:
         app()
-    except MissingSlotEnvFileError as exc:
+    except (MissingSlotEnvFileError, MissingEnvCredentialsError) as exc:
         typer.echo(str(exc), err=True)
         sys.exit(2)

@@ -7,7 +7,11 @@ from typing import Annotated, Literal, Optional
 
 import typer
 
-from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
+from uqadm.core.env import (
+    MissingEnvCredentialsError,
+    MissingSlotEnvFileError,
+    config_for_slot,
+)
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 from uqadm.kb.access import cmd_access_grant
 from uqadm.kb.download import cmd_download
@@ -38,7 +42,9 @@ _INGESTION_SUBHELP = (
 
 _SLOT_HELP = (
     "Credential slot: loads .{SLOT}.env or {SLOT}.env. "
-    "Omit to use the configured default (see `uqadm env set-default`)."
+    "Omit to use the configured default (see `uqadm env set-default`). "
+    "Ignored when UQADM_AUTH_FROM_ENV is set — credentials are read from the "
+    "process environment and no slot file is used."
 )
 
 
@@ -57,7 +63,7 @@ def _resolve(slot: str | None) -> str:
 def _load_cfg(slot: str, cwd: Path | None):  # type: ignore[no-untyped-def]
     try:
         return config_for_slot(slot, cwd=cwd)
-    except MissingSlotEnvFileError as exc:
+    except (MissingSlotEnvFileError, MissingEnvCredentialsError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(2)
 

@@ -14,7 +14,11 @@ from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
 
 from uqadm.chat.render import print_framed_message
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
+from uqadm.core.env import (
+    MissingEnvCredentialsError,
+    MissingSlotEnvFileError,
+    config_for_slot,
+)
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 
 StopCondition = Literal["stoppedStreamingAt", "completedAt"]
@@ -63,7 +67,7 @@ def cmd_send(
 
     try:
         cfg = config_for_slot(resolved_slot, cwd=cwd)
-    except MissingSlotEnvFileError as exc:
+    except (MissingSlotEnvFileError, MissingEnvCredentialsError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(2)
 
