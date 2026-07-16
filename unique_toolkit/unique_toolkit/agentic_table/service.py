@@ -705,12 +705,17 @@ class AgenticTableService:
         """Wait for an agent run to start and complete, by polling the sheet state.
 
         Two-phase poll:
-        1. Wait until the sheet leaves IDLE (the agent picked up the trigger).
-           If it never does within ``start_timeout``, raise
+        1. Wait until the sheet enters PROCESSING (the agent picked up the trigger).
+           Terminal state left over from an earlier run is not treated as a new
+           run. If PROCESSING is never observed within ``start_timeout``, raise
            ``AgenticTableRunNotStartedError`` — most likely the trigger did not
            start a run (e.g. no new questions were imported).
         2. Wait until the sheet returns to IDLE or STOPPED_BY_USER (the run
            finished), up to ``completion_timeout``.
+
+        Because the API exposes only the current state, a complete
+        PROCESSING-to-IDLE transition between two polls cannot be observed.
+        Keep ``poll_interval`` shorter than the expected minimum run duration.
 
         Args:
             start_timeout: Max seconds to wait for the run to start (phase 1).
@@ -721,7 +726,7 @@ class AgenticTableService:
             AgenticTableSheetState: The terminal state (IDLE or STOPPED_BY_USER).
 
         Raises:
-            AgenticTableRunNotStartedError: The sheet never left IDLE in phase 1.
+            AgenticTableRunNotStartedError: The sheet never entered PROCESSING in phase 1.
             AgenticTableRunTimeoutError: The run did not finish within ``completion_timeout``.
         """
         deadline = time.monotonic() + start_timeout
@@ -731,11 +736,11 @@ class AgenticTableService:
                 company_id=self._company_id,
                 tableId=self.table_id,
             )
-            if state != AgenticTableSheetState.IDLE:
+            if state == AgenticTableSheetState.PROCESSING:
                 break
             if time.monotonic() >= deadline:
                 raise AgenticTableRunNotStartedError(
-                    f"Sheet {self.table_id} never left IDLE within {start_timeout}s. "
+                    f"Sheet {self.table_id} never entered PROCESSING within {start_timeout}s. "
                     "Did the trigger start a run (e.g. were new questions imported)?"
                 )
             await asyncio.sleep(poll_interval)

@@ -217,8 +217,29 @@ class TestWaitForRun:
             )
         assert final == AgenticTableSheetState.STOPPED_BY_USER
 
+    async def test_ignores_stopped_state_left_over_from_previous_run(self, service):
+        states = [
+            AgenticTableSheetState.STOPPED_BY_USER,
+            AgenticTableSheetState.PROCESSING,
+            AgenticTableSheetState.IDLE,
+        ]
+        with _patch("get_sheet_state", side_effect=states):
+            final = await service.wait_for_run(
+                start_timeout=10, completion_timeout=10, poll_interval=0
+            )
+        assert final == AgenticTableSheetState.IDLE
+
     async def test_raises_when_run_never_starts(self, service):
         with _patch("get_sheet_state", return_value=AgenticTableSheetState.IDLE):
+            with pytest.raises(AgenticTableRunNotStartedError):
+                await service.wait_for_run(
+                    start_timeout=0, completion_timeout=10, poll_interval=0
+                )
+
+    async def test_raises_when_stopped_state_never_enters_processing(self, service):
+        with _patch(
+            "get_sheet_state", return_value=AgenticTableSheetState.STOPPED_BY_USER
+        ):
             with pytest.raises(AgenticTableRunNotStartedError):
                 await service.wait_for_run(
                     start_timeout=0, completion_timeout=10, poll_interval=0
