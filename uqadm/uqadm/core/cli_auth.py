@@ -7,7 +7,6 @@ code ``2`` (instead of a Python traceback), in one place.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import typer
@@ -20,10 +19,10 @@ from uqadm.core.env import (
 )
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 
-# These helpers exit via ``sys.exit`` (SystemExit) rather than ``typer.Exit``.
-# ``typer.Exit`` subclasses ``RuntimeError``, so a broad ``except Exception``
-# around a call site (e.g. ``space diff``) would swallow it and mask the exit
-# code; ``SystemExit`` is a ``BaseException`` and passes through cleanly.
+# NOTE: these raise ``typer.Exit`` (a ``RuntimeError`` subclass). Do not call
+# them inside a broad ``except Exception`` block, or the exit will be swallowed
+# and masked — resolve/load the config *before* entering such a block (see the
+# space diff command).
 
 
 def resolve_slot_or_exit(slot: str | None) -> str:
@@ -32,7 +31,7 @@ def resolve_slot_or_exit(slot: str | None) -> str:
         return resolve_slot(slot)
     except MissingDefaultSlotError as exc:
         typer.echo(str(exc), err=True)
-        sys.exit(2)
+        raise typer.Exit(2)
 
 
 def load_config_or_exit(slot: str, cwd: Path | None) -> Config:
@@ -41,4 +40,4 @@ def load_config_or_exit(slot: str, cwd: Path | None) -> Config:
         return config_for_slot(slot, cwd=cwd)
     except (MissingSlotEnvFileError, MissingEnvCredentialsError) as exc:
         typer.echo(str(exc), err=True)
-        sys.exit(2)
+        raise typer.Exit(2)

@@ -213,6 +213,8 @@ uqadm env list
 
 Print the resolved credential values for a slot (API key is redacted). Omit `SLOT` to use the default.
 
+When `UQADM_AUTH_FROM_ENV` is set, omitting `SLOT` shows the credentials resolved from the process environment (labeled `slot 'env'`) — no default slot or `config.toml` is required.
+
 ```bash
 uqadm env show
 uqadm env show prod

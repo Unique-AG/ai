@@ -16,7 +16,6 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 from unique_sdk import Space
-from unique_sdk.cli.config import Config
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
 from uqadm.core.cli_auth import load_config_or_exit
@@ -166,42 +165,43 @@ def cmd_diff(
     fmt: DiffFormat = (
         "side-by-side" if output_format.lower() == "side-by-side" else "unified"
     )
-    cfg_a: Config | None = None
+    # Resolve endpoint + load credentials outside the broad ``except Exception``
+    # below: load_config_or_exit raises typer.Exit (a RuntimeError) that the
+    # broad handler would otherwise swallow into a misleading exit 1.
     try:
         slot_a, space_id_a = parse_source_endpoint(spec_a)
-        cfg_a = load_config_or_exit(slot_a, cwd)
+    except EndpointParseError as exc:
+        typer.echo(str(exc), err=True)
+        sys.exit(2)
+    cfg_a = load_config_or_exit(slot_a, cwd)
+    try:
         a_raw = dict(
             Space.get_space(cfg_a.user_id, cfg_a.company_id, space_id_a),
         )
+    except Exception as exc:
+        typer.echo(f"diff failed fetching --source space ({spec_a!r}): {exc}", err=True)
+        echo_credential_debug_if_auth_failure(
+            cfg_a, exc, label=f"space diff --source ({spec_a!r})"
+        )
+        sys.exit(1)
+
+    try:
+        slot_b, space_id_b = parse_source_endpoint(spec_b)
     except EndpointParseError as exc:
         typer.echo(str(exc), err=True)
         sys.exit(2)
-    except Exception as exc:
-        typer.echo(f"diff failed fetching --source space ({spec_a!r}): {exc}", err=True)
-        if cfg_a is not None:
-            echo_credential_debug_if_auth_failure(
-                cfg_a, exc, label=f"space diff --source ({spec_a!r})"
-            )
-        sys.exit(1)
-
-    cfg_b: Config | None = None
+    cfg_b = load_config_or_exit(slot_b, cwd)
     try:
-        slot_b, space_id_b = parse_source_endpoint(spec_b)
-        cfg_b = load_config_or_exit(slot_b, cwd)
         b_raw = dict(
             Space.get_space(cfg_b.user_id, cfg_b.company_id, space_id_b),
         )
-    except EndpointParseError as exc:
-        typer.echo(str(exc), err=True)
-        sys.exit(2)
     except Exception as exc:
         typer.echo(
             f"diff failed fetching --destination space ({spec_b!r}): {exc}", err=True
         )
-        if cfg_b is not None:
-            echo_credential_debug_if_auth_failure(
-                cfg_b, exc, label=f"space diff --destination ({spec_b!r})"
-            )
+        echo_credential_debug_if_auth_failure(
+            cfg_b, exc, label=f"space diff --destination ({spec_b!r})"
+        )
         sys.exit(1)
 
     a_payload = a_raw if strict else _normalize_for_diff(a_raw, strict=False)
