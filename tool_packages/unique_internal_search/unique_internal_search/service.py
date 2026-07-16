@@ -60,10 +60,6 @@ from unique_internal_search.utils import (
 
 AVERAGE_TOKENS_PER_CHUNK = 500
 TOKEN_BUDGET_SAFETY_FACTOR = 1.3
-INTERNAL_SEARCH_CHUNK_RELEVANCY_SOURCE = "internal_search_chunk_relevancy"
-INTERNAL_SEARCH_CHUNK_RELEVANCY_FALLBACK_SOURCE = (
-    "internal_search_chunk_relevancy_fallback"
-)
 
 
 async def _noop_log_progress(message: str) -> None:
@@ -101,9 +97,9 @@ def _append_chunk_relevancy_invocation_stats(
                     stat.model_name,
                     stat.token_usage,
                     source=(
-                        INTERNAL_SEARCH_CHUNK_RELEVANCY_FALLBACK_SOURCE
+                        "internal_search_chunk_relevancy_fallback"
                         if is_fallback
-                        else INTERNAL_SEARCH_CHUNK_RELEVANCY_SOURCE
+                        else "internal_search_chunk_relevancy"
                     ),
                 )
             )

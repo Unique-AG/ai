@@ -16,9 +16,6 @@ from unique_toolkit.language_model.invocation_stats import (
 )
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
-WEB_SEARCH_CHUNK_RELEVANCY_SOURCE = "web_search_chunk_relevancy"
-WEB_SEARCH_CHUNK_RELEVANCY_FALLBACK_SOURCE = "web_search_chunk_relevancy_fallback"
-
 
 class StepDebugInfo(BaseModel):
     step_name: str

@@ -7,7 +7,6 @@ from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.summarization.config import SummarizationConfig
-from unique_swot.utils import SWOT_SUMMARIZATION
 
 _LOGGER = getLogger(__name__)
 
@@ -58,7 +57,7 @@ class SummarizationAgent:
                     LanguageModelInvocationStats.from_usage(
                         self._llm.name,
                         response.usage,
-                        source=SWOT_SUMMARIZATION,
+                        source="swot_summarization",
                     )
                 )
 

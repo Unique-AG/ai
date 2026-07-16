@@ -20,8 +20,6 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import (
-    INTERNAL_SEARCH_CHUNK_RELEVANCY_FALLBACK_SOURCE,
-    INTERNAL_SEARCH_CHUNK_RELEVANCY_SOURCE,
     InternalSearchService,
     InternalSearchTool,
     _append_chunk_relevancy_invocation_stats,
@@ -85,10 +83,10 @@ class TestAppendChunkRelevancyInvocationStats:
         _append_chunk_relevancy_invocation_stats(sorter_result, config, accumulator)
 
         assert len(accumulator) == 2
-        assert accumulator[0].source == INTERNAL_SEARCH_CHUNK_RELEVANCY_SOURCE
+        assert accumulator[0].source == "internal_search_chunk_relevancy"
         assert accumulator[0].model_name == primary
         assert accumulator[0].token_usage.total_tokens == 5
-        assert accumulator[1].source == INTERNAL_SEARCH_CHUNK_RELEVANCY_FALLBACK_SOURCE
+        assert accumulator[1].source == "internal_search_chunk_relevancy_fallback"
         assert accumulator[1].model_name == fallback
         assert accumulator[1].token_usage.total_tokens == 7
 
@@ -112,7 +110,7 @@ class TestAppendChunkRelevancyInvocationStats:
         _append_chunk_relevancy_invocation_stats(sorter_result, config, accumulator)
 
         assert len(accumulator) == 1
-        assert accumulator[0].source == INTERNAL_SEARCH_CHUNK_RELEVANCY_SOURCE
+        assert accumulator[0].source == "internal_search_chunk_relevancy"
 
 
 class TestInternalSearchInvocationStats:
@@ -159,7 +157,7 @@ class TestInternalSearchInvocationStats:
         mock_chunk_relevancy_sorter.run.assert_called_once()
         assert len(invocation_stats) == len(sample_content_chunks)
         assert all(
-            stat.source == INTERNAL_SEARCH_CHUNK_RELEVANCY_SOURCE
+            stat.source == "internal_search_chunk_relevancy"
             for stat in invocation_stats
         )
 
@@ -206,7 +204,7 @@ class TestInternalSearchInvocationStats:
             LanguageModelInvocationStats.from_usage(
                 DEFAULT_GPT_4o,
                 _usage(4),
-                source=INTERNAL_SEARCH_CHUNK_RELEVANCY_SOURCE,
+                source="internal_search_chunk_relevancy",
             )
         ]
 

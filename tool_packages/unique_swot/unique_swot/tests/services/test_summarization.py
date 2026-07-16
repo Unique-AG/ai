@@ -12,7 +12,6 @@ from unique_swot.services.generation.models.base import (
     SWOTReportSectionEntry,
 )
 from unique_swot.services.summarization.agent import SummarizationAgent
-from unique_swot.utils import SWOT_SUMMARIZATION
 
 
 def _make_report_components():
@@ -78,7 +77,7 @@ async def test_summarization_agent_records_invocation_stats_with_model(
     assert summary == "Summary text"
     assert len(invocation_stats) == 1
     assert invocation_stats[0].model_name == "summarization-model"
-    assert invocation_stats[0].source == SWOT_SUMMARIZATION
+    assert invocation_stats[0].source == "swot_summarization"
     assert invocation_stats[0].token_usage.total_tokens == 30
 
 

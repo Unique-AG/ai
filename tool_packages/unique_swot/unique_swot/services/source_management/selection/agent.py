@@ -14,7 +14,6 @@ from unique_swot.services.source_management.selection.schema import (
     SourceSelectionResult,
 )
 from unique_swot.utils import (
-    SWOT_SOURCE_SELECTION,
     generate_structured_output,
     get_content_chunk_title,
 )
@@ -61,7 +60,7 @@ class SourceSelectionAgent:
             llm_service=self._llm_service,
             output_model=SourceSelectionResult,
             invocation_stats=invocation_stats,
-            source=SWOT_SOURCE_SELECTION,
+            source="swot_source_selection",
         )
 
         if response is None:

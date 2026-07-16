@@ -17,7 +17,6 @@ from unique_toolkit.language_model.invocation_stats import LanguageModelInvocati
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_web_search.schema import (
-    WEB_SEARCH_CHUNK_RELEVANCY_SOURCE,
     WebPageChunk,
     WebSearchDebugInfo,
 )
@@ -1481,5 +1480,5 @@ class TestSelectRelevantSourcesInvocationStats:
         assert len(executor.debug_info.invocation_stats) == 1
         assert (
             executor.debug_info.invocation_stats[0].source
-            == WEB_SEARCH_CHUNK_RELEVANCY_SOURCE
+            == "web_search_chunk_relevancy"
         )

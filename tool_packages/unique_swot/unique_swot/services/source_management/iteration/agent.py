@@ -15,7 +15,6 @@ from unique_swot.services.source_management.iteration.schema import (
     SourceIterationResults,
 )
 from unique_swot.utils import (
-    SWOT_SOURCE_ITERATION,
     generate_structured_output,
     generate_unique_id,
     get_content_chunk_title,
@@ -62,7 +61,7 @@ class SourceIterationAgent:
             llm_service=self._llm_service,
             output_model=SourceIterationResults,
             invocation_stats=invocation_stats,
-            source=SWOT_SOURCE_ITERATION,
+            source="swot_source_iteration",
         )
 
         fallback_notification_message = (

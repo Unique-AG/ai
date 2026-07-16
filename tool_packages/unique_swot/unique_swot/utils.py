@@ -14,10 +14,7 @@ _LOGGER = getLogger(__name__)
 _MAX_RETRIES = 3
 T = TypeVar("T", bound=BaseModel)
 
-SWOT_SOURCE_ITERATION = "swot_source_iteration"
-SWOT_SOURCE_SELECTION = "swot_source_selection"
 SWOT_GENERATION = "swot_generation"
-SWOT_SUMMARIZATION = "swot_summarization"
 
 
 def generate_unique_id(prefix: str) -> str:

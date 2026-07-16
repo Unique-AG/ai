@@ -21,8 +21,6 @@ from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.metrics import llm_duration, llm_errors
 from unique_web_search.schema import (
-    WEB_SEARCH_CHUNK_RELEVANCY_FALLBACK_SOURCE,
-    WEB_SEARCH_CHUNK_RELEVANCY_SOURCE,
     StepDebugInfo,
     WebPageChunk,
 )
@@ -211,8 +209,8 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
                 sorted_chunks,
                 self.chunk_relevancy_sort_config,
                 self.debug_info.invocation_stats,
-                source=WEB_SEARCH_CHUNK_RELEVANCY_SOURCE,
-                fallback_source=WEB_SEARCH_CHUNK_RELEVANCY_FALLBACK_SOURCE,
+                source="web_search_chunk_relevancy",
+                fallback_source="web_search_chunk_relevancy_fallback",
             )
             _LOGGER.info(f"Sorting chunks message: {sorted_chunks.user_message}")
             return sorted_chunks.content_chunks

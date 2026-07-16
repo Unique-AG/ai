@@ -26,9 +26,6 @@ from unique_web_search.services.search_engine.utils.grounding.bing.runner import
     get_bing_grounding_tool,
     get_or_create_agent_id,
 )
-from unique_web_search.services.search_engine.utils.grounding.response_parsing import (
-    WEB_SEARCH_GROUNDING_PARSER_SOURCE,
-)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -385,7 +382,7 @@ class TestLLMParserStrategy:
 
         assert len(invocation_stats) == 1
         assert invocation_stats[0].model_name == "gpt-4o"
-        assert invocation_stats[0].source == WEB_SEARCH_GROUNDING_PARSER_SOURCE
+        assert invocation_stats[0].source == "web_search_grounding_parser"
         assert invocation_stats[0].token_usage.total_tokens == 10
 
     @pytest.mark.ai

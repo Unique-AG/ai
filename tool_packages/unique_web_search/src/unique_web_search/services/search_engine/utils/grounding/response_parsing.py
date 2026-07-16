@@ -15,7 +15,6 @@ from unique_web_search.services.search_engine.utils.grounding.models import (
 
 _LOGGER = logging.getLogger(__name__)
 _JSON_PATTERN = re.compile(r"```json\s*([\s\S]*?)\s*```")
-WEB_SEARCH_GROUNDING_PARSER_SOURCE = "web_search_grounding_parser"
 
 
 class ResponseParser(Protocol):
@@ -120,7 +119,7 @@ class LLMParserStrategy(ResponseParser):
                 LanguageModelInvocationStats.from_usage(
                     self.llm.name,
                     llm_response.usage,
-                    source=WEB_SEARCH_GROUNDING_PARSER_SOURCE,
+                    source="web_search_grounding_parser",
                 )
             )
 
