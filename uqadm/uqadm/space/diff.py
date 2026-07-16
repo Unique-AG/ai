@@ -165,15 +165,14 @@ def cmd_diff(
     fmt: DiffFormat = (
         "side-by-side" if output_format.lower() == "side-by-side" else "unified"
     )
-    # Resolve endpoint + load credentials outside the broad ``except Exception``
-    # below: load_config_or_exit raises typer.Exit (a RuntimeError) that the
-    # broad handler would otherwise swallow into a misleading exit 1.
     try:
         slot_a, space_id_a = parse_source_endpoint(spec_a)
     except EndpointParseError as exc:
         typer.echo(str(exc), err=True)
         sys.exit(2)
+    
     cfg_a = load_config_or_exit(slot_a, cwd)
+
     try:
         a_raw = dict(
             Space.get_space(cfg_a.user_id, cfg_a.company_id, space_id_a),
@@ -190,7 +189,9 @@ def cmd_diff(
     except EndpointParseError as exc:
         typer.echo(str(exc), err=True)
         sys.exit(2)
+
     cfg_b = load_config_or_exit(slot_b, cwd)
+
     try:
         b_raw = dict(
             Space.get_space(cfg_b.user_id, cfg_b.company_id, space_id_b),

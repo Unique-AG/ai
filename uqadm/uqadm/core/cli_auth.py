@@ -19,11 +19,6 @@ from uqadm.core.env import (
 )
 from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
 
-# NOTE: these raise ``typer.Exit`` (a ``RuntimeError`` subclass). Do not call
-# them inside a broad ``except Exception`` block, or the exit will be swallowed
-# and masked — resolve/load the config *before* entering such a block (see the
-# space diff command).
-
 
 def resolve_slot_or_exit(slot: str | None) -> str:
     """Resolve the active slot, or print guidance and exit with code 2."""
