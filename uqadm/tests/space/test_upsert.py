@@ -78,7 +78,7 @@ def test_upsert_create_requires_fallback_module(tmp_path: Path) -> None:
     assert exc_info.value.code == 2
 
 
-@patch("uqadm.space.upsert.config_for_slot")
+@patch("uqadm.core.cli_auth.config_for_slot")
 def test_upsert_create_dry_run_no_writes(
     mock_cfg: MagicMock,
     tmp_path: Path,
@@ -94,7 +94,7 @@ def test_upsert_create_dry_run_no_writes(
     assert "Dry-run: would create_space" in out
 
 
-@patch("uqadm.space.upsert.config_for_slot")
+@patch("uqadm.core.cli_auth.config_for_slot")
 def test_upsert_update_dry_run_no_writes(
     mock_cfg: MagicMock,
     tmp_path: Path,

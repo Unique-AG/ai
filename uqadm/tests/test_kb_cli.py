@@ -17,8 +17,8 @@ def _runner() -> CliRunner:
 
 
 @patch("uqadm.kb.cmd_mkdir")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_mkdir_cli_invokes_helper(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -34,15 +34,15 @@ def test_kb_mkdir_cli_invokes_helper(
     assert call_kw["extra_paths"] == ["/A", "/B"]
 
 
-@patch("uqadm.kb.resolve_slot", side_effect=MissingDefaultSlotError("no default"))
+@patch("uqadm.core.cli_auth.resolve_slot", side_effect=MissingDefaultSlotError("no default"))
 def test_kb_mkdir_missing_default_slot_exits_2(mock_resolve: MagicMock) -> None:
     result = _runner().invoke(app, ["kb", "mkdir", "/A"])
     assert result.exit_code == 2
     assert "no default" in (result.output or result.stderr or "")
 
 
-@patch("uqadm.kb.config_for_slot", side_effect=MissingSlotEnvFileError("missing env"))
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot", side_effect=MissingSlotEnvFileError("missing env"))
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_mkdir_missing_env_exits_2(
     mock_resolve: MagicMock, mock_cfg: MagicMock
 ) -> None:
@@ -52,8 +52,8 @@ def test_kb_mkdir_missing_env_exits_2(
 
 
 @patch("uqadm.kb.cmd_sync")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_sync_cli_invokes_helper(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -77,8 +77,8 @@ def test_kb_sync_cli_invokes_helper(
 
 
 @patch("uqadm.kb.cmd_sync")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_sync_no_version_cli(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -103,8 +103,8 @@ def test_kb_sync_no_version_cli(
 
 
 @patch("uqadm.kb.cmd_download")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_download_cli_invokes_helper(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -128,8 +128,8 @@ def test_kb_download_cli_invokes_helper(
 
 
 @patch("uqadm.kb.cmd_download")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_download_rejects_existing_file_target(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -147,8 +147,8 @@ def test_kb_download_rejects_existing_file_target(
 
 
 @patch("uqadm.kb.cmd_rm")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_rm_cli_invokes_helper(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -171,8 +171,8 @@ def test_kb_rm_cli_invokes_helper(
 
 
 @patch("uqadm.kb.cmd_access_grant")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_access_grant_cli(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -202,8 +202,8 @@ def test_kb_access_grant_cli(
 
 
 @patch("uqadm.kb.cmd_ingestion_set")
-@patch("uqadm.kb.config_for_slot")
-@patch("uqadm.kb.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_kb_ingestion_set_cli(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,

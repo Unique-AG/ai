@@ -15,8 +15,8 @@ def _runner() -> CliRunner:
 
 
 @patch("uqadm.space.cmd_space_access_grant")
-@patch("uqadm.space.config_for_slot")
-@patch("uqadm.space.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_space_access_grant_cli(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -46,8 +46,8 @@ def test_space_access_grant_cli(
 
 
 @patch("uqadm.space.cmd_space_access_grant")
-@patch("uqadm.space.config_for_slot")
-@patch("uqadm.space.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_space_access_grant_invalid_space_id_exits_2(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -63,8 +63,8 @@ def test_space_access_grant_invalid_space_id_exits_2(
 
 
 @patch("uqadm.space.cmd_space_ingestion_set")
-@patch("uqadm.space.config_for_slot")
-@patch("uqadm.space.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_space_ingestion_set_cli(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
@@ -92,8 +92,8 @@ def test_space_ingestion_set_cli(
 
 
 @patch("uqadm.space.cmd_space_ingestion_set")
-@patch("uqadm.space.config_for_slot")
-@patch("uqadm.space.resolve_slot", return_value="qa")
+@patch("uqadm.core.cli_auth.config_for_slot")
+@patch("uqadm.core.cli_auth.resolve_slot", return_value="qa")
 def test_space_ingestion_set_invalid_space_id_exits_2(
     mock_resolve: MagicMock,
     mock_cfg: MagicMock,
