@@ -157,7 +157,7 @@ class TestPostprocessorManagerExecutionTimes:
         self, manager, mock_postprocessor
     ) -> None:
         mock_loop_response = MagicMock()
-        expected = {"count": 1, "filetypes": ["csv"]}
+        expected = {"count": 1, "filetypes": ["csv"], "output_size": 0.25}
         mock_postprocessor.run.return_value = expected
 
         result = await manager.execute_postprocessors(
@@ -172,7 +172,7 @@ class TestPostprocessorManagerExecutionTimes:
     async def test_run_postprocessors_returns_results_by_name(
         self, manager, mock_postprocessor
     ) -> None:
-        expected = {"count": 1, "filetypes": ["csv"]}
+        expected = {"count": 1, "filetypes": ["csv"], "output_size": 0.25}
         mock_postprocessor.get_name.return_value = "source_handler"
         mock_postprocessor.run.return_value = expected
         mock_postprocessor.apply_postprocessing_to_response.return_value = False

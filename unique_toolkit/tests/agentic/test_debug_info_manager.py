@@ -513,6 +513,7 @@ class TestAddAnalytics:
         # Reserved placeholders — always present, populated in a later step.
         assert analytics["artifacts_created_count"] is None
         assert analytics["artifacts_created_filetype"] is None
+        assert analytics["output_size"] is None
 
     @pytest.mark.ai
     def test_add_analytics__total_time_to_answer_ms__always_present_as_null(
@@ -544,18 +545,23 @@ class TestAddAnalytics:
         Purpose: Verify the artifact fields are read from the artifacts argument.
         Why this matters: This is the wiring that makes the reserved keys carry real
         values once Code Interpreter has produced files.
-        Setup summary: Pass artifact metadata; assert both fields mirror it.
+        Setup summary: Pass artifact metadata; assert all fields mirror it.
         """
         debug_info_manager.add_analytics(
             [],
             language_model=self.language_model,
             tool_display_names=self.tool_display_names,
-            artifacts={"count": 2, "filetypes": ["csv", "png"]},
+            artifacts={
+                "count": 2,
+                "filetypes": ["csv", "png"],
+                "output_size": 1.5,
+            },
         )
 
         analytics = debug_info_manager.get()["analytics"]
         assert analytics["artifacts_created_count"] == 2
         assert analytics["artifacts_created_filetype"] == ["csv", "png"]
+        assert analytics["output_size"] == 1.5
 
     @pytest.mark.ai
     def test_add_analytics__artifacts__zero_when_code_interpreter_ran_but_empty(
@@ -563,32 +569,34 @@ class TestAddAnalytics:
     ) -> None:
         """
         Purpose: Verify a ran-but-produced-nothing Code Interpreter turn reports
-        count 0 / empty filetypes, distinct from the never-ran (None) case.
+        count 0 / empty filetypes / 0.0 size, distinct from the never-ran (None)
+        case.
         Why this matters: Consumers must be able to tell "0 files created" from
         "no Code Interpreter this turn" — the caller passes {count:0,
-        filetypes:[]} in the former case and None in the latter.
-        Setup summary: Pass empty artifact metadata; assert 0 / [] (not None).
+        filetypes:[], output_size:0.0} in the former case and None in the latter.
+        Setup summary: Pass empty artifact metadata; assert 0 / [] / 0.0 (not None).
         """
         debug_info_manager.add_analytics(
             [],
             language_model=self.language_model,
             tool_display_names=self.tool_display_names,
-            artifacts={"count": 0, "filetypes": []},
+            artifacts={"count": 0, "filetypes": [], "output_size": 0.0},
         )
 
         analytics = debug_info_manager.get()["analytics"]
         assert analytics["artifacts_created_count"] == 0
         assert analytics["artifacts_created_filetype"] == []
+        assert analytics["output_size"] == 0.0
 
     @pytest.mark.ai
     def test_add_analytics__artifacts__none_when_no_entry(
         self, debug_info_manager: DebugInfoManager
     ) -> None:
         """
-        Purpose: Verify both artifact fields are None when no Code Interpreter ran
+        Purpose: Verify artifact fields are None when no Code Interpreter ran
         (no debug_info["artifacts"] entry) — the always-present, null-when-unknown
         contract from doc 03.
-        Setup summary: No artifacts entry seeded; assert both keys present and None.
+        Setup summary: No artifacts entry seeded; assert all keys present and None.
         """
         debug_info_manager.add_analytics(
             [],
@@ -599,6 +607,7 @@ class TestAddAnalytics:
         analytics = debug_info_manager.get()["analytics"]
         assert analytics["artifacts_created_count"] is None
         assert analytics["artifacts_created_filetype"] is None
+        assert analytics["output_size"] is None
 
     @pytest.mark.ai
     def test_add_analytics__context_memory_updated__populated_from_argument(

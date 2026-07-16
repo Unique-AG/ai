@@ -505,7 +505,11 @@ class TestRunLoopDebugParams:
         """
         ua = self._build_run_ua(monkeypatch)
         # Leftover from a hypothetical previous run on the same instance.
-        ua._generated_files_info = {"count": 99, "filetypes": ["stale"]}
+        ua._generated_files_info = {
+            "count": 99,
+            "filetypes": ["stale"],
+            "output_size": 9.9,
+        }
         # Exit the loop as if a tool took control: _handle_no_tool_calls (which sets
         # _generated_files_info) is skipped, but finalization still calls add_analytics.
         ua._process_plan = AsyncMock(return_value=True)  # type: ignore[method-assign]
