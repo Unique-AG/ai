@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Unique Search Proxy",
-    "description": "Unified web egress proxy for search engines and crawlers. Use **Try it out** on `/v1/search` and `/v1/crawl` \u2014 pick an example from the request-body dropdown (snippets-only Google search, crawl with HTML markdown, etc.). Requires provider env vars (e.g. `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls.",
+    "description": "Unified web egress proxy for search engines and crawlers. Use **Try it out** on `/v1/search` and `/v1/crawl` \u2014 pick an example from the request-body dropdown (snippets-only Google search, crawl with HTML markdown, etc.). `/v1/*` routes accept tenant context headers (`x-unique-company-id`, `x-unique-user-id`, `x-unique-chat-id`; defaults `local` in Swagger). Requires provider env vars (e.g. `GOOGLE_SEARCH_API_KEY`, `GOOGLE_SEARCH_ENGINE_ID`) for live calls.",
     "version": "0.2.0"
   },
   "paths": {
@@ -61,6 +61,44 @@
         ],
         "summary": "List registered search engines and crawlers",
         "operationId": "list_providers_v1_configuration_providers_get",
+        "parameters": [
+          {
+            "name": "x-unique-company-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant company identifier.",
+              "default": "local",
+              "title": "X-Unique-Company-Id"
+            },
+            "description": "Tenant company identifier."
+          },
+          {
+            "name": "x-unique-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant user identifier.",
+              "default": "local",
+              "title": "X-Unique-User-Id"
+            },
+            "description": "Tenant user identifier."
+          },
+          {
+            "name": "x-unique-chat-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant chat or session identifier.",
+              "default": "local",
+              "title": "X-Unique-Chat-Id"
+            },
+            "description": "Tenant chat or session identifier."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -68,6 +106,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProvidersListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -82,7 +130,46 @@
         ],
         "summary": "Run a search engine with a typed call payload",
         "operationId": "search_v1_search_post",
+        "parameters": [
+          {
+            "name": "x-unique-company-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant company identifier.",
+              "default": "local",
+              "title": "X-Unique-Company-Id"
+            },
+            "description": "Tenant company identifier."
+          },
+          {
+            "name": "x-unique-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant user identifier.",
+              "default": "local",
+              "title": "X-Unique-User-Id"
+            },
+            "description": "Tenant user identifier."
+          },
+          {
+            "name": "x-unique-chat-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant chat or session identifier.",
+              "default": "local",
+              "title": "X-Unique-Chat-Id"
+            },
+            "description": "Tenant chat or session identifier."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -146,8 +233,7 @@
                 }
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -180,7 +266,46 @@
         ],
         "summary": "Run an agent-based grounded search",
         "operationId": "agent_search_v1_agent_search_post",
+        "parameters": [
+          {
+            "name": "x-unique-company-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant company identifier.",
+              "default": "local",
+              "title": "X-Unique-Company-Id"
+            },
+            "description": "Tenant company identifier."
+          },
+          {
+            "name": "x-unique-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant user identifier.",
+              "default": "local",
+              "title": "X-Unique-User-Id"
+            },
+            "description": "Tenant user identifier."
+          },
+          {
+            "name": "x-unique-chat-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant chat or session identifier.",
+              "default": "local",
+              "title": "X-Unique-Chat-Id"
+            },
+            "description": "Tenant chat or session identifier."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -215,8 +340,7 @@
                 }
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -249,7 +373,46 @@
         ],
         "summary": "Stream an agent-based grounded search (SSE)",
         "operationId": "agent_search_stream_v1_agent_search_stream_post",
+        "parameters": [
+          {
+            "name": "x-unique-company-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant company identifier.",
+              "default": "local",
+              "title": "X-Unique-Company-Id"
+            },
+            "description": "Tenant company identifier."
+          },
+          {
+            "name": "x-unique-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant user identifier.",
+              "default": "local",
+              "title": "X-Unique-User-Id"
+            },
+            "description": "Tenant user identifier."
+          },
+          {
+            "name": "x-unique-chat-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant chat or session identifier.",
+              "default": "local",
+              "title": "X-Unique-Chat-Id"
+            },
+            "description": "Tenant chat or session identifier."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -284,8 +447,7 @@
                 }
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -316,7 +478,46 @@
         ],
         "summary": "Crawl URLs with a configured crawler",
         "operationId": "crawl_v1_crawl_post",
+        "parameters": [
+          {
+            "name": "x-unique-company-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant company identifier.",
+              "default": "local",
+              "title": "X-Unique-Company-Id"
+            },
+            "description": "Tenant company identifier."
+          },
+          {
+            "name": "x-unique-user-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant user identifier.",
+              "default": "local",
+              "title": "X-Unique-User-Id"
+            },
+            "description": "Tenant user identifier."
+          },
+          {
+            "name": "x-unique-chat-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tenant chat or session identifier.",
+              "default": "local",
+              "title": "X-Unique-Chat-Id"
+            },
+            "description": "Tenant chat or session identifier."
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -518,8 +719,7 @@
                 }
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -592,10 +792,13 @@
             "type": "string",
             "const": "Basic",
             "title": "Crawler",
+            "description": "Provider discriminator; must be `Basic` for this config.",
             "default": "Basic"
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
@@ -614,12 +817,13 @@
           },
           "maxConcurrentRequests": {
             "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
             "title": "Maximum concurrent HTTP fetches",
             "description": "Maximum concurrent HTTP fetches",
             "default": 10
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "urls"
@@ -649,12 +853,16 @@
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds (agent runs can be slow).",
             "default": 120
           },
           "fetchSize": {
             "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
             "title": "Fetch Size",
             "description": "Maximum number of Bing grounding results per query",
             "default": 5
@@ -695,12 +903,16 @@
           },
           "fetchSize": {
             "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
             "title": "Fetch Size",
             "description": "Default result count merged into each search request",
             "default": 10
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
@@ -888,13 +1100,7 @@
           "freshness": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -985,13 +1191,7 @@
                     "locations"
                   ]
                 },
-                "type": "array",
-                "title": "Result Filter"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "array"
               },
               {
                 "type": "null"
@@ -1138,10 +1338,13 @@
             "type": "string",
             "const": "Firecrawl",
             "title": "Crawler",
+            "description": "Provider discriminator; must be `Firecrawl` for this config.",
             "default": "Firecrawl"
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
@@ -1178,6 +1381,7 @@
           },
           "waitFor": {
             "type": "integer",
+            "minimum": 0.0,
             "title": "Wait for",
             "description": "Extra delay in milliseconds before fetching page content.",
             "default": 0
@@ -1269,7 +1473,6 @@
             "description": "Return cached page content younger than this age in milliseconds."
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "urls"
@@ -1293,12 +1496,16 @@
           },
           "fetchSize": {
             "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
             "title": "Fetch Size",
             "description": "Default result count merged into each search request",
             "default": 10
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
@@ -1328,13 +1535,7 @@
           "gl": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1346,13 +1547,7 @@
           "hl": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1364,13 +1559,7 @@
           "lr": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1382,13 +1571,7 @@
           "dateRestrict": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1400,13 +1583,7 @@
           "exactTerms": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1418,13 +1595,7 @@
           "excludeTerms": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1436,13 +1607,7 @@
           "fileType": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1454,13 +1619,7 @@
           "siteSearch": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1476,13 +1635,7 @@
                 "enum": [
                   "e",
                   "i"
-                ],
-                "title": "Site Search Filter"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                ]
               },
               {
                 "type": "null"
@@ -1494,13 +1647,7 @@
           "sort": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1544,10 +1691,13 @@
             "type": "string",
             "const": "Jina",
             "title": "Crawler",
+            "description": "Provider discriminator; must be `Jina` for this config.",
             "default": "Jina"
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
@@ -1591,6 +1741,8 @@
           },
           "maxConcurrentRequests": {
             "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
             "title": "Maximum concurrent reader requests",
             "description": "Maximum concurrent Jina Reader POST requests.",
             "default": 10
@@ -1732,7 +1884,6 @@
             "default": true
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "urls"
@@ -1774,12 +1925,16 @@
           },
           "fetchSize": {
             "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
             "title": "Fetch Size",
             "description": "Default result count merged into each search request",
             "default": 10
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
@@ -1822,13 +1977,7 @@
           "country": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1843,13 +1992,7 @@
                 "items": {
                   "type": "string"
                 },
-                "type": "array",
-                "title": "Language Filter"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "array"
               },
               {
                 "type": "null"
@@ -1864,13 +2007,7 @@
                 "items": {
                   "type": "string"
                 },
-                "type": "array",
-                "title": "Domain Filter"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "array"
               },
               {
                 "type": "null"
@@ -1889,13 +2026,7 @@
                   "week",
                   "month",
                   "year"
-                ],
-                "title": "Recency Filter"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                ]
               },
               {
                 "type": "null"
@@ -1907,13 +2038,7 @@
           "lastUpdatedAfterFilter": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1925,13 +2050,7 @@
           "lastUpdatedBeforeFilter": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1943,13 +2062,7 @@
           "searchAfterDateFilter": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -1961,13 +2074,7 @@
           "searchBeforeDateFilter": {
             "anyOf": [
               {
-                "type": "string",
-                "title": "String"
-              },
-              {
-                "type": "null",
-                "title": "Deactivated",
-                "description": "None"
+                "type": "string"
               },
               {
                 "type": "null"
@@ -2063,10 +2170,13 @@
             "type": "string",
             "const": "Tavily",
             "title": "Crawler",
+            "description": "Provider discriminator; must be `Tavily` for this config.",
             "default": "Tavily"
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds",
             "default": 30
@@ -2134,7 +2244,6 @@
             "default": false
           }
         },
-        "additionalProperties": false,
         "type": "object",
         "required": [
           "urls"
@@ -2197,6 +2306,8 @@
           },
           "timeout": {
             "type": "integer",
+            "maximum": 600.0,
+            "minimum": 1.0,
             "title": "Timeout",
             "description": "Request timeout in seconds (agent runs can be slow).",
             "default": 120

@@ -82,7 +82,6 @@ async def agent_search(
         engine_id,
         timeout,
     )
-    _LOGGER.debug("agent-search query=%r", body.query)
 
     try:
         engine_service = get_agent_engine_service(
@@ -161,7 +160,6 @@ async def agent_search_stream(
         engine_id,
         timeout,
     )
-    _LOGGER.debug("agent-search query=%r", body.query)
 
     try:
         engine_service = get_agent_engine_service(

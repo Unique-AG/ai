@@ -5,13 +5,22 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 from unique_search_proxy_core.context import (
+    CHAT_ID_HEADER,
+    COMPANY_ID_HEADER,
     LOCAL_REQUEST_CONTEXT,
+    USER_ID_HEADER,
     RequestContext,
 )
 from unique_search_proxy_core.schema import ProxyErrorCode
 
 from unique_search_proxy_client.web.app import create_app
 from unique_search_proxy_client.web.settings.app import AppSettings
+
+_CONTEXT_HEADER_NAMES = (
+    COMPANY_ID_HEADER,
+    USER_ID_HEADER,
+    CHAT_ID_HEADER,
+)
 
 
 def _context_headers(
@@ -178,3 +187,37 @@ class TestRequestContextMiddleware:
             json={"engine": "google", "query": "test", "fetchSize": 1},
         )
         assert response.status_code == 200
+
+
+@pytest.mark.ai
+class TestRequestContextOpenAPI:
+    def test_v1_post_routes_declare_context_headers(self) -> None:
+        schema = create_app().openapi()
+        for path in ("/v1/search", "/v1/crawl", "/v1/agent-search"):
+            header_names = [
+                parameter["name"]
+                for parameter in schema["paths"][path]["post"].get("parameters", [])
+                if parameter.get("in") == "header"
+            ]
+            assert header_names == list(_CONTEXT_HEADER_NAMES)
+
+        for path in ("/v1/agent-search/stream",):
+            header_names = [
+                parameter["name"]
+                for parameter in schema["paths"][path]["post"].get("parameters", [])
+                if parameter.get("in") == "header"
+            ]
+            assert header_names == list(_CONTEXT_HEADER_NAMES)
+
+    def test_openapi_context_headers_default_to_local(self) -> None:
+        schema = create_app().openapi()
+        search_headers = {
+            parameter["name"]: parameter.get("schema", {}).get("default")
+            for parameter in schema["paths"]["/v1/search"]["post"].get("parameters", [])
+            if parameter.get("in") == "header"
+        }
+        assert search_headers == {
+            COMPANY_ID_HEADER: LOCAL_REQUEST_CONTEXT.company_id,
+            USER_ID_HEADER: LOCAL_REQUEST_CONTEXT.user_id,
+            CHAT_ID_HEADER: LOCAL_REQUEST_CONTEXT.chat_id,
+        }

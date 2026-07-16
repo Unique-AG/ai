@@ -65,7 +65,6 @@ async def search(
     timeout = body.timeout
     started = time.perf_counter()
     _LOGGER.info("search start engine=%s timeout=%ss", engine_id, timeout)
-    _LOGGER.debug("search query=%r", body.query)
 
     try:
         pool = get_http_client_pool(request.app)

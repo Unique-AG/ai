@@ -60,7 +60,6 @@ async def crawl(
         len(body.urls),
         timeout,
     )
-    _LOGGER.debug("crawl urls=%r", body.urls)
 
     try:
         async with asyncio.timeout(timeout):
