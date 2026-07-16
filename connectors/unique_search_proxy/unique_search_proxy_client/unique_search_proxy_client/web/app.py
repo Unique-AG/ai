@@ -17,6 +17,7 @@ from unique_search_proxy_client.web.logging_config import (
     build_logging_config,
     configure_logging,
 )
+from unique_search_proxy_client.web.middleware.context import RequestContextMiddleware
 from unique_search_proxy_client.web.monitoring import setup_prometheus
 from unique_search_proxy_client.web.startup_report import (
     log_startup_settings_report,
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(application)
     setup_prometheus(application)
+    application.add_middleware(RequestContextMiddleware)
     application.include_router(health_router)
     application.include_router(v1_router)
     return application

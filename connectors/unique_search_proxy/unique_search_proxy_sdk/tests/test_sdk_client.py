@@ -340,3 +340,27 @@ class TestSubclientTypes:
         assert callable(sdk_client.search.google)
         assert callable(sdk_client.crawl.basic)
         assert callable(sdk_client.agent_search.bing_stream)
+
+
+class TestRequestContextHeaders:
+    @pytest.mark.ai
+    def test_client_sends_context_headers(self) -> None:
+        from unique_search_proxy_core.context import (
+            CHAT_ID_HEADER,
+            COMPANY_ID_HEADER,
+            USER_ID_HEADER,
+            RequestContext,
+        )
+
+        from unique_search_proxy_sdk._transport import OpenapiTransport
+
+        context = RequestContext(
+            company_id="company-1",
+            user_id="user-1",
+            chat_id="chat-1",
+        )
+        transport = OpenapiTransport("http://test", context=context)
+        headers = transport.openapi.get_async_httpx_client().headers
+        assert headers[COMPANY_ID_HEADER] == "company-1"
+        assert headers[USER_ID_HEADER] == "user-1"
+        assert headers[CHAT_ID_HEADER] == "chat-1"

@@ -39,9 +39,6 @@ class ReaderResponse(BaseModel):
     config_display_name="Jina",
 )
 class JinaCrawler(BaseCrawler[JinaConfig]):
-    def __init__(self, config: JinaConfig):
-        super().__init__(config)
-
     @override
     async def _legacy_crawl(self, targets: list[ResolvedCrawlTarget]) -> list[str]:
         urls = [target.normalized_url for target in targets]

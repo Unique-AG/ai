@@ -64,6 +64,8 @@ async def search(
     engine_id = engine.value if hasattr(engine, "value") else str(engine)
     timeout = body.timeout
     started = time.perf_counter()
+    _LOGGER.info("search start engine=%s timeout=%ss", engine_id, timeout)
+    _LOGGER.debug("search query=%r", body.query)
 
     try:
         pool = get_http_client_pool(request.app)
@@ -79,6 +81,12 @@ async def search(
             ProxyErrorCode.UPSTREAM_TIMEOUT.value,
             time.perf_counter() - started,
         )
+        _LOGGER.warning(
+            "search timeout engine=%s timeout=%ss duration=%.0fms",
+            engine_id,
+            timeout,
+            (time.perf_counter() - started) * 1000,
+        )
         raise _search_request_context(
             UpstreamTimeoutError(
                 f"Search engine '{engine_id}' timed out after {timeout}s",
@@ -86,6 +94,12 @@ async def search(
             engine_id=engine_id,
         ) from exc
     except ProxyError as exc:
+        _LOGGER.warning(
+            "search failed engine=%s code=%s duration=%.0fms",
+            engine_id,
+            exc.code.value if hasattr(exc.code, "value") else exc.code,
+            (time.perf_counter() - started) * 1000,
+        )
         raise _search_request_context(exc, engine_id=engine_id) from exc
     except Exception:
         record_search_error(
@@ -93,14 +107,26 @@ async def search(
             "INTERNAL_ERROR",
             time.perf_counter() - started,
         )
+        _LOGGER.exception(
+            "search error engine=%s duration=%.0fms",
+            engine_id,
+            (time.perf_counter() - started) * 1000,
+        )
         raise
 
     duration = time.perf_counter() - started
     record_search_success(engine_id, duration)
+    curated = _curated_results(curated)
+    _LOGGER.info(
+        "search success engine=%s results=%d duration=%.0fms",
+        engine_id,
+        len(curated),
+        duration * 1000,
+    )
 
     return SearchResponse(
         engine=engine_id,
         query=body.query,
         raw=raw,
-        curated=_curated_results(curated),
+        curated=curated,
     )

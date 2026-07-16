@@ -8,6 +8,7 @@ from httpx import AsyncClient, Timeout
 from markdownify import markdownify
 from pydantic import Field
 from typing_extensions import override
+from unique_search_proxy_core.context import LOCAL_REQUEST_CONTEXT, RequestContext
 from unique_search_proxy_core.crawlers.base import CrawlerType
 from unique_search_proxy_core.crawlers.basic.content_types import (
     CONTENT_TYPE_TOGGLE_TO_MIME,
@@ -54,8 +55,13 @@ class BasicConfig(CoreBasicConfig):
     config_display_name="Basic",
 )
 class BasicCrawler(BaseCrawler[BasicConfig]):
-    def __init__(self, config: BasicConfig):
-        super().__init__(config)
+    def __init__(
+        self,
+        config: BasicConfig,
+        *,
+        request_context: RequestContext = LOCAL_REQUEST_CONTEXT,
+    ):
+        super().__init__(config, request_context=request_context)
 
         self.semaphore: asyncio.Semaphore = asyncio.Semaphore(
             self.config.max_concurrent_requests
@@ -69,7 +75,8 @@ class BasicCrawler(BaseCrawler[BasicConfig]):
             exclude_none=True,
         )
         async with open_search_proxy_client(
-            timeout=float(self.config.timeout)
+            timeout=float(self.config.timeout),
+            context=self._request_context,
         ) as client:
             response = await client.crawl.crawl(
                 urls=urls,

@@ -77,6 +77,12 @@ async def agent_search(
     engine_id = engine.value if hasattr(engine, "value") else str(engine)
     timeout = body.timeout
     started = time.perf_counter()
+    _LOGGER.info(
+        "agent-search start mode=sync engine=%s timeout=%ss",
+        engine_id,
+        timeout,
+    )
+    _LOGGER.debug("agent-search query=%r", body.query)
 
     try:
         engine_service = get_agent_engine_service(
@@ -90,6 +96,12 @@ async def agent_search(
             ProxyErrorCode.UPSTREAM_TIMEOUT.value,
             time.perf_counter() - started,
         )
+        _LOGGER.warning(
+            "agent-search timeout mode=sync engine=%s timeout=%ss duration=%.0fms",
+            engine_id,
+            timeout,
+            (time.perf_counter() - started) * 1000,
+        )
         raise _agent_search_request_context(
             UpstreamTimeoutError(
                 f"Agent engine '{engine_id}' timed out after {timeout}s",
@@ -102,6 +114,12 @@ async def agent_search(
             exc.code.value if hasattr(exc.code, "value") else str(exc.code),
             time.perf_counter() - started,
         )
+        _LOGGER.warning(
+            "agent-search failed mode=sync engine=%s code=%s duration=%.0fms",
+            engine_id,
+            exc.code.value if hasattr(exc.code, "value") else exc.code,
+            (time.perf_counter() - started) * 1000,
+        )
         raise _agent_search_request_context(exc, engine_id=engine_id) from exc
     except Exception:
         record_agent_search_error(
@@ -109,10 +127,20 @@ async def agent_search(
             "INTERNAL_ERROR",
             time.perf_counter() - started,
         )
+        _LOGGER.exception(
+            "agent-search error mode=sync engine=%s duration=%.0fms",
+            engine_id,
+            (time.perf_counter() - started) * 1000,
+        )
         raise
 
     duration = time.perf_counter() - started
     record_agent_search_success(engine_id, duration)
+    _LOGGER.info(
+        "agent-search success mode=sync engine=%s duration=%.0fms",
+        engine_id,
+        duration * 1000,
+    )
     return result
 
 
@@ -128,6 +156,12 @@ async def agent_search_stream(
     engine_id = engine.value if hasattr(engine, "value") else str(engine)
     timeout = body.timeout
     started = time.perf_counter()
+    _LOGGER.info(
+        "agent-search start mode=stream engine=%s timeout=%ss",
+        engine_id,
+        timeout,
+    )
+    _LOGGER.debug("agent-search query=%r", body.query)
 
     try:
         engine_service = get_agent_engine_service(
@@ -135,6 +169,10 @@ async def agent_search_stream(
         )
     except Exception as exc:
         record_agent_search_error(engine_id, "INTERNAL_ERROR", 0.0)
+        _LOGGER.exception(
+            "agent-search setup error mode=stream engine=%s",
+            engine_id,
+        )
         raise _agent_search_request_context(
             UpstreamError(str(exc)),
             engine_id=engine_id,
@@ -147,11 +185,22 @@ async def agent_search_stream(
                 async for event in engine_service.stream(body):
                     yield _format_sse_event(event)
             record_agent_search_success(engine_id, time.perf_counter() - started)
+            _LOGGER.info(
+                "agent-search success mode=stream engine=%s duration=%.0fms",
+                engine_id,
+                (time.perf_counter() - started) * 1000,
+            )
         except TimeoutError:
             record_agent_search_error(
                 engine_id,
                 ProxyErrorCode.UPSTREAM_TIMEOUT.value,
                 time.perf_counter() - started,
+            )
+            _LOGGER.warning(
+                "agent-search timeout mode=stream engine=%s timeout=%ss duration=%.0fms",
+                engine_id,
+                timeout,
+                (time.perf_counter() - started) * 1000,
             )
             error = _agent_search_request_context(
                 UpstreamTimeoutError(
@@ -166,6 +215,12 @@ async def agent_search_stream(
                 exc.code.value if hasattr(exc.code, "value") else str(exc.code),
                 time.perf_counter() - started,
             )
+            _LOGGER.warning(
+                "agent-search failed mode=stream engine=%s code=%s duration=%.0fms",
+                engine_id,
+                exc.code.value if hasattr(exc.code, "value") else exc.code,
+                (time.perf_counter() - started) * 1000,
+            )
             yield _format_sse_error(
                 _agent_search_request_context(exc, engine_id=engine_id)
             )
@@ -175,7 +230,11 @@ async def agent_search_stream(
                 "INTERNAL_ERROR",
                 time.perf_counter() - started,
             )
-            _LOGGER.exception("Agent search stream failed")
+            _LOGGER.exception(
+                "agent-search error mode=stream engine=%s duration=%.0fms",
+                engine_id,
+                (time.perf_counter() - started) * 1000,
+            )
             yield _format_sse_error(
                 _agent_search_request_context(
                     UpstreamError(str(exc)),
