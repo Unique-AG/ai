@@ -364,8 +364,9 @@ def format_agentic_table_sheet(
     ]
     if "magicTableRowCount" in sheet:
         rows.append(["Rows:", str(sheet.get("magicTableRowCount"))])
-    if sheet.get("chatId"):
-        rows.append(["Chat:", sheet["chatId"]])
+    chat_id = sheet.get("chatId")
+    if chat_id:
+        rows.append(["Chat:", chat_id])
     rows.append(["Created by:", sheet.get("createdBy", "?")])
     rows.append(["Created:", _format_date(sheet.get("createdAt"))])
     lines = _pad_columns(rows)
