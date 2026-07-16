@@ -9,6 +9,14 @@ from typing import Any
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.agentic_table import (
+    cmd_cell_history,
+    cmd_get_cell,
+    cmd_get_sheet,
+)
+from unique_sdk.cli.commands.agentic_table import (
+    is_error_output as _is_agentic_table_error_output,
+)
 from unique_sdk.cli.commands.browser import (
     cmd_browser_action,
     cmd_browser_control,
@@ -167,6 +175,7 @@ Examples:
   unique-cli web-search crawl URL   Crawl a URL via the public API
   unique-cli dynamic-frontend list  List manageable Dynamic Frontend spaces
   unique-cli browser get-dom        Read the user's live Chrome tab (a11y tree)
+  unique-cli agentic-table get-sheet mt_abc123  Show a magic-table sheet summary
 """
 
 
@@ -2240,3 +2249,166 @@ def web_search_crawl_cmd(
         config_path=resolved_config,
     )
     _emit_web_search(ctx, output)
+
+
+# -- Agentic Table ---------------------------------------------------------
+
+
+_AGENTIC_TABLE_HELP = """\
+Read Agentic Table (magic table) sheets, cells, and cell history.
+
+\b
+These are Tier 0 reads over the public magic-table API: no confirmation,
+no writes. Every call is scoped to the current user/company; sheet-role
+access (Owner / Can manage / Can edit) is enforced server-side and a denial
+is reported as `agentic-table: permission denied`.
+
+\b
+Subcommands:
+  get-sheet      Show a sheet summary (state, row count, metadata, cells)
+  get-cell       Show a single cell by row/column order
+  cell-history   Show a single cell's log/edit history
+
+\b
+Examples:
+  unique-cli agentic-table get-sheet mt_abc123
+  unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
+  unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
+  unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2 --json
+"""
+
+
+@main.group("agentic-table", help=_AGENTIC_TABLE_HELP)
+def agentic_table() -> None:
+    pass
+
+
+@agentic_table.command(name="get-sheet")
+@click.argument("table_id")
+@click.option(
+    "--cells",
+    "include_cells",
+    is_flag=True,
+    default=False,
+    help="Include cell values in the output.",
+)
+@click.option(
+    "--metadata",
+    "include_metadata",
+    is_flag=True,
+    default=False,
+    help="Include sheet-level metadata entries.",
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_get_sheet(
+    ctx: click.Context,
+    table_id: str,
+    include_cells: bool,
+    include_metadata: bool,
+    output_json: bool,
+) -> None:
+    """Show a magic-table sheet summary.
+
+    \b
+    TABLE_ID is the magic-table sheet id. By default only the summary
+    (name, state, row count) is shown; add --metadata for sheet metadata
+    and --cells to include cell values.
+
+    \b
+    Examples:
+      unique-cli agentic-table get-sheet mt_abc123
+      unique-cli agentic-table get-sheet mt_abc123 --cells --metadata
+    """
+    emit(
+        cmd_get_sheet(
+            LazyState.get(ctx),
+            table_id,
+            include_cells=include_cells,
+            include_metadata=include_metadata,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="get-cell")
+@click.argument("table_id")
+@click.option(
+    "--row", "row_order", type=int, required=True, help="Row order (0-based)."
+)
+@click.option(
+    "--col", "column_order", type=int, required=True, help="Column order (0-based)."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_get_cell(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    output_json: bool,
+) -> None:
+    """Show a single cell by row/column order.
+
+    \b
+    Examples:
+      unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2
+      unique-cli agentic-table get-cell mt_abc123 --row 1 --col 2 --json
+    """
+    emit(
+        cmd_get_cell(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
+
+
+@agentic_table.command(name="cell-history")
+@click.argument("table_id")
+@click.option(
+    "--row", "row_order", type=int, required=True, help="Row order (0-based)."
+)
+@click.option(
+    "--col", "column_order", type=int, required=True, help="Column order (0-based)."
+)
+@click.option(
+    "--json", "output_json", is_flag=True, default=False, help="Print raw JSON."
+)
+@click.pass_context
+def agentic_table_cell_history(
+    ctx: click.Context,
+    table_id: str,
+    row_order: int,
+    column_order: int,
+    output_json: bool,
+) -> None:
+    """Show a single cell's log/edit history.
+
+    \b
+    Lists the cell's log entries (actor, timestamp, source message id, and
+    the logged text) as recorded by prior edits.
+
+    \b
+    Examples:
+      unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2
+      unique-cli agentic-table cell-history mt_abc123 --row 1 --col 2 --json
+    """
+    emit(
+        cmd_cell_history(
+            LazyState.get(ctx),
+            table_id,
+            row_order=row_order,
+            column_order=column_order,
+            output_json=output_json,
+        ),
+        is_error=_is_agentic_table_error_output,
+    )
