@@ -255,17 +255,13 @@ def test_record_language_model_debug_info_uses_effective_model() -> None:
         config=config,
     )
 
-    debug_info_manager.add.assert_any_call(
+    debug_info_manager.add.assert_called_once_with(
         "language_model",
         {
             "name": "selected-model",
             "provider": "AZURE",
             "family": "unknown",
         },
-    )
-    debug_info_manager.add.assert_any_call(
-        "temperature_requested",
-        config.agent.experimental.temperature,
     )
 
 

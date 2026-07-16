@@ -268,10 +268,6 @@ def _record_language_model_debug_info(
             include={"name", "provider", "family"},
         ),
     )
-    debug_info_manager.add(
-        "temperature_requested",
-        config.agent.experimental.temperature,
-    )
 
 
 def _find_switchable_language_model_entry(
