@@ -33,7 +33,10 @@ def _build_unique_ai(**overrides):
 
     mock_config = MagicMock()
     mock_config.agent.prompt_config.user_metadata = []
-    mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (0.0, None)
+    mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (
+        0.0,
+        None,
+    )
 
     mock_debug_info_manager = MagicMock()
     mock_debug_info_manager.get.return_value = {}
