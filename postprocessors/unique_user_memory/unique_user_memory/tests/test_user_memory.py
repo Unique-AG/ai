@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -17,6 +18,8 @@ from unique_user_memory.user_memory import (
     enforce_token_cap,
     ensure_user_memory_folder,
     fit_user_memory,
+    noop_update_callback,
+    should_consolidate_memory,
     upload_user_memory,
 )
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
@@ -166,6 +169,10 @@ async def test_consolidate_user_memory_keeps_existing_on_noop(
         "unique_user_memory.user_memory.LanguageModelService",
         MagicMock(return_value=llm_service),
     )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
 
     result = await consolidate_user_memory(
         current_memory=current,
@@ -194,6 +201,10 @@ async def test_consolidate_user_memory_keeps_existing_on_malformed_output(
         "unique_user_memory.user_memory.LanguageModelService",
         MagicMock(return_value=llm_service),
     )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
 
     result = await consolidate_user_memory(
         current_memory=current,
@@ -207,6 +218,438 @@ async def test_consolidate_user_memory_keeps_existing_on_malformed_output(
     )
 
     assert result == current
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_skips_full_rewrite_when_gate_noop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current = empty_profile("user_1")
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=False),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=current,
+        user_id="user_1",
+        user_message="hello",
+        assistant_message="hi",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == current
+    llm_service.complete_async.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_runs_full_rewrite_when_gate_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current = empty_profile("user_1")
+    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    response = MagicMock()
+    response.choices[0].message.content = rewritten
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=current,
+        user_id="user_1",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == rewritten
+    llm_service.complete_async.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_skips_gate_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current = empty_profile("user_1")
+    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    response = MagicMock()
+    response.choices[0].message.content = rewritten
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    gate = AsyncMock(return_value=False)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        gate,
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=current,
+        user_id="user_1",
+        user_message="hello",
+        assistant_message="hi",
+        config=UserMemoryConfig(consolidation_gate_enabled=False),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == rewritten
+    gate.assert_not_awaited()
+    llm_service.complete_async.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_should_consolidate_memory_returns_false_on_noop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.choices[0].message.content = "NOOP"
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await should_consolidate_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="hello",
+        assistant_message="hi",
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is False
+    assert (
+        llm_service.complete_async.call_args.kwargs["other_options"]["max_tokens"] == 4
+    )
+
+
+@pytest.mark.asyncio
+async def test_should_consolidate_memory_returns_true_on_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = MagicMock()
+    response.choices[0].message.content = "UPDATE"
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await should_consolidate_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_should_consolidate_memory_falls_back_to_true_on_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(side_effect=RuntimeError("boom"))
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await should_consolidate_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="hello",
+        assistant_message="hi",
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_invokes_update_callbacks_on_rewrite(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    response = MagicMock()
+    response.choices[0].message.content = rewritten
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+    events: list[str] = []
+    on_start = AsyncMock(side_effect=lambda: events.append("start"))
+    on_end = AsyncMock(side_effect=lambda: events.append("end"))
+
+    result = await consolidate_user_memory(
+        current_memory=empty_profile("user_1"),
+        user_id="user_1",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+        on_update_start=on_start,
+        on_update_end=on_end,
+    )
+
+    assert result == rewritten
+    on_start.assert_awaited_once()
+    on_end.assert_awaited_once()
+    assert events == ["start", "end"]
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_skips_update_callbacks_on_noop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current = empty_profile("user_1")
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=False),
+    )
+    on_start = AsyncMock()
+    on_end = AsyncMock()
+
+    result = await consolidate_user_memory(
+        current_memory=current,
+        user_id="user_1",
+        user_message="hello",
+        assistant_message="hi",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+        on_update_start=on_start,
+        on_update_end=on_end,
+    )
+
+    assert result == current
+    on_start.assert_not_awaited()
+    on_end.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_invokes_update_end_on_rewrite_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current = empty_profile("user_1")
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(side_effect=RuntimeError("boom"))
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+    on_start = AsyncMock()
+    on_end = AsyncMock()
+
+    result = await consolidate_user_memory(
+        current_memory=current,
+        user_id="user_1",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+        on_update_start=on_start,
+        on_update_end=on_end,
+    )
+
+    assert result == current
+    on_start.assert_awaited_once()
+    on_end.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_invokes_update_end_when_start_cancelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # on_update_start may show the notice and then be cancelled. CancelledError
+    # is a BaseException (not caught in _set_message_content), so the cleanup
+    # callback must still run to remove the transient notice.
+    current = empty_profile("user_1")
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+    on_start = AsyncMock(side_effect=asyncio.CancelledError)
+    on_end = AsyncMock()
+
+    with pytest.raises(asyncio.CancelledError):
+        await consolidate_user_memory(
+            current_memory=current,
+            user_id="user_1",
+            user_message="remember I like concise answers",
+            assistant_message="noted",
+            config=UserMemoryConfig(),
+            language_model=_TEST_LANGUAGE_MODEL,
+            event=MagicMock(),
+            logger=MagicMock(),
+            on_update_start=on_start,
+            on_update_end=on_end,
+        )
+
+    on_start.assert_awaited_once()
+    on_end.assert_awaited_once()
+    llm_service.complete_async.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_user_memory_postprocessor_shows_and_removes_updating_notice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    updated_memory = "# User Memory\n\n## Identity\n- Updated"
+    original_text = "Here is your answer."
+
+    async def fake_consolidate(*, on_update_start, on_update_end, **kwargs) -> str:  # type: ignore[no-untyped-def]
+        await on_update_start()
+        await on_update_end()
+        return updated_memory
+
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
+        fake_consolidate,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.upload_user_memory",
+        AsyncMock(return_value=True),
+    )
+    chat_service = MagicMock()
+    chat_service.modify_assistant_message_async = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.ChatService",
+        MagicMock(return_value=chat_service),
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    loop_response = MagicMock()
+    loop_response.message.text = original_text
+    loop_response.message.id = "msg_1"
+    loop_response.message.references = []
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
+        logger=MagicMock(),
+        chat_service=chat_service,
+    )
+
+    await postprocessor.run(loop_response)
+
+    calls = chat_service.modify_assistant_message_async.await_args_list
+    assert len(calls) == 2
+    assert calls[0].kwargs["content"].startswith(original_text)
+    assert calls[0].kwargs["content"] != original_text
+    assert calls[0].kwargs["message_id"] == "msg_1"
+    assert calls[1].kwargs["content"] == original_text
+
+
+@pytest.mark.asyncio
+async def test_user_memory_postprocessor_skips_notice_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    updated_memory = "# User Memory\n\n## Identity\n- Updated"
+
+    async def fake_consolidate(*, on_update_start, on_update_end, **kwargs) -> str:  # type: ignore[no-untyped-def]
+        assert on_update_start is noop_update_callback
+        assert on_update_end is noop_update_callback
+        return updated_memory
+
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
+        fake_consolidate,
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.upload_user_memory",
+        AsyncMock(return_value=True),
+    )
+    chat_service = MagicMock()
+    chat_service.modify_assistant_message_async = AsyncMock()
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.ChatService",
+        MagicMock(return_value=chat_service),
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    loop_response = MagicMock()
+    loop_response.message.text = "answer"
+    loop_response.message.id = "msg_1"
+    loop_response.message.references = []
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(updating_notice_enabled=False),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
+        logger=MagicMock(),
+        chat_service=chat_service,
+    )
+
+    await postprocessor.run(loop_response)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -496,12 +939,14 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
+    chat_service = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
+        chat_service=chat_service,
     )
 
     await postprocessor.run(loop_response)
@@ -538,12 +983,14 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
+    chat_service = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
+        chat_service=chat_service,
     )
 
     await postprocessor.run(loop_response)
