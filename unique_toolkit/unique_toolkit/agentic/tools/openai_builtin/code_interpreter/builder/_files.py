@@ -32,6 +32,11 @@ UPLOAD_RETRY_BASE_DELAY = 0.5
 # generic, non-actionable upload failure.
 REQUEST_ENTITY_TOO_LARGE_STATUS_CODE = 413
 
+# Default for node-chat's `MAX_OPENAI_PROXY_FILE_UPLOAD_MB` (UN-23109 /
+# monorepo#26846). Kept in sync so the model can tell the user the concrete
+# limit; operators may raise the env var, but 50 MB is the platform default.
+DEFAULT_CODE_EXECUTION_UPLOAD_LIMIT_MB = 50
+
 
 @dataclass(frozen=True)
 class FailedFileUpload:
@@ -54,7 +59,7 @@ def describe_upload_error(exc: Exception) -> str:
     ):
         return (
             "the file is too large to upload for code execution "
-            "(exceeds the maximum allowed upload size)"
+            f"(maximum allowed size is {DEFAULT_CODE_EXECUTION_UPLOAD_LIMIT_MB} MB)"
         )
 
     return f"upload failed ({exc})"

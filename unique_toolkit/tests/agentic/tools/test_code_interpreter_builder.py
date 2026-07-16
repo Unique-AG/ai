@@ -709,6 +709,7 @@ async def test_upload_files_to_container__reports_413_as_file_too_large__in_fail
     failed = failed_uploads[0]
     assert failed.content.id == "cont_too_large"
     assert "too large" in failed.reason
+    assert "50 MB" in failed.reason
 
 
 @pytest.mark.ai
@@ -729,6 +730,7 @@ def test_describe_upload_error__returns_size_limit_message__for_413_status() -> 
     reason = describe_upload_error(error)
 
     assert "too large" in reason
+    assert "50 MB" in reason
 
 
 @pytest.mark.ai
@@ -963,7 +965,7 @@ async def test_build_tool__surfaces_failed_uploads_in_system_prompt__when_upload
                     [
                         FailedFileUpload(
                             content=chat_file,
-                            reason="the file is too large to upload for code execution (exceeds the maximum allowed upload size)",
+                            reason="the file is too large to upload for code execution (maximum allowed size is 50 MB)",
                         )
                     ],
                 )
@@ -983,12 +985,13 @@ async def test_build_tool__surfaces_failed_uploads_in_system_prompt__when_upload
     assert tool._user_uploaded_files == []
     assert tool._failed_uploads == [
         "Mappe3.xlsx: the file is too large to upload for code execution "
-        "(exceeds the maximum allowed upload size)"
+        "(maximum allowed size is 50 MB)"
     ]
 
     rendered_prompt = tool.get_tool_prompts().tool_system_prompt
     assert "Mappe3.xlsx" in rendered_prompt
     assert "too large" in rendered_prompt
+    assert "50 MB" in rendered_prompt
 
 
 # ============================================================================
