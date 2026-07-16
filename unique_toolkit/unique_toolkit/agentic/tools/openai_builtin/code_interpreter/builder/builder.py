@@ -147,10 +147,10 @@ class CodeInterpreterBuilder:
                 memory=memory,
             )
             for failed_upload in failed_uploads:
+                # Log content id only — filenames can be sensitive (PII / client data).
                 logger.warning(
-                    "File %s (%s) could not be uploaded to container %s: %s",
+                    "File %s could not be uploaded to container %s: %s",
                     failed_upload.content.id,
-                    failed_upload.content.key,
                     memory.container_id,
                     failed_upload.reason,
                 )
