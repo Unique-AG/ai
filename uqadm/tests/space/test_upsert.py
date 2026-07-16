@@ -229,3 +229,69 @@ def test_build_update_kwargs_syncs_model_list_when_toggle_present() -> None:
     kwargs = build_update_kwargs({"name": "S", "allowModelSwitching": True})
     assert kwargs["allowModelSwitching"] is True
     assert kwargs["switchableLanguageModels"] == []
+
+
+def test_build_create_params_forwards_sub_agent_fields() -> None:
+    from uqadm.space.migrate import build_create_params
+
+    params = build_create_params(
+        {
+            "name": "S",
+            "fallbackModule": "fm",
+            "modules": [],
+            "isSubAgent": True,
+            "subAgentSettings": {"maxIterations": 3},
+        }
+    )
+    assert params["isSubAgent"] is True
+    assert params["subAgentSettings"] == {"maxIterations": 3}
+
+
+def test_build_create_params_skips_absent_sub_agent_fields() -> None:
+    from uqadm.space.migrate import build_create_params
+
+    params = build_create_params({"name": "S", "fallbackModule": "fm", "modules": []})
+    assert "isSubAgent" not in params
+    assert "subAgentSettings" not in params
+
+
+def test_build_update_kwargs_forwards_sub_agent_fields() -> None:
+    from uqadm.space.migrate import build_update_kwargs
+
+    kwargs = build_update_kwargs(
+        {
+            "name": "S",
+            "isSubAgent": True,
+            "subAgentSettings": {"maxIterations": 3},
+        }
+    )
+    assert kwargs["isSubAgent"] is True
+    assert kwargs["subAgentSettings"] == {"maxIterations": 3}
+
+
+def test_build_update_kwargs_skips_absent_sub_agent_fields() -> None:
+    from uqadm.space.migrate import build_update_kwargs
+
+    kwargs = build_update_kwargs({"name": "S"})
+    assert "isSubAgent" not in kwargs
+    assert "subAgentSettings" not in kwargs
+
+
+def test_emit_snapshot_warnings_notes_sub_agent_settings(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from uqadm.space.upsert import _emit_snapshot_warnings
+
+    _emit_snapshot_warnings({"name": "S", "subAgentSettings": {"maxIterations": 3}})
+    err = capsys.readouterr().err
+    assert "sub-agent settings" in err
+
+
+def test_emit_snapshot_warnings_silent_without_sub_agent_settings(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from uqadm.space.upsert import _emit_snapshot_warnings
+
+    _emit_snapshot_warnings({"name": "S"})
+    err = capsys.readouterr().err
+    assert "sub-agent settings" not in err

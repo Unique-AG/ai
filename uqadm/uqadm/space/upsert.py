@@ -50,6 +50,12 @@ def _emit_snapshot_warnings(snapshot: dict[str, Any]) -> None:
             "these will be applied on create/update.",
             err=True,
         )
+    if snapshot.get("subAgentSettings") is not None:
+        typer.echo(
+            "Note: snapshot includes sub-agent settings; "
+            "these will be applied on create/update.",
+            err=True,
+        )
 
 
 def _validate_snapshot(snapshot: dict[str, Any], *, creating: bool) -> None:
