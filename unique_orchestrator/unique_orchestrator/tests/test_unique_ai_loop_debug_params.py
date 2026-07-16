@@ -44,6 +44,7 @@ def _build_unique_ai(**overrides):
 
     mock_config = MagicMock()
     mock_config.agent.prompt_config.user_metadata = []
+    mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (0.0, None)
 
     mock_debug_info_manager = MagicMock()
     mock_debug_info_manager.get.return_value = {}
@@ -287,6 +288,10 @@ class TestRunLoopDebugParams:
         mock_config.space.language_model.name = "AZURE_GPT_5_2025_0807"
         mock_config.space.language_model.family = "openai"
         mock_config.space.language_model.provider = "AZURE"
+        mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (
+            0.0,
+            None,
+        )
 
         mock_history_manager = MagicMock()
         mock_history_manager.get_history_for_model_call = AsyncMock(

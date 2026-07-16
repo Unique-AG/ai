@@ -38,6 +38,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_config = MagicMock()
     mock_config.agent.max_loop_iterations = 1
     mock_config.space.language_model.name = "dummy-model"
+    mock_config.space.language_model.resolve_temp_and_reasoning.return_value = (0.0, None)
     mock_config.agent.experimental.temperature = 0.0
     mock_config.agent.experimental.additional_llm_options = {}
 
