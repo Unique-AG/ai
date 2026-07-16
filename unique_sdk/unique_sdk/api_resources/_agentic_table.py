@@ -195,6 +195,13 @@ class MagicTableArtifact(TypedDict, total=False):
     updatedAt: str
 
 
+class MagicTableArtifactList(TypedDict):
+    """List envelope returned by `GET /magic-table/{tableId}/artifacts` (`{object: "list", data: [...]}`)."""
+
+    object: Literal["list"]
+    data: list[MagicTableArtifact]
+
+
 class _AgenticTableSheetRequired(TypedDict):
     sheetId: str
     name: str
@@ -600,10 +607,14 @@ class AgenticTable(APIResource["AgenticTable"]):
         company_id: str,
         tableId: str,
     ) -> list[MagicTableArtifact]:
-        """List export artifacts of a sheet (`GET /magic-table/{tableId}/artifacts`)."""
+        """List export artifacts of a sheet (`GET /magic-table/{tableId}/artifacts`).
+
+        The route responds with a ``{object: "list", data: [...]}`` envelope; this
+        method unwraps it and returns the artifact entries.
+        """
         url = f"/magic-table/{tableId}/artifacts"
-        return cast(
-            list[MagicTableArtifact],
+        response = cast(
+            MagicTableArtifactList,
             await cls._static_request_async(
                 "get",
                 url,
@@ -611,6 +622,7 @@ class AgenticTable(APIResource["AgenticTable"]):
                 company_id,
             ),
         )
+        return response["data"]
 
     @classmethod
     async def create_sheet_metadata(

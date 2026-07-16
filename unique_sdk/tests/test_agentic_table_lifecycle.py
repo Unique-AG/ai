@@ -103,16 +103,20 @@ async def test_generate_artifact_posts_artifact_types(mock_request):
 
 
 async def test_list_artifacts_gets_artifacts_route(mock_request):
-    mock_request.return_value = [
-        {
-            "id": "artifact_1",
-            "artifactType": "FULL_REPORT",
-            "artifactState": "DONE",
-            "contentId": "cont_export",
-            "createdAt": "2026-01-01T00:00:00.000Z",
-            "updatedAt": "2026-01-01T00:01:00.000Z",
-        }
-    ]
+    # The route responds with a `{object: "list", data: [...]}` envelope.
+    mock_request.return_value = {
+        "object": "list",
+        "data": [
+            {
+                "id": "artifact_1",
+                "artifactType": "FULL_REPORT",
+                "artifactState": "DONE",
+                "contentId": "cont_export",
+                "createdAt": "2026-01-01T00:00:00.000Z",
+                "updatedAt": "2026-01-01T00:01:00.000Z",
+            }
+        ],
+    }
 
     result = await AgenticTable.list_artifacts(USER_ID, COMPANY_ID, tableId=TABLE_ID)
 
