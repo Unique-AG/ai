@@ -8,8 +8,7 @@ from typing import Optional
 import typer
 
 from uqadm.core.auth_debug import format_credential_debug_lines
-from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
-from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
+from uqadm.core.cli_auth import load_config_or_exit, resolve_slot_or_exit
 
 
 def cmd_env_show(
@@ -18,17 +17,8 @@ def cmd_env_show(
     cwd: Path | None,
 ) -> None:
     """Print resolved credential values for ``slot`` (API key redacted)."""
-    try:
-        resolved = resolve_slot(slot)
-    except MissingDefaultSlotError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
-
-    try:
-        cfg = config_for_slot(resolved, cwd=cwd)
-    except MissingSlotEnvFileError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
+    resolved = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved, cwd)
 
     for line in format_credential_debug_lines(cfg, label=f"slot {resolved!r}"):
         typer.echo(line)

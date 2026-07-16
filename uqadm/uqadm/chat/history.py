@@ -11,8 +11,7 @@ from unique_sdk.utils.chat_history import load_history
 
 from uqadm.chat.render import print_framed_history
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.core.env import MissingSlotEnvFileError, config_for_slot
-from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
+from uqadm.core.cli_auth import load_config_or_exit, resolve_slot_or_exit
 
 
 def cmd_history(
@@ -27,17 +26,8 @@ def cmd_history(
     cwd: Path | None,
 ) -> None:
     """Load chat history and display the selected window."""
-    try:
-        resolved_slot = resolve_slot(slot)
-    except MissingDefaultSlotError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
-
-    try:
-        cfg = config_for_slot(resolved_slot, cwd=cwd)
-    except MissingSlotEnvFileError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, cwd)
 
     try:
         import unique_sdk

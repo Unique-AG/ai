@@ -7,12 +7,7 @@ from typing import Annotated, Literal, Optional
 
 import typer
 
-from uqadm.core.env import (
-    MissingEnvCredentialsError,
-    MissingSlotEnvFileError,
-    config_for_slot,
-)
-from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
+from uqadm.core.cli_auth import load_config_or_exit, resolve_slot_or_exit
 from uqadm.kb.access import cmd_access_grant
 from uqadm.kb.download import cmd_download
 from uqadm.kb.ingestion import cmd_ingestion_set
@@ -50,22 +45,6 @@ _SLOT_HELP = (
 
 def _get_cwd(ctx: typer.Context) -> Path | None:
     return (ctx.obj or {}).get("cwd")
-
-
-def _resolve(slot: str | None) -> str:
-    try:
-        return resolve_slot(slot)
-    except MissingDefaultSlotError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
-
-
-def _load_cfg(slot: str, cwd: Path | None):  # type: ignore[no-untyped-def]
-    try:
-        return config_for_slot(slot, cwd=cwd)
-    except (MissingSlotEnvFileError, MissingEnvCredentialsError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
 
 
 @kb_app.command("mkdir", short_help="Create folder paths in the knowledge base.")
@@ -123,8 +102,8 @@ def kb_mkdir(
       uqadm kb mkdir rel/sub --parent-scope-id scope_parent123
       uqadm kb mkdir /Private --no-inherit-access
     """
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     combined = (paths or []) + (path_option or [])
     cmd_mkdir(
         cfg,
@@ -206,8 +185,8 @@ def kb_sync(
       uqadm kb sync ./docs --scope-id scope_abc -r --slot qa
       uqadm kb sync ./docs --scope-id scope_abc --no-version
     """
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     cmd_sync(
         cfg,
         local_dir=local_dir,
@@ -275,8 +254,8 @@ def kb_download(
       uqadm kb download ./out --folder-path /Dept/HR -r --dry-run
       uqadm kb download ./out --scope-id scope_abc -r --slot qa
     """
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     cmd_download(
         cfg,
         local_dir=local_dir,
@@ -351,8 +330,8 @@ def kb_rm(
       uqadm kb rm --scope-id scope_abc -r --dry-run
       uqadm kb rm --scope-id scope_abc -r --slot qa -y
     """
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     cmd_rm(
         cfg,
         folder_path=folder_path,
@@ -428,8 +407,8 @@ def kb_access_grant(
       uqadm kb access grant --scope-id scope_abc --group grp_1 --slot qa
       uqadm kb access grant --folder-path /Dept/HR --group grp_1 --no-subfolders
     """
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     cmd_access_grant(
         cfg,
         folder_path=folder_path,
@@ -505,8 +484,8 @@ def kb_ingestion_set(
       uqadm kb ingestion set ./ingest.yaml --scope-id scope_abc --slot qa
       uqadm kb ingestion set ./ingest.json --folder-path /Dept/HR --no-subfolders
     """
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     cmd_ingestion_set(
         cfg,
         config_path=config_file,

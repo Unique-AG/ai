@@ -12,7 +12,7 @@ import yaml
 from unique_sdk import Space
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
-from uqadm.core.env import config_for_slot
+from uqadm.core.cli_auth import load_config_or_exit
 from uqadm.core.payload_files import load_json_or_yaml_mapping
 from uqadm.space.migrate import (
     build_create_params,
@@ -99,7 +99,7 @@ def cmd_upsert(
     _emit_snapshot_warnings(snapshot)
 
     typer.echo(f"Loading destination slot {slot!r} …")
-    cfg = config_for_slot(slot, cwd=cwd)
+    cfg = load_config_or_exit(slot, cwd)
 
     assistant_access = list(snapshot.get("assistantAccess") or [])
 

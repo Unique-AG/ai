@@ -7,12 +7,7 @@ from typing import Annotated, List, Literal, Optional
 
 import typer
 
-from uqadm.core.env import (
-    MissingEnvCredentialsError,
-    MissingSlotEnvFileError,
-    config_for_slot,
-)
-from uqadm.core.slot import MissingDefaultSlotError, resolve_slot
+from uqadm.core.cli_auth import load_config_or_exit, resolve_slot_or_exit
 from uqadm.space.access_grant import cmd_space_access_grant
 from uqadm.space.delete import cmd_delete
 from uqadm.space.diff import cmd_diff
@@ -40,23 +35,6 @@ def _get_cwd(ctx: typer.Context) -> Path | None:
     return (ctx.obj or {}).get("cwd")
 
 
-def _resolve(slot: str | None) -> str:
-    try:
-        return resolve_slot(slot)
-    except MissingDefaultSlotError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
-
-
-def _load_cfg(slot: str, cwd: Path | None):  # type: ignore[no-untyped-def]
-    """Call config_for_slot, converting credential errors to a clean exit."""
-    try:
-        return config_for_slot(slot, cwd=cwd)
-    except (MissingSlotEnvFileError, MissingEnvCredentialsError) as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(2)
-
-
 @space_app.command("list", short_help="List spaces in a slot.")
 def space_list(
     ctx: typer.Context,
@@ -71,8 +49,8 @@ def space_list(
 ) -> None:
     """List spaces using credentials from the resolved slot env file."""
     cwd = _get_cwd(ctx)
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, cwd)
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, cwd)
     cmd_list(cfg, name_filter=name_filter, as_json=as_json, slot=resolved_slot)
 
 
@@ -100,8 +78,8 @@ def space_export(
     ] = None,
 ) -> None:
     """Export one space: JSON on stdout, or JSON/YAML to -o by extension."""
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     cmd_export(space_id, cfg=cfg, output=output)
 
 
@@ -147,7 +125,7 @@ def space_upsert(
     """
     from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
 
-    resolved_slot = _resolve(slot)
+    resolved_slot = resolve_slot_or_exit(slot)
     target_space_id: str | None = None
     if target is not None:
         try:
@@ -298,8 +276,8 @@ def space_access_grant(
     """
     from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
 
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     try:
         sid = parse_bare_endpoint(space_id)
     except EndpointParseError as exc:
@@ -361,8 +339,8 @@ def space_ingestion_set(
     """
     from uqadm.core.endpoint import EndpointParseError, parse_bare_endpoint
 
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     try:
         sid = parse_bare_endpoint(space_id)
     except EndpointParseError as exc:
@@ -399,6 +377,6 @@ def space_delete(
     ] = False,
 ) -> None:
     """Delete one space using the default slot or --slot."""
-    resolved_slot = _resolve(slot)
-    cfg = _load_cfg(resolved_slot, _get_cwd(ctx))
+    resolved_slot = resolve_slot_or_exit(slot)
+    cfg = load_config_or_exit(resolved_slot, _get_cwd(ctx))
     cmd_delete(space_id, cfg=cfg, yes=yes, dry_run=dry_run)

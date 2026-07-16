@@ -19,8 +19,8 @@ from unique_sdk import Space
 from unique_sdk.cli.config import Config
 
 from uqadm.core.auth_debug import echo_credential_debug_if_auth_failure
+from uqadm.core.cli_auth import load_config_or_exit
 from uqadm.core.endpoint import EndpointParseError, parse_source_endpoint
-from uqadm.core.env import config_for_slot
 
 # Stripped in the default (non-strict) mode so diffs focus on meaningful config drift.
 _NORMALIZE_KEYS = frozenset(
@@ -169,7 +169,7 @@ def cmd_diff(
     cfg_a: Config | None = None
     try:
         slot_a, space_id_a = parse_source_endpoint(spec_a)
-        cfg_a = config_for_slot(slot_a, cwd=cwd)
+        cfg_a = load_config_or_exit(slot_a, cwd)
         a_raw = dict(
             Space.get_space(cfg_a.user_id, cfg_a.company_id, space_id_a),
         )
@@ -187,7 +187,7 @@ def cmd_diff(
     cfg_b: Config | None = None
     try:
         slot_b, space_id_b = parse_source_endpoint(spec_b)
-        cfg_b = config_for_slot(slot_b, cwd=cwd)
+        cfg_b = load_config_or_exit(slot_b, cwd)
         b_raw = dict(
             Space.get_space(cfg_b.user_id, cfg_b.company_id, space_id_b),
         )

@@ -16,7 +16,8 @@ from uqadm.core.endpoint import (
     parse_endpoint,
     parse_source_endpoint,
 )
-from uqadm.core.env import config_for_slot, normalize_api_base
+from uqadm.core.cli_auth import load_config_or_exit
+from uqadm.core.env import normalize_api_base
 
 
 def module_params_from_source(mod: dict[str, Any]) -> dict[str, Any]:
@@ -225,7 +226,7 @@ def cmd_migrate(
         sys.exit(2)
 
     typer.echo(f"Loading source slot {src_slot!r} …")
-    src_cfg = config_for_slot(src_slot, cwd=cwd)
+    src_cfg = load_config_or_exit(src_slot, cwd)
     src_company = src_cfg.company_id
     src_base = normalize_api_base(src_cfg.api_base)
 
@@ -243,7 +244,7 @@ def cmd_migrate(
         sys.exit(1)
 
     typer.echo(f"Loading destination slot {dst_slot!r} …")
-    dst_cfg = config_for_slot(dst_slot, cwd=cwd)
+    dst_cfg = load_config_or_exit(dst_slot, cwd)
     dst_company = dst_cfg.company_id
     dst_base = normalize_api_base(dst_cfg.api_base)
 
