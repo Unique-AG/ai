@@ -45,6 +45,8 @@ async def noop_update_callback() -> None:
     that do not need update notifications can be awaited unconditionally.
     """
     return None
+
+
 # The gate only ever replies with the single word UPDATE or NOOP; a tiny
 # output budget keeps the common (NOOP) path cheap and fast.
 _GATE_MAX_TOKENS = 4
