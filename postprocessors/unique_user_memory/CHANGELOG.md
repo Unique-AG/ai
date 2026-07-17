@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.28.0...unique-user-memory-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* update logging and config of context memory ([#2098](https://github.com/Unique-AG/ai/issues/2098)) ([a38625e](https://github.com/Unique-AG/ai/commit/a38625efe25891a82e04ea6477113f43d94eaa62))
+* update user memory logic ([#2087](https://github.com/Unique-AG/ai/issues/2087)) ([0e8b7df](https://github.com/Unique-AG/ai/commit/0e8b7df00a4169104d273374b147c1664f9fbff7))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.26.0...unique-user-memory-v2026.28.0) (2026-07-03)
 
 

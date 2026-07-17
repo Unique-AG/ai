@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.28.0...uqadm-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **uqadm:** enable platform versioning on kb sync by default ([#2022](https://github.com/Unique-AG/ai/issues/2022)) ([3bba34b](https://github.com/Unique-AG/ai/commit/3bba34bdb9d137e70735abff32cdd0cfa09b9eef))
+* **uqadm:** Support SubAgent Settings in `uqadm space ...` commands ([#2092](https://github.com/Unique-AG/ai/issues/2092)) ([9e81bdc](https://github.com/Unique-AG/ai/commit/9e81bdc6839f2613cabd8abd56813410b705138d))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/uqadm-v2026.26.0...uqadm-v2026.28.0) (2026-07-03)
 
 

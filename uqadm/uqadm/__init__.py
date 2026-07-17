@@ -1,3 +1,3 @@
 """Unique admin CLI package (uqadm)."""
 
-__version__ = "2026.28.0"
+__version__ = "2026.30.0"
