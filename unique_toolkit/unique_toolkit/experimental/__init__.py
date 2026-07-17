@@ -6,3 +6,9 @@ intentionally not wired into :class:`~unique_toolkit.services.factory.UniqueServ
 and are not re-exported from top-level packages: import them explicitly from
 their experimental subpackage.
 """
+
+from unique_toolkit._common.streaming_deprecation import (
+    install_deprecated_streaming_import_redirect,
+)
+
+install_deprecated_streaming_import_redirect()

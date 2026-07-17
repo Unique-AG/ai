@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from unique_toolkit.experimental._internal.streaming import (
+from unique_toolkit._internal.streaming import (
     ActivityProducer,
     StreamEventHandlerProtocol,
     StreamTextEventHandlerProtocol,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
         ResponseTextDeltaEvent,
     )
 
-    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
+    from unique_toolkit.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
         CodeInterpreterCallEvent,
     )
     from unique_toolkit.language_model.schemas import (

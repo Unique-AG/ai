@@ -11,15 +11,15 @@ from openai.types.responses import (
     ResponseTextDeltaEvent,
 )
 
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
-from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.experimental._internal.streaming import (
+from unique_toolkit._internal.streaming import (
     AppendixProducer,
     StreamEventHandlerProtocol,
 )
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+from unique_toolkit._internal.streaming.pattern_replacer import (
     filter_cited_sdk_references,
 )
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
 from .code_interpreter_event_handler import CodeInterpreterCallEvent
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from openai.types.responses import ResponseStreamEvent
 
     from unique_toolkit._common.event_bus import TypedEventBus
-    from unique_toolkit.experimental._internal.streaming import (
+    from unique_toolkit._internal.streaming import (
         ActivityProgressUpdate,
         TextFlushed,
         TextState,
