@@ -8,9 +8,7 @@ import warnings
 
 import pytest
 
-from unique_toolkit._common.streaming_deprecation import (
-    STREAMING_DEPRECATED_REMOVAL_DATE,
-)
+_STREAMING_DEPRECATED_REMOVAL_DATE = "2026-10-17"
 
 
 @pytest.mark.ai
@@ -47,6 +45,6 @@ def test_AI_deprecated_streaming_import_redirect__warns_and_reexports_symbols():
         assert value is not None
         assert any(
             issubclass(w.category, DeprecationWarning)
-            and STREAMING_DEPRECATED_REMOVAL_DATE in str(w.message)
+            and _STREAMING_DEPRECATED_REMOVAL_DATE in str(w.message)
             for w in caught
         ), f"Expected deprecation warning for {module_name}"
