@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.28.0...unique-search-proxy-sdk-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **search-proxy:** enforce tenant context headers and enrich request logs ([#2090](https://github.com/Unique-AG/ai/issues/2090)) ([23b2562](https://github.com/Unique-AG/ai/commit/23b25623ce34859a1b8422da3b7764f245797fd4))
+* **search-proxy:** tighten search engine config schemas [UN-21235] ([#2040](https://github.com/Unique-AG/ai/issues/2040)) ([0b817c0](https://github.com/Unique-AG/ai/commit/0b817c08267b6730eb21a231557ac4eeb3b81b83))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-sdk-v2026.26.0...unique-search-proxy-sdk-v2026.28.0) (2026-07-03)
 
 

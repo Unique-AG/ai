@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.28.0...unique-toolkit-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **agentic-table:** SDK + toolkit wrappers for the public sheet lifecycle (UBP CLI, R1) ([#2052](https://github.com/Unique-AG/ai/issues/2052)) ([6762d3e](https://github.com/Unique-AG/ai/commit/6762d3ec9a87624986e98487640742dba01d2b2a))
+* **mcp:** config-driven reference mapping for MCP list-result citations ([#1994](https://github.com/Unique-AG/ai/issues/1994)) ([e05cb21](https://github.com/Unique-AG/ai/commit/e05cb21f8497b4755e114bfaa84ff1f51b1df0d3))
+* **toolkit:** kimi k2.6 to llm info ([#2007](https://github.com/Unique-AG/ai/issues/2007)) ([2ece007](https://github.com/Unique-AG/ai/commit/2ece007a90092a32db983f87d6bc7e7ce4d65c6d))
+* **unique_toolkit:** Adapt progress messages for code interpreter ([#1989](https://github.com/Unique-AG/ai/issues/1989)) ([052f143](https://github.com/Unique-AG/ai/commit/052f143910dfb2c0cadd3f8f7843c6c00b083aed))
+* **unique_toolkit:** add analytics debug-info snapshot [UN-22110] ([#2055](https://github.com/Unique-AG/ai/issues/2055)) ([fbcbe72](https://github.com/Unique-AG/ai/commit/fbcbe72eef4bf0e697b4eb7acaed73bb7f055deb))
+* **unique_toolkit:** add artifact output size analytics ([#2102](https://github.com/Unique-AG/ai/issues/2102)) ([a778134](https://github.com/Unique-AG/ai/commit/a7781340641854c7c36479d6390244be12a4f3d0)), closes [#2076](https://github.com/Unique-AG/ai/issues/2076)
+* **unique_toolkit:** expose per-invocation LLM usage with model identity [UN-20907] (1/3) ([#2051](https://github.com/Unique-AG/ai/issues/2051)) ([9d2d89a](https://github.com/Unique-AG/ai/commit/9d2d89a379e2dcda3833d6fe5eaf4c488a50079b))
+* **unique_toolkit:** populate artifact analytics fields [UN-22110] ([#2076](https://github.com/Unique-AG/ai/issues/2076)) ([fa31ec8](https://github.com/Unique-AG/ai/commit/fa31ec84d5ce8604fd4e48f4685ce7f129ff8c51))
+* **unique_toolkit:** Reenable file content serialization ([#2048](https://github.com/Unique-AG/ai/issues/2048)) ([256fbda](https://github.com/Unique-AG/ai/commit/256fbdacd2c9545e6a4950eb0451d67c23a3c22b))
+* **unique_toolkit:** Support lazy code interpreter loading ([#1997](https://github.com/Unique-AG/ai/issues/1997)) ([fb72d4c](https://github.com/Unique-AG/ai/commit/fb72d4c7afe88be9c0b7740b22818bab80c20acd))
+* **unique-orchestrator:** adding analytics parameters to debug info ([#2063](https://github.com/Unique-AG/ai/issues/2063)) ([e42d6ce](https://github.com/Unique-AG/ai/commit/e42d6ce15e164cf4729794997c564462743d4cb5))
+* **unique-toolkit:** expose config_error for demoted tool configs [UN-17197] ([#2012](https://github.com/Unique-AG/ai/issues/2012)) ([c33521f](https://github.com/Unique-AG/ai/commit/c33521f38bc50277e5572d6ace8f36215b96102f))
+* **unique-toolkit:** GPT 56 models to llm info ([#2053](https://github.com/Unique-AG/ai/issues/2053)) ([f831f54](https://github.com/Unique-AG/ai/commit/f831f54e96f4761330cff2865f073f93c12e9d16))
+* update logging and config of context memory ([#2098](https://github.com/Unique-AG/ai/issues/2098)) ([a38625e](https://github.com/Unique-AG/ai/commit/a38625efe25891a82e04ea6477113f43d94eaa62))
+
+
+### Bug Fixes
+
+* **chat:** resolve namespace-package KeyError for unique_toolkit.chat.deprecated ([#1862](https://github.com/Unique-AG/ai/issues/1862)) ([262723f](https://github.com/Unique-AG/ai/commit/262723fa54e3ef9148f4d7067b6ff1000b8a59ce))
+* **toolkit:** correct input token glm52 ([#2006](https://github.com/Unique-AG/ai/issues/2006)) ([ae1f2e7](https://github.com/Unique-AG/ai/commit/ae1f2e7f9e7ae558d6d56d3974450729cb611208))
+* **toolkit:** surface code-interpreter upload failures instead of silently dropping files [UN-23109] ([#2089](https://github.com/Unique-AG/ai/issues/2089)) ([6188f6a](https://github.com/Unique-AG/ai/commit/6188f6a63eb2c4ae8b12955e83f214090a7c488e))
+* **unique_toolkit:** add OVERLAPS/NOT_OVERLAPS UniqueQL operators ([#2028](https://github.com/Unique-AG/ai/issues/2028)) ([bfc33db](https://github.com/Unique-AG/ai/commit/bfc33dbdc8a1d913c1d23c5fe31f15f9fc3bbe29))
+* **unique_toolkit:** allow setting stoppedStreamingAt before post-processing ([#2046](https://github.com/Unique-AG/ai/issues/2046)) ([c121583](https://github.com/Unique-AG/ai/commit/c121583907c59ffbf47dd7bb8c5797f1f2463173))
+* **unique_toolkit:** Handle large tool responses that are not search … ([#2061](https://github.com/Unique-AG/ai/issues/2061)) ([48ccbb0](https://github.com/Unique-AG/ai/commit/48ccbb0bf84985fd739fc0c1f64e56d0ab733c84))
+* **unique_toolkit:** token-set fuzzy scoring + chat_id=None correctness fix ([#2026](https://github.com/Unique-AG/ai/issues/2026)) ([9a1ca85](https://github.com/Unique-AG/ai/commit/9a1ca8536f66e9bd4db433d6937125a88063a6f3))
+* **unique_toolkit:** Use message event endpoint for streaming tokens ([#2017](https://github.com/Unique-AG/ai/issues/2017)) ([cde9b5c](https://github.com/Unique-AG/ai/commit/cde9b5cddaeae308ebdbac517df99a862d2e391d))
+* **unique-toolkit:** retarget stop polling to active assistant segment [UN-22747] ([#2024](https://github.com/Unique-AG/ai/issues/2024)) ([67485a5](https://github.com/Unique-AG/ai/commit/67485a5c42235e49f0562f92ff56773994533ab4))
+* **unique-toolkit:** UN-19154 chat_service _LOGGER not appearing in logs ([#1864](https://github.com/Unique-AG/ai/issues/1864)) ([4ac1a5c](https://github.com/Unique-AG/ai/commit/4ac1a5ca8898bbd921c078c499d2f84363525522))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.26.0...unique-toolkit-v2026.28.0) (2026-07-03)
 
 

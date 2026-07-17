@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.28.0...unique-sdk-v2026.30.0) (2026-07-17)
+
+
+### Features
+
+* **agentic-table:** SDK + toolkit wrappers for the public sheet lifecycle (UBP CLI, R1) ([#2052](https://github.com/Unique-AG/ai/issues/2052)) ([6762d3e](https://github.com/Unique-AG/ai/commit/6762d3ec9a87624986e98487640742dba01d2b2a))
+* **cli:** split uploaded-search into its own gated skill [UN-21780] ([#1995](https://github.com/Unique-AG/ai/issues/1995)) ([a08b7ee](https://github.com/Unique-AG/ai/commit/a08b7ee11749e582f86241c54f19a6061708feef))
+* **mcp:** config-driven reference mapping for MCP list-result citations ([#1994](https://github.com/Unique-AG/ai/issues/1994)) ([e05cb21](https://github.com/Unique-AG/ai/commit/e05cb21f8497b4755e114bfaa84ff1f51b1df0d3))
+* **sdk:** record per-item text in MCP refs manifest for citation grounding [UN-22762] ([#2034](https://github.com/Unique-AG/ai/issues/2034)) ([3ee8af2](https://github.com/Unique-AG/ai/commit/3ee8af26bd061fe0cb41c217836712552cb9d2ef))
+* **unique_toolkit:** expose per-invocation LLM usage with model identity [UN-20907] (1/3) ([#2051](https://github.com/Unique-AG/ai/issues/2051)) ([9d2d89a](https://github.com/Unique-AG/ai/commit/9d2d89a379e2dcda3833d6fe5eaf4c488a50079b))
+
+
+### Bug Fixes
+
+* **cli:** resolve message ID from per-turn identity file [UN-22947] ([#2058](https://github.com/Unique-AG/ai/issues/2058)) ([633a66c](https://github.com/Unique-AG/ai/commit/633a66cac81fb9c528e271fa9bd9f758735dab46))
+* **sdk:** send explicit scopeIds null for unscoped CLI search [UN-22753] ([#2030](https://github.com/Unique-AG/ai/issues/2030)) ([6768162](https://github.com/Unique-AG/ai/commit/6768162fbb276110569d588f6db34a3e39b0f733))
+* **unique_toolkit:** add OVERLAPS/NOT_OVERLAPS UniqueQL operators ([#2028](https://github.com/Unique-AG/ai/issues/2028)) ([bfc33db](https://github.com/Unique-AG/ai/commit/bfc33dbdc8a1d913c1d23c5fe31f15f9fc3bbe29))
+
+
+### Miscellaneous
+
+* arm release 2026.30.0 ([94e018f](https://github.com/Unique-AG/ai/commit/94e018fa010fb5a0ffd8f449cf078c604b7c12ee))
+
 ## [2026.28.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.26.0...unique-sdk-v2026.28.0) (2026-07-03)
 
 
