@@ -1,10 +1,10 @@
 import re
 
-from unique_toolkit.chat.schemas import ChatMessage
-from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+from unique_toolkit._internal.streaming.pattern_replacer import (
     BATCH_NORMALIZATION_PATTERNS,
 )
+from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 
 def add_references_to_message(

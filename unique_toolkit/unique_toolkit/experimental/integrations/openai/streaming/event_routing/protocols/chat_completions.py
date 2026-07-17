@@ -1,43 +1,26 @@
-"""Protocols for OpenAI Chat Completions stream event handlers (``chat.completions.create`` stream)."""
+"""Deprecated import path shim — use the stable module instead."""
 
-from __future__ import annotations
+from importlib import import_module
 
-from typing import TYPE_CHECKING, Protocol
-
-from unique_toolkit.experimental._internal.streaming import (
-    StreamTextEventHandlerProtocol,
-    StreamToolCallEventHandlerProtocol,
-    UsageProducer,
+from unique_toolkit._common.streaming_deprecation import (
+    warn_streaming_deprecated_import,
 )
 
-if TYPE_CHECKING:
-    from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+_OLD = "unique_toolkit.experimental.integrations.openai.streaming.event_routing.protocols.chat_completions"
+_NEW = "unique_toolkit.integrations.openai.streaming.event_routing.protocols.chat_completions"
 
+warn_streaming_deprecated_import(old_path=_OLD, new_path=_NEW)
 
-class ChatCompletionTextEventHandlerProtocol(
-    StreamTextEventHandlerProtocol, UsageProducer, Protocol
-):
-    """Accumulates text and usage from ``ChatCompletionChunk`` events.
-
-    Framework-specific text event handler: inherits the role contract
-    (:class:`StreamTextEventHandlerProtocol` — ``text_bus``, ``get_text``,
-    lifecycle), :class:`UsageProducer` for optional terminal usage, and
-    adds only the Chat Completions consumer method.
-    """
-
-    async def on_chunk(self, event: ChatCompletionChunk) -> None:
-        """Process one chunk; publish :class:`TextFlushed` on flush boundaries."""
-        ...
-
-
-class ChatCompletionToolCallEventHandlerProtocol(
-    StreamToolCallEventHandlerProtocol, Protocol
-):
-    """Accumulates tool calls from ``ChatCompletionChunk``.
-
-    Framework-specific tool-call event handler: inherits the role contract
-    (:class:`StreamToolCallEventHandlerProtocol` — ``get_tool_calls``,
-    lifecycle) and adds only the Chat Completions consumer method.
-    """
-
-    async def on_chunk(self, event: ChatCompletionChunk) -> None: ...
+_impl = import_module(_NEW)
+for _name, _value in _impl.__dict__.items():
+    if _name in {
+        "__name__",
+        "__doc__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__file__",
+        "__cached__",
+    }:
+        continue
+    globals()[_name] = _value
