@@ -54,3 +54,29 @@ def test_search_skill_does_not_reference_uploaded_search() -> None:
     text = _read_skill("unique-cli-search").lower()
     assert "uploaded-search" not in text
     assert "searching uploaded documents" not in text
+
+
+def test_agentic_table_skill_exists_and_documents_read_commands() -> None:
+    """The agentic-table skill is ungated (Tier 0 reads, server-side access
+    enforcement), so it ships in every workspace. It must name itself and
+    document each read command the CLI exposes."""
+    text = _read_skill("unique-cli-agentic-table")
+    assert "name: unique-cli-agentic-table" in text
+    for command in (
+        "agentic-table get-sheet",
+        "agentic-table get-cell",
+        "agentic-table cell-history",
+        "agentic-table list-exports",
+    ):
+        assert command in text, f"skill does not document `{command}`"
+
+
+def test_agentic_table_skill_is_read_only() -> None:
+    """Guard against write commands leaking into the ungated read skill: writes
+    have side-effects/authz needs and must live in a separate gated skill."""
+    text = _read_skill("unique-cli-agentic-table").lower()
+    assert "read-only" in text
+    for write_command in ("set-cell", "set_cell", "update-cell", "delete"):
+        assert write_command not in text, (
+            f"ungated read skill must not document write command `{write_command}`"
+        )
