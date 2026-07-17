@@ -1,7 +1,7 @@
 # Streaming architecture — visual walkthrough
 
 > **Audience:** A colleague who needs to understand how the OpenAI streaming layer is wired, end‑to‑end.
-> **Package:** `unique_toolkit.experimental.integrations.openai.streaming`
+> **Package:** `unique_toolkit.integrations.openai.streaming`
 
 Each section gives a small diagram focused on one idea. Copy any block into a Mermaid live editor if you need to zoom.
 
@@ -640,7 +640,7 @@ flowchart LR
 | File | One-liner |
 |---|---|
 | `event_routing/events.py` | Event dataclasses + `StreamEventBus` (typed channels) + `StreamSubscriber` protocol |
-| `experimental/components/streaming/common.py` | `TextState`, event handler protocols, inner-bus payloads, `AppendixProducer` |
+| `_internal/streaming/common.py` | `TextState`, event handler protocols, inner-bus payloads, `AppendixProducer` |
 | `event_routing/protocols/responses.py` | Responses event handler protocols |
 | `event_routing/protocols/chat_completions.py` | Chat Completions event handler protocols |
 | `event_routing/responses/stream_event_router.py` | Typed dispatch + `build_result` + `get_appendices` |
@@ -656,7 +656,7 @@ flowchart LR
 | `event_routing/subscribers/message_persister.py` | Only caller of `Message.modify_async` (start/end) and `Message.create_event_async` (deltas) |
 | `event_routing/subscribers/progress_log_persister.py` | Only caller of `MessageLog.*` |
 | `event_routing/_async_bridge.py` | Run an async coroutine from sync code (sync orchestrator entrypoint) |
-| `experimental/components/streaming/pattern_replacer.py` | `NORMALIZATION_PATTERNS` + `StreamingPatternReplacer` |
+| `_internal/streaming/pattern_replacer.py` | `NORMALIZATION_PATTERNS` + `StreamingPatternReplacer` |
 
 ---
 

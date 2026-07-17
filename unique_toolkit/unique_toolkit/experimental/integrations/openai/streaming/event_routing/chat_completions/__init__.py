@@ -1,15 +1,26 @@
-"""Chat Completions API streaming event routing (``/v1/chat/completions`` stream)."""
+"""Deprecated import path shim — use the stable module instead."""
 
-from __future__ import annotations
+from importlib import import_module
 
-from .complete_with_references import ChatCompletionsCompleteWithReferences
-from .stream_event_router import ChatCompletionStreamEventRouter
-from .text_event_handler import ChatCompletionTextEventHandler
-from .tool_call_event_handler import ChatCompletionToolCallEventHandler
+from unique_toolkit._common.streaming_deprecation import (
+    warn_streaming_deprecated_import,
+)
 
-__all__ = [
-    "ChatCompletionStreamEventRouter",
-    "ChatCompletionsCompleteWithReferences",
-    "ChatCompletionTextEventHandler",
-    "ChatCompletionToolCallEventHandler",
-]
+_OLD = "unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions"
+_NEW = "unique_toolkit.integrations.openai.streaming.event_routing.chat_completions"
+
+warn_streaming_deprecated_import(old_path=_OLD, new_path=_NEW)
+
+_impl = import_module(_NEW)
+for _name, _value in _impl.__dict__.items():
+    if _name in {
+        "__name__",
+        "__doc__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__file__",
+        "__cached__",
+    }:
+        continue
+    globals()[_name] = _value

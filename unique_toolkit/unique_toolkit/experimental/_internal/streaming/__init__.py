@@ -1,35 +1,26 @@
-"""Framework-agnostic streaming components.
+"""Deprecated import path shim — use the stable module instead."""
 
-This subpackage exposes streaming behaviour that is useful beyond a single
-third-party framework: event handler contracts, text state payloads, citation
-normalisation, and other provider-neutral primitives. Concrete framework
-adapters live under :mod:`unique_toolkit.experimental.integrations`.
-"""
+from importlib import import_module
 
-from __future__ import annotations
-
-from .common import (
-    ActivityProducer,
-    ActivityProgressUpdate,
-    ActivityStatus,
-    AppendixProducer,
-    StreamEventHandlerProtocol,
-    StreamTextEventHandlerProtocol,
-    StreamToolCallEventHandlerProtocol,
-    TextFlushed,
-    TextState,
-    UsageProducer,
+from unique_toolkit._common.streaming_deprecation import (
+    warn_streaming_deprecated_import,
 )
 
-__all__ = [
-    "ActivityProducer",
-    "ActivityProgressUpdate",
-    "ActivityStatus",
-    "AppendixProducer",
-    "StreamEventHandlerProtocol",
-    "StreamTextEventHandlerProtocol",
-    "StreamToolCallEventHandlerProtocol",
-    "TextFlushed",
-    "TextState",
-    "UsageProducer",
-]
+_OLD = "unique_toolkit.experimental._internal.streaming"
+_NEW = "unique_toolkit._internal.streaming"
+
+warn_streaming_deprecated_import(old_path=_OLD, new_path=_NEW)
+
+_impl = import_module(_NEW)
+for _name, _value in _impl.__dict__.items():
+    if _name in {
+        "__name__",
+        "__doc__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__file__",
+        "__cached__",
+    }:
+        continue
+    globals()[_name] = _value

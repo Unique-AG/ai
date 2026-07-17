@@ -17,17 +17,17 @@ from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+from unique_toolkit._internal.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
     NORMALIZATION_PATTERNS,
     StreamingPatternReplacer,
     StreamingReplacerProtocol,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing import (
+from unique_toolkit.integrations.openai.streaming.event_routing import (
     ChatCompletionsCompleteWithReferences,
     ChatCompletionStreamEventRouter,
 )
-from unique_toolkit.experimental.integrations.openai.streaming.event_routing.chat_completions import (
+from unique_toolkit.integrations.openai.streaming.event_routing.chat_completions import (
     ChatCompletionTextEventHandler,
     ChatCompletionToolCallEventHandler,
 )
