@@ -31,6 +31,8 @@ from unique_web_search.services.proxy.mappers import map_crawl_response
 
 _LOGGER = logging.getLogger(__name__)
 
+_DEFAULT_URL_BLOCKED_PATTERNS = [r".*\.pdf$"]
+
 
 class BasicConfig(CoreBasicConfig):
     """Tool-local Basic crawler config; extends proxy-core with legacy URL filters."""
@@ -39,7 +41,7 @@ class BasicConfig(CoreBasicConfig):
         list[str],
         RJSFMetaTag({"ui:options": {"orderable": False}}),
     ] = Field(
-        default_factory=lambda: [r".*\.pdf$"],
+        default=_DEFAULT_URL_BLOCKED_PATTERNS,
         title="URL blocked patterns",
         description=(
             "List of URL regex patterns to skip when crawling. "
