@@ -42,7 +42,8 @@ az webapp config set -n "$APP" -g "$RG" --always-on true -o none
 echo "[6/6] App settings..."
 az webapp config appsettings set -n "$APP" -g "$RG" -o none --settings \
   UNIQUE_MCP_LOCAL_BASE_URL="http://0.0.0.0:8003" \
-  UNIQUE_MCP_PUBLIC_BASE_URL="https://${APP}.azurewebsites.net"
+  UNIQUE_MCP_PUBLIC_BASE_URL="https://${APP}.azurewebsites.net" \
+  UNIQUE_FRONTEND_BASE_URL="${UNIQUE_FRONTEND_BASE_URL:-https://next.qa.unique.app}"
 
 az webapp restart -n "$APP" -g "$RG"
 
@@ -58,6 +59,9 @@ echo "    ZITADEL_BASE_URL=... ZITADEL_CLIENT_ID=... ZITADEL_CLIENT_SECRET=..."
 echo ""
 echo "Do NOT set UNIQUE_AUTH_USER_ID / UNIQUE_AUTH_COMPANY_ID on the Web App."
 echo "Search identity comes from the logged-in OAuth user (JWT / userinfo)."
+echo ""
+echo "Document deep links use UNIQUE_FRONTEND_BASE_URL (default https://next.qa.unique.app):"
+echo "  {UNIQUE_FRONTEND_BASE_URL}/knowledge-upload/{scopeId}?file={contentId}"
 echo ""
 echo "Also register the OAuth redirect URI in Zitadel:"
 echo "  https://${APP}.azurewebsites.net/auth/callback"

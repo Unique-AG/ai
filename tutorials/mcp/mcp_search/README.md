@@ -45,11 +45,10 @@ On Azure, set `UNIQUE_APP_*` / `UNIQUE_API_BASE_URL` for the app’s API credent
 
 Every result returned by the `search` tool carries a stable reference to the source document, on two layers:
 
-**Text layer** — each result is prefixed with a source header the LLM can cite:
+**Text layer** — each result is prefixed with a ready-to-paste markdown citation:
 
 ```
-[source3] Annual Report 2025.pdf (pages 12-14)
-unique://content/cont_abcdefgehijklmnopqrstuvwx
+[Annual Report 2025.pdf](https://next.qa.unique.app/knowledge-upload/scope_…?file=cont_…) (pages 12-14)
 
 <chunk text...>
 ```
@@ -68,7 +67,7 @@ unique://content/cont_abcdefgehijklmnopqrstuvwx
 }
 ```
 
-URLs of the form `unique://content/{contentId}` are resolved by the Unique frontend and open the document directly in the knowledge base. Chunks that originate from the web keep their external `https://` URL instead. The tool also publishes a `unique.app/tool-format-information` meta entry instructing the orchestrating model to cite results with `[sourceN]` markers or markdown links, so the referencing style is applied consistently by any MCP client. See [`src/mcp_search/references.py`](./src/mcp_search/references.py) for the implementation.
+When `UNIQUE_FRONTEND_BASE_URL` is set (e.g. `https://next.qa.unique.app`), result headers use clickable deep links of the form `{base}/knowledge-upload/{scopeId}?file={contentId}` so generic MCP clients like Claude can open the document in the Unique UI. Without that setting (or if the folder/scope cannot be resolved), URLs fall back to `unique://content/{contentId}`, which the Unique platform frontend resolves. External web chunks keep their original `https://` URL. Each result is prefixed with a ready-to-paste markdown citation `[document name](url)`; models are instructed to paste those links inline (never invent `[sourceN]` placeholders) and list them again under Sources. See [`src/mcp_search/references.py`](./src/mcp_search/references.py).
 
 # Prerequisites
 

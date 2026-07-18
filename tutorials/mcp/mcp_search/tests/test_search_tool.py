@@ -7,14 +7,18 @@ import pytest
 from mcp.types import CallToolResult
 from mcp_search.config import SearchToolConfig
 from mcp_search.references import (
+    CITATION_RESULT_INSTRUCTION,
+    REFERENCE_FORMAT_INFORMATION,
     REFERENCE_META_KEY,
     chunk_to_text_content,
+    frontend_document_url,
     reference_url,
+    scope_id_from_folder_id_path,
 )
-from mcp_search.tools.search import search
+from mcp_search.tools.search import _TOOL_DESCRIPTION, search
 
 from unique_mcp.meta.rjsf import ConfigSchemaMeta
-from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 from unique_toolkit.experimental.components.internal_search import (
     KnowledgeBaseInternalSearchConfig,
 )
@@ -46,6 +50,11 @@ def test_default_config_round_trips():
     default = SearchToolConfig().model_dump(mode="json")
     restored = SearchToolConfig.model_validate(default)
     assert isinstance(restored.service_config, KnowledgeBaseInternalSearchConfig)
+
+
+def test_tool_description_includes_citation_rules():
+    assert "Do NOT invent placeholders like [source1]" in _TOOL_DESCRIPTION
+    assert REFERENCE_FORMAT_INFORMATION in _TOOL_DESCRIPTION
 
 
 # ── Routing tests ─────────────────────────────────────────────────────────────
@@ -82,6 +91,22 @@ def _patch_resolve_settings():
     )
 
 
+def _patch_frontend_settings(base_url: str | None = None):
+    mock_settings = MagicMock()
+    mock_settings.frontend_base_url_str.return_value = base_url
+    return patch(
+        "mcp_search.tools.search.McpSearchSettings",
+        return_value=mock_settings,
+    )
+
+
+def _patch_resolve_scope_ids(mapping: dict[str, str] | None = None):
+    return patch(
+        "mcp_search.tools.search.resolve_scope_ids",
+        new=AsyncMock(return_value=mapping or {}),
+    )
+
+
 @pytest.mark.asyncio
 async def test_search_calls_kb_service():
     chunks = [_make_chunk("result A")]
@@ -97,6 +122,8 @@ async def test_search_calls_kb_service():
         ) as mock_from_config,
         _patch_post_processor(chunks),
         _patch_resolve_settings(),
+        _patch_frontend_settings(None),
+        _patch_resolve_scope_ids(),
     ):
         result = await search(
             search_string="test query",
@@ -108,7 +135,8 @@ async def test_search_calls_kb_service():
     mock_service.bind_settings.assert_called_once()
     assert mock_service.state.search_queries == ["test query"]
     assert isinstance(result, CallToolResult)
-    assert len(result.content) == 1
+    # result chunks + trailing citation instruction
+    assert len(result.content) == 2
 
 
 @pytest.mark.asyncio
@@ -126,6 +154,8 @@ async def test_search_uses_defaults_when_no_config_provided():
         ),
         _patch_post_processor(chunks),
         _patch_resolve_settings(),
+        _patch_frontend_settings(None),
+        _patch_resolve_scope_ids(),
     ):
         result = await search(
             search_string="fallback query",
@@ -206,9 +236,44 @@ async def test_search_returns_error_when_identity_unresolvable():
 # ── Reference tests ───────────────────────────────────────────────────────────
 
 
+def test_scope_id_from_folder_id_path_takes_leaf():
+    assert (
+        scope_id_from_folder_id_path("uniquepathid://scope_a/scope_b") == "scope_b"
+    )
+
+
+def test_frontend_document_url_shape():
+    url = frontend_document_url(
+        "https://next.qa.unique.app",
+        "scope_uy3cznkuysy3gasrxx2m4ezb",
+        "cont_mvkp2iv25xy4cxccpq6i6byk",
+    )
+    assert url == (
+        "https://next.qa.unique.app/knowledge-upload/"
+        "scope_uy3cznkuysy3gasrxx2m4ezb?file=cont_mvkp2iv25xy4cxccpq6i6byk"
+    )
+
+
 def test_reference_url_internal_content_uses_unique_scheme():
     chunk = _make_chunk("text")
     assert reference_url(chunk) == "unique://content/cont_abcdefgehijklmnopqrstuvwx"
+
+
+def test_reference_url_builds_frontend_deep_link_when_configured():
+    chunk = _make_chunk(
+        "text",
+        metadata=ContentMetadata(
+            key="doc.pdf",
+            mime_type="application/pdf",
+            folderIdPath="uniquepathid://scope_root/scope_leaf",  # type: ignore[call-arg]
+        ),
+    )
+    assert reference_url(
+        chunk, frontend_base_url="https://next.qa.unique.app"
+    ) == (
+        "https://next.qa.unique.app/knowledge-upload/scope_leaf"
+        "?file=cont_abcdefgehijklmnopqrstuvwx"
+    )
 
 
 def test_reference_url_internally_stored_web_chunk_uses_unique_scheme():
@@ -225,7 +290,7 @@ def test_reference_url_external_chunk_keeps_original_url():
     assert reference_url(chunk) == "https://example.com/doc"
 
 
-def test_chunk_to_text_content_has_source_header_and_reference_meta():
+def test_chunk_to_text_content_has_markdown_link_header_and_reference_meta():
     chunk = _make_chunk(
         "The revenue grew by 12%.",
         title="Annual Report 2025",
@@ -237,10 +302,11 @@ def test_chunk_to_text_content_has_source_header_and_reference_meta():
     content = chunk_to_text_content(chunk, sequence_number=3)
 
     assert content.text.startswith(
-        "[source3] Annual Report 2025 (pages 12-14)\n"
-        "unique://content/cont_abcdefgehijklmnopqrstuvwx\n"
+        "[Annual Report 2025](unique://content/cont_abcdefgehijklmnopqrstuvwx)"
+        " (pages 12-14)\n"
     )
     assert content.text.endswith("The revenue grew by 12%.")
+    assert "[source" not in content.text
 
     assert content.meta is not None
     reference = content.meta[REFERENCE_META_KEY]
@@ -253,8 +319,31 @@ def test_chunk_to_text_content_has_source_header_and_reference_meta():
     )
 
 
+def test_chunk_to_text_content_uses_frontend_url_in_text_but_unique_in_meta():
+    chunk = _make_chunk(
+        "body",
+        title="CV.pdf",
+        id="cont_mvkp2iv25xy4cxccpq6i6byk",
+    )
+    content = chunk_to_text_content(
+        chunk,
+        sequence_number=1,
+        frontend_base_url="https://next.qa.unique.app",
+        scope_id="scope_uy3cznkuysy3gasrxx2m4ezb",
+    )
+    assert (
+        "https://next.qa.unique.app/knowledge-upload/"
+        "scope_uy3cznkuysy3gasrxx2m4ezb?file=cont_mvkp2iv25xy4cxccpq6i6byk"
+    ) in content.text
+    assert content.meta is not None
+    assert (
+        content.meta[REFERENCE_META_KEY]["url"]
+        == "unique://content/cont_mvkp2iv25xy4cxccpq6i6byk"
+    )
+
+
 @pytest.mark.asyncio
-async def test_search_results_are_numbered_sequentially():
+async def test_search_results_are_numbered_sequentially_and_include_citation_block():
     chunks = [_make_chunk("first"), _make_chunk("second")]
     mock_service = MagicMock()
     mock_service.bind_settings.return_value = mock_service
@@ -268,6 +357,8 @@ async def test_search_results_are_numbered_sequentially():
         ),
         _patch_post_processor(chunks),
         _patch_resolve_settings(),
+        _patch_frontend_settings(None),
+        _patch_resolve_scope_ids(),
     ):
         result = await search(
             search_string="query",
@@ -275,7 +366,43 @@ async def test_search_results_are_numbered_sequentially():
             settings=_make_settings(),
         )
 
-    assert [c.text.split("]")[0] for c in result.content] == [  # type: ignore[union-attr]
-        "[source1",
-        "[source2",
+    texts = [c.text for c in result.content]  # type: ignore[union-attr]
+    assert texts[0].startswith("[")
+    assert "](unique://content/" in texts[0]
+    assert "](unique://content/" in texts[1]
+    assert "[source" not in texts[0]
+    assert texts[2] == CITATION_RESULT_INSTRUCTION
+
+
+@pytest.mark.asyncio
+async def test_search_uses_frontend_deep_links_when_scopes_resolved():
+    chunks = [
+        _make_chunk("first", id="cont_aaaaaaaaaaaaaaaaaaaaaaa1", title="A.pdf"),
     ]
+    mock_service = MagicMock()
+    mock_service.bind_settings.return_value = mock_service
+    mock_service.state = MagicMock()
+    mock_service.run = AsyncMock(return_value=MagicMock())
+
+    with (
+        patch(
+            "mcp_search.tools.search.KnowledgeBaseInternalSearchService.from_config",
+            return_value=mock_service,
+        ),
+        _patch_post_processor(chunks),
+        _patch_resolve_settings(),
+        _patch_frontend_settings("https://next.qa.unique.app"),
+        _patch_resolve_scope_ids(
+            {"cont_aaaaaaaaaaaaaaaaaaaaaaa1": "scope_uy3cznkuysy3gasrxx2m4ezb"}
+        ),
+    ):
+        result = await search(
+            search_string="query",
+            config=SearchToolConfig(),
+            settings=_make_settings(),
+        )
+
+    assert (
+        "https://next.qa.unique.app/knowledge-upload/"
+        "scope_uy3cznkuysy3gasrxx2m4ezb?file=cont_aaaaaaaaaaaaaaaaaaaaaaa1"
+    ) in result.content[0].text  # type: ignore[union-attr]

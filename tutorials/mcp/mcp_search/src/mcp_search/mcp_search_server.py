@@ -6,6 +6,7 @@ from fastmcp.server.providers import FileSystemProvider
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
+from mcp_search.references import SERVER_CITATION_INSTRUCTIONS
 from mcp_search.routes import get_custom_routes_provider
 from unique_mcp.auth.zitadel.oidc_proxy import (
     ZitadelOIDCProxySettings,
@@ -37,7 +38,12 @@ def main() -> None:
 
     tools_provider = FileSystemProvider(Path(__file__).parent / "tools")
 
-    mcp = FastMCP("Knowledge Base Search", auth=oidc_proxy, providers=[tools_provider])
+    mcp = FastMCP(
+        "Knowledge Base Search",
+        instructions=SERVER_CITATION_INSTRUCTIONS,
+        auth=oidc_proxy,
+        providers=[tools_provider],
+    )
 
     mcp.mount(get_custom_routes_provider())
 

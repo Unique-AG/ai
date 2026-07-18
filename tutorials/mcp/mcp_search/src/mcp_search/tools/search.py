@@ -20,7 +20,10 @@ from mcp_search.config import SearchToolConfig
 from mcp_search.references import (
     REFERENCE_FORMAT_INFORMATION,
     chunk_to_text_content,
+    citation_instruction_content,
 )
+from mcp_search.scope_resolver import resolve_scope_ids
+from mcp_search.settings import McpSearchSettings
 from pydantic import Field
 
 from unique_mcp import (
@@ -39,11 +42,17 @@ from unique_toolkit.experimental.components.internal_search import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_TOOL_DESCRIPTION = (
+    "Search the knowledge base for the given query and return relevant chunks. "
+    + REFERENCE_FORMAT_INFORMATION
+)
+
 _META = merge_tool_meta(
     {
         "unique.app/icon": "search",
         "unique.app/system-prompt": (
-            "Choose this tool if you need to search in the knowledge base"
+            "Choose this tool if you need to search in the knowledge base. "
+            + REFERENCE_FORMAT_INFORMATION
         ),
         "unique.app/tool-format-information": REFERENCE_FORMAT_INFORMATION,
     },
@@ -56,7 +65,7 @@ _META = merge_tool_meta(
 
 @tool(
     name="search",
-    description="Search the knowledge base for the given query and return relevant chunks.",
+    description=_TOOL_DESCRIPTION,
     meta=_META,
 )
 async def search(
@@ -98,9 +107,24 @@ async def search(
             isError=True, content=[TextContent(type="text", text=str(exc))]
         )
 
-    return CallToolResult(
-        content=[
-            chunk_to_text_content(chunk, sequence_number=i)
-            for i, chunk in enumerate(chunks, start=1)
-        ],
-    )
+    frontend_base_url = McpSearchSettings().frontend_base_url_str()
+    scope_by_content_id: dict[str, str] = {}
+    if frontend_base_url and chunks:
+        try:
+            scope_by_content_id = await resolve_scope_ids(chunks, settings)
+        except Exception:
+            _LOGGER.exception("scope resolution failed; falling back to unique:// URLs")
+
+    content: list[TextContent] = [
+        chunk_to_text_content(
+            chunk,
+            sequence_number=i,
+            frontend_base_url=frontend_base_url,
+            scope_id=scope_by_content_id.get(chunk.id) if chunk.id else None,
+        )
+        for i, chunk in enumerate(chunks, start=1)
+    ]
+    if content:
+        content.append(citation_instruction_content())
+
+    return CallToolResult(content=content)
