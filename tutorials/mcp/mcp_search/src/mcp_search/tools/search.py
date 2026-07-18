@@ -15,6 +15,7 @@ from typing import Annotated
 from fastmcp.dependencies import Depends
 from fastmcp.tools import tool
 from mcp.types import CallToolResult, TextContent
+from mcp_search.auth import resolve_search_settings
 from mcp_search.config import SearchToolConfig
 from mcp_search.references import (
     REFERENCE_FORMAT_INFORMATION,
@@ -72,9 +73,14 @@ async def search(
 
     All search behaviour is driven by ``SearchToolConfig`` read from the config
     meta key. Pydantic fills any missing fields with model defaults.
+
+    Identity for the Unique API call is the logged-in user (OAuth JWT /
+    userinfo) or trusted ``_meta`` from Unique AI — never a fixed
+    ``UNIQUE_AUTH_*`` service user when a session is present.
     """
 
     try:
+        settings = await resolve_search_settings(settings)
         service = KnowledgeBaseInternalSearchService.from_config(
             config.service_config
         ).bind_settings(settings)

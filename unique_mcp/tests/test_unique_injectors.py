@@ -26,6 +26,7 @@ from unique_mcp.unique_injectors import (
     get_request_meta,
     get_unique_service_factory,
     get_unique_settings,
+    get_unique_settings_async,
     get_unique_userinfo,
     get_zitadel_settings,
 )
@@ -209,6 +210,56 @@ def test_get_unique_settings__falls_back_to_env__when_no_meta_no_jwt(
         s = get_unique_settings()
     assert s.authcontext.get_confidential_user_id() == "dummy_user"
     assert s.authcontext.get_confidential_company_id() == "dummy_company"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__uses_userinfo__before_env(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Async resolver prefers Zitadel userinfo over UNIQUE_AUTH_* env.
+    Why this matters: Logged-in users must not search as the service account.
+    Setup summary: No meta/JWT; userinfo returns IDs; expect those IDs.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(
+            f"{_MOD}._userinfo_to_auth_context",
+            new=AsyncMock(
+                return_value=AuthContext(
+                    user_id=SecretStr("ui-user"),
+                    company_id=SecretStr("ui-company"),
+                )
+            ),
+        ),
+    ):
+        s = await get_unique_settings_async()
+    assert s.authcontext.get_confidential_user_id() == "ui-user"
+    assert s.authcontext.get_confidential_company_id() == "ui-company"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__raises__when_token_but_no_identity(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: With a Bearer token but no meta/JWT/userinfo, refuse env fallback.
+    Why this matters: Avoid silently acting as UNIQUE_AUTH_* for logged-in calls.
+    Setup summary: get_access_token returns a token; all auth helpers return None.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}._userinfo_to_auth_context", new=AsyncMock(return_value=None)),
+        patch(f"{_MOD}.get_access_token", return_value=MagicMock()),
+        pytest.raises(ValueError, match="Refusing UNIQUE_AUTH_"),
+    ):
+        await get_unique_settings_async()
 
 
 @pytest.mark.ai

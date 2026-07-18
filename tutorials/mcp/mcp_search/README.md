@@ -26,6 +26,21 @@ An MCP server with a single `search` tool that queries the Unique Knowledge Base
                         └─────────────────┘
 ```
 
+## Per-user identity (not a fixed service user)
+
+Search always runs as the **logged-in caller**, not as a shared `UNIQUE_AUTH_*` service account:
+
+| Priority | Source | When |
+| -------- | ------ | ---- |
+| 1 | MCP `_meta` (`unique.app/auth/user-id` + `company-id`) | Unique AI forwards the chat user's identity |
+| 2 | Zitadel JWT claims (`sub` + resourceowner company claim) | OAuth login with a fully configured token |
+| 3 | Zitadel `/oidc/v1/userinfo` | JWT is missing the company claim (common) |
+| — | Env `UNIQUE_AUTH_*` | **Only** when there is no OAuth session (local unauthenticated dev) |
+
+If a user is logged in but identity cannot be resolved from `_meta` / JWT / userinfo, the tool **errors** instead of falling back to the env service user. See [`src/mcp_search/auth.py`](./src/mcp_search/auth.py).
+
+On Azure, set `UNIQUE_APP_*` / `UNIQUE_API_BASE_URL` for the app’s API credentials. Prefer **not** setting `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` on the Web App so a misconfigured token cannot silently search as one fixed user.
+
 ## Document Referencing
 
 Every result returned by the `search` tool carries a stable reference to the source document, on two layers:
@@ -235,14 +250,14 @@ az webapp config appsettings set -n unique-search-mcp -g rg-lab-demo-001-unique-
   UNIQUE_APP_KEY=<your-app-key> \
   UNIQUE_APP_ID=<your-app-id> \
   UNIQUE_API_BASE_URL=<unique-api-base-url> \
-  UNIQUE_AUTH_COMPANY_ID=<your-company-id> \
-  UNIQUE_AUTH_USER_ID=<your-user-id> \
   UNIQUE_APP_ENDPOINT=<your-app-endpoint> \
   UNIQUE_APP_ENDPOINT_SECRET=<your-endpoint-secret> \
   ZITADEL_BASE_URL=<your-zitadel-base-url> \
   ZITADEL_CLIENT_ID=<your-zitadel-client-id> \
   ZITADEL_CLIENT_SECRET=<your-zitadel-client-secret>
 ```
+
+Do **not** set `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` on the deployed app — those are for local unauthenticated testing only. Production identity comes from the OAuth login (JWT / userinfo) or Unique AI `_meta`.
 
 ## Redeploy (code changes only)
 

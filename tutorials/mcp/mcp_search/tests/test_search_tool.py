@@ -74,6 +74,14 @@ def _patch_post_processor(chunks: list):
     )
 
 
+def _patch_resolve_settings():
+    """Keep injected settings as-is (identity resolution covered in test_auth)."""
+    return patch(
+        "mcp_search.tools.search.resolve_search_settings",
+        new=AsyncMock(side_effect=lambda s: s),
+    )
+
+
 @pytest.mark.asyncio
 async def test_search_calls_kb_service():
     chunks = [_make_chunk("result A")]
@@ -88,6 +96,7 @@ async def test_search_calls_kb_service():
             return_value=mock_service,
         ) as mock_from_config,
         _patch_post_processor(chunks),
+        _patch_resolve_settings(),
     ):
         result = await search(
             search_string="test query",
@@ -116,6 +125,7 @@ async def test_search_uses_defaults_when_no_config_provided():
             return_value=mock_service,
         ),
         _patch_post_processor(chunks),
+        _patch_resolve_settings(),
     ):
         result = await search(
             search_string="fallback query",
@@ -129,9 +139,12 @@ async def test_search_uses_defaults_when_no_config_provided():
 
 @pytest.mark.asyncio
 async def test_search_returns_error_result_on_service_failure():
-    with patch(
-        "mcp_search.tools.search.KnowledgeBaseInternalSearchService.from_config",
-        side_effect=RuntimeError("KB unavailable"),
+    with (
+        patch(
+            "mcp_search.tools.search.KnowledgeBaseInternalSearchService.from_config",
+            side_effect=RuntimeError("KB unavailable"),
+        ),
+        _patch_resolve_settings(),
     ):
         result = await search(
             search_string="query",
@@ -162,6 +175,7 @@ async def test_search_returns_error_result_on_post_processor_failure():
             "mcp_search.tools.search.InternalSearchPostProcessor.from_settings",
             return_value=mock_pp,
         ),
+        _patch_resolve_settings(),
     ):
         result = await search(
             search_string="query",
@@ -171,6 +185,22 @@ async def test_search_returns_error_result_on_post_processor_failure():
 
     assert result.isError is True
     assert "post-processor failed" in result.content[0].text  # type: ignore[union-attr]
+
+
+@pytest.mark.asyncio
+async def test_search_returns_error_when_identity_unresolvable():
+    with patch(
+        "mcp_search.tools.search.resolve_search_settings",
+        new=AsyncMock(side_effect=ValueError("Refusing to fall back to UNIQUE_AUTH_")),
+    ):
+        result = await search(
+            search_string="query",
+            config=SearchToolConfig(),
+            settings=_make_settings(),
+        )
+
+    assert result.isError is True
+    assert "UNIQUE_AUTH_" in result.content[0].text  # type: ignore[union-attr]
 
 
 # ── Reference tests ───────────────────────────────────────────────────────────
@@ -237,6 +267,7 @@ async def test_search_results_are_numbered_sequentially():
             return_value=mock_service,
         ),
         _patch_post_processor(chunks),
+        _patch_resolve_settings(),
     ):
         result = await search(
             search_string="query",

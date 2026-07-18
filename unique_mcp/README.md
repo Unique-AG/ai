@@ -10,17 +10,21 @@ MCP tools must call Unique APIs on behalf of the requesting user — every tool 
 
 The MCP server acts as an OAuth proxy: clients receive a FastMCP-issued JWT, which the server swaps server-side for the stored Zitadel token on every request. The Zitadel token _should_ contain `sub` and the company claim, but this depends on token configuration and can't be assumed.
 
-You wire a normal `FastMCP` instance with the Zitadel OAuth proxy (`create_zitadel_oauth_proxy`), then inject **`get_unique_settings`** (and optionally **`get_unique_userinfo`** / **`get_unique_service_factory`**) via `Depends()` into each tool. Those helpers resolve identity per request using a three-priority strategy:
+You wire a normal `FastMCP` instance with the Zitadel OAuth proxy (`create_zitadel_oauth_proxy`), then inject **`get_unique_settings`** / **`get_unique_settings_async`** (and optionally **`get_unique_userinfo`** / **`get_unique_service_factory`**) via `Depends()` into each tool.
+
+**`get_unique_settings` (sync)** — three-priority strategy:
 
 | Priority     | Source                          | Fields                                         | When it wins                                  |
 | ------------ | ------------------------------- | ---------------------------------------------- | --------------------------------------------- |
-| 1 (highest)  | `_meta` keys in the MCP request | `unique.app/user-id`, `unique.app/company-id`  | Trusted internal callers overriding identity  |
+| 1 (highest)  | `_meta` keys in the MCP request | `unique.app/auth/user-id`, `unique.app/auth/company-id` | Trusted internal callers overriding identity  |
 | 2            | Zitadel JWT claims (server-side token swap) | `sub`, `urn:zitadel:iam:user:resourceowner:id` | Normal OAuth flow with fully-configured token |
 | 3 (fallback) | Environment-loaded settings     | `UniqueSettings.from_env_auto_with_sdk_init()` | No usable `_meta` or complete JWT claims      |
 
-Both `user-id` and `company-id` must be present for priority 1 or 2 to apply. If JWT claims are incomplete, resolution falls through to env-based auth — `get_unique_settings` does **not** call Zitadel `/userinfo` automatically.
+Both `user-id` and `company-id` must be present for priority 1 or 2 to apply. The sync helper does **not** call Zitadel `/userinfo` — incomplete JWTs fall through to env `UNIQUE_AUTH_*`.
 
-**`get_unique_userinfo`** is a separate async helper: when a Bearer token is present, it performs `GET` on Zitadel’s userinfo endpoint and returns `UniqueUserInfo` (IDs + optional `email`). Use it when you need profile fields or an explicit userinfo round-trip; combine with `get_unique_settings` as needed.
+**`get_unique_settings_async`** — same as above, but inserts Zitadel `/userinfo` **before** the env fallback. Prefer this in tools that must act as the **logged-in** user. If an access token is present but neither JWT nor userinfo yield both IDs, it **raises** instead of using the fixed service user.
+
+**`get_unique_userinfo`** is also available on its own when you need profile fields (e.g. email).
 
 ```mermaid
 flowchart TD
@@ -96,7 +100,8 @@ if __name__ == "__main__":
 
 | Name                         | Role                                                                 |
 | ---------------------------- | -------------------------------------------------------------------- |
-| `get_unique_settings`        | Sync dependency: returns `UniqueSettings` with per-request auth      |
+| `get_unique_settings`        | Sync dependency: `_meta` → JWT → env auth                            |
+| `get_unique_settings_async`  | Async: `_meta` → JWT → userinfo → env; refuses env when logged in    |
 | `get_unique_service_factory` | Sync dependency: `UniqueServiceFactory` from resolved settings       |
 | `get_unique_userinfo`        | Async: Zitadel userinfo → `UniqueUserInfo` (requires access token)   |
 
@@ -137,11 +142,11 @@ sequenceDiagram
     MCP-->>Client: tool result
 ```
 
-### 2 — JWT without company claim (env fallback vs userinfo)
+### 2 — JWT without company claim (userinfo before env)
 
-If the Zitadel JWT carries `sub` but not the company claim, **`get_unique_settings`** does not apply JWT auth and falls back to **environment** identity from `UniqueSettings.from_env_auto_with_sdk_init()` (typical for local/dev with `UNIQUE_AUTH_*`).
+If the Zitadel JWT carries `sub` but not the company claim, **`get_unique_settings`** (sync) falls back to **environment** identity (`UNIQUE_AUTH_*`). That is wrong for multi-user servers.
 
-To obtain `sub` + company from Zitadel’s **userinfo** response explicitly, call **`await get_unique_userinfo(http_client)`** in the tool when you need that data (for example email or IDs from userinfo). Configure Zitadel so JWTs embed the resourceowner claim when possible — see [`docs/zitadel/README.md`](docs/zitadel/README.md) — to avoid relying on env or extra calls.
+Use **`await get_unique_settings_async()`** (or call **`get_unique_userinfo`**) so identity comes from Zitadel `/userinfo` instead. Configure Zitadel so JWTs embed the resourceowner claim when possible — see [`docs/zitadel/README.md`](docs/zitadel/README.md) — to avoid the extra userinfo round-trip.
 
 ```mermaid
 sequenceDiagram

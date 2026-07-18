@@ -183,6 +183,14 @@ def get_request_meta() -> dict[str, Any] | None:
 
 
 def get_unique_settings() -> UniqueSettings:
+    """Resolve ``UniqueSettings`` for the current request (sync).
+
+    Priority: ``_meta`` auth → JWT claims → env ``UNIQUE_AUTH_*``.
+
+    This sync path does **not** call Zitadel ``/userinfo``. When a JWT omits
+    the company claim, callers that must not fall back to a fixed service
+    user should use :func:`get_unique_settings_async` instead.
+    """
     settings = _base_settings()
 
     meta = get_request_meta()
@@ -198,6 +206,41 @@ def get_unique_settings() -> UniqueSettings:
     # the already-bound chat context (see `UniqueSettings.with_auth`).
     if auth_context := _fastmcp_access_token_to_auth_context():
         return settings.with_auth(auth_context)
+
+    return settings
+
+
+async def get_unique_settings_async() -> UniqueSettings:
+    """Like :func:`get_unique_settings`, but try Zitadel userinfo before env.
+
+    Priority: ``_meta`` auth → JWT claims → Zitadel ``/userinfo`` → env.
+
+    Use this in tools that must search/act as the **logged-in** user. When an
+    access token is present but neither JWT nor userinfo yield both IDs, this
+    raises instead of silently using ``UNIQUE_AUTH_*`` service credentials.
+    """
+    settings = _base_settings()
+
+    meta = get_request_meta()
+
+    if meta is not None:
+        if chat_context := _chat_from_meta(meta):
+            settings = settings.with_chat(chat_context)
+        if auth_context := _auth_from_meta(meta):
+            return settings.with_auth(auth_context)
+
+    if auth_context := _fastmcp_access_token_to_auth_context():
+        return settings.with_auth(auth_context)
+
+    if auth_context := await _userinfo_to_auth_context():
+        return settings.with_auth(auth_context)
+
+    if get_access_token() is not None:
+        raise ValueError(
+            "Authenticated session could not be resolved to user_id and "
+            "company_id (JWT claims incomplete and userinfo unavailable). "
+            "Refusing UNIQUE_AUTH_* env fallback for a logged-in request."
+        )
 
     return settings
 
