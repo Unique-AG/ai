@@ -11,6 +11,7 @@ from unique_mcp.auth.zitadel.oidc_proxy import (
     ZitadelOIDCProxySettings,
     create_zitadel_oidc_proxy,
 )
+from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
 from unique_mcp.settings import ServerSettings
 
 
@@ -25,6 +26,14 @@ def main() -> None:
         mcp_server_base_url=server_settings.base_url.encoded_string(),
         zitadel_oidc_proxy_settings=ZitadelOIDCProxySettings(),  # type: ignore[call-arg]
     )
+    # Ensure DCR/authorize accept openid + MCP scopes even when running against a
+    # unique-mcp build that does not yet set valid_scopes on the OIDC proxy.
+    if not getattr(
+        getattr(oidc_proxy, "client_registration_options", None),
+        "valid_scopes",
+        None,
+    ):
+        oidc_proxy.update_default_scopes(list(ZITADEL_DEFAULT_MCP_SCOPES))
 
     tools_provider = FileSystemProvider(Path(__file__).parent / "tools")
 
