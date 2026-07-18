@@ -18,6 +18,22 @@ echo "[2/6] ACR and build..."
 az acr create -n "$ACR" -g "$RG" --sku Basic --admin-enabled true 2>/dev/null || true
 az acr build -t "${APP}:latest" -r "$ACR" .
 
+# Pin the Web App to the immutable digest of the image we just built
+# (not the mutable :latest tag).
+IMAGE_DIGEST="$(
+  az acr repository show \
+    -n "$ACR" \
+    --image "${APP}:latest" \
+    --query digest \
+    -o tsv
+)"
+if [[ -z "${IMAGE_DIGEST}" || "${IMAGE_DIGEST}" == "null" ]]; then
+  echo "ERROR: could not resolve image digest for ${ACR}.azurecr.io/${APP}:latest" >&2
+  exit 1
+fi
+IMAGE_REF="${ACR}.azurecr.io/${APP}@${IMAGE_DIGEST}"
+echo "Deploying image: ${IMAGE_REF}"
+
 # === CREATE APP SERVICE PLAN + WEB APP ===
 echo "[3/6] App Service plan..."
 az appservice plan create -n "$PLAN" -g "$RG" --is-linux --sku B1 2>/dev/null || true
@@ -25,13 +41,14 @@ az appservice plan create -n "$PLAN" -g "$RG" --is-linux --sku B1 2>/dev/null ||
 # === CREATE WEB APP (or update if exists) ===
 echo "[4/6] Web App..."
 az webapp create -n "$APP" -g "$RG" -p "$PLAN" \
-  --deployment-container-image-name "${ACR}.azurecr.io/${APP}:latest" 2>/dev/null || \
+  --deployment-container-image-name "${IMAGE_REF}" 2>/dev/null || \
 az webapp config container set -n "$APP" -g "$RG" \
-  --container-image-name "${ACR}.azurecr.io/${APP}:latest"
+  --container-image-name "${IMAGE_REF}"
 
 # === CONFIGURE ACR ACCESS ===
 az webapp config container set -n "$APP" -g "$RG" \
-  --container-registry-url "https://${ACR}.azurecr.io"
+  --container-registry-url "https://${ACR}.azurecr.io" \
+  --container-image-name "${IMAGE_REF}"
 
 # === SET PORT AND ALWAYS ON ===
 echo "[5/6] Port and Always On..."
@@ -50,6 +67,7 @@ az webapp restart -n "$APP" -g "$RG"
 echo ""
 echo "Done! App: https://${APP}.azurewebsites.net"
 echo "MCP endpoint: https://${APP}.azurewebsites.net/mcp"
+echo "Image: ${IMAGE_REF}"
 echo ""
 echo "IMPORTANT: Set app + Zitadel secrets via Azure Portal or CLI:"
 echo "  az webapp config appsettings set -n $APP -g $RG --settings \\"
