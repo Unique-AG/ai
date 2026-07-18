@@ -167,7 +167,33 @@ curl -X POST http://localhost:8003/mcp \
 ```
 
 
-## 5. Developing with the MCP Inspector
+## 5. Debug OAuth with the verbose auth client
+
+For end-to-end auth debugging against local or Azure (prints every OAuth HTTP
+exchange and decoded JWTs, then lists tools / calls `search`):
+
+```bash
+# Against the deployed lab instance (default URL)
+uv run python debug_auth_client.py
+
+# Against local server
+uv run python debug_auth_client.py --url http://localhost:8003/mcp
+
+# Auth + list_tools only
+uv run python debug_auth_client.py --no-search
+
+# Extra FastMCP/httpx logs
+uv run python debug_auth_client.py --debug-logs
+```
+
+A browser window opens for the MCP consent page → Zitadel login. Tokens are
+in-memory only for that process (no Inspector localStorage), so each run starts
+a clean Dynamic Client Registration.
+
+There is also a generic discovery script at
+[`../client_scripts/debug_mcp_auth.py`](../client_scripts/debug_mcp_auth.py).
+
+## 6. Developing with the MCP Inspector
 
 Start the MCP Inspector against the local streamable HTTP endpoint defined in [`inspector_mcp_server.json`](./inspector_mcp_server.json):
 
@@ -192,7 +218,7 @@ See also `MetaKeys` in `unique_mcp` and the example in [`src/mcp_search/mcp_clie
 
 
 
-## 6. Connect to the Unique Platform
+## 7. Connect to the Unique Platform
 
 The Unique platform sends events to your MCP server via a public HTTPS endpoint. During local development you can use [ngrok](https://ngrok.com/) to expose your server.
 

@@ -25,6 +25,11 @@ def main() -> None:
     oidc_proxy = create_zitadel_oidc_proxy(
         mcp_server_base_url=server_settings.base_url.encoded_string(),
         zitadel_oidc_proxy_settings=ZitadelOIDCProxySettings(),  # type: ignore[call-arg]
+        # Zitadel often issues opaque (non-JWT) access tokens even when the app
+        # is configured for JWT. Verify the OIDC id_token instead so the
+        # token-swap after /token succeeds; otherwise every /mcp call returns
+        # invalid_token despite a successful login.
+        verify_id_token=True,
     )
     # OIDCProxy does not advertise scopes by default; without this, DCR rejects
     # openid/profile and clients fail authorize (invalid_scope → invalid_token).
