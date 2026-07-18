@@ -16,6 +16,10 @@ from fastmcp.dependencies import Depends
 from fastmcp.tools import tool
 from mcp.types import CallToolResult, TextContent
 from mcp_search.config import SearchToolConfig
+from mcp_search.references import (
+    REFERENCE_FORMAT_INFORMATION,
+    chunk_to_text_content,
+)
 from pydantic import Field
 
 from unique_mcp import (
@@ -40,6 +44,7 @@ _META = merge_tool_meta(
         "unique.app/system-prompt": (
             "Choose this tool if you need to search in the knowledge base"
         ),
+        "unique.app/tool-format-information": REFERENCE_FORMAT_INFORMATION,
     },
     ContextRequirements(
         required=[MetaKeys.USER_ID, MetaKeys.COMPANY_ID],
@@ -89,7 +94,7 @@ async def search(
 
     return CallToolResult(
         content=[
-            TextContent(type="text", text=chunk.text, _meta=chunk.model_dump())
-            for chunk in chunks
+            chunk_to_text_content(chunk, sequence_number=i)
+            for i, chunk in enumerate(chunks, start=1)
         ],
     )

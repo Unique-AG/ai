@@ -1,10 +1,16 @@
-"""Tests for the search tool — config schema and routing logic."""
+"""Tests for the search tool — config schema, routing logic, and references."""
 
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from mcp.types import CallToolResult
 from mcp_search.config import SearchToolConfig
+from mcp_search.references import (
+    REFERENCE_META_KEY,
+    chunk_to_text_content,
+    reference_url,
+)
 from mcp_search.tools.search import search
 
 from unique_mcp.meta.rjsf import ConfigSchemaMeta
@@ -45,9 +51,12 @@ def test_default_config_round_trips():
 # ── Routing tests ─────────────────────────────────────────────────────────────
 
 
-def _make_chunk(text: str) -> ContentChunk:
-    return MagicMock(
-        spec=ContentChunk, text=text, model_dump=MagicMock(return_value={})
+def _make_chunk(text: str, **kwargs) -> ContentChunk:
+    return ContentChunk(
+        id=kwargs.pop("id", "cont_abcdefgehijklmnopqrstuvwx"),
+        text=text,
+        order=0,
+        **kwargs,
     )
 
 
@@ -162,3 +171,80 @@ async def test_search_returns_error_result_on_post_processor_failure():
 
     assert result.isError is True
     assert "post-processor failed" in result.content[0].text  # type: ignore[union-attr]
+
+
+# ── Reference tests ───────────────────────────────────────────────────────────
+
+
+def test_reference_url_internal_content_uses_unique_scheme():
+    chunk = _make_chunk("text")
+    assert reference_url(chunk) == "unique://content/cont_abcdefgehijklmnopqrstuvwx"
+
+
+def test_reference_url_internally_stored_web_chunk_uses_unique_scheme():
+    chunk = _make_chunk(
+        "text",
+        url="https://example.com/doc",
+        internally_stored_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+    )
+    assert reference_url(chunk) == "unique://content/cont_abcdefgehijklmnopqrstuvwx"
+
+
+def test_reference_url_external_chunk_keeps_original_url():
+    chunk = _make_chunk("text", url="https://example.com/doc")
+    assert reference_url(chunk) == "https://example.com/doc"
+
+
+def test_chunk_to_text_content_has_source_header_and_reference_meta():
+    chunk = _make_chunk(
+        "The revenue grew by 12%.",
+        title="Annual Report 2025",
+        chunk_id="chunk_abcdefgehijklmnopqrstuv",
+        start_page=12,
+        end_page=14,
+    )
+
+    content = chunk_to_text_content(chunk, sequence_number=3)
+
+    assert content.text.startswith(
+        "[source3] Annual Report 2025 (pages 12-14)\n"
+        "unique://content/cont_abcdefgehijklmnopqrstuvwx\n"
+    )
+    assert content.text.endswith("The revenue grew by 12%.")
+
+    assert content.meta is not None
+    reference = content.meta[REFERENCE_META_KEY]
+    assert reference["url"] == "unique://content/cont_abcdefgehijklmnopqrstuvwx"
+    assert reference["sequenceNumber"] == 3
+    assert reference["source"] == "node-ingestion-chunks"
+    assert (
+        reference["sourceId"]
+        == "cont_abcdefgehijklmnopqrstuvwx_chunk_abcdefgehijklmnopqrstuv"
+    )
+
+
+@pytest.mark.asyncio
+async def test_search_results_are_numbered_sequentially():
+    chunks = [_make_chunk("first"), _make_chunk("second")]
+    mock_service = MagicMock()
+    mock_service.bind_settings.return_value = mock_service
+    mock_service.state = MagicMock()
+    mock_service.run = AsyncMock(return_value=MagicMock())
+
+    with (
+        patch(
+            "mcp_search.tools.search.KnowledgeBaseInternalSearchService.from_config",
+            return_value=mock_service,
+        ),
+        _patch_post_processor(chunks),
+    ):
+        result = await search(
+            search_string="query",
+            config=SearchToolConfig(),
+            settings=_make_settings(),
+        )
+
+    assert [c.text.split("]")[0] for c in result.content] == [  # type: ignore[union-attr]
+        "[source1",
+        "[source2",
+    ]

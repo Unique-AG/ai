@@ -8,8 +8,52 @@ An MCP server with a single `search` tool that queries the Unique Knowledge Base
 
 - Runs on [FastMCP](https://github.com/jlowin/fastmcp) with streamable HTTP transport
 - Authenticates users through Zitadel OAuth proxy
-- Deploys to Azure Container Instances with automatic HTTPS via Caddy
-- Stores secrets in Azure Key Vault and logs in Log Analytics
+- Tags every search result with a document reference (`unique://content/{contentId}`) so any MCP client can cite results and open them in the Unique knowledge base
+- Deploys to Azure App Service via [`deploy.sh`](./deploy.sh) (see [Deploy to Azure](#deploy-to-azure)); a Terraform/Container Instances alternative is documented in [DEPLOYMENT.md](./DEPLOYMENT.md)
+
+## Architecture
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   MCP Client    │────▶│   MCP Server    │────▶│  Unique KB API  │
+│  (Unique AI)    │     │   (FastMCP)     │     │  (search)       │
+└─────────────────┘     └────────┬────────┘     └─────────────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │    Zitadel      │
+                        │  (OAuth2/OIDC)  │
+                        └─────────────────┘
+```
+
+## Document Referencing
+
+Every result returned by the `search` tool carries a stable reference to the source document, on two layers:
+
+**Text layer** — each result is prefixed with a source header the LLM can cite:
+
+```
+[source3] Annual Report 2025.pdf (pages 12-14)
+unique://content/cont_abcdefgehijklmnopqrstuvwx
+
+<chunk text...>
+```
+
+**Structured layer** — each MCP content item carries a `unique.app/reference` entry in its `_meta`, shaped like Unique's `ContentReference` (name, url, sourceId, source, sequenceNumber), so MCP clients can build clickable reference chips without parsing text:
+
+```json
+{
+  "unique.app/reference": {
+    "name": "Annual Report 2025.pdf : 12,13,14",
+    "url": "unique://content/cont_abcdefgehijklmnopqrstuvwx",
+    "sourceId": "cont_abcdefgehijklmnopqrstuvwx_chunk_abcdefgehijklmnopqrstuv",
+    "source": "node-ingestion-chunks",
+    "sequenceNumber": 3
+  }
+}
+```
+
+URLs of the form `unique://content/{contentId}` are resolved by the Unique frontend and open the document directly in the knowledge base. Chunks that originate from the web keep their external `https://` URL instead. The tool also publishes a `unique.app/tool-format-information` meta entry instructing the orchestrating model to cite results with `[sourceN]` markers or markdown links, so the referencing style is applied consistently by any MCP client. See [`src/mcp_search/references.py`](./src/mcp_search/references.py) for the implementation.
 
 # Prerequisites
 
@@ -162,6 +206,77 @@ https://<subdomain>.ngrok-free.app/auth/callback
 ```
 
 See [`unique_mcp/docs/zitadel/README.md`](../../../unique_mcp/docs/zitadel/README.md) for full Zitadel setup instructions.
+
+
+# Deploy to Azure
+
+## Prerequisites
+
+1. **Azure subscription and resource group** – Already created: subscription `698f3b43-ccb0-4f97-9e10-2ca89a7782cf` (`lab-demo-001`), resource group `rg-lab-demo-001-unique-search-mcp` (see [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs) for initial setup).
+2. Azure CLI installed and logged in (`az login`)
+3. Zitadel app with redirect URI `https://unique-search-mcp.azurewebsites.net/auth/callback`
+
+## What deploy.sh does
+
+- Creates the **Azure Container Registry** `uniquesearchmcpacr` on first run (idempotent).
+- Builds the Docker image in Azure with `az acr build`. The build resolves `unique-mcp` and `unique-toolkit` from PyPI (`uv sync --no-sources`), so it works standalone without the monorepo checkout.
+- Creates or updates the **App Service plan** (`unique-search-mcp-plan`, Linux B1) and **Web App** `unique-search-mcp`, and sets `WEBSITES_PORT=8003`, Always On, and the base-URL app settings (`UNIQUE_MCP_LOCAL_BASE_URL`, `UNIQUE_MCP_PUBLIC_BASE_URL`).
+
+## Deploy
+
+```bash
+./deploy.sh
+```
+
+Then set the **required secrets** (Azure Portal or CLI):
+
+```bash
+az webapp config appsettings set -n unique-search-mcp -g rg-lab-demo-001-unique-search-mcp --settings \
+  UNIQUE_APP_KEY=<your-app-key> \
+  UNIQUE_APP_ID=<your-app-id> \
+  UNIQUE_API_BASE_URL=<unique-api-base-url> \
+  UNIQUE_AUTH_COMPANY_ID=<your-company-id> \
+  UNIQUE_AUTH_USER_ID=<your-user-id> \
+  UNIQUE_APP_ENDPOINT=<your-app-endpoint> \
+  UNIQUE_APP_ENDPOINT_SECRET=<your-endpoint-secret> \
+  ZITADEL_BASE_URL=<your-zitadel-base-url> \
+  ZITADEL_CLIENT_ID=<your-zitadel-client-id> \
+  ZITADEL_CLIENT_SECRET=<your-zitadel-client-secret>
+```
+
+## Redeploy (code changes only)
+
+```bash
+az acr build -t unique-search-mcp:latest -r uniquesearchmcpacr .
+az webapp restart -n unique-search-mcp -g rg-lab-demo-001-unique-search-mcp
+```
+
+## Deployed instance
+
+- **App:** `https://unique-search-mcp.azurewebsites.net`
+- **Health check:** `https://unique-search-mcp.azurewebsites.net/health`
+- **MCP endpoint:** `https://unique-search-mcp.azurewebsites.net/mcp`
+
+## Restart
+
+```bash
+az webapp restart -n unique-search-mcp -g rg-lab-demo-001-unique-search-mcp
+```
+
+Note: OAuth client registrations are kept in memory and are lost on restart — MCP clients will transparently re-register via Dynamic Client Registration.
+
+## Notes
+
+### Zitadel app configuration
+
+- **App type:** Web Application
+- **Token endpoint auth:** POST (`client_secret_post`)
+- **Access token type:** JWT (not opaque)
+- **Redirect URI:** `https://unique-search-mcp.azurewebsites.net/auth/callback`
+
+### Terraform alternative
+
+A full IaC deployment to Azure Container Instances (with Key Vault, Log Analytics, and Caddy-managed HTTPS) is available under [`terraform/`](./terraform/) — see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 
 ## Further Reading

@@ -13,10 +13,14 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 
 # Copy dependency files first (for better caching)
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 
-# Install dependencies
-RUN uv sync --frozen --no-install-project --no-dev
+# Install dependencies from PyPI. --no-sources ignores the editable path
+# sources for unique-mcp / unique-toolkit (which live outside this build
+# context in the monorepo) so the image can be built standalone, e.g. with
+# `az acr build` from this directory.
+RUN uv lock --no-sources && \
+    uv sync --frozen --no-install-project --no-dev
 
 # Copy the application source code
 COPY . .
