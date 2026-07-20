@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.30.1](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.30.0...unique-user-memory-v2026.30.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **user-memory:** exclude frontmatter generation from llm call ([#2114](https://github.com/Unique-AG/ai/issues/2114)) ([f239e88](https://github.com/Unique-AG/ai/commit/f239e886c9df1bac52a44ba546d3389bfe0cfb56))
+
 ## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-user-memory-v2026.28.0...unique-user-memory-v2026.30.0) (2026-07-17)
 
 
