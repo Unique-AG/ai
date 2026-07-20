@@ -159,6 +159,35 @@ async def test_condense_user_memory_rejects_non_profile_output(
     assert result is None
 
 
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_condense_user_memory_accepts_frontmatter_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Accept legacy LLM output while returning only the condensed profile body."""
+    condensed = "# User Memory\n\n## Identity\n- concise summary"
+    response = MagicMock()
+    response.choices[0].message.content = (
+        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n" + condensed
+    )
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+
+    result = await condense_user_memory(
+        content="# User Memory\n\n## Identity\n- lots of stuff",
+        max_tokens=2000,
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result == condensed
+
+
 def test_count_tokens_uses_language_model_encoder() -> None:
     language_model = MagicMock()
     language_model.get_encoder.return_value = lambda content: content.split()
@@ -334,6 +363,45 @@ async def test_consolidate_user_memory_adds_frontmatter_to_llm_body(
 
     assert "user_id: authenticated-user" in result
     assert "schema_version: 1" in result
+    assert "turn_count: 1" in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_replaces_llm_frontmatter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Strip untrusted legacy metadata before assembling the updated profile."""
+    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    response = MagicMock()
+    response.choices[0].message.content = (
+        "---\nuser_id: stale-user\nturn_count: 99\n---\n\n" + rewritten
+    )
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory=empty_profile("authenticated-user"),
+        user_id="authenticated-user",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: authenticated-user" in result
+    assert "stale-user" not in result
     assert "turn_count: 1" in result
 
 

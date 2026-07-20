@@ -250,7 +250,7 @@ async def condense_user_memory(
         )
         return None
 
-    candidate = _strip_code_fences(raw).strip()
+    candidate = _profile_body(_strip_code_fences(raw))
     if not _is_well_formed_profile(candidate):
         logger.warning(
             "[user-memory] condense output did not look like a profile (%d chars)",
@@ -837,7 +837,7 @@ async def _rewrite_user_memory(
         logger.info("[user-memory] consolidation NOOP - keeping existing memory")
         return safe_current
 
-    candidate_body = _strip_code_fences(raw).strip()
+    candidate_body = _profile_body(_strip_code_fences(raw))
     if not _is_well_formed_profile(candidate_body):
         logger.warning(
             "[user-memory] LLM output did not look like a profile (%d chars)",
