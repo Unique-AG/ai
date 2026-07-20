@@ -15,12 +15,6 @@ from unique_internal_search.validators import get_string_field_with_pattern_vali
 
 
 class UploadedSearchConfig(InternalSearchConfig):
-    max_tokens_per_search_call: (
-        Annotated[int, Field(ge=0)] | Annotated[None, Field(title="No Limit")]
-    ) = Field(
-        default=35_000,
-        description="Hard upper bound on the token budget for a single search call's sources.",
-    )
     param_description_search_string: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(

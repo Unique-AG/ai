@@ -51,6 +51,7 @@ from unique_internal_search.utils import (
 
 AVERAGE_TOKENS_PER_CHUNK = 500
 TOKEN_BUDGET_SAFETY_FACTOR = 1.3
+DEFAULT_MAX_TOKENS_PER_SEARCH_CALL = 35_000
 
 
 async def _noop_log_progress(message: str) -> None:
@@ -321,11 +322,7 @@ class InternalSearchService:
         model_input = self.config.language_model_max_input_tokens
 
         if max_tokens is None and model_input is None:
-            raise ValueError(
-                "Cannot determine the token budget: both "
-                "`max_tokens_per_search_call` and `language_model_max_input_tokens` "
-                "are unset. At least one must be provided."
-            )
+            return DEFAULT_MAX_TOKENS_PER_SEARCH_CALL
 
         if self.config.always_fetch_max_tokens:
             # Ignore the percentage and use the configured max directly (or the

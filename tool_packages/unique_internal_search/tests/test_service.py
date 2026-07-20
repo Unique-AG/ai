@@ -13,6 +13,7 @@ from unique_toolkit.content.service import ContentService
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import (
     AVERAGE_TOKENS_PER_CHUNK,
+    DEFAULT_MAX_TOKENS_PER_SEARCH_CALL,
     TOKEN_BUDGET_SAFETY_FACTOR,
     InternalSearchService,
     InternalSearchTool,
@@ -1046,7 +1047,7 @@ class TestInternalSearchService:
         assert result >= 1
 
     @pytest.mark.ai
-    def test_get_max_tokens__raises__when_max_and_language_model_max_both_unset(
+    def test_get_max_tokens__returns_default__when_max_and_language_model_max_both_unset(
         self,
         base_internal_search_config: InternalSearchConfig,
         mock_content_service: ContentService,
@@ -1054,11 +1055,11 @@ class TestInternalSearchService:
         mock_logger: Any,
     ) -> None:
         """
-        Purpose: Verify _get_max_tokens raises when neither max_tokens_per_search_call
-        nor language_model_max_input_tokens is set.
-        Why this matters: The token budget is undefined in that case; failing loud
-        avoids silently returning an empty or arbitrary budget.
-        Setup summary: Set both to None and expect a ValueError.
+        Purpose: Verify _get_max_tokens falls back to the default budget when neither
+        max_tokens_per_search_call nor language_model_max_input_tokens is set.
+        Why this matters: Avoids failing when no budget signal is available; a safe
+        default keeps search working.
+        Setup summary: Set both to None and expect DEFAULT_MAX_TOKENS_PER_SEARCH_CALL.
         """
         # Arrange
         base_internal_search_config.max_tokens_per_search_call = None
@@ -1071,9 +1072,11 @@ class TestInternalSearchService:
             logger=mock_logger,
         )
 
-        # Act / Assert
-        with pytest.raises(ValueError):
-            service._get_max_tokens()
+        # Act
+        result = service._get_max_tokens()
+
+        # Assert
+        assert result == DEFAULT_MAX_TOKENS_PER_SEARCH_CALL
 
     @pytest.mark.ai
     def test_get_max_tokens__uses_max_directly__when_always_fetch_max_tokens(
