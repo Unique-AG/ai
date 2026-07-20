@@ -10,6 +10,7 @@ from azure.ai.agents.models import (
 )
 from azure.ai.projects.aio import AIProjectClient
 
+from unique_web_search.invocation_stats import record_token_usage
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -128,6 +129,12 @@ async def create_and_process_run(
     else:
         _LOGGER.warning(f"Using existing agent ID: {agent_id}")
         thread = await _create_agent_run_with_agent_id(agent_client, agent_id, query)
+
+    record_token_usage(
+        model_name=env_settings.azure_ai_bing_agent_model,
+        usage=getattr(thread, "usage", None),
+        source="web_search.grounding.bing",
+    )
 
     if thread.status in [RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.EXPIRED]:
         raise Exception(f"Run failed: {thread.last_error}")

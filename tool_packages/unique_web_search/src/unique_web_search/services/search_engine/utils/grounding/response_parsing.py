@@ -6,6 +6,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.service import LanguageModelService
 
+from unique_web_search.invocation_stats import record_language_model_response
 from unique_web_search.services.search_engine.schema import WebSearchResult
 from unique_web_search.services.search_engine.utils.grounding.models import (
     GroundingSearchResults,
@@ -91,6 +92,11 @@ class LLMParserStrategy(ResponseParser):
             model_name=self.llm.name,
             structured_output_model=GroundingSearchResults,
             structured_output_enforce_schema=True,
+        )
+        record_language_model_response(
+            model_name=self.llm.name,
+            response=llm_response,
+            source="web_search.grounding.response_parser",
         )
 
         if not llm_response.choices[0].message.parsed:
