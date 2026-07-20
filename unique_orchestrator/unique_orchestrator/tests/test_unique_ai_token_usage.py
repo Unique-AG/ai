@@ -632,6 +632,63 @@ class TestRunTokenUsageIntegration:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__deep_research_partial_persist__does_not_duplicate_previous_invocations(
+        self,
+    ):
+        """
+        Purpose: Verify failed Deep Research persistence does not merge prior usage twice.
+        Why this matters: Duplicate invocations overstate token analytics for aborted runs.
+        Setup summary: Fail the full persist after merging stored usage, then inspect the partial retry.
+        """
+        # Arrange
+        current_response = _make_loop_response(
+            LanguageModelTokenUsage(
+                completion_tokens=10,
+                prompt_tokens=20,
+                total_tokens=30,
+            )
+        )
+        ua = _build_run_ua([current_response], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._debug_info_manager.debug_info["tools"] = [
+            {"name": "DeepResearch", "info": {}}
+        ]
+        ua._event.payload.message_execution_id = "execution-1"
+        previous_invocation = LanguageModelInvocationStats.from_usage(
+            MODEL_NAME,
+            LanguageModelTokenUsage(
+                completion_tokens=2,
+                prompt_tokens=3,
+                total_tokens=5,
+            ),
+            source="deep_research.clarification",
+        )
+        ua._chat_service.get_debug_info_async.return_value = {
+            "llm_invocations": [previous_invocation.model_dump(by_alias=True)],
+        }
+        ua._chat_service.update_debug_info_async.side_effect = [
+            RuntimeError("full persist failed"),
+            None,
+        ]
+
+        # Act
+        with pytest.raises(RuntimeError, match="full persist failed"):
+            await ua.run()
+
+        # Assert
+        partial_debug_info = (
+            ua._chat_service.update_debug_info_async.call_args_list[1].kwargs[
+                "debug_info"
+            ]
+        )
+        assert [
+            invocation["source"]
+            for invocation in partial_debug_info["llm_invocations"]
+        ] == ["deep_research.clarification", "main_loop[1]"]
+        assert partial_debug_info["llm_invocations_complete"] is False
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__deep_research_clarification__keeps_invocations_incomplete(self):
         """
         Purpose: Verify Deep Research does not signal complete usage before research execution.

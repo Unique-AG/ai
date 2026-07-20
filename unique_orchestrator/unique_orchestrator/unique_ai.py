@@ -271,6 +271,7 @@ class UniqueAI:
         self._invocation_stats_finalized = False
         self._debug_info_manager.add("llm_invocations_complete", False)
         invocations_persisted = False
+        persisted_invocations_merged = False
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
@@ -401,6 +402,7 @@ class UniqueAI:
                     ),
                     *self._invocation_stats,
                 ]
+                persisted_invocations_merged = True
             self._debug_info_manager.add(
                 "llm_invocations",
                 [
@@ -500,19 +502,25 @@ class UniqueAI:
                         for tool in partial_debug_info.get("tools", [])
                     )
                     if is_deep_research:
-                        previous_invocations = _load_invocation_stats_from_debug_info(
-                            existing_debug_info,
-                            self._logger,
-                        )
-                        debug_info = {
-                            **existing_debug_info,
-                            "llm_invocations": [
+                        if persisted_invocations_merged:
+                            merged_invocations = partial_debug_info["llm_invocations"]
+                        else:
+                            previous_invocations = (
+                                _load_invocation_stats_from_debug_info(
+                                    existing_debug_info,
+                                    self._logger,
+                                )
+                            )
+                            merged_invocations = [
                                 *[
                                     invocation.model_dump(by_alias=True)
                                     for invocation in previous_invocations
                                 ],
                                 *partial_debug_info["llm_invocations"],
-                            ],
+                            ]
+                        debug_info = {
+                            **existing_debug_info,
+                            "llm_invocations": merged_invocations,
                             "llm_invocations_complete": False,
                         }
                     else:
