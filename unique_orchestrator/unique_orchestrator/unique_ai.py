@@ -73,6 +73,29 @@ from unique_orchestrator.settings import env_settings
 from unique_orchestrator.utils import resolve_other_options
 
 
+def _load_invocation_stats_from_debug_info(
+    debug_info: dict[str, Any],
+    logger: Logger,
+) -> list[LanguageModelInvocationStats]:
+    """Deserialize previously persisted invocation stats, ignoring malformed entries."""
+    raw_invocations = debug_info.get("llm_invocations")
+    if not isinstance(raw_invocations, list):
+        return []
+
+    invocations: list[LanguageModelInvocationStats] = []
+    for raw_invocation in raw_invocations:
+        try:
+            invocations.append(
+                LanguageModelInvocationStats.model_validate(raw_invocation)
+            )
+        except Exception:
+            logger.warning(
+                "Ignoring malformed persisted LLM invocation stats",
+                exc_info=True,
+            )
+    return invocations
+
+
 class UniqueAI:
     start_text = ""
     current_iteration_index = 0
@@ -363,6 +386,19 @@ class UniqueAI:
             self._debug_info_manager.add("loop_params", self._loop_debug_params)
             skills_debug_info = self._get_activated_skills_debug_info()
             self._debug_info_manager.add("skills", skills_debug_info)
+            tool_names = {
+                tool["name"] for tool in self._debug_info_manager.get()["tools"]
+            }
+            existing_debug_info: dict[str, Any] = {}
+            if "DeepResearch" in tool_names:
+                existing_debug_info = await self._chat_service.get_debug_info_async()
+                self._invocation_stats = [
+                    *_load_invocation_stats_from_debug_info(
+                        existing_debug_info,
+                        self._logger,
+                    ),
+                    *self._invocation_stats,
+                ]
             self._debug_info_manager.add(
                 "llm_invocations",
                 [
@@ -381,9 +417,6 @@ class UniqueAI:
             tool_display_names = {
                 str(tool.name): tool.display_name() or str(tool.name)
                 for tool in self._tool_manager.available_tools
-            }
-            tool_names = {
-                tool["name"] for tool in self._debug_info_manager.get()["tools"]
             }
 
             total_time_to_answer_ms: int | None = None
@@ -420,17 +453,24 @@ class UniqueAI:
                 invocations=self._invocation_stats,
             )
 
-            self._debug_info_manager.add("llm_invocations_complete", True)
-            existing_debug_info = await self._chat_service.get_debug_info_async()
+            llm_invocations_complete = (
+                "DeepResearch" not in tool_names
+                or self._event.payload.message_execution_id is not None
+            )
+            self._debug_info_manager.add(
+                "llm_invocations_complete",
+                llm_invocations_complete,
+            )
             run_debug_info = self._debug_info_manager.get()
             if "DeepResearch" in tool_names:
                 debug_info = {
                     **existing_debug_info,
                     "llm_invocations": run_debug_info["llm_invocations"],
-                    "llm_invocations_complete": True,
+                    "llm_invocations_complete": llm_invocations_complete,
                     "analytics": run_debug_info["analytics"],
                 }
             else:
+                existing_debug_info = await self._chat_service.get_debug_info_async()
                 debug_info = {**existing_debug_info, **run_debug_info}
             await self._chat_service.update_debug_info_async(debug_info=debug_info)
             invocations_persisted = True
@@ -458,9 +498,19 @@ class UniqueAI:
                         for tool in partial_debug_info.get("tools", [])
                     )
                     if is_deep_research:
+                        previous_invocations = _load_invocation_stats_from_debug_info(
+                            existing_debug_info,
+                            self._logger,
+                        )
                         debug_info = {
                             **existing_debug_info,
-                            "llm_invocations": partial_debug_info["llm_invocations"],
+                            "llm_invocations": [
+                                *[
+                                    invocation.model_dump(by_alias=True)
+                                    for invocation in previous_invocations
+                                ],
+                                *partial_debug_info["llm_invocations"],
+                            ],
                             "llm_invocations_complete": False,
                         }
                     else:

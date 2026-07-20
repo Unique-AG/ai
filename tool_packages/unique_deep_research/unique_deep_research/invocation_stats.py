@@ -57,6 +57,15 @@ def record_token_usage(
         )
 
 
+def record_invocation_stats(
+    invocations: list[LanguageModelInvocationStats],
+) -> None:
+    """Add invocation stats collected by a nested Deep Research dependency."""
+    invocation_stats = _CURRENT_INVOCATION_STATS.get()
+    if invocation_stats is not None:
+        invocation_stats.extend(invocations)
+
+
 def record_language_model_response(
     *,
     model_name: str,

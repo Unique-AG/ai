@@ -1,6 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+    DebugInfoManager,
+)
 from unique_toolkit.agentic.loop_runner import SupportsInvocationStats
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
@@ -460,6 +463,81 @@ class TestRunTokenUsageIntegration:
         assert len(payload) == 2
         assert payload[0]["tokenUsage"]["totalTokens"] == 3
         assert payload[1]["tokenUsage"]["totalTokens"] == 9
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__deep_research__merges_previous_turn_invocations(self):
+        """
+        Purpose: Verify Deep Research preserves invocation stats from its earlier turns.
+        Why this matters: Clarification and message-execution runs update the same debugInfo.
+        Setup summary: Seed one persisted invocation, run another turn, and assert both and their analytics remain.
+        """
+        # Arrange
+        current_response = _make_loop_response(
+            LanguageModelTokenUsage(
+                completion_tokens=10,
+                prompt_tokens=20,
+                total_tokens=30,
+            )
+        )
+        ua = _build_run_ua([current_response], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._debug_info_manager.debug_info["tools"] = [
+            {"name": "DeepResearch", "info": {}}
+        ]
+        ua._event.payload.message_execution_id = "execution-1"
+        previous_invocation = LanguageModelInvocationStats.from_usage(
+            MODEL_NAME,
+            LanguageModelTokenUsage(
+                completion_tokens=2,
+                prompt_tokens=3,
+                total_tokens=5,
+            ),
+            source="deep_research.clarification",
+        )
+        ua._chat_service.get_debug_info_async.return_value = {
+            "llm_invocations": [previous_invocation.model_dump(by_alias=True)],
+            "preserved": True,
+        }
+
+        # Act
+        await ua.run()
+
+        # Assert
+        debug_info = ua._chat_service.update_debug_info_async.call_args.kwargs[
+            "debug_info"
+        ]
+        assert debug_info["preserved"] is True
+        assert [
+            invocation["source"] for invocation in debug_info["llm_invocations"]
+        ] == ["deep_research.clarification", "main_loop[1]"]
+        assert debug_info["analytics"]["tokens"][0]["total_tokens"] == 35
+        assert debug_info["llm_invocations_complete"] is True
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__deep_research_clarification__keeps_invocations_incomplete(self):
+        """
+        Purpose: Verify Deep Research does not signal complete usage before research execution.
+        Why this matters: Readers otherwise stop waiting after seeing only clarification calls.
+        Setup summary: Run a Deep Research turn without an execution ID and assert the flag is false.
+        """
+        # Arrange
+        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._debug_info_manager.debug_info["tools"] = [
+            {"name": "DeepResearch", "info": {}}
+        ]
+        ua._event.payload.message_execution_id = None
+
+        # Act
+        await ua.run()
+
+        # Assert
+        debug_info = ua._chat_service.update_debug_info_async.call_args.kwargs[
+            "debug_info"
+        ]
+        assert debug_info["llm_invocations_complete"] is False
 
     @pytest.mark.ai
     @pytest.mark.asyncio
