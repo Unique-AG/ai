@@ -216,9 +216,15 @@ class MessageLogUncitedReferences(BaseModel):
 
 class MessageLogEvent(BaseModel):
     model_config = model_config
-    type: Literal["WebSearch", "InternalSearch", "Elicitation", "Thinking", "ToolCall"]
+    type: Literal[
+        "WebSearch", "InternalSearch", "Elicitation", "Thinking", "ToolCall", "Todo"
+    ]
     text: str
     step_type: str | None = None
+    status: Literal["todo", "done"] | None = Field(
+        default=None,
+        description="Checklist item state for 'Todo' events; unused for other event types",
+    )
 
 
 class MessageLogDetails(BaseModel):
