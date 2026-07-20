@@ -976,17 +976,17 @@ async def test_user_memory_postprocessor_run_resets_invocation_stats(
     Setup summary: Run twice with distinct usage and assert the second excludes the first.
     """
     load_stats = LanguageModelInvocationStats.from_usage(
-        _TEST_LANGUAGE_MODEL,
+        _TEST_LANGUAGE_MODEL.name,
         LanguageModelTokenUsage(total_tokens=2),
         source="user_memory_load_condense",
     )
     first_run_stats = LanguageModelInvocationStats.from_usage(
-        _TEST_LANGUAGE_MODEL,
+        _TEST_LANGUAGE_MODEL.name,
         LanguageModelTokenUsage(total_tokens=3),
         source="user_memory_consolidate_first",
     )
     second_run_stats = LanguageModelInvocationStats.from_usage(
-        _TEST_LANGUAGE_MODEL,
+        _TEST_LANGUAGE_MODEL.name,
         LanguageModelTokenUsage(total_tokens=5),
         source="user_memory_consolidate_second",
     )
