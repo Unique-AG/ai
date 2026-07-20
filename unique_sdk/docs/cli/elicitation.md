@@ -266,7 +266,7 @@ elicit wait <elicitation_id> [--timeout <seconds>] [--poll-interval <seconds>]
 unique-cli elicit wait elicit_9a7b --timeout 120
 ```
 
-On timeout, the CLI prints `elicit: timed out after Ns waiting for <id> (last status: PENDING)` followed by the last observed snapshot. The elicitation remains live on the platform -- call `elicit wait` again to resume.
+On timeout, the CLI prints `elicit: still PENDING after Ns waiting for <id> (last status: PENDING) — this is NOT a stopping condition`, followed by an explicit `elicit wait` invocation to run again and the last observed snapshot. The elicitation remains live on the platform -- call `elicit wait` again to resume; a non-terminal timeout is never itself a reason to stop.
 
 ---
 
@@ -336,7 +336,7 @@ After `elicit ask` / `elicit wait` returns, always branch on the `Status:` value
 | `DECLINED` | Stop. Acknowledge to the user that you stopped and ask what to do next. |
 | `CANCELLED` | Stop. The user (or system) aborted the flow. |
 | `EXPIRED` | The request timed out platform-side. Decide whether to re-ask. |
-| `elicit: timed out ...` (CLI only) | Local wait exceeded `--timeout`. The request is still live on the platform -- poll again with `elicit wait <id>` later. |
+| `elicit: still PENDING after Ns ...` (CLI only) | Local wait exceeded `--timeout`. This is **not** a stopping condition -- the request is still live on the platform; call `elicit wait <id>` again immediately. |
 
 ## Related
 

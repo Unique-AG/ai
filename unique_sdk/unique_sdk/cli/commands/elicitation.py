@@ -687,9 +687,19 @@ def cmd_elicit_wait(
                 if final_status in TERMINAL_STATUSES:
                     terminal_status = final_status
                     return format_elicitation(final)
+                # Non-terminal timeout: this is the one output every harness
+                # (Claude Code, Codex, ...) reads after every poll. Make it an
+                # explicit instruction to poll again, not just a description of
+                # what happened — a model that stops here has nowhere else to
+                # look for "what do I do next" (see UN-23181).
                 return (
-                    f"elicit: timed out after {timeout}s waiting for "
-                    f"{elicitation_id} (last status: {final_status or 'UNKNOWN'})\n\n"
+                    f"elicit: still PENDING after {timeout}s waiting for "
+                    f"{elicitation_id} (last status: {final_status or 'UNKNOWN'}) "
+                    "— this is NOT a stopping condition.\n"
+                    f"Call again now: unique-cli elicit wait {elicitation_id} "
+                    f"--timeout {timeout} --poll-interval {poll_interval}\n"
+                    "Do not tell the user you stopped waiting; keep polling "
+                    "until a terminal status or expiry.\n\n"
                     f"{format_elicitation(last)}"
                 )
             time.sleep(poll_interval)
