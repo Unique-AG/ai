@@ -1,0 +1,69 @@
+[project]
+name = "mcp-space-chat"
+version = "0.1.0"
+description = "MCP server that calls Unique spaces as sub-agents and renders the chat via MCP Apps / MCP-UI"
+readme = "README.md"
+authors = [{ name = "Andreas Hauri", email = "andreas@unique.ch" }]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.120.2",
+    "fastmcp>=3.4.0,<4",
+    "mcp-ui-server>=1.0.0",
+    "pydantic>=2.12.3",
+    "pydantic-settings>=2.7.0",
+    "unique-mcp>=2026.30.0",
+    "unique-toolkit>=2026.30.0",
+]
+
+[tool.uv.sources]
+unique-mcp = { path = "../../../unique_mcp", editable = true }
+unique-toolkit = { path = "../../../unique_toolkit", editable = true }
+
+[project.scripts]
+mcp-space-chat = "mcp_space_chat.server:main"
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.25.0",
+]
+
+[tool.uv]
+exclude-newer = "2 weeks"
+constraint-dependencies = [
+    "aiohttp>=3.13.4",
+    "authlib>=1.6.11",
+    "cryptography>=46.0.7",
+    "pillow>=12.2.0",
+    "pygments>=2.20.0",
+    "pytest>=9.0.3",
+    "python-multipart>=0.0.27",
+    "requests>=2.33.0",
+    "urllib3>=2.7.0",
+]
+
+[tool.uv.exclude-newer-package]
+"unique-mcp" = false
+"unique-toolkit" = false
+# unique-sdk is a hard dependency of unique-toolkit; without this exemption the
+# resolver falls back to an outdated unique-toolkit when building from PyPI.
+"unique-sdk" = false

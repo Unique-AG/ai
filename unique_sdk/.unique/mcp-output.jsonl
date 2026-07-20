@@ -1,0 +1,70 @@
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search", "serverName": "mcp_srv_1", "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search_emails", "serverName": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
+{"toolName": "tool", "serverName": "srv_1", "text": "mcp: formatter error (boom); raw response:\n{}"}
+{"toolName": "search_emails", "serverName": "srv_1", "text": "ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search", "serverName": "mcp_srv_1", "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search_emails", "serverName": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
+{"toolName": "tool", "serverName": "srv_1", "text": "mcp: formatter error (boom); raw response:\n{}"}
+{"toolName": "search_emails", "serverName": "srv_1", "text": "ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search", "serverName": "mcp_srv_1", "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search_emails", "serverName": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
+{"toolName": "tool", "serverName": "srv_1", "text": "mcp: formatter error (boom); raw response:\n{}"}
+{"toolName": "search_emails", "serverName": "srv_1", "text": "ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search", "serverName": "mcp_srv_1", "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search_emails", "serverName": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
+{"toolName": "tool", "serverName": "srv_1", "text": "mcp: formatter error (boom); raw response:\n{}"}
+{"toolName": "search_emails", "serverName": "srv_1", "text": "ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search", "serverName": "mcp_srv_1", "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search_emails", "serverName": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
+{"toolName": "tool", "serverName": "srv_1", "text": "mcp: formatter error (boom); raw response:\n{}"}
+{"toolName": "search_emails", "serverName": "srv_1", "text": "ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search", "serverName": "mcp_srv_1", "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search_emails", "serverName": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
+{"toolName": "tool", "serverName": "srv_1", "text": "mcp: formatter error (boom); raw response:\n{}"}
+{"toolName": "search_emails", "serverName": "srv_1", "text": "ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search", "serverName": "mcp_srv_1", "text": "MCP tool call: search\nServer: mcp_srv_1\n\n[text] result"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "search_emails", "serverName": null, "text": "MCP tool call: search_emails\nServer: <unknown-server>\n\n[text] hello"}
+{"toolName": "tool", "serverName": "srv_1", "text": "mcp: formatter error (boom); raw response:\n{}"}
+{"toolName": "search_emails", "serverName": "srv_1", "text": "ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}
+{"toolName": "tool", "serverName": "srv_1", "text": "MCP tool call: tool\nServer: srv_1\n\n[text] ok"}

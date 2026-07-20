@@ -20,6 +20,9 @@ Learn how to implement Google OAuth authentication for your MCP server.
 ### [Unique credentials ↔ Tools](mcp_search.md)
 Understand how to connect Unique AI credentials with MCP tools for secure access.
 
+### [Space Chat with MCP Apps / MCP-UI](mcp_space_chat.md)
+Call Unique spaces as sub-agents and render the live chat window inside the MCP host via MCP Apps and MCP-UI.
+
 ### [Using MCP Tools in Unique AI](mcp_unique_ai.md)
 Discover how to use MCP tools within the Unique AI platform.
 

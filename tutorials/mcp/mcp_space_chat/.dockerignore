@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.eggs
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv
+.venv-*
+venv
+ENV
+
+# Lockfile is generated inside the image with --no-sources (a local lock may
+# pin editable path dependencies that don't exist in the build context)
+uv.lock
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+
+# Documentation
+docs/_build
+
+# Terraform
+terraform/
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+!*.tfvars.example
+
+# Environment files
+*.env
+!*.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+*.tmp

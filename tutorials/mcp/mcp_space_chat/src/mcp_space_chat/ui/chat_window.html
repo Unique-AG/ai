@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Unique Space Chat</title>
+<style>
+  :root {
+    --color-background-primary: light-dark(#ffffff, #171717);
+    --color-background-secondary: light-dark(#f5f5f5, #232323);
+    --color-text-primary: light-dark(#171717, #fafafa);
+    --color-text-secondary: light-dark(#555555, #a3a3a3);
+    --color-border-primary: light-dark(#e5e5e5, #333333);
+    --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --border-radius-md: 10px;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    color-scheme: light dark;
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border-primary);
+    background: var(--color-background-secondary);
+    font-size: 13px;
+    flex: 0 0 auto;
+  }
+  #toolbar .title { font-weight: 600; }
+  #toolbar .status { color: var(--color-text-secondary); }
+  #toolbar .spacer { flex: 1; }
+  #toolbar button {
+    border: 1px solid var(--color-border-primary);
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  #frame-host { flex: 1 1 auto; min-height: 0; position: relative; }
+  #frame-host iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+  #placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 24px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+  }
+  #placeholder .spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--color-border-primary);
+    border-top-color: var(--color-text-secondary);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  /* Fallback transcript (when the host CSP blocks the nested iframe). */
+  #transcript {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 16px 18px;
+    box-sizing: border-box;
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #transcript .streaming-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--color-text-secondary);
+    animation: blink 1s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <span class="title">Unique Space Chat</span>
+    <span class="status" id="status">Connecting…</span>
+    <span class="spacer"></span>
+    <button id="open-link" class="hidden" type="button">Open in Unique</button>
+  </div>
+  <div id="frame-host">
+    <div id="placeholder">
+      <div class="spinner"></div>
+      <div id="placeholder-text">Waiting for the space chat to start…</div>
+    </div>
+    <div id="transcript" class="hidden"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // Minimal MCP Apps (SEP-1865) JSON-RPC transport over postMessage.
+  // ---------------------------------------------------------------------
+  var nextId = 1;
+  var pending = {};
+
+  function sendRequest(method, params) {
+    var id = nextId++;
+    return new Promise(function (resolve, reject) {
+      pending[id] = { resolve: resolve, reject: reject };
+      window.parent.postMessage({ jsonrpc: "2.0", id: id, method: method, params: params }, "*");
+    });
+  }
+
+  function sendNotification(method, params) {
+    window.parent.postMessage({ jsonrpc: "2.0", method: method, params: params }, "*");
+  }
+
+  function respond(id, result) {
+    window.parent.postMessage({ jsonrpc: "2.0", id: id, result: result }, "*");
+  }
+
+  var notificationHandlers = {};
+  var requestHandlers = {};
+
+  window.addEventListener("message", function (event) {
+    var data = event.data;
+    if (!data || data.jsonrpc !== "2.0") return;
+    // Response to one of our requests.
+    if (data.id !== undefined && data.method === undefined) {
+      var entry = pending[data.id];
+      if (!entry) return;
+      delete pending[data.id];
+      if (data.error) {
+        entry.reject(new Error(data.error.message || "Host error"));
+      } else {
+        entry.resolve(data.result);
+      }
+      return;
+    }
+    // Request from the host (has both id and method).
+    if (data.id !== undefined && data.method !== undefined) {
+      var reqHandler = requestHandlers[data.method];
+      if (reqHandler) {
+        Promise.resolve(reqHandler(data.params)).then(function (result) {
+          respond(data.id, result || {});
+        });
+      } else {
+        respond(data.id, {});
+      }
+      return;
+    }
+    // Notification from the host.
+    if (data.method !== undefined) {
+      var handler = notificationHandlers[data.method];
+      if (handler) handler(data.params);
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // UI state
+  // ---------------------------------------------------------------------
+  var statusEl = document.getElementById("status");
+  var placeholderEl = document.getElementById("placeholder");
+  var placeholderTextEl = document.getElementById("placeholder-text");
+  var frameHostEl = document.getElementById("frame-host");
+  var transcriptEl = document.getElementById("transcript");
+  var openLinkBtn = document.getElementById("open-link");
+
+  var embedUrl = null;
+  var openUrl = null;
+  var chatId = null;
+  var mounted = false;
+  var fallbackActive = false;
+  var iframeEl = null;
+  var iframeLoaded = false;
+
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
+
+  function applyTheme(theme) {
+    if (theme === "dark" || theme === "light") {
+      document.documentElement.style.colorScheme = theme;
+    }
+  }
+
+  function applyHostStyleVariables(styles) {
+    if (!styles || !styles.variables) return;
+    var root = document.documentElement;
+    Object.keys(styles.variables).forEach(function (key) {
+      var value = styles.variables[key];
+      if (value !== undefined && value !== null) root.style.setProperty(key, value);
+    });
+  }
+
+  var DEFAULT_HEIGHT = 640;
+
+  function applyContainerDimensions(dims) {
+    if (dims && "height" in dims && dims.height) {
+      // Fixed height: fill the container.
+      document.documentElement.style.height = "100vh";
+      return;
+    }
+    // Flexible or unbounded: ask the host for a chat-sized viewport.
+    var height = DEFAULT_HEIGHT;
+    if (dims && dims.maxHeight) height = Math.min(height, dims.maxHeight);
+    document.documentElement.style.height = height + "px";
+    document.body.style.height = height + "px";
+    sendNotification("ui/notifications/size-changed", { height: height });
+  }
+
+  // ---------------------------------------------------------------------
+  // Fallback: poll the answer through host-mediated tools/call when the
+  // host sandbox CSP blocks the nested Unique iframe (e.g. claude.ai).
+  // ---------------------------------------------------------------------
+  var POLL_MS = 2500;
+  var pollTimer = null;
+
+  function startFallbackTranscript(reason) {
+    if (fallbackActive || !chatId) return;
+    fallbackActive = true;
+    if (iframeEl) { iframeEl.remove(); iframeEl = null; }
+    placeholderEl.classList.add("hidden");
+    transcriptEl.classList.remove("hidden");
+    transcriptEl.textContent = "";
+    setStatus("Live (text mode)");
+    openLinkBtn.classList.remove("hidden");
+    if (reason) console.warn("space-chat: iframe fallback —", reason);
+    pollOnce();
+  }
+
+  function renderTranscript(text, done) {
+    transcriptEl.textContent = text || "The space is thinking…";
+    if (!done) {
+      var dot = document.createElement("span");
+      dot.className = "streaming-dot";
+      transcriptEl.appendChild(dot);
+    }
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  }
+
+  function pollOnce() {
+    sendRequest("tools/call", {
+      name: "peek_space_answer",
+      arguments: { chat_id: chatId },
+    })
+      .then(function (result) {
+        var s = (result && result.structuredContent) || {};
+        var done = !!s.done;
+        renderTranscript(s.text || "", done);
+        if (done) {
+          setStatus("Answer complete");
+        } else {
+          pollTimer = setTimeout(pollOnce, POLL_MS);
+        }
+      })
+      .catch(function (err) {
+        renderTranscript("Could not fetch the answer: " + String(err), true);
+        setStatus("Error");
+      });
+  }
+
+  // Detect the host sandbox blocking the nested iframe (CSP frame-src).
+  window.addEventListener("securitypolicyviolation", function (e) {
+    if (e.violatedDirective && e.violatedDirective.indexOf("frame-src") !== -1) {
+      startFallbackTranscript("CSP blocked nested iframe (" + e.blockedURI + ")");
+    }
+  });
+
+  function mountEmbed() {
+    if (mounted || !embedUrl) return;
+    mounted = true;
+    iframeEl = document.createElement("iframe");
+    iframeEl.title = "Unique Chat";
+    iframeEl.src = embedUrl;
+    iframeEl.allow = "clipboard-write; microphone";
+    iframeEl.addEventListener("load", function () { iframeLoaded = true; });
+    frameHostEl.appendChild(iframeEl);
+    placeholderEl.classList.add("hidden");
+    setStatus("Connected");
+    openLinkBtn.classList.remove("hidden");
+    // Safety net: if the iframe never loads (blocked without a CSP event
+    // reaching us), switch to the text transcript.
+    setTimeout(function () {
+      if (!iframeLoaded && !fallbackActive) {
+        startFallbackTranscript("iframe did not load within 4s");
+      }
+    }, 4000);
+  }
+
+  function handleToolResult(result) {
+    if (!result) return;
+    if (result.isError) {
+      placeholderEl.querySelector(".spinner").classList.add("hidden");
+      var text = "The space call failed.";
+      if (result.content && result.content.length && result.content[0].text) {
+        text = result.content[0].text;
+      }
+      placeholderTextEl.textContent = text;
+      setStatus("Error");
+      return;
+    }
+    var structured = result.structuredContent || {};
+    if (structured.chatId) chatId = structured.chatId;
+    if (structured.embedUrl) {
+      embedUrl = structured.embedUrl;
+      openUrl = structured.openUrl || structured.embedUrl;
+      mountEmbed();
+    }
+  }
+
+  notificationHandlers["ui/notifications/tool-result"] = handleToolResult;
+  notificationHandlers["ui/notifications/host-context-changed"] = function (ctx) {
+    if (!ctx) return;
+    if (ctx.theme) applyTheme(ctx.theme);
+    if (ctx.styles) applyHostStyleVariables(ctx.styles);
+    if (ctx.containerDimensions) applyContainerDimensions(ctx.containerDimensions);
+  };
+  requestHandlers["ui/resource-teardown"] = function () {
+    if (pollTimer) clearTimeout(pollTimer);
+    return {};
+  };
+
+  openLinkBtn.addEventListener("click", function () {
+    if (!openUrl) return;
+    sendRequest("ui/open-link", { url: openUrl }).catch(function () {
+      /* host declined; nothing to do */
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // Handshake
+  // ---------------------------------------------------------------------
+  sendRequest("ui/initialize", {
+    protocolVersion: "2026-01-26",
+    appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+    appInfo: { name: "unique-space-chat", version: "1.0.0" },
+    clientInfo: { name: "unique-space-chat", version: "1.0.0" },
+  })
+    .then(function (result) {
+      var ctx = (result && result.hostContext) || {};
+      applyTheme(ctx.theme);
+      applyHostStyleVariables(ctx.styles);
+      applyContainerDimensions(ctx.containerDimensions);
+      sendNotification("ui/notifications/initialized", {});
+      setStatus("Starting chat…");
+      placeholderTextEl.textContent =
+        "Waiting for the space chat to start… If the chat asks you to sign in, " +
+        "use “Open in Unique” to sign in first, then retry.";
+    })
+    .catch(function (err) {
+      setStatus("Host handshake failed");
+      placeholderTextEl.textContent = String(err);
+    });
+})();
+</script>
+</body>
+</html>
