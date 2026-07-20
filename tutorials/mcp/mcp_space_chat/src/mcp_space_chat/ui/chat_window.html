@@ -4,23 +4,31 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Unique Space Chat</title>
+<!-- VENDOR_SCRIPTS -->
 <style>
   :root {
-    --color-background-primary: light-dark(#ffffff, #171717);
-    --color-background-secondary: light-dark(#f5f5f5, #232323);
-    --color-text-primary: light-dark(#171717, #fafafa);
-    --color-text-secondary: light-dark(#555555, #a3a3a3);
-    --color-border-primary: light-dark(#e5e5e5, #333333);
-    --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
-    --border-radius-md: 10px;
+    --uq-bg: #f7f7f8;
+    --uq-surface: #ffffff;
+    --uq-border: #e5e5e7;
+    --uq-text: #171717;
+    --uq-muted: #6b7280;
+    --uq-user-bg: #1f2937;
+    --uq-user-fg: #f9fafb;
+    --uq-accent: #0f766e;
+    --uq-accent-soft: #ccfbf1;
+    --uq-danger: #b91c1c;
+    --uq-danger-soft: #fee2e2;
+    --uq-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --font-sans: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --radius: 14px;
   }
   html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    color-scheme: light dark;
-    background: var(--color-background-primary);
-    color: var(--color-text-primary);
+    background: var(--uq-bg);
+    color: var(--uq-text);
     font-family: var(--font-sans);
   }
   #app {
@@ -28,35 +36,113 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    border: 1px solid var(--color-border-primary);
-    border-radius: var(--border-radius-md);
+    border: 1px solid var(--uq-border);
+    border-radius: 12px;
     overflow: hidden;
     box-sizing: border-box;
+    background:
+      radial-gradient(1200px 420px at 10% -10%, rgba(15, 118, 110, 0.08), transparent 55%),
+      radial-gradient(900px 360px at 100% 0%, rgba(31, 41, 55, 0.05), transparent 50%),
+      var(--uq-bg);
   }
+
+  /* ── Header ──────────────────────────────────────────────────────────── */
   #toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--color-border-primary);
-    background: var(--color-background-secondary);
-    font-size: 13px;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--uq-border);
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(8px);
     flex: 0 0 auto;
   }
-  #toolbar .title { font-weight: 600; }
-  #toolbar .status { color: var(--color-text-secondary); }
-  #toolbar .spacer { flex: 1; }
-  #toolbar button {
-    border: 1px solid var(--color-border-primary);
-    background: var(--color-background-primary);
-    color: var(--color-text-primary);
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
-    cursor: pointer;
+  #toolbar .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
   }
-  #frame-host { flex: 1 1 auto; min-height: 0; position: relative; }
-  #frame-host iframe {
+  #toolbar .title {
+    font-weight: 650;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
+  #toolbar .meta {
+    font-size: 11px;
+    color: var(--uq-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+  }
+  #toolbar .spacer { flex: 1; }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--uq-muted);
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #f3f4f6;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #9ca3af;
+    flex: 0 0 auto;
+  }
+  .status-dot.streaming {
+    background: var(--uq-accent);
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  .status-dot.idle { background: #16a34a; }
+  .status-dot.stopped { background: #d97706; }
+  .status-dot.error { background: var(--uq-danger); }
+  #toolbar button {
+    border: 1px solid var(--uq-border);
+    background: var(--uq-surface);
+    color: var(--uq-text);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 550;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #toolbar button:hover { background: #f9fafb; }
+  #toolbar button.stop {
+    border-color: #fecaca;
+    background: var(--uq-danger-soft);
+    color: var(--uq-danger);
+  }
+  #toolbar button.stop:hover { background: #fecaca; }
+  #toolbar button.resume {
+    border-color: #99f6e4;
+    background: var(--uq-accent-soft);
+    color: #115e59;
+  }
+  #stop-icon {
+    width: 10px;
+    height: 10px;
+    background: currentColor;
+    border-radius: 1px;
+    display: inline-block;
+  }
+
+  /* ── Frame / panel host ──────────────────────────────────────────────── */
+  #frame-host {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  #frame-host > iframe {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -74,49 +160,281 @@
     text-align: center;
     padding: 24px;
     font-size: 14px;
-    color: var(--color-text-secondary);
+    color: var(--uq-muted);
   }
   #placeholder .spinner {
     width: 22px;
     height: 22px;
-    border: 3px solid var(--color-border-primary);
-    border-top-color: var(--color-text-secondary);
+    border: 3px solid var(--uq-border);
+    border-top-color: var(--uq-muted);
     border-radius: 50%;
     animation: spin 0.9s linear infinite;
   }
-  /* Fallback transcript (when the host CSP blocks the nested iframe). */
-  #transcript {
+
+  /* ── Native chat panel (fallback) ────────────────────────────────────── */
+  #chat-panel {
     position: absolute;
     inset: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: transparent;
+  }
+  #messages {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
-    padding: 16px 18px;
-    box-sizing: border-box;
+    padding: 16px 16px 8px;
+    scroll-behavior: smooth;
+  }
+  .msg-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: flex-start;
+  }
+  .msg-row.user { justify-content: flex-end; }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: linear-gradient(145deg, #0f766e, #134e4a);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex: 0 0 auto;
+    box-shadow: var(--uq-shadow);
+  }
+  .bubble {
+    max-width: min(720px, 86%);
+    border-radius: var(--radius);
+    padding: 10px 14px;
     font-size: 14px;
     line-height: 1.55;
-    white-space: pre-wrap;
+    box-shadow: var(--uq-shadow);
     word-break: break-word;
   }
-  #transcript .streaming-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    margin-left: 6px;
-    border-radius: 50%;
-    background: var(--color-text-secondary);
-    animation: blink 1s ease-in-out infinite;
-    vertical-align: middle;
+  .msg-row.assistant .bubble {
+    background: var(--uq-surface);
+    border: 1px solid var(--uq-border);
+    border-top-left-radius: 6px;
   }
-  @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .msg-row.user .bubble {
+    background: var(--uq-user-bg);
+    color: var(--uq-user-fg);
+    border-top-right-radius: 6px;
+    white-space: pre-wrap;
+  }
+  .bubble .md > :first-child { margin-top: 0; }
+  .bubble .md > :last-child { margin-bottom: 0; }
+  .bubble .md p { margin: 0.55em 0; }
+  .bubble .md h1, .bubble .md h2, .bubble .md h3 {
+    margin: 0.8em 0 0.35em;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .bubble .md h1 { font-size: 1.2em; }
+  .bubble .md h2 { font-size: 1.1em; }
+  .bubble .md h3 { font-size: 1.02em; }
+  .bubble .md ul, .bubble .md ol { margin: 0.4em 0; padding-left: 1.3em; }
+  .bubble .md code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: #f3f4f6;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .bubble .md pre {
+    position: relative;
+    background: #111827;
+    color: #f3f4f6;
+    border-radius: 10px;
+    padding: 12px 12px 12px;
+    overflow-x: auto;
+    margin: 0.7em 0;
+  }
+  .bubble .md pre code {
+    background: transparent;
+    color: inherit;
+    padding: 0;
+    font-size: 12.5px;
+  }
+  .bubble .md pre .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    border: 0;
+    background: rgba(255,255,255,0.12);
+    color: #e5e7eb;
+    border-radius: 6px;
+    font-size: 11px;
+    padding: 3px 7px;
+    cursor: pointer;
+  }
+  .bubble .md table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+    margin: 0.6em 0;
+  }
+  .bubble .md th, .bubble .md td {
+    border: 1px solid var(--uq-border);
+    padding: 6px 8px;
+    text-align: left;
+  }
+  .bubble .md th { background: #f9fafb; }
+  .bubble .md a { color: var(--uq-accent); }
+  .msg-meta {
+    font-size: 11px;
+    color: var(--uq-muted);
+    margin-top: 6px;
+  }
+  .refs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .ref-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--uq-border);
+    background: #f9fafb;
+    color: var(--uq-text);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    text-decoration: none;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ref-chip:hover { background: #f3f4f6; }
+  .ref-num {
+    color: var(--uq-accent);
+    font-weight: 650;
+  }
+
+  .typing {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    height: 18px;
+    padding: 2px 0;
+  }
+  .typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9ca3af;
+    animation: bounce 1.1s ease-in-out infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  .cursor {
+    display: inline-block;
+    width: 7px;
+    height: 1em;
+    background: var(--uq-accent);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+
+  .banner {
+    margin: 0 16px 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+  }
+
+  /* ── Composer ────────────────────────────────────────────────────────── */
+  #composer {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--uq-border);
+    background: rgba(255, 255, 255, 0.92);
+    padding: 10px 12px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  #composer textarea {
+    flex: 1 1 auto;
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+    border: 1px solid var(--uq-border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    background: var(--uq-surface);
+    color: var(--uq-text);
+    outline: none;
+  }
+  #composer textarea:focus {
+    border-color: #99f6e4;
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  }
+  #composer textarea:disabled {
+    background: #f3f4f6;
+    color: var(--uq-muted);
+  }
+  #send-btn {
+    border: 0;
+    background: var(--uq-accent);
+    color: white;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  #send-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  #send-btn:not(:disabled):hover { background: #0d9488; }
+
   .hidden { display: none !important; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.45; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+    40% { transform: translateY(-3px); opacity: 1; }
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="toolbar">
-    <span class="title">Unique Space Chat</span>
-    <span class="status" id="status">Connecting…</span>
+    <div class="brand">
+      <span class="title">Unique Space Chat</span>
+      <span class="meta" id="chat-meta">Waiting for chat…</span>
+    </div>
     <span class="spacer"></span>
+    <span class="status-pill" id="status-pill">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status">Connecting…</span>
+    </span>
+    <button id="stop-btn" class="stop hidden" type="button" title="Stop watching this chat">
+      <span id="stop-icon"></span>
+      <span id="stop-label">Stop</span>
+    </button>
     <button id="open-link" class="hidden" type="button">Open in Unique</button>
   </div>
   <div id="frame-host">
@@ -124,7 +442,16 @@
       <div class="spinner"></div>
       <div id="placeholder-text">Waiting for the space chat to start…</div>
     </div>
-    <div id="transcript" class="hidden"></div>
+    <div id="chat-panel" class="hidden">
+      <div id="messages" aria-live="polite"></div>
+      <div id="stop-banner" class="banner hidden">
+        Stopped watching — the space may still be generating on the server.
+      </div>
+      <form id="composer">
+        <textarea id="followup" rows="1" placeholder="Ask a follow-up…" disabled></textarea>
+        <button id="send-btn" type="submit" disabled>Send</button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -160,7 +487,6 @@
   window.addEventListener("message", function (event) {
     var data = event.data;
     if (!data || data.jsonrpc !== "2.0") return;
-    // Response to one of our requests.
     if (data.id !== undefined && data.method === undefined) {
       var entry = pending[data.id];
       if (!entry) return;
@@ -172,7 +498,6 @@
       }
       return;
     }
-    // Request from the host (has both id and method).
     if (data.id !== undefined && data.method !== undefined) {
       var reqHandler = requestHandlers[data.method];
       if (reqHandler) {
@@ -184,7 +509,6 @@
       }
       return;
     }
-    // Notification from the host.
     if (data.method !== undefined) {
       var handler = notificationHandlers[data.method];
       if (handler) handler(data.params);
@@ -192,25 +516,45 @@
   });
 
   // ---------------------------------------------------------------------
-  // UI state
+  // DOM refs / state
   // ---------------------------------------------------------------------
   var statusEl = document.getElementById("status");
+  var statusDotEl = document.getElementById("status-dot");
   var placeholderEl = document.getElementById("placeholder");
   var placeholderTextEl = document.getElementById("placeholder-text");
   var frameHostEl = document.getElementById("frame-host");
-  var transcriptEl = document.getElementById("transcript");
+  var chatPanelEl = document.getElementById("chat-panel");
+  var messagesEl = document.getElementById("messages");
   var openLinkBtn = document.getElementById("open-link");
+  var stopBtn = document.getElementById("stop-btn");
+  var stopLabelEl = document.getElementById("stop-label");
+  var stopBannerEl = document.getElementById("stop-banner");
+  var chatMetaEl = document.getElementById("chat-meta");
+  var followupEl = document.getElementById("followup");
+  var sendBtn = document.getElementById("send-btn");
+  var composerEl = document.getElementById("composer");
 
   var embedUrl = null;
   var openUrl = null;
   var chatId = null;
+  var spaceId = null;
   var mounted = false;
   var fallbackActive = false;
   var iframeEl = null;
   var iframeLoaded = false;
+  var watching = true;
+  var pollTimer = null;
+  var stickToBottom = true;
+  var lastRenderKey = "";
+  var sendingFollowup = false;
 
-  function setStatus(text) {
+  var DEFAULT_WIDTH = 760;
+  var DEFAULT_HEIGHT = 600;
+  var POLL_MS = 1500;
+
+  function setStatus(text, mode) {
     statusEl.textContent = text;
+    statusDotEl.className = "status-dot" + (mode ? " " + mode : "");
   }
 
   function applyTheme(theme) {
@@ -228,72 +572,390 @@
     });
   }
 
-  var DEFAULT_HEIGHT = 640;
-
   function applyContainerDimensions(dims) {
-    if (dims && "height" in dims && dims.height) {
-      // Fixed height: fill the container.
+    var width = DEFAULT_WIDTH;
+    var height = DEFAULT_HEIGHT;
+    if (dims && dims.maxWidth) width = Math.min(width, dims.maxWidth);
+    if (dims && dims.maxHeight) height = Math.min(height, dims.maxHeight);
+    if (dims && dims.height) {
       document.documentElement.style.height = "100vh";
+    } else {
+      document.documentElement.style.height = height + "px";
+      document.body.style.height = height + "px";
+    }
+    sendNotification("ui/notifications/size-changed", {
+      width: width,
+      height: height,
+    });
+  }
+
+  function updateChatMeta() {
+    var parts = [];
+    if (spaceId) parts.push("space " + spaceId);
+    if (chatId) parts.push("chat " + chatId);
+    chatMetaEl.textContent = parts.length ? parts.join(" · ") : "Waiting for chat…";
+  }
+
+  function setComposerEnabled(enabled) {
+    followupEl.disabled = !enabled;
+    sendBtn.disabled = !enabled || !followupEl.value.trim();
+  }
+
+  function setStopUi() {
+    if (!fallbackActive) {
+      stopBtn.classList.add("hidden");
       return;
     }
-    // Flexible or unbounded: ask the host for a chat-sized viewport.
-    var height = DEFAULT_HEIGHT;
-    if (dims && dims.maxHeight) height = Math.min(height, dims.maxHeight);
-    document.documentElement.style.height = height + "px";
-    document.body.style.height = height + "px";
-    sendNotification("ui/notifications/size-changed", { height: height });
+    stopBtn.classList.remove("hidden");
+    if (watching) {
+      stopBtn.className = "stop";
+      stopLabelEl.textContent = "Stop";
+      stopBannerEl.classList.add("hidden");
+      setComposerEnabled(true);
+    } else {
+      stopBtn.className = "resume";
+      stopLabelEl.textContent = "Resume watching";
+      stopBannerEl.classList.remove("hidden");
+      setComposerEnabled(false);
+    }
   }
 
   // ---------------------------------------------------------------------
-  // Fallback: poll the answer through host-mediated tools/call when the
-  // host sandbox CSP blocks the nested Unique iframe (e.g. claude.ai).
+  // Markdown helpers
   // ---------------------------------------------------------------------
-  var POLL_MS = 2500;
-  var pollTimer = null;
+  function renderMarkdown(text) {
+    var raw = text || "";
+    var html;
+    try {
+      if (typeof marked !== "undefined" && marked.parse) {
+        html = marked.parse(raw, { breaks: true, gfm: true });
+      } else {
+        html = escapeHtml(raw).replace(/\n/g, "<br>");
+      }
+      if (typeof DOMPurify !== "undefined") {
+        html = DOMPurify.sanitize(html, {
+          USE_PROFILES: { html: true },
+          ADD_ATTR: ["target", "rel"],
+        });
+      }
+    } catch (err) {
+      html = escapeHtml(raw).replace(/\n/g, "<br>");
+    }
+    return html;
+  }
 
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatTime(iso) {
+    if (!iso) return "";
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function enhanceCodeBlocks(root) {
+    var blocks = root.querySelectorAll("pre");
+    blocks.forEach(function (pre) {
+      if (pre.querySelector(".copy-btn")) return;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "copy-btn";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", function () {
+        var code = pre.querySelector("code");
+        var text = code ? code.textContent : pre.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text || "").then(function () {
+            btn.textContent = "Copied";
+            setTimeout(function () { btn.textContent = "Copy"; }, 1200);
+          });
+        }
+      });
+      pre.appendChild(btn);
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Message rendering
+  // ---------------------------------------------------------------------
+  function renderMessages(messages, streaming) {
+    var key = JSON.stringify(messages) + "|" + (streaming ? "1" : "0") + "|" + (watching ? "1" : "0");
+    if (key === lastRenderKey) return;
+    lastRenderKey = key;
+
+    var keepBottom = stickToBottom;
+    messagesEl.innerHTML = "";
+
+    var visible = (messages || []).filter(function (m) {
+      return m && m.role !== "SYSTEM";
+    });
+
+    if (!visible.length) {
+      var empty = document.createElement("div");
+      empty.className = "msg-row assistant";
+      empty.innerHTML =
+        '<div class="avatar">U</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
+      messagesEl.appendChild(empty);
+    } else {
+      visible.forEach(function (m, idx) {
+        var isUser = m.role === "USER";
+        var isLast = idx === visible.length - 1;
+        var row = document.createElement("div");
+        row.className = "msg-row " + (isUser ? "user" : "assistant");
+
+        if (!isUser) {
+          var avatar = document.createElement("div");
+          avatar.className = "avatar";
+          avatar.textContent = "U";
+          row.appendChild(avatar);
+        }
+
+        var bubble = document.createElement("div");
+        bubble.className = "bubble";
+
+        if (isUser) {
+          bubble.textContent = m.text || "";
+        } else {
+          var md = document.createElement("div");
+          md.className = "md";
+          var text = m.text || "";
+          if (!text && !m.done) {
+            md.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+          } else {
+            md.innerHTML = renderMarkdown(text);
+            if (!m.done && isLast && watching) {
+              var cursor = document.createElement("span");
+              cursor.className = "cursor";
+              md.appendChild(cursor);
+            }
+            enhanceCodeBlocks(md);
+          }
+          bubble.appendChild(md);
+
+          if (m.references && m.references.length) {
+            var refs = document.createElement("div");
+            refs.className = "refs";
+            m.references.forEach(function (ref) {
+              var chip = document.createElement(ref.url ? "a" : "span");
+              chip.className = "ref-chip";
+              if (ref.url) {
+                chip.href = ref.url;
+                chip.target = "_blank";
+                chip.rel = "noopener noreferrer";
+                chip.addEventListener("click", function (ev) {
+                  // Prefer host-mediated open when available.
+                  if (ref.url) {
+                    ev.preventDefault();
+                    sendRequest("ui/open-link", { url: ref.url }).catch(function () {
+                      window.open(ref.url, "_blank", "noopener,noreferrer");
+                    });
+                  }
+                });
+              }
+              var num = document.createElement("span");
+              num.className = "ref-num";
+              num.textContent = "[" + (ref.sequenceNumber != null ? ref.sequenceNumber : "?") + "]";
+              chip.appendChild(num);
+              chip.appendChild(document.createTextNode(" " + (ref.name || "source")));
+              refs.appendChild(chip);
+            });
+            bubble.appendChild(refs);
+          }
+        }
+
+        var meta = document.createElement("div");
+        meta.className = "msg-meta";
+        meta.textContent = formatTime(m.createdAt);
+        bubble.appendChild(meta);
+
+        row.appendChild(bubble);
+        messagesEl.appendChild(row);
+      });
+    }
+
+    if (keepBottom) {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+  }
+
+  messagesEl.addEventListener("scroll", function () {
+    var distance = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+    stickToBottom = distance < 48;
+  });
+
+  // ---------------------------------------------------------------------
+  // Fallback polling UI
+  // ---------------------------------------------------------------------
   function startFallbackTranscript(reason) {
-    if (fallbackActive || !chatId) return;
+    if (fallbackActive) return;
+    if (!chatId) {
+      // Wait for tool-result to supply chatId, then retry.
+      setTimeout(function () {
+        if (!fallbackActive && chatId) startFallbackTranscript(reason);
+      }, 500);
+      return;
+    }
     fallbackActive = true;
     if (iframeEl) { iframeEl.remove(); iframeEl = null; }
     placeholderEl.classList.add("hidden");
-    transcriptEl.classList.remove("hidden");
-    transcriptEl.textContent = "";
-    setStatus("Live (text mode)");
+    chatPanelEl.classList.remove("hidden");
     openLinkBtn.classList.remove("hidden");
+    watching = true;
+    setStopUi();
+    setStatus("Streaming", "streaming");
     if (reason) console.warn("space-chat: iframe fallback —", reason);
     pollOnce();
   }
 
-  function renderTranscript(text, done) {
-    transcriptEl.textContent = text || "The space is thinking…";
-    if (!done) {
-      var dot = document.createElement("span");
-      dot.className = "streaming-dot";
-      transcriptEl.appendChild(dot);
+  function stopPolling() {
+    if (pollTimer) {
+      clearTimeout(pollTimer);
+      pollTimer = null;
     }
-    transcriptEl.scrollTop = transcriptEl.scrollHeight;
   }
 
   function pollOnce() {
+    if (!watching || !chatId) return;
     sendRequest("tools/call", {
       name: "peek_space_answer",
       arguments: { chat_id: chatId },
     })
       .then(function (result) {
+        if (!watching) return;
+        if (result && result.isError) {
+          var errText = "Could not fetch the answer.";
+          if (result.content && result.content[0] && result.content[0].text) {
+            errText = result.content[0].text;
+          }
+          setStatus("Error", "error");
+          renderMessages(
+            [{ id: "err", role: "ASSISTANT", text: errText, done: true, references: [] }],
+            false
+          );
+          return;
+        }
         var s = (result && result.structuredContent) || {};
+        var messages = s.messages || [];
         var done = !!s.done;
-        renderTranscript(s.text || "", done);
+        renderMessages(messages, !done);
         if (done) {
-          setStatus("Answer complete");
+          setStatus("Answer complete", "idle");
         } else {
+          setStatus("Streaming", "streaming");
           pollTimer = setTimeout(pollOnce, POLL_MS);
         }
       })
       .catch(function (err) {
-        renderTranscript("Could not fetch the answer: " + String(err), true);
-        setStatus("Error");
+        if (!watching) return;
+        setStatus("Error", "error");
+        renderMessages(
+          [{ id: "err", role: "ASSISTANT", text: "Could not fetch the answer: " + String(err), done: true, references: [] }],
+          false
+        );
       });
   }
+
+  function stopWatching() {
+    watching = false;
+    stopPolling();
+    setStatus("Stopped", "stopped");
+    setStopUi();
+    // Leave the last rendered messages on screen; Resume refreshes via poll.
+    lastRenderKey = "";
+    var cursors = messagesEl.querySelectorAll(".cursor");
+    cursors.forEach(function (c) { c.remove(); });
+  }
+
+  function resumeWatching() {
+    watching = true;
+    setStopUi();
+    setStatus("Streaming", "streaming");
+    lastRenderKey = "";
+    pollOnce();
+  }
+
+  stopBtn.addEventListener("click", function () {
+    if (watching) stopWatching();
+    else resumeWatching();
+  });
+
+  // ---------------------------------------------------------------------
+  // Follow-up composer
+  // ---------------------------------------------------------------------
+  followupEl.addEventListener("input", function () {
+    followupEl.style.height = "auto";
+    followupEl.style.height = Math.min(followupEl.scrollHeight, 120) + "px";
+    sendBtn.disabled = !watching || sendingFollowup || !followupEl.value.trim();
+  });
+
+  followupEl.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      composerEl.requestSubmit();
+    }
+  });
+
+  composerEl.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    if (!watching || sendingFollowup || !chatId || !spaceId) return;
+    var text = followupEl.value.trim();
+    if (!text) return;
+
+    sendingFollowup = true;
+    setComposerEnabled(false);
+    setStatus("Sending…", "streaming");
+
+    // Optimistic user bubble.
+    var optimistic = document.createElement("div");
+    optimistic.className = "msg-row user";
+    optimistic.innerHTML = '<div class="bubble"></div>';
+    optimistic.querySelector(".bubble").textContent = text;
+    messagesEl.appendChild(optimistic);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    stickToBottom = true;
+    followupEl.value = "";
+    followupEl.style.height = "auto";
+
+    sendRequest("tools/call", {
+      name: "ask_space",
+      arguments: {
+        space_id: spaceId,
+        prompt: text,
+        chat_id: chatId,
+      },
+    })
+      .then(function (result) {
+        sendingFollowup = false;
+        setComposerEnabled(watching);
+        if (result && result.isError) {
+          setStatus("Error", "error");
+          return;
+        }
+        var s = (result && result.structuredContent) || {};
+        if (s.chatId) chatId = s.chatId;
+        if (s.spaceId) spaceId = s.spaceId;
+        updateChatMeta();
+        lastRenderKey = "";
+        stopPolling();
+        pollOnce();
+      })
+      .catch(function (err) {
+        sendingFollowup = false;
+        setComposerEnabled(watching);
+        setStatus("Error", "error");
+        console.warn("follow-up failed", err);
+      });
+  });
 
   // Detect the host sandbox blocking the nested iframe (CSP frame-src).
   window.addEventListener("securitypolicyviolation", function (e) {
@@ -312,10 +974,10 @@
     iframeEl.addEventListener("load", function () { iframeLoaded = true; });
     frameHostEl.appendChild(iframeEl);
     placeholderEl.classList.add("hidden");
-    setStatus("Connected");
+    setStatus("Connected", "idle");
     openLinkBtn.classList.remove("hidden");
     // Safety net: if the iframe never loads (blocked without a CSP event
-    // reaching us), switch to the text transcript.
+    // reaching us), switch to the native chat panel.
     setTimeout(function () {
       if (!iframeLoaded && !fallbackActive) {
         startFallbackTranscript("iframe did not load within 4s");
@@ -326,21 +988,27 @@
   function handleToolResult(result) {
     if (!result) return;
     if (result.isError) {
-      placeholderEl.querySelector(".spinner").classList.add("hidden");
+      var spinner = placeholderEl.querySelector(".spinner");
+      if (spinner) spinner.classList.add("hidden");
       var text = "The space call failed.";
       if (result.content && result.content.length && result.content[0].text) {
         text = result.content[0].text;
       }
       placeholderTextEl.textContent = text;
-      setStatus("Error");
+      setStatus("Error", "error");
       return;
     }
     var structured = result.structuredContent || {};
     if (structured.chatId) chatId = structured.chatId;
+    if (structured.spaceId) spaceId = structured.spaceId;
+    updateChatMeta();
     if (structured.embedUrl) {
       embedUrl = structured.embedUrl;
       openUrl = structured.openUrl || structured.embedUrl;
       mountEmbed();
+    } else if (chatId && !fallbackActive && !mounted) {
+      // No embed URL — go straight to the native panel.
+      startFallbackTranscript("no embed URL in tool result");
     }
   }
 
@@ -352,7 +1020,7 @@
     if (ctx.containerDimensions) applyContainerDimensions(ctx.containerDimensions);
   };
   requestHandlers["ui/resource-teardown"] = function () {
-    if (pollTimer) clearTimeout(pollTimer);
+    stopPolling();
     return {};
   };
 
@@ -384,7 +1052,7 @@
         "use “Open in Unique” to sign in first, then retry.";
     })
     .catch(function (err) {
-      setStatus("Host handshake failed");
+      setStatus("Host handshake failed", "error");
       placeholderTextEl.textContent = String(err);
     });
 })();

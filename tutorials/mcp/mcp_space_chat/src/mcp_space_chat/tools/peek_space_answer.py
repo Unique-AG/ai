@@ -1,12 +1,14 @@
-"""Non-blocking peek at the latest message of a space chat.
+"""Non-blocking peek at a space chat's message history.
 
 Used by the MCP Apps chat window as a polling fallback on hosts (like
 claude.ai) whose sandbox CSP blocks nested iframes: the view calls this tool
-via host-mediated ``tools/call`` and renders the streaming answer itself.
+via host-mediated ``tools/call`` and renders the conversation itself.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastmcp.dependencies import Depends
 from fastmcp.tools import ToolResult, tool
@@ -22,9 +24,10 @@ from unique_toolkit.app.unique_settings import UniqueSettings
 _LOGGER = logging.getLogger(__name__)
 
 _TOOL_DESCRIPTION = (
-    "Return the latest message of a space chat immediately (no waiting). "
-    "Meant for the embedded chat window to poll while an answer streams. "
-    "Prefer get_space_answer when you need the final answer text."
+    "Return the recent message history of a space chat immediately "
+    "(no waiting). Meant for the embedded chat window to poll while an "
+    "answer streams. Prefer get_space_answer when you need the final "
+    "answer text."
 )
 
 _META = merge_tool_meta(
@@ -34,11 +37,48 @@ _META = merge_tool_meta(
         "unique.app/icon": "eye",
         "unique.app/system-prompt": (
             "Prefer get_space_answer for reading final answers; this tool "
-            "returns whatever is currently streaming and may be partial."
+            "returns the current chat history and may include a partial "
+            "streaming assistant message."
         ),
     },
     ContextRequirements(required=[MetaKeys.USER_ID, MetaKeys.COMPANY_ID]),
 )
+
+_HISTORY_TAKE = 50
+
+
+def _serialize_reference(ref: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": ref.get("name") or "",
+        "url": ref.get("url"),
+        "sequenceNumber": ref.get("sequenceNumber"),
+        "description": ref.get("description"),
+        "sourceId": ref.get("sourceId"),
+        "source": ref.get("source"),
+    }
+
+
+def _serialize_message(message: dict[str, Any]) -> dict[str, Any]:
+    role = message.get("role") or ""
+    stopped = message.get("stoppedStreamingAt")
+    # USER/SYSTEM messages are always "done"; ASSISTANT is done once streaming
+    # has stopped (or never started and completedAt is set).
+    if role == "ASSISTANT":
+        done = stopped is not None or (
+            message.get("startedStreamingAt") is None
+            and message.get("completedAt") is not None
+        )
+    else:
+        done = True
+    refs = message.get("references") or []
+    return {
+        "id": message.get("id"),
+        "role": role,
+        "text": message.get("text") or "",
+        "createdAt": message.get("createdAt"),
+        "done": done,
+        "references": [_serialize_reference(r) for r in refs if isinstance(r, dict)],
+    }
 
 
 @tool(
@@ -53,11 +93,16 @@ async def peek_space_answer(
     ],
     settings: UniqueSettings = Depends(get_unique_settings),
 ) -> ToolResult:
-    """Fetch the latest chat message once and report its streaming state."""
+    """Fetch recent chat messages once and report streaming state."""
     try:
         settings = await resolve_chat_settings(settings)
         user_id, company_id = sdk_identity(settings)
-        latest = await Space.get_latest_message_async(user_id, company_id, chat_id)
+        history = await Space.get_chat_messages_async(
+            user_id,
+            company_id,
+            chat_id,
+            take=_HISTORY_TAKE,
+        )
     except Exception as exc:
         _LOGGER.exception("peek_space_answer error")
         return ToolResult(
@@ -65,11 +110,24 @@ async def peek_space_answer(
             is_error=True,
         )
 
-    role = latest.get("role") or ""
-    text = latest.get("text") or ""
-    done = bool(
-        role == "ASSISTANT" and latest.get("stoppedStreamingAt") is not None
+    raw_messages = history.get("messages") or []
+    # API typically returns newest-first; present oldest-first for the UI.
+    ordered = list(reversed(raw_messages))
+    messages = [_serialize_message(m) for m in ordered if isinstance(m, dict)]
+
+    # Skip SYSTEM noise for the overall done/latest-text helpers.
+    non_system = [m for m in messages if m.get("role") != "SYSTEM"]
+    latest = non_system[-1] if non_system else None
+    latest_assistant = next(
+        (m for m in reversed(non_system) if m.get("role") == "ASSISTANT"),
+        None,
     )
+    done = bool(
+        latest_assistant is not None
+        and latest_assistant.get("done")
+        and (latest is None or latest.get("role") != "USER")
+    )
+    text = (latest_assistant or {}).get("text") or ""
 
     return ToolResult(
         content=[
@@ -80,10 +138,13 @@ async def peek_space_answer(
         ],
         structured_content={
             "chatId": chat_id,
-            "messageId": latest.get("id"),
-            "role": role,
-            "text": text,
+            "messages": messages,
+            "totalCount": history.get("totalCount", len(messages)),
             "done": done,
-            "references": latest.get("references") or [],
+            # Back-compat fields for older panel builds / simple callers.
+            "messageId": (latest_assistant or {}).get("id"),
+            "role": (latest_assistant or {}).get("role") or "",
+            "text": text,
+            "references": (latest_assistant or {}).get("references") or [],
         },
     )

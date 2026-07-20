@@ -140,6 +140,136 @@ def test_ask_space_tool_meta_links_chat_window_resource():
     from mcp_space_chat.tools.ask_space import _META
 
     assert _META["ui"] == {"resourceUri": CHAT_WINDOW_URI}
+    assert _META["ui/resourceUri"] == CHAT_WINDOW_URI
+
+
+# ── peek_space_answer ─────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_peek_space_answer_returns_history_oldest_first():
+    from mcp_space_chat.tools.peek_space_answer import peek_space_answer
+
+    history = {
+        "messages": [
+            {
+                "id": "msg_2",
+                "role": "ASSISTANT",
+                "text": "partial answer",
+                "createdAt": "2026-01-01T00:00:02Z",
+                "startedStreamingAt": "2026-01-01T00:00:01Z",
+                "stoppedStreamingAt": None,
+                "references": [
+                    {
+                        "name": "doc.pdf",
+                        "url": "https://example.com/doc.pdf",
+                        "sequenceNumber": 1,
+                        "sourceId": "src_1",
+                        "source": "content",
+                    }
+                ],
+            },
+            {
+                "id": "msg_1",
+                "role": "USER",
+                "text": "hello",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "stoppedStreamingAt": "2026-01-01T00:00:00Z",
+                "references": None,
+            },
+        ],
+        "totalCount": 2,
+    }
+    with (
+        _patch_resolve("peek_space_answer"),
+        _patch_identity("peek_space_answer"),
+        patch(
+            "mcp_space_chat.tools.peek_space_answer.Space.get_chat_messages_async",
+            new=AsyncMock(return_value=history),
+        ) as mock_get,
+    ):
+        result = await peek_space_answer(
+            chat_id="chat_1",
+            settings=_make_settings(),
+        )
+
+    mock_get.assert_awaited_once_with(
+        "user_1", "company_1", "chat_1", take=50
+    )
+    assert result.is_error is not True
+    assert result.structured_content is not None
+    assert result.structured_content["done"] is False
+    assert result.structured_content["text"] == "partial answer"
+    messages = result.structured_content["messages"]
+    assert [m["id"] for m in messages] == ["msg_1", "msg_2"]
+    assert messages[0]["role"] == "USER"
+    assert messages[0]["done"] is True
+    assert messages[1]["role"] == "ASSISTANT"
+    assert messages[1]["done"] is False
+    assert messages[1]["references"][0]["name"] == "doc.pdf"
+    assert messages[1]["references"][0]["sequenceNumber"] == 1
+
+
+@pytest.mark.asyncio
+async def test_peek_space_answer_marks_done_when_assistant_finished():
+    from mcp_space_chat.tools.peek_space_answer import peek_space_answer
+
+    history = {
+        "messages": [
+            {
+                "id": "msg_2",
+                "role": "ASSISTANT",
+                "text": "final",
+                "createdAt": "2026-01-01T00:00:02Z",
+                "stoppedStreamingAt": "2026-01-01T00:00:03Z",
+                "references": [],
+            },
+            {
+                "id": "msg_1",
+                "role": "USER",
+                "text": "hello",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "references": [],
+            },
+        ],
+        "totalCount": 2,
+    }
+    with (
+        _patch_resolve("peek_space_answer"),
+        _patch_identity("peek_space_answer"),
+        patch(
+            "mcp_space_chat.tools.peek_space_answer.Space.get_chat_messages_async",
+            new=AsyncMock(return_value=history),
+        ),
+    ):
+        result = await peek_space_answer(
+            chat_id="chat_1",
+            settings=_make_settings(),
+        )
+
+    assert result.structured_content["done"] is True
+    assert result.structured_content["text"] == "final"
+
+
+@pytest.mark.asyncio
+async def test_peek_space_answer_returns_error_result_on_api_failure():
+    from mcp_space_chat.tools.peek_space_answer import peek_space_answer
+
+    with (
+        _patch_resolve("peek_space_answer"),
+        _patch_identity("peek_space_answer"),
+        patch(
+            "mcp_space_chat.tools.peek_space_answer.Space.get_chat_messages_async",
+            new=AsyncMock(side_effect=RuntimeError("history unavailable")),
+        ),
+    ):
+        result = await peek_space_answer(
+            chat_id="chat_1",
+            settings=_make_settings(),
+        )
+
+    assert result.is_error is True
+    assert "history unavailable" in result.content[0].text  # type: ignore[union-attr]
 
 
 # ── show_hello_world ──────────────────────────────────────────────────────────

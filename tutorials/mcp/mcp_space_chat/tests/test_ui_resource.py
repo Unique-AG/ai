@@ -49,6 +49,25 @@ def test_chat_window_html_reads_embed_url_from_structured_content():
     assert "embedUrl" in html
 
 
+def test_chat_window_html_has_native_panel_stop_and_followup():
+    html = load_chat_window_html()
+    assert "chat-panel" in html
+    assert 'id="stop-btn"' in html
+    assert "Resume watching" in html
+    assert "peek_space_answer" in html
+    assert 'name: "ask_space"' in html
+    assert "followup" in html
+    assert "Stopped watching" in html
+
+
+def test_chat_window_html_inlines_markdown_vendors():
+    html = load_chat_window_html()
+    # Placeholder must be replaced; vendor sources must appear inline.
+    assert "<!-- VENDOR_SCRIPTS -->" not in html
+    assert "marked" in html
+    assert "DOMPurify" in html or "purify" in html.lower()
+
+
 def test_hello_world_html_requests_preferred_size():
     html = load_hello_world_html()
     assert "Hello World" in html
@@ -91,7 +110,10 @@ async def test_chat_window_resource_declares_mcp_app_mime_and_frame_csp():
 
         contents = await client.read_resource(CHAT_WINDOW_URI)
         assert contents[0].mimeType == "text/html;profile=mcp-app"
-        assert "ui/initialize" in contents[0].text  # type: ignore[union-attr]
+        text = contents[0].text  # type: ignore[union-attr]
+        assert "ui/initialize" in text
+        assert "<!-- VENDOR_SCRIPTS -->" not in text
+        assert "chat-panel" in text
 
 
 @pytest.mark.asyncio

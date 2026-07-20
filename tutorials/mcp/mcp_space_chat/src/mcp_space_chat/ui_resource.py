@@ -27,13 +27,41 @@ HELLO_WORLD_URI = "ui://space-chat/hello-world"
 HELLO_WORLD_WIDTH_PX = 560
 HELLO_WORLD_HEIGHT_PX = 360
 
-_CHAT_WINDOW_HTML_PATH = Path(__file__).parent / "ui" / "chat_window.html"
-_HELLO_WORLD_HTML_PATH = Path(__file__).parent / "ui" / "hello_world.html"
+# Preferred viewport for the native chat panel fallback.
+CHAT_WINDOW_WIDTH_PX = 760
+CHAT_WINDOW_HEIGHT_PX = 600
+
+_UI_DIR = Path(__file__).parent / "ui"
+_CHAT_WINDOW_HTML_PATH = _UI_DIR / "chat_window.html"
+_HELLO_WORLD_HTML_PATH = _UI_DIR / "hello_world.html"
+_VENDOR_MARKED_PATH = _UI_DIR / "vendor" / "marked.min.js"
+_VENDOR_PURIFY_PATH = _UI_DIR / "vendor" / "purify.min.js"
+
+# Placeholder in chat_window.html replaced with inlined vendor scripts so the
+# sandboxed MCP Apps iframe never needs to fetch a CDN (CSP-safe).
+_VENDOR_SCRIPTS_PLACEHOLDER = "<!-- VENDOR_SCRIPTS -->"
+
+
+def _vendor_scripts_html() -> str:
+    """Return <script> tags containing marked.js and DOMPurify."""
+    marked = _VENDOR_MARKED_PATH.read_text(encoding="utf-8")
+    purify = _VENDOR_PURIFY_PATH.read_text(encoding="utf-8")
+    return (
+        f"<script>\n{marked}\n</script>\n"
+        f"<script>\n{purify}\n</script>\n"
+    )
 
 
 def load_chat_window_html() -> str:
-    """Return the MCP Apps wrapper HTML for the chat window."""
-    return _CHAT_WINDOW_HTML_PATH.read_text(encoding="utf-8")
+    """Return the MCP Apps wrapper HTML for the chat window.
+
+    Inlines vendored marked.js + DOMPurify so the panel can render markdown
+    without external network access inside the host sandbox.
+    """
+    html = _CHAT_WINDOW_HTML_PATH.read_text(encoding="utf-8")
+    if _VENDOR_SCRIPTS_PLACEHOLDER not in html:
+        return html
+    return html.replace(_VENDOR_SCRIPTS_PLACEHOLDER, _vendor_scripts_html())
 
 
 def load_hello_world_html() -> str:
@@ -56,6 +84,7 @@ def build_legacy_hello_world_resource() -> EmbeddedResource:
             },
         }
     )
+
 
 def build_legacy_ui_resource(embed_url: str, chat_id: str) -> EmbeddedResource:
     """Build a legacy MCP-UI ``externalUrl`` resource for ``embed_url``.
