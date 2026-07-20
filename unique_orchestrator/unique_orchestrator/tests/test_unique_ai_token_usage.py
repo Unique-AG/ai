@@ -1,7 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unique_orchestrator.unique_ai import UniqueAI
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -9,6 +8,8 @@ from unique_toolkit.agentic.loop_runner import SupportsInvocationStats
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
+
+from unique_orchestrator.unique_ai import UniqueAI
 
 MODEL_NAME = "gpt-4"
 
