@@ -213,6 +213,7 @@ class Space(APIResource["Space"]):
         stoppedStreamingAt: str | None
         references: list["Space.Reference"] | None
         assessment: list["Space.Assessment"] | None
+        triggeringUserMessageId: NotRequired[str]
 
     class DeleteChatResponse(TypedDict):
         """

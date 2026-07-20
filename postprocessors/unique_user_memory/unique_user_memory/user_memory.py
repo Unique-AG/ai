@@ -20,6 +20,9 @@ from unique_toolkit.language_model import (
     TypeEncoder,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
 
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory_prompts import (
@@ -62,6 +65,7 @@ _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
 class UserMemoryState:
     scope_id: str
     text: str
+    load_invocation_stats: tuple[LanguageModelInvocationStats, ...] = ()
 
 
 def _get_model_tokenizer(
@@ -146,6 +150,8 @@ async def condense_user_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
+    invocation_source: str = "user_memory_condense",
 ) -> str | None:
     """Ask the LLM to rewrite an oversized profile into a shorter one.
 
@@ -197,6 +203,15 @@ async def condense_user_memory(
         )
         return None
 
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source=invocation_source,
+            )
+        )
+
     try:
         raw = response.choices[0].message.content or ""
     except Exception as exc:
@@ -232,6 +247,8 @@ async def fit_user_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
+    invocation_source: str = "user_memory_condense",
 ) -> str:
     """Ensure ``content`` fits ``max_tokens``, condensing before cutting.
 
@@ -257,6 +274,8 @@ async def fit_user_memory(
         language_model=language_model,
         event=event,
         logger=logger,
+        invocation_stats=invocation_stats,
+        invocation_source=invocation_source,
     )
     if condensed is not None:
         condensed_tokens = count_tokens(
@@ -321,6 +340,7 @@ async def load_user_memory(
         company_id=company_id,
         logger=logger,
     )
+    invocation_stats: list[LanguageModelInvocationStats] = []
     return UserMemoryState(
         scope_id=scope_id,
         text=await fit_user_memory(
@@ -329,7 +349,10 @@ async def load_user_memory(
             language_model=language_model,
             event=event,
             logger=logger,
+            invocation_stats=invocation_stats,
+            invocation_source="user_memory_load_condense",
         ),
+        load_invocation_stats=tuple(invocation_stats),
     )
 
 
@@ -577,6 +600,7 @@ async def should_consolidate_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> bool:
     """Cheaply decide whether the turn warrants a full memory rewrite.
 
@@ -627,6 +651,15 @@ async def should_consolidate_memory(
         )
         return True
 
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source="user_memory_gate",
+            )
+        )
+
     try:
         raw = response.choices[0].message.content or ""
     except Exception as exc:
@@ -665,6 +698,7 @@ async def consolidate_user_memory(
     logger: Logger,
     on_update_start: Callable[[], Awaitable[None]] = noop_update_callback,
     on_update_end: Callable[[], Awaitable[None]] = noop_update_callback,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> str:
     """Consolidate the latest turn into the user's memory profile.
 
@@ -702,6 +736,7 @@ async def consolidate_user_memory(
         language_model=language_model,
         event=event,
         logger=logger,
+        invocation_stats=invocation_stats,
     ):
         return safe_current
 
@@ -716,6 +751,7 @@ async def consolidate_user_memory(
             language_model=language_model,
             event=event,
             logger=logger,
+            invocation_stats=invocation_stats,
         )
     finally:
         await on_update_end()
@@ -731,6 +767,7 @@ async def _rewrite_user_memory(
     language_model: LanguageModelInfo,
     event: ChatEvent,
     logger: Logger,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> str:
     if not safe_current.strip():
         safe_current = empty_profile(user_id)
@@ -780,6 +817,15 @@ async def _rewrite_user_memory(
         )
         return safe_current
 
+    if invocation_stats is not None and response.usage is not None:
+        invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(
+                language_model.name,
+                response.usage,
+                source="user_memory_consolidation",
+            )
+        )
+
     try:
         raw = response.choices[0].message.content or ""
     except Exception as exc:
@@ -815,6 +861,8 @@ async def _rewrite_user_memory(
         language_model=language_model,
         event=event,
         logger=logger,
+        invocation_stats=invocation_stats,
+        invocation_source="user_memory_post_consolidation_condense",
     )
     if (
         safe_current

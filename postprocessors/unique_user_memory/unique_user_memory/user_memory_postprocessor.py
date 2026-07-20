@@ -9,6 +9,7 @@ from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 from unique_user_memory.config import UserMemoryConfig
@@ -49,6 +50,11 @@ class UserMemoryPostprocessor(Postprocessor):
         self._logger = logger
         self._new_memory: str | None = None
         self._chat_service: ChatService = chat_service
+        self._invocation_stats = list(state.load_invocation_stats)
+
+    @property
+    def invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        return list(self._invocation_stats)
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> bool:
         """Consolidate and upload user memory for this turn.
@@ -99,6 +105,7 @@ class UserMemoryPostprocessor(Postprocessor):
             logger=self._logger,
             on_update_start=on_update_start,
             on_update_end=on_update_end,
+            invocation_stats=self._invocation_stats,
         )
 
         if self._new_memory == self._state.text:

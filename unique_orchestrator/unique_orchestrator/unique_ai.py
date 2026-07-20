@@ -244,6 +244,8 @@ class UniqueAI:
         self._generated_files_info = None
         self._context_memory_updated = None
         self._invocation_stats = []
+        self._debug_info_manager.add("llm_invocations_complete", False)
+        invocations_persisted = False
         run_start = time.perf_counter()
 
         await preload_invoked_skills(
@@ -380,9 +382,9 @@ class UniqueAI:
                 str(tool.name): tool.display_name() or str(tool.name)
                 for tool in self._tool_manager.available_tools
             }
-            tool_names = [
+            tool_names = {
                 tool["name"] for tool in self._debug_info_manager.get()["tools"]
-            ]
+            }
 
             total_time_to_answer_ms: int | None = None
             if not self._chat_service.cancellation.is_cancelled:
@@ -415,16 +417,62 @@ class UniqueAI:
                 total_time_to_answer_ms=total_time_to_answer_ms,
                 artifacts=self._generated_files_info,
                 context_memory_updated=self._context_memory_updated,
+                invocations=self._invocation_stats,
             )
 
-            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
-            if "DeepResearch" not in tool_names:
+            self._debug_info_manager.add("llm_invocations_complete", True)
+            existing_debug_info = await self._chat_service.get_debug_info_async()
+            run_debug_info = self._debug_info_manager.get()
+            if "DeepResearch" in tool_names:
                 debug_info = {
-                    **await self._chat_service.get_debug_info_async(),
-                    **self._debug_info_manager.get(),
+                    **existing_debug_info,
+                    "llm_invocations": run_debug_info["llm_invocations"],
+                    "llm_invocations_complete": True,
+                    "analytics": run_debug_info["analytics"],
                 }
-                await self._chat_service.update_debug_info_async(debug_info=debug_info)
+            else:
+                debug_info = {**existing_debug_info, **run_debug_info}
+            await self._chat_service.update_debug_info_async(debug_info=debug_info)
+            invocations_persisted = True
         finally:
+            if not invocations_persisted:
+                if isinstance(self._loop_iteration_runner, SupportsInvocationStats):
+                    self._invocation_stats.extend(
+                        self._loop_iteration_runner.get_invocation_stats()
+                    )
+                self._debug_info_manager.add(
+                    "llm_invocations",
+                    [
+                        invocation.model_dump(by_alias=True)
+                        for invocation in self._invocation_stats
+                    ],
+                )
+                self._debug_info_manager.add("llm_invocations_complete", False)
+                try:
+                    existing_debug_info = (
+                        await self._chat_service.get_debug_info_async()
+                    )
+                    partial_debug_info = self._debug_info_manager.get()
+                    is_deep_research = any(
+                        tool.get("name") == "DeepResearch"
+                        for tool in partial_debug_info.get("tools", [])
+                    )
+                    if is_deep_research:
+                        debug_info = {
+                            **existing_debug_info,
+                            "llm_invocations": partial_debug_info["llm_invocations"],
+                            "llm_invocations_complete": False,
+                        }
+                    else:
+                        debug_info = {**existing_debug_info, **partial_debug_info}
+                    await self._chat_service.update_debug_info_async(
+                        debug_info=debug_info
+                    )
+                except Exception:
+                    self._logger.warning(
+                        "Failed to persist partial LLM invocation usage",
+                        exc_info=True,
+                    )
             sub.cancel()
 
     @staticmethod

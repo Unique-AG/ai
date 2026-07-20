@@ -9,7 +9,10 @@ from typing import override
 import unique_sdk
 from pydantic import Field, TypeAdapter, create_model
 from unique_sdk.api_resources._space import Space
-from unique_sdk.utils.chat_in_space import send_message_and_wait_for_completion
+from unique_sdk.utils.chat_in_space import (
+    get_message_invocations,
+    send_message_and_wait_for_completion,
+)
 
 from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit._common.referencing import (
@@ -55,10 +58,12 @@ from unique_toolkit.language_model import (
     LanguageModelService,
     LanguageModelToolDescription,
 )
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 logger = logging.getLogger(__name__)
 
 _ContentChunkList = TypeAdapter(list[ContentChunk])
+_InvocationStatsList = TypeAdapter(list[LanguageModelInvocationStats])
 
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
@@ -296,6 +301,13 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 if self.config.passthrough_config.enabled:
                     await self._display_sub_agent_response(response)
 
+                sub_agent_invocations = _prefix_sub_agent_invocation_sources(
+                    invocations=_InvocationStatsList.validate_python(
+                        get_message_invocations(response)
+                    ),
+                    tool_name=self.name,
+                    tool_call_id=tool_call.id,
+                )
                 return ToolCallResponse(
                     id=tool_call.id,
                     name=tool_call.name,
@@ -307,9 +319,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     content_chunks=content_chunks,
                     debug_info={
                         "chat_id": response["chatId"],
+                        "user_message_id": response.get("triggeringUserMessageId"),
+                        "assistant_message_id": response.get("id"),
                         "assistant_id": self.config.assistant_id,
                         "display_name": self._display_name,
                     },
+                    invocation_stats=sub_agent_invocations,
                 )
         except TimeoutError as e:
             raise e
@@ -495,6 +510,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                     parentAssistantId=self.config.assistant_id,
                 ),
                 on_message_update=on_message_update,
+                wait_for_invocations=True,
             )
         except TimeoutError as e:
             await self._notify_progress(
@@ -511,6 +527,18 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise TimeoutError(
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
+
+
+def _prefix_sub_agent_invocation_sources(
+    invocations: list[LanguageModelInvocationStats],
+    tool_name: str,
+    tool_call_id: str,
+) -> list[LanguageModelInvocationStats]:
+    prefix = f"subagent.{tool_name}.{tool_call_id}"
+    return [
+        invocation.model_copy(update={"source": f"{prefix}.{invocation.source}"})
+        for invocation in invocations
+    ]
 
 
 def _format_response(tool_name: str, text: str, system_reminders: list[str]) -> str:

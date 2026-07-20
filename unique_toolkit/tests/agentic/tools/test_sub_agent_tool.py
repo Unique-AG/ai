@@ -526,10 +526,25 @@ class TestSubAgentToolRun:
         )
 
         mock_response = {
+            "id": "sub-agent-assistant-message",
             "text": "Sub agent response",
             "assessment": None,
             "chatId": "new_chat_id",
             "references": None,
+            "triggeringUserMessageId": "sub-agent-user-message",
+            "debugInfo": {
+                "llm_invocations": [
+                    {
+                        "modelName": "model-a",
+                        "tokenUsage": {
+                            "promptTokens": 10,
+                            "completionTokens": 2,
+                            "totalTokens": 12,
+                        },
+                        "source": "main_loop[1]",
+                    }
+                ]
+            },
         }
 
         with (
@@ -550,7 +565,7 @@ class TestSubAgentToolRun:
             ),
         ):
             # Act
-            await tool.run(tool_call)
+            result = await tool.run(tool_call)
 
             # Assert - progress reporter should have been called at least twice (RUNNING and FINISHED)
             assert mock_progress_reporter.notify_from_tool_call.call_count >= 2
@@ -570,6 +585,18 @@ class TestSubAgentToolRun:
                 if call.kwargs.get("state") == ProgressState.FINISHED
             ]
             assert len(finished_calls) == 1
+            assert result.debug_info == {
+                "chat_id": "new_chat_id",
+                "user_message_id": "sub-agent-user-message",
+                "assistant_message_id": "sub-agent-assistant-message",
+                "assistant_id": mock_sub_agent_config.assistant_id,
+                "display_name": "Test Sub Agent",
+            }
+            assert len(result.invocation_stats) == 1
+            assert (
+                result.invocation_stats[0].source
+                == "subagent.TestSubAgent.call_123.main_loop[1]"
+            )
 
     @pytest.mark.ai
     @pytest.mark.asyncio
