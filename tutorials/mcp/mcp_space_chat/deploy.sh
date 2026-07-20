@@ -3,10 +3,11 @@ set -e
 
 # === CONFIGURATION ===
 SUBSCRIPTION="${SUBSCRIPTION:-698f3b43-ccb0-4f97-9e10-2ca89a7782cf}"
-RG="${RG:-rg-lab-demo-001-unique-space-chat-mcp}"
+# Co-located with mcp_search in lab-demo-001 (shared ACR).
+RG="${RG:-rg-lab-demo-001-unique-search-mcp}"
 LOCATION="${LOCATION:-swedencentral}"
 APP="${APP:-unique-space-chat-mcp}"
-ACR="${ACR:-uniquespacechatmcpacr}"
+ACR="${ACR:-uniquesearchmcpacr}"
 PLAN="${PLAN:-${APP}-plan}"
 
 # === SET SUBSCRIPTION ===
