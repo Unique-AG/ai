@@ -2,7 +2,7 @@
 
 Persistent per-user memory for Unique AI agents.
 
-`unique_user_memory` stores a compact Markdown profile for each user and updates it after every agent turn. The profile is loaded before the next turn so the assistant can remember stable user context such as communication preferences, work context, expertise, recent topics, and open follow-ups.
+`unique_user_memory` stores a compact Markdown profile for each user and updates it after every agent turn. The profile is loaded before the next turn so the assistant can remember stable user context such as communication preferences, work context, expertise, recent topics, and concrete future tasks.
 
 ## What It Does
 
@@ -62,7 +62,7 @@ _(empty)_
 ## Recent Topics
 _(empty)_
 
-## Open Questions / Follow-ups
+## Follow-ups
 _(empty)_
 ```
 

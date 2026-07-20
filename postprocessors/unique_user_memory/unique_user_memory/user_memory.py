@@ -1,6 +1,7 @@
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from logging import Logger
 
 import unique_sdk
@@ -56,6 +57,40 @@ _CONDENSE_TARGET_RATIO = 0.9
 _TRUNCATION_MARKER = "\n\n<!-- truncated to fit memory budget -->"
 _DEFAULT_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 _FRONTMATTER_RE = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
+_TURN_COUNT_RE = re.compile(r"^turn_count:\s*(\d+)\s*$", re.MULTILINE)
+
+
+def _profile_body(content: str) -> str:
+    return _FRONTMATTER_RE.sub("", content, count=1).strip()
+
+
+def _turn_count(content: str) -> int:
+    frontmatter_match = _FRONTMATTER_RE.match(content)
+    if frontmatter_match is None:
+        return 0
+    match = _TURN_COUNT_RE.search(frontmatter_match.group(0))
+    return int(match.group(1)) if match else 0
+
+
+def _assemble_profile(*, body: str, user_id: str, turn_count: int) -> str:
+    """Prefix an LLM-generated body with trusted application metadata."""
+    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return (
+        "---\n"
+        f"user_id: {user_id}\n"
+        "schema_version: 1\n"
+        f"last_updated: {timestamp}\n"
+        f"turn_count: {turn_count}\n"
+        "---\n\n"
+        f"{body.strip()}\n"
+    )
+
+
+def _restore_frontmatter(original: str, body: str) -> str:
+    match = _FRONTMATTER_RE.match(original)
+    if match is None:
+        return body
+    return f"{match.group(0).rstrip()}\n\n{body.strip()}\n"
 
 
 @dataclass(frozen=True)
@@ -154,7 +189,8 @@ async def condense_user_memory(
     condensed profile, or ``None`` when the call fails or the output does
     not look like a profile (the caller then falls back to a hard cut).
     """
-    current_tokens = count_tokens(content=content, language_model=language_model)
+    body = _profile_body(content)
+    current_tokens = count_tokens(content=body, language_model=language_model)
     target_tokens = max(1, int(max_tokens * _CONDENSE_TARGET_RATIO))
 
     try:
@@ -177,7 +213,7 @@ async def condense_user_memory(
                 )
             ),
             LanguageModelUserMessage(
-                content=condensation_user_prompt(_sanitize_for_xml_context(content))
+                content=condensation_user_prompt(_sanitize_for_xml_context(body))
             ),
         ]
     )
@@ -214,7 +250,7 @@ async def condense_user_memory(
         )
         return None
 
-    candidate = _strip_code_fences(raw).strip()
+    candidate = _profile_body(_strip_code_fences(raw))
     if not _is_well_formed_profile(candidate):
         logger.warning(
             "[user-memory] condense output did not look like a profile (%d chars)",
@@ -259,6 +295,7 @@ async def fit_user_memory(
         logger=logger,
     )
     if condensed is not None:
+        condensed = _restore_frontmatter(content, condensed)
         condensed_tokens = count_tokens(
             content=condensed, language_model=language_model
         )
@@ -752,8 +789,7 @@ async def _rewrite_user_memory(
             ),
             LanguageModelUserMessage(
                 content=consolidation_user_prompt(
-                    user_id=user_id,
-                    existing_memory=safe_current,
+                    existing_memory=_profile_body(safe_current),
                     user_message=_sanitize_for_xml_context(user_message or ""),
                     assistant_message=_sanitize_for_xml_context(
                         assistant_message or ""
@@ -801,14 +837,23 @@ async def _rewrite_user_memory(
         logger.info("[user-memory] consolidation NOOP - keeping existing memory")
         return safe_current
 
-    candidate = _strip_code_fences(raw).strip()
-    if not _is_well_formed_profile(candidate):
+    candidate_body = _profile_body(_strip_code_fences(raw))
+    if not _is_well_formed_profile(candidate_body):
         logger.warning(
             "[user-memory] LLM output did not look like a profile (%d chars)",
-            len(candidate),
+            len(candidate_body),
         )
         return safe_current
 
+    if safe_current and candidate_body == _profile_body(safe_current):
+        logger.debug("[user-memory] memory body unchanged - skipping update")
+        return safe_current
+
+    candidate = _assemble_profile(
+        body=candidate_body,
+        user_id=user_id,
+        turn_count=_turn_count(safe_current) + 1,
+    )
     capped = await fit_user_memory(
         content=candidate,
         max_tokens=config.max_tokens,
@@ -816,14 +861,6 @@ async def _rewrite_user_memory(
         event=event,
         logger=logger,
     )
-    if (
-        safe_current
-        and _FRONTMATTER_RE.sub("", capped).strip()
-        == _FRONTMATTER_RE.sub("", safe_current).strip()
-    ):
-        logger.debug("[user-memory] memory body unchanged - skipping update")
-        return safe_current
-
     logger.info(
         "[user-memory] consolidation produced %d tokens (cap=%d)",
         count_tokens(content=capped, language_model=language_model),
@@ -839,9 +876,7 @@ def _sanitize_for_xml_context(text: str) -> str:
 def _is_well_formed_profile(content: str) -> bool:
     if not content or len(content.strip()) < 20:
         return False
-    if _FRONTMATTER_RE.match(content):
-        return True
-    return "## Identity" in content or "# User Memory" in content
+    return content.startswith("# User Memory") and "## Identity" in content
 
 
 def _strip_code_fences(text: str) -> str:
