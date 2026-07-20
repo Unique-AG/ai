@@ -50,7 +50,8 @@ class UserMemoryPostprocessor(Postprocessor):
         self._logger = logger
         self._new_memory: str | None = None
         self._chat_service: ChatService = chat_service
-        self._invocation_stats = list(state.load_invocation_stats)
+        self._pending_load_invocation_stats = list(state.load_invocation_stats)
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
 
     @property
     def invocation_stats(self) -> list[LanguageModelInvocationStats]:
@@ -62,6 +63,10 @@ class UserMemoryPostprocessor(Postprocessor):
         Returns True if the memory profile changed and was uploaded, False
         otherwise (no user/company, NOOP consolidation, or failed upload).
         """
+        self._invocation_stats, self._pending_load_invocation_stats = (
+            self._pending_load_invocation_stats,
+            [],
+        )
         self._logger.info("[user-memory] running postprocessor")
         user_id = self._event.user_id
         company_id = self._event.company_id
