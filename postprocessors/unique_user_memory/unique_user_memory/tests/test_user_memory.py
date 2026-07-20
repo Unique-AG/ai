@@ -23,9 +23,24 @@ from unique_user_memory.user_memory import (
     upload_user_memory,
 )
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
-from unique_user_memory.user_memory_prompts import empty_profile
+from unique_user_memory.user_memory_prompts import (
+    consolidation_system_prompt,
+    empty_profile,
+    memory_gate_system_prompt,
+)
 
 _TEST_LANGUAGE_MODEL = LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
+
+
+def test_memory_profile_keeps_follow_up_tasks_but_excludes_open_questions() -> None:
+    profile = empty_profile("user_1")
+    consolidation_prompt = consolidation_system_prompt(2000)
+    gate_prompt = memory_gate_system_prompt()
+
+    assert "## Open Questions / Follow-ups" not in profile
+    assert "## Follow-ups" in profile
+    assert "concrete tasks the user intends to complete" in consolidation_prompt
+    assert "Concrete future tasks the user intends to complete" in gate_prompt
 
 
 def test_enforce_token_cap_truncates_long_content() -> None:
@@ -281,8 +296,45 @@ async def test_consolidate_user_memory_runs_full_rewrite_when_gate_update(
         logger=MagicMock(),
     )
 
-    assert result == rewritten
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: user_1" in result
+    assert "schema_version: 1" in result
+    assert "turn_count: 1" in result
     llm_service.complete_async.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_consolidate_user_memory_adds_frontmatter_to_llm_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    rewritten = "# User Memory\n\n## Identity\n- Prefers concise answers"
+    response = MagicMock()
+    response.choices[0].message.content = rewritten
+    llm_service = MagicMock()
+    llm_service.complete_async = AsyncMock(return_value=response)
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.LanguageModelService",
+        MagicMock(return_value=llm_service),
+    )
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory.should_consolidate_memory",
+        AsyncMock(return_value=True),
+    )
+
+    result = await consolidate_user_memory(
+        current_memory="",
+        user_id="authenticated-user",
+        user_message="remember I like concise answers",
+        assistant_message="noted",
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=MagicMock(),
+        logger=MagicMock(),
+    )
+
+    assert "user_id: authenticated-user" in result
+    assert "schema_version: 1" in result
+    assert "turn_count: 1" in result
 
 
 @pytest.mark.asyncio
@@ -316,7 +368,9 @@ async def test_consolidate_user_memory_skips_gate_when_disabled(
         logger=MagicMock(),
     )
 
-    assert result == rewritten
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: user_1" in result
+    assert "turn_count: 1" in result
     gate.assert_not_awaited()
     llm_service.complete_async.assert_awaited_once()
 
@@ -434,7 +488,9 @@ async def test_consolidate_user_memory_invokes_update_callbacks_on_rewrite(
         on_update_end=on_end,
     )
 
-    assert result == rewritten
+    assert result.endswith(f"{rewritten}\n")
+    assert "user_id: user_1" in result
+    assert "turn_count: 1" in result
     on_start.assert_awaited_once()
     on_end.assert_awaited_once()
     assert events == ["start", "end"]
