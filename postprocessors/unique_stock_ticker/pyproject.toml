@@ -72,7 +72,7 @@ filterwarnings = [
 
 [tool.deptry]
 known_first_party = ["unique_stock_ticker"]
-extend_exclude = ["unique_stock_ticker/detection/tests"]
+extend_exclude = ["unique_stock_ticker/detection/tests", "unique_stock_ticker/tests"]
 package_module_name_map = {"unique-six" = ["unique_six"]}
 
 [tool.deptry.per_rule_ignores]
