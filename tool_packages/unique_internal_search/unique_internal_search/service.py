@@ -30,7 +30,6 @@ from unique_toolkit.content.utils import (
     pick_content_chunks_for_token_window,
     sort_content_chunks,
 )
-from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -81,7 +80,6 @@ class InternalSearchService:
         self.company_id = company_id
         self.logger = logger
         self.tool_execution_message_name = "Internal search"
-        self._invocation_stats: list[LanguageModelInvocationStats] = []
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
         self.selected_uploaded_file_ids: list[str] = selected_uploaded_file_ids or []
@@ -513,7 +511,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
-        self._invocation_stats = []
         if (
             tool_call.arguments is None
             or not isinstance(tool_call.arguments, dict)
@@ -582,7 +579,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             content_chunks=selected_chunks,
             debug_info=self.debug_info,
             system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
-            invocation_stats=self._invocation_stats,
         )
 
         if (
