@@ -1,12 +1,16 @@
 """Run-scoped collection of language-model invocation usage."""
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import Any
 
+from pydantic import ValidationError
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
+
+_LOGGER = logging.getLogger(__name__)
 
 _CURRENT_INVOCATION_STATS: ContextVar[list[LanguageModelInvocationStats] | None] = (
     ContextVar("web_search_invocation_stats", default=None)
@@ -37,7 +41,16 @@ def record_token_usage(
     if invocation_stats is None or usage is None:
         return
 
-    token_usage = LanguageModelTokenUsage.model_validate(usage)
+    try:
+        token_usage = LanguageModelTokenUsage.model_validate(usage)
+    except ValidationError:
+        _LOGGER.warning(
+            "Unable to parse Web Search token usage for %s",
+            source,
+            exc_info=True,
+        )
+        return
+
     invocation_stats.append(
         LanguageModelInvocationStats.from_usage(
             model_name=model_name,

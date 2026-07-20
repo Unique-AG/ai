@@ -30,7 +30,6 @@ from unique_toolkit.content.utils import (
     pick_content_chunks_for_token_window,
     sort_content_chunks,
 )
-from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
@@ -38,6 +37,10 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.invocation_stats import (
+    invocation_stats_scope,
+    record_invocation_stats,
+)
 from unique_internal_search.services.message_log import (
     InternalSearchMessageLogger,
     InternalSearchMessageLoggerNoop,
@@ -77,7 +80,6 @@ class InternalSearchService:
         self.company_id = company_id
         self.logger = logger
         self.tool_execution_message_name = "Internal search"
-        self._invocation_stats: list[LanguageModelInvocationStats] = []
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
         self.selected_uploaded_file_ids: list[str] = selected_uploaded_file_ids or []
@@ -314,7 +316,7 @@ class InternalSearchService:
                 config=self.config.chunk_relevancy_sort_config,
             )
             if isinstance(chunk_relevancy_sorter_result.relevancies, list):
-                self._invocation_stats.extend(
+                record_invocation_stats(
                     invocation
                     for relevancy in chunk_relevancy_sorter_result.relevancies
                     if relevancy.relevancy is not None
@@ -483,10 +485,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     # TODO: find a solution for tracking
     # @track(name="internal_search_tool_run")
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        with invocation_stats_scope() as invocation_stats:
+            response = await self._run(tool_call)
+        response.invocation_stats.extend(invocation_stats)
+        return response
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """
-        self._invocation_stats = []
         if (
             tool_call.arguments is None
             or not isinstance(tool_call.arguments, dict)
@@ -555,7 +562,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             content_chunks=selected_chunks,
             debug_info=self.debug_info,
             system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
-            invocation_stats=self._invocation_stats,
         )
 
         if (

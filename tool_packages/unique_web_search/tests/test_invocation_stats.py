@@ -9,9 +9,33 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_web_search.invocation_stats import (
     invocation_stats_scope,
     record_language_model_response,
+    record_token_usage,
     record_vertex_response,
 )
 from unique_web_search.service import WebSearchTool
+
+
+@pytest.mark.ai
+def test_record_token_usage__skips_invalid_provider_usage(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """
+    Purpose: Verify malformed provider usage does not escape the stats collector.
+    Why this matters: Optional billing metadata must not abort an in-flight Web Search.
+    Setup summary: Record invalid token counts and assert the usage is skipped and logged.
+    """
+    with invocation_stats_scope() as invocation_stats:
+        record_token_usage(
+            model_name="provider-model",
+            usage={"prompt_tokens": "not-a-token-count"},
+            source="web_search.grounding.provider",
+        )
+
+    assert invocation_stats == []
+    assert (
+        "Unable to parse Web Search token usage for web_search.grounding.provider"
+        in caplog.text
+    )
 
 
 @pytest.mark.ai

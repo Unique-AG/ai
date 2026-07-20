@@ -236,6 +236,7 @@ class UniqueAI:
         # True/False when it ran and did/didn't update the stored memory profile.
         self._context_memory_updated: bool | None = None
         self._invocation_stats: list[LanguageModelInvocationStats] = []
+        self._invocation_stats_finalized = False
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -267,6 +268,7 @@ class UniqueAI:
         self._generated_files_info = None
         self._context_memory_updated = None
         self._invocation_stats = []
+        self._invocation_stats_finalized = False
         self._debug_info_manager.add("llm_invocations_complete", False)
         invocations_persisted = False
         run_start = time.perf_counter()
@@ -453,7 +455,7 @@ class UniqueAI:
                 invocations=self._invocation_stats,
             )
 
-            llm_invocations_complete = (
+            llm_invocations_complete = self._invocation_stats_finalized and (
                 "DeepResearch" not in tool_names
                 or self._event.payload.message_execution_id is not None
             )
@@ -899,6 +901,7 @@ class UniqueAI:
                 name_str, 0
             )
         self._invocation_stats.extend(self._evaluation_manager.get_invocation_stats())
+        self._invocation_stats_finalized = True
 
         if evaluation_results.success and not all(
             result.is_positive for result in evaluation_results.unpack()

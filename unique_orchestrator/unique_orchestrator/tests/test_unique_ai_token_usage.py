@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_orchestrator.unique_ai import UniqueAI
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -8,8 +9,6 @@ from unique_toolkit.agentic.loop_runner import SupportsInvocationStats
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
-
-from unique_orchestrator.unique_ai import UniqueAI
 
 MODEL_NAME = "gpt-4"
 
@@ -253,6 +252,122 @@ class TestRunTokenUsageIntegration:
         }
         assert "llm_invocations" in calls_by_key
         assert calls_by_key["llm_invocations"] == []
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__cancelled_before_postprocessing__keeps_invocations_incomplete(
+        self,
+    ):
+        """
+        Purpose: Verify cancellation after the model call leaves invocation usage partial.
+        Why this matters: Postprocessor and evaluation usage has not been aggregated yet.
+        Setup summary: Cancel after planning, then assert the completion flag remains false.
+        """
+        # Arrange
+        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
+        ua._chat_service.cancellation.check_cancellation_async = AsyncMock(
+            side_effect=[False, True]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__tool_takes_control__keeps_invocations_incomplete(self):
+        """
+        Purpose: Verify a control-taking tool leaves invocation usage partial.
+        Why this matters: The agent exits before postprocessors and evaluations can add usage.
+        Setup summary: Execute a control-taking tool and assert completion remains false.
+        """
+        # Arrange
+        tool_call = MagicMock()
+        tool_call.name = "SubAgent"
+        loop_response = _make_loop_response(None)
+        loop_response.tool_calls = [tool_call]
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        ua._tool_manager.does_a_tool_take_control.return_value = True
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="SubAgent", invocation_stats=[])
+            ]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__max_iterations_with_tool_calls__keeps_invocations_incomplete(
+        self,
+    ):
+        """
+        Purpose: Verify tool-only exhaustion leaves invocation usage partial.
+        Why this matters: Max-iteration exit skips postprocessor and evaluation aggregation.
+        Setup summary: Exhaust one tool-call iteration and assert completion remains false.
+        """
+        # Arrange
+        tool_call = MagicMock()
+        tool_call.name = "WebSearch"
+        loop_response = _make_loop_response(None)
+        loop_response.tool_calls = [tool_call]
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="WebSearch", invocation_stats=[])
+            ]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__empty_response__keeps_invocations_incomplete(self):
+        """
+        Purpose: Verify an empty model response leaves invocation usage partial.
+        Why this matters: Empty responses exit before downstream LLM usage is aggregated.
+        Setup summary: Return an empty response and assert completion remains false.
+        """
+        # Arrange
+        loop_response = _make_loop_response(None)
+        loop_response.is_empty.return_value = True
+        ua = _build_run_ua([loop_response], max_iterations=1)
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
