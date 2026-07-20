@@ -5541,11 +5541,6 @@ dependencies = [
     { name = "unique-toolkit" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "numerize", specifier = ">=0.12" },
@@ -5558,9 +5553,6 @@ requires-dist = [
     { name = "unique-six", editable = "connectors/unique_six" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.3" }]
 
 [[package]]
 name = "unique-swot"
