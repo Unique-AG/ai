@@ -51,6 +51,7 @@ from unique_internal_search.utils import (
 
 AVERAGE_TOKENS_PER_CHUNK = 500
 TOKEN_BUDGET_SAFETY_FACTOR = 1.3
+DEFAULT_MAX_TOKENS_PER_SEARCH_CALL = 35_000
 
 
 async def _noop_log_progress(message: str) -> None:
@@ -255,13 +256,12 @@ class InternalSearchService:
         content_ids: list[str] | None = None,
     ) -> SearchStringResult:
         try:
-            capped_limit = self._cap_limit_to_token_budget()
             found_chunks: list[
                 ContentChunk
             ] = await self.content_service.search_content_chunks_async(
                 search_string=search_string,  # type: ignore
                 search_type=self.config.search_type,
-                limit=capped_limit,
+                limit=self._get_effective_token_limit(),
                 reranker_config=self.config.reranker_config,
                 search_language=self.config.search_language,
                 scope_ids=self.config.scope_ids,
@@ -318,25 +318,50 @@ class InternalSearchService:
             return found_chunks
 
     def _get_max_tokens(self) -> int:
-        if self.config.language_model_max_input_tokens is not None:
-            max_tokens = int(
-                self.config.language_model_max_input_tokens
-                * self.config.percentage_of_input_tokens_for_sources
-            )
-            self.logger.debug(
-                "Using %s of max tokens %s as token limit: %s",
-                self.config.percentage_of_input_tokens_for_sources,
-                self.config.language_model_max_input_tokens,
-                max_tokens,
-            )
-            return max_tokens
-        else:
-            self.logger.debug(
-                "language model input context size is not set, using default max tokens"
-            )
-            return self.config.max_tokens_for_sources
+        max_tokens = self.config.max_tokens_per_search_call
+        model_input = self.config.language_model_max_input_tokens
 
-    def _cap_limit_to_token_budget(self) -> int:
+        if max_tokens is None and model_input is None:
+            return DEFAULT_MAX_TOKENS_PER_SEARCH_CALL
+
+        if self.config.always_fetch_max_tokens:
+            # Ignore the percentage and use the configured max directly (or the
+            # full model input when no max is set), clamped to the model's input
+            # window when it is known.
+            candidates = [v for v in (max_tokens, model_input) if v is not None]
+            return min(candidates)
+
+        # Real max: the smaller of the percentage-based budget (when the model
+        # context is known) and the configured hard ceiling (when set).
+        percentage_based_budget: int | None = None
+        if model_input is not None:
+            percentage_based_budget = int(
+                model_input * self.config.percentage_of_input_tokens_for_sources
+            )
+
+        candidates = [v for v in (percentage_based_budget, max_tokens) if v is not None]
+        budget = min(candidates)
+        self.logger.debug(
+            "Token budget: %s (percentage_based_budget=%s, max_tokens_per_search_call=%s)",
+            budget,
+            percentage_based_budget,
+            max_tokens,
+        )
+        return budget
+
+    def _get_effective_token_limit(self) -> int:
+        """Number of chunks to fetch per search string.
+
+        When the relevancy sorter is enabled it reorders the whole fetched pool
+        before the token-window trim, so it needs the full candidate set and the
+        configured ``limit`` is used as-is. Without reranking, results already
+        come back in relevance order and are trimmed to the token window, so
+        fetching more chunks than fit is pure waste — we cap the fetch to what
+        the token budget can hold.
+        """
+        if self.config.chunk_relevancy_sort_config.enabled:
+            return self.config.limit
+
         token_based_limit = max(
             1,
             int(
@@ -348,10 +373,12 @@ class InternalSearchService:
         capped_limit = min(self.config.limit, token_based_limit)
         if capped_limit < self.config.limit:
             self.logger.info(
-                f"Search limit capped from {self.config.limit} to {capped_limit} (token budget)"
+                "Search limit capped from %s to %s (token budget)",
+                self.config.limit,
+                capped_limit,
             )
         else:
-            self.logger.info(f"Search limit: {capped_limit} (within token budget)")
+            self.logger.info("Search limit: %s (within token budget)", capped_limit)
         return capped_limit
 
 

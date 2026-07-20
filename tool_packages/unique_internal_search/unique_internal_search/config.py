@@ -33,8 +33,7 @@ from unique_internal_search.prompts import (
 )
 from unique_internal_search.validators import get_string_field_with_pattern_validation
 
-DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
-DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED = 1000
+DEFAULT_SEARCH_LIMIT = 200
 
 
 class ToolResponseSystemReminderConfig(BaseModel):
@@ -72,14 +71,6 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     )
 
 
-def _search_limit_factory(data: dict[str, Any]) -> int:
-    return (
-        DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED
-        if data["chunk_relevancy_sort_config"].enabled
-        else DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED
-    )
-
-
 _FIELD_ALIASES: dict[str, str] = {
     "ftsSearchLanguage": "searchLanguage",
 }
@@ -101,17 +92,22 @@ class InternalSearchConfig(BaseToolConfig):
         default=ContentSearchType.COMBINED,
         description="The type of search to perform. Two possible values: `COMBINED` or `VECTOR`.",
     )
-    max_tokens_for_sources: SkipJsonSchema[int] = (
-        Field(  # TODO: Remove SkipJsonSchema once UI (Spaces 2.0) can be configured to not include certain fields
-            default=30_000,
-            description="The maximum number of tokens to use for the sources.",
-        )
-    )
     percentage_of_input_tokens_for_sources: float = Field(
         default=0.4,
         description="The percentage of the maximum input tokens of the language model to use for the tool response.",
         ge=0.0,
         le=1.0,
+    )
+    max_tokens_per_search_call: (
+        Annotated[int, Field(ge=0, title="Defined Max Tokens")]
+        | Annotated[None, Field(title="No Limit")]
+    ) = Field(
+        default=None,
+        description="Hard upper bound on the token budget for a single search call's sources.",
+    )
+    always_fetch_max_tokens: bool = Field(
+        default=False,
+        description="When True, ignore 'Percentage Of Input Tokens for Sources' and use 'Max Tokens Per Search Call' directly as the token budget.",
     )
     language_model_max_input_tokens: SkipJsonSchema[int | None] = Field(
         default=None,
@@ -145,8 +141,8 @@ class InternalSearchConfig(BaseToolConfig):
         description="The chunk relevancy sort config to use for the search.",
     )
     limit: int = Field(
-        default_factory=_search_limit_factory,
-        description="The maximum limit of chunks returned by the search.",
+        default=DEFAULT_SEARCH_LIMIT,
+        description="The maximum number of chunks returned per search string. Passed to the search as-is; not capped by the token budget.",
     )
     chat_only: bool = Field(
         default=False,
