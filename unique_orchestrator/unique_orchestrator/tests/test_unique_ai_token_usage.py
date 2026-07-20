@@ -761,11 +761,14 @@ class TestRunTokenUsageIntegration:
             await ua.run()
 
         # Assert
-        partial_debug_info = ua._chat_service.update_debug_info_async.call_args_list[
-            1
-        ].kwargs["debug_info"]
+        partial_debug_info = (
+            ua._chat_service.update_debug_info_async.call_args_list[1].kwargs[
+                "debug_info"
+            ]
+        )
         assert [
-            invocation["source"] for invocation in partial_debug_info["llm_invocations"]
+            invocation["source"]
+            for invocation in partial_debug_info["llm_invocations"]
         ] == ["deep_research.clarification", "main_loop[1]"]
         assert partial_debug_info["llm_invocations_complete"] is False
 
