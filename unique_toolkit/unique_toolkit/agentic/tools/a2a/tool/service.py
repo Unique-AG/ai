@@ -63,6 +63,7 @@ from unique_toolkit.language_model.invocation_stats import LanguageModelInvocati
 logger = logging.getLogger(__name__)
 
 _ContentChunkList = TypeAdapter(list[ContentChunk])
+_InvocationStatsList = TypeAdapter(list[LanguageModelInvocationStats])
 
 
 class SubAgentTool(Tool[SubAgentToolConfig]):
@@ -526,7 +527,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
             raise TimeoutError(
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
-
 
 def _parse_sub_agent_invocation_stats(
     raw_invocations: list[dict[str, Any]],
