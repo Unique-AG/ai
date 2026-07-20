@@ -18,6 +18,7 @@ exclude-newer-span = "P2W"
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
+crawl4ai = "2026-06-19T22:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
@@ -25,7 +26,9 @@ unique-mcp = false
 unique-orchestrator = false
 unique-follow-up-questions = false
 unique-user-memory = false
+langsmith = "2026-06-20T22:00:00Z"
 unique-six = false
+pydantic-settings = "2026-06-20T22:00:00Z"
 unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
@@ -5538,6 +5541,11 @@ dependencies = [
     { name = "unique-toolkit" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "numerize", specifier = ">=0.12" },
@@ -5550,6 +5558,9 @@ requires-dist = [
     { name = "unique-six", editable = "connectors/unique_six" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.3" }]
 
 [[package]]
 name = "unique-swot"
