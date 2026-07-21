@@ -247,8 +247,12 @@ async def test_get_unique_settings_async__raises__when_token_but_no_identity(
     base_settings: UniqueSettings,
 ) -> None:
     """
-    Purpose: With a Bearer token but no meta/JWT/userinfo, refuse env fallback.
-    Why this matters: Avoid silently acting as UNIQUE_AUTH_* for logged-in calls.
+    Purpose: exercise the defensive guard directly (mocking
+    _userinfo_to_auth_context to return None), since with the real
+    implementation a token present always makes it either succeed or raise
+    first — this exact call path is not reachable via real traffic today.
+    Why this matters: if a future _userinfo_to_auth_context swallows lookup
+    failures instead of raising, this guard must still refuse env fallback.
     Setup summary: get_access_token returns a token; all auth helpers return None.
     """
     with (

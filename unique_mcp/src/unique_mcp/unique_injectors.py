@@ -226,6 +226,9 @@ async def get_unique_settings_async() -> UniqueSettings:
     Use this in tools that must search/act as the **logged-in** user. When an
     access token is present but neither JWT nor userinfo yield both IDs, this
     raises instead of silently using ``UNIQUE_AUTH_*`` service credentials.
+    In practice that path currently surfaces as ``get_unique_userinfo``'s own
+    "Zitadel userinfo incomplete" ValueError, not the message below — see the
+    comment at the raise site.
     """
     settings = _base_settings()
 
@@ -243,6 +246,14 @@ async def get_unique_settings_async() -> UniqueSettings:
     if auth_context := await _userinfo_to_auth_context():
         return settings.with_auth(auth_context)
 
+    # Currently unreachable: with a real access token, get_unique_userinfo
+    # (called above via _userinfo_to_auth_context) either returns a complete
+    # UniqueUserInfo or raises its own "Zitadel userinfo incomplete" ValueError
+    # — it never falls through to return None while a token is present. Kept
+    # as a defensive guard for a future _userinfo_to_auth_context that
+    # swallows lookup failures and returns None instead of raising (e.g. an
+    # env-var-only / no-OIDC-proxy MCP deployment); without it, that case
+    # would silently fall through to the UNIQUE_AUTH_* return below.
     if get_access_token() is not None:
         raise ValueError(
             "Authenticated session could not be resolved to user_id and "
