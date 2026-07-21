@@ -315,6 +315,45 @@ class TestRunTokenUsageIntegration:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__deep_research_takes_control__marks_invocations_complete(self):
+        """
+        Purpose: Verify a Deep Research execution run signals complete usage despite
+            exiting before postprocessors and evaluations run.
+        Why this matters: Deep Research always takes control, so it never reaches
+            `_handle_no_tool_calls` and `_invocation_stats_finalized` never becomes
+            true; the completion signal for it must come from `message_execution_id`
+            alone, not be gated behind that flag.
+        Setup summary: Call Deep Research as a tool with an execution id set and
+            assert completion is still reported true.
+        """
+        # Arrange
+        tool_call = MagicMock()
+        tool_call.name = "DeepResearch"
+        loop_response = _make_loop_response(None)
+        loop_response.tool_calls = [tool_call]
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._event.payload.message_execution_id = "execution-1"
+        ua._tool_manager.does_a_tool_take_control.return_value = True
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="DeepResearch", invocation_stats=[])
+            ]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        debug_info = ua._chat_service.update_debug_info_async.call_args.kwargs[
+            "debug_info"
+        ]
+        assert debug_info["llm_invocations_complete"] is True
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__max_iterations_with_tool_calls__keeps_invocations_incomplete(
         self,
     ):

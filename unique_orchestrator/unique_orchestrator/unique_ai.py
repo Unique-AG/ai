@@ -457,9 +457,16 @@ class UniqueAI:
                 invocations=self._invocation_stats,
             )
 
-            llm_invocations_complete = self._invocation_stats_finalized and (
-                "DeepResearch" not in tool_names
-                or self._event.payload.message_execution_id is not None
+            # DeepResearch always takes control (see `takes_control()`), so a run
+            # that invokes it exits before `_handle_no_tool_calls` and never sets
+            # `_invocation_stats_finalized` -- gating on that flag would make this
+            # branch unreachable. Its completion signal is instead the message
+            # execution callback that runs the actual research (`message_execution_id`
+            # set), which is when its merged invocation stats are truly final.
+            llm_invocations_complete = (
+                self._event.payload.message_execution_id is not None
+                if "DeepResearch" in tool_names
+                else self._invocation_stats_finalized
             )
             self._debug_info_manager.add(
                 "llm_invocations_complete",
