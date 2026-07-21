@@ -7,11 +7,17 @@ authors = [{ name = "Cedric Klinkert", email = "cedric@unique.ch" }]
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.120.2",
-    "fastmcp>=3.1.1,<4",
+    "fastmcp>=3.2.0,<4",
     "openpyxl>=3.1.5",
     "pydantic>=2.12.3",
     "pydantic-settings>=2.6.0",
+    "unique-mcp>=2026.30.0",
 ]
+
+[tool.uv.sources]
+unique-mcp = { path = "../../../unique_mcp", editable = true }
+unique-toolkit = { path = "../../../unique_toolkit", editable = true }
+unique-sdk = { path = "../../../unique_sdk", editable = true }
 
 [project.scripts]
 mcp-sqlite-excel = "mcp_sqlite_excel.mcp_sqlite_excel:main"
@@ -23,6 +29,18 @@ build-backend = "uv_build"
 
 [tool.uv]
 exclude-newer = "2 weeks"
+constraint-dependencies = [
+    "authlib>=1.6.11",
+    "cryptography>=46.0.7",
+    "fastmcp>=3.2.0",
+    "pyjwt>=2.12.0",
+    "python-multipart>=0.0.27",
+]
+
+[tool.uv.exclude-newer-package]
+"unique-mcp" = false
+"unique-toolkit" = false
+"unique-sdk" = false
 
 [dependency-groups]
 dev = [

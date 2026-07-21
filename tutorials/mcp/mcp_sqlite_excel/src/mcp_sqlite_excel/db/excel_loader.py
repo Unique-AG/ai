@@ -99,6 +99,71 @@ def _unique_column_names(headers: list[str]) -> list[tuple[str, str]]:
     return result
 
 
+def _non_blank_cells(row: tuple[Any, ...] | list[Any]) -> list[Any]:
+    return [c for c in row if not _is_blank(c)]
+
+
+def _stringish_ratio(row: tuple[Any, ...] | list[Any]) -> float:
+    cells = _non_blank_cells(row)
+    if not cells:
+        return 0.0
+    stringish = 0
+    for cell in cells:
+        if isinstance(cell, bool):
+            continue
+        if isinstance(cell, (int, float, Decimal)):
+            continue
+        stringish += 1
+    return stringish / len(cells)
+
+
+def find_header_row_index(
+    rows: list[tuple[Any, ...]],
+    *,
+    header_row: int | None = None,
+    min_header_cells: int = 3,
+    max_scan: int = 40,
+) -> int | None:
+    """Locate the header row index within ``rows``.
+
+    Args:
+        rows: All sheet rows (values only).
+        header_row: Optional 1-based Excel row number to force (title shift).
+        min_header_cells: Minimum non-empty cells for auto-detection.
+        max_scan: How many leading rows to consider when auto-detecting.
+
+    Returns:
+        0-based index into ``rows``, or ``None`` if no suitable header exists.
+    """
+    if not rows:
+        return None
+
+    if header_row is not None:
+        idx = header_row - 1
+        if idx < 0 or idx >= len(rows):
+            raise ValueError(f"excel_header_row={header_row} is out of range for sheet with {len(rows)} rows")
+        if len(_non_blank_cells(rows[idx])) == 0:
+            raise ValueError(f"excel_header_row={header_row} is blank")
+        return idx
+
+    best_idx: int | None = None
+    best_score = -1.0
+    for i, row in enumerate(rows[:max_scan]):
+        cells = _non_blank_cells(row)
+        n = len(cells)
+        if n < min_header_cells:
+            continue
+        ratio = _stringish_ratio(row)
+        # Title rows are usually 1 cell; data rows mix numbers. Prefer wide text rows.
+        if ratio < 0.8:
+            continue
+        score = float(n) + ratio
+        if score > best_score:
+            best_score = score
+            best_idx = i
+    return best_idx
+
+
 def _sheet_to_schema_and_rows(
     sheet_name: str,
     headers: list[Any],
@@ -165,8 +230,17 @@ def _sheet_to_schema_and_rows(
     return schema, records
 
 
-def read_excel_workbook(excel_path: Path) -> list[tuple[TableSchema, list[dict[str, Any]]]]:
-    """Parse every non-empty sheet into (schema, rows)."""
+def read_excel_workbook(
+    excel_path: Path,
+    *,
+    header_row: int | None = None,
+    min_header_cells: int = 3,
+) -> list[tuple[TableSchema, list[dict[str, Any]]]]:
+    """Parse every usable sheet into (schema, rows).
+
+    Skips title/blank preamble by auto-detecting the header row (or using
+    ``header_row`` when provided). Sheets without a wide enough header are skipped.
+    """
     if not excel_path.is_file():
         raise FileNotFoundError(f"Excel workbook not found: {excel_path}")
 
@@ -175,17 +249,42 @@ def read_excel_workbook(excel_path: Path) -> list[tuple[TableSchema, list[dict[s
     try:
         for sheet_name in workbook.sheetnames:
             sheet = workbook[sheet_name]
-            rows_iter = sheet.iter_rows(values_only=True)
-            try:
-                header_row = next(rows_iter)
-            except StopIteration:
+            rows = [tuple(r) for r in sheet.iter_rows(values_only=True)]
+            if not rows:
                 _log.warning("Skipping empty sheet %r", sheet_name)
                 continue
-            data_rows = [tuple(r) for r in rows_iter]
-            if all(_is_blank(h) for h in header_row) and not data_rows:
+
+            try:
+                header_idx = find_header_row_index(
+                    rows,
+                    header_row=header_row,
+                    min_header_cells=min_header_cells,
+                )
+            except ValueError as exc:
+                _log.warning("Skipping sheet %r: %s", sheet_name, exc)
+                continue
+
+            if header_idx is None:
+                _log.warning(
+                    "Skipping sheet %r: no header with >= %d text cells",
+                    sheet_name,
+                    min_header_cells,
+                )
+                continue
+
+            header_row_values = list(rows[header_idx])
+            data_rows = rows[header_idx + 1 :]
+            if all(_is_blank(h) for h in header_row_values) and not data_rows:
                 _log.warning("Skipping blank sheet %r", sheet_name)
                 continue
-            schema, records = _sheet_to_schema_and_rows(sheet_name, list(header_row), data_rows)
+
+            _log.info(
+                "Sheet %r: using Excel row %d as header (%d non-empty cells)",
+                sheet_name,
+                header_idx + 1,
+                len(_non_blank_cells(header_row_values)),
+            )
+            schema, records = _sheet_to_schema_and_rows(sheet_name, header_row_values, data_rows)
             parsed.append((schema, records))
     finally:
         workbook.close()
@@ -235,7 +334,11 @@ def bootstrap_from_excel(
     db_path = Path(db_path or cfg.sqlite_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    sheets = read_excel_workbook(excel_path)
+    sheets = read_excel_workbook(
+        excel_path,
+        header_row=cfg.excel_header_row,
+        min_header_cells=cfg.excel_min_header_cells,
+    )
 
     if replace and db_path.exists():
         db_path.unlink()

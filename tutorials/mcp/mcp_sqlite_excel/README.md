@@ -27,10 +27,10 @@ flowchart LR
 cd tutorials/mcp/mcp_sqlite_excel
 uv sync
 uv run generate-sample-excel   # writes data/sample_portfolio.xlsx
-AUTH_DISABLED=true uv run mcp-sqlite-excel
+AUTH_DISABLED=true UNIQUE_MCP_LOCAL_BASE_URL=http://127.0.0.1:8004 uv run mcp-sqlite-excel
 ```
 
-Server listens on `http://127.0.0.1:8004` (override with `PORT`).
+Server listens on `http://127.0.0.1:8004` (from `UNIQUE_MCP_LOCAL_BASE_URL`).
 
 Health check: `curl http://127.0.0.1:8004/`
 
@@ -47,12 +47,14 @@ Rules:
 | Excel | SQLite |
 |-------|--------|
 | Sheet name | Table name (sanitized) |
-| First row | Column headers (sanitized to `snake_case`) |
+| Header row | Auto-detected (skips title/blank preamble), or `EXCEL_HEADER_ROW` |
 | Cell values | Type inferred: `INTEGER` / `REAL` / `TEXT` |
 | Column named `id` | Used as primary key |
 | No `id` column | Synthetic `row_id` autoincrement PK |
 
-Multiple sheets become multiple tables.
+Multiple sheets become multiple tables. Sheets without a wide enough header
+(default ≥ `EXCEL_MIN_HEADER_CELLS=3` text cells) are skipped — useful for
+KPI/legend tabs next to real data tables.
 
 ## MCP tools
 
@@ -111,33 +113,38 @@ Example `create_row` args:
 
 Mutations use `data-unique-action="callTool"` with a JSON **object** for args, e.g. `{"table":"positions","fields":{"ticker":"NVDA","direction":"Long"}}`, then `data-unique-source-refresh="positions"`.
 
-## Auth (Unique / Zitadel)
+## Auth (Zitadel via unique_mcp)
 
-By default the server uses the same OAuth proxy pattern as the other MCP tutorials. For local demos set `AUTH_DISABLED=true`.
-
-```bash
-# .env
-ZITADEL_URL=https://your-zitadel-instance.com
-UPSTREAM_CLIENT_ID=...
-UPSTREAM_CLIENT_SECRET=...
-BASE_URL_ENV=https://your-public-url.ngrok-free.app
-```
+Production auth matches [`mcp_search`](../mcp_search/): **`unique_mcp`** `create_zitadel_oidc_proxy` + `ZitadelOIDCProxySettings` / `ServerSettings`.
 
 ```bash
+cp zitadel.env.example zitadel.env
+cp unique_mcp.env.example unique_mcp.env
+# fill ZITADEL_* and UNIQUE_MCP_PUBLIC_BASE_URL
 uv run mcp-sqlite-excel
 ```
 
+| File | Variables |
+|------|-----------|
+| `zitadel.env` | `ZITADEL_BASE_URL`, `ZITADEL_CLIENT_ID`, `ZITADEL_CLIENT_SECRET` |
+| `unique_mcp.env` | `UNIQUE_MCP_PUBLIC_BASE_URL`, `UNIQUE_MCP_LOCAL_BASE_URL` |
+
+Register the callback in Zitadel:
+
+```
+https://<your-public-host>/auth/callback
+```
+
+See [`unique_mcp/docs/zitadel/README.md`](../../../unique_mcp/docs/zitadel/README.md). For local demos only, set `AUTH_DISABLED=true`.
+
 ## Configuration
 
-Settings are loaded via **pydantic-settings** (`AppSettings` in `settings.py`) from env vars and an optional `.env` file.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EXCEL_PATH` | `data/sample_portfolio.xlsx` | Workbook to seed from |
-| `SQLITE_PATH` | `data/portfolio.db` | SQLite file |
-| `AUTH_DISABLED` | `false` | Skip OAuth when `true` |
-| `PORT` | `8004` | HTTP port |
-| `ZITADEL_URL` / `UPSTREAM_CLIENT_*` / `BASE_URL_ENV` | — | OAuth (when auth enabled) |
+| Variable | Source | Description |
+|----------|--------|-------------|
+| `EXCEL_PATH` / `SQLITE_PATH` | `AppSettings` / `.env` | Workbook and DB paths |
+| `AUTH_DISABLED` | `AppSettings` / `.env` | Skip Zitadel (local only) |
+| `ZITADEL_*` | `zitadel.env` | OIDC client (unique_mcp) |
+| `UNIQUE_MCP_*` | `unique_mcp.env` | Public/bind URLs (unique_mcp) |
 
 CRUD responses (`BootstrapSummary`, `ListRowsResult`, `RowResult`, …) are Pydantic models in `models.py`.
 
@@ -155,8 +162,10 @@ Uses the same pattern as [`mcp_uk_companies_house/deploy.sh`](../mcp_uk_companie
 ### Prerequisites
 
 1. Azure CLI logged in (`az login`)
-2. `.env` with at least `AZURE_SUBSCRIPTION_ID`
-3. For OAuth: `UPSTREAM_CLIENT_ID`, `UPSTREAM_CLIENT_SECRET`, `ZITADEL_URL` (and Zitadel redirect URI `https://sqlite-excel-mcp.azurewebsites.net/auth/callback`)
+2. Existing resource group **`rg-lab-demo-001-unique-search-mcp`** (same as [`mcp_search`](../mcp_search/) — override with `RG=...`)
+3. `.env` with `AZURE_SUBSCRIPTION_ID`
+4. `zitadel.env` with `ZITADEL_BASE_URL`, `ZITADEL_CLIENT_ID`, `ZITADEL_CLIENT_SECRET`
+5. Zitadel redirect URI: `https://sqlite-excel-mcp.azurewebsites.net/auth/callback`
 
 ### Deploy
 
@@ -167,10 +176,10 @@ chmod +x deploy.sh
 
 What it does:
 
-- Creates resource group `rg-lab-demo-001-sqlite-excel-mcp` (Sweden Central)
-- Builds the Docker image in ACR `sqliteexcelmcpacr`
-- Creates/updates Web App `sqlite-excel-mcp` (B1 plan)
-- Sets `WEBSITES_PORT=8004`, `HOST=0.0.0.0`, persisted `SQLITE_PATH=/home/data/portfolio.db`
+- Uses existing resource group `rg-lab-demo-001-unique-search-mcp` (does **not** create a new RG)
+- Builds the Docker image in ACR `sqliteexcelmcpacr` (PyPI `unique-mcp` via `UV_NO_SOURCES=1`)
+- Creates/updates Web App `sqlite-excel-mcp` (B1 plan) in that RG
+- Sets `WEBSITES_PORT=8004`, `UNIQUE_MCP_*`, `ZITADEL_*`, persisted `SQLITE_PATH=/home/data/portfolio.db`
 - Restarts the app
 
 | URL | |
@@ -178,15 +187,15 @@ What it does:
 | App | `https://sqlite-excel-mcp.azurewebsites.net` |
 | MCP | `https://sqlite-excel-mcp.azurewebsites.net/mcp` |
 
-For a local-only Azure smoke test without Zitadel, put `AUTH_DISABLED=true` in `.env` before deploying.
+For a smoke test without Zitadel, put `AUTH_DISABLED=true` in `.env` before deploying.
 
 ### Redeploy (code only)
 
 ```bash
 az acr build -t sqlite-excel-mcp:latest -r sqliteexcelmcpacr .
-az webapp config container set -n sqlite-excel-mcp -g rg-lab-demo-001-sqlite-excel-mcp \
+az webapp config container set -n sqlite-excel-mcp -g rg-lab-demo-001-unique-search-mcp \
   --container-image-name "sqliteexcelmcpacr.azurecr.io/sqlite-excel-mcp:latest"
-az webapp restart -n sqlite-excel-mcp -g rg-lab-demo-001-sqlite-excel-mcp
+az webapp restart -n sqlite-excel-mcp -g rg-lab-demo-001-unique-search-mcp
 ```
 
 ## Tests

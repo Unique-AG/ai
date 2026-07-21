@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .env
+*.env
+!*.env.example
 data/*.db
 *.db
 .pytest_cache/

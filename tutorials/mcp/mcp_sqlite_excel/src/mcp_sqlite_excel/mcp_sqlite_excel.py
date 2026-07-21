@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import sys
+import logging
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import urlparse
 
 from fastapi.responses import JSONResponse
 from fastmcp import FastMCP
@@ -12,14 +13,21 @@ from pydantic import BaseModel, Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
+from unique_mcp.auth.zitadel.oidc_proxy import (
+    ZitadelOIDCProxySettings,
+    create_zitadel_oidc_proxy,
+)
+from unique_mcp.settings import ServerSettings
 
 from mcp_sqlite_excel import prompts
 from mcp_sqlite_excel.db.repository import SqliteCrudRepository
 from mcp_sqlite_excel.models import FieldMap, ServerStatus, ToolError
 from mcp_sqlite_excel.settings import AppSettings, get_settings
 
+logger = logging.getLogger("mcp_sqlite_excel")
+
 settings = get_settings()
-base_url = sys.argv[1] if len(sys.argv) > 1 else settings.base_url_env
+server_settings = ServerSettings()
 
 custom_middleware = [
     Middleware(
@@ -34,46 +42,42 @@ custom_middleware = [
 repo = SqliteCrudRepository(settings=settings)
 
 
+def _bind_host_and_port() -> tuple[str, int]:
+    """Resolve listen address from UNIQUE_MCP_LOCAL_BASE_URL."""
+    local = server_settings.local_base_url
+    parsed = urlparse(str(local))
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 8004
+    return host, port
+
+
+def _allowed_hosts() -> list[str]:
+    """Hostnames FastMCP may accept in the Host header (public URL + bind host).
+
+    FastMCP's HostOriginGuard rejects unknown Host headers with HTTP 421. When
+    bound to 0.0.0.0 behind Azure App Service, the public hostname must be
+    allowlisted explicitly.
+    """
+    hosts: list[str] = []
+    for url in (server_settings.public_base_url, server_settings.local_base_url):
+        if url is None:
+            continue
+        hostname = urlparse(str(url)).hostname
+        if hostname and hostname not in hosts:
+            hosts.append(hostname)
+    return hosts
+
+
 def _build_mcp(cfg: AppSettings) -> FastMCP:
     if cfg.auth_disabled:
+        logger.warning("AUTH_DISABLED=true — Zitadel OIDC is off (local demos only)")
         return FastMCP("SQLite Excel CRUD")
 
-    from fastmcp.server.auth.oauth_proxy import OAuthProxy
-    from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
-
-    token_verifier = IntrospectionTokenVerifier(
-        introspection_url=f"{cfg.zitadel_url}/oauth/v2/introspect",
-        client_id=cfg.upstream_client_id,
-        client_secret=cfg.upstream_client_secret,
-        client_auth_method="client_secret_basic",
+    oidc_proxy = create_zitadel_oidc_proxy(
+        mcp_server_base_url=server_settings.base_url.encoded_string(),
+        zitadel_oidc_proxy_settings=ZitadelOIDCProxySettings(),  # type: ignore[call-arg]
     )
-    auth = OAuthProxy(
-        upstream_authorization_endpoint=f"{cfg.zitadel_url}/oauth/v2/authorize",
-        upstream_token_endpoint=f"{cfg.zitadel_url}/oauth/v2/token",
-        upstream_client_id=cfg.upstream_client_id,
-        upstream_client_secret=cfg.upstream_client_secret,
-        upstream_revocation_endpoint=f"{cfg.zitadel_url}/oauth/v2/revoke",
-        token_verifier=token_verifier,
-        base_url=base_url,
-        redirect_path=None,
-        issuer_url=None,
-        service_documentation_url=None,
-        allowed_client_redirect_uris=None,
-        valid_scopes=[
-            "mcp:tools",
-            "mcp:prompts",
-            "mcp:resources",
-            "mcp:resource-templates",
-            "email",
-            "openid",
-            "profile",
-        ],
-        forward_pkce=True,
-        token_endpoint_auth_method="client_secret_post",
-        extra_authorize_params=None,
-        extra_token_params=None,
-    )
-    return FastMCP("SQLite Excel CRUD", auth=auth)
+    return FastMCP("SQLite Excel CRUD", auth=oidc_proxy)
 
 
 mcp = _build_mcp(settings)
@@ -251,18 +255,22 @@ async def get_status(request: Request):
 
 
 def main() -> None:
+    logging.getLogger("mcp_sqlite_excel").setLevel(logging.DEBUG)
+
     if not Path(repo.excel_path).is_file():
         from mcp_sqlite_excel.scripts.generate_sample_excel import generate
 
         generate(Path(repo.excel_path))
     repo.ensure_ready()
 
+    host, port = _bind_host_and_port()
     mcp.run(
-        transport="http",
-        host=settings.bind_host,
-        port=settings.port,
+        transport=server_settings.transport_scheme,
+        host=host,
+        port=port,
         log_level="debug",
         middleware=custom_middleware,
+        allowed_hosts=_allowed_hosts(),
     )
 
 

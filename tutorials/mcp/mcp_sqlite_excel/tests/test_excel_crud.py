@@ -178,14 +178,101 @@ def test_AI_app_settings_loads_paths_from_env(monkeypatch: pytest.MonkeyPatch, t
     monkeypatch.setenv("EXCEL_PATH", str(excel))
     monkeypatch.setenv("SQLITE_PATH", str(db))
     monkeypatch.setenv("AUTH_DISABLED", "true")
-    monkeypatch.setenv("PORT", "8011")
 
     cfg = AppSettings()
     assert cfg.excel_path == excel
     assert cfg.sqlite_path == db
     assert cfg.auth_disabled is True
-    assert cfg.port == 8011
-    assert cfg.bind_host == "127.0.0.1"
+
+
+@pytest.mark.ai
+def test_AI_bootstrap_skips_title_rows_and_finds_header(tmp_path: Path) -> None:
+    """Purpose: preamble title rows are skipped so the real header is used.
+    Why this matters: report-style workbooks (e.g. account review) put headers below titles.
+    Setup summary: sheet with two title rows, then a wide header + data.
+    """
+    excel = tmp_path / "preamble.xlsx"
+    wb = Workbook()
+    sheet = wb.active
+    sheet.title = "Clients"
+    sheet.append(["Account Review — RM Client Book"])
+    sheet.append(["RM: demo subtitle"])
+    sheet.append([])
+    sheet.append(["Client Ref", "Client Name", "Status", "Portfolio Value"])
+    sheet.append(["CH-priv-0187", "Alexander Nesterov", "Escalated", 18400000])
+    sheet.append(["CH-priv-0204", "Natalia Morozova", "Escalated", 24750000])
+    wb.save(excel)
+
+    settings = AppSettings(excel_path=excel, sqlite_path=tmp_path / "preamble.db", auth_disabled=True)
+    summary = bootstrap_from_excel(settings=settings, replace=True)
+    assert summary.tables[0].table == "clients"
+    cols = {c.name for c in summary.tables[0].columns}
+    assert "client_ref" in cols
+    assert "client_name" in cols
+    assert "account_review_rm_client_book" not in cols
+
+    repo = SqliteCrudRepository(settings=settings)
+    listed = repo.list_rows("clients")
+    assert listed.total_matching == 2
+    assert listed.rows[0]["client_ref"] == "CH-priv-0187"
+
+
+@pytest.mark.ai
+def test_AI_bootstrap_honors_explicit_excel_header_row(tmp_path: Path) -> None:
+    """Purpose: EXCEL_HEADER_ROW forces a fixed 1-based header shift.
+    Why this matters: auto-detect can be overridden for unusual layouts.
+    Setup summary: force header on Excel row 3.
+    """
+    excel = tmp_path / "forced.xlsx"
+    wb = Workbook()
+    sheet = wb.active
+    sheet.title = "Items"
+    sheet.append(["ignore me"])
+    sheet.append(["also ignore", "x", "y", "z"])
+    sheet.append(["Name", "Qty", "Color"])
+    sheet.append(["Widget", 3, "red"])
+    wb.save(excel)
+
+    settings = AppSettings(
+        excel_path=excel,
+        sqlite_path=tmp_path / "forced.db",
+        auth_disabled=True,
+        excel_header_row=3,
+    )
+    summary = bootstrap_from_excel(settings=settings, replace=True)
+    cols = {c.name for c in summary.tables[0].columns}
+    assert cols == {"row_id", "name", "qty", "color"}
+    assert summary.tables[0].row_count == 1
+
+
+@pytest.mark.ai
+def test_AI_bootstrap_account_review_dataset_if_present() -> None:
+    """Purpose: the account_review_dataset workbook loads Clients + Smart Actions.
+    Why this matters: the demo dataset is a report-style Excel with title rows.
+    Setup summary: skip if the file is not checked in locally.
+    """
+    excel = Path(__file__).resolve().parents[1] / "data" / "account_review_dataset.xlsx"
+    if not excel.is_file():
+        pytest.skip("account_review_dataset.xlsx not present")
+
+    settings = AppSettings(
+        excel_path=excel,
+        sqlite_path=excel.with_name("account_review_test.db"),
+        auth_disabled=True,
+    )
+    summary = bootstrap_from_excel(settings=settings, replace=True)
+    tables = {t.table: t for t in summary.tables}
+    assert "clients" in tables
+    assert "smart_actions" in tables
+    client_cols = {c.name for c in tables["clients"].columns}
+    assert "client_ref" in client_cols
+    assert "portfolio_value" in client_cols
+    assert tables["clients"].row_count == 12
+    assert tables["smart_actions"].row_count == 8
+    # KPI / Legend are key-value sheets — skipped by min header width
+    assert "kpi_summary" not in tables
+    assert "legend" not in tables
+    settings.sqlite_path.unlink(missing_ok=True)
 
 
 @pytest.mark.ai
