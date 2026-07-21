@@ -49,15 +49,25 @@ def test_chat_window_html_reads_embed_url_from_structured_content():
     assert "embedUrl" in html
 
 
-def test_chat_window_html_has_native_panel_stop_and_followup():
+def test_chat_window_html_has_native_panel_with_unique_rendering():
     html = load_chat_window_html()
     assert "chat-panel" in html
-    assert 'id="stop-btn"' in html
-    assert "Resume watching" in html
     assert "peek_space_answer" in html
-    assert 'name: "ask_space"' in html
-    assert "followup" in html
-    assert "Stopped watching" in html
+    # Unique message markup support: citations, thinking blocks, file fences.
+    assert "decorateCitations" in html
+    assert "details" in html
+    assert "fileWithSource" in html
+    assert "unique://content/" in html
+    assert "https://prompt=" in html
+
+
+def test_chat_window_html_has_no_stop_or_followup_controls():
+    html = load_chat_window_html()
+    assert "stop-btn" not in html
+    assert "Resume watching" not in html
+    assert "Stopped watching" not in html
+    assert "followup" not in html
+    assert 'name: "ask_space"' not in html
 
 
 def test_chat_window_html_inlines_markdown_vendors():

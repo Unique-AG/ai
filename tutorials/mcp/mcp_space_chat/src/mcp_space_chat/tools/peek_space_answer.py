@@ -110,10 +110,12 @@ async def peek_space_answer(
             is_error=True,
         )
 
-    raw_messages = history.get("messages") or []
-    # API typically returns newest-first; present oldest-first for the UI.
-    ordered = list(reversed(raw_messages))
-    messages = [_serialize_message(m) for m in ordered if isinstance(m, dict)]
+    raw_messages = [m for m in history.get("messages") or [] if isinstance(m, dict)]
+    # Present oldest-first for the UI regardless of API ordering. Sort by
+    # createdAt (ISO-8601 strings compare chronologically); missing dates
+    # keep their relative position at the start.
+    ordered = sorted(raw_messages, key=lambda m: m.get("createdAt") or "")
+    messages = [_serialize_message(m) for m in ordered]
 
     # Skip SYSTEM noise for the overall done/latest-text helpers.
     non_system = [m for m in messages if m.get("role") != "SYSTEM"]
