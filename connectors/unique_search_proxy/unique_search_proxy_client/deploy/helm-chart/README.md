@@ -32,6 +32,8 @@ Dedicated Helm chart for the Unique search proxy connector
 | fullnameOverride | string | `"search-proxy"` |  |
 | googleSearch.connection.apiEndpoint | string | `"https://www.googleapis.com/customsearch/v1"` |  |
 | googleSearch.enabled | bool | `false` |  |
+| grafana.dashboards.enabled | bool | `true` |  |
+| grafana.dashboards.replacements.%%PROMETHEUS_UID%% | string | `"prometheus"` |  |
 | httpClient.connection.proxyAuthMode | string | `"none"` |  |
 | httpClient.connection.proxyProtocol | string | `"http"` |  |
 | httpClient.tuning.maxConnections | int | `100` |  |
