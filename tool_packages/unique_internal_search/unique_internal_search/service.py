@@ -495,7 +495,9 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 # SafeTaskExecutor, which builds a fresh, stats-less error
                 # response one level up -- silently dropping tokens already
                 # spent before the failure.
-                self.logger.error(f"InternalSearch tool run failed: {e}")
+                # logger.exception() already attaches the active exception's
+                # type and traceback; don't stringify it into the message.
+                self.logger.exception("InternalSearch tool run failed")
                 return ToolCallResponse(
                     id=tool_call.id,  # type: ignore
                     name=self.name,

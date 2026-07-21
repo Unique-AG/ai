@@ -165,7 +165,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 # processing/relevancy before the failure would never reach
                 # analytics, since SafeTaskExecutor builds its own fresh,
                 # stats-less error response one level up.
-                _LOGGER.exception(f"WebSearch tool run failed: {e}")
+                # logger.exception() already attaches the active exception's
+                # type and traceback; don't stringify it into the message.
+                _LOGGER.exception("WebSearch tool run failed")
                 return ToolCallResponse(
                     id=tool_call.id,  # type: ignore
                     name=self.name,
