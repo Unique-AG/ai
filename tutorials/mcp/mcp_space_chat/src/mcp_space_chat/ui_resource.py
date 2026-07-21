@@ -20,7 +20,10 @@ from pathlib import Path
 from mcp.types import EmbeddedResource
 from mcp_ui_server import create_ui_resource
 
-CHAT_WINDOW_URI = "ui://space-chat/chat-window"
+# Version suffix busts host-side resource caches (Claude caches the app HTML
+# per resource URI): bump whenever chat_window.html changes materially.
+CHAT_WINDOW_VERSION = "v2"
+CHAT_WINDOW_URI = f"ui://space-chat/chat-window-{CHAT_WINDOW_VERSION}"
 HELLO_WORLD_URI = "ui://space-chat/hello-world"
 
 # Preferred viewport for the hello-world smoke-test app (MCP Apps size-changed).
