@@ -206,6 +206,17 @@ autoscaling:
 pdb:
   maxUnavailable: 30%
 
+# ── Grafana ───────────────────────────────────────────────────────────────────
+# One ConfigMap (label grafana_dashboard: "1") is rendered per JSON file under
+# files/grafana/dashboards/ and auto-imported by the cluster Grafana sidecar.
+# %%PROMETHEUS_UID%% in the dashboard JSON is replaced with the datasource UID
+# below; override per tenant in the cluster overlay if the UID differs.
+grafana:
+  dashboards:
+    enabled: true
+    replacements:
+      '%%PROMETHEUS_UID%%': prometheus
+
 # ── NetworkPolicy ─────────────────────────────────────────────────────────────
 networkPolicy:
   enabled: false

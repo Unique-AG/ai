@@ -1,0 +1,425 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "timezone": "browser",
+  "title": "Unique Search Proxy",
+  "uid": "unique-search-proxy",
+  "schemaVersion": 39,
+  "tags": ["unique", "search-proxy"],
+  "templating": {
+    "list": [
+      {
+        "name": "engine",
+        "label": "Search engine",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+        "query": { "qryType": 1, "query": "label_values(unique_search_proxy_search_duration_seconds_bucket, engine)", "refId": "engine" },
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "crawler",
+        "label": "Crawler",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+        "query": { "qryType": 1, "query": "label_values(unique_search_proxy_crawl_duration_seconds_bucket, crawler)", "refId": "crawler" },
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".+",
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "HTTP",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP request rate by path & status (req/s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (path, status_code) (rate(python_http_requests_total[1m]))",
+          "legendFormat": "{{path}} [{{status_code}}]"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP latency p50 / p95 / p99 by path (s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.50, sum by (le, path) (rate(python_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{path}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.95, sum by (le, path) (rate(python_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{path}}"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.99, sum by (le, path) (rate(python_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{path}}"
+        }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Search",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Search request rate by engine (req/s, incl. errors)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (engine) (rate(unique_search_proxy_search_total[1m])) + sum by (engine) (rate(unique_search_proxy_search_errors_total[1m]))",
+          "legendFormat": "{{engine}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Search errors by engine / code (err/s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (engine, error_code) (rate(unique_search_proxy_search_errors_total[1m]))",
+          "legendFormat": "{{engine}} [{{error_code}}]"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Search latency p50 / p95 / p99 by engine (s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.50, sum by (le, engine) (rate(unique_search_proxy_search_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{engine}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.95, sum by (le, engine) (rate(unique_search_proxy_search_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{engine}}"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.99, sum by (le, engine) (rate(unique_search_proxy_search_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{engine}}"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Search latency distribution — $engine",
+      "description": "Standard histogram: x = latency bucket upper bound (le, seconds), y = request count over the selected range. The query's Heatmap format de-cumulates the classic histogram buckets, and the Time field is dropped so the bucket bounds become the x-axis categories. Repeats per engine.",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "repeat": "engine",
+      "repeatDirection": "h",
+      "maxPerRow": 3,
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 18 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "continuous-BlPu" },
+          "custom": { "lineWidth": 1, "fillOpacity": 80, "gradientMode": "hue", "axisLabel": "requests" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Field",
+        "orientation": "vertical",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "legend": { "showLegend": false, "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (le) (increase(unique_search_proxy_search_duration_seconds_bucket{engine=~\"$engine\"}[$__range]))",
+          "format": "heatmap",
+          "instant": true,
+          "legendFormat": "{{le}}"
+        }
+      ],
+      "transformations": [
+        { "id": "reduce", "options": { "reducers": ["lastNotNull"], "mode": "seriesToRows" } }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Crawl",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Crawl request rate by crawler (req/s, incl. errors)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 28 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (crawler) (rate(unique_search_proxy_crawl_total[1m])) + sum by (crawler) (rate(unique_search_proxy_crawl_errors_total[1m]))",
+          "legendFormat": "{{crawler}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Crawl errors & blocked (per/s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 28 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (crawler, error_code) (rate(unique_search_proxy_crawl_errors_total[1m]))",
+          "legendFormat": "err {{crawler}} [{{error_code}}]"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (reason_category) (rate(unique_search_proxy_crawl_blocked_total[1m]))",
+          "legendFormat": "blocked [{{reason_category}}]"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Crawl latency p50 / p95 / p99 by crawler (s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 28 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.50, sum by (le, crawler) (rate(unique_search_proxy_crawl_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{crawler}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.95, sum by (le, crawler) (rate(unique_search_proxy_crawl_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{crawler}}"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.99, sum by (le, crawler) (rate(unique_search_proxy_crawl_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{crawler}}"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Crawl latency distribution — $crawler",
+      "description": "Standard histogram: x = latency bucket upper bound (le, seconds), y = request count over the selected range. The query's Heatmap format de-cumulates the classic histogram buckets, and the Time field is dropped so the bucket bounds become the x-axis categories. Repeats per crawler.",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "repeat": "crawler",
+      "repeatDirection": "h",
+      "maxPerRow": 3,
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 36 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "continuous-GrYlRd" },
+          "custom": { "lineWidth": 1, "fillOpacity": 80, "gradientMode": "hue", "axisLabel": "requests" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Field",
+        "orientation": "vertical",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "legend": { "showLegend": false, "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (le) (increase(unique_search_proxy_crawl_duration_seconds_bucket{crawler=~\"$crawler\"}[$__range]))",
+          "format": "heatmap",
+          "instant": true,
+          "legendFormat": "{{le}}"
+        }
+      ],
+      "transformations": [
+        { "id": "reduce", "options": { "reducers": ["lastNotNull"], "mode": "seriesToRows" } }
+      ]
+    },
+
+    {
+      "type": "row",
+      "title": "Agent search",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 },
+      "collapsed": false
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent search rate by engine (req/s, incl. errors)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 46 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (engine) (rate(unique_search_proxy_agent_search_total[1m])) + sum by (engine) (rate(unique_search_proxy_agent_search_errors_total[1m]))",
+          "legendFormat": "{{engine}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent search & top-level proxy errors (err/s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 46 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (engine, error_code) (rate(unique_search_proxy_agent_search_errors_total[1m]))",
+          "legendFormat": "agent {{engine}} [{{error_code}}]"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (error_code) (rate(unique_search_proxy_proxy_errors_total[1m]))",
+          "legendFormat": "proxy [{{error_code}}]"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent search latency p50 / p95 / p99 by engine (s)",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 46 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.50, sum by (le, engine) (rate(unique_search_proxy_agent_search_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{engine}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.95, sum by (le, engine) (rate(unique_search_proxy_agent_search_duration_seconds_bucket[5m])))",
+          "legendFormat": "p95 {{engine}}"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "histogram_quantile(0.99, sum by (le, engine) (rate(unique_search_proxy_agent_search_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{engine}}"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Agent search latency distribution (all engines)",
+      "description": "Standard histogram: x = latency bucket upper bound (le, seconds), y = request count over the selected range. The query's Heatmap format de-cumulates the classic histogram buckets, and the Time field is dropped so the bucket bounds become the x-axis categories.",
+      "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 54 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "continuous-BlPu" },
+          "custom": { "lineWidth": 1, "fillOpacity": 80, "gradientMode": "hue", "axisLabel": "requests" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "xField": "Field",
+        "orientation": "vertical",
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 0,
+        "showValue": "auto",
+        "stacking": "none",
+        "groupWidth": 0.7,
+        "barWidth": 0.97,
+        "fullHighlight": false,
+        "legend": { "showLegend": false, "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "%%PROMETHEUS_UID%%" },
+          "expr": "sum by (le) (increase(unique_search_proxy_agent_search_duration_seconds_bucket[$__range]))",
+          "format": "heatmap",
+          "instant": true,
+          "legendFormat": "{{le}}"
+        }
+      ],
+      "transformations": [
+        { "id": "reduce", "options": { "reducers": ["lastNotNull"], "mode": "seriesToRows" } }
+      ]
+    }
+  ]
+}
