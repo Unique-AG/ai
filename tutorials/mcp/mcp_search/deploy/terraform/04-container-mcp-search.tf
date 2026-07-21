@@ -112,10 +112,16 @@ locals {
     ]
 
     environment_variables = {
-      # Server settings
-      "MCP_SERVER_BASE_URL"       = "https://${var.domain_name}"
-      "MCP_SERVER_LOCAL_BASE_URL" = "http://0.0.0.0:8003"
-      "MCP_SERVER_TRANSPORT"      = "streamable-http"
+      # Server settings — names must match unique_mcp.settings.ServerSettings'
+      # env_prefix ("UNIQUE_MCP_"). There is no separate transport env var:
+      # transport_scheme is computed from public_base_url's scheme.
+      "UNIQUE_MCP_PUBLIC_BASE_URL" = "https://${var.domain_name}"
+      "UNIQUE_MCP_LOCAL_BASE_URL"  = "http://0.0.0.0:8003"
+
+      # No TTY in ACI, so rich falls back to 80 columns and wraps every log
+      # record across multiple Log Analytics rows, shredding tool-call args.
+      # A wide COLUMNS keeps each record on one queryable line.
+      "COLUMNS" = "3000"
     }
 
     secure_environment_variables = {
