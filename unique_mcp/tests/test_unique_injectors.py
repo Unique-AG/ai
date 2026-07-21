@@ -552,3 +552,69 @@ def test_get_unique_service_factory__builds_factory_with_resolved_settings(
     mock_get_settings.assert_called_once()
     mock_factory_cls.assert_called_once_with(settings=base_settings)
     assert result is mock_instance
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__uses_meta__before_jwt_and_userinfo(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Async resolver honors trusted _meta identity first.
+    Why this matters: Unique AI passes identity via _meta; it must win.
+    Setup summary: meta carries canonical user/company keys; expect them back.
+    """
+    meta = {MetaKeys.USER_ID: "meta-user", MetaKeys.COMPANY_ID: "meta-company"}
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=meta),
+    ):
+        s = await get_unique_settings_async()
+    assert s.authcontext.get_confidential_user_id() == "meta-user"
+    assert s.authcontext.get_confidential_company_id() == "meta-company"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__uses_jwt__before_userinfo(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Async resolver uses JWT claims before calling userinfo.
+    Why this matters: avoids an extra Zitadel round-trip for complete tokens.
+    Setup summary: no meta; JWT auth context present; expect its ids.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(
+            f"{_MOD}._fastmcp_access_token_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("jwt-user"),
+                company_id=SecretStr("jwt-company"),
+            ),
+        ),
+    ):
+        s = await get_unique_settings_async()
+    assert s.authcontext.get_confidential_user_id() == "jwt-user"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_settings_async__falls_back_to_env__without_session(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Without any OAuth session, env-based settings are returned as-is.
+    Why this matters: local unauthenticated development must keep working.
+    Setup summary: no meta/JWT/userinfo/token; expect the base settings object.
+    """
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+        patch(f"{_MOD}._userinfo_to_auth_context", new=AsyncMock(return_value=None)),
+        patch(f"{_MOD}.get_access_token", return_value=None),
+    ):
+        s = await get_unique_settings_async()
+    assert s is base_settings

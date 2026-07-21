@@ -19,6 +19,7 @@ except ImportError:
 
 
 from pydantic import BaseModel, SecretStr
+from typing_extensions import deprecated
 from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.app.unique_settings import (
     AuthContext,
@@ -182,8 +183,15 @@ def get_request_meta() -> dict[str, Any] | None:
     return _fastmcp_read_meta_dict()
 
 
+@deprecated(
+    "Use get_unique_settings_async: it also resolves Zitadel userinfo and "
+    "refuses the UNIQUE_AUTH_* env fallback for logged-in requests."
+)
 def get_unique_settings() -> UniqueSettings:
     """Resolve ``UniqueSettings`` for the current request (sync).
+
+    .. deprecated:: kept for callers that cannot await; new code should use
+       :func:`get_unique_settings_async`.
 
     Priority: ``_meta`` auth → JWT claims → env ``UNIQUE_AUTH_*``.
 
@@ -245,6 +253,10 @@ async def get_unique_settings_async() -> UniqueSettings:
     return settings
 
 
+@deprecated(
+    "Sync identity resolution; prefer get_unique_settings_async and build "
+    "services from the resolved settings."
+)
 def get_unique_service_factory() -> UniqueServiceFactory:
     settings = get_unique_settings()
     return UniqueServiceFactory(settings=settings)
