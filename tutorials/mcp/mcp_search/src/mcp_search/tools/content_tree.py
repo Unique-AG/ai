@@ -98,8 +98,13 @@ _NO_FOLDER_PATH_SENTINEL = "_no_folder_path"
 
 
 def _display_path(segments: Sequence[str]) -> str:
-    """Join path segments for display, omitting the orphan-folder sentinel."""
-    return "/".join(s for s in segments if s != _NO_FOLDER_PATH_SENTINEL)
+    """Join path segments for display labels.
+
+    Drops the orphan-folder sentinel and strips ``[`` / ``]`` so folder names
+    like ``[SM]`` cannot break the outer ``[label](url)`` markdown wrapper.
+    """
+    parts = (s for s in segments if s != _NO_FOLDER_PATH_SENTINEL)
+    return "/".join(p.replace("[", "").replace("]", "") for p in parts)
 
 
 def _file_link(
@@ -107,7 +112,7 @@ def _file_link(
     segments: Sequence[str],
     frontend_base_url: str | None,
 ) -> str:
-    """Render a file row as a markdown citation (sentinel stripped from the label)."""
+    """Render a file row as a markdown citation (sentinel/brackets stripped)."""
     display = _display_path(segments)
     url = file_reference_url(
         content_info.id,

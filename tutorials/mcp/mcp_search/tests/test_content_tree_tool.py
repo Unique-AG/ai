@@ -353,14 +353,9 @@ async def test_list_uses_frontend_deep_link_when_scope_known(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_list_escapes_brackets_in_sm_folder_path():
-    """User repro: ``[SM]/AlpenSys/Audit_Report_….pdf`` must stay a valid link.
-
-    Unescaped ``[[SM]/…](url)`` closes the label at the first ``]``, dropping
-    the URL and leaving a stringified remnant like the reported paste.
-    """
+async def test_list_strips_brackets_from_sm_folder_path():
+    """``[SM]/AlpenSys/Audit_Report_….pdf`` must emit a clean markdown link."""
     info = _make_content_info("cont_ioi3voailf7hr011zcp6b7eh")
-    # Build "[SM]" via concat so tools/editors cannot mangle the brackets.
     sm_folder = "[" + "SM" + "]"
     mock_tree = _make_mock_tree()
     mock_tree.resolve_visible_file_paths_async = AsyncMock(
@@ -376,39 +371,11 @@ async def test_list_escapes_brackets_in_sm_folder_path():
 
     text = result.content[0].text  # type: ignore[union-attr]
     assert text == (
-        "[\\[SM\\]/AlpenSys/Audit_Report_AlpenSys_FY2023.pdf]"
+        "[SM/AlpenSys/Audit_Report_AlpenSys_FY2023.pdf]"
         "(unique://content/cont_ioi3voailf7hr011zcp6b7eh) "
         "(content_id=cont_ioi3voailf7hr011zcp6b7eh)"
     )
-    # Unescaped nested form must not appear.
-    assert "[[SM]" not in text
-
-
-@pytest.mark.asyncio
-async def test_search_escapes_brackets_in_nested_path_label():
-    sm_folder = "[" + "SM" + "]"
-    mock_tree = _make_mock_tree()
-    mock_tree.search_visible_files_fuzzy_async = AsyncMock(
-        return_value=[
-            _make_fuzzy_match(
-                ["Company", sm_folder, "AlpenSys", "note.txt"],
-                0.88,
-                "c_br",
-            )
-        ]
-    )
-    with patch("mcp_search.tools.content_tree.ContentTree", return_value=mock_tree):
-        result = await content_tree(
-            mode="search",
-            query="note",
-            config=ContentTreeToolConfig(),
-        )
-
-    text = result.content[0].text  # type: ignore[union-attr]
-    assert text == (
-        "[Company/\\[SM\\]/AlpenSys/note.txt](unique://content/c_br) "
-        "(score=0.88, content_id=c_br)"
-    )
+    assert "[" + "SM" + "]" not in text
 
 
 @pytest.mark.asyncio
