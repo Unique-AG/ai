@@ -18,13 +18,34 @@ class Space(APIResource["Space"]):
     def OBJECT_NAME(cls) -> Literal["space"]:
         return "space"
 
+    # SDK-facing name for Conduct spaces. Mapped to the API wire value
+    # ``SWAPPABLE_INTELLIGENCE`` on create/update (see ``_normalize_ui_type``).
+    # ``SWAPPABLE_INTELLIGENCE`` remains accepted for API parity / round-trips.
     UiType: TypeAlias = Literal[
         "MAGIC_TABLE",
         "UNIQUE_CUSTOM",
         "TRANSLATION",
         "UNIQUE_AI",
+        "UNIQUE_CONDUCT",
         "SWAPPABLE_INTELLIGENCE",
     ]
+
+    _UI_TYPE_TO_API: dict[str, str] = {
+        "UNIQUE_CONDUCT": "SWAPPABLE_INTELLIGENCE",
+    }
+
+    @classmethod
+    def _normalize_ui_type_params(cls, params: dict[str, Any]) -> dict[str, Any]:
+        """Map SDK uiType aliases to API wire values before request."""
+        ui_type = params.get("uiType")
+        if not isinstance(ui_type, str):
+            return params
+        api_ui_type = cls._UI_TYPE_TO_API.get(ui_type)
+        if api_ui_type is None:
+            return params
+        normalized = dict(params)
+        normalized["uiType"] = api_ui_type
+        return normalized
 
     class ModuleParams(TypedDict):
         name: str
@@ -597,7 +618,7 @@ class Space(APIResource["Space"]):
                 "/space",
                 user_id,
                 company_id,
-                params=params,
+                params=cls._normalize_ui_type_params(dict(params)),
             ),
         )
 
@@ -615,7 +636,7 @@ class Space(APIResource["Space"]):
                 "/space",
                 user_id,
                 company_id,
-                params=params,
+                params=cls._normalize_ui_type_params(dict(params)),
             ),
         )
 
@@ -744,7 +765,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
-                params=params,
+                params=cls._normalize_ui_type_params(dict(params)),
             ),
         )
 
@@ -763,7 +784,7 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
-                params=params,
+                params=cls._normalize_ui_type_params(dict(params)),
             ),
         )
 

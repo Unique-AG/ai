@@ -6,7 +6,7 @@
 #     "unique-sdk>=2026.28.0",
 # ]
 # ///
-"""Create a Conduct (Swappable Intelligence) space via the Space API.
+"""Create a Conduct space via the Space API (`uiType=UNIQUE_CONDUCT`).
 
 Credentials are read from the current environment, or from an env file passed
 with `--env-file`.
@@ -109,7 +109,7 @@ def main() -> None:
         user_id,
         company_id,
         name=args.name,
-        uiType="SWAPPABLE_INTELLIGENCE",
+        uiType="UNIQUE_CONDUCT",
         fallbackModule=MODULE_NAME,
         modules=[
             {
