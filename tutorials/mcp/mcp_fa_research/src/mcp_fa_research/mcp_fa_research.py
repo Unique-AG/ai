@@ -1,0 +1,223 @@
+"""mcp_fa_research.py — the FA (fundamental analyst) research demo MCP server.
+
+Synthetic data layer for the Exane BNPP CIB sell-side research demo ("fa-demo"):
+the analyst cockpit feeds (coverage roster, per-name dossier, 07:00 morning brief
+with the profit-warning cascade, action inbox, agenda, jobs) plus the mock
+market-data connectors (consensus / price / our-estimates — à la the RM demo's
+mock FactSet/CapIQ pulls). ALL DATA IS SYNTHETIC — DEMO USE ONLY.
+
+Read-only by design: analyst state (thesis, interaction log, note history) is
+persisted by the coverage-dossier skill in the Knowledge Base, not here. Live
+quotes come from the separate yahoo-finance connector.
+
+Built like the other demo servers (mcp_trade_reconciliation / rm_mcps): a
+standalone FastMCP HTTP server; OAuth (Zitadel) is OPTIONAL — when the upstream
+env vars are absent the server runs OPEN (no per-user login; fine for synthetic,
+read-only demo data).
+
+Run locally:   uv run python src/mcp_fa_research/mcp_fa_research.py
+MCP endpoint:  http://127.0.0.1:8005/mcp
+"""
+
+import json
+import os
+import sys
+from typing import Annotated
+
+from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
+from fastmcp import FastMCP
+from pydantic import Field
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+
+import seed
+
+load_dotenv()
+
+PORT = int(os.getenv("PORT", "8005"))
+
+
+def build_auth():
+    """Zitadel OAuth proxy — only when UPSTREAM_CLIENT_ID / UPSTREAM_CLIENT_SECRET /
+    ZITADEL_URL are ALL set; otherwise None (open server). Same pattern as the RM
+    Agent and trade-reconciliation MCPs."""
+    upstream_client_id = os.getenv("UPSTREAM_CLIENT_ID")
+    upstream_client_secret = os.getenv("UPSTREAM_CLIENT_SECRET")
+    zitadel_url = os.getenv("ZITADEL_URL")
+    if not (upstream_client_id and upstream_client_secret and zitadel_url):
+        return None
+
+    from fastmcp.server.auth.oauth_proxy import OAuthProxy
+    from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
+
+    base_url = sys.argv[1] if len(sys.argv) > 1 else os.getenv(
+        "BASE_URL_ENV", f"http://localhost:{PORT}"
+    )
+    token_verifier = IntrospectionTokenVerifier(
+        introspection_url=f"{zitadel_url}/oauth/v2/introspect",
+        client_id=upstream_client_id,
+        client_secret=upstream_client_secret,
+        client_auth_method="client_secret_basic",
+    )
+    return OAuthProxy(
+        upstream_authorization_endpoint=f"{zitadel_url}/oauth/v2/authorize",
+        upstream_token_endpoint=f"{zitadel_url}/oauth/v2/token",
+        upstream_client_id=upstream_client_id,
+        upstream_client_secret=upstream_client_secret,
+        upstream_revocation_endpoint=f"{zitadel_url}/oauth/v2/revoke",
+        token_verifier=token_verifier,
+        base_url=base_url,
+        redirect_path=None,
+        issuer_url=None,
+        service_documentation_url=None,
+        allowed_client_redirect_uris=None,
+        valid_scopes=["email", "openid", "profile"],
+        forward_pkce=True,
+        token_endpoint_auth_method="client_secret_post",
+        extra_authorize_params=None,
+        extra_token_params=None,
+    )
+
+
+custom_middleware = [
+    Middleware(
+        CORSMiddleware,
+        allow_credentials=True,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+]
+
+mcp = FastMCP("FA Research", auth=build_auth())
+
+_TICKER = Annotated[str, Field(description="Ticker, Bloomberg code or company name "
+                                           "(e.g. MC.PA, MC FP, LVMH).")]
+
+
+def _unknown(raw: str) -> str:
+    return json.dumps({
+        "error": f"unknown name: {raw!r}",
+        "covered": [f'{c["name"]} ({c["ticker"]})' for c in seed.COVERAGE],
+    })
+
+
+@mcp.tool(name="get_coverage", title="Coverage roster",
+          description="The analyst's covered names with rating, single target price + "
+                      "upside % (house style), last price, workflow status pills and next "
+                      "catalyst. Returns {as_of, count, rows:[…]}. SYNTHETIC demo data.")
+def get_coverage() -> str:
+    return json.dumps({"as_of": seed.AS_OF, "count": len(seed.COVERAGE),
+                       "rows": seed.COVERAGE})
+
+
+@mcp.tool(name="get_dossier", title="Coverage dossier (summary)",
+          description="Per-name coverage dossier summary: thesis, estimates vs consensus "
+                      "line, interaction log, note history — plus the roster row (rating, "
+                      "target price, next catalyst). The deep, persistent record lives in "
+                      "the KB via the coverage-dossier skill. SYNTHETIC demo data.")
+def get_dossier(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    row = next(c for c in seed.COVERAGE if c["ticker"] == t)
+    d = seed.DOSSIERS[t]
+    return json.dumps({**row, **d,
+                       "interaction_log_text": " · ".join(d["interaction_log"]),
+                       "note_history_text": " · ".join(d["note_history"])})
+
+
+@mcp.tool(name="get_morning_brief", title="Morning brief (07:00)",
+          description="The pre-open morning briefing across the covered names: per item "
+                      "what-changed / so-what / suggested action; on a results or "
+                      "profit-warning event includes the prepared reaction cascade "
+                      "(model → valuation → morning-meeting note → buy-side email + "
+                      "priority call list). Drafts only — nothing is sent. SYNTHETIC.")
+def get_morning_brief() -> str:
+    return json.dumps(seed.MORNING_BRIEF)
+
+
+@mcp.tool(name="get_action_inbox", title="Action inbox (drafts)",
+          description="Emails the agent has drafted replies for (desk, buy-side, IR). "
+                      "Drafts only — the analyst reviews and sends. Returns "
+                      "{count, drafts:[…]}. SYNTHETIC demo data.")
+def get_action_inbox() -> str:
+    return json.dumps({"count": len(seed.ACTION_INBOX), "drafts": seed.ACTION_INBOX})
+
+
+@mcp.tool(name="get_agenda", title="Agenda (roadshows & meetings)",
+          description="This week's agenda: investor roadshows (analyst-led marketing) and "
+                      "corporate roadshows (analyst-organised for issuer management). "
+                      "Returns {count, events:[…]}. SYNTHETIC demo data.")
+def get_agenda() -> str:
+    return json.dumps({"count": len(seed.AGENDA), "events": seed.AGENDA})
+
+
+@mcp.tool(name="get_jobs", title="Jobs & notifications",
+          description="Background/scheduled runs (first-take, 07:00 desk brief, tone-drift "
+                      "monitor) with status, plus the latest side-panel notification. "
+                      "SYNTHETIC demo data.")
+def get_jobs() -> str:
+    return json.dumps({"count": len(seed.JOBS["jobs"]), **seed.JOBS})
+
+
+@mcp.tool(name="get_consensus", title="Sell-side consensus snapshot (mock)",
+          description="Mock consensus connector (IBES/Refinitiv-style): analyst count, "
+                      "EPS mean/high/low, revenue, margin, ratings split, mean target "
+                      "price. Available for names with a seeded snapshot. SYNTHETIC.")
+def get_consensus(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    snap = seed.CONSENSUS.get(t)
+    if not snap:
+        return json.dumps({"ticker": t, "note": "no consensus snapshot seeded for this name",
+                           "available": sorted(seed.CONSENSUS)})
+    return json.dumps({"ticker": t, **snap})
+
+
+@mcp.tool(name="get_estimates", title="Our estimates vs consensus (mock)",
+          description="Mock estimates connector: our numbers vs consensus per metric with "
+                      "deltas, and the house stance line. Available for names with seeded "
+                      "estimates. SYNTHETIC demo data.")
+def get_estimates(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    est = seed.OUR_ESTIMATES.get(t)
+    if not est:
+        return json.dumps({"ticker": t, "note": "no estimates seeded for this name",
+                           "available": sorted(seed.OUR_ESTIMATES)})
+    return json.dumps({"ticker": t, **est})
+
+
+@mcp.tool(name="get_price", title="Price indication (mock)",
+          description="Mock price connector: last close + synthetic pre-market indication "
+                      "per covered name. For LIVE quotes use the yahoo-finance connector; "
+                      "this exists so models/notes work without it. SYNTHETIC.")
+def get_price(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    return json.dumps(seed.PRICES[t])
+
+
+@mcp.custom_route("/", methods=["GET"])
+async def get_status(request: Request):
+    return JSONResponse({"server": "running", "name": "FA Research"})
+
+
+def main():
+    mcp.run(
+        transport="http",
+        host="0.0.0.0",
+        port=PORT,
+        log_level="debug",
+        middleware=custom_middleware,
+    )
+
+
+if __name__ == "__main__":
+    main()
