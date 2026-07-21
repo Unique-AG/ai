@@ -97,6 +97,13 @@ async def send_message_and_wait_for_completion(
     message_id = response.get("id")
 
     max_attempts = int(max_wait // poll_interval)
+    # The final up-to-3 polls spent waiting for `llm_invocations_complete`
+    # happen after the stop condition is already met, so they must not eat
+    # into the same budget as the wait for the stop condition itself --
+    # otherwise a response that completes near the max_wait deadline would
+    # spuriously time out while only debugInfo bookkeeping is still pending.
+    if wait_for_invocations:
+        max_attempts += 3
     last_update_signature: tuple[str | None, str | None] | None = None
     invocation_wait_attempts = 0
     for _ in range(max_attempts):
