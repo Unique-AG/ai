@@ -93,6 +93,11 @@ custom_middleware = [
 
 mcp = FastMCP("FA Research", auth=build_auth())
 
+# Mutable demo state (the overnight run the analyst reviews in the morning). Built fresh
+# from the immutable seed at startup; Reset_Demo_Data restores it. In-memory + per-process
+# (single demo container) — a restart also yields a clean baseline.
+STATE = seed.baseline()
+
 _TICKER = Annotated[str, Field(description="Ticker, Bloomberg code or company name "
                                            "(e.g. MC.PA, MC FP, LVMH).")]
 
@@ -106,11 +111,13 @@ def _unknown(raw: str) -> str:
 
 @mcp.tool(name="get_coverage", title="Coverage roster",
           description="The analyst's covered names with rating, single target price + "
-                      "upside % (house style), last price, workflow status pills and next "
-                      "catalyst. Returns {as_of, count, rows:[…]}. SYNTHETIC demo data.")
+                      "upside % (house style), last price, workflow status pills, next "
+                      "catalyst, and each name's OVERNIGHT move (headline + valuation "
+                      "impact + revised target price where it changed). Returns "
+                      "{as_of, count, rows:[…]}. SYNTHETIC demo data.")
 def get_coverage() -> str:
-    return json.dumps({"as_of": seed.AS_OF, "count": len(seed.COVERAGE),
-                       "rows": seed.COVERAGE})
+    rows = seed.coverage_with_overnight()
+    return json.dumps({"as_of": seed.AS_OF, "count": len(rows), "rows": rows})
 
 
 @mcp.tool(name="get_dossier", title="Coverage dossier (summary)",
@@ -124,27 +131,48 @@ def get_dossier(ticker: _TICKER) -> str:
         return _unknown(ticker)
     row = next(c for c in seed.COVERAGE if c["ticker"] == t)
     d = seed.DOSSIERS[t]
+    ov = seed.OVERNIGHT.get(t)
     return json.dumps({**row, **d,
+                       "overnight": ov,
                        "interaction_log_text": " · ".join(d["interaction_log"]),
                        "note_history_text": " · ".join(d["note_history"])})
 
 
 @mcp.tool(name="get_morning_brief", title="Morning brief (07:00)",
-          description="The pre-open morning briefing across the covered names: per item "
-                      "what-changed / so-what / suggested action; on a results or "
-                      "profit-warning event includes the prepared reaction cascade "
-                      "(model → valuation → morning-meeting note → buy-side email + "
-                      "priority call list). Drafts only — nothing is sent. SYNTHETIC.")
+          description="The overnight run the analyst reviews pre-open: one item per covered "
+                      "name that moved — what-changed / so-what (valuation impact) / "
+                      "suggested skill + action, with an `acknowledged` flag and `severity` "
+                      "(alert/positive/watch/info). The LVMH profit-warning item includes "
+                      "the prepared reaction cascade (model → valuation → morning-meeting "
+                      "note → buy-side email + priority call list). Drafts only — nothing "
+                      "is sent. SYNTHETIC demo data.")
 def get_morning_brief() -> str:
-    return json.dumps(seed.MORNING_BRIEF)
+    return json.dumps({"generated_at": STATE["generated_at"],
+                       "count": len(STATE["brief"]), "items": STATE["brief"]})
+
+
+@mcp.tool(name="acknowledge_alert", title="Acknowledge an overnight item",
+          description="Mark an overnight morning-brief item as reviewed/handled by the "
+                      "analyst (by ticker/name, or 'SECTOR' for the macro item). Mutates "
+                      "demo state; Reset_Demo_Data restores it. Returns the updated item.")
+def acknowledge_alert(ticker: _TICKER) -> str:
+    key = "SECTOR" if (ticker or "").strip().upper() == "SECTOR" else seed.resolve(ticker)
+    if not key:
+        return _unknown(ticker)
+    for item in STATE["brief"]:
+        if item["ticker"] == key:
+            item["acknowledged"] = True
+            return json.dumps({"acknowledged": True, "item": item})
+    return json.dumps({"error": f"no overnight item for {key}",
+                       "in_brief": [i["ticker"] for i in STATE["brief"]]})
 
 
 @mcp.tool(name="get_action_inbox", title="Action inbox (drafts)",
-          description="Emails the agent has drafted replies for (desk, buy-side, IR). "
-                      "Drafts only — the analyst reviews and sends. Returns "
-                      "{count, drafts:[…]}. SYNTHETIC demo data.")
+          description="Emails the agent has drafted replies for (desk, buy-side, IR), each "
+                      "with a `reviewed` flag. Drafts only — the analyst reviews and sends. "
+                      "Returns {count, drafts:[…]}. SYNTHETIC demo data.")
 def get_action_inbox() -> str:
-    return json.dumps({"count": len(seed.ACTION_INBOX), "drafts": seed.ACTION_INBOX})
+    return json.dumps({"count": len(STATE["inbox"]), "drafts": STATE["inbox"]})
 
 
 @mcp.tool(name="get_agenda", title="Agenda (roadshows & meetings)",
@@ -160,7 +188,7 @@ def get_agenda() -> str:
                       "monitor) with status, plus the latest side-panel notification. "
                       "SYNTHETIC demo data.")
 def get_jobs() -> str:
-    return json.dumps({"count": len(seed.JOBS["jobs"]), **seed.JOBS})
+    return json.dumps({"count": len(STATE["jobs"]["jobs"]), **STATE["jobs"]})
 
 
 @mcp.tool(name="get_consensus", title="Sell-side consensus snapshot (mock)",
@@ -202,6 +230,25 @@ def get_price(ticker: _TICKER) -> str:
     if not t:
         return _unknown(ticker)
     return json.dumps(seed.PRICES[t])
+
+
+@mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
+          description="Restore the FA research demo to its overnight baseline: re-generate "
+                      "the 07:00 morning brief (all items un-acknowledged), reset the action "
+                      "inbox drafts (un-reviewed) and jobs. Coverage / consensus / prices are "
+                      "static reference data. Use between demo runs for a clean morning. "
+                      "SYNTHETIC demo data.",
+          meta={"unique.app/icon": "rotate-ccw"})
+def reset_demo_data() -> str:
+    global STATE
+    STATE = seed.baseline()
+    return json.dumps({
+        "reset": True,
+        "brief_items": len(STATE["brief"]),
+        "inbox_drafts": len(STATE["inbox"]),
+        "jobs": len(STATE["jobs"]["jobs"]),
+        "note": "Overnight run restored to baseline — all items un-acknowledged.",
+    })
 
 
 @mcp.custom_route("/", methods=["GET"])
