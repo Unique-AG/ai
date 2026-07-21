@@ -41,7 +41,7 @@ fi
 
 # Secrets pushed to the Web App. UNIQUE_AUTH_USER_ID / UNIQUE_AUTH_COMPANY_ID
 # are deliberately NOT in this list: identity must come from the OAuth login,
-# never a fixed service user (see README "Identity Resolution").
+# never a fixed service user (see package README "Per-user identity").
 REQUIRED_SECRET_VARS=(
   UNIQUE_APP_KEY UNIQUE_APP_ID UNIQUE_API_BASE_URL
   ZITADEL_BASE_URL ZITADEL_CLIENT_ID ZITADEL_CLIENT_SECRET
@@ -129,10 +129,22 @@ az webapp config set -n "$APP" -g "$RG" --always-on true -o none
 
 # === APP ENVIRONMENT VARIABLES (non-secret) ===
 echo "[6/6] App settings..."
+# Only set UNIQUE_MCP_FRONTEND_BASE_URL when explicitly provided — never default
+# a lab hostname. Omitting a key from `az webapp config appsettings set` does
+# NOT clear a previously written setting; delete stale values explicitly:
+#   az webapp config appsettings delete -n "$APP" -g "$RG" \
+#     --setting-names UNIQUE_MCP_FRONTEND_BASE_URL
+if [[ -n "${UNIQUE_MCP_FRONTEND_BASE_URL:-}" ]]; then
+  FRONTEND_URL_SETTINGS=(UNIQUE_MCP_FRONTEND_BASE_URL="$UNIQUE_MCP_FRONTEND_BASE_URL")
+else
+  echo "WARNING: UNIQUE_MCP_FRONTEND_BASE_URL is not set (see package README Document Referencing)."
+  echo "WARNING: A previous deploy's UNIQUE_MCP_FRONTEND_BASE_URL on the Web App remains until deleted."
+  FRONTEND_URL_SETTINGS=()
+fi
 az webapp config appsettings set -n "$APP" -g "$RG" -o none --settings \
   UNIQUE_MCP_LOCAL_BASE_URL="http://0.0.0.0:8003" \
   UNIQUE_MCP_PUBLIC_BASE_URL="https://${APP}.azurewebsites.net" \
-  UNIQUE_MCP_FRONTEND_BASE_URL="${UNIQUE_MCP_FRONTEND_BASE_URL:-https://next.qa.unique.app}"
+  "${FRONTEND_URL_SETTINGS[@]}"
 
 # === APP SECRETS (from local env files, unless --skip-secrets) ===
 if [[ "$SKIP_SECRETS" == false ]]; then
@@ -164,8 +176,12 @@ echo ""
 echo "Fast end-to-end test (OAuth + tool calls):"
 echo "  uv run python scripts/debug_auth_client.py --url https://${APP}.azurewebsites.net/mcp"
 echo ""
-echo "Document deep links use UNIQUE_MCP_FRONTEND_BASE_URL (default https://next.qa.unique.app):"
-echo "  {UNIQUE_MCP_FRONTEND_BASE_URL}/knowledge-upload/{scopeId}?file={contentId}"
+if [[ -n "${UNIQUE_MCP_FRONTEND_BASE_URL:-}" ]]; then
+  echo "Document deep links use UNIQUE_MCP_FRONTEND_BASE_URL:"
+  echo "  ${UNIQUE_MCP_FRONTEND_BASE_URL}/knowledge-upload/{scopeId}?file={contentId}"
+else
+  echo "UNIQUE_MCP_FRONTEND_BASE_URL unset — see package README Document Referencing."
+fi
 echo ""
 echo "Also register the OAuth redirect URI in Zitadel:"
 echo "  https://${APP}.azurewebsites.net/auth/callback"

@@ -65,7 +65,6 @@ _META = merge_tool_meta(
     name="search",
     description=_TOOL_DESCRIPTION,
     meta=_META,
-    # openWorldHint=False: bounded to one company's own KB, not an open/unbounded domain like web search.
     annotations=ToolAnnotations(
         readOnlyHint=True,
         destructiveHint=False,
@@ -74,28 +73,16 @@ _META = merge_tool_meta(
     ),
 )
 async def search(
-    # ── STATE: LLM fills this at call time ───────────────────────────────────
     search_string: Annotated[
         str,
         Field(description="The query to search for in the knowledge base."),
     ],
-    # ── INJECTED: framework provides these, not part of the tool schema ───────
     config: SearchToolConfig = Depends(get_tool_config(SearchToolConfig)),
 ) -> CallToolResult:
-    """Search the knowledge base.
-
-    All search behaviour is driven by ``SearchToolConfig`` read from the config
-    meta key. Pydantic fills any missing fields with model defaults.
-
-    Identity for the Unique API call is the logged-in user (OAuth JWT /
-    userinfo) or trusted ``_meta`` from Unique AI — never a fixed
-    ``UNIQUE_AUTH_*`` service user when a session is present.
-    """
+    """Search the knowledge base using ``SearchToolConfig`` from the config meta key."""
 
     try:
-        # In-body (not Depends) so the identity-refusal ValueError surfaces as a
-        # tool error with its instructive message, not a generic dependency
-        # resolution failure.
+        # In-body (not Depends) so identity-refusal ValueError surfaces as a tool error.
         settings = await get_unique_settings_async()
         service = KnowledgeBaseInternalSearchService.from_config(
             config.service_config

@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 from typing import Annotated
 
+import tiktoken
 from fastmcp.dependencies import Depends
 from fastmcp.tools import tool
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
@@ -124,8 +125,7 @@ def _render_chunked(
 
     total_pages = max((c.end_page or c.start_page or 0) for c in chunks)
     if total_pages == 0:
-        # No page metadata (some DOCX pipelines) — fall back to virtual
-        # paging so the file stays readable by range.
+        # No page metadata (some DOCX pipelines) — virtual pages instead.
         full_text = "\n".join(c.text for c in chunks)
         return _render_text(full_text, start_page, end_page, max_tokens_per_call)
 
@@ -158,8 +158,7 @@ def _render_chunked(
         )
 
     text = _render_with_page_markers(selected)
-    # Single-page requests are exempt from the cap so every page stays
-    # reachable even when one dense page alone exceeds it.
+    # Single-page requests always succeed even if one page exceeds the token cap.
     if s < e:
         selected_tokens = count_tokens(text)
         if selected_tokens > max_tokens_per_call:
@@ -206,8 +205,7 @@ def _render_text(
         return _error(
             f"file has {total_pages} pages; requested range {s}-{e} is out of bounds."
         )
-    # Each virtual page is exactly max_tokens_per_call tokens, so any
-    # multi-page range would exceed the per-call budget by construction.
+    # Virtual pages are sized to max_tokens_per_call, so multi-page ranges overflow.
     if s < e:
         return _error(
             f"each virtual page is {max_tokens_per_call} tokens (the per-call "
@@ -221,9 +219,6 @@ def _render_text(
 
 
 def _slice_by_token_count(text: str, token_start: int, token_end: int) -> str:
-    import tiktoken
-
-    # Same encoding as count_tokens so page math and slicing stay consistent.
     encoder = tiktoken.get_encoding(DEFAULT_ENCODING)
     token_ids = encoder.encode(text)
     return encoder.decode(token_ids[token_start:token_end])
@@ -241,7 +236,6 @@ def _virtual_page_token_bounds(
     name="read_file",
     description=_TOOL_DESCRIPTION,
     meta=_META,
-    # openWorldHint=False: bounded to one company's own KB, not an open/unbounded domain like web search.
     annotations=ToolAnnotations(
         readOnlyHint=True,
         destructiveHint=False,
@@ -271,8 +265,7 @@ async def read_file(
 ) -> CallToolResult:
     """Read one KB file by content_id; dispatch by extension."""
     try:
-        # In-body (not Depends) so the identity-refusal ValueError surfaces as a
-        # tool error with its instructive message.
+        # In-body (not Depends) so identity-refusal ValueError surfaces as a tool error.
         settings = await get_unique_settings_async()
         company_id = settings.authcontext.get_confidential_company_id()
         user_id = settings.authcontext.get_confidential_user_id()
@@ -305,8 +298,6 @@ async def read_file(
                 content_id=content_id,
                 chat_id=None,
             )
-            # Non-UTF-8 bytes degrade to replacement chars instead of failing
-            # the read.
             full_text = raw_bytes.decode("utf-8", errors="replace")
             result = _render_text(
                 full_text, start_page, end_page, config.max_tokens_per_call

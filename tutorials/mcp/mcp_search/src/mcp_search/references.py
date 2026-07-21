@@ -17,13 +17,13 @@ Referencing style
 2. **Text layer** (for the LLM): each result is prefixed with a ready-to-use
    markdown citation link
 
-       [Quarterly Report 2025.pdf](https://next.qa.unique.app/knowledge-upload/…?file=…)
+       [Quarterly Report 2025.pdf](https://<identifier>.unique.app/knowledge-upload/…?file=…)
        (pages 12-14)
 
    so models can paste the link inline instead of inventing ``[sourceN]`` tags.
-3. **Structured layer** (for Unique MCP clients): each content item carries a
+3. **Structured layer** (``search`` only): each content item carries a
    ``unique.app/reference`` entry in its ``_meta``, always using the
-   ``unique://content/{id}`` scheme so Unique AI chips keep working.
+   ``unique://content/{id}`` scheme for KB docs.
 """
 
 from __future__ import annotations
@@ -40,9 +40,7 @@ _LOGGER = logging.getLogger(__name__)
 
 REFERENCE_META_KEY = "unique.app/reference"
 
-# Instruction surfaced to the orchestrating LLM via the
-# "unique.app/tool-format-information" tool meta, the tool description, and a
-# trailing result block so every MCP client knows how to cite search results.
+# Surfaced via tool meta, description, and a trailing result block.
 REFERENCE_FORMAT_INFORMATION = (
     "Each search result starts with a markdown citation link of the form "
     "'[<document name>](<document URL>)' (optional page range on the next line). "
@@ -73,7 +71,7 @@ SERVER_CITATION_INSTRUCTIONS = (
 
 def scope_id_from_folder_id_path(folder_id_path: str) -> str | None:
     """Return the leaf scope id from a ``uniquepathid://…`` path."""
-    if not folder_id_path or not isinstance(folder_id_path, str):
+    if not folder_id_path:
         return None
     segments = [
         sid for sid in folder_id_path.replace("uniquepathid://", "").split("/") if sid
@@ -88,7 +86,6 @@ def _metadata_as_dict(metadata: Any) -> dict[str, Any]:
         return metadata
     model_dump = getattr(metadata, "model_dump", None)
     if callable(model_dump):
-        # include extras (folderIdPath) that ContentMetadata allows
         return model_dump(mode="python", by_alias=True)
     return {}
 
@@ -198,7 +195,7 @@ def chunk_to_text_content(
     Args:
         chunk: The retrieved knowledge-base chunk.
         sequence_number: 1-based position of the result in the response
-            (stored in Unique ``_meta`` reference chips).
+            (stored on the structured ``_meta`` reference).
         frontend_base_url: Optional Unique frontend origin for deep links.
         scope_id: Optional folder/scope id (overrides metadata on the chunk).
     """
@@ -210,7 +207,7 @@ def chunk_to_text_content(
     pages = _pages_suffix(chunk)
     header = f"{cite}{pages}" if pages else cite
 
-    # Unique AI chips keep the platform scheme so existing clients stay stable.
+    # Keep platform unique:// scheme on structured _meta.
     reference = chunk.to_reference(sequence_number=sequence_number)
     reference_payload = reference.model_dump(mode="json", by_alias=True)
     reference_payload["url"] = platform_reference_url(chunk)

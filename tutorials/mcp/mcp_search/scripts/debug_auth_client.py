@@ -45,9 +45,6 @@ DEFAULT_CALLBACK_PORT = 8765
 _JWT_SEEN: set[str] = set()
 
 
-# ── printing helpers ─────────────────────────────────────────────────────────
-
-
 def step(title: str) -> None:
     print(f"\n{'=' * 88}\n{title}\n{'=' * 88}", flush=True)
 
@@ -196,9 +193,6 @@ def exchange(
                     kv("  refresh_token", f"<opaque, {len(refresh)} chars>")
 
 
-# ── HTTP tracing ─────────────────────────────────────────────────────────────
-
-
 def _is_auth_exchange(response: httpx.Response) -> bool:
     if response.status_code in (401, 403):
         return True
@@ -285,9 +279,6 @@ def trace_all_httpx(body_limit: int) -> Iterator[None]:
         httpx.AsyncClient = original
 
 
-# ── discovery probes ─────────────────────────────────────────────────────────
-
-
 async def probe_unauthenticated(
     mcp_url: str, *, body_limit: int, timeout: float
 ) -> None:
@@ -352,9 +343,6 @@ async def probe_metadata(mcp_url: str, *, body_limit: int, timeout: float) -> No
                     kv("★ registration_endpoint", payload.get("registration_endpoint"))
 
 
-# ── authenticated MCP session ────────────────────────────────────────────────
-
-
 async def connect_and_exercise(
     mcp_url: str,
     *,
@@ -409,9 +397,6 @@ async def connect_and_exercise(
                     if ref:
                         print("unique.app/reference:", flush=True)
                         print(json.dumps(ref, indent=2, default=str), flush=True)
-
-
-# ── main ─────────────────────────────────────────────────────────────────────
 
 
 async def amain(argv: list[str] | None = None) -> int:

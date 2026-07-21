@@ -23,8 +23,6 @@ from unique_toolkit.experimental.components.internal_search import (
     KnowledgeBaseInternalSearchConfig,
 )
 
-# ── Schema tests ──────────────────────────────────────────────────────────────
-
 
 def test_json_schema_has_service_config():
     schema = SearchToolConfig.model_json_schema()
@@ -55,9 +53,6 @@ def test_default_config_round_trips():
 def test_tool_description_includes_citation_rules():
     assert "Do NOT invent placeholders like [source1]" in _TOOL_DESCRIPTION
     assert REFERENCE_FORMAT_INFORMATION in _TOOL_DESCRIPTION
-
-
-# ── Routing tests ─────────────────────────────────────────────────────────────
 
 
 def _make_chunk(text: str, **kwargs) -> ContentChunk:
@@ -224,21 +219,18 @@ async def test_search_returns_error_when_identity_unresolvable():
     assert "UNIQUE_AUTH_" in result.content[0].text  # type: ignore[union-attr]
 
 
-# ── Reference tests ───────────────────────────────────────────────────────────
-
-
 def test_scope_id_from_folder_id_path_takes_leaf():
     assert scope_id_from_folder_id_path("uniquepathid://scope_a/scope_b") == "scope_b"
 
 
 def test_frontend_document_url_shape():
     url = frontend_document_url(
-        "https://next.qa.unique.app",
+        "https://example.unique.app",
         "scope_uy3cznkuysy3gasrxx2m4ezb",
         "cont_mvkp2iv25xy4cxccpq6i6byk",
     )
     assert url == (
-        "https://next.qa.unique.app/knowledge-upload/"
+        "https://example.unique.app/knowledge-upload/"
         "scope_uy3cznkuysy3gasrxx2m4ezb?file=cont_mvkp2iv25xy4cxccpq6i6byk"
     )
 
@@ -257,8 +249,8 @@ def test_reference_url_builds_frontend_deep_link_when_configured():
             folderIdPath="uniquepathid://scope_root/scope_leaf",  # type: ignore[call-arg]
         ),
     )
-    assert reference_url(chunk, frontend_base_url="https://next.qa.unique.app") == (
-        "https://next.qa.unique.app/knowledge-upload/scope_leaf"
+    assert reference_url(chunk, frontend_base_url="https://example.unique.app") == (
+        "https://example.unique.app/knowledge-upload/scope_leaf"
         "?file=cont_abcdefgehijklmnopqrstuvwx"
     )
 
@@ -315,11 +307,11 @@ def test_chunk_to_text_content_uses_frontend_url_in_text_but_unique_in_meta():
     content = chunk_to_text_content(
         chunk,
         sequence_number=1,
-        frontend_base_url="https://next.qa.unique.app",
+        frontend_base_url="https://example.unique.app",
         scope_id="scope_uy3cznkuysy3gasrxx2m4ezb",
     )
     assert (
-        "https://next.qa.unique.app/knowledge-upload/"
+        "https://example.unique.app/knowledge-upload/"
         "scope_uy3cznkuysy3gasrxx2m4ezb?file=cont_mvkp2iv25xy4cxccpq6i6byk"
     ) in content.text
     assert content.meta is not None
@@ -377,7 +369,7 @@ async def test_search_uses_frontend_deep_links_when_scopes_resolved():
         ),
         _patch_post_processor(chunks),
         _patch_identity(),
-        _patch_frontend_settings("https://next.qa.unique.app"),
+        _patch_frontend_settings("https://example.unique.app"),
         _patch_resolve_scope_ids(
             {"cont_aaaaaaaaaaaaaaaaaaaaaaa1": "scope_uy3cznkuysy3gasrxx2m4ezb"}
         ),
@@ -388,6 +380,6 @@ async def test_search_uses_frontend_deep_links_when_scopes_resolved():
         )
 
     assert (
-        "https://next.qa.unique.app/knowledge-upload/"
+        "https://example.unique.app/knowledge-upload/"
         "scope_uy3cznkuysy3gasrxx2m4ezb?file=cont_aaaaaaaaaaaaaaaaaaaaaaa1"
     ) in result.content[0].text  # type: ignore[union-attr]

@@ -6,18 +6,13 @@ from unique_mcp.settings import ServerSettings
 
 
 class McpSearchServerSettings(ServerSettings):
-    """ServerSettings plus the deep-link origin used by this server's tools.
-
-    Subclass rather than a unique_mcp field: knowledge-upload deep links are
-    an mcp_search concern, not shared server config. Same env prefix, so the
-    variable stays ``UNIQUE_MCP_FRONTEND_BASE_URL``.
-    """
+    """ServerSettings plus optional frontend origin for knowledge-upload deep links."""
 
     frontend_base_url: HttpUrl | None = Field(
         default=None,
         description=(
             "Unique web app origin used to build clickable knowledge-upload "
-            "deep links, e.g. https://next.qa.unique.app. When unset, "
+            "deep links, e.g. https://<identifier>.unique.app. When unset, "
             "references fall back to unique://content/{id}."
         ),
     )

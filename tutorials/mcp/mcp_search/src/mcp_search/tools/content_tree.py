@@ -82,7 +82,7 @@ class _ContentTreeCacheSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="MCP_SEARCH_CONTENT_TREE_CACHE_")
 
-    ttl_seconds: int = 300
+    ttl_seconds: int = 1800
     max_entries: int = 128
 
 
@@ -91,20 +91,31 @@ class _ContentTreeCacheSettings(BaseSettings):
 _cache_settings = _ContentTreeCacheSettings()
 _tree_cache: AsyncTTLCache | None = None
 
+# Toolkit path helpers emit this sentinel when content has no folderIdPath
+# (chat uploads, loose files). Strip it from display labels only — do not
+# change toolkit emission; other callers may rely on the literal value.
+_NO_FOLDER_PATH_SENTINEL = "_no_folder_path"
+
+
+def _display_path(segments: Sequence[str]) -> str:
+    """Join path segments for display, omitting the orphan-folder sentinel."""
+    return "/".join(s for s in segments if s != _NO_FOLDER_PATH_SENTINEL)
+
 
 def _file_link(
     content_info: ContentInfo,
     segments: Sequence[str],
     frontend_base_url: str | None,
 ) -> str:
-    """Render a file row as a markdown link opening the file in the Unique KB."""
+    """Render a file row as a markdown citation (sentinel stripped from the label)."""
+    display = _display_path(segments)
     url = file_reference_url(
         content_info.id,
         metadata=content_info.metadata,
         owner_id=content_info.owner_id,
         frontend_base_url=frontend_base_url,
     )
-    return markdown_citation_link("/".join(segments), url)
+    return markdown_citation_link(display, url)
 
 
 def _get_tree_cache() -> AsyncTTLCache:
@@ -129,9 +140,9 @@ _TOOL_DESCRIPTION = (
     "'list' and 'search' rows start with a markdown link that opens the file "
     "in the Unique knowledge base — paste it as-is when referring the user to "
     "a file; use the content_id for read-file calls.\n"
-    "Listings are cached per user (~5 min); repeat calls are fast. If the "
-    "user reports missing or stale files after upload/delete, explain "
-    "listings may lag until the cache refreshes."
+    "Listings are cached per user (~30 min); repeat calls are fast. When the "
+    "user says they added, deleted, or changed files and needs a fresh tree, "
+    "call with refresh=true (expect a slower ~20s refetch)."
 )
 
 _META = merge_tool_meta(
@@ -153,7 +164,6 @@ _META = merge_tool_meta(
     name="content_tree",
     description=_TOOL_DESCRIPTION,
     meta=_META,
-    # openWorldHint=False: bounded to one company's own KB, not an open/unbounded domain like web search.
     annotations=ToolAnnotations(
         readOnlyHint=True,
         destructiveHint=False,
@@ -214,6 +224,16 @@ async def content_tree(
         bool | None,
         Field(description="Whether fuzzy matching is case-sensitive."),
     ] = None,
+    refresh: Annotated[
+        bool,
+        Field(
+            description=(
+                "If true, drop this caller's cached tree and refetch from the "
+                "backend (~20s). Use when the user reports added/deleted/"
+                "changed files and needs a fresh listing."
+            )
+        ),
+    ] = False,
     config: ContentTreeToolConfig = Depends(get_tool_config(ContentTreeToolConfig)),
 ) -> CallToolResult:
     """Dispatch to ContentTree by mode; validate mode='search' needs query."""
@@ -229,8 +249,7 @@ async def content_tree(
                 ],
             )
 
-        # In-body (not Depends) so the identity-refusal ValueError surfaces as a
-        # tool error with its instructive message.
+        # In-body (not Depends) so identity-refusal ValueError surfaces as a tool error.
         settings = await get_unique_settings_async()
         company_id = settings.authcontext.get_confidential_company_id()
         user_id = settings.authcontext.get_confidential_user_id()
@@ -240,13 +259,13 @@ async def content_tree(
         async def _construct() -> ContentTree:
             return ContentTree(company_id=company_id, user_id=user_id)
 
-        # Keyed by the SecretStr fields, not the unwrapped strings above: if
-        # the cache (or an exception's locals) is ever logged or inspected,
-        # SecretStr's repr stays masked instead of leaking raw identity IDs.
+        # SecretStr fields so cache/exception reprs stay masked.
         cache_key = (settings.authcontext.company_id, settings.authcontext.user_id)
         tree_svc, _ = await cache.get_or_fetch(cache_key, _construct)
 
-        # ContentTree's service methods need a plain dict, not a Statement.
+        if refresh:
+            tree_svc.invalidate_cache()
+
         metadata_filter = (
             config.metadata_filter.to_dict()
             if config.metadata_filter is not None

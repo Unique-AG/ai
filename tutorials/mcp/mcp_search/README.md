@@ -1,64 +1,175 @@
 # MCP Search Tutorial
 
-A complete tutorial for building and deploying an [MCP](https://modelcontextprotocol.io/) server that exposes Unique's Knowledge Base as a searchable tool. The server uses [FastMCP](https://github.com/jlowin/fastmcp) and authenticates via Zitadel OAuth, making it ready for production use behind HTTPS.
+A complete tutorial for building and deploying an [MCP](https://modelcontextprotocol.io/) server that exposes Unique's Knowledge Base to MCP clients. The server uses [FastMCP](https://github.com/jlowin/fastmcp) and authenticates via Zitadel OAuth, and can be reached over HTTPS when deployed (or via a tunnel locally).
 
 ## What You'll Build
 
-An MCP server with a single `search` tool that queries the Unique Knowledge Base using vector, keyword, or combined search. The server:
+An MCP server with tools to **search**, **browse**, and **read** Unique Knowledge Base content. The server:
 
 - Runs on [FastMCP](https://github.com/jlowin/fastmcp) with streamable HTTP transport
 - Authenticates users through Zitadel OAuth proxy
-- Tags every search result with a document reference (`unique://content/{contentId}`) so any MCP client can cite results and open them in the Unique knowledge base
-- Deploys to Azure App Service via [`deploy/appservice/deploy.sh`](./deploy/appservice/deploy.sh) (see [Deploy to Azure](#deploy-to-azure)); a standalone Terraform/Container Instances example lives in [`deploy/terraform/`](./deploy/terraform/)
+- Tags results with document citations (markdown text layer; `search` also emits structured `unique.app/reference` in content-item `_meta`)
+- Deploys to Azure via **App Service** (supported); Terraform/ACI is WIP — see [`deploy/`](./deploy/)
 
 ## Architecture
 
+```mermaid
+flowchart LR
+  Client["MCP Client<br/>(Unique AI / Inspector / …)"]
+  Server["MCP Server<br/>(FastMCP)"]
+  Zitadel["Zitadel<br/>(OAuth2 / OIDC)"]
+  KB["Unique KB API"]
+
+  Client -->|"streamable HTTP /mcp"| Server
+  Client -.->|"OAuth via MCP proxy"| Zitadel
+  Server -->|"JWKS verify; userinfo on tools"| Zitadel
+  Server -->|"search / content / download"| KB
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   MCP Client    │────▶│   MCP Server    │────▶│  Unique KB API  │
-│  (Unique AI)    │     │   (FastMCP)     │     │  (search)       │
-└─────────────────┘     └────────┬────────┘     └─────────────────┘
-                                 │
-                                 ▼
-                        ┌─────────────────┐
-                        │    Zitadel      │
-                        │  (OAuth2/OIDC)  │
-                        └─────────────────┘
+
+Tools are loaded from [`src/mcp_search/tools/`](./src/mcp_search/tools/) via FastMCP’s `FileSystemProvider`.
+
+```mermaid
+flowchart TB
+  subgraph tools [MCP tools]
+    search["search"]
+    content_tree["content_tree"]
+    read_file["read_file"]
+  end
+
+  content_tree -->|"content_id"| read_file
+  search -->|"chunks + citations"| ClientOut["LLM / client"]
+  read_file -->|"file text + citation"| ClientOut
+  content_tree -->|"tree / list / search"| ClientOut
 ```
+
+## Tools
+
+| Tool | Purpose |
+|------|---------|
+| [`search`](#search) | Chunk search over the KB (`COMBINED` hybrid or `VECTOR`; admin config) |
+| [`content_tree`](#content_tree) | Browse folders, list files, or fuzzy-find by name/path |
+| [`read_file`](#read_file) | Read one file by `content_id` (full or page range) |
+
+### `search`
+
+Search the knowledge base and return relevant chunks with citation headers.
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `search_string` | yes | Query text |
+
+Retrieval and post-processing (limits, filters, reranking, token budget) are admin config (`SearchToolConfig`), not LLM tool args. Identity is the logged-in caller — see [Per-user identity](#per-user-identity-not-a-fixed-service-user).
+
+### `content_tree`
+
+Browse the caller’s visible file/folder structure. Pick a `mode`; only that mode’s args apply (others are ignored).
+
+| Param | Modes | Default | Description |
+|-------|-------|---------|-------------|
+| `mode` | all | — | `tree` \| `list` \| `search` |
+| `max_depth` | `tree` | unset | Max folder depth (`1` = top-level only) |
+| `folder_path` | `list` | unset | Restrict listing, e.g. `Contracts/2024` |
+| `query` | `search` | — | Fuzzy text (required when `mode=search`) |
+| `limit` | `list`, `search` | config (`50`) | Max rows / matches |
+| `min_score` | `search` | config (`0.6`) | Fuzzy score floor in `[0.0, 1.0]` |
+| `match_on` | `search` | config (`both`) | `key` \| `path` \| `both` |
+| `case_sensitive` | `search` | config (`false`) | Case-sensitive fuzzy match |
+| `refresh` | all | `false` | Invalidate this caller’s `ContentTree` memo and refetch (~20s cold) |
+
+`list` / `search` rows are markdown links plus `content_id=…` for a later `read_file` call. Paths that the toolkit marks with the orphan sentinel `_no_folder_path` strip that segment from the **display** label only; the citation URL is still built (knowledge-upload deep link when scope and `UNIQUE_MCP_FRONTEND_BASE_URL` are known, otherwise `unique://content/{id}`).
+
+Listings are cached per `(company_id, user_id)` (~30 min TTL by default; override with `MCP_SEARCH_CONTENT_TREE_CACHE_TTL_SECONDS` / `_MAX_ENTRIES`). `refresh=true` invalidates only that caller’s `ContentTree` instance, not other users’ cache entries.
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Tool as content_tree
+  participant Cache as TTL cache<br/>(per company+user)
+  participant CT as ContentTree
+  participant API as Unique KB API
+
+  Client->>Tool: mode=… refresh=false|true
+  Tool->>Cache: get_or_fetch(company, user)
+  alt cache miss
+    Cache->>CT: construct instance
+  end
+  opt refresh=true
+    Tool->>CT: invalidate_cache()
+  end
+  Tool->>CT: tree / list / search
+  Note over CT,API: Cold or post-refresh load can take ~20s
+  CT->>API: fetch visible tree as needed
+  Tool-->>Client: tree / list / search text
+```
+
+### `read_file`
+
+Read one knowledge-base file’s text. Get `content_id` from a prior `content_tree` `list` / `search` (or elsewhere).
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `content_id` | yes | File id |
+| `start_page` | no | First page (1-indexed); real pages for PDF/DOCX, virtual token pages for plain text |
+| `end_page` | no | Last page (inclusive) |
+
+Supported: `.pdf`, `.docx` (chunked pages) and `.txt`, `.md`, `.html`, `.json`, `.csv` (downloaded text). Oversized reads without a range return an informative error (token/page counts) instead of silent truncation. Successful reads start with a markdown citation link. Admin cap: `ReadFileToolConfig.max_tokens_per_call` (default 8000).
 
 ## Per-user identity (not a fixed service user)
 
-Search always runs as the **logged-in caller**, not as a shared `UNIQUE_AUTH_*` service account:
+Search and other tools always run as the **logged-in caller**, not as a shared `UNIQUE_AUTH_*` service account:
+
+```mermaid
+flowchart TD
+  Start([Tool call]) --> Meta{"MCP _meta has<br/>user-id + company-id?"}
+  Meta -->|yes| UseMeta[Use _meta identity]
+  Meta -->|no| JWT{"JWT has sub +<br/>company claim?"}
+  JWT -->|yes| UseJWT[Use JWT claims]
+  JWT -->|no| Token{Access token present?}
+  Token -->|yes| UI[Zitadel /oidc/v1/userinfo]
+  Token -->|no — local unauth only| Env["UNIQUE_AUTH_* env"]
+  UI --> Resolved{Identity resolved?}
+  UseMeta --> OK[Call Unique API as caller]
+  UseJWT --> OK
+  Resolved -->|yes| OK
+  Resolved -->|no| Err[Tool error — no env fallback]
+  Env --> OK
+```
 
 | Priority | Source | When |
 | -------- | ------ | ---- |
-| 1 | MCP `_meta` (`unique.app/auth/user-id` + `company-id`) | Unique AI forwards the chat user's identity |
-| 2 | Zitadel JWT claims (`sub` + resourceowner company claim) | OAuth login with a fully configured token |
-| 3 | Zitadel `/oidc/v1/userinfo` | JWT is missing the company claim (common) |
-| — | Env `UNIQUE_AUTH_*` | **Only** when there is no OAuth session (local unauthenticated dev) |
+| 1 | MCP `_meta` (`unique.app/auth/user-id` + `company-id`) | Both keys present (e.g. Unique AI forwards the chat user) |
+| 2 | Zitadel JWT claims (`sub` + `urn:zitadel:iam:user:resourceowner:id`) | OAuth login with a fully configured token |
+| 3 | Zitadel `/oidc/v1/userinfo` | Access token present but JWT is missing the company claim (common) |
+| — | Env `UNIQUE_AUTH_*` | **Only** when there is no access token (local unauthenticated dev) |
 
-If a user is logged in but identity cannot be resolved from `_meta` / JWT / userinfo, the tool **errors** instead of falling back to the env service user. See [`src/mcp_search/auth.py`](./src/mcp_search/auth.py).
+Tools call `get_unique_settings_async()` from `unique_mcp`. If an access token is present but identity cannot be resolved from `_meta` / JWT / userinfo, the tool **errors** instead of falling back to the env service user. See [`unique_mcp/src/unique_mcp/unique_injectors.py`](../../../unique_mcp/src/unique_mcp/unique_injectors.py).
 
 On Azure, set `UNIQUE_APP_*` / `UNIQUE_API_BASE_URL` for the app’s API credentials. Prefer **not** setting `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` on the Web App so a misconfigured token cannot silently search as one fixed user.
 
 ## Document Referencing
 
-Every result returned by the `search` tool carries a stable reference to the source document, on two layers:
+Citation behavior differs by tool:
 
-**Text layer** — each result is prefixed with a ready-to-paste markdown citation:
+| Tool | Text-layer markdown citation | Content-item `_meta` (`unique.app/reference`) |
+|------|------------------------------|-----------------------------------------------|
+| `search` | Yes (per chunk) | Yes |
+| `content_tree` | Yes (list/search file rows) | No — one plain `TextContent`, no `_meta` |
+| `read_file` | Yes (header prefixed on success) | No |
+
+**Text layer** — results are prefixed with a ready-to-paste markdown citation. When `UNIQUE_MCP_FRONTEND_BASE_URL` is set (e.g. `https://<identifier>.unique.app`) and scope is known, the URL is a knowledge-upload deep link:
 
 ```
-[Annual Report 2025.pdf](https://next.qa.unique.app/knowledge-upload/scope_…?file=cont_…) (pages 12-14)
+[Annual Report 2025.pdf](https://<identifier>.unique.app/knowledge-upload/scope_…?file=cont_…) (pages 12-14)
 
 <chunk text...>
 ```
 
-**Structured layer** — each MCP content item carries a `unique.app/reference` entry in its `_meta`, shaped like Unique's `ContentReference` (name, url, sourceId, source, sequenceNumber), so MCP clients can build clickable reference chips without parsing text:
+**Structured layer** (`search` only) — each search hit’s MCP content item carries a `unique.app/reference` entry in its `_meta`, shaped like Unique's `ContentReference` (name, url, sourceId, source, sequenceNumber). The structured `url` stays on the platform scheme (`unique://content/{contentId}` for KB docs). This is emitted for future/capable clients; Unique AI today uses the text layer and does not consume content-item `_meta` for chips:
 
 ```json
 {
   "unique.app/reference": {
-    "name": "Annual Report 2025.pdf : 12,13,14",
+    "name": "Annual Report 2025 : 12,13,14",
     "url": "unique://content/cont_abcdefgehijklmnopqrstuvwx",
     "sourceId": "cont_abcdefgehijklmnopqrstuvwx_chunk_abcdefgehijklmnopqrstuv",
     "source": "node-ingestion-chunks",
@@ -67,7 +178,17 @@ Every result returned by the `search` tool carries a stable reference to the sou
 }
 ```
 
-When `UNIQUE_MCP_FRONTEND_BASE_URL` is set (e.g. `https://next.qa.unique.app`), result headers use clickable deep links of the form `{base}/knowledge-upload/{scopeId}?file={contentId}` so generic MCP clients like Claude can open the document in the Unique UI. Without that setting (or if the folder/scope cannot be resolved), URLs fall back to `unique://content/{contentId}`, which the Unique platform frontend resolves. External web chunks keep their original `https://` URL. Each result is prefixed with a ready-to-paste markdown citation `[document name](url)`; models are instructed to paste those links inline (never invent `[sourceN]` placeholders) and list them again under Sources. See [`src/mcp_search/references.py`](./src/mcp_search/references.py).
+```mermaid
+flowchart TD
+  Chunk[KB chunk / file] --> Ext{"External web chunk?"}
+  Ext -->|yes| Https[Keep original https:// URL]
+  Ext -->|no| Base{"UNIQUE_MCP_FRONTEND_BASE_URL<br/>set and scope known?"}
+  Base -->|yes| Deep["Text layer:<br/>https://&lt;identifier&gt;.unique.app/knowledge-upload/{scope}?file={id}"]
+  Base -->|no| Unique["Text layer:<br/>unique://content/{id}"]
+  Chunk --> Meta["search only: _meta unique.app/reference<br/>always unique:// for KB docs"]
+```
+
+`UNIQUE_MCP_FRONTEND_BASE_URL` is **optional**. Leave it empty / unset (or if folder/scope cannot be resolved) and text-layer URLs fall back to `unique://content/{contentId}` (resolved by the Unique platform frontend). Set it to your tenant web origin when generic MCP clients (e.g. Claude) should open documents in that Unique web deployment — deep links look like `{base}/knowledge-upload/{scopeId}?file={contentId}`. External web chunks keep their original `https://` URL. Models are instructed to paste the markdown links inline (never invent `[sourceN]` placeholders) and list them again under Sources. See [`src/mcp_search/references.py`](./src/mcp_search/references.py).
 
 # Prerequisites
 
@@ -75,14 +196,12 @@ When `UNIQUE_MCP_FRONTEND_BASE_URL` is set (e.g. `https://next.qa.unique.app`), 
 |------|---------|---------|
 | [Python](https://www.python.org/) | >= 3.12 | Runtime |
 | [uv](https://docs.astral.sh/uv/) | latest | Package manager |
-| [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) | latest | Azure authentication and resource management |
-| [Terraform](https://www.terraform.io/downloads) | >= 1.5.0 | Infrastructure provisioning |
-| [Docker](https://docs.docker.com/get-docker/) | latest | Container image builds |
 
 You also need:
 - A **Unique platform** account with API credentials
 - A **Zitadel** instance with a configured OAuth application
-- An **Azure subscription** with permissions to create resources
+
+Azure deploy tools (Azure CLI, Terraform, Docker) are listed under [`deploy/`](./deploy/).
 
 # Local Development
 
@@ -129,6 +248,10 @@ UNIQUE_MCP_PUBLIC_BASE_URL=https://your-public-url.example.com
 
 # Local bind address
 UNIQUE_MCP_LOCAL_BASE_URL=http://127.0.0.1:8003
+
+# Optional Unique web origin for knowledge-upload deep links.
+# See Document Referencing above. Example: https://<identifier>.unique.app
+UNIQUE_MCP_FRONTEND_BASE_URL=
 ```
 
 ## 3. Run the server
@@ -172,8 +295,8 @@ For end-to-end auth debugging against local or Azure (prints every OAuth HTTP
 exchange and decoded JWTs, then lists tools / calls `search`):
 
 ```bash
-# Against the deployed lab instance (default URL)
-uv run python scripts/debug_auth_client.py
+# Against a deployed App Service (pass your APP URL)
+uv run python scripts/debug_auth_client.py --url https://$APP.azurewebsites.net/mcp
 
 # Against local server
 uv run python scripts/debug_auth_client.py --url http://localhost:8003/mcp
@@ -211,15 +334,15 @@ The Unique stack resolves **user** and **company** for tools from the MCP reques
 | `unique.app/auth/user-id` | User id |
 | `unique.app/auth/company-id` | Company id |
 
-**Both** keys must be set to non-empty strings in `_meta` for that path to apply; otherwise identity falls back to the OAuth token (JWT claims / userinfo) and, when configured, environment variables such as `UNIQUE_AUTH_USER_ID` and `UNIQUE_AUTH_COMPANY_ID`.
+**Both** keys must be set to non-empty strings in `_meta` for that path to apply; otherwise identity falls through to JWT claims, then Zitadel `/userinfo` if an access token is present. Env `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` apply **only** when there is no access token (same rules as [Per-user identity](#per-user-identity-not-a-fixed-service-user)).
 
 See also `MetaKeys` in `unique_mcp` and the example in [`src/mcp_search/mcp_client.py`](./src/mcp_search/mcp_client.py) (`call_tool(..., meta={...})`).
 
 
 
-## 7. Connect to the Unique Platform
+## 7. Expose the server for remote clients
 
-The Unique platform sends events to your MCP server via a public HTTPS endpoint. During local development you can use [ngrok](https://ngrok.com/) to expose your server.
+Remote MCP clients (and the Zitadel OAuth redirect) need a public HTTPS URL for this server. During local development you can use [ngrok](https://ngrok.com/) to expose it.
 
 ### Expose the server via ngrok
 
@@ -248,80 +371,15 @@ https://<subdomain>.ngrok-free.app/auth/callback
 See [`unique_mcp/docs/zitadel/README.md`](../../../unique_mcp/docs/zitadel/README.md) for full Zitadel setup instructions.
 
 
-# Deploy to Azure
+# Deploy
 
-## Prerequisites
+Deploy docs live under [`deploy/`](./deploy/):
 
-1. **Azure subscription and resource group** – Already created: subscription `698f3b43-ccb0-4f97-9e10-2ca89a7782cf` (`lab-demo-001`), resource group `rg-lab-demo-001-unique-search-mcp` (see [Labs guide](https://unique-ch.atlassian.net/wiki/spaces/DX/pages/1873739786/Labs) for initial setup).
-2. Azure CLI installed and logged in (`az login`)
-3. Zitadel app with redirect URI `https://unique-search-mcp.azurewebsites.net/auth/callback`
+- **[Deploy index](./deploy/README.md)** — App Service (supported) vs Terraform (WIP), auth warning
+- **[App Service](./deploy/appservice/README.md)** — recommended path (`deploy/appservice/deploy.sh`)
+- **[Terraform / ACI](./deploy/terraform/README.md)** — WIP / experimental; not the primary path
 
-## What deploy.sh does
-
-- Creates the **Azure Container Registry** `uniquesearchmcpacr` on first run (idempotent).
-- Builds the Docker image in Azure with `az acr build`. The build resolves `unique-mcp` and `unique-toolkit` from PyPI (`uv sync --no-sources`), so it works standalone without the monorepo checkout.
-- Creates or updates the **App Service plan** (`unique-search-mcp-plan`, Linux B1) and **Web App** `unique-search-mcp`, and sets `WEBSITES_PORT=8003`, Always On, and the base-URL app settings (`UNIQUE_MCP_LOCAL_BASE_URL`, `UNIQUE_MCP_PUBLIC_BASE_URL`).
-
-## Deploy
-
-```bash
-cp deploy/appservice/deploy.env.example deploy/appservice/deploy.env
-# fill in SUBSCRIPTION / RG / APP / ACR, then:
-deploy/appservice/deploy.sh
-```
-
-Target configuration comes from `deploy/appservice/deploy.env` (gitignored) or
-plain environment variables — there are no baked-in defaults. The script reads the app + Zitadel secrets from your local `unique.env` and
-`zitadel.env` (same files the local server uses) and pushes them as Web App
-settings — one command from a fresh checkout to a working deployment. It
-aborts on missing or placeholder values. Options:
-
-- `--env-file <path>` — read secrets from other file(s) instead (repeatable)
-- `--skip-secrets` — deploy without touching secrets (prints the manual
-  `az webapp config appsettings set` command instead)
-
-`UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` are **never** pushed, even if
-present in the env files.
-
-Do **not** set `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` on the deployed app — those are for local unauthenticated testing only. Production identity comes from the OAuth login (JWT / userinfo) or Unique AI `_meta`.
-
-## Redeploy (code changes only)
-
-```bash
-deploy/appservice/deploy.sh          # rebuild + pin new digest + restart
-```
-
-Deploy to a different Web App (e.g. a personal dev endpoint) with
-`APP=unique-search-mcp-dev deploy/appservice/deploy.sh` — remember to register
-its `/auth/callback` redirect URI in Zitadel.
-
-## Deployed instance
-
-- **App:** `https://unique-search-mcp.azurewebsites.net`
-- **Health check:** `https://unique-search-mcp.azurewebsites.net/health`
-- **MCP endpoint:** `https://unique-search-mcp.azurewebsites.net/mcp`
-
-## Restart
-
-```bash
-az webapp restart -n unique-search-mcp -g rg-lab-demo-001-unique-search-mcp
-```
-
-Note: OAuth client registrations are kept in memory and are lost on restart — MCP clients will transparently re-register via Dynamic Client Registration.
-
-## Notes
-
-### Zitadel app configuration
-
-- **App type:** Web Application
-- **Token endpoint auth:** POST (`client_secret_post`)
-- **Access token type:** JWT (not opaque)
-- **Redirect URI:** `https://unique-search-mcp.azurewebsites.net/auth/callback`
-
-### Terraform alternative
-
-A full IaC deployment to Azure Container Instances (with Key Vault, Log Analytics, and Caddy-managed HTTPS) is available under [`deploy/terraform/`](./deploy/terraform/) — see its [README](./deploy/terraform/README.md). It is a frozen, self-contained example; the App Service path above is the maintained fast lab/demo route.
-
+Do **not** set `UNIQUE_AUTH_USER_ID` / `UNIQUE_AUTH_COMPANY_ID` on a deployed app; see [Per-user identity](#per-user-identity-not-a-fixed-service-user).
 
 ## Further Reading
 

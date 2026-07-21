@@ -206,10 +206,56 @@ def test_cache_settings_default_and_env_override(monkeypatch):
     from mcp_search.tools.content_tree import _ContentTreeCacheSettings
 
     assert _ContentTreeCacheSettings().max_entries == 128
-    assert _ContentTreeCacheSettings().ttl_seconds == 300
+    assert _ContentTreeCacheSettings().ttl_seconds == 1800
 
     monkeypatch.setenv("MCP_SEARCH_CONTENT_TREE_CACHE_MAX_ENTRIES", "999")
     assert _ContentTreeCacheSettings().max_entries == 999
+
+    monkeypatch.setenv("MCP_SEARCH_CONTENT_TREE_CACHE_TTL_SECONDS", "60")
+    assert _ContentTreeCacheSettings().ttl_seconds == 60
+
+
+@pytest.mark.asyncio
+async def test_refresh_true_invalidates_caller_cache_only():
+    mock_tree = _make_mock_tree()
+    with patch("mcp_search.tools.content_tree.ContentTree", return_value=mock_tree):
+        result = await content_tree(
+            mode="tree",
+            refresh=True,
+            config=ContentTreeToolConfig(),
+        )
+
+    mock_tree.invalidate_cache.assert_called_once_with()
+    mock_tree.render_visible_tree_async.assert_called_once()
+    assert isinstance(result, CallToolResult)
+    assert result.content[0].text == "tree output"  # type: ignore[union-attr]
+
+
+@pytest.mark.asyncio
+async def test_refresh_false_does_not_invalidate_cache():
+    mock_tree = _make_mock_tree()
+    with patch("mcp_search.tools.content_tree.ContentTree", return_value=mock_tree):
+        await content_tree(
+            mode="tree",
+            refresh=False,
+            config=ContentTreeToolConfig(),
+        )
+
+    mock_tree.invalidate_cache.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_refresh_reuses_cached_instance_then_invalidates():
+    mock_tree = _make_mock_tree()
+    with patch(
+        "mcp_search.tools.content_tree.ContentTree", return_value=mock_tree
+    ) as mock_cls:
+        await content_tree(mode="tree", config=ContentTreeToolConfig())
+        await content_tree(mode="tree", refresh=True, config=ContentTreeToolConfig())
+
+    mock_cls.assert_called_once()
+    mock_tree.invalidate_cache.assert_called_once_with()
+    assert mock_tree.render_visible_tree_async.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -289,7 +335,7 @@ async def test_identity_refusal_surfaces_as_tool_error(identity):
 
 @pytest.mark.asyncio
 async def test_list_uses_frontend_deep_link_when_scope_known(monkeypatch):
-    monkeypatch.setenv("UNIQUE_MCP_FRONTEND_BASE_URL", "https://next.qa.unique.app")
+    monkeypatch.setenv("UNIQUE_MCP_FRONTEND_BASE_URL", "https://example.unique.app")
     info = _make_content_info("c1")
     info.metadata = {"folderIdPath": "uniquepathid://scope_root/scope_leaf"}
     mock_tree = _make_mock_tree()
@@ -302,5 +348,81 @@ async def test_list_uses_frontend_deep_link_when_scope_known(monkeypatch):
     text = result.content[0].text  # type: ignore[union-attr]
     assert (
         "[Contracts/a.pdf]"
-        "(https://next.qa.unique.app/knowledge-upload/scope_leaf?file=c1)" in text
+        "(https://example.unique.app/knowledge-upload/scope_leaf?file=c1)" in text
     )
+
+
+@pytest.mark.asyncio
+async def test_list_strips_no_folder_path_sentinel_keeps_unique_link():
+    """Orphan rows must not leak ``_no_folder_path`` into the label."""
+    info = _make_content_info("chat_orphan")
+    mock_tree = _make_mock_tree()
+    mock_tree.resolve_visible_file_paths_async = AsyncMock(
+        return_value=[
+            (
+                info,
+                [
+                    "_no_folder_path",
+                    "Chat_1780557337141_AlpenSys_Shareholder_Letter_H1_2024.pdf",
+                ],
+            )
+        ]
+    )
+    with patch("mcp_search.tools.content_tree.ContentTree", return_value=mock_tree):
+        result = await content_tree(mode="list", config=ContentTreeToolConfig())
+
+    text = result.content[0].text  # type: ignore[union-attr]
+    assert "_no_folder_path" not in text
+    assert (
+        "[Chat_1780557337141_AlpenSys_Shareholder_Letter_H1_2024.pdf]"
+        "(unique://content/chat_orphan) (content_id=chat_orphan)" in text
+    )
+
+
+@pytest.mark.asyncio
+async def test_search_strips_no_folder_path_sentinel_keeps_unique_link():
+    mock_tree = _make_mock_tree()
+    mock_tree.search_visible_files_fuzzy_async = AsyncMock(
+        return_value=[
+            _make_fuzzy_match(
+                ["_no_folder_path", "Chat_orphan.pdf"],
+                0.95,
+                "c_orphan",
+            )
+        ]
+    )
+    with patch("mcp_search.tools.content_tree.ContentTree", return_value=mock_tree):
+        result = await content_tree(
+            mode="search",
+            query="Chat_orphan",
+            config=ContentTreeToolConfig(),
+        )
+
+    text = result.content[0].text  # type: ignore[union-attr]
+    assert "_no_folder_path" not in text
+    assert (
+        "[Chat_orphan.pdf](unique://content/c_orphan) "
+        "(score=0.95, content_id=c_orphan)" in text
+    )
+
+
+@pytest.mark.asyncio
+async def test_list_orphan_with_scope_owner_keeps_deep_link(monkeypatch):
+    monkeypatch.setenv("UNIQUE_MCP_FRONTEND_BASE_URL", "https://example.unique.app")
+    info = _make_content_info("c_scope")
+    info.metadata = None
+    info.owner_id = "scope_leaf"
+    mock_tree = _make_mock_tree()
+    mock_tree.resolve_visible_file_paths_async = AsyncMock(
+        return_value=[(info, ["_no_folder_path", "orphan.pdf"])]
+    )
+    with patch("mcp_search.tools.content_tree.ContentTree", return_value=mock_tree):
+        result = await content_tree(mode="list", config=ContentTreeToolConfig())
+
+    text = result.content[0].text  # type: ignore[union-attr]
+    assert "_no_folder_path" not in text
+    assert (
+        "[orphan.pdf]"
+        "(https://example.unique.app/knowledge-upload/scope_leaf?file=c_scope)" in text
+    )
+    assert "(content_id=c_scope)" in text

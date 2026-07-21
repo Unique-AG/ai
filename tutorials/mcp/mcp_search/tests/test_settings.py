@@ -12,8 +12,8 @@ def test_frontend_base_url_str_none_when_unset(monkeypatch):
 
 
 def test_frontend_base_url_str_strips_trailing_slash(monkeypatch):
-    monkeypatch.setenv("UNIQUE_MCP_FRONTEND_BASE_URL", "https://next.qa.unique.app/")
+    monkeypatch.setenv("UNIQUE_MCP_FRONTEND_BASE_URL", "https://example.unique.app/")
     assert (
         McpSearchServerSettings().frontend_base_url_str()
-        == "https://next.qa.unique.app"
+        == "https://example.unique.app"
     )
