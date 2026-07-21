@@ -52,6 +52,13 @@ default — comfortably under Claude Code's ~120s):
 2. **Poll in short bursts**, each well under your harness's Bash foreground
    timeout:
 
+   **You MUST NOT stop after a single `PENDING` result.** If `elicit wait`
+   returns `PENDING`, immediately call `elicit wait` again (same elicitation
+   id) — as its own new tool call if you are not running the loop below —
+   and keep doing so until you see a terminal status or the elicitation
+   reaches its `--expires-in` deadline. Never tell the user you "stopped
+   waiting" or "gave up" while `PENDING` is the last known status.
+
    ```bash
    status="PENDING"
    elapsed=0

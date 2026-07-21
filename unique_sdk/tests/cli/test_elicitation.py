@@ -411,7 +411,15 @@ class TestElicitWait:
         mock_get.return_value = _elicitation(status="PENDING")
         mock_monotonic.side_effect = [0.0, 100.0, 200.0]
         result = cmd_elicit_wait(_state(), "elicit_abc", timeout=10)
-        assert "timed out after 10s" in result
+        assert "still PENDING after 10s" in result
+        assert "NOT a stopping condition" in result
+        assert "Call again now: unique-cli elicit wait elicit_abc" in result
+        assert "--timeout 10" in result
+        assert "keep polling" in result
+        # Old, purely-descriptive wording must be gone — this is the
+        # UN-23181 hardening: the message must be an instruction, not just
+        # a status report.
+        assert "timed out after 10s" not in result
 
     @patch("unique_sdk.cli.commands.elicitation.time.sleep")
     @patch("unique_sdk.cli.commands.elicitation.time.monotonic")
@@ -902,7 +910,8 @@ class TestVisibleAsk:
                 _state(), message="What?", chat_id="chat_1", timeout=10
             )
 
-        assert "timed out" in result
+        assert "still PENDING after 10s" in result
+        assert "NOT a stopping condition" in result
         assert mock_msg_modify.call_count == 1
 
 

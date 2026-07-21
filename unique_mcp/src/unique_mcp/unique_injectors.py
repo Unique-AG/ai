@@ -19,6 +19,7 @@ except ImportError:
 
 
 from pydantic import BaseModel, SecretStr
+from typing_extensions import deprecated
 from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.app.unique_settings import (
     AuthContext,
@@ -182,7 +183,22 @@ def get_request_meta() -> dict[str, Any] | None:
     return _fastmcp_read_meta_dict()
 
 
+@deprecated(
+    "Use get_unique_settings_async: it also resolves Zitadel userinfo and "
+    "refuses the UNIQUE_AUTH_* env fallback for logged-in requests."
+)
 def get_unique_settings() -> UniqueSettings:
+    """Resolve ``UniqueSettings`` for the current request (sync).
+
+    .. deprecated:: kept for callers that cannot await; new code should use
+       :func:`get_unique_settings_async`.
+
+    Priority: ``_meta`` auth → JWT claims → env ``UNIQUE_AUTH_*``.
+
+    This sync path does **not** call Zitadel ``/userinfo``. When a JWT omits
+    the company claim, callers that must not fall back to a fixed service
+    user should use :func:`get_unique_settings_async` instead.
+    """
     settings = _base_settings()
 
     meta = get_request_meta()
@@ -202,6 +218,56 @@ def get_unique_settings() -> UniqueSettings:
     return settings
 
 
+async def get_unique_settings_async() -> UniqueSettings:
+    """Like :func:`get_unique_settings`, but try Zitadel userinfo before env.
+
+    Priority: ``_meta`` auth → JWT claims → Zitadel ``/userinfo`` → env.
+
+    Use this in tools that must search/act as the **logged-in** user. When an
+    access token is present but neither JWT nor userinfo yield both IDs, this
+    raises instead of silently using ``UNIQUE_AUTH_*`` service credentials.
+    In practice that path currently surfaces as ``get_unique_userinfo``'s own
+    "Zitadel userinfo incomplete" ValueError, not the message below — see the
+    comment at the raise site.
+    """
+    settings = _base_settings()
+
+    meta = get_request_meta()
+
+    if meta is not None:
+        if chat_context := _chat_from_meta(meta):
+            settings = settings.with_chat(chat_context)
+        if auth_context := _auth_from_meta(meta):
+            return settings.with_auth(auth_context)
+
+    if auth_context := _fastmcp_access_token_to_auth_context():
+        return settings.with_auth(auth_context)
+
+    if auth_context := await _userinfo_to_auth_context():
+        return settings.with_auth(auth_context)
+
+    # Currently unreachable: with a real access token, get_unique_userinfo
+    # (called above via _userinfo_to_auth_context) either returns a complete
+    # UniqueUserInfo or raises its own "Zitadel userinfo incomplete" ValueError
+    # — it never falls through to return None while a token is present. Kept
+    # as a defensive guard for a future _userinfo_to_auth_context that
+    # swallows lookup failures and returns None instead of raising (e.g. an
+    # env-var-only / no-OIDC-proxy MCP deployment); without it, that case
+    # would silently fall through to the UNIQUE_AUTH_* return below.
+    if get_access_token() is not None:
+        raise ValueError(
+            "Authenticated session could not be resolved to user_id and "
+            "company_id (JWT claims incomplete and userinfo unavailable). "
+            "Refusing UNIQUE_AUTH_* env fallback for a logged-in request."
+        )
+
+    return settings
+
+
+@deprecated(
+    "Sync identity resolution; prefer get_unique_settings_async and build "
+    "services from the resolved settings."
+)
 def get_unique_service_factory() -> UniqueServiceFactory:
     settings = get_unique_settings()
     return UniqueServiceFactory(settings=settings)

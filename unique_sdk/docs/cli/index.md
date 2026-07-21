@@ -127,6 +127,7 @@ python -m unique_sdk.cli
 | `mcp` | Call an MCP server tool by name | `mcp -c chat_1 -m msg_1 '{"name":"tool","arguments":{}}'` |
 | `schedule` | Manage scheduled tasks | `schedule list`, `schedule create ...` |
 | `elicit` | Ask the user a question and read the answer | `elicit ask "Which quarter?"` |
+| `agentic-table` | Read magic-table sheets, cells, and history | `agentic-table get-sheet mt_abc123` |
 | `help` | Show available commands | `help`, `help search` |
 | `exit` | Exit the shell | `exit` |
 
@@ -148,5 +149,6 @@ Files can be referenced by:
 - [Command Reference](commands.md) -- detailed documentation for every command
 - [Scheduled Tasks](scheduled_tasks.md) -- create and manage recurring cron-based tasks
 - [Elicitation](elicitation.md) -- ask the user structured questions and read typed answers
+- [Agentic Table](agentic_table.md) -- read magic-table sheets, cells, and cell history
 - [Search Guide](search.md) -- how to use combined search with metadata filters
 - [Configuration](configuration.md) -- environment variables and setup details

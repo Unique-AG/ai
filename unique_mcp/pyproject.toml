@@ -8,12 +8,17 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=3.1.1,<4",
+    # 3.3.0 is the floor: create_zitadel_oidc_proxy calls
+    # OAuthProxy.update_default_scopes, added in that release.
+    "fastmcp>=3.3.0,<4",
     "httpx>=0.28.0",
     "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
+    # 4.6.0 is the floor: 4.4.0/4.5.0 fail to import on Python 3.12 (a
+    # TypeVar subclassing incompatibility, fixed in 4.6.0), verified locally.
+    "typing-extensions>=4.6.0",
     "unique-toolkit>=2026.30.0",
 ]
 
