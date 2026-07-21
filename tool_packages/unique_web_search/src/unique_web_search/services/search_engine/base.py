@@ -78,7 +78,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
     @property
     def requires_scraping(self) -> bool:
         """Whether the search engine requires scraping."""
-        return False
+        return True
 
     @property
     def _proxy_engine(self) -> ProxyEngineType | None:
