@@ -1,12 +1,12 @@
 FROM python:3.12-slim
 WORKDIR /app
 
-COPY pyproject.toml README.md uv.lock ./
+COPY pyproject.toml README.md ./
 COPY src/ ./src/
 COPY data/ ./data/
 
 RUN pip install --no-cache-dir uv \
-    && uv sync --no-dev --frozen \
+    && uv sync --no-dev \
     && uv run generate-sample-excel
 
 ENV HOST=0.0.0.0
