@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -563,14 +564,22 @@ def _write_mcp_refs_seed(seed_path: Path, value: int) -> None:
 
     Only writes when ``value`` exceeds the currently persisted seed, so numbers
     never regress across turns.
+
+    The temp file is opened with ``O_NOFOLLOW`` so a symlink pre-planted at the
+    predictable temp path cannot redirect the write outside the refs directory
+    (defense in depth on top of the per-user workspace sandbox). ``os.replace``
+    operates on the directory entry and does not follow a symlink at the target.
     """
     try:
         if value <= _read_mcp_refs_seed(seed_path):
             return
         seed_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = seed_path.with_suffix(seed_path.suffix + ".tmp")
-        tmp_path.write_text(json.dumps({"maxSourceNumber": value}), encoding="utf-8")
-        tmp_path.replace(seed_path)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW
+        fd = os.open(tmp_path, flags, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps({"maxSourceNumber": value}))
+        os.replace(tmp_path, seed_path)
     except OSError as exc:
         _LOGGER.warning("mcp: failed to write refs seed: %s", exc)
 
@@ -584,13 +593,19 @@ def _item_dedup_key(tool_name: str, item: dict[str, Any]) -> str:
     one number (identical bodies still merge). NOTE: this intentionally weakens
     the search-then-fetch text-upgrade merge for title-less items only — titled
     items still merge by title as before.
+
+    The text is capped at ``_MCP_REF_TEXT_CHAR_LIMIT`` BEFORE hashing — the same
+    cap the manifest stores under ``text``. Without it, the first call (live,
+    full-length item text) and a later call rebuilding this key from the
+    truncated manifest entry would hash to different values, so an oversized
+    title-less result would be re-assigned a duplicate ``[mcpsourceN]`` instead
+    of deduping.
     """
     title = item.get("title")
     if isinstance(title, str) and title.strip():
         return f"title:{tool_name}:{title.strip()}"
-    text_hash = hashlib.sha256((item.get("text") or "").encode("utf-8")).hexdigest()[
-        :12
-    ]
+    capped_text = (item.get("text") or "")[:_MCP_REF_TEXT_CHAR_LIMIT]
+    text_hash = hashlib.sha256(capped_text.encode("utf-8")).hexdigest()[:12]
     return f"tool:{tool_name}:{text_hash}"
 
 

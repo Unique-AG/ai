@@ -859,6 +859,25 @@ def test_absent_seed_reproduces_pre_seed_numbering(tmp_path: Path) -> None:
     assert _lines(tmp_path, _REFS_MANIFEST)[0]["sourceNumber"] == 1
 
 
+def test_write_seed_refuses_symlinked_temp_path(tmp_path: Path) -> None:
+    # Bugbot security regression: the seed write must not follow a symlink
+    # pre-planted at the predictable temp path, so it cannot be redirected to
+    # overwrite a file outside the refs directory.
+    unique_dir = tmp_path / ".unique"
+    unique_dir.mkdir()
+    seed_path = unique_dir / "mcp-refs-seed.json"
+    outside = tmp_path / "outside.txt"
+    outside.write_text("SECRET", encoding="utf-8")
+    (unique_dir / "mcp-refs-seed.json.tmp").symlink_to(outside)
+
+    # Best-effort: the O_NOFOLLOW open fails and is swallowed (no raise).
+    mcp_cmd._write_mcp_refs_seed(seed_path, 5)
+
+    # The symlink target outside the refs dir is untouched, and no seed landed.
+    assert outside.read_text(encoding="utf-8") == "SECRET"
+    assert not seed_path.exists()
+
+
 # ── Sources block names the tool (UN-23199) ──────────────────────────────────
 
 
@@ -904,6 +923,25 @@ def test_titleless_identical_text_still_merges(tmp_path: Path) -> None:
             "mcp__crm__update",
             _FakeMCPResponse(content=[{"type": "text", "text": "same"}]),
             formatted="identical",
+        )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["sourceNumber"] == 1
+
+
+def test_titleless_oversized_identical_text_merges_across_calls(
+    tmp_path: Path,
+) -> None:
+    # Bugbot regression: the dedup key must hash the CAPPED text so the second
+    # call (rebuilding the key from the truncated manifest entry) still matches
+    # the first (full live text). An oversized identical title-less body must
+    # merge onto one source, not be re-assigned a duplicate number.
+    big = "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 50)
+    for _ in range(2):
+        _run(
+            "mcp__crm__update",
+            _FakeMCPResponse(content=[{"type": "text", "text": "plain"}]),
+            formatted=big,
         )
     refs = _lines(tmp_path, _REFS_MANIFEST)
     assert len(refs) == 1
