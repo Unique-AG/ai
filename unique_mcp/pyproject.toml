@@ -8,7 +8,9 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=3.1.1,<4",
+    # 3.3.0 is the floor: create_zitadel_oidc_proxy calls
+    # OAuthProxy.update_default_scopes, added in that release.
+    "fastmcp>=3.3.0,<4",
     "httpx>=0.28.0",
     "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
