@@ -1,3 +1,6 @@
 # Environment files
 *.env
 !*.env.example
+
+# Generated rendering previews (preview_panel.py)
+preview/
