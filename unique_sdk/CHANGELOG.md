@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-* **sdk:** add `uiType=UNIQUE_CONDUCT` for Conduct spaces (mapped to API `SWAPPABLE_INTELLIGENCE`)
+* **sdk:** add `uiType=UNIQUE_CONDUCT` for Conduct spaces (API maps to/from `SWAPPABLE_INTELLIGENCE`)
 
 ## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.28.0...unique-sdk-v2026.30.0) (2026-07-17)
 
