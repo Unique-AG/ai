@@ -843,8 +843,8 @@ class KnowledgeBaseService:
             folder_info = await self.get_folder_info_async(scope_id=scope_id)
             return folder_info.name
         except Exception as e:
-            _LOGGER.warning(
-                f"Could not resolve folder for scope_id {scope_id}", exc_info=e
+            _LOGGER.debug(
+                "Could not resolve folder for scope_id %s", scope_id, exc_info=e
             )
             return None
 

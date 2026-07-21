@@ -459,3 +459,24 @@ async def test_AI_search_visible_files_fuzzy_reuses_cached_snapshot() -> None:
         await svc.search_visible_files_fuzzy_async("a.pdf", min_score=0.0)
 
     assert mock_core.await_count == 1
+
+
+@pytest.mark.ai
+async def test_translate_scope_id_async__returns_none__when_folder_lookup_fails() -> (
+    None
+):
+    """A single failing folder lookup logs at debug and yields None so batch
+    resolution keeps going (callers fall back to the raw scope_id)."""
+    from unique_toolkit.experimental.components.content_tree.functions import (
+        translate_scope_id_async,
+    )
+
+    with patch(
+        "unique_toolkit.experimental.components.content_tree.functions.get_folder_info_async",
+        new=AsyncMock(side_effect=RuntimeError("folder service unavailable")),
+    ):
+        resolved = await translate_scope_id_async(
+            user_id="u", company_id="c", scope_id="scope_x"
+        )
+
+    assert resolved is None

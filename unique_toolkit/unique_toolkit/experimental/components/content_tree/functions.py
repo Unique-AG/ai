@@ -107,9 +107,8 @@ async def translate_scope_id_async(
 ) -> str | None:
     """Resolve a single ``scope_id`` to a folder name.
 
-    Returns ``None`` (and logs a warning) if the folder lookup fails, so callers
-    can batch-resolve ids without a single missing folder aborting the whole
-    operation.
+    Returns ``None`` if the folder lookup fails (logged at debug; callers fall back
+    to the raw ``scope_id``), so batch resolution is not aborted by a single miss.
     """
     try:
         folder_info = await get_folder_info_async(
@@ -119,7 +118,7 @@ async def translate_scope_id_async(
         )
         return folder_info.name
     except Exception as e:
-        _LOGGER.warning(f"Could not resolve folder for scope_id {scope_id}", exc_info=e)
+        _LOGGER.debug("Could not resolve folder for scope_id %s", scope_id, exc_info=e)
         return None
 
 

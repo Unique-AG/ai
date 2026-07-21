@@ -18,7 +18,7 @@ exclude-newer-span = "P2W"
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-crawl4ai = "2026-06-20T00:00:00Z"
+crawl4ai = "2026-06-19T22:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
@@ -26,9 +26,9 @@ unique-mcp = false
 unique-orchestrator = false
 unique-follow-up-questions = false
 unique-user-memory = false
-langsmith = "2026-06-21T00:00:00Z"
+langsmith = "2026-06-20T22:00:00Z"
 unique-six = false
-pydantic-settings = "2026-06-21T00:00:00Z"
+pydantic-settings = "2026-06-20T22:00:00Z"
 unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
@@ -5204,17 +5204,19 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "typing-extensions" },
     { name = "unique-toolkit" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "fastmcp", specifier = ">=3.1.1,<4" },
+    { name = "fastmcp", specifier = ">=3.3.0,<4" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "typing-extensions", specifier = ">=4.6.0" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
 
