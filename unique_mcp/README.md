@@ -32,8 +32,14 @@ flowchart TD
     B -- yes --> C[Use _meta identity]
     B -- no --> D{Zitadel JWT has sub\n+ company claim?}
     D -- yes --> E[Use Zitadel JWT claims]
-    D -- no --> F[Use env-loaded UniqueSettings auth]
-    C & E --> G[Build UniqueSettings → tool executes]
+    D -- no --> H{Async resolver?\nget_unique_settings_async}
+    H -- yes --> I{Zitadel /userinfo\nyields sub + company?}
+    I -- yes --> J[Use userinfo identity]
+    I -- no --> K{Access token present?}
+    K -- yes --> L([Raise: refuse env fallback])
+    K -- no --> F[Use env-loaded UniqueSettings auth]
+    H -- no, sync --> F
+    C & E & J --> G[Build UniqueSettings → tool executes]
     F --> G
 ```
 
@@ -156,17 +162,20 @@ sequenceDiagram
 
     Client->>MCP: tools/call + Authorization: Bearer <FastMCP JWT>
     MCP->>MCP: token swap → retrieve Zitadel JWT
-    Note over MCP: JWT incomplete for get_unique_settings → env auth
-    opt Tool calls get_unique_userinfo
-        MCP->>Zitadel: GET /oidc/v1/userinfo (Bearer Zitadel JWT)
+    Note over MCP: JWT incomplete for get_unique_settings (sync) → env auth
+    MCP->>Zitadel: get_unique_settings_async: GET /oidc/v1/userinfo (Bearer Zitadel JWT)
+    alt userinfo has sub + company
         Zitadel-->>MCP: sub, urn:zitadel:...:id, email, ...
+        Note over MCP: Use userinfo identity
+    else userinfo incomplete
+        Note over MCP: Raise — refuse env fallback for a logged-in request
     end
     MCP-->>Client: tool result
 ```
 
 ### 3 — Trusted internal caller with `_meta` override
 
-An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. This takes highest priority — but **only works if both `unique.app/user-id` and `unique.app/company-id` are present**. If either is missing, the provider falls through to JWT/env resolution, which will use env auth if the JWT is also incomplete.
+An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. This takes highest priority — but **only works if both `unique.app/auth/user-id` and `unique.app/auth/company-id` are present**. If either is missing, the provider falls through to JWT/env resolution, which will use env auth if the JWT is also incomplete.
 
 > **Security:** The server takes `_meta` values as-is without further validation. Only use this from callers you fully trust — never expose it to external users.
 
@@ -177,8 +186,8 @@ An internal service calls the tool on behalf of a known user by passing identity
     "name": "search",
     "arguments": { "query": "hello" },
     "_meta": {
-      "unique.app/user-id": "user-abc123",
-      "unique.app/company-id": "company-xyz456"
+      "unique.app/auth/user-id": "user-abc123",
+      "unique.app/auth/company-id": "company-xyz456"
     }
   }
 }

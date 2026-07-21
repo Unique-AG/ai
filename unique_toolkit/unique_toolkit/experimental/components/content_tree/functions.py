@@ -118,7 +118,7 @@ async def translate_scope_id_async(
         )
         return folder_info.name
     except Exception as e:
-        _LOGGER.debug("Could not resolve folder for scope_id %s: %s", scope_id, e)
+        _LOGGER.debug("Could not resolve folder for scope_id %s", scope_id, exc_info=e)
         return None
 
 
