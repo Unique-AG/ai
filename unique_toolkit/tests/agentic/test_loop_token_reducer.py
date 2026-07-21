@@ -1578,9 +1578,7 @@ async def test_get_history_from_db__preserves_oldest_turn__when_recent_tool_outp
         LanguageModelAssistantMessage(content="EUR/USD was 1.1427."),
     ]
 
-    def big_tool_turn(
-        question: str, tool_call_id: str
-    ) -> list[LanguageModelMessage]:
+    def big_tool_turn(question: str, tool_call_id: str) -> list[LanguageModelMessage]:
         return [
             LanguageModelUserMessage(content=question),
             LanguageModelAssistantMessage(
