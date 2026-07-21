@@ -208,6 +208,69 @@ async def test_peek_space_answer_returns_history_oldest_first():
     assert messages[1]["done"] is False
     assert messages[1]["references"][0]["name"] == "doc.pdf"
     assert messages[1]["references"][0]["sequenceNumber"] == 1
+    assert messages[1]["logs"] == []
+
+
+@pytest.mark.asyncio
+async def test_peek_space_answer_passes_through_message_logs():
+    from mcp_space_chat.tools.peek_space_answer import peek_space_answer
+
+    history = {
+        "messages": [
+            {
+                "id": "msg_1",
+                "role": "ASSISTANT",
+                "text": "working on it",
+                "createdAt": "2026-01-01T00:00:01Z",
+                "stoppedStreamingAt": None,
+                "references": [],
+                "messageLogs": [
+                    {
+                        "text": "**Loaded Skill**",
+                        "status": "COMPLETED",
+                        "order": 2,
+                        "details": {
+                            "data": [
+                                {"type": "ToolCall", "text": "pptx"},
+                                {
+                                    "type": "Todo",
+                                    "text": "Set up project",
+                                    "status": "done",
+                                },
+                            ]
+                        },
+                    },
+                    {
+                        "text": "**Thinking**",
+                        "status": "RUNNING",
+                        "order": 1,
+                        "details": None,
+                    },
+                ],
+            },
+        ],
+        "totalCount": 1,
+    }
+    with (
+        _patch_resolve("peek_space_answer"),
+        _patch_identity("peek_space_answer"),
+        patch(
+            "mcp_space_chat.tools.peek_space_answer.Space.get_chat_messages_async",
+            new=AsyncMock(return_value=history),
+        ),
+    ):
+        result = await peek_space_answer(
+            chat_id="chat_1",
+            settings=_make_settings(),
+        )
+
+    logs = result.structured_content["messages"][0]["logs"]
+    # Sorted by order: Thinking (1) before Loaded Skill (2).
+    assert [entry["text"] for entry in logs] == ["**Thinking**", "**Loaded Skill**"]
+    assert logs[1]["events"] == [
+        {"type": "ToolCall", "text": "pptx", "status": None},
+        {"type": "Todo", "text": "Set up project", "status": "done"},
+    ]
 
 
 @pytest.mark.asyncio

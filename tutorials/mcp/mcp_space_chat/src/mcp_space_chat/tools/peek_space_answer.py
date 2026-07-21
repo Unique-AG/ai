@@ -58,6 +58,43 @@ def _serialize_reference(ref: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _serialize_log_event(event: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": event.get("type") or "",
+        "text": event.get("text") or "",
+        "status": event.get("status"),
+    }
+
+
+def _serialize_message_log(log: dict[str, Any]) -> dict[str, Any]:
+    details = log.get("details") or {}
+    raw_events = details.get("data") if isinstance(details, dict) else None
+    events = [
+        _serialize_log_event(e) for e in raw_events or [] if isinstance(e, dict)
+    ]
+    return {
+        "text": log.get("text") or "",
+        "status": log.get("status") or "",
+        "order": log.get("order") or 0,
+        "events": events,
+    }
+
+
+def _extract_message_logs(message: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return serialized step logs if the API includes them on the message.
+
+    The public Space message schema does not document message logs, but the
+    backend may include them (``messageLogs`` / ``logs``). Pass them through
+    so the chat panel can render the Unique steps timeline.
+    """
+    raw = message.get("messageLogs") or message.get("logs") or []
+    if not isinstance(raw, list):
+        return []
+    logs = [_serialize_message_log(entry) for entry in raw if isinstance(entry, dict)]
+    logs.sort(key=lambda entry: entry["order"])
+    return logs
+
+
 def _serialize_message(message: dict[str, Any]) -> dict[str, Any]:
     role = message.get("role") or ""
     stopped = message.get("stoppedStreamingAt")
@@ -78,6 +115,7 @@ def _serialize_message(message: dict[str, Any]) -> dict[str, Any]:
         "createdAt": message.get("createdAt"),
         "done": done,
         "references": [_serialize_reference(r) for r in refs if isinstance(r, dict)],
+        "logs": _extract_message_logs(message),
     }
 
 

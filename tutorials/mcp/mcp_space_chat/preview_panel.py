@@ -150,6 +150,78 @@ SCENARIOS: dict[str, list[dict]] = {
             done=False,
         ),
     ],
+    "07_steps_timeline": [
+        _user("Generate a unique AI sample pptx"),
+        {
+            "id": "a7",
+            "role": "ASSISTANT",
+            "text": (
+                "I'll use the `pptx` skill for this and create a short plan "
+                "first so the deck work stays tidy.\n\n"
+                "I've got the PPTX workflow; now checking template rules "
+                "before building."
+            ),
+            "createdAt": _T.format(7),
+            "done": True,
+            "references": [],
+            "logs": [
+                {
+                    "text": "**Loaded Skill**",
+                    "status": "COMPLETED",
+                    "order": 1,
+                    "events": [
+                        {"type": "ToolCall", "text": "pptx", "status": None},
+                        {"type": "Thinking", "text": "", "status": None},
+                        {
+                            "type": "Thinking",
+                            "text": (
+                                "**Considering template-discovery**\n"
+                                "I need to continue exploring if "
+                                "template-discovery applies here. The user "
+                                "provided a generic request without a "
+                                "specific template. I think I should check "
+                                "the template folder, as the skill indicates "
+                                "it should be resolved."
+                            ),
+                            "status": None,
+                        },
+                    ],
+                },
+                {
+                    "text": "**Wrote a file**",
+                    "status": "RUNNING",
+                    "order": 2,
+                    "events": [
+                        {
+                            "type": "Thinking",
+                            "text": (
+                                "**Status Update**\n"
+                                "Still working — this is taking longer than "
+                                "usual. Longer tool or subagent calls can "
+                                "cause a brief pause."
+                            ),
+                            "status": None,
+                        },
+                        {"type": "ToolCall", "text": "Write", "status": None},
+                        {"type": "Todo", "text": "Set up deck skeleton", "status": "done"},
+                        {"type": "Todo", "text": "Add KPI slides", "status": "todo"},
+                    ],
+                },
+            ],
+        },
+    ],
+    "08_fence_fallback": [
+        _user("Show the generated deck"),
+        _assistant(
+            "I also validated the `.pptx` and exported an internal PDF "
+            "preview for QA.\n\n"
+            "```\n"
+            "id='1', contentId='cont_tn4nari8r67ffse7h65czgv7', "
+            "title=\"unique_ai_sample_deck.pptx\", type=\"powerpoint\", "
+            "code=\"prs.save('/mnt/data/deck.pptx')\"\n"
+            "```\n"
+        ),
+    ],
     "06_full_conversation": [
         _user("Generate a unique AI sample pptx"),
         _assistant(

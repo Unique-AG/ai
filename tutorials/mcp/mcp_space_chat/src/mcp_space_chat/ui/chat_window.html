@@ -410,6 +410,100 @@
     color: var(--uq-text);
   }
 
+  /* Steps timeline (message logs), like Unique's expandable step sections. */
+  .steps {
+    margin: 4px 0 14px;
+  }
+  .step-group {
+    border: 0;
+    background: transparent;
+    margin: 0 0 2px;
+    padding: 0;
+  }
+  .step-group > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--uq-muted);
+    user-select: none;
+  }
+  .step-group > summary::-webkit-details-marker { display: none; }
+  .step-group > summary::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--uq-muted);
+    border-bottom: 1.5px solid var(--uq-muted);
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+    flex: 0 0 auto;
+    margin-left: 2px;
+  }
+  .step-group[open] > summary::before { transform: rotate(45deg); }
+  .step-body {
+    position: relative;
+    margin: 4px 0 10px 4px;
+    padding-left: 20px;
+  }
+  .step-body::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 8px;
+    bottom: 4px;
+    width: 3px;
+    border-radius: 2px;
+    background: #99e5dd;
+  }
+  .step-event { position: relative; margin-bottom: 14px; }
+  .step-event:last-child { margin-bottom: 4px; }
+  .step-event::before {
+    content: "";
+    position: absolute;
+    left: -21.5px;
+    top: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--uq-bg);
+    border: 2px solid #5eead4;
+    box-sizing: border-box;
+  }
+  .step-event .ev-title {
+    font-size: 13px;
+    font-weight: 650;
+    color: #3f3f46;
+    margin-bottom: 2px;
+  }
+  .step-event .ev-sub {
+    font-size: 13px;
+    font-weight: 650;
+    color: #52525b;
+    margin: 4px 0 2px;
+  }
+  .step-event .ev-text {
+    font-size: 13px;
+    line-height: 1.55;
+    color: #52525b;
+  }
+  .step-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--uq-chip-border);
+    background: var(--uq-bg);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    color: #52525b;
+    margin: 3px 0;
+  }
+  .step-chip::before { content: "⧉"; font-size: 11px; color: #a1a1aa; }
+
   .msg-time {
     font-size: 11px;
     color: #a1a1aa;
@@ -619,7 +713,10 @@
   //  - [label](https://prompt=…) suggestion buttons
   // ---------------------------------------------------------------------
 
-  var FENCE_RE = /````\s*(fileWithSource|imgWithSource|htmlWithSource)\(([\s\S]*?)\)\s*````/g;
+  // Fence variants seen in the wild: single-line and multi-line bodies,
+  // with or without the closing paren directly before the backticks.
+  var FENCE_RE = /````\s*(fileWithSource|imgWithSource|htmlWithSource)\s*\(([\s\S]*?)\)?\s*````/g;
+  var FENCE_BODY_RE = /^\s*(?:(fileWithSource|imgWithSource|htmlWithSource)\s*\()?\s*((?:id|contentId)\s*=[\s\S]*)$/;
 
   function parseFenceAttrs(raw) {
     // Attributes look like: id='1', contentId='cont_x', title="Chart", type="excel"
@@ -651,7 +748,16 @@
     });
   }
 
-  function buildFileCard(title, typeLabel, hint) {
+  // Deep link that opens the chat with the file preview in the sidebar
+  // (same ?file= parameter the knowledge-upload deep links use).
+  function chatFileUrl(contentId) {
+    if (!openUrl) return null;
+    if (!contentId) return openUrl;
+    var sep = openUrl.indexOf("?") === -1 ? "?" : "&";
+    return openUrl + sep + "file=" + encodeURIComponent(contentId);
+  }
+
+  function buildFileCard(title, typeLabel, contentId) {
     var card = document.createElement("span");
     card.className = "file-card";
     card.setAttribute("role", "button");
@@ -663,17 +769,25 @@
     name.className = "fname";
     name.textContent = title || "Generated file";
     body.appendChild(name);
-    if (hint) {
-      var hintEl = document.createElement("span");
-      hintEl.className = "fhint";
-      hintEl.textContent = " " + hint;
-      body.appendChild(document.createElement("br"));
-      body.appendChild(hintEl);
-    }
+    var hintEl = document.createElement("span");
+    hintEl.className = "fhint";
+    hintEl.textContent = " Open in chat";
+    body.appendChild(document.createElement("br"));
+    body.appendChild(hintEl);
     card.appendChild(icon);
     card.appendChild(body);
-    card.addEventListener("click", function () { openExternal(openUrl); });
+    card.addEventListener("click", function () {
+      var url = chatFileUrl(contentId);
+      if (url) openExternal(url);
+    });
     return card;
+  }
+
+  function fenceCard(kind, attrs) {
+    var typeLabel = kind === "imgWithSource" ? "IMG"
+      : kind === "htmlWithSource" ? "HTML"
+      : fileTypeLabel(attrs.type);
+    return buildFileCard(attrs.title || "Generated file", typeLabel, attrs.contentId);
   }
 
   function escapeHtml(s) {
@@ -715,6 +829,7 @@
     decorateCitations(container, refs);
     decorateLinks(container);
     reinsertFences(container, fences);
+    convertLeftoverFenceBlocks(container);
     enhanceCodeBlocks(container);
     return container;
   }
@@ -748,14 +863,15 @@
     links.forEach(function (a) {
       var href = a.getAttribute("href") || "";
       if (href.indexOf("unique://content/") === 0) {
-        // Generated file link — render as a file card; content is only
-        // reachable inside Unique, so the card opens the chat there.
+        // Generated file link — render as a file card that deep-links back
+        // to the chat with the file opened in the sidebar.
+        var contentId = href.slice("unique://content/".length).split(/[?#]/)[0];
         var name = a.textContent || "Generated file";
         var ext = (name.split(".").pop() || "").toLowerCase();
         var typeMap = { pptx: "PPT", ppt: "PPT", xlsx: "XLS", xls: "XLS",
           csv: "CSV", docx: "DOC", doc: "DOC", pdf: "PDF", png: "IMG",
           jpg: "IMG", jpeg: "IMG", html: "HTML" };
-        var card = buildFileCard(name, typeMap[ext] || "FILE", "Open in Unique");
+        var card = buildFileCard(name, typeMap[ext] || "FILE", contentId);
         a.replaceWith(card);
         return;
       }
@@ -779,9 +895,39 @@
     imgs.forEach(function (img) {
       var src = img.getAttribute("src") || "";
       if (src.indexOf("unique://content/") === 0) {
-        var card = buildFileCard(img.getAttribute("alt") || "Image", "IMG", "Open in Unique");
+        var imgContentId = src.slice("unique://content/".length).split(/[?#]/)[0];
+        var card = buildFileCard(img.getAttribute("alt") || "Image", "IMG", imgContentId);
         img.replaceWith(card);
       }
+    });
+  }
+
+  // Safety net: any code block whose content still looks like a *WithSource
+  // fence body (marked can turn odd fence variants into code blocks) becomes
+  // a file card instead of showing the raw generation code.
+  function convertLeftoverFenceBlocks(root) {
+    var pres = root.querySelectorAll("pre");
+    pres.forEach(function (pre) {
+      var text = (pre.textContent || "").trim();
+      var m = FENCE_BODY_RE.exec(text);
+      if (!m || text.indexOf("contentId") === -1) return;
+      var attrs = parseFenceAttrs(m[2] || text);
+      if (!attrs.contentId) return;
+      var kind = m[1] || (text.indexOf("imgWithSource") !== -1 ? "imgWithSource" : "fileWithSource");
+      pre.replaceWith(fenceCard(kind, attrs));
+    });
+    // Inline code spans can also carry a collapsed fence.
+    var codes = root.querySelectorAll("code");
+    codes.forEach(function (code) {
+      if (code.closest("pre")) return;
+      var text = (code.textContent || "").trim();
+      if (text.indexOf("contentId") === -1) return;
+      var m = FENCE_BODY_RE.exec(text);
+      if (!m) return;
+      var attrs = parseFenceAttrs(m[2] || text);
+      if (!attrs.contentId) return;
+      var kind = m[1] || "fileWithSource";
+      code.replaceWith(fenceCard(kind, attrs));
     });
   }
 
@@ -795,13 +941,7 @@
       if (!m) return;
       var fence = fences[parseInt(m[1], 10)];
       if (!fence) return;
-      var attrs = fence.attrs || {};
-      var typeLabel = fence.kind === "imgWithSource" ? "IMG"
-        : fence.kind === "htmlWithSource" ? "HTML"
-        : fileTypeLabel(attrs.type);
-      var card = buildFileCard(attrs.title || "Generated file", typeLabel, "Open in Unique");
-      var parent = node.parentNode;
-      parent.replaceChild(card, node);
+      node.parentNode.replaceChild(fenceCard(fence.kind, fence.attrs || {}), node);
     });
   }
 
@@ -825,6 +965,128 @@
       });
       pre.appendChild(btn);
     });
+  }
+
+  // ---------------------------------------------------------------------
+  // Steps timeline (message logs) — Unique's expandable step sections.
+  // ---------------------------------------------------------------------
+  var EVENT_TYPE_LABELS = {
+    WebSearch: "Web Search",
+    InternalSearch: "Internal Search",
+    Thinking: "Thinking",
+    ToolCall: "Tool Call",
+    Elicitation: "Question",
+    Todo: "To-do",
+  };
+
+  function mdInline(text) {
+    var span = document.createElement("span");
+    var html;
+    try {
+      html = typeof marked !== "undefined" && marked.parseInline
+        ? marked.parseInline(text || "")
+        : escapeHtml(text || "");
+      if (typeof DOMPurify !== "undefined") {
+        html = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+      }
+    } catch (e) {
+      html = escapeHtml(text || "");
+    }
+    span.innerHTML = html;
+    return span;
+  }
+
+  function stripMd(text) {
+    return (text || "").replace(/\*\*/g, "").replace(/^_+|_+$/g, "").trim();
+  }
+
+  function logHeader(log) {
+    var firstLine = (log.text || "").split("\n")[0];
+    return stripMd(firstLine) || "Step";
+  }
+
+  function renderStepEvent(ev) {
+    var wrap = document.createElement("div");
+    wrap.className = "step-event";
+
+    var title = document.createElement("div");
+    title.className = "ev-title";
+    title.textContent = EVENT_TYPE_LABELS[ev.type] || ev.type || "Step";
+    wrap.appendChild(title);
+
+    var text = (ev.text || "").trim();
+    if (!text) return wrap;
+
+    if (ev.type === "Todo") {
+      var todo = document.createElement("div");
+      todo.className = "ev-text";
+      todo.textContent = (ev.status === "done" ? "✓ " : "○ ") + stripMd(text);
+      wrap.appendChild(todo);
+      return wrap;
+    }
+
+    // Short single-token payloads (skill / tool names) render as chips.
+    if ((ev.type === "ToolCall" || ev.type === "WebSearch") && text.length <= 48 && text.indexOf("\n") === -1) {
+      var chip = document.createElement("span");
+      chip.className = "step-chip";
+      chip.appendChild(document.createTextNode(stripMd(text)));
+      wrap.appendChild(chip);
+      return wrap;
+    }
+
+    var lines = text.split("\n");
+    var first = lines[0] || "";
+    var rest = lines.slice(1).join("\n").trim();
+    // A bold first line acts as a sub-heading (e.g. thinking topic).
+    if (/^\*\*.+\*\*$/.test(first.trim()) && rest) {
+      var sub = document.createElement("div");
+      sub.className = "ev-sub";
+      sub.textContent = stripMd(first);
+      wrap.appendChild(sub);
+      var body = document.createElement("div");
+      body.className = "ev-text";
+      body.appendChild(mdInline(rest.replace(/\n/g, " ")));
+      wrap.appendChild(body);
+    } else {
+      var textEl = document.createElement("div");
+      textEl.className = "ev-text";
+      textEl.appendChild(mdInline(text.replace(/\n/g, " ")));
+      wrap.appendChild(textEl);
+    }
+    return wrap;
+  }
+
+  function renderSteps(logs) {
+    var container = document.createElement("div");
+    container.className = "steps";
+    logs.forEach(function (log) {
+      var group = document.createElement("details");
+      group.className = "step-group";
+      group.open = true;
+      var summary = document.createElement("summary");
+      summary.textContent = logHeader(log);
+      group.appendChild(summary);
+
+      var body = document.createElement("div");
+      body.className = "step-body";
+      var events = log.events || [];
+      if (events.length) {
+        events.forEach(function (ev) {
+          body.appendChild(renderStepEvent(ev));
+        });
+      } else {
+        // No structured events — show the log text lines under the header.
+        var restLines = (log.text || "").split("\n").slice(1).join("\n").trim();
+        var ev = renderStepEvent({
+          type: log.status === "FAILED" ? "Failed" : "Status Update",
+          text: restLines || logHeader(log),
+        });
+        body.appendChild(ev);
+      }
+      group.appendChild(body);
+      container.appendChild(group);
+    });
+    return container;
   }
 
   function formatTime(iso) {
@@ -851,9 +1113,11 @@
 
     var visible = (messages || []).filter(function (m, idx, arr) {
       if (!m || m.role === "SYSTEM") return false;
-      // Hide empty assistant placeholder messages except a streaming tail.
+      // Hide empty assistant placeholder messages (no text and no step
+      // logs) except a streaming tail.
       var isLast = idx === arr.length - 1;
-      if (m.role === "ASSISTANT" && !(m.text || "").trim() && !(isLast && !m.done)) {
+      var hasContent = (m.text || "").trim() || (m.logs && m.logs.length);
+      if (m.role === "ASSISTANT" && !hasContent && !(isLast && !m.done)) {
         return false;
       }
       return true;
@@ -882,9 +1146,12 @@
           bubble.textContent = m.text || "";
           inner.appendChild(bubble);
         } else {
+          if (m.logs && m.logs.length) {
+            inner.appendChild(renderSteps(m.logs));
+          }
           var text = m.text || "";
           if (!text.trim() && !m.done) {
-            inner.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+            inner.innerHTML += '<div class="typing"><span></span><span></span><span></span></div>';
           } else {
             var md = renderMarkdown(text, m.references || []);
             if (!m.done && isLast && streaming) {

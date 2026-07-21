@@ -59,6 +59,11 @@ def test_chat_window_html_has_native_panel_with_unique_rendering():
     assert "fileWithSource" in html
     assert "unique://content/" in html
     assert "https://prompt=" in html
+    # Steps timeline (message logs) and file deep links back into the chat.
+    assert "renderSteps" in html
+    assert "step-event" in html
+    assert "chatFileUrl" in html
+    assert "convertLeftoverFenceBlocks" in html
 
 
 def test_chat_window_html_has_no_stop_or_followup_controls():
