@@ -1028,6 +1028,44 @@ async def test_user_memory_postprocessor_run_resets_invocation_stats(
     assert postprocessor.invocation_stats == [second_run_stats]
 
 
+@pytest.mark.ai
+def test_user_memory_postprocessor_take_pending_invocation_stats_drains_once() -> None:
+    """Purpose: Verify load-time usage is reported exactly once, however it's read.
+    Why this matters: A turn that exits before `run()` (cancellation, empty
+    response, a control-taking tool) must still report the load-time condense
+    tokens, and a turn that does reach `run()` must not double-count them.
+    Setup summary: Take the pending stats directly, then run(), and assert
+    run() no longer reports the already-taken load stats.
+    """
+    load_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=2),
+        source="user_memory_load_condense",
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    state = UserMemoryState(
+        scope_id="scope_1",
+        text="# User Memory\n\n## Identity\n- unchanged",
+        load_invocation_stats=(load_stats,),
+    )
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        state=state,
+        logger=MagicMock(),
+        chat_service=MagicMock(),
+    )
+
+    taken = postprocessor.take_pending_invocation_stats()
+
+    assert taken == [load_stats]
+    assert postprocessor.take_pending_invocation_stats() == []
+
+
 @pytest.mark.asyncio
 async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     monkeypatch: pytest.MonkeyPatch,

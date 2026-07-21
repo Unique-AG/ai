@@ -76,6 +76,10 @@ def _build_run_ua(loop_responses: list[MagicMock], max_iterations: int):
     mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
     mock_postprocessor_manager.get_execution_times.return_value = {}
     mock_postprocessor_manager.get_invocation_stats.return_value = []
+    # A fresh list per call: `.return_value = []` would hand back the *same*
+    # list object every time, so mutations from one `ua.run()` (e.g. the
+    # main-loop usage append) would leak into the next run's list.
+    mock_postprocessor_manager.take_pending_invocation_stats.side_effect = lambda: []
 
     mock_evaluation_manager = MagicMock()
     mock_evaluation_manager.run_evaluations = AsyncMock(return_value=[])
@@ -280,6 +284,48 @@ class TestRunTokenUsageIntegration:
         assert calls_by_key["llm_invocations_complete"] is False
         ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
         ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__cancelled_before_postprocessing__still_reports_pending_stats(
+        self,
+    ):
+        """
+        Purpose: Verify pre-run usage (e.g. a user-memory load-time condense
+            call) is still reported when a turn exits before postprocessors run.
+        Why this matters: That usage previously lived inside a postprocessor
+            and was only surfaced when its `run()` executed; a turn that
+            cancels first silently dropped it from analytics.
+        Setup summary: Seed pending postprocessor stats, cancel before
+            postprocessing, and assert the stats still reach `llm_invocations`.
+        """
+        # Arrange
+        pending_stats = LanguageModelInvocationStats.from_usage(
+            MODEL_NAME,
+            LanguageModelTokenUsage(total_tokens=7),
+            source="user_memory_load_condense",
+        )
+        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
+        ua._postprocessor_manager.take_pending_invocation_stats.side_effect = None
+        ua._postprocessor_manager.take_pending_invocation_stats.return_value = [
+            pending_stats
+        ]
+        ua._chat_service.cancellation.check_cancellation_async = AsyncMock(
+            side_effect=[False, True]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations"] == [
+            pending_stats.model_dump(by_alias=True)
+        ]
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
 
     @pytest.mark.ai
     @pytest.mark.asyncio

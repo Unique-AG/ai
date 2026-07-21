@@ -267,7 +267,13 @@ class UniqueAI:
         # cancellation) must not report the previous run's artifacts.
         self._generated_files_info = None
         self._context_memory_updated = None
-        self._invocation_stats = []
+        # Pending pre-run usage (e.g. the user-memory load-time condense call)
+        # must be captured unconditionally, before it's known whether this
+        # turn will even reach postprocessors -- otherwise a turn that exits
+        # early (cancellation, empty response, control-taking tool) drops it.
+        self._invocation_stats = (
+            self._postprocessor_manager.take_pending_invocation_stats()
+        )
         self._invocation_stats_finalized = False
         self._debug_info_manager.add("llm_invocations_complete", False)
         invocations_persisted = False
