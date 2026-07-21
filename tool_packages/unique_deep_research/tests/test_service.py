@@ -12,6 +12,9 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.chat.schemas import MessageExecutionUpdateStatus
 
 from unique_deep_research.config import DeepResearchToolConfig
+from unique_deep_research.invocation_stats import (
+    invocation_stats_scope as deep_research_invocation_stats_scope,
+)
 from unique_deep_research.service import (
     DeepResearchTool,
     DeepResearchToolInput,
@@ -1330,6 +1333,73 @@ async def test_deep_research_tool__custom_research__propagates_exception__when_e
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_deep_research_tool__custom_research__records_web_search_stats__on_failure() -> (
+    None
+):
+    """
+    Purpose: Verify web-search tokens collected before a graph failure are still
+        merged into the outer Deep Research invocation-stats scope.
+    Why this matters: record_invocation_stats used to run only after ainvoke
+        returned; a raise skipped it entirely and silently dropped grounding/
+        parser tokens already spent before the crash.
+    Setup summary: Make the mocked graph record web-search usage, then raise;
+        assert the outer scope still received it.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    async def _ainvoke_records_usage_then_fails(*_args, **_kwargs):
+        from unique_web_search.invocation_stats import record_token_usage
+
+        record_token_usage(
+            model_name="gpt-4",
+            usage={"total_tokens": 7},
+            source="web_search.grounding",
+        )
+        raise Exception("Custom research failed")
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                with patch("unique_deep_research.service.custom_agent") as mock_agent:
+                    with patch(
+                        "unique_deep_research.service.GlobalCitationManager"
+                    ) as mock_citation_manager:
+                        tool = DeepResearchTool(
+                            config, mock_event, mock_progress_reporter
+                        )
+
+                        mock_agent.ainvoke = AsyncMock(
+                            side_effect=_ainvoke_records_usage_then_fails
+                        )
+
+                        mock_citation_instance = Mock()
+                        mock_citation_manager.return_value = mock_citation_instance
+
+                        # Act
+                        with deep_research_invocation_stats_scope() as outer_stats:
+                            with pytest.raises(
+                                Exception, match="Custom research failed"
+                            ):
+                                await tool.custom_research("test brief")
+
+                            # Assert
+                            assert len(outer_stats) == 1
+                            assert outer_stats[0].source == "web_search.grounding"
+                            assert outer_stats[0].token_usage.total_tokens == 7
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_deep_research_tool__openai_research__returns_processed_result__when_successful() -> (
     None
 ):
@@ -2127,6 +2197,53 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
 
                 assert isinstance(result, ToolCallResponse)
                 assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__run__keeps_real_report__when_completion_bookkeeping_fails():
+    """
+    Purpose: Verify a transient failure in the trailing completion bookkeeping
+        (set_completed_at / execution status) does not overwrite an already
+        -successful research report with a generic failure message.
+    Why this matters: run_research() already persists the real report before
+        this bookkeeping runs; run()'s blanket except handler used to treat any
+        exception here as total failure and clobber the good content.
+    Setup summary: Mock a successful run_research, make the completion call
+        raise, and assert the real report is still returned and no failure
+        message is ever published.
+    """
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                    is_cancelled=False, check_returns=False
+                )
+                tool.chat_service.modify_assistant_message_async = AsyncMock(
+                    side_effect=Exception("transient network blip")
+                )
+                tool._update_execution_status = AsyncMock()
+                tool._clear_original_message = AsyncMock()
+                tool.is_followup_question_answer = AsyncMock(return_value=False)
+                tool.write_message_log_text_message = Mock()
+                tool.generate_research_brief_from_dict = AsyncMock(return_value="brief")
+                tool.get_visible_history_messages = Mock(return_value=[])
+                tool.run_research = AsyncMock(return_value=("Real finished report", []))
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-bookkeeping-fail"
+
+                # Act
+                result = await tool.run(mock_tool_call)
+
+                # Assert
+                assert result.content == "Real finished report"
+                assert not result.error_message
+                for call in tool.write_message_log_text_message.call_args_list:
+                    assert "failed" not in call.args[0].lower()
 
 
 @pytest.mark.ai

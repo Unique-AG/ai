@@ -360,11 +360,25 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             if processed_result == "":
                 raise ValueError("Research returned empty result")
 
-            await self.chat_service.modify_assistant_message_async(
-                set_completed_at=True,
-            )
-
-            await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
+            # The real report is already persisted by run_research() above; these
+            # two calls are trailing bookkeeping (completed-flag, execution status).
+            # If either raises, run()'s except handler would otherwise treat the
+            # whole turn as failed and overwrite the already-correct report with a
+            # generic failure message -- swallow here instead so a bookkeeping
+            # hiccup can't destroy a successful research result.
+            try:
+                await self.chat_service.modify_assistant_message_async(
+                    set_completed_at=True,
+                )
+                await self._update_execution_status(
+                    MessageExecutionUpdateStatus.COMPLETED
+                )
+            except Exception:
+                _LOGGER.warning(
+                    "Failed to finalize Deep Research completion bookkeeping "
+                    "after a successful research result",
+                    exc_info=True,
+                )
 
             return ToolCallResponse(
                 id=tool_call.id or "",
@@ -530,11 +544,17 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         }
 
         with web_search_invocation_stats_scope() as web_search_invocation_stats:
-            result = await self.chat_service.cancellation.run_with_cancellation(
-                custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
-                cancel_result={"final_report": ""},
-            )
-        record_invocation_stats(web_search_invocation_stats)
+            try:
+                result = await self.chat_service.cancellation.run_with_cancellation(
+                    custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
+                    cancel_result={"final_report": ""},
+                )
+            finally:
+                # web_search_invocation_stats is populated live as nested web-search
+                # calls happen during ainvoke(); merge it into the outer Deep Research
+                # scope even if the graph raises, so tokens already spent before the
+                # failure aren't dropped from the failure ToolCallResponse.
+                record_invocation_stats(web_search_invocation_stats)
 
         research_result = result.get("final_report", "")
 
