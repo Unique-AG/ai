@@ -109,6 +109,34 @@ def _unknown(raw: str) -> str:
     })
 
 
+def _ccy_fmt(v, ccy):
+    sym = {"EUR": "\u20ac", "CHF": "CHF ", "USD": "$", "GBP": "\u00a3"}.get(ccy, "")
+    return f"{sym}{v:,.0f}" if isinstance(v, (int, float)) else str(v)
+
+
+def _cockpit_row(c: dict) -> dict:
+    """Coverage row + display-ready fields so the cockpit canvas stays declarative:
+    labels, direction flags, and an openDocument payload for the name's PRECOMPUTED
+    review (nightly build)."""
+    row = json.loads(json.dumps(c))
+    ov = seed.OVERNIGHT.get(c["ticker"])
+    tp = (ov or {}).get("new_target_price") or c["target_price"]
+    up = (ov or {}).get("new_upside_pct") if (ov and ov.get("new_upside_pct") is not None) else c["upside_pct"]
+    row["tp_label"] = _ccy_fmt(tp, c["ccy"])
+    row["upside_label"] = f"{up:+.1f}%"
+    row["premarket_label"] = f"{c['premarket_pct']:+.1f}%"
+    row["premarket_dir"] = "dn" if c["premarket_pct"] < -0.05 else ("up" if c["premarket_pct"] > 0.05 else "flat")
+    row["pills_text"] = "  ".join(pl["label"] for pl in c.get("pills", []))
+    cid = seed.REVIEW_IDS.get(c["ticker"], "")
+    row["review_content_id"] = cid
+    row["open_review_payload"] = json.dumps({"contentId": cid}) if cid else ""
+    if ov:
+        row["overnight"] = {"severity": ov["severity"], "headline": ov["headline"],
+                            "valuation_impact": ov["valuation_impact"],
+                            "new_target_price": ov.get("new_target_price")}
+    return row
+
+
 @mcp.tool(name="get_coverage", title="Coverage roster",
           description="The analyst's covered names with rating, single target price + "
                       "upside % (house style), last price, workflow status pills, next "
@@ -116,7 +144,7 @@ def _unknown(raw: str) -> str:
                       "impact + revised target price where it changed). Returns "
                       "{as_of, count, rows:[…]}. SYNTHETIC demo data.")
 def get_coverage() -> str:
-    rows = seed.coverage_with_overnight()
+    rows = [_cockpit_row(c) for c in seed.COVERAGE]
     return json.dumps({"as_of": seed.AS_OF, "count": len(rows), "rows": rows})
 
 
@@ -147,8 +175,21 @@ def get_dossier(ticker: _TICKER) -> str:
                       "note → buy-side email + priority call list). Drafts only — nothing "
                       "is sent. SYNTHETIC demo data.")
 def get_morning_brief() -> str:
-    return json.dumps({"generated_at": STATE["generated_at"],
-                       "count": len(STATE["brief"]), "items": STATE["brief"]})
+    items = []
+    for it in STATE["brief"]:
+        d = json.loads(json.dumps(it))
+        d["severity_label"] = {"alert": "ALERT", "positive": "UPSIDE",
+                               "watch": "WATCH", "info": "NOTE"}[d["severity"]]
+        d["cascade_text"] = "\n".join(f"{s['step']}.  {s['label']}" for s in d.get("cascade", []))
+        d["call_list_text"] = " \u00b7 ".join(
+            f"{c['account']}{(' \u2014 ' + c['priority']) if c['priority'] else ''}"
+            for c in d.get("call_list", []))
+        d["ack_args"] = json.dumps({"ticker": d["ticker"]})
+        d["ack_label"] = "\u2713 reviewed" if d.get("acknowledged") else "mark reviewed"
+        d["action_payload"] = json.dumps({"prompt": f"{d['suggested_action']} for {d['name']} "
+                                          f"({d['ticker']}) \u2014 use the {d['suggested_skill']} skill."})
+        items.append(d)
+    return json.dumps({"generated_at": STATE["generated_at"], "count": len(items), "items": items})
 
 
 @mcp.tool(name="acknowledge_alert", title="Acknowledge an overnight item",
@@ -172,7 +213,13 @@ def acknowledge_alert(ticker: _TICKER) -> str:
                       "with a `reviewed` flag. Drafts only — the analyst reviews and sends. "
                       "Returns {count, drafts:[…]}. SYNTHETIC demo data.")
 def get_action_inbox() -> str:
-    return json.dumps({"count": len(STATE["inbox"]), "drafts": STATE["inbox"]})
+    drafts = []
+    for d0 in STATE["inbox"]:
+        d = json.loads(json.dumps(d0))
+        d["review_payload"] = json.dumps({"prompt": f"Open the draft reply to {d['from']} "
+                                          f"({d['subject']}) for my review \u2014 do not send anything."})
+        drafts.append(d)
+    return json.dumps({"count": len(drafts), "drafts": drafts})
 
 
 @mcp.tool(name="get_agenda", title="Agenda (roadshows & meetings)",
@@ -180,7 +227,13 @@ def get_action_inbox() -> str:
                       "corporate roadshows (analyst-organised for issuer management). "
                       "Returns {count, events:[…]}. SYNTHETIC demo data.")
 def get_agenda() -> str:
-    return json.dumps({"count": len(seed.AGENDA), "events": seed.AGENDA})
+    events = []
+    for e0 in seed.AGENDA:
+        e = json.loads(json.dumps(e0))
+        e["action_payload"] = json.dumps({"prompt": f"Prepare the {e['title']} ({e['role']}) \u2014 "
+                                          f"{e['action']} \u2014 use the roadshow-ir-prep skill."})
+        events.append(e)
+    return json.dumps({"count": len(events), "events": events})
 
 
 @mcp.tool(name="get_jobs", title="Jobs & notifications",
@@ -188,7 +241,11 @@ def get_agenda() -> str:
                       "monitor) with status, plus the latest side-panel notification. "
                       "SYNTHETIC demo data.")
 def get_jobs() -> str:
-    return json.dumps({"count": len(STATE["jobs"]["jobs"]), **STATE["jobs"]})
+    jobs = json.loads(json.dumps(STATE["jobs"]["jobs"]))
+    notif = STATE["jobs"].get("notification") or ""
+    return json.dumps({"count": len(jobs), "jobs": jobs,
+                       "notification": notif,
+                       "notifications": ([{"text": notif}] if notif else [])})
 
 
 @mcp.tool(name="get_consensus", title="Sell-side consensus snapshot (mock)",

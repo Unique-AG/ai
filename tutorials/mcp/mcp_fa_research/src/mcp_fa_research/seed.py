@@ -284,6 +284,30 @@ PRICES: dict[str, dict] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Precomputed review documents (nightly build) — KB contentIds per name, so the
+# cockpit can open a company's review directly (openDocument). Env-specific;
+# override with FA_REVIEW_IDS_JSON (a JSON object {ticker: contentId}).
+# ---------------------------------------------------------------------------
+import json as _json
+import os as _os
+
+REVIEW_IDS: dict[str, str] = {
+    "CFR SW": "cont_zxl88zou3zbpbtkndm0qlu4c",
+    "KER FP": "cont_asj6dg80h2kwy2oxuly7hkv0",
+    "MC FP": "cont_icjk0yb6tc1i2bhjstry1dzu",
+    "MONC IM": "cont_eg2e9h3yrdd0gw8ynkbhe2xq",
+    "RMS FP": "cont_mwcvdhqjexvy1nl4xufhcao8",
+    "UHR SW": "cont_ikja9ogi0z66esh3cplmomrh"
+}
+try:
+    REVIEW_IDS.update(_json.loads(_os.getenv("FA_REVIEW_IDS_JSON", "") or "{}"))
+except Exception:
+    pass
+
+COCKPIT_ID: str = _os.getenv("FA_COCKPIT_ID", "")  # set after the cockpit is uploaded
+
+
 def resolve(ticker_or_name: str) -> str | None:
     raw = (ticker_or_name or "").strip().lower()
     if not raw:
