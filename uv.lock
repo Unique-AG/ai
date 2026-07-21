@@ -5204,6 +5204,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "typing-extensions" },
     { name = "unique-toolkit" },
 ]
 
@@ -5215,6 +5216,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "typing-extensions", specifier = ">=4.5.0" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
 
