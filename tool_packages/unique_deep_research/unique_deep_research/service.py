@@ -279,34 +279,46 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 response.invocation_stats.extend(invocation_stats)
                 return response
             except Exception as e:
-                self.write_message_log_text_message(
-                    "**Research failed for an unknown reason**"
-                )
-                if self.is_message_execution():
-                    await self._update_execution_status(
-                        MessageExecutionUpdateStatus.FAILED
+                _LOGGER.exception("Deep Research tool run failed")
+
+                # The failure-handling below issues several awaits (status
+                # update, debugInfo read/write, message edit); if any of them
+                # raises it must not escape and take the tokens already spent
+                # this run down with it -- the finally block still returns a
+                # stats-bearing error response so analytics stay accurate.
+                try:
+                    self.write_message_log_text_message(
+                        "**Research failed for an unknown reason**"
                     )
+                    if self.is_message_execution():
+                        await self._update_execution_status(
+                            MessageExecutionUpdateStatus.FAILED
+                        )
 
-                _LOGGER.exception(f"Deep Research tool run failed: {e}")
-
-                # update_debug_info_async replaces the message's debugInfo wholesale
-                # (see ChatService.update_debug_info_async / replace_debug_info), so
-                # the existing debugInfo must be read and merged in first -- otherwise
-                # this write wipes out `llm_invocations` persisted from an earlier
-                # turn of this same research (e.g. the clarification round), and
-                # UniqueAI's later merge (unique_ai.py) reads back an empty prior list.
-                existing_debug_info = await self.chat_service.get_debug_info_async()
-                debug_info = {
-                    **existing_debug_info,
-                    **self._get_tool_debug_info(),
-                    "error": str(e),
-                    "traceback": traceback.format_exc(),
-                }
-                await self.chat_service.update_debug_info_async(debug_info)
-                await self.chat_service.modify_assistant_message_async(
-                    content="Deep Research failed to complete for an unknown reason",
-                    set_completed_at=True,
-                )
+                    # update_debug_info_async replaces the message's debugInfo
+                    # wholesale (see ChatService.update_debug_info_async /
+                    # replace_debug_info), so the existing debugInfo must be read
+                    # and merged in first -- otherwise this write wipes out
+                    # `llm_invocations` persisted from an earlier turn of this same
+                    # research (e.g. the clarification round), and UniqueAI's later
+                    # merge (unique_ai.py) reads back an empty prior list.
+                    existing_debug_info = await self.chat_service.get_debug_info_async()
+                    debug_info = {
+                        **existing_debug_info,
+                        **self._get_tool_debug_info(),
+                        "error": str(e),
+                        "traceback": traceback.format_exc(),
+                    }
+                    await self.chat_service.update_debug_info_async(debug_info)
+                    await self.chat_service.modify_assistant_message_async(
+                        content="Deep Research failed to complete for an unknown reason",
+                        set_completed_at=True,
+                    )
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to persist Deep Research failure state; "
+                        "returning collected invocation stats anyway"
+                    )
             finally:
                 sub.cancel()
 
