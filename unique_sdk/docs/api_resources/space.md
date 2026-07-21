@@ -81,7 +81,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `switchableLanguageModels` (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when `allowModelSwitching` is True. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `isExternal` (bool, optional) - Whether the space is external
     - `isPinned` (bool, optional) - Whether the space is pinned
-    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI", "SWAPPABLE_INTELLIGENCE"], optional) - UI type. Use `SWAPPABLE_INTELLIGENCE` for Conduct spaces (module name `SwappableIntelligence`).
     - `settings` (Dict, optional) - Space settings
     - `isSubAgent` (bool, optional) - Set to `True` to create the space as a sub-agent
     - `subAgentSettings` (Dict, optional) - Tool settings for a sub-agent. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
@@ -175,6 +175,37 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     )
     ```
 
+    **Example - Create a Conduct (Swappable Intelligence) space:**
+
+    ```python
+    space = unique_sdk.Space.create_space(
+        user_id=user_id,
+        company_id=company_id,
+        name="My Conduct Space",
+        uiType="SWAPPABLE_INTELLIGENCE",
+        fallbackModule="SwappableIntelligence",
+        modules=[
+            {
+                "name": "SwappableIntelligence",
+                "weight": 500,
+                "configuration": {
+                    "strategy": "claude_code",
+                    "space": {"projectName": "My Conduct Space"},
+                    "setup": {
+                        "customInstructions": "You are a helpful Conduct agent.",
+                    },
+                    "tools": [],
+                    "claude": {},
+                    "piAgent": {},
+                    "codex": {},
+                    "cursorSdk": {},
+                },
+            }
+        ],
+        chatUpload="ENABLED",
+    )
+    ```
+
 ??? example "`unique_sdk.Space.update_space` - Update a space"
 
     !!! info "Compatibility"
@@ -202,7 +233,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `allowModelSwitching` (bool, optional) - Whether end users may switch the language model in chat
     - `switchableLanguageModels` (List[SwitchableLanguageModel], optional) - Admin-defined list of models end users may switch to. Only meaningful when `allowModelSwitching` is True. Pass an empty list to clear the allowlist. See [`Space.SwitchableLanguageModel`](#spaceswitchablelanguagemodel) for structure.
     - `allowEndUserSpace` (bool, optional) - Allow end users to create custom spaces from this assistant
-    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI", "SWAPPABLE_INTELLIGENCE"], optional) - UI type of the space. Use `UNIQUE_AI` to migrate from legacy; use `SWAPPABLE_INTELLIGENCE` for Conduct.
     - `isSubAgent` (bool, optional) - Whether the space is a sub-agent
     - `subAgentSettings` (Dict, optional) - Tool settings for a sub-agent. See [`Space.SubAgentSettings`](#spacesubagentsettings) for structure.
     - `subAgentIds` (List[str], optional) - Full replacement list of caller-visible linked sub-agent assistant IDs. Pass `[]` to remove all caller-visible linked sub-agents. Omit the field to keep existing links unchanged. Linked sub-agents hidden from the caller because they lack Use access are preserved by the API.

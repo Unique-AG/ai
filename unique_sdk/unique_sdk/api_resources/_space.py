@@ -19,7 +19,11 @@ class Space(APIResource["Space"]):
         return "space"
 
     UiType: TypeAlias = Literal[
-        "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"
+        "MAGIC_TABLE",
+        "UNIQUE_CUSTOM",
+        "TRANSLATION",
+        "UNIQUE_AI",
+        "SWAPPABLE_INTELLIGENCE",
     ]
 
     class ModuleParams(TypedDict):
