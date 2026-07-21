@@ -144,6 +144,7 @@ class BasicCrawlerService(BaseCrawler[BasicCrawlRequest]):
                     f"HTTP {response.status_code} while fetching URL",
                     content_type=content_type,
                     raw=raw_body,
+                    status_code=response.status_code,
                 )
 
             content = await self._maybe_process_content(
