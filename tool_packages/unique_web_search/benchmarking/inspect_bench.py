@@ -18,7 +18,7 @@ import html
 import json
 import math
 from pathlib import Path
-from statistics import mean
+from statistics import mean, median
 
 from answering import AnswererConfig, AnswerRecord, answers_path, search_engine_slug
 from grading import GraderConfig, GradeRecord, grades_path
@@ -38,6 +38,16 @@ SEARCH_ENGINES: list[EngineConfig | None] = [
     EngineConfig(engine="brave", fetch_size=10),
     EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
     EngineConfig(engine="perplexity", fetch_size=10),
+    # Vertex AI grounding — fetched by agent_bench.py; its SERP is Vertex's full
+    # grounded answer (shown in the drill-down), condensed by the shared answerer.
+    EngineConfig(
+        engine="vertexai",
+        fetch_size=1,
+        params={"vertexai_model_name": "gemini-3-flash-preview"},
+    ),
+    # Grounding with Bing — fetched by agent_bench.py; its SERP is Bing's full
+    # grounded answer (shown in the drill-down), condensed by the shared answerer.
+    EngineConfig(engine="bing", fetch_size=5),
     None,  # no search — closed-book baseline
 ]
 BENCHMARK_CONFIGS = [
@@ -85,7 +95,7 @@ def arm_stats(
         "accuracy": accuracy,
         "ci": 1.96 * math.sqrt(accuracy * (1 - accuracy) / n) if n else 0,
         "declined": declined,
-        "searchMeanS": round(mean([s.latency_s for s in serp_ok]), 2)
+        "searchMedianS": round(median([s.latency_s for s in serp_ok]), 2)
         if serp_ok
         else None,
         "evidenceChars": round(mean(evidence)),
@@ -290,6 +300,10 @@ TEMPLATE = """<!doctype html>
     padding: 5px 10px; text-align: right; }
   table.summary th:first-child, table.summary td:first-child { text-align: left; }
   table.summary th { background: #f6f8fa; font-weight: 600; }
+  .copybar { margin: 8px 0 0; display: flex; gap: 8px; }
+  .copybar button { font: inherit; font-size: 12px; padding: 4px 10px; cursor: pointer;
+    border: 1px solid #d1d9e0; border-radius: 6px; background: #fff; color: #1f2328; }
+  .copybar button:hover { background: #f6f8fa; }
   .pairs { margin: 8px 0 0; color: #57606a; font-size: 13px; }
   .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
               margin: 0 0 10px; }
@@ -337,6 +351,10 @@ TEMPLATE = """<!doctype html>
 <header><h1>Web search benchmark — inspector</h1>
   <div class="controls" id="viewbar"></div>
   <table class="summary" id="summary"></table>
+  <div class="copybar">
+    <button id="copyTsv" type="button">Copy table (Excel)</button>
+    <button id="copyJson" type="button">Copy table (JSON)</button>
+  </div>
   <div class="pairs" id="pairs"></div>
 </header>
 <main>
@@ -412,11 +430,11 @@ function renderSummary() {
   document.getElementById("summary").innerHTML =
     "<tr><th>arm</th><th>n</th><th>correct</th><th>incorrect</th>" +
     "<th>not_attempted</th><th>accuracy</th><th>declined</th>" +
-    "<th>mean search time</th><th>evidence chars/q</th><th>serp errors</th></tr>" +
+    "<th>median search time</th><th>evidence chars/q</th><th>serp errors</th></tr>" +
     rows.map(s => `<tr><td>${esc(s.arm)}</td><td>${s.n}</td>
       <td>${s.correct}</td><td>${s.incorrect}</td><td>${s.notAttempted}</td>
       <td><b>${fmtPct(s.accuracy)}</b> ±${(100 * s.ci).toFixed(1)}pp</td>
-      <td>${s.declined}</td><td>${s.searchMeanS != null ? s.searchMeanS + "s" : "—"}</td>
+      <td>${s.declined}</td><td>${s.searchMedianS != null ? s.searchMedianS + "s" : "—"}</td>
       <td>${s.evidenceChars}</td><td>${s.serpErrors}</td></tr>`
     ).join("");
   document.getElementById("pairs").innerHTML =
@@ -486,6 +504,52 @@ function render() {
     list.appendChild(div);
   }
 }
+
+// Copy the current summary table — one export as tab-separated (pastes into
+// Excel as columns) and one as JSON with view context (pastes into a chatbot).
+const SUMMARY_COLS = [
+  ["arm", s => s.arm],
+  ["n", s => s.n],
+  ["correct", s => s.correct],
+  ["incorrect", s => s.incorrect],
+  ["not_attempted", s => s.notAttempted],
+  ["accuracy", s => s.accuracy],
+  ["ci_pp", s => +(100 * s.ci).toFixed(1)],
+  ["declined", s => s.declined],
+  ["median_search_time_s", s => s.searchMedianS],
+  ["evidence_chars_per_q", s => s.evidenceChars],
+  ["serp_errors", s => s.serpErrors],
+];
+const summaryRows = () => ds().summaries[answererKey]?.[category] ?? [];
+function summaryTsv() {
+  const header = SUMMARY_COLS.map(c => c[0]).join("\\t");
+  const lines = summaryRows().map(s =>
+    SUMMARY_COLS.map(c => { const v = c[1](s); return v == null ? "" : v; }).join("\\t"));
+  return [header, ...lines].join("\\n");
+}
+function summaryJson() {
+  return JSON.stringify({
+    dataset: ds().label,
+    answerer: DATA.answerers.find(a => a.key === answererKey)?.label,
+    grader: DATA.grader,
+    subset: category,
+    rows: summaryRows().map(s =>
+      Object.fromEntries(SUMMARY_COLS.map(c => [c[0], c[1](s) ?? null]))),
+  }, null, 2);
+}
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+  }
+  const old = btn.textContent;
+  btn.textContent = "Copied!";
+  setTimeout(() => { btn.textContent = old; }, 1200);
+}
+document.getElementById("copyTsv").onclick = e => copyText(summaryTsv(), e.target);
+document.getElementById("copyJson").onclick = e => copyText(summaryJson(), e.target);
 
 function renderAll() { renderSummary(); render(); }
 rebuildCategorySelect();

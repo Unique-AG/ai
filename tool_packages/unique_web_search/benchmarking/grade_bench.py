@@ -40,6 +40,16 @@ SEARCH_ENGINES: list[EngineConfig | None] = [
     EngineConfig(engine="brave", fetch_size=10),
     EngineConfig(engine="brave", fetch_size=10, params={"extra_snippets": False}),
     EngineConfig(engine="perplexity", fetch_size=10),
+    # Vertex AI grounding — fetched by agent_bench.py, answered by the shared
+    # answerer (see answer_bench.py); graded here like any other arm.
+    EngineConfig(
+        engine="vertexai",
+        fetch_size=1,
+        params={"vertexai_model_name": "gemini-3-flash-preview"},
+    ),
+    # Grounding with Bing — fetched by agent_bench.py, answered by the shared
+    # answerer (see answer_bench.py); graded here like any other arm.
+    EngineConfig(engine="bing", fetch_size=5),
     None,  # no search — closed-book baseline
 ]
 BENCHMARK_CONFIGS = [

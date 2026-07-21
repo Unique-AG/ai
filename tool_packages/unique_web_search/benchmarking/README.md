@@ -17,7 +17,19 @@ excluded from deptry and basedpyright in the package `pyproject.toml`.
   question → SERP file → answers file          → grades file       → inspect.html
              (per engine) (per engine×answerer)  (…×grader)
   closed-book arm: dataset ─────→ answers file → …    (skips the SERP stage)
+  agent arm: agent_bench.py → SERP file → …           (agent engine, replaces the
+             (engine grounds & drafts a full answer)   SERP fetch; then identical)
   ```
+
+- **Two ways to fill a SERP file.** SERP engines (google, brave, perplexity) go
+  through `serp_bench.py` (`/v1/search`, a result list). *Agent* engines (Vertex
+  AI grounding, Grounding with Bing) go through `agent_bench.py`
+  (`/v1/agent-search`): the engine grounds *and* drafts a full answer, which is
+  stored as the arm's single `SerpResult`. From `answer_bench.py` onward an
+  agent arm is just another engine — the **shared answerer condenses the
+  engine's grounded answer** into the short graded answer, so the answering
+  step is held constant across every arm (realistic agentic setup: our agent
+  owns the final answer; the grounding engine is its research tool).
 
 - **Configs define run identity.** Every result filename derives from the
   config objects (`EngineConfig` incl. engine-specific `params`,
@@ -44,6 +56,13 @@ excluded from deptry and basedpyright in the package `pyproject.toml`.
    same time window (fair live-web pairing). Engine knobs go in
    `EngineConfig.params` (e.g. `{"extra_snippets": False}` for the Brave
    volume-control arm) and pass through to the proxy request verbatim.
+
+   **Agent fetch** (`agent_bench.py`) — the SERP-file producer for agent engines
+   (Vertex AI, Grounding with Bing). Calls `/v1/agent-search`, stores the
+   engine's full grounded answer as the arm's single `SerpResult`. Add the same
+   `EngineConfig`(s) to
+   `SEARCH_ENGINES` in the answer/grade/inspect stages so the arm flows through
+   the rest of the pipeline unchanged. Needs the search proxy running, like fetch.
 2. **Answer** (`answer_bench.py`) — every answerer in `ANSWERER_CONFIGS`
    (model + `top_k`; list the strongest first — it becomes the inspector's
    default) answers each question from the persisted snippets only, via the
@@ -65,7 +84,8 @@ excluded from deptry and basedpyright in the package `pyproject.toml`.
 
 ## Running
 
-Fetch needs the search proxy running locally (it holds all provider keys):
+Fetch and the agent fetch stage need the search proxy running locally (it holds
+all provider keys, including Vertex/Google and Bing/Azure AI credentials):
 
 ```bash
 cd connectors/unique_search_proxy/unique_search_proxy_client
@@ -77,8 +97,10 @@ can find (`ENVIRONMENT_FILE_PATH`, cwd, or user config dir); without one they
 fall back to the local dev backend on localhost:8092.
 
 Run each `*_bench.py` cell-by-cell in the interactive window (they use
-top-level `await`), in pipeline order. The inspector also runs headless:
-`uv run python inspect_bench.py`, then open `results/inspect.html`.
+top-level `await`), in pipeline order — SERP arms via `serp_bench`, agent arms
+via `agent_bench`, then both meet at `answer_bench` → `grade_bench`. The
+inspector also runs headless: `uv run python inspect_bench.py`, then open
+`results/inspect.html`.
 
 Mind quotas: free-tier Google CSE allows 100 queries/day.
 
@@ -109,6 +131,19 @@ Mind quotas: free-tier Google CSE allows 100 queries/day.
   end-to-end answer quality. Brave's default `extra_snippets=True` returns
   ~6× Google's evidence volume — the `extra_snippets-false` control arm
   isolates that effect.
+- The **agent arms** (Vertex AI, Grounding with Bing) are not strictly the same
+  shape as the SERP arms: their "SERP" is a full grounded answer the engine
+  drafts, which the shared answerer then condenses (SERP arms instead feed the
+  answerer raw snippets). The answerer model is held constant across all arms,
+  so this is a fair comparison of *what each engine hands the agent* — but the
+  agent arms credit grounded *answering*, the SERP arms credit *retrieval*. One
+  mechanism note: the proxy pins both agent engines to a structured
+  results-list output schema (no free-form answer field), so `agent_bench.py`
+  steers each engine, via `generation_instructions`, to draft one complete
+  answer inside that schema and folds it into the evidence blob. Because we no
+  longer force the engine to be terse (the answerer handles brevity), the
+  schema no longer fights the prompt — but the arm still routes through that
+  schema rather than the engine's native free-text output.
 - Latency is measured from a dev machine through a local proxy: valid as a
   paired engine comparison, not as absolute production latency.
 - English-only (SimpleQA, FreshQA); DE/FR/IT and client-shaped finance
