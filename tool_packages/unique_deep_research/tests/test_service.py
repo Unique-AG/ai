@@ -970,6 +970,77 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_deep_research_tool__run__preserves_prior_llm_invocations__on_exception() -> (
+    None
+):
+    """
+    Purpose: Verify a failed run merges existing debugInfo instead of replacing it.
+    Why this matters: update_debug_info_async replaces the message's debugInfo
+        wholesale; writing only tool/error fields would silently wipe
+        llm_invocations persisted from an earlier turn (e.g. clarification),
+        undercounting token analytics for the aborted research run.
+    Setup summary: Seed get_debug_info_async with prior llm_invocations, fail
+        _run, and assert the persisted write still contains them.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_event.payload.assistant_id = "test-assistant-id"
+    mock_event.payload.name = "Test Assistant"
+    mock_event.payload.user_metadata = {"key": "value"}
+    mock_event.payload.tool_parameters = {"param": "test"}
+    mock_progress_reporter = Mock()
+
+    prior_debug_info = {
+        "llm_invocations": [
+            {
+                "modelName": "gpt-4",
+                "tokenUsage": {"totalTokens": 42},
+                "source": "deep_research.clarification",
+            }
+        ],
+        "llm_invocations_complete": False,
+    }
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with _patch_language_model_service_for_tool():
+                tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                tool._run = AsyncMock(side_effect=Exception("Test error"))
+                tool.chat_service.get_debug_info_async = AsyncMock(
+                    return_value=prior_debug_info
+                )
+                tool.chat_service.update_debug_info_async = AsyncMock()
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool.write_message_log_text_message = Mock()
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "test-tool-call-id"
+
+                # Act
+                await tool.run(mock_tool_call)
+
+                # Assert
+                persisted_debug_info = (
+                    tool.chat_service.update_debug_info_async.call_args.args[0]
+                )
+                assert (
+                    persisted_debug_info["llm_invocations"]
+                    == prior_debug_info["llm_invocations"]
+                )
+                assert "error" in persisted_debug_info
+                assert "traceback" in persisted_debug_info
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_deep_research_tool__run_research__calls_openai_research__when_engine_is_openai() -> (
     None
 ):

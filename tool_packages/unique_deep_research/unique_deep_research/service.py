@@ -289,7 +289,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
                 _LOGGER.exception(f"Deep Research tool run failed: {e}")
 
+                # update_debug_info_async replaces the message's debugInfo wholesale
+                # (see ChatService.update_debug_info_async / replace_debug_info), so
+                # the existing debugInfo must be read and merged in first -- otherwise
+                # this write wipes out `llm_invocations` persisted from an earlier
+                # turn of this same research (e.g. the clarification round), and
+                # UniqueAI's later merge (unique_ai.py) reads back an empty prior list.
+                existing_debug_info = await self.chat_service.get_debug_info_async()
                 debug_info = {
+                    **existing_debug_info,
                     **self._get_tool_debug_info(),
                     "error": str(e),
                     "traceback": traceback.format_exc(),
