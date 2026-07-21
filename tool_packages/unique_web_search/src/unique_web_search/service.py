@@ -105,7 +105,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self._mode_strategy = get_mode_strategy(self.config.web_search_mode_config)
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
@@ -155,7 +154,24 @@ class WebSearchTool(Tool[WebSearchConfig]):
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         with invocation_stats_scope() as invocation_stats:
-            response = await self._run(tool_call)
+            try:
+                response = await self._run(tool_call)
+            except Exception as e:
+                # _run() already catches its own errors and returns a
+                # ToolCallResponse gracefully in the common case; this is a
+                # safety net for the rarer case where something raises while
+                # handling that failure (or otherwise escapes _run()
+                # uncaught). Without it, tokens already spent on screening/
+                # processing/relevancy before the failure would never reach
+                # analytics, since SafeTaskExecutor builds its own fresh,
+                # stats-less error response one level up.
+                _LOGGER.exception(f"WebSearch tool run failed: {e}")
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    error_message=str(e),
+                    invocation_stats=invocation_stats,
+                )
         response.invocation_stats.extend(invocation_stats)
         return response
 

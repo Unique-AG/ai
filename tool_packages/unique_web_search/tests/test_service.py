@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from unique_web_search.invocation_stats import record_token_usage
 from unique_web_search.service import WebSearchTool
 from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
@@ -976,3 +977,46 @@ class TestWebSearchToolRun:
         assert len(args) == 4  # tool_call, name, message, state
         assert args[1] == "test-name"  # name argument
         assert args[2] == "test-message"  # message argument
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__preserves_invocation_stats__when_run_raises_past_its_own_handler(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify run() attaches already-collected invocation stats to its
+            own error response when _run() raises uncaught (e.g. an error while
+            _run() is handling its own internal failure).
+        Why this matters: _run() has a broad internal except that normally
+            returns gracefully; if something raises past it anyway, the old
+            code had no outer safety net -- SafeTaskExecutor would build a
+            fresh, stats-less error response one level up, silently dropping
+            tokens already spent (screening/processing/relevancy) before the
+            failure.
+        Setup summary: Mock _run() to record token usage into the active scope
+            then raise, and assert run()'s own error response still carries it.
+        """
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.name = "WebSearch"
+        tool.logger = Mock()
+
+        async def _run_records_usage_then_fails(*_args, **_kwargs):
+            record_token_usage(
+                model_name="gpt-4",
+                usage={"total_tokens": 11},
+                source="web_search.relevancy",
+            )
+            raise Exception("escaped _run's own error handling")
+
+        tool._run = AsyncMock(side_effect=_run_records_usage_then_fails)
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+
+        # Act
+        result = await tool.run(tool_call)
+
+        # Assert
+        assert result.error_message == "escaped _run's own error handling"
+        assert len(result.invocation_stats) == 1
+        assert result.invocation_stats[0].source == "web_search.relevancy"

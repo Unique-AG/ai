@@ -9,6 +9,8 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import (
@@ -1971,6 +1973,76 @@ class TestInternalSearchTool:
             assert result.content_chunks == []
             assert result.id == "tool_call_123"
             mock_logger.error.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__preserves_invocation_stats__when_run_raises(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify run() attaches already-collected invocation stats to its
+            own error response when _run() raises.
+        Why this matters: _run() has no top-level try/except of its own, so any
+            error after self.search() (which may already have spent relevancy-
+            sorting tokens) used to escape straight to SafeTaskExecutor, which
+            builds a fresh, stats-less error response one level up -- silently
+            dropping tokens already spent before the failure.
+        Setup summary: Mock _run() to record token usage into the active scope
+            then raise, and assert run()'s own error response still carries it.
+        """
+        from unique_internal_search.invocation_stats import record_invocation_stats
+
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
+
+            with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+                tool = InternalSearchTool(
+                    configuration=base_internal_search_config,
+                    event=mock_chat_event,
+                )
+
+            async def _run_records_usage_then_fails(*_args, **_kwargs):
+                record_invocation_stats(
+                    [
+                        LanguageModelInvocationStats.from_usage(
+                            model_name="gpt-4",
+                            token_usage=LanguageModelTokenUsage(total_tokens=9),
+                            source="internal_search.relevancy",
+                        )
+                    ]
+                )
+                raise Exception("boom after relevancy sort")
+
+            tool._run = AsyncMock(side_effect=_run_records_usage_then_fails)
+
+            tool_call = Mock()
+            tool_call.id = "tool_call_123"
+
+            # Act
+            result = await tool.run(tool_call)
+
+            # Assert
+            assert result.error_message == "boom after relevancy sort"
+            assert len(result.invocation_stats) == 1
+            assert result.invocation_stats[0].source == "internal_search.relevancy"
 
     @pytest.mark.ai
     @pytest.mark.asyncio

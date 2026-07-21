@@ -486,7 +486,22 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     # @track(name="internal_search_tool_run")
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         with invocation_stats_scope() as invocation_stats:
-            response = await self._run(tool_call)
+            try:
+                response = await self._run(tool_call)
+            except Exception as e:
+                # _run() has no top-level try/except of its own, so any error
+                # after self.search() (which may already have spent relevancy-
+                # sorting tokens) would otherwise escape straight to
+                # SafeTaskExecutor, which builds a fresh, stats-less error
+                # response one level up -- silently dropping tokens already
+                # spent before the failure.
+                self.logger.error(f"InternalSearch tool run failed: {e}")
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    error_message=str(e),
+                    invocation_stats=invocation_stats,
+                )
         response.invocation_stats.extend(invocation_stats)
         return response
 
