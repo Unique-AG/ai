@@ -1,7 +1,7 @@
 """Run-scoped collection of language-model invocation usage."""
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from typing import Any
@@ -28,6 +28,21 @@ def invocation_stats_scope() -> Iterator[list[LanguageModelInvocationStats]]:
         yield invocation_stats
     finally:
         _CURRENT_INVOCATION_STATS.reset(token)
+
+
+def record_invocation_stats(
+    invocation_stats: Iterable[LanguageModelInvocationStats],
+) -> None:
+    """Record already-built invocation stats when a run scope is active.
+
+    Used for usage produced by nested dependencies that hand back
+    ``LanguageModelInvocationStats`` objects directly (e.g. the chunk relevancy
+    sorter attaching per-chunk stats on its result), rather than a raw provider
+    usage payload.
+    """
+    current_invocation_stats = _CURRENT_INVOCATION_STATS.get()
+    if current_invocation_stats is not None:
+        current_invocation_stats.extend(invocation_stats)
 
 
 def record_token_usage(

@@ -358,8 +358,17 @@ def mock_executor_dependencies():
     mock_message_log_callback.log_queries = AsyncMock()
     mock_message_log_callback.log_web_search_results = AsyncMock()
 
+    from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
+        ChunkRelevancySorterResult,
+    )
+
     mock_chunk_relevancy_sorter = Mock()
-    mock_chunk_relevancy_sorter.run = AsyncMock(return_value=Mock(content_chunks=[]))
+    # Mirror the real sorter, which always returns a ChunkRelevancySorterResult
+    # with a real (possibly empty) `relevancies` list -- not a bare Mock -- so
+    # callers that read `relevancies`/`content_chunks` behave realistically.
+    mock_chunk_relevancy_sorter.run = AsyncMock(
+        return_value=ChunkRelevancySorterResult.from_chunks([])
+    )
 
     mock_chunk_relevancy_sort_config = Mock()
     mock_chunk_relevancy_sort_config.enabled = False
