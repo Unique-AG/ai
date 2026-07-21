@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-07-03T08:40:02.30686491Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5216,7 +5216,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "typing-extensions", specifier = ">=4.5.0" },
+    { name = "typing-extensions", specifier = ">=4.6.0" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
 
