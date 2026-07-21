@@ -19,8 +19,7 @@ __pycache__
 venv
 ENV
 
-# Lockfile is generated inside the image with --no-sources (a local lock may
-# pin editable path dependencies that don't exist in the build context)
+# Lockfile is regenerated inside the image (keeps the build self-contained)
 uv.lock
 
 # IDE

@@ -19,6 +19,8 @@ COPY pyproject.toml ./
 # sources for unique-mcp / unique-toolkit (which live outside this build
 # context in the monorepo) so the image can be built standalone, e.g. with
 # `az acr build` from this directory.
+# Explicit .devN pins in pyproject are enough for prereleases (uv default
+# prerelease mode is if-necessary-or-explicit); no --prerelease=allow.
 RUN uv lock --no-sources && \
     uv sync --frozen --no-install-project --no-dev
 
