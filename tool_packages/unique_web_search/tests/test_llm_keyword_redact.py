@@ -3,7 +3,9 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.content_processing.processing_strategies.llm_keyword_redact import (
     KeywordRedactResponse,
     LLMKeywordRedact,
@@ -224,5 +226,59 @@ class TestLLMKeywordRedact:
 
         redactor = LLMKeywordRedact(config=config, llm_service=llm_service)
         result = await redactor(page=fake_page, query="")
+
+        assert result.content == fake_page.content
+
+
+class TestLLMKeywordRedactUsage:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_usage_recorded_on_debug_info(
+        self, fake_page: WebSearchResult
+    ) -> None:
+        config = LLMProcessorConfig(
+            enabled=True,
+            privacy_filter=PrivacyFilterConfig(sanitize=True),
+        )
+        llm_service = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(parsed={"sensitive_keywords": []}))]
+        mock_resp.usage = LanguageModelTokenUsage(
+            completion_tokens=6, prompt_tokens=9, total_tokens=15
+        )
+        llm_service.complete_async = AsyncMock(return_value=mock_resp)
+
+        redactor = LLMKeywordRedact(config=config, llm_service=llm_service)
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        await redactor(page=fake_page, query="patient info", debug_info=debug_info)
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert stat.model_name == config.language_model.name
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=6, prompt_tokens=9, total_tokens=15
+        )
+        assert stat.source == "web_search_llm_keyword_redact"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_no_debug_info__does_not_raise(
+        self, fake_page: WebSearchResult
+    ) -> None:
+        config = LLMProcessorConfig(
+            enabled=True,
+            privacy_filter=PrivacyFilterConfig(sanitize=True),
+        )
+        llm_service = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(parsed={"sensitive_keywords": []}))]
+        mock_resp.usage = LanguageModelTokenUsage(
+            completion_tokens=1, prompt_tokens=1, total_tokens=2
+        )
+        llm_service.complete_async = AsyncMock(return_value=mock_resp)
+
+        redactor = LLMKeywordRedact(config=config, llm_service=llm_service)
+        result = await redactor(page=fake_page, query="patient info")
 
         assert result.content == fake_page.content

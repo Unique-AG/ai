@@ -96,6 +96,8 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         self,
         query: str,
         params: ExposedParams | None,
+        *,
+        invocation_stats=None,
     ) -> list[WebSearchResult]:
         del params
         agent_client = get_project_client(self.credentials, self.config.endpoint)
@@ -105,7 +107,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
             agent_id=self.config.agent_id,
             query=query,
             fetch_size=self.config.fetch_size,
-            response_parsers_strategies=self.response_parsers,
+            response_parsers_strategies=self._response_parsers_for(invocation_stats),
             generation_instructions=self.config.generation_instructions,
         )
 

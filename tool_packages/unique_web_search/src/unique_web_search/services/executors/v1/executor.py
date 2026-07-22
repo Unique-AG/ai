@@ -21,7 +21,7 @@ from unique_web_search.metrics import (
     search_errors,
     search_total,
 )
-from unique_web_search.schema import StepDebugInfo
+from unique_web_search.schema import StepDebugInfo, WebSearchDebugInfo
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -93,6 +93,7 @@ async def query_generation_agent(
     language_model: LMI,
     system_prompt: str,
     mode: RefineQueryMode,
+    debug_info: WebSearchDebugInfo | None = None,
 ) -> RefinedQuery | RefinedQueries:
     """Refine the query to be more specific and relevant to the user's question."""
     match mode:
@@ -124,6 +125,13 @@ async def query_generation_agent(
         structured_output_model=structured_output_model,
         structured_output_enforce_schema=True,
     )
+
+    if debug_info is not None:
+        debug_info.add_invocation(
+            language_model.name,
+            response.usage,
+            source="web_search_query_refinement",
+        )
 
     parsed_response = response.choices[0].message.parsed
     if parsed_response is None:
@@ -238,6 +246,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
                 self.refine_query_language_model,
                 self.refine_query_system_prompt,
                 self.mode,
+                debug_info=self.debug_info,
             )
         end_time = time()
         delta_time = end_time - start_time
@@ -275,7 +284,11 @@ class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
         _LOGGER.info(f"Company {self.company_id} Searching with {engine}")
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
-            search_results = await self.search_service.search(query, params=params)
+            search_results = await self.search_service.search(
+                query,
+                params=params,
+                invocation_stats=self.debug_info.invocation_stats,
+            )
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(f"Searched with {engine} completed in {delta_time} seconds")

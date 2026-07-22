@@ -4,6 +4,7 @@ from jinja2 import Template
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.summarization.config import SummarizationConfig
 
@@ -27,6 +28,7 @@ class SummarizationAgent:
         *,
         company_name: str,
         markdown_report: str,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> str:
         # Render the report with compatible citations for streaming
         user_prompt = Template(
@@ -49,6 +51,15 @@ class SummarizationAgent:
                 model_name=self._llm.name,
                 messages=messages,
             )
+
+            if invocation_stats is not None and response.usage is not None:
+                invocation_stats.append(
+                    LanguageModelInvocationStats.from_usage(
+                        self._llm.name,
+                        response.usage,
+                        source="swot_summarization",
+                    )
+                )
 
             if not isinstance(response.choices[0].message.content, str):
                 raise ValueError("Invalid response content received from the LLM")

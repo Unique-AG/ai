@@ -5,11 +5,18 @@ from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 from unique_search_proxy_core.param_policy.exposed_params import ExposedParams
+from unique_toolkit._common.chunk_relevancy_sorter.config import (
+    ChunkRelevancySortConfig,
+)
+from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
+    ChunkRelevancySorterResult,
+)
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
 )
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.metrics import llm_duration, llm_errors
@@ -30,6 +37,44 @@ _LOGGER = logging.getLogger(__name__)
 
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def _append_chunk_relevancy_invocation_stats(
+    sorter_result: ChunkRelevancySorterResult,
+    config: ChunkRelevancySortConfig,
+    accumulator: list[LanguageModelInvocationStats],
+    *,
+    source: str,
+    fallback_source: str,
+) -> None:
+    """Remap per-chunk relevancy stats onto tool-scoped source names."""
+    primary_name = config.language_model.name
+    fallback_name = (
+        config.fallback_language_model.name
+        if config.fallback_language_model is not None
+        else None
+    )
+    for chunk_relevancy in sorter_result.relevancies:
+        relevancy = chunk_relevancy.relevancy
+        if relevancy is None:
+            continue
+        for stat in relevancy.invocation_stats:
+            if stat.token_usage is None:
+                continue
+            # Only label fallback when the configured models differ; identical
+            # names cannot distinguish primary vs fallback after the fact.
+            is_fallback = (
+                fallback_name is not None
+                and fallback_name != primary_name
+                and stat.model_name == fallback_name
+            )
+            accumulator.append(
+                LanguageModelInvocationStats.from_usage(
+                    stat.model_name,
+                    stat.token_usage,
+                    source=fallback_source if is_fallback else source,
+                )
+            )
 
 
 class BaseWebSearchExecutor(ABC, Generic[T]):
@@ -121,7 +166,7 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
         )
         with metric_scope(llm_duration, llm_errors, purpose="content_processing"):
             content_results = await self.content_processor.run(
-                objective, web_search_results
+                objective, web_search_results, debug_info=self.debug_info
             )
         end_time = time()
         delta_time = end_time - start_time
@@ -159,6 +204,13 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
                 input_text=objective,
                 chunks=content,
                 config=self.chunk_relevancy_sort_config,
+            )
+            _append_chunk_relevancy_invocation_stats(
+                sorted_chunks,
+                self.chunk_relevancy_sort_config,
+                self.debug_info.invocation_stats,
+                source="web_search_chunk_relevancy",
+                fallback_source="web_search_chunk_relevancy_fallback",
             )
             _LOGGER.info(f"Sorting chunks message: {sorted_chunks.user_message}")
             return sorted_chunks.content_chunks

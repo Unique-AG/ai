@@ -108,7 +108,11 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         await self._message_log_callback.log_queries([query])
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
-            results = await self.search_service.search(query, params=params)
+            results = await self.search_service.search(
+                query,
+                params=params,
+                invocation_stats=self.debug_info.invocation_stats,
+            )
         await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start

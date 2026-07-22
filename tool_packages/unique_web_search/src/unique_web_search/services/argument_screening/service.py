@@ -15,7 +15,7 @@ from unique_toolkit._common.utils.structured_output.schema import StructuredOutp
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 
-from unique_web_search.schema import StepDebugInfo
+from unique_web_search.schema import StepDebugInfo, WebSearchDebugInfo
 from unique_web_search.services.argument_screening.config import (
     ArgumentScreeningConfig,
 )
@@ -63,12 +63,17 @@ class ArgumentScreeningService:
         self._config = config
 
     async def __call__(
-        self, arguments: dict, message_log_callback: WebSearchMessageLogger
+        self,
+        arguments: dict,
+        message_log_callback: WebSearchMessageLogger,
+        debug_info: WebSearchDebugInfo | None = None,
     ) -> ArgumentScreeningResult:
         """Screen tool call arguments; raises on rejection.
 
         Args:
             arguments: The raw tool call arguments dict.
+            debug_info: when given, receives per-invocation usage stats from the
+                screening LLM call via `debug_info.add_invocation(...)`.
 
         Raises:
             ArgumentScreeningException: If the screening agent flags the arguments.
@@ -81,7 +86,7 @@ class ArgumentScreeningService:
         await message_log_callback.log_progress("PII Detection running...")
 
         start_time = time()
-        result = await self._screen_arguments(arguments)
+        result = await self._screen_arguments(arguments, debug_info)
         result._execution_time = time() - start_time
 
         if not result.go:
@@ -91,7 +96,9 @@ class ArgumentScreeningService:
 
         return result
 
-    async def _screen_arguments(self, arguments: dict) -> ArgumentScreeningResult:
+    async def _screen_arguments(
+        self, arguments: dict, debug_info: WebSearchDebugInfo | None = None
+    ) -> ArgumentScreeningResult:
         _LOGGER.info("Running argument screening agent...")
 
         serialized_args = json.dumps(arguments, indent=2, default=str)
@@ -116,6 +123,7 @@ class ArgumentScreeningService:
                 system_message=self._config.system_prompt,
                 user_message=user_prompt,
                 response_model=ArgumentScreeningResult,
+                debug_info=debug_info,
             )
         except StructuredLlmUnparseableResponseError as e:
             raise ArgumentScreeningUnparseableResponseException(

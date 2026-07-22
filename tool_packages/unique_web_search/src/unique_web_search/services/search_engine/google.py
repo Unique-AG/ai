@@ -39,8 +39,11 @@ class GoogleSearch(SearchEngine[GoogleConfig]):
         self,
         query: str,
         params: ExposedParams | None,
+        *,
+        invocation_stats=None,
     ) -> list[WebSearchResult]:
         """Search the web for the given query."""
+        del invocation_stats
         try:
             search_results = await self._paginated_url_extraction(
                 query=query,

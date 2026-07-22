@@ -4,6 +4,7 @@ from jinja2 import Template
 from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.orchestrator.service import StepNotifier
 from unique_swot.services.source_management.selection.config import (
@@ -12,7 +13,10 @@ from unique_swot.services.source_management.selection.config import (
 from unique_swot.services.source_management.selection.schema import (
     SourceSelectionResult,
 )
-from unique_swot.utils import generate_structured_output, get_content_chunk_title
+from unique_swot.utils import (
+    generate_structured_output,
+    get_content_chunk_title,
+)
 
 _LOGGER = getLogger(__name__)
 
@@ -30,7 +34,12 @@ class SourceSelectionAgent:
         self._source_selection_config = source_selection_config
 
     async def select(
-        self, *, company_name: str, content: Content, step_notifier: StepNotifier
+        self,
+        *,
+        company_name: str,
+        content: Content,
+        step_notifier: StepNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> SourceSelectionResult:
         _LOGGER.info(f"Selecting sources for {company_name}")
         system_prompt = self._compose_system_prompt(company_name=company_name)
@@ -50,6 +59,8 @@ class SourceSelectionAgent:
             llm=self._llm,
             llm_service=self._llm_service,
             output_model=SourceSelectionResult,
+            invocation_stats=invocation_stats,
+            source="swot_source_selection",
         )
 
         if response is None:

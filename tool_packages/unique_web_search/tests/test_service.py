@@ -2,7 +2,10 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.service import WebSearchTool
 from unique_web_search.services.executors.modes import get_mode_strategy
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
@@ -976,3 +979,82 @@ class TestWebSearchToolRun:
         assert len(args) == 4  # tool_call, name, message, state
         assert args[1] == "test-name"  # name argument
         assert args[2] == "test-message"  # message argument
+
+
+class TestWebSearchToolInvocationStats:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__passes_invocation_stats_on_tool_call_response(
+        self,
+        mock_web_search_config_v1: Mock,
+        sample_web_search_tool_parameters: WebSearchToolParameters,
+        sample_content_chunks: list,
+        mocker: Any,
+    ) -> None:
+        mock_executor = AsyncMock()
+        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
+        mock_executor.notify_name = "test-name"
+        mock_executor.notify_message = "test-message"
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.exposed_params_cls = None
+        tool._mode_strategy = get_mode_strategy(tool.config.web_search_mode_config)
+        tool.tool_parameter_calls = WebSearchToolParameters
+        tool.logger = Mock()
+        tool._message_step_logger = Mock()
+        tool._tool_progress_reporter = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
+        tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
+        tool._get_argument_screening_service_if_ff_enabled = AsyncMock(
+            return_value=None
+        )
+
+        expected_stats = [
+            LanguageModelInvocationStats.from_usage(
+                "gpt-4-test",
+                LanguageModelTokenUsage(
+                    completion_tokens=1, prompt_tokens=2, total_tokens=3
+                ),
+                source="web_search_llm_process",
+            )
+        ]
+
+        real_debug_info = WebSearchDebugInfo(parameters={"query": "test"})
+        real_debug_info.invocation_stats = expected_stats
+
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo",
+            return_value=real_debug_info,
+        )
+
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = {"query": "test"}
+
+        response = await tool.run(tool_call)
+
+        assert response.invocation_stats == expected_stats
+        assert "invocation_stats" not in response.debug_info

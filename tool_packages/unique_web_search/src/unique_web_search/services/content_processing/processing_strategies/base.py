@@ -1,11 +1,13 @@
-from typing import Protocol, TypedDict, Unpack
+from typing import NotRequired, Protocol, TypedDict, Unpack
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
 class ProcessingStrategyKwargs(TypedDict):
     page: WebSearchResult
     query: str
+    debug_info: NotRequired[WebSearchDebugInfo | None]
 
 
 class ProcessingStrategy(Protocol):

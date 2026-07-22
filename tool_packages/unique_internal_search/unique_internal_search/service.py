@@ -8,8 +8,14 @@ from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit._common.chunk_relevancy_sorter.config import (
+    ChunkRelevancySortConfig,
+)
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
+)
+from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
+    ChunkRelevancySorterResult,
 )
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -29,6 +35,9 @@ from unique_toolkit.content.utils import (
     merge_content_chunks,
     pick_content_chunks_for_token_window,
     sort_content_chunks,
+)
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -55,6 +64,45 @@ TOKEN_BUDGET_SAFETY_FACTOR = 1.3
 
 async def _noop_log_progress(message: str) -> None:
     pass
+
+
+def _append_chunk_relevancy_invocation_stats(
+    sorter_result: ChunkRelevancySorterResult,
+    config: ChunkRelevancySortConfig,
+    accumulator: list[LanguageModelInvocationStats],
+) -> None:
+    """Remap per-chunk relevancy stats onto InternalSearch source names."""
+    primary_name = config.language_model.name
+    fallback_name = (
+        config.fallback_language_model.name
+        if config.fallback_language_model is not None
+        else None
+    )
+    for chunk_relevancy in sorter_result.relevancies:
+        relevancy = chunk_relevancy.relevancy
+        if relevancy is None:
+            continue
+        for stat in relevancy.invocation_stats:
+            if stat.token_usage is None:
+                continue
+            # Only label fallback when the configured models differ; identical
+            # names cannot distinguish primary vs fallback after the fact.
+            is_fallback = (
+                fallback_name is not None
+                and fallback_name != primary_name
+                and stat.model_name == fallback_name
+            )
+            accumulator.append(
+                LanguageModelInvocationStats.from_usage(
+                    stat.model_name,
+                    stat.token_usage,
+                    source=(
+                        "internal_search_chunk_relevancy_fallback"
+                        if is_fallback
+                        else "internal_search_chunk_relevancy"
+                    ),
+                )
+            )
 
 
 class InternalSearchService:
@@ -118,6 +166,7 @@ class InternalSearchService:
         log_progress: Callable[[str], Awaitable[None]] = _noop_log_progress,
         content_ids: list[str] | None = None,
         metadata_filter: dict | None = None,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
         **kwargs,
     ) -> list[ContentChunk]:
         """
@@ -127,6 +176,7 @@ class InternalSearchService:
             search_string: List of search strings or single search string
             content_ids: List of content IDs
             metadata_filter: Metadata filter
+            invocation_stats: Optional run-scoped accumulator for LLM usage
             log_progress: Async callable invoked at key progress points. Defaults
                 to a no-op so callers that don't need progress updates require no
                 changes.
@@ -204,6 +254,7 @@ class InternalSearchService:
                 result.chunks = await self._resort_found_chunks_if_enabled(
                     found_chunks=result.chunks,
                     search_string=result.query,
+                    invocation_stats=invocation_stats,
                 )
 
         ###
@@ -301,7 +352,10 @@ class InternalSearchService:
         return successful_results
 
     async def _resort_found_chunks_if_enabled(
-        self, found_chunks: list[ContentChunk], search_string: str
+        self,
+        found_chunks: list[ContentChunk],
+        search_string: str,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> list[ContentChunk]:
         try:
             total_chunks = len(found_chunks)
@@ -311,6 +365,12 @@ class InternalSearchService:
                 chunks=found_chunks,
                 config=self.config.chunk_relevancy_sort_config,
             )
+            if invocation_stats is not None:
+                _append_chunk_relevancy_invocation_stats(
+                    chunk_relevancy_sorter_result,
+                    self.config.chunk_relevancy_sort_config,
+                    invocation_stats,
+                )
             found_chunks = chunk_relevancy_sorter_result.content_chunks
         except ChunkRelevancySorterException as e:
             self.logger.warning(f"Error while sorting chunks: {e.error_message}")
@@ -524,10 +584,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 f"{'; '.join(search_strings_list)}", tool_call
             )
 
+        invocation_stats: list[LanguageModelInvocationStats] = []
         selected_chunks = await self.search(
             **tool_call.arguments,
             log_progress=message_logger.log_progress,
             tool_call=tool_call,
+            invocation_stats=invocation_stats,
         )
 
         await message_logger.log_chunks(selected_chunks)
@@ -545,6 +607,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             content_chunks=selected_chunks,
             debug_info=self.debug_info,
             system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
+            invocation_stats=invocation_stats,
         )
 
         if (

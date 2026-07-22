@@ -1,9 +1,11 @@
 """Tests for ContentProcessor service — cleaning, processing, and chunking."""
 
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
 )
@@ -258,3 +260,108 @@ class TestContentProcessorRun:
     ) -> None:
         chunks = await processor.run("test query", [])
         assert chunks == []
+
+
+class TestContentProcessorUsage:
+    @pytest.fixture
+    def llm_service_with_usage(self) -> Mock:
+        service = Mock()
+        response = Mock()
+        response.choices = [
+            Mock(
+                message=Mock(
+                    parsed={"snippet": "Sum snippet", "summary": "Sum content"}
+                )
+            )
+        ]
+        response.usage = LanguageModelTokenUsage(
+            completion_tokens=2, prompt_tokens=3, total_tokens=5
+        )
+        service.complete_async = AsyncMock(return_value=response)
+        return service
+
+    @pytest.fixture
+    def processor_with_llm(self, llm_service_with_usage: Mock) -> ContentProcessor:
+        config = ContentProcessorConfig()
+        config.processing_strategies.llm_processor.enabled = True
+        config.processing_strategies.llm_processor.min_tokens = 0
+        return ContentProcessor(
+            language_model_service=llm_service_with_usage,
+            config=config,
+            encoder=_simple_encoder,
+            decoder=_simple_decoder,
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__single_page__usage_recorded_on_debug_info(
+        self, processor_with_llm: ContentProcessor, fake_page: WebSearchResult
+    ) -> None:
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        await processor_with_llm.run("test query", [fake_page], debug_info=debug_info)
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert (
+            stat.model_name
+            == processor_with_llm.config.processing_strategies.llm_processor.language_model.name
+        )
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=2, prompt_tokens=3, total_tokens=5
+        )
+        assert stat.source == "web_search_llm_process"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__multiple_concurrent_pages__usage_summed(
+        self, processor_with_llm: ContentProcessor
+    ) -> None:
+        """process_single_page runs concurrently across pages via
+        asyncio.gather -- each page's usage must be recorded as its own
+        invocation_stats entry on debug_info, not lost or overwritten by a
+        race."""
+        pages = [
+            WebSearchResult(
+                url=f"https://example.com/{i}",
+                title=f"Page {i}",
+                snippet=f"Snippet {i}",
+                content=f"Content {i}",
+            )
+            for i in range(5)
+        ]
+        debug_info = WebSearchDebugInfo(parameters={})
+
+        await processor_with_llm.run("test query", pages, debug_info=debug_info)
+
+        expected_model = processor_with_llm.config.processing_strategies.llm_processor.language_model.name
+        assert len(debug_info.invocation_stats) == 5
+        for stat in debug_info.invocation_stats:
+            assert stat.model_name == expected_model
+            assert stat.token_usage == LanguageModelTokenUsage(
+                completion_tokens=2, prompt_tokens=3, total_tokens=5
+            )
+            assert stat.source == "web_search_llm_process"
+
+        summed = LanguageModelTokenUsage(
+            completion_tokens=sum(
+                s.token_usage.completion_tokens for s in debug_info.invocation_stats
+            ),
+            prompt_tokens=sum(
+                s.token_usage.prompt_tokens for s in debug_info.invocation_stats
+            ),
+            total_tokens=sum(
+                s.token_usage.total_tokens for s in debug_info.invocation_stats
+            ),
+        )
+        assert summed == LanguageModelTokenUsage(
+            completion_tokens=10, prompt_tokens=15, total_tokens=25
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__no_debug_info__does_not_raise(
+        self, processor_with_llm: ContentProcessor, fake_page: WebSearchResult
+    ) -> None:
+        chunks = await processor_with_llm.run("test query", [fake_page])
+        assert len(chunks) >= 1

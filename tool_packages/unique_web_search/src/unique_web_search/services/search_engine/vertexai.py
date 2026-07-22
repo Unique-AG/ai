@@ -101,6 +101,8 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         self,
         query: str,
         params: ExposedParams | None,
+        *,
+        invocation_stats=None,
     ) -> list[WebSearchResult]:
         del params
         assert self._client is not None, "VertexAI client is not configured"
@@ -118,7 +120,7 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         answer_with_citations = add_citations(response)
 
         results = await convert_response_to_search_results(
-            answer_with_citations, self.response_parsers
+            answer_with_citations, self._response_parsers_for(invocation_stats)
         )
 
         return await self._postprocess_results(results)

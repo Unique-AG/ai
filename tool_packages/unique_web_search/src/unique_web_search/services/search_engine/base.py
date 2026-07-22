@@ -13,6 +13,7 @@ from unique_search_proxy_core.search_engines.base import (
     BaseSearchEngineConfig,
     SearchEngineType,
 )
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_web_search.services.proxy.bridge import (
     open_search_proxy_client,
@@ -95,26 +96,53 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
             return engine
         return None
 
+    def _response_parsers_for(
+        self,
+        invocation_stats: list[LanguageModelInvocationStats] | None,
+    ) -> list[ResponseParser]:
+        """Clone agent parsers so LLM fallback usage can bind to a run-scoped list."""
+        parsers = getattr(self, "response_parsers", None)
+        if not parsers:
+            return []
+        if invocation_stats is None:
+            return list(parsers)
+        return [
+            parser.with_invocation_stats(invocation_stats)
+            if hasattr(parser, "with_invocation_stats")
+            else parser
+            for parser in parsers
+        ]
+
     async def search(
         self,
         query: str,
         params: ExposedParams | None = None,
+        *,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> list[WebSearchResult]:
         """Search the web for the given query using the search engine."""
         proxy_engine = self._proxy_engine
         if search_proxy_client_enabled and proxy_engine is not None:
-            return await self._proxy_search(query, params, proxy_engine)
-        return await self._legacy_search(query=query, params=params)
+            return await self._proxy_search(
+                query, params, proxy_engine, invocation_stats=invocation_stats
+            )
+        return await self._legacy_search(
+            query=query, params=params, invocation_stats=invocation_stats
+        )
 
     async def _proxy_search(
         self,
         query: str,
         params: ExposedParams | None,
         engine: ProxyEngineType,
+        *,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> list[WebSearchResult]:
         """Dispatch to the appropriate proxy path for the given engine."""
         if isinstance(engine, AgentEngineType):
-            return await self._agent_proxy_search(query, params, engine)
+            return await self._agent_proxy_search(
+                query, params, engine, invocation_stats=invocation_stats
+            )
         return await self._standard_proxy_search(query, params, engine)
 
     async def _standard_proxy_search(
@@ -153,6 +181,8 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         query: str,
         params: ExposedParams | None,
         engine: AgentEngineType,
+        *,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> list[WebSearchResult]:
         """Dispatch a grounded agent search via the proxy SDK and parse the answer."""
         del params  # Agent engines do not expose LLM knobs today.
@@ -168,7 +198,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
             )
         results = await map_agent_answer(
             agent_answer_text(response),
-            self.response_parsers,
+            self._response_parsers_for(invocation_stats),
         )
         return await self._postprocess_results(results)
 
@@ -201,5 +231,7 @@ class SearchEngine(ABC, Generic[SearchEngineConfig]):
         self,
         query: str,
         params: ExposedParams | None,
+        *,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> list[WebSearchResult]:
         """Search the web directly without the search proxy."""

@@ -3,6 +3,7 @@ from typing import AsyncIterator, Protocol
 
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content, ContentChunk, ContentReference
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 from unique_swot.services.generation.models.base import SWOTReportComponents
 from unique_swot.services.memory.base import SwotMemoryService
@@ -51,7 +52,12 @@ class SourceSelector(Protocol):
     """This class is responsible for selecting the sources that are most relevant to the SWOT analysis."""
 
     async def select(
-        self, *, company_name: str, content: Content, step_notifier: StepNotifier
+        self,
+        *,
+        company_name: str,
+        content: Content,
+        step_notifier: StepNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> SourceSelectionResult: ...
 
 
@@ -59,7 +65,11 @@ class SourceIterator(Protocol):
     """This class is responsible for prioritizing the sources that are most relevant to the SWOT analysis."""
 
     async def iterate(
-        self, *, contents: list[Content], step_notifier: StepNotifier
+        self,
+        *,
+        contents: list[Content],
+        step_notifier: StepNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> AsyncIterator[Content]: ...
 
 
@@ -84,6 +94,7 @@ class ReportingAgent(Protocol):
         source_registry: SourceRegistry,
         step_notifier: StepNotifier,
         progress_notifier: ProgressNotifier,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> SWOTReportComponents: ...
 
 
@@ -110,7 +121,12 @@ class SWOTOrchestrator:
         self._progress_notifier = progress_notifier
         self._chat_service = chat_service
 
-    async def run(self, *, plan: SWOTPlan) -> SWOTReportComponents:
+    async def run(
+        self,
+        *,
+        plan: SWOTPlan,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
+    ) -> SWOTReportComponents:
         contents = await self._source_collector.collect(
             step_notifier=self._step_notifier
         )
@@ -118,7 +134,9 @@ class SWOTOrchestrator:
         await self._progress_notifier.update(progress=5)
 
         source_iterator = await self._source_iterator.iterate(
-            contents=contents, step_notifier=self._step_notifier
+            contents=contents,
+            step_notifier=self._step_notifier,
+            invocation_stats=invocation_stats,
         )
 
         await self._progress_notifier.update(progress=10)
@@ -138,6 +156,7 @@ class SWOTOrchestrator:
             step_notifier=self._step_notifier,
             source_registry=self._source_registry,
             progress_notifier=self._progress_notifier,
+            invocation_stats=invocation_stats,
         )
 
         return reports

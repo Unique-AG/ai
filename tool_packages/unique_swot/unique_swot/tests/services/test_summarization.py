@@ -1,8 +1,10 @@
 """Tests for the SummarizationAgent."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_swot.services.generation.models.base import (
     SWOTReportComponents,
@@ -39,6 +41,44 @@ def _make_report_components():
         opportunities=[],
         threats=[],
     )
+
+
+@pytest.mark.asyncio
+async def test_summarization_agent_records_invocation_stats_with_model(
+    mock_language_model_service,
+):
+    """Summarization should record usage with the configured model and source."""
+    config = Mock()
+    config.prompt_config.system_prompt = "System prompt"
+    config.prompt_config.user_prompt = "User prompt for {{company_name}}: {{report}}"
+
+    llm = SimpleNamespace(name="summarization-model", encoder_name="cl100k_base")
+    agent = SummarizationAgent(
+        llm=llm,
+        llm_service=mock_language_model_service,
+        summarization_config=config,
+    )
+
+    mock_response = Mock()
+    mock_response.choices = [Mock()]
+    mock_response.choices[0].message.content = "Summary text"
+    mock_response.usage = LanguageModelTokenUsage(
+        prompt_tokens=20, completion_tokens=10, total_tokens=30
+    )
+    mock_language_model_service.complete_async = AsyncMock(return_value=mock_response)
+
+    invocation_stats = []
+    summary = await agent.summarize(
+        company_name="ACME Corp",
+        markdown_report="Full report content",
+        invocation_stats=invocation_stats,
+    )
+
+    assert summary == "Summary text"
+    assert len(invocation_stats) == 1
+    assert invocation_stats[0].model_name == "summarization-model"
+    assert invocation_stats[0].source == "swot_summarization"
+    assert invocation_stats[0].token_usage.total_tokens == 30
 
 
 @pytest.mark.asyncio

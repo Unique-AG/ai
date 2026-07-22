@@ -112,8 +112,10 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
         self,
         query: str,
         params: ExposedParams | None,
+        *,
+        invocation_stats=None,
     ) -> list[WebSearchResult]:
-        del params
+        del params, invocation_stats
         params_dict, body = self._prepare_request_params_and_body(query)
         async_client_params = self._client_config | {
             "timeout": self.config.timeout,

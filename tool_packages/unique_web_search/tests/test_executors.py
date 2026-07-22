@@ -4,7 +4,22 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
+    ChunkRelevancy,
+    ChunkRelevancySorterResult,
+)
+from unique_toolkit.agentic.evaluation.schemas import (
+    EvaluationMetricName,
+    EvaluationMetricResult,
+)
+from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+from unique_web_search.schema import (
+    WebPageChunk,
+    WebSearchDebugInfo,
+)
 from unique_web_search.services.crawlers.url_safety import (
     CrawlTargetValidationError,
     UrlSafetyService,
@@ -165,6 +180,66 @@ class TestQueryGenerationAgent:
                 system_prompt="test prompt",
                 mode=RefineQueryMode.BASIC,
             )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_query_generation_agent__records_usage_on_debug_info__when_mode_is_basic(
+        self,
+    ) -> None:
+        mock_lm_service = Mock()
+        mock_lm = Mock()
+        mock_lm.name = "test-model"
+
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.parsed = {
+            "objective": "Find test info",
+            "refined_query": "optimized test query",
+        }
+        mock_response.usage = LanguageModelTokenUsage(
+            completion_tokens=3, prompt_tokens=7, total_tokens=10
+        )
+        mock_lm_service.complete_async = AsyncMock(return_value=mock_response)
+
+        debug_info = WebSearchDebugInfo(parameters={})
+        await query_generation_agent(
+            query="test query",
+            language_model_service=mock_lm_service,
+            language_model=mock_lm,
+            system_prompt="test prompt",
+            mode=RefineQueryMode.BASIC,
+            debug_info=debug_info,
+        )
+
+        assert len(debug_info.invocation_stats) == 1
+        stat = debug_info.invocation_stats[0]
+        assert stat.model_name == "test-model"
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=3, prompt_tokens=7, total_tokens=10
+        )
+        assert stat.source == "web_search_query_refinement"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_query_generation_agent__no_usage_when_deactivated(
+        self,
+    ) -> None:
+        debug_info = WebSearchDebugInfo(parameters={})
+        mock_lm_service = Mock()
+        mock_lm = Mock()
+        mock_lm.name = "test-model"
+
+        await query_generation_agent(
+            query="test query",
+            language_model_service=mock_lm_service,
+            language_model=mock_lm,
+            system_prompt="test prompt",
+            mode=RefineQueryMode.DEACTIVATED,
+            debug_info=debug_info,
+        )
+
+        assert debug_info.invocation_stats == []
+        mock_lm_service.complete_async.assert_not_called()
 
 
 class TestWebSearchV1ExecutorInit:
@@ -415,6 +490,48 @@ class TestWebSearchV1ExecutorRefineQuery:
         assert queries[0] == "query1"
         assert queries[1] == "query2"
         assert objective == "test objective"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_refine_query__records_usage_on_debug_info(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        tool_parameters = WebSearchToolParameters(query="test")
+
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.parsed = {
+            "objective": "test objective",
+            "refined_query": "refined test",
+        }
+        mock_response.usage = LanguageModelTokenUsage(
+            completion_tokens=4, prompt_tokens=6, total_tokens=10
+        )
+        mock_executor_dependencies["language_model_service"].complete_async = AsyncMock(
+            return_value=mock_response
+        )
+
+        executor = WebSearchV1Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
+            refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
+            mode=RefineQueryMode.BASIC,
+        )
+
+        await executor._refine_query("test query")
+
+        assert len(executor.debug_info.invocation_stats) == 1
+        stat = executor.debug_info.invocation_stats[0]
+        assert stat.source == "web_search_query_refinement"
+        assert stat.token_usage == LanguageModelTokenUsage(
+            completion_tokens=4, prompt_tokens=6, total_tokens=10
+        )
 
 
 class TestWebSearchV1ExecutorEnforceMaxQueries:
@@ -1282,3 +1399,86 @@ class TestWebSearchV2ExecutorDebugInfo:
         )
         assert search_step is not None
         assert search_step.extra["query"] == "test query"
+
+
+class TestSelectRelevantSourcesInvocationStats:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_select_relevant_sources__chunk_relevancy_enabled__records_stats(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        mock_config = mock_executor_dependencies["chunk_relevancy_sort_config"]
+        mock_config.enabled = True
+        primary_model = Mock()
+        primary_model.name = "gpt-4o"
+        fallback_model = Mock()
+        fallback_model.name = "gpt-4o-mini"
+        mock_config.language_model = primary_model
+        mock_config.fallback_language_model = fallback_model
+        mock_chunk = ContentChunk(
+            id="chunk_1",
+            order=1,
+            chunk_id="chunk_1",
+            text="content",
+        )
+        mock_executor_dependencies["chunk_relevancy_sorter"].run = AsyncMock(
+            return_value=ChunkRelevancySorterResult(
+                relevancies=[
+                    ChunkRelevancy(
+                        chunk=mock_chunk,
+                        relevancy=EvaluationMetricResult(
+                            value="high",
+                            name=EvaluationMetricName.CONTEXT_RELEVANCY,
+                            reason="ok",
+                            invocation_stats=[
+                                LanguageModelInvocationStats.from_usage(
+                                    primary_model.name,
+                                    LanguageModelTokenUsage(
+                                        completion_tokens=1,
+                                        prompt_tokens=2,
+                                        total_tokens=3,
+                                    ),
+                                    source="context_relevancy",
+                                )
+                            ],
+                        ),
+                    )
+                ]
+            )
+        )
+
+        executor = WebSearchV1Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=WebSearchToolParameters(query="test"),
+            refine_query_system_prompt="test prompt",
+            refine_query_language_model=mock_executor_dependencies["language_model"],
+        )
+        executor.content_reducer = lambda chunks: chunks
+
+        web_page_chunks = [
+            WebPageChunk(
+                url="https://example.com",
+                display_link="example.com",
+                title="Title",
+                snippet="snippet",
+                content="body",
+                order="1",
+            )
+        ]
+
+        await executor._select_relevant_sources("objective", web_page_chunks)
+
+        mock_executor_dependencies["chunk_relevancy_sorter"].run.assert_called_once()
+        assert "invocation_stats_source" not in (
+            mock_executor_dependencies["chunk_relevancy_sorter"].run.call_args.kwargs
+        )
+        assert len(executor.debug_info.invocation_stats) == 1
+        assert (
+            executor.debug_info.invocation_stats[0].source
+            == "web_search_chunk_relevancy"
+        )

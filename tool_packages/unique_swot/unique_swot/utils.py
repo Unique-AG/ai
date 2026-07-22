@@ -8,10 +8,13 @@ from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import Content, ContentChunk, ContentReference
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 
 _LOGGER = getLogger(__name__)
 _MAX_RETRIES = 3
 T = TypeVar("T", bound=BaseModel)
+
+SWOT_GENERATION = "swot_generation"
 
 
 def generate_unique_id(prefix: str) -> str:
@@ -47,6 +50,8 @@ async def generate_structured_output(
     llm: LMI,
     output_model: type[T],
     llm_service: LanguageModelService,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
+    source: str | None = None,
 ) -> T | None:
     """
     Call the LLM to produce a structured Pydantic model with retries.
@@ -76,7 +81,20 @@ async def generate_structured_output(
                 structured_output_model=output_model,
                 structured_output_enforce_schema=True,
             )
-            return output_model.model_validate(response.choices[0].message.parsed)
+            parsed = output_model.model_validate(response.choices[0].message.parsed)
+            if (
+                invocation_stats is not None
+                and source is not None
+                and response.usage is not None
+            ):
+                invocation_stats.append(
+                    LanguageModelInvocationStats.from_usage(
+                        llm.name,
+                        response.usage,
+                        source=source,
+                    )
+                )
+            return parsed
         except Exception as exc:
             last_error = str(exc)
             _LOGGER.exception(

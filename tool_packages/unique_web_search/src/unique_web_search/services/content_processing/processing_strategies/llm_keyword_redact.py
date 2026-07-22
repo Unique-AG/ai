@@ -184,6 +184,14 @@ class LLMKeywordRedact:
         if response.choices[0].message.parsed is None:
             raise ValueError("Keyword extraction call returned no parsed response")
 
+        debug_info = kwargs.get("debug_info")
+        if debug_info is not None:
+            debug_info.add_invocation(
+                self._config.language_model.name,
+                response.usage,
+                source="web_search_llm_keyword_redact",
+            )
+
         parsed = KeywordRedactResponse.model_validate(
             response.choices[0].message.parsed
         )

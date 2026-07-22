@@ -10,6 +10,11 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from unidecode import unidecode
 from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.invocation_stats import (
+    LanguageModelInvocationStats,
+)
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 
 class StepDebugInfo(BaseModel):
@@ -53,12 +58,29 @@ class WebSearchDebugInfo(BaseModel):
     web_page_chunks: list[WebPageChunk] = []
     execution_time: float | None = None
     num_chunks_in_final_prompts: int = 0
+    invocation_stats: list[LanguageModelInvocationStats] = Field(default_factory=list)
+
+    def add_invocation(
+        self,
+        model_name: LanguageModelName | str,
+        usage: LanguageModelTokenUsage | None,
+        source: str | None = None,
+    ) -> None:
+        if usage is None or not isinstance(usage, LanguageModelTokenUsage):
+            return
+        # Safe under concurrent process_single_page calls: a plain `append`
+        # with no `await` in between, so asyncio can't interleave mid-update.
+        self.invocation_stats.append(
+            LanguageModelInvocationStats.from_usage(model_name, usage, source=source)
+        )
 
     def model_dump(self, *, with_debug_details: bool = True, **kwargs):
         """
         Dump the model, dropping `additional_info` in steps when debug=False.
         """
         exclude = kwargs.pop("exclude", {})
+        # stats surface via ToolCallResponse.invocation_stats; don't duplicate here.
+        exclude = {"invocation_stats": True} | exclude
         if not with_debug_details:
             # Build an exclude structure that applies to all steps
             exclude = {

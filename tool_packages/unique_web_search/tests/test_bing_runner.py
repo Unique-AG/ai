@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from azure.ai.agents.models import MessageTextContent, MessageTextUrlCitationAnnotation
 from pydantic import ValidationError
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -327,6 +328,7 @@ class TestLLMParserStrategy:
         mock_choice.message.parsed = parsed_data.model_dump()
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
+        mock_response.usage = None
         mock_service.complete_async = AsyncMock(return_value=mock_response)
 
         strategy = LLMParserStrategy(llm=mock_lmi, llm_service=mock_service)
@@ -339,6 +341,49 @@ class TestLLMParserStrategy:
         assert results[0].url == "https://llm-parsed.com"
         assert results[0].title == "LLM Parsed"
         mock_service.complete_async.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_call__records_invocation_stats_when_accumulator_bound(self) -> None:
+        """
+        Purpose: Verify successful LMS usage is appended to a run-scoped accumulator.
+        Why this matters: Bing/Vertex grounding fallback was an untracked live LLM call.
+        Setup summary: Bind an empty list and return LanguageModelTokenUsage on the mock.
+        """
+        mock_lmi = MagicMock()
+        mock_lmi.name = "gpt-4o"
+        mock_service = MagicMock()
+
+        parsed_data = GroundingWithBingResults(
+            results=[
+                ResultItem(
+                    source_url="https://llm-parsed.com",
+                    source_title="LLM Parsed",
+                    detailed_answer="Parsed content",
+                    key_facts=["Parsed snippet"],
+                )
+            ]
+        )
+        mock_choice = MagicMock()
+        mock_choice.message.parsed = parsed_data.model_dump()
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage = LanguageModelTokenUsage(
+            completion_tokens=3, prompt_tokens=7, total_tokens=10
+        )
+        mock_service.complete_async = AsyncMock(return_value=mock_response)
+
+        invocation_stats: list = []
+        strategy = LLMParserStrategy(
+            llm=mock_lmi, llm_service=mock_service, invocation_stats=invocation_stats
+        )
+
+        await strategy("Some unstructured agent response text")
+
+        assert len(invocation_stats) == 1
+        assert invocation_stats[0].model_name == "gpt-4o"
+        assert invocation_stats[0].source == "web_search_grounding_parser"
+        assert invocation_stats[0].token_usage.total_tokens == 10
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -357,6 +402,7 @@ class TestLLMParserStrategy:
         mock_choice.message.parsed = None
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
+        mock_response.usage = None
         mock_service.complete_async = AsyncMock(return_value=mock_response)
 
         strategy = LLMParserStrategy(llm=mock_lmi, llm_service=mock_service)
@@ -393,6 +439,7 @@ class TestLLMParserStrategy:
         mock_choice.message.parsed = parsed_data.model_dump()
         mock_response = MagicMock()
         mock_response.choices = [mock_choice]
+        mock_response.usage = None
         mock_service.complete_async = AsyncMock(return_value=mock_response)
 
         strategy = LLMParserStrategy(llm=mock_lmi, llm_service=mock_service)

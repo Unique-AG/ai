@@ -320,6 +320,14 @@ class LLMProcess:
         if response.choices[0].message.parsed is None:
             raise ValueError("Failed to parse response")
 
+        debug_info = kwargs.get("debug_info")
+        if debug_info is not None:
+            debug_info.add_invocation(
+                self._config.language_model.name,
+                response.usage,
+                source="web_search_llm_process",
+            )
+
         parsed = LLMProcessorResponse.model_validate(response.choices[0].message.parsed)
         return parsed.apply_to_page(page)
 

@@ -1,9 +1,11 @@
 import logging
 import re
-from typing import Protocol
+from typing import Protocol, Self
 
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 from unique_toolkit.language_model.service import LanguageModelService
 
 from unique_web_search.services.search_engine.schema import WebSearchResult
@@ -73,9 +75,26 @@ class LLMParserStrategy(ResponseParser):
         ValueError: If the LLM response does not contain a valid parsed result.
     """
 
-    def __init__(self, llm: LMI, llm_service: LanguageModelService):
+    def __init__(
+        self,
+        llm: LMI,
+        llm_service: LanguageModelService,
+        *,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
+    ):
         self.llm = llm
         self.llm_service = llm_service
+        self.invocation_stats = invocation_stats
+
+    def with_invocation_stats(
+        self, invocation_stats: list[LanguageModelInvocationStats]
+    ) -> Self:
+        """Return a copy bound to a run-scoped stats accumulator."""
+        return LLMParserStrategy(
+            self.llm,
+            self.llm_service,
+            invocation_stats=invocation_stats,
+        )
 
     async def __call__(self, response: str) -> list[WebSearchResult]:
         system_prompt = """You are a helpful assistant that converts an non-structured response to a structured response."""
@@ -92,6 +111,17 @@ class LLMParserStrategy(ResponseParser):
             structured_output_model=GroundingSearchResults,
             structured_output_enforce_schema=True,
         )
+
+        if self.invocation_stats is not None and isinstance(
+            llm_response.usage, LanguageModelTokenUsage
+        ):
+            self.invocation_stats.append(
+                LanguageModelInvocationStats.from_usage(
+                    self.llm.name,
+                    llm_response.usage,
+                    source="web_search_grounding_parser",
+                )
+            )
 
         if not llm_response.choices[0].message.parsed:
             raise ValueError("No JSON found in the response")
