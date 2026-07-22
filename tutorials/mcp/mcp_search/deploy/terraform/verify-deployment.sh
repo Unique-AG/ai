@@ -467,7 +467,8 @@ verify_health_endpoints() {
     fi
     
     # Test domain if configured
-    DOMAIN_NAME=$(terraform output -raw application_url 2>/dev/null | sed 's|https\?://||' || echo "")
+    # -E for portability: BSD sed (macOS) doesn't support \? in basic regex
+    DOMAIN_NAME=$(terraform output -raw application_url 2>/dev/null | sed -E 's|https?://||' || echo "")
     if [ -n "$DOMAIN_NAME" ] && [ "$DOMAIN_NAME" != "null" ]; then
         log_info "Testing domain: $DOMAIN_NAME"
         

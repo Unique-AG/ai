@@ -9,8 +9,16 @@ dependencies = [
     "fastapi>=0.120.2",
     "fastmcp>=3.2.0,<4",
     "pydantic>=2.12.3",
-    "unique-mcp>=2026.30.0",
-    "unique-toolkit>=2026.30.0",
+    # dev floor: depends on unique_mcp's async identity resolver, added in
+    # #2123. The wheel containing it is the first dev build cd-publish-dev
+    # publishes once that PR merges to main. Bump to the next stable once
+    # released.
+    "unique-mcp>=2026.32.0.dev1",
+    # Match unique-mcp's published floor (unique-toolkit>=2026.32.0.dev2).
+    "unique-toolkit>=2026.32.0.dev2",
+    # Transitive of unique-toolkit; explicit .devN pin so uv's
+    # if-necessary-or-explicit prerelease mode picks it up in ACR builds.
+    "unique-sdk>=2026.32.0.dev2",
 ]
 
 [tool.uv.sources]
@@ -62,5 +70,8 @@ constraint-dependencies = [
 [tool.uv.exclude-newer-package]
 "unique-mcp" = false
 "unique-toolkit" = false
+# unique-sdk is a hard dependency of unique-toolkit; without this exemption the
+# resolver falls back to an outdated unique-toolkit when building from PyPI.
+"unique-sdk" = false
 # urllib3 2.7.0 (GHSA-48p4-8xcf-vxj5) uploaded 2026-05-07; remove after 2026-05-22.
 "urllib3" = "2026-05-08"
