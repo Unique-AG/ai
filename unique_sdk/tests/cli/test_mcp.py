@@ -20,6 +20,7 @@ from unique_sdk.cli.state import ShellState
 
 _OUTPUT_MANIFEST = Path(".unique") / "mcp-output.jsonl"
 _REFS_MANIFEST = Path(".unique") / "mcp-refs.jsonl"
+_REFS_SEED = Path(".unique") / "mcp-refs-seed.json"
 
 
 class _FakeMCPResponse:
@@ -810,6 +811,156 @@ def test_record_mcp_citations_concurrent_monotonic_numbers(
     # collisions despite concurrent writers (the per-turn flock serializes them).
     assert numbers == list(range(1, n + 1))
     assert len(_unique_lines(unique_dir, "mcp-output.jsonl")) == n
+
+
+# ── Chat-monotonic source numbering / seed file (UN-23199) ───────────────────
+#
+# The SI runner wipes ``mcp-refs.jsonl`` between turns, so manifest-derived
+# numbering would restart at 1 each turn. A persistent sibling seed file
+# (``mcp-refs-seed.json``) records the highest source number ever assigned in
+# the chat so numbering stays monotonic across the runner's per-turn reset.
+
+
+def test_seed_continues_numbering_after_manifest_wiped(tmp_path: Path) -> None:
+    # Turn 1: two items → sources 1, 2. The seed file records the max.
+    r1 = _FakeMCPResponse(
+        content=[
+            {"type": "resource_link", "uri": "https://e/a", "name": "Doc A"},
+            {"type": "resource_link", "uri": "https://e/b", "name": "Doc B"},
+        ]
+    )
+    _run("mcp__kb__search", r1)
+    first_max = max(r["sourceNumber"] for r in _lines(tmp_path, _REFS_MANIFEST))
+    assert first_max == 2
+
+    # Seed file exists with the contract body; manifest is wiped (runner reset).
+    seed_path = tmp_path / _REFS_SEED
+    assert seed_path.is_file()
+    assert json.loads(seed_path.read_text(encoding="utf-8")) == {"maxSourceNumber": 2}
+    (tmp_path / _REFS_MANIFEST).unlink()
+
+    # Turn 2: a fresh item must continue above the prior max, not restart at 1.
+    r2 = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/c", "name": "Doc C"}]
+    )
+    _run("mcp__kb__search", r2)
+    refs2 = _lines(tmp_path, _REFS_MANIFEST)
+    assert [r["sourceNumber"] for r in refs2] == [first_max + 1]
+    assert refs2[0]["title"] == "Doc C"
+    assert json.loads(seed_path.read_text(encoding="utf-8")) == {"maxSourceNumber": 3}
+
+
+def test_absent_seed_reproduces_pre_seed_numbering(tmp_path: Path) -> None:
+    # No seed file → seed 0 → numbering identical to today's behavior (starts 1).
+    response = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    _run("mcp__kb__fetch", response)
+    assert _lines(tmp_path, _REFS_MANIFEST)[0]["sourceNumber"] == 1
+
+
+def test_write_seed_refuses_symlinked_temp_path(tmp_path: Path) -> None:
+    # Bugbot security regression: the seed write must not follow a symlink
+    # pre-planted at the predictable temp path, so it cannot be redirected to
+    # overwrite a file outside the refs directory.
+    unique_dir = tmp_path / ".unique"
+    unique_dir.mkdir()
+    seed_path = unique_dir / "mcp-refs-seed.json"
+    outside = tmp_path / "outside.txt"
+    outside.write_text("SECRET", encoding="utf-8")
+    (unique_dir / "mcp-refs-seed.json.tmp").symlink_to(outside)
+
+    # Best-effort: the O_NOFOLLOW open fails and is swallowed (no raise).
+    mcp_cmd._write_mcp_refs_seed(seed_path, 5)
+
+    # The symlink target outside the refs dir is untouched, and no seed landed.
+    assert outside.read_text(encoding="utf-8") == "SECRET"
+    assert not seed_path.exists()
+
+
+def test_write_seed_without_o_nofollow_attr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Bugbot regression: O_NOFOLLOW is POSIX-only. On a platform lacking it the
+    # write must still succeed (getattr → 0), not raise AttributeError that would
+    # bubble out of _annotate_mcp_results_for_citations and blank the Sources
+    # block.
+    monkeypatch.delattr(mcp_cmd.os, "O_NOFOLLOW", raising=False)
+    seed_path = tmp_path / ".unique" / "mcp-refs-seed.json"
+
+    mcp_cmd._write_mcp_refs_seed(seed_path, 4)
+
+    assert json.loads(seed_path.read_text(encoding="utf-8")) == {"maxSourceNumber": 4}
+
+
+# ── Sources block names the tool (UN-23199) ──────────────────────────────────
+
+
+def test_sources_block_includes_tool_name(tmp_path: Path) -> None:
+    response = _FakeMCPResponse(
+        content=[{"type": "resource_link", "uri": "https://e/a", "name": "Doc A"}]
+    )
+    out = _run("mcp__kb__fetch", response)
+    assert "[mcpsource1] Doc A — mcp__kb__fetch" in out
+
+
+def test_sources_block_titleless_uses_tool_name(tmp_path: Path) -> None:
+    response = _FakeMCPResponse(content=[{"type": "text", "text": "status: ok"}])
+    out = _run("mcp__crm__update", response)
+    assert "[mcpsource1] mcp__crm__update" in out
+
+
+# ── Title-less dedup by content hash (UN-23199) ──────────────────────────────
+
+
+def test_titleless_distinct_text_gets_distinct_numbers(tmp_path: Path) -> None:
+    # Two title-less fetches through one tool returning different bodies must not
+    # collapse onto one source number (content-hash in the dedup key).
+    _run(
+        "mcp__crm__update",
+        _FakeMCPResponse(content=[{"type": "text", "text": "a"}]),
+        formatted="alpha result",
+    )
+    _run(
+        "mcp__crm__update",
+        _FakeMCPResponse(content=[{"type": "text", "text": "b"}]),
+        formatted="beta result",
+    )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 2
+    assert {r["sourceNumber"] for r in refs} == {1, 2}
+
+
+def test_titleless_identical_text_still_merges(tmp_path: Path) -> None:
+    # Identical title-less bodies through one tool still merge onto one source.
+    for _ in range(2):
+        _run(
+            "mcp__crm__update",
+            _FakeMCPResponse(content=[{"type": "text", "text": "same"}]),
+            formatted="identical",
+        )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["sourceNumber"] == 1
+
+
+def test_titleless_oversized_identical_text_merges_across_calls(
+    tmp_path: Path,
+) -> None:
+    # Bugbot regression: the dedup key must hash the CAPPED text so the second
+    # call (rebuilding the key from the truncated manifest entry) still matches
+    # the first (full live text). An oversized identical title-less body must
+    # merge onto one source, not be re-assigned a duplicate number.
+    big = "x" * (mcp_cmd._MCP_REF_TEXT_CHAR_LIMIT + 50)
+    for _ in range(2):
+        _run(
+            "mcp__crm__update",
+            _FakeMCPResponse(content=[{"type": "text", "text": "plain"}]),
+            formatted=big,
+        )
+    refs = _lines(tmp_path, _REFS_MANIFEST)
+    assert len(refs) == 1
+    assert refs[0]["sourceNumber"] == 1
 
 
 # ── reference_mapping override (per-tool list destructuring) ──────────────────
