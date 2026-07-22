@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -19,7 +19,7 @@ dependencies = [
     # 4.6.0 is the floor: 4.4.0/4.5.0 fail to import on Python 3.12 (a
     # TypeVar subclassing incompatibility, fixed in 4.6.0), verified locally.
     "typing-extensions>=4.6.0",
-    "unique-toolkit>=2026.30.0",
+    "unique-toolkit>=2026.32.0.dev3,<2026.32.0rc0",
 ]
 
 [build-system]
