@@ -194,8 +194,7 @@ class APIRequestor(object):
         )
 
         _util.log_info("Request to Unique", method=method, path=abs_url)
-        _util.log_debug(
-            "Request details",
+        _util.log_request_details(
             data=post_data,
             headers=headers,
             api_version=self.api_version,
@@ -206,7 +205,7 @@ class APIRequestor(object):
         )
 
         _util.log_info("Unique response", path=abs_url, status=rcode)
-        _util.log_debug("Unique response body", body=rcontent)
+        _util.log_response_body(body=rcontent)
 
         if "Request-Id" in rheaders:
             request_id = rheaders["Request-Id"]
@@ -230,11 +229,11 @@ class APIRequestor(object):
         )
 
         _util.log_info("Async request to Unique", method=method, path=abs_url)
-        _util.log_debug(
-            "Async request details",
+        _util.log_request_details(
             data=post_data,
             headers=headers,
             api_version=self.api_version,
+            message="Async request details",
         )
 
         rcontent, rcode, rheaders = await self._client.request_async(
@@ -242,7 +241,7 @@ class APIRequestor(object):
         )
 
         _util.log_info("Unique response", path=abs_url, status=rcode)
-        _util.log_debug("Unique response body", body=rcontent)
+        _util.log_response_body(body=rcontent)
 
         if "Request-Id" in rheaders:
             request_id = rheaders["Request-Id"]
