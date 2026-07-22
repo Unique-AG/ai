@@ -46,7 +46,7 @@ REFERENCE_FORMAT_INFORMATION = (
     "'[<document name>](<document URL>)' (optional page range on the next line). "
     "When you use information from a result, cite it inline by pasting that "
     "exact markdown link immediately after the claim — for example "
-    "'raised a $30M Series A ([andreas-hauri.md](https://…)).' "
+    "'Acme Corp raised a $30M Series A ([acme-corp-funding.md](https://…)).' "
     "Do NOT invent placeholders like [source1], [sourceN], or [1]. "
     "Always end your answer with a Sources section listing each cited document "
     "once as the same markdown link. Prefer https://…/knowledge-upload/…?file=… "
