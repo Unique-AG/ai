@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from google.genai import types as genai_types
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
@@ -43,10 +44,13 @@ def test_record_vertex_response__normalizes_google_usage_metadata() -> None:
     """
     Purpose: Verify Vertex usage metadata is converted to toolkit token usage.
     Why this matters: Google uses different token field names than toolkit LLM responses.
+        Using the real SDK type here (not a hand-rolled stand-in) means a future
+        google-genai field rename breaks this test loudly instead of leaving
+        `record_vertex_response` silently reporting `None` usage.
     Setup summary: Record a synthetic Vertex response and assert every supported token field.
     """
     response = SimpleNamespace(
-        usage_metadata=SimpleNamespace(
+        usage_metadata=genai_types.GenerateContentResponseUsageMetadata(
             prompt_token_count=11,
             candidates_token_count=7,
             total_token_count=20,
