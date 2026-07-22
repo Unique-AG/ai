@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 
 from unique_search_proxy_core.url_safety import dns, redirect, resolver
 from unique_search_proxy_core.url_safety.models import (
+    BlockedCrawlTarget,
     CrawlTargetValidationError,
     ResolvedCrawlTarget,
     UrlSafetyOutcome,
@@ -12,6 +14,8 @@ from unique_search_proxy_core.url_safety.models import (
 )
 from unique_search_proxy_core.url_safety.policy import validate_target_cheap
 from unique_search_proxy_core.url_safety.settings import url_safety_settings
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class UrlSafetyService:
@@ -37,6 +41,20 @@ class UrlSafetyService:
             except CrawlTargetValidationError as exc:
                 blocked = exc.blocked_targets[0]
                 outcomes.append(UrlSafetyOutcome(url=url, blocked=blocked))
+            except Exception:
+                # Fail closed: an unexpected error while validating a single URL
+                # must block only that URL, never fail the whole batch.
+                _LOGGER.exception("URL safety validation failed unexpectedly")
+                outcomes.append(
+                    UrlSafetyOutcome(
+                        url=url,
+                        blocked=BlockedCrawlTarget(
+                            hostname=urlsplit(working_url).hostname,
+                            category="validation_error",
+                            reason="URL safety validation failed unexpectedly",
+                        ),
+                    )
+                )
         return outcomes
 
     @staticmethod
