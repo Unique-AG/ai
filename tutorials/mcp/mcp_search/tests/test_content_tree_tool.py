@@ -173,6 +173,37 @@ async def test_folder_path_prefix_filter_is_case_sensitive_exact_match():
 
 
 @pytest.mark.asyncio
+async def test_folder_path_filter_matches_display_path_with_brackets_stripped():
+    """Filters use display paths so ``SM/AlpenSys`` matches ``[SM]/AlpenSys``."""
+    sm_folder = "[" + "SM" + "]"
+    mock_tree = _make_mock_tree()
+    mock_tree.resolve_visible_file_paths_async = AsyncMock(
+        return_value=[
+            (
+                _make_content_info("c1"),
+                [sm_folder, "AlpenSys", "a.pdf"],
+            ),
+            (
+                _make_content_info("c2"),
+                [sm_folder, "Other", "b.pdf"],
+            ),
+            (_make_content_info("c3"), ["Contracts", "c.pdf"]),
+        ]
+    )
+    with patch("mcp_search.tools.content_tree.ContentTree", return_value=mock_tree):
+        result = await content_tree(
+            mode="list",
+            folder_path="SM/AlpenSys",
+            config=ContentTreeToolConfig(),
+        )
+
+    text = result.content[0].text  # type: ignore[union-attr]
+    assert "content_id=c1" in text
+    assert "content_id=c2" not in text
+    assert "content_id=c3" not in text
+
+
+@pytest.mark.asyncio
 async def test_limit_none_falls_back_to_config_default_limit():
     rows = [(_make_content_info(f"c{i}"), [f"file{i}.pdf"]) for i in range(5)]
     mock_tree = _make_mock_tree()

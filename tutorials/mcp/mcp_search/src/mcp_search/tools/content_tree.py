@@ -97,14 +97,25 @@ _tree_cache: AsyncTTLCache | None = None
 _NO_FOLDER_PATH_SENTINEL = "_no_folder_path"
 
 
+def _normalize_path_segment(segment: str) -> str:
+    """Strip ``[`` / ``]`` so display labels and folder_path filters stay aligned."""
+    return segment.replace("[", "").replace("]", "")
+
+
+def _display_path_segments(segments: Sequence[str]) -> list[str]:
+    """Path segments for display and filtering (sentinel dropped, brackets stripped)."""
+    return [
+        _normalize_path_segment(s) for s in segments if s != _NO_FOLDER_PATH_SENTINEL
+    ]
+
+
 def _display_path(segments: Sequence[str]) -> str:
     """Join path segments for display labels.
 
     Drops the orphan-folder sentinel and strips ``[`` / ``]`` so folder names
     like ``[SM]`` cannot break the outer ``[label](url)`` markdown wrapper.
     """
-    parts = (s for s in segments if s != _NO_FOLDER_PATH_SENTINEL)
-    return "/".join(p.replace("[", "").replace("]", "") for p in parts)
+    return "/".join(_display_path_segments(segments))
 
 
 def _file_link(
@@ -138,13 +149,13 @@ _TOOL_DESCRIPTION = (
     "`mode`; only that mode's args below apply, rest ignored. '*' = required.\n"
     "- mode='tree': max_depth — first orientation view of folders/files.\n"
     "- mode='list': folder_path, limit — flat listing; each result's "
-    "content_id is needed for a later read-file call.\n"
+    "content_id is needed for a later read_file call.\n"
     "- mode='search': query*, limit, min_score, match_on, case_sensitive — "
     "fuzzy filename/path lookup when you know roughly what it's called but "
     "not where.\n"
     "'list' and 'search' rows start with a markdown link that opens the file "
     "in the Unique knowledge base — paste it as-is when referring the user to "
-    "a file; use the content_id for read-file calls.\n"
+    "a file; use the content_id for read_file calls.\n"
     "Listings are cached per user (~30 min); repeat calls are fast. When the "
     "user says they added, deleted, or changed files and needs a fresh tree, "
     "call with refresh=true (expect a slower ~20s refetch)."
@@ -155,7 +166,7 @@ _META = merge_tool_meta(
         "unique.app/icon": "folder-tree",
         "unique.app/system-prompt": (
             "Choose this tool to browse or locate files/folders in the "
-            "knowledge base before reading one with the read-file tool."
+            "knowledge base before reading one with the read_file tool."
         ),
     },
     ContextRequirements(
@@ -291,11 +302,16 @@ async def content_tree(
                 max_concurrent_scope_lookups=config.max_concurrent_scope_lookups,
             )
             if folder_path:
-                prefix = tuple(folder_path.strip("/").split("/"))
+                # Match against display paths (brackets stripped, sentinel dropped)
+                # so filters like "SM/AlpenSys" work when segments are ["[SM]", ...].
+                prefix = tuple(
+                    _normalize_path_segment(p)
+                    for p in folder_path.strip("/").split("/")
+                )
                 rows = [
                     (content_info, segments)
                     for content_info, segments in rows
-                    if tuple(segments[: len(prefix)]) == prefix
+                    if tuple(_display_path_segments(segments)[: len(prefix)]) == prefix
                 ]
             effective_limit = limit if limit is not None else config.default_limit
             rows = rows[:effective_limit]
