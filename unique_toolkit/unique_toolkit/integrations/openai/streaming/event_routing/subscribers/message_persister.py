@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import unique_sdk
 
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+from unique_toolkit._internal.streaming.pattern_replacer import (
     filter_cited_sdk_references,
 )
 

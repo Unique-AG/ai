@@ -43,7 +43,7 @@ from openai.types.responses.response_code_interpreter_call_interpreting_event im
 )
 
 from unique_toolkit._common.event_bus import TypedEventBus
-from unique_toolkit.experimental._internal.streaming import (
+from unique_toolkit._internal.streaming import (
     ActivityProgressUpdate,
     ActivityStatus,
 )

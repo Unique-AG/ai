@@ -20,16 +20,16 @@ from openai.types.chat.chat_completion_stream_options_param import (
     ChatCompletionStreamOptionsParam,
 )
 
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
-from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.experimental._internal.streaming import TextFlushed
-from unique_toolkit.experimental._internal.streaming.pattern_replacer import (
+from unique_toolkit._internal.streaming import TextFlushed
+from unique_toolkit._internal.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
     NORMALIZATION_PATTERNS,
     StreamingPatternReplacer,
     StreamingReplacerProtocol,
     filter_cited_sdk_references,
 )
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
