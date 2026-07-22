@@ -11,6 +11,7 @@ from openai import AsyncOpenAI
 from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
+_private_endpoint_http_client: httpx.AsyncClient | None = None
 
 
 def _get_workload_identity_credentials(
@@ -76,9 +77,34 @@ def get_project_client(
         )
 
 
+def _get_private_endpoint_http_client() -> httpx.AsyncClient:
+    """Return a process-wide certifi-backed httpx client (created once)."""
+    global _private_endpoint_http_client
+    if _private_endpoint_http_client is None or _private_endpoint_http_client.is_closed:
+        _private_endpoint_http_client = httpx.AsyncClient(verify=certifi.where())
+    return _private_endpoint_http_client
+
+
+async def aclose_private_endpoint_http_client() -> None:
+    """Close the shared private-endpoint httpx client if it was created."""
+    global _private_endpoint_http_client
+    if (
+        _private_endpoint_http_client is not None
+        and not _private_endpoint_http_client.is_closed
+    ):
+        await _private_endpoint_http_client.aclose()
+    _private_endpoint_http_client = None
+
+
 def get_openai_client(project_client: AIProjectClient) -> AsyncOpenAI:
-    """Return an authenticated AsyncOpenAI client from the Foundry project client."""
+    """Return an authenticated AsyncOpenAI client from the Foundry project client.
+
+    When private-endpoint transport is enabled, reuse a shared certifi-backed
+    ``httpx.AsyncClient`` so TLS verification matches the AIProjectClient path
+    without leaking a new client per request.
+    """
     if env_settings.use_unique_private_endpoint_transport:
-        http_client = httpx.AsyncClient(verify=certifi.where())
-        return project_client.get_openai_client(http_client=http_client)
+        return project_client.get_openai_client(
+            http_client=_get_private_endpoint_http_client(),
+        )
     return project_client.get_openai_client()

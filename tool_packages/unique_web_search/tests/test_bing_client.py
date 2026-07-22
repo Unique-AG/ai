@@ -6,7 +6,9 @@ import pytest
 from azure.core.pipeline.transport import AsyncioRequestsTransport
 
 from unique_web_search.services.search_engine.utils.grounding.bing.client import (
+    aclose_private_endpoint_http_client,
     credentials_are_valid,
+    get_openai_client,
     get_project_client,
 )
 
@@ -195,6 +197,58 @@ class TestGetProjectClient:
         # Assert
         call_kwargs = mock_client_cls.call_args[1]
         assert "transport" not in call_kwargs
+
+
+# ---------------------------------------------------------------------------
+# get_openai_client / private-endpoint httpx reuse tests
+# ---------------------------------------------------------------------------
+
+
+class TestGetOpenaiClient:
+    """Tests for OpenAI client factory and shared private-endpoint httpx client."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch(f"{_CLIENT_MODULE}.env_settings")
+    async def test_get_openai_client__private_transport__reuses_httpx_client(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify private-endpoint path reuses one shared httpx.AsyncClient.
+        Why this matters: Creating a new httpx client per request leaks sockets.
+        Setup summary: Call get_openai_client twice; assert same http_client passed.
+        """
+        mock_env.use_unique_private_endpoint_transport = True
+        await aclose_private_endpoint_http_client()
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+
+        get_openai_client(project_client)
+        get_openai_client(project_client)
+
+        first = project_client.get_openai_client.call_args_list[0].kwargs["http_client"]
+        second = project_client.get_openai_client.call_args_list[1].kwargs["http_client"]
+        assert first is second
+        assert not first.is_closed
+        await aclose_private_endpoint_http_client()
+
+    @pytest.mark.ai
+    @patch(f"{_CLIENT_MODULE}.env_settings")
+    def test_get_openai_client__no_private_transport__no_http_client_kwarg(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify default path does not inject a custom httpx client.
+        Why this matters: OpenAI SDK should own its default transport when PE is off.
+        Setup summary: Disable private transport; assert get_openai_client called bare.
+        """
+        mock_env.use_unique_private_endpoint_transport = False
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+
+        get_openai_client(project_client)
+
+        project_client.get_openai_client.assert_called_once_with()
 
 
 if __name__ == "__main__":

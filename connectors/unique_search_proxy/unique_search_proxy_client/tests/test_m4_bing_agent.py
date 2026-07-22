@@ -9,6 +9,12 @@ from openai import NotFoundError
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 
+from unique_search_proxy_client.web.core.agent_engines.bing.client import (
+    aclose_private_endpoint_http_client,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.client import (
+    get_openai_client as get_openai_client_from_client_module,
+)
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
     _agent_name_for_config,
     _config_hash,
@@ -335,3 +341,29 @@ class TestCreateAndStreamOptimistic:
         assert len(chunks) == 1
         assert chunks[0][0] == "agent answer text"
         assert chunks[0][1]["type"] == "response.completed"
+
+
+class TestPrivateEndpointHttpClientReuse:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_private_endpoint_reuses_shared_httpx_client(
+        self, bing_env: None, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT", "true")
+        from unique_search_proxy_client.web.settings.providers import bing_agent
+
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.client.bing_agent_credentials",
+            bing_agent._get_bing_agent_credentials(),
+        )
+        await aclose_private_endpoint_http_client()
+        project_client = MagicMock()
+        project_client.get_openai_client = MagicMock(return_value=MagicMock())
+
+        get_openai_client_from_client_module(project_client)
+        get_openai_client_from_client_module(project_client)
+
+        first = project_client.get_openai_client.call_args_list[0].kwargs["http_client"]
+        second = project_client.get_openai_client.call_args_list[1].kwargs["http_client"]
+        assert first is second
+        await aclose_private_endpoint_http_client()

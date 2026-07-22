@@ -16,6 +16,7 @@ from unique_search_proxy_client.web.settings.providers.bing_agent import (
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
 
 _LOGGER = logging.getLogger(__name__)
+_private_endpoint_http_client: httpx.AsyncClient | None = None
 
 
 def get_credentials() -> AsyncTokenCredential:
@@ -55,15 +56,33 @@ def get_project_client(
     )
 
 
+def _get_private_endpoint_http_client() -> httpx.AsyncClient:
+    """Return a process-wide certifi-backed httpx client (created once)."""
+    global _private_endpoint_http_client
+    if _private_endpoint_http_client is None or _private_endpoint_http_client.is_closed:
+        _private_endpoint_http_client = httpx.AsyncClient(verify=certifi.where())
+    return _private_endpoint_http_client
+
+
+async def aclose_private_endpoint_http_client() -> None:
+    """Close the shared private-endpoint httpx client if it was created."""
+    global _private_endpoint_http_client
+    if _private_endpoint_http_client is not None and not _private_endpoint_http_client.is_closed:
+        await _private_endpoint_http_client.aclose()
+    _private_endpoint_http_client = None
+
+
 def get_openai_client(project_client: AIProjectClient) -> AsyncOpenAI:
     """Return an authenticated AsyncOpenAI client from the Foundry project client.
 
-    When private-endpoint transport is enabled, pass a certifi-backed httpx
-    AsyncClient so TLS verification matches the AIProjectClient path.
+    When private-endpoint transport is enabled, reuse a shared certifi-backed
+    ``httpx.AsyncClient`` so TLS verification matches the AIProjectClient path
+    without leaking a new client per request.
     """
     if bing_agent_credentials.use_private_endpoint_transport:
-        http_client = httpx.AsyncClient(verify=certifi.where())
-        return project_client.get_openai_client(http_client=http_client)
+        return project_client.get_openai_client(
+            http_client=_get_private_endpoint_http_client(),
+        )
     return project_client.get_openai_client()
 
 
