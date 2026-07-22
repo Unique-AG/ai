@@ -18,6 +18,19 @@ from unique_search_proxy_core.url_safety.settings import url_safety_settings
 _LOGGER = logging.getLogger(__name__)
 
 
+def _safe_hostname(url: str) -> str | None:
+    """Extract the hostname from a URL without ever raising.
+
+    ``urlsplit(...).hostname`` raises ``ValueError`` for malformed IPv6 hosts
+    (e.g. ``http://[::1``). This must never happen on the fail-closed path,
+    where a single bad URL would otherwise abort the whole batch.
+    """
+    try:
+        return urlsplit(url).hostname
+    except ValueError:
+        return None
+
+
 class UrlSafetyService:
     @staticmethod
     async def validate_urls_individually(urls: list[str]) -> list[UrlSafetyOutcome]:
@@ -49,7 +62,7 @@ class UrlSafetyService:
                     UrlSafetyOutcome(
                         url=url,
                         blocked=BlockedCrawlTarget(
-                            hostname=urlsplit(working_url).hostname,
+                            hostname=_safe_hostname(working_url),
                             category="validation_error",
                             reason="URL safety validation failed unexpectedly",
                         ),
