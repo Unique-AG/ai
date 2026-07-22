@@ -41,12 +41,15 @@ async def _fake_stream(
     yield "agent answer text", {"messages": []}
 
 
-async def _fake_response_events() -> AsyncIterator[Any]:
-    event = MagicMock()
-    event.type = "response.output_text.delta"
-    event.delta = "agent answer text"
-    event.model_dump_json = MagicMock(return_value='{"type":"response.output_text.delta"}')
-    yield event
+async def _fake_response_events(*, with_deltas: bool = True) -> AsyncIterator[Any]:
+    if with_deltas:
+        event = MagicMock()
+        event.type = "response.output_text.delta"
+        event.delta = "agent answer text"
+        event.model_dump_json = MagicMock(
+            return_value='{"type":"response.output_text.delta"}'
+        )
+        yield event
     done = MagicMock()
     done.type = "response.completed"
     done.response = MagicMock()
@@ -301,3 +304,34 @@ class TestCreateAndStreamOptimistic:
                 pass
 
         mock_client.agents.create_version.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_stream_falls_back_to_completed_output_text(
+        self, bing_env: None
+    ) -> None:
+        mock_openai = MagicMock()
+        mock_openai.responses.create = AsyncMock(
+            return_value=_fake_response_events(with_deltas=False),
+        )
+        mock_client = MagicMock()
+
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.runner.get_openai_client",
+            return_value=mock_openai,
+        ):
+            chunks = [
+                item
+                async for item in stream_bing_grounding_agent(
+                    mock_client,
+                    query="hello",
+                    model="gpt-5.1",
+                    fetch_size=5,
+                    instructions="Be helpful.",
+                    agent_name="existing-agent",
+                )
+            ]
+
+        assert len(chunks) == 1
+        assert chunks[0][0] == "agent answer text"
+        assert chunks[0][1]["type"] == "response.completed"

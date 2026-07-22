@@ -188,11 +188,13 @@ async def stream_bing_grounding_agent(
             query=query,
         )
 
+    emitted_text = False
     async for event in stream:
         event_type = getattr(event, "type", None)
         if event_type == "response.output_text.delta":
             delta = getattr(event, "delta", "") or ""
             if delta:
+                emitted_text = True
                 yield delta, _serialize_sdk_object(event)
         elif event_type == "response.output_item.done":
             citations = _extract_url_citations(event)
@@ -207,15 +209,19 @@ async def stream_bing_grounding_agent(
                 )
         elif event_type == "response.completed":
             response = getattr(event, "response", None)
-            yield (
-                "",
-                {
-                    "type": event_type,
-                    "response": _serialize_sdk_object(response)
-                    if response is not None
-                    else _serialize_sdk_object(event),
-                },
-            )
+            output_text = getattr(response, "output_text", None) if response else None
+            raw_completed = {
+                "type": event_type,
+                "response": _serialize_sdk_object(response)
+                if response is not None
+                else _serialize_sdk_object(event),
+            }
+            # Foundry sometimes delivers the full answer only on completion.
+            if output_text and not emitted_text:
+                emitted_text = True
+                yield output_text, raw_completed
+            else:
+                yield "", raw_completed
 
 
 async def _create_responses_stream(
