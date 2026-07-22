@@ -18,7 +18,6 @@ exclude-newer-span = "P2W"
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-crawl4ai = "2026-06-19T22:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-search-proxy-core = false
@@ -26,9 +25,7 @@ unique-mcp = false
 unique-orchestrator = false
 unique-follow-up-questions = false
 unique-user-memory = false
-langsmith = "2026-06-20T22:00:00Z"
 unique-six = false
-pydantic-settings = "2026-06-20T22:00:00Z"
 unique-search-proxy = false
 unique-web-search = false
 unique-deep-research = false
@@ -5605,6 +5602,7 @@ dependencies = [
     { name = "pyhumps" },
     { name = "pypandoc" },
     { name = "python-docx" },
+    { name = "pyyaml" },
     { name = "rapidfuzz" },
     { name = "requests" },
     { name = "sseclient" },
@@ -5664,6 +5662,7 @@ requires-dist = [
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
     { name = "python-docx", specifier = ">=1.1.0,<2" },
+    { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rapidfuzz", specifier = ">=3.0,<4" },
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
