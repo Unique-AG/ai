@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -7,6 +8,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
 from unique_toolkit.agentic.loop_runner import SupportsInvocationStats
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.model_costs import MODEL_COSTS_FILE_ENV
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_orchestrator.unique_ai import UniqueAI
@@ -211,9 +213,25 @@ class TestAccumulateUsage:
 class TestRunTokenUsageIntegration:
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__debug_info_manager__receives_llm_invocations_key(self):
+    async def test_run__debug_info_manager__receives_llm_invocations_key(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
         """A single-iteration run with real usage on the loop response must
         surface it under debug_info's 'llm_invocations' key."""
+        cost_file = tmp_path / "costs.yaml"
+        cost_file.write_text(
+            f"""
+costSchemaVersion: 1
+models:
+  {MODEL_NAME}:
+    input: 2
+    completion: 8
+""",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv(MODEL_COSTS_FILE_ENV, str(cost_file))
         loop_response = _make_loop_response(
             LanguageModelTokenUsage(
                 completion_tokens=12, prompt_tokens=34, total_tokens=46
@@ -231,6 +249,7 @@ class TestRunTokenUsageIntegration:
         assert len(payload) == 1
         assert payload[0]["modelName"] == MODEL_NAME
         assert payload[0]["source"] == "main_loop[1]"
+        assert payload[0]["costUsd"] == pytest.approx(0.000164)
         assert payload[0]["tokenUsage"] == {
             "completionTokens": 12,
             "promptTokens": 34,

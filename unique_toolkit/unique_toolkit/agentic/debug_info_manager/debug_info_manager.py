@@ -51,6 +51,7 @@ class AnalyticsTokenUsage(TypedDict):
     reasoning_tokens: int | None
     cached_tokens: int | None
     cache_write_tokens: int | None
+    cost_usd: float | None
 
 
 class Analytics(TypedDict):
@@ -182,15 +183,21 @@ class DebugInfoManager:
 def _aggregate_tokens_by_model(
     invocations: list[LanguageModelInvocationStats],
 ) -> list[AnalyticsTokenUsage]:
-    usages_by_model: dict[str, list[LanguageModelTokenUsage]] = defaultdict(list)
+    invocations_by_model: dict[str, list[LanguageModelInvocationStats]] = defaultdict(
+        list
+    )
     for invocation in invocations:
-        usages_by_model[str(invocation.model_name)].append(invocation.token_usage)
+        invocations_by_model[str(invocation.model_name)].append(invocation)
 
     totals: list[AnalyticsTokenUsage] = []
-    for model_name in sorted(usages_by_model):
-        usage = LanguageModelTokenUsage.sum_usages(usages_by_model[model_name])
+    for model_name in sorted(invocations_by_model):
+        model_invocations = invocations_by_model[model_name]
+        usage = LanguageModelTokenUsage.sum_usages(
+            invocation.token_usage for invocation in model_invocations
+        )
         if usage is None:
             continue
+        costs = [invocation.cost_usd for invocation in model_invocations]
         totals.append(
             AnalyticsTokenUsage(
                 model_name=model_name,
@@ -200,6 +207,9 @@ def _aggregate_tokens_by_model(
                 reasoning_tokens=usage.reasoning_tokens,
                 cached_tokens=usage.cached_tokens,
                 cache_write_tokens=usage.cache_write_tokens,
+                cost_usd=sum(cost for cost in costs if cost is not None)
+                if all(cost is not None for cost in costs)
+                else None,
             )
         )
     return totals

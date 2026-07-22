@@ -522,6 +522,7 @@ class TestAddAnalytics:
                 "reasoning_tokens": 1,
                 "cached_tokens": 3,
                 "cache_write_tokens": None,
+                "cost_usd": None,
             },
             {
                 "model_name": "model-b",
@@ -531,8 +532,82 @@ class TestAddAnalytics:
                 "reasoning_tokens": None,
                 "cached_tokens": 5,
                 "cache_write_tokens": None,
+                "cost_usd": None,
             },
         ]
+
+    @pytest.mark.ai
+    def test_add_analytics__aggregates_complete_model_costs(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """Purpose: Verify analytics sums priced invocations by model.
+        Why this matters: Reporting needs a model-level total as well as call details.
+        Setup summary: Supply two priced invocations and assert their aggregate cost.
+        """
+        invocations = [
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=10, completion_tokens=2
+                ),
+                source="main_loop[1]",
+                cost_usd=0.01,
+            ),
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=20, completion_tokens=3
+                ),
+                source="planning",
+                cost_usd=0.02,
+            ),
+        ]
+
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+            invocations=invocations,
+        )
+
+        assert debug_info_manager.get()["analytics"]["tokens"][0]["cost_usd"] == (
+            pytest.approx(0.03)
+        )
+
+    @pytest.mark.ai
+    def test_add_analytics__keeps_partial_model_cost_unknown(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        """Purpose: Verify partially priced model groups do not emit partial totals.
+        Why this matters: A partial sum would understate actual model spend.
+        Setup summary: Mix priced and unpriced invocations and assert a null total.
+        """
+        invocations = [
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=10, completion_tokens=2
+                ),
+                source="main_loop[1]",
+                cost_usd=0.01,
+            ),
+            LanguageModelInvocationStats(
+                model_name="model-a",
+                token_usage=LanguageModelTokenUsage(
+                    prompt_tokens=20, completion_tokens=3
+                ),
+                source="planning",
+            ),
+        ]
+
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+            invocations=invocations,
+        )
+
+        assert debug_info_manager.get()["analytics"]["tokens"][0]["cost_usd"] is None
 
     @pytest.mark.ai
     def test_add_analytics__tokens_is_empty_without_invocations(
