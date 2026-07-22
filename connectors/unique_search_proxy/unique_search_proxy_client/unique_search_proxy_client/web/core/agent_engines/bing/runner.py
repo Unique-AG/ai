@@ -29,19 +29,23 @@ _AGENT_NAME_PREFIX = "unique-grounding-with-bing"
 _CONFIG_HASH_LENGTH = 12
 
 
-def _config_hash(*, fetch_size: int, instructions: str) -> str:
-    """Return a short hex digest of fetch_size + instructions for agent naming."""
-    payload = f"{fetch_size}\0{instructions}".encode()
+def _config_hash(*, model: str, fetch_size: int, instructions: str) -> str:
+    """Return a short hex digest of model + fetch_size + instructions for agent naming."""
+    payload = f"{model}\0{fetch_size}\0{instructions}".encode()
     return hashlib.sha256(payload).hexdigest()[:_CONFIG_HASH_LENGTH]
 
 
-def _agent_name_for_config(*, fetch_size: int, instructions: str) -> str:
+def _agent_name_for_config(*, model: str, fetch_size: int, instructions: str) -> str:
     """Build a Foundry-safe agent name unique to this config."""
-    return f"{_AGENT_NAME_PREFIX}-{_config_hash(fetch_size=fetch_size, instructions=instructions)}"
+    return (
+        f"{_AGENT_NAME_PREFIX}-"
+        f"{_config_hash(model=model, fetch_size=fetch_size, instructions=instructions)}"
+    )
 
 
 def resolve_bing_agent_name(
     *,
+    model: str,
     fetch_size: int,
     instructions: str,
     agent_name: str | None = None,
@@ -49,7 +53,9 @@ def resolve_bing_agent_name(
     """Return the agent name to use for Responses (no Foundry round-trip)."""
     if agent_name:
         return agent_name
-    return _agent_name_for_config(fetch_size=fetch_size, instructions=instructions)
+    return _agent_name_for_config(
+        model=model, fetch_size=fetch_size, instructions=instructions
+    )
 
 
 def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
@@ -145,6 +151,7 @@ async def stream_bing_grounding_agent(
     ``invalid_payload`` if ``instructions`` is passed alongside ``agent_reference``.
     """
     resolved_name = resolve_bing_agent_name(
+        model=model,
         fetch_size=fetch_size,
         instructions=instructions,
         agent_name=agent_name,

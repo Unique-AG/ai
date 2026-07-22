@@ -425,14 +425,16 @@ class TestConfigHashAndAgentName:
         """
         Purpose: Verify hash and agent name are stable for identical inputs.
         Why this matters: Stable names enable Responses-first reuse without agents.get.
-        Setup summary: Hash twice with same fetch_size/instructions; assert equality.
+        Setup summary: Hash twice with same model/fetch_size/instructions; assert equality.
         """
-        a = _config_hash(fetch_size=5, instructions="Be helpful.")
-        b = _config_hash(fetch_size=5, instructions="Be helpful.")
+        a = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
+        b = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
         assert a == b
         assert len(a) == 12
         assert (
-            _agent_name_for_config(fetch_size=5, instructions="Be helpful.")
+            _agent_name_for_config(
+                model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+            )
             == f"unique-grounding-with-bing-{a}"
         )
 
@@ -443,13 +445,33 @@ class TestConfigHashAndAgentName:
         Why this matters: Different Bing configs must not share an agent version.
         Setup summary: Vary one input at a time; assert distinct names.
         """
-        base = _agent_name_for_config(fetch_size=5, instructions="Be helpful.")
-        other_size = _agent_name_for_config(fetch_size=10, instructions="Be helpful.")
+        base = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        )
+        other_size = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=10, instructions="Be helpful."
+        )
         other_instructions = _agent_name_for_config(
-            fetch_size=5, instructions="Be concise."
+            model="gpt-5.1", fetch_size=5, instructions="Be concise."
         )
         assert base != other_size
         assert base != other_instructions
+
+    @pytest.mark.ai
+    def test_different_model__changes_name(self) -> None:
+        """
+        Purpose: Verify model is included in the agent hash.
+        Why this matters: Model is baked into the Foundry agent; changing deployment
+            must create a new hashed agent instead of reusing the old one.
+        Setup summary: Same fetch_size/instructions, different model; assert distinct names.
+        """
+        base = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        )
+        other_model = _agent_name_for_config(
+            model="gpt-4o", fetch_size=5, instructions="Be helpful."
+        )
+        assert base != other_model
 
     @pytest.mark.ai
     @patch(
@@ -464,6 +486,7 @@ class TestConfigHashAndAgentName:
         mock_env.azure_ai_assistant_id = None
         assert (
             resolve_bing_agent_name(
+                model="gpt-5.1",
                 fetch_size=5,
                 instructions="Be helpful.",
                 agent_name="my-agent",
@@ -494,7 +517,9 @@ class TestCreateBingAgent:
             "/subscriptions/x/connections/bing"
         )
         expected_name = _agent_name_for_config(
-            fetch_size=5, instructions="Be helpful.\n## Output Format"
+            model="gpt-5.1",
+            fetch_size=5,
+            instructions="Be helpful.\n## Output Format",
         )
         new_agent = MagicMock()
         new_agent.name = expected_name
@@ -757,7 +782,9 @@ class TestCreateAndProcessRun:
             "/subscriptions/x/connections/bing"
         )
         instructions = f"Test instructions\n{RESPONSE_RULE}"
-        expected_name = _agent_name_for_config(fetch_size=5, instructions=instructions)
+        expected_name = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions=instructions
+        )
         missing = NotFoundError(
             message=f"Agent {expected_name} not found",
             response=MagicMock(status_code=404, headers={}),

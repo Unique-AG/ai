@@ -141,30 +141,47 @@ class TestGetBingGroundingTool:
 class TestConfigHashAndAgentName:
     @pytest.mark.ai
     def test_same_inputs_produce_same_hash_and_name(self) -> None:
-        a = _config_hash(fetch_size=5, instructions="Be helpful.")
-        b = _config_hash(fetch_size=5, instructions="Be helpful.")
+        a = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
+        b = _config_hash(model="gpt-5.1", fetch_size=5, instructions="Be helpful.")
         assert a == b
         assert len(a) == 12
         assert (
-            _agent_name_for_config(fetch_size=5, instructions="Be helpful.")
+            _agent_name_for_config(
+                model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+            )
             == f"unique-grounding-with-bing-{a}"
         )
 
     @pytest.mark.ai
     def test_different_fetch_size_or_instructions_change_name(self) -> None:
-        base = _agent_name_for_config(fetch_size=5, instructions="Be helpful.")
-        other_size = _agent_name_for_config(fetch_size=10, instructions="Be helpful.")
+        base = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        )
+        other_size = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=10, instructions="Be helpful."
+        )
         other_instructions = _agent_name_for_config(
-            fetch_size=5, instructions="Be concise."
+            model="gpt-5.1", fetch_size=5, instructions="Be concise."
         )
         assert base != other_size
         assert base != other_instructions
         assert other_size != other_instructions
 
     @pytest.mark.ai
+    def test_different_model_changes_name(self) -> None:
+        base = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        )
+        other_model = _agent_name_for_config(
+            model="gpt-4o", fetch_size=5, instructions="Be helpful."
+        )
+        assert base != other_model
+
+    @pytest.mark.ai
     def test_resolve_prefers_preconfigured_name(self) -> None:
         assert (
             resolve_bing_agent_name(
+                model="gpt-5.1",
                 fetch_size=5,
                 instructions="Be helpful.",
                 agent_name="my-agent",
@@ -188,7 +205,9 @@ class TestCreateAndStreamOptimistic:
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_create_bing_agent_calls_create_version(self, bing_env: None) -> None:
-        expected_name = _agent_name_for_config(fetch_size=5, instructions="Be helpful.")
+        expected_name = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        )
         created = MagicMock()
         created.name = expected_name
         created.id = "new-agent-id"
@@ -213,7 +232,9 @@ class TestCreateAndStreamOptimistic:
     async def test_stream_creates_agent_when_responses_reports_missing(
         self, bing_env: None
     ) -> None:
-        expected_name = _agent_name_for_config(fetch_size=5, instructions="Be helpful.")
+        expected_name = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        )
         missing = NotFoundError(
             message=f"Agent {expected_name} not found",
             response=MagicMock(status_code=404, headers={}),

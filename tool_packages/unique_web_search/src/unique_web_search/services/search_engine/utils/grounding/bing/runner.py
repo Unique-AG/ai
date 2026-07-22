@@ -40,22 +40,23 @@ _CONFIG_HASH_LENGTH = 12
 # ---------------------------------------------------------------------------
 
 
-def _config_hash(*, fetch_size: int, instructions: str) -> str:
-    """Return a short hex digest of fetch_size + instructions for agent naming."""
-    payload = f"{fetch_size}\0{instructions}".encode()
+def _config_hash(*, model: str, fetch_size: int, instructions: str) -> str:
+    """Return a short hex digest of model + fetch_size + instructions for agent naming."""
+    payload = f"{model}\0{fetch_size}\0{instructions}".encode()
     return hashlib.sha256(payload).hexdigest()[:_CONFIG_HASH_LENGTH]
 
 
-def _agent_name_for_config(*, fetch_size: int, instructions: str) -> str:
+def _agent_name_for_config(*, model: str, fetch_size: int, instructions: str) -> str:
     """Build a Foundry-safe agent name unique to this config."""
     return (
         f"{_AGENT_NAME_PREFIX}-"
-        f"{_config_hash(fetch_size=fetch_size, instructions=instructions)}"
+        f"{_config_hash(model=model, fetch_size=fetch_size, instructions=instructions)}"
     )
 
 
 def resolve_bing_agent_name(
     *,
+    model: str,
     fetch_size: int,
     instructions: str,
     agent_name: str | None = None,
@@ -63,12 +64,14 @@ def resolve_bing_agent_name(
     """Return the agent name to use for Responses (no Foundry round-trip).
 
     Prefers an explicit / env-preconfigured name; otherwise derives a stable
-    hash-based name from ``fetch_size`` + ``instructions``.
+    hash-based name from ``model`` + ``fetch_size`` + ``instructions``.
     """
     resolved = agent_name or env_settings.azure_ai_assistant_id or None
     if resolved:
         return resolved
-    return _agent_name_for_config(fetch_size=fetch_size, instructions=instructions)
+    return _agent_name_for_config(
+        model=model, fetch_size=fetch_size, instructions=instructions
+    )
 
 
 async def create_bing_agent(
@@ -107,6 +110,7 @@ async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
     """
     del agent_client  # kept for call-site compatibility
     return resolve_bing_agent_name(
+        model=env_settings.azure_ai_bing_agent_model,
         fetch_size=5,
         instructions=RESPONSE_RULE,
     )
@@ -199,10 +203,12 @@ async def create_and_process_run(
         ValueError: If none of the parser strategies can parse the response.
     """
     instructions = f"{generation_instructions}\n{RESPONSE_RULE}"
+    model = env_settings.azure_ai_bing_agent_model
     preconfigured = agent_id or env_settings.azure_ai_assistant_id or None
     answer = await _run_responses_agent(
         agent_client,
         query=query,
+        model=model,
         fetch_size=fetch_size,
         instructions=instructions,
         agent_name=preconfigured,
@@ -215,6 +221,7 @@ async def _run_responses_agent(
     agent_client: AIProjectClient,
     *,
     query: str,
+    model: str,
     fetch_size: int,
     instructions: str,
     agent_name: str | None = None,
@@ -225,6 +232,7 @@ async def _run_responses_agent(
     ``invalid_payload`` if ``instructions`` is passed alongside ``agent_reference``.
     """
     resolved_name = resolve_bing_agent_name(
+        model=model,
         fetch_size=fetch_size,
         instructions=instructions,
         agent_name=agent_name,
