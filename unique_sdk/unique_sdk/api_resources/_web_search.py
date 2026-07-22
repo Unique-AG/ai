@@ -58,6 +58,10 @@ class WebSearch(APIResource["WebSearch"]):
         searchEngineConfig: NotRequired[dict[str, Any] | None]
         # Used only when includeContent=True and the engine needs scraping.
         crawlerConfig: NotRequired[dict[str, Any] | None]
+        # Optional: when set, the space's Web Search toggle is enforced
+        # server-side for this call. Omit for callers not acting on
+        # behalf of a specific chat (unchanged legacy behavior).
+        chatId: NotRequired[str | None]
 
     # Response envelope.
     engine: str
@@ -130,6 +134,10 @@ class WebCrawl(APIResource["WebCrawl"]):
         urls: list[str]
         parallel: NotRequired[int | None]
         crawlerConfig: NotRequired[dict[str, Any] | None]
+        # Optional: when set, the space's Web Search toggle is enforced
+        # server-side for this call. Omit for callers not acting on
+        # behalf of a specific chat (unchanged legacy behavior).
+        chatId: NotRequired[str | None]
 
     # Response envelope.
     crawler: str

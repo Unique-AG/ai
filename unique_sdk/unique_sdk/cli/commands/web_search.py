@@ -317,6 +317,7 @@ def cmd_web_search(
     crawler_config_raw: str | None = None,
     output_json: bool = False,
     config_path: str | None = None,
+    chat_id: str | None = None,
 ) -> str:
     """Run a web search via the public API.
 
@@ -341,6 +342,8 @@ def cmd_web_search(
             then ``~/.unique-websearch.json``.
         output_json: When ``True``, return a JSON envelope instead of a
             human-friendly table.
+        chat_id: Optional chat id this call is made on behalf of. When
+            set, the space's Web Search toggle is enforced server-side.
     """
     file_overrides = _load_file_overrides(config_path)
     if isinstance(file_overrides, str):
@@ -368,6 +371,8 @@ def cmd_web_search(
         params["searchEngineConfig"] = engine_override
     if crawler_override is not None:
         params["crawlerConfig"] = crawler_override
+    if chat_id:
+        params["chatId"] = chat_id
 
     try:
         resource = unique_sdk.WebSearch.search(
@@ -394,6 +399,7 @@ def cmd_web_crawl(
     crawler_config_raw: str | None = None,
     output_json: bool = False,
     config_path: str | None = None,
+    chat_id: str | None = None,
 ) -> str:
     """Crawl a list of URLs via the public API.
 
@@ -410,6 +416,8 @@ def cmd_web_crawl(
             :func:`cmd_web_search` for resolution rules.
         output_json: When ``True``, return a JSON envelope instead of a
             human-friendly table.
+        chat_id: Optional chat id this call is made on behalf of. When
+            set, the space's Web Search toggle is enforced server-side.
     """
     if not urls:
         return f"{WEB_CRAWL_ERROR_PREFIX} no URLs provided. Pass URLs as arguments or use --stdin."
@@ -432,6 +440,8 @@ def cmd_web_crawl(
     params: dict[str, Any] = {"urls": list(urls), "parallel": parallel}
     if crawler_override is not None:
         params["crawlerConfig"] = crawler_override
+    if chat_id:
+        params["chatId"] = chat_id
 
     try:
         resource = unique_sdk.WebCrawl.crawl(
