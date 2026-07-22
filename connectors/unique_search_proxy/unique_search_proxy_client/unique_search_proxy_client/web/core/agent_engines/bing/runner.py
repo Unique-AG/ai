@@ -150,13 +150,15 @@ async def stream_bing_grounding_agent(
     Instructions must already be baked into the agent version — Foundry returns
     ``invalid_payload`` if ``instructions`` is passed alongside ``agent_reference``.
     """
+    # Treat empty string like unset so auto-provisioning still works.
+    preconfigured = agent_name or None
     resolved_name = resolve_bing_agent_name(
         model=model,
         fetch_size=fetch_size,
         instructions=instructions,
-        agent_name=agent_name,
+        agent_name=preconfigured,
     )
-    allow_create = agent_name is None
+    allow_create = preconfigured is None
     openai_client = get_openai_client(project_client)
 
     try:

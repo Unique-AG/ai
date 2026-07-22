@@ -238,7 +238,9 @@ async def _run_responses_agent(
         agent_name=agent_name,
     )
     # Only auto-create when the name was hash-derived (no explicit / env name).
-    allow_create = not (agent_name or env_settings.azure_ai_assistant_id)
+    # Empty strings are treated as unset (same as resolve_bing_agent_name).
+    preconfigured = agent_name or env_settings.azure_ai_assistant_id or None
+    allow_create = preconfigured is None
     openai_client = get_openai_client(agent_client)
 
     try:

@@ -313,6 +313,49 @@ class TestCreateAndStreamOptimistic:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_stream_empty_agent_name_allows_create_on_miss(
+        self, bing_env: None
+    ) -> None:
+        expected_name = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions="Be helpful."
+        )
+        missing = NotFoundError(
+            message=f"Agent {expected_name} not found",
+            response=MagicMock(status_code=404, headers={}),
+            body=None,
+        )
+        mock_openai = MagicMock()
+        mock_openai.responses.create = AsyncMock(
+            side_effect=[missing, _fake_response_events()],
+        )
+        created = MagicMock()
+        created.name = expected_name
+        created.id = "created-id"
+        mock_client = MagicMock()
+        mock_client.agents.create_version = AsyncMock(return_value=created)
+
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.runner.get_openai_client",
+            return_value=mock_openai,
+        ):
+            chunks = [
+                item
+                async for item in stream_bing_grounding_agent(
+                    mock_client,
+                    query="hello",
+                    model="gpt-5.1",
+                    fetch_size=5,
+                    instructions="Be helpful.",
+                    agent_name="",
+                )
+            ]
+
+        assert chunks[0][0] == "agent answer text"
+        mock_client.agents.create_version.assert_awaited_once()
+        assert mock_openai.responses.create.await_count == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_stream_falls_back_to_completed_output_text(
         self, bing_env: None
     ) -> None:

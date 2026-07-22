@@ -865,6 +865,62 @@ class TestCreateAndProcessRun:
     @pytest.mark.ai
     @pytest.mark.asyncio
     @patch(f"{_RUNNER_MODULE}.env_settings")
+    async def test_run__empty_agent_id__allows_create_on_miss(
+        self,
+        mock_env: MagicMock,
+    ) -> None:
+        """
+        Purpose: Verify empty agent_id is treated as unset and still auto-provisions.
+        Why this matters: Schema says empty id auto-provisions; "" must not block create.
+        Setup summary: agent_id=""; first Responses misses; assert create_version once.
+        """
+        mock_env.azure_ai_assistant_id = None
+        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
+        mock_env.azure_ai_bing_resource_connection_string = (
+            "/subscriptions/x/connections/bing"
+        )
+        instructions = f"Test instructions\n{RESPONSE_RULE}"
+        expected_name = _agent_name_for_config(
+            model="gpt-5.1", fetch_size=5, instructions=instructions
+        )
+        missing = NotFoundError(
+            message=f"Agent {expected_name} not found",
+            response=MagicMock(status_code=404, headers={}),
+            body=None,
+        )
+        mock_openai = MagicMock()
+        mock_openai.responses.create = AsyncMock(
+            side_effect=[missing, _fake_response_stream()],
+        )
+        created = MagicMock()
+        created.name = expected_name
+        created.id = "created-id"
+        mock_agent_client = MagicMock()
+        mock_agent_client.agents.create_version = AsyncMock(return_value=created)
+        expected_results = [
+            WebSearchResult(url="https://a.com", title="A", snippet="s", content="c")
+        ]
+        mock_parser = AsyncMock(return_value=expected_results)
+
+        with patch(
+            f"{_RUNNER_MODULE}.get_openai_client",
+            return_value=mock_openai,
+        ):
+            results = await create_and_process_run(
+                agent_client=mock_agent_client,
+                agent_id="",
+                query="test query",
+                fetch_size=5,
+                response_parsers_strategies=[mock_parser],
+                generation_instructions="Test instructions",
+            )
+
+        assert results == expected_results
+        mock_agent_client.agents.create_version.assert_awaited_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch(f"{_RUNNER_MODULE}.env_settings")
     async def test_run__all_parsers_fail__raises_value_error(
         self,
         mock_env: MagicMock,
