@@ -289,6 +289,24 @@ def get_price(ticker: _TICKER) -> str:
     return json.dumps(seed.PRICES[t])
 
 
+@mcp.tool(name="get_scenarios", title="Scenario analysis (what-if, mock)",
+          description="The analyst's scenario analysis for a covered name — what-if cases "
+                      "(e.g. a currency shock, China recovery timing, destocking duration) "
+                      "with the assumption, EPS and target-price impact vs the base case, "
+                      "OUR hypothesis and a probability. This is the buy-side / roadshow "
+                      "material ('send me your scenario analysis with your hypotheses'). "
+                      "Available for names with seeded scenarios. SYNTHETIC demo data.")
+def get_scenarios(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    sc = seed.SCENARIOS.get(t)
+    if not sc:
+        return json.dumps({"ticker": t, "note": "no scenario analysis seeded for this name",
+                           "available": sorted(seed.SCENARIOS)})
+    return json.dumps({"ticker": t, **sc})
+
+
 def _yahoo_quote(symbol: str) -> dict | None:
     """Fetch one live quote from Yahoo Finance (v8 chart endpoint, no auth). Returns
     {price, prev_close} or None on any failure — callers fall back to the synthetic seed."""

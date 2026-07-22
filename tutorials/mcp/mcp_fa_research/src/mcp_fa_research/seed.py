@@ -223,6 +223,10 @@ ACTION_INBOX: list[dict] = [
      "kind": "reply draft"},
     {"from": "LVMH Investor Relations", "subject": "NY roadshow logistics — dates & venue",
      "kind": "reply draft"},
+    {"from": "Buy-side PM — Fund B",
+     "subject": "\"Ahead of your London roadshow — send me your scenario analysis by "
+                "tomorrow (your hypotheses: FX move, China timing)\"",
+     "kind": "scenario pack draft"},
 ]
 
 AGENDA: list[dict] = [
@@ -310,6 +314,43 @@ except Exception:
     pass
 
 COCKPIT_ID: str = _os.getenv("FA_COCKPIT_ID", "")  # set after the cockpit is uploaded
+
+
+# ---------------------------------------------------------------------------
+# Scenario analysis (what-if) — the analyst's hypotheses for buy-side discussions
+# and roadshow prep. EPS/TP impacts vs the POST-WARNING base case (TP €615).
+# ---------------------------------------------------------------------------
+SCENARIOS: dict[str, dict] = {
+    "MC FP": {
+        "period": "FY2026E", "base_tp": "€615",
+        "note": "Impacts vs the post-warning base case. Prepared for the London investor "
+                "roadshow — buy-side scenario request (send-by: tomorrow).",
+        "rows": [
+            {"scenario": "Base case — trough and stabilise",
+             "assumption": "Cognac destocking ends H1-26; China flat; FX as spot",
+             "eps_impact": "—", "tp_impact": "€615 (base)",
+             "hypothesis": "Our central case post-warning; rating Outperform on the reset.",
+             "probability": "55%"},
+            {"scenario": "Currency shock — EUR +5% (USD & Asia)",
+             "assumption": "EURUSD 1.14 → 1.20 sustained; ~55% of sales in USD/Asia ccys",
+             "eps_impact": "−3.5%", "tp_impact": "€595",
+             "hypothesis": "Translation + transaction drag; H1 partially hedged, so full "
+                           "effect only from H2. Watch the hedge book in the AR.",
+             "probability": "20%"},
+            {"scenario": "China recovery from Q2-26",
+             "assumption": "Stimulus lands; entry-luxury demand inflects (Swatch read-across)",
+             "eps_impact": "+4%", "tp_impact": "€650",
+             "hypothesis": "The overnight stimulus headline raises this leg's odds; Sephora "
+                           "+ cognac restock would compound it.",
+             "probability": "20%"},
+            {"scenario": "Destocking extends into FY27",
+             "assumption": "US cognac inventories still heavy; guidance reset again",
+             "eps_impact": "−5%", "tp_impact": "€580",
+             "hypothesis": "Bear case; we see it as tail risk after this morning's kitchen-sink cut.",
+             "probability": "5%"},
+        ],
+    },
+}
 
 
 def resolve(ticker_or_name: str) -> str | None:
