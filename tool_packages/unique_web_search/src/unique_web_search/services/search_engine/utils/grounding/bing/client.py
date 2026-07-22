@@ -1,10 +1,12 @@
 import logging
 
 import certifi
+import httpx
 from azure.ai.projects.aio import AIProjectClient
 from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.pipeline.transport import AsyncioRequestsTransport
 from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
+from openai import AsyncOpenAI
 
 from unique_web_search.settings import env_settings
 
@@ -72,3 +74,11 @@ def get_project_client(
             credential=credentials,
             endpoint=endpoint,
         )
+
+
+def get_openai_client(project_client: AIProjectClient) -> AsyncOpenAI:
+    """Return an authenticated AsyncOpenAI client from the Foundry project client."""
+    if env_settings.use_unique_private_endpoint_transport:
+        http_client = httpx.AsyncClient(verify=certifi.where())
+        return project_client.get_openai_client(http_client=http_client)
+    return project_client.get_openai_client()
