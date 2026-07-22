@@ -93,6 +93,11 @@ async def search(
             engine_id=engine_id,
         ) from exc
     except ProxyError as exc:
+        record_search_error(
+            engine_id,
+            exc.code.value if hasattr(exc.code, "value") else str(exc.code),
+            time.perf_counter() - started,
+        )
         _LOGGER.warning(
             "search failed engine=%s code=%s duration=%.0fms",
             engine_id,
