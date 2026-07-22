@@ -510,6 +510,22 @@ class TestCmdWebSearch:
         assert "web-search:" in out
         assert "upstream boom" in out
 
+    @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_with_chat_id_sends_chat_id(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.return_value = _FakeResource(_make_search_payload(results=[]))
+        cmd_web_search(_state(), "x", chat_id="chat_123")
+        assert mock_search.call_args[1]["chatId"] == "chat_123"
+
+    @patch("unique_sdk.WebSearch.search")
+    def test_cmd_web_search_without_chat_id_omits_chat_id(
+        self, mock_search: MagicMock
+    ) -> None:
+        mock_search.return_value = _FakeResource(_make_search_payload(results=[]))
+        cmd_web_search(_state(), "x")
+        assert "chatId" not in mock_search.call_args[1]
+
 
 class TestCmdWebCrawl:
     @patch("unique_sdk.WebCrawl.crawl")
@@ -573,6 +589,22 @@ class TestCmdWebCrawl:
         out = cmd_web_crawl(_state(), ["u"])
         assert "web-crawl:" in out
         assert "nope" in out
+
+    @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_with_chat_id_sends_chat_id(
+        self, mock_crawl: MagicMock
+    ) -> None:
+        mock_crawl.return_value = _FakeResource(_make_crawl_payload(results=[]))
+        cmd_web_crawl(_state(), ["https://a"], chat_id="chat_123")
+        assert mock_crawl.call_args[1]["chatId"] == "chat_123"
+
+    @patch("unique_sdk.WebCrawl.crawl")
+    def test_cmd_web_crawl_without_chat_id_omits_chat_id(
+        self, mock_crawl: MagicMock
+    ) -> None:
+        mock_crawl.return_value = _FakeResource(_make_crawl_payload(results=[]))
+        cmd_web_crawl(_state(), ["https://a"])
+        assert "chatId" not in mock_crawl.call_args[1]
 
 
 class TestApiResourceContract:
@@ -1124,3 +1156,76 @@ class TestClickIntegration:
         )
         assert result.exit_code == 0
         assert mock_cmd.call_args[1]["config_path"] == str(cfg)
+
+
+class TestClickIntegrationChatId:
+    """--chat-id / $UNIQUE_CHAT_ID resolution for web-search search/crawl."""
+
+    def _bootstrap_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("UNIQUE_USER_ID", "u1")
+        monkeypatch.setenv("UNIQUE_COMPANY_ID", "c1")
+        monkeypatch.setenv("UNIQUE_API_KEY", "ukey_test")
+        monkeypatch.setenv("UNIQUE_APP_ID", "app_test")
+        monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_reads_chat_id_from_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_from_env")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "search", "x"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_from_env"
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_chat_id_defaults_to_none_without_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.delenv("UNIQUE_CHAT_ID", raising=False)
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "search", "x"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] is None
+
+    @patch("unique_sdk.cli.cli.cmd_web_search")
+    def test_search_explicit_flag_overrides_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_from_env")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(
+            cli_main, ["web-search", "search", "x", "--chat-id", "chat_explicit"]
+        )
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_explicit"
+
+    @patch("unique_sdk.cli.cli.cmd_web_crawl")
+    def test_crawl_reads_chat_id_from_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.setenv("UNIQUE_CHAT_ID", "chat_from_env")
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "crawl", "https://a"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] == "chat_from_env"
+
+    @patch("unique_sdk.cli.cli.cmd_web_crawl")
+    def test_crawl_chat_id_defaults_to_none_without_env(
+        self, mock_cmd: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bootstrap_env(monkeypatch)
+        monkeypatch.delenv("UNIQUE_CHAT_ID", raising=False)
+        mock_cmd.return_value = "ok"
+        runner = CliRunner()
+        result = runner.invoke(cli_main, ["web-search", "crawl", "https://a"])
+        assert result.exit_code == 0
+        assert mock_cmd.call_args[1]["chat_id"] is None
