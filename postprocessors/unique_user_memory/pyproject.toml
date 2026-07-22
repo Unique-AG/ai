@@ -1,6 +1,6 @@
 [project]
 name = "unique_user_memory"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 description = ""
 authors = [
     { name = "Fabian Schläpfer", email = "fabian@unique.ch" },
@@ -11,8 +11,8 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "jinja2>=3.1.6",
     "pydantic>=2.8.2",
-    "unique-sdk>=2026.30.0",
-    "unique-toolkit>=2026.30.0",
+    "unique-sdk>=2026.32.0.dev3,<2026.32.0rc0",
+    "unique-toolkit>=2026.32.0.dev3,<2026.32.0rc0",
 ]
 
 [dependency-groups]
