@@ -2145,6 +2145,18 @@ Examples:
     is_flag=True,
     help="Output results as JSON (suitable for piping into web-search crawl --stdin).",
 )
+@click.option(
+    "--chat-id",
+    "chat_id",
+    default=None,
+    envvar="UNIQUE_CHAT_ID",
+    help=(
+        "Chat id this call is made on behalf of. Defaults to $UNIQUE_CHAT_ID "
+        "(auto-set in Conduct sandboxes). When set, the space's Web Search "
+        "toggle is enforced server-side and the call is rejected if Web "
+        "Search is disabled for that space."
+    ),
+)
 @click.pass_context
 def web_search_search_cmd(
     ctx: click.Context,
@@ -2155,6 +2167,7 @@ def web_search_search_cmd(
     crawler_config_raw: str | None,
     config_path: str | None,
     output_json: bool,
+    chat_id: str | None,
 ) -> None:
     """Search the web via the Unique public API."""
     resolved_config = _resolve_web_search_config_path(ctx, config_path)
@@ -2167,6 +2180,7 @@ def web_search_search_cmd(
         crawler_config_raw=crawler_config_raw,
         output_json=output_json,
         config_path=resolved_config,
+        chat_id=chat_id,
     )
     _emit_web_search(ctx, output)
 
@@ -2222,6 +2236,18 @@ Examples:
     is_flag=True,
     help="Output results as JSON.",
 )
+@click.option(
+    "--chat-id",
+    "chat_id",
+    default=None,
+    envvar="UNIQUE_CHAT_ID",
+    help=(
+        "Chat id this call is made on behalf of. Defaults to $UNIQUE_CHAT_ID "
+        "(auto-set in Conduct sandboxes). When set, the space's Web Search "
+        "toggle is enforced server-side and the call is rejected if Web "
+        "Search is disabled for that space."
+    ),
+)
 @click.pass_context
 def web_search_crawl_cmd(
     ctx: click.Context,
@@ -2231,6 +2257,7 @@ def web_search_crawl_cmd(
     crawler_config_raw: str | None,
     config_path: str | None,
     output_json: bool,
+    chat_id: str | None,
 ) -> None:
     """Crawl URLs via the Unique public API."""
     url_list: list[str] = list(urls)
@@ -2248,6 +2275,7 @@ def web_search_crawl_cmd(
         crawler_config_raw=crawler_config_raw,
         output_json=output_json,
         config_path=resolved_config,
+        chat_id=chat_id,
     )
     _emit_web_search(ctx, output)
 
