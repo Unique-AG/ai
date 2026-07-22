@@ -878,6 +878,21 @@ def test_write_seed_refuses_symlinked_temp_path(tmp_path: Path) -> None:
     assert not seed_path.exists()
 
 
+def test_write_seed_without_o_nofollow_attr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Bugbot regression: O_NOFOLLOW is POSIX-only. On a platform lacking it the
+    # write must still succeed (getattr → 0), not raise AttributeError that would
+    # bubble out of _annotate_mcp_results_for_citations and blank the Sources
+    # block.
+    monkeypatch.delattr(mcp_cmd.os, "O_NOFOLLOW", raising=False)
+    seed_path = tmp_path / ".unique" / "mcp-refs-seed.json"
+
+    mcp_cmd._write_mcp_refs_seed(seed_path, 4)
+
+    assert json.loads(seed_path.read_text(encoding="utf-8")) == {"maxSourceNumber": 4}
+
+
 # ── Sources block names the tool (UN-23199) ──────────────────────────────────
 
 

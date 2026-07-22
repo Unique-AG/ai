@@ -569,13 +569,18 @@ def _write_mcp_refs_seed(seed_path: Path, value: int) -> None:
     predictable temp path cannot redirect the write outside the refs directory
     (defense in depth on top of the per-user workspace sandbox). ``os.replace``
     operates on the directory entry and does not follow a symlink at the target.
+    ``O_NOFOLLOW`` is POSIX-only; on platforms lacking it (e.g. Windows) it
+    degrades to ``0`` via ``getattr`` rather than raising ``AttributeError`` —
+    which, being outside the ``OSError`` handler, would otherwise bubble out of
+    ``_annotate_mcp_results_for_citations`` after entries were written and blank
+    the Sources block.
     """
     try:
         if value <= _read_mcp_refs_seed(seed_path):
             return
         seed_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = seed_path.with_suffix(seed_path.suffix + ".tmp")
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
         fd = os.open(tmp_path, flags, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(json.dumps({"maxSourceNumber": value}))
@@ -631,8 +636,11 @@ def _annotate_mcp_results_for_citations(
     """Assign per-turn ``[mcpsourceN]`` numbers to each retrieved item and append
     the refs manifest. Returns ``[(sourceNumber, item)]`` for the Sources block.
 
-    Items dedup by title across the turn (same item keeps one number), or by
-    tool for the title-less fallback. Best-effort — returns ``[]`` on any failure
+    Items dedup by title across the turn (same item keeps one number); a
+    title-less item dedups by tool plus a content hash of its (capped) text, so
+    two distinct title-less results through one tool get distinct numbers while
+    identical bodies still merge (this weakens the search-then-fetch text-upgrade
+    merge for title-less items only). Best-effort — returns ``[]`` on any failure
     (the tool result is unaffected; only the citation Sources block is skipped).
     """
     refs_log_path = refs_log_path or (Path.cwd() / _MCP_REFS_LOG_RELATIVE_PATH)
