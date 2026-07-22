@@ -161,22 +161,19 @@ unique-cli elicit ask "Which report format do you want?" \
 
 Always use this before `rm`, `rmdir -r`, mass uploads, or anything irreversible.
 
+Use an **empty-properties schema** — the UI's Confirm/Cancel buttons ARE the
+consent. Do **not** add a boolean `confirm` field: the button and the checkbox
+are two separate signals, and a user who presses Confirm with the box unchecked
+would show as **Accepted** in the UI while you would read `confirm: false` and
+wrongly treat it as declined.
+
 ```bash
-unique-cli elicit ask "Confirm deleting /Archive/2024 and everything inside it" \
+unique-cli elicit ask "Permanently delete /Archive/2024 and everything inside it? Confirming deletes it immediately — this cannot be undone." \
   --chat-id "$UNIQUE_CHAT_ID" \
-  --schema '{
-    "type": "object",
-    "properties": {
-      "confirm": {
-        "type": "boolean",
-        "description": "Tick to permanently delete"
-      }
-    },
-    "required": ["confirm"]
-  }'
+  --schema '{"type": "object", "properties": {}}'
 ```
 
-Proceed **only** if the response contains `"confirm": true`. Treat `DECLINED`, `CANCELLED`, `EXPIRED`, or `confirm: false` all as "do not proceed" -- tell the user you stopped and return control.
+Proceed **only** if the `Status:` is `ACCEPTED`. Treat `DECLINED`, `CANCELLED`, or `EXPIRED` all as "do not proceed" -- tell the user you stopped and return control. Put everything the user needs to decide into the message text, since the form has no fields.
 
 ### Structured form (multiple fields)
 
@@ -296,7 +293,7 @@ esac
 
 - Always set `"required"` for fields you actually need -- this guarantees the user cannot submit an empty form.
 - Use `enum` for closed choices so the UI can render a selector.
-- Use `"type": "boolean"` for confirmations; treat `true` as "go ahead", everything else as "stop".
+- For pure yes/no confirmations use an **empty-properties schema** (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` — never add a boolean `confirm` field (the Confirm button and the checkbox are two separate signals that can disagree). Reserve `"type": "boolean"` for genuine data fields where `false` is a valid answer the user can still submit with Confirm (e.g. `include_appendix`).
 - Add short `description` strings -- they are shown as help text next to each field.
 - Keep schemas small. Ask at most 5 questions in a single elicitation; if you need more, split the flow so the user is not confused by an oversized form.
 

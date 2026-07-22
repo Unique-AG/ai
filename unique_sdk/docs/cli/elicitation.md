@@ -103,15 +103,12 @@ unique-cli elicit ask "Pick a region" --tool-name choose_region --schema '{
   "required": ["region"]
 }'
 
-# Confirmation before a destructive action
-unique-cli elicit ask "Confirm permanently deleting /Archive/2024 and all its contents" \
+# Confirmation before a destructive action: empty-properties schema —
+# the Confirm/Cancel buttons are the consent; gate on Status: ACCEPTED
+unique-cli elicit ask "Permanently delete /Archive/2024 and all its contents? Confirming deletes it immediately — this cannot be undone." \
   --tool-name confirm_delete \
   --timeout 120 \
-  --schema '{
-    "type": "object",
-    "properties": {"confirm": {"type": "boolean"}},
-    "required": ["confirm"]
-  }'
+  --schema '{"type": "object", "properties": {}}'
 ```
 
 **Sample output:**
@@ -322,7 +319,7 @@ For the common case of "ask and immediately use the answer", `elicit ask` collap
 
 - Always set `"required"` on fields that must be present -- this prevents empty submissions.
 - Use `"enum"` for finite choices so the UI renders a selector instead of a free-text box.
-- Use `"type": "boolean"` for yes/no confirmations -- treat `true` as "go ahead" and anything else (including `DECLINED` / `CANCELLED` / `EXPIRED` statuses) as "stop".
+- For pure yes/no confirmations use an empty-properties schema (`{"type": "object", "properties": {}}`) and gate on `Status: ACCEPTED` -- do **not** add a boolean `confirm` field. The UI's Confirm button and a checkbox are two separate signals: a user can press Confirm with the box unchecked, showing **Accepted** in the UI while the response carries `confirm: false`. Treat `DECLINED` / `CANCELLED` / `EXPIRED` as "stop". Reserve `"type": "boolean"` for genuine data fields where `false` is a valid submittable answer.
 - Add short `"description"` strings -- they appear as helper text next to each field.
 - Keep schemas small. Several sequential `elicit ask` calls are usually clearer than one giant form.
 
