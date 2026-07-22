@@ -289,6 +289,52 @@ def get_price(ticker: _TICKER) -> str:
     return json.dumps(seed.PRICES[t])
 
 
+def _yahoo_quote(symbol: str) -> dict | None:
+    """Fetch one live quote from Yahoo Finance (v8 chart endpoint, no auth). Returns
+    {price, prev_close} or None on any failure — callers fall back to the synthetic seed."""
+    import urllib.request
+
+    url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}"
+           "?range=1d&interval=1d")
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (demo)"})
+    try:
+        with urllib.request.urlopen(req, timeout=4) as r:
+            meta = json.loads(r.read())["chart"]["result"][0]["meta"]
+        price = meta.get("regularMarketPrice")
+        prev = meta.get("chartPreviousClose") or meta.get("previousClose")
+        if price is None or not prev:
+            return None
+        return {"price": float(price), "prev_close": float(prev)}
+    except Exception:
+        return None
+
+
+@mcp.tool(name="get_live_quotes", title="Live quotes (Yahoo Finance, formatted)",
+          description="LIVE market quotes for the coverage universe, fetched from Yahoo "
+                      "Finance server-side and returned DISPLAY-READY (price and change% "
+                      "formatted to 2 decimals) — built for the cockpit price ribbon. "
+                      "Returns {count, rows:[{ticker, name, symbol, price_label, chg_label, "
+                      "chg_dir, live}]}. Falls back to the synthetic seed indication (live: "
+                      "false) for any symbol Yahoo doesn't answer, so the ribbon never dies.")
+def get_live_quotes() -> str:
+    rows = []
+    for c in seed.COVERAGE:
+        q = _yahoo_quote(c["yahoo"])
+        if q:
+            chg = (q["price"] / q["prev_close"] - 1.0) * 100.0
+            rows.append({"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
+                         "price_label": f"{q['price']:,.2f}", "chg_label": f"{chg:+.2f}",
+                         "chg_dir": "dn" if chg < -0.005 else ("up" if chg > 0.005 else "flat"),
+                         "live": True})
+        else:
+            rows.append({"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
+                         "price_label": f"{c['price']:,.2f}",
+                         "chg_label": f"{c['premarket_pct']:+.2f}",
+                         "chg_dir": "dn" if c["premarket_pct"] < 0 else "up",
+                         "live": False})
+    return json.dumps({"count": len(rows), "rows": rows})
+
+
 @mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
           description="Restore the FA research demo to its overnight baseline: re-generate "
                       "the 07:00 morning brief (all items un-acknowledged), reset the action "

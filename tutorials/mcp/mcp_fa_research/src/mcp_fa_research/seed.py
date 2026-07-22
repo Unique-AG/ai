@@ -26,7 +26,7 @@ COVERAGE: list[dict] = [
     {"ticker": "MC FP", "yahoo": "MC.PA", "bbg": "MC FP", "name": "LVMH",
      "sector": "Luxury Goods", "ccy": "EUR", "rating": "Outperform",
      "target_price": 675.0, "price": 585.0, "upside_pct": 15.4,
-     "status": "profit warning · initiation in progress",
+     "status": "profit warning · post-view due ASAP",
      "pills": [{"kind": "warn", "label": "⚠ warning"}, {"kind": "init", "label": "✍ initiation"}],
      "premarket_pct": -6.2, "next_catalyst": "FY25 results (profit-warning scenario)"},
     {"ticker": "KER FP", "yahoo": "KER.PA", "bbg": "KER FP", "name": "Kering",
@@ -86,7 +86,7 @@ OVERNIGHT: dict[str, dict] = {
                             "(upside +5%). Rating held Outperform — trough thesis intact.",
         "new_target_price": 615.0, "new_upside_pct": 5.1, "price_move_pct": -6.2,
         "direction": "down", "suggested_skill": "results-first-take",
-        "suggested_action": "Open the reaction pack",
+        "suggested_action": "Launch the reaction pack",
     },
     "CFR SW": {
         "ticker": "CFR SW", "name": "Richemont", "severity": "positive", "category": "news",
@@ -164,7 +164,7 @@ OVERNIGHT_ORDER = sorted(OVERNIGHT, key=lambda k: (_SEVERITY_RANK[OVERNIGHT[k]["
 LVMH_CASCADE = [
     {"step": 1, "label": "Model updated · recurring EBIT & EPS cut ~7%"},
     {"step": 2, "label": "Target price revised €675 → €615 · new upside +5%"},
-    {"step": 3, "label": "Morning-meeting note ready — for the mic, Exane Sales"},
+    {"step": 3, "label": "Post-view note drafted — for the mic · publish ASAP"},
     {"step": 4, "label": "Buy-side reaction email drafted + priority call list"},
 ]
 LVMH_CALL_LIST = [
@@ -180,11 +180,14 @@ LVMH_CALL_LIST = [
 DOSSIERS: dict[str, dict] = {
     "MC FP": {"thesis": "Reference luxury compounder; FY25 = earnings trough; Sephora "
               "counter-cyclical; cognac destocking the near-term drag.",
-              "estimates": "FY25E EPS €21.0 (below capitulated consensus €21.3) · margin floor 21.6%.",
+              "estimates": "Preview (T-5d): EPS €21.0 vs consensus €21.3 · Company printed €20.4 "
+                           "+ FY guidance cut — post-view due ASAP.",
               "interaction_log": ["H1-25 call", "FY24 call", "IR follow-up (cognac timeline)",
                                   "NY corporate roadshow (planned)"],
-              "note_history": ["Initiation (in progress)", "First-take (draft)",
-                               "Pre-publication control (pending)"]},
+              "note_history": ["Re-initiation of coverage (published)",
+                               "FY25 Preview — Ours vs Consensus (published T-5d)",
+                               "Profit warning — reaction pack (this morning)",
+                               "Post-view — Ours / Consensus / Company (draft · publish ASAP)"]},
     "KER FP": {"thesis": "Gucci turnaround execution risk; aspirational over-exposure; we "
                "stay cautious until volumes stabilise.",
                "estimates": "FY26E organic −1%; consensus cut −3% overnight — estimate review suggested.",
@@ -257,20 +260,21 @@ CONSENSUS: dict[str, dict] = {
 }
 
 OUR_ESTIMATES: dict[str, dict] = {
-    "MC FP": {"period": "FY2025E", "stance": "Below the street into the print — cognac "
-              "destocking runs deeper; post-warning we cut a further ~7%.",
+    "MC FP": {"period": "FY2025", "phase": "post-release",
+              "stance": "Preview (T-5d) had us below the street — right direction: the company "
+              "printed lower still and cut FY guidance. Post-view: Ours / Consensus / Company.",
               "rows": [
-                  {"metric": "Revenue (€bn)", "ours": 79.1, "consensus": 79.6, "delta": "−0.6%"},
-                  {"metric": "Recurring EBIT margin (%)", "ours": 21.6, "consensus": 21.9, "delta": "−30bp"},
-                  {"metric": "EPS (€)", "ours": 21.0, "consensus": 21.3, "delta": "−1.4%"},
-                  {"metric": "DPS (€)", "ours": 13.0, "consensus": 13.2, "delta": "−1.5%"}]},
-    "KER FP": {"period": "FY2026E", "stance": "Below consensus; estimate review due after the "
-               "overnight cuts.",
+                  {"metric": "Revenue (€bn)", "ours": 79.1, "consensus": 79.6, "company": 78.9, "delta": "−0.6%"},
+                  {"metric": "Recurring EBIT margin (%)", "ours": 21.6, "consensus": 21.9, "company": 21.2, "delta": "−30bp"},
+                  {"metric": "EPS (€)", "ours": 21.0, "consensus": 21.3, "company": 20.4, "delta": "−1.4%"},
+                  {"metric": "DPS (€)", "ours": 13.0, "consensus": 13.2, "company": 12.75, "delta": "−1.5%"}]},
+    "KER FP": {"period": "FY2026E", "phase": "pre-release",
+               "stance": "Below consensus; estimate review due after the overnight cuts.",
                "rows": [
                    {"metric": "Organic growth (%)", "ours": -1.0, "consensus": 0.5, "delta": "−150bp"},
                    {"metric": "EPS (€)", "ours": 16.9, "consensus": 17.8, "delta": "−5.1%"}]},
-    "CFR SW": {"period": "FY2026E", "stance": "Above consensus on jewellery mix; overnight "
-               "data supports raising further.",
+    "CFR SW": {"period": "FY2026E", "phase": "pre-release",
+               "stance": "Above consensus on jewellery mix; overnight data supports raising further.",
                "rows": [
                    {"metric": "Organic growth (%)", "ours": 6.0, "consensus": 5.2, "delta": "+80bp"},
                    {"metric": "EPS (CHF)", "ours": 6.7, "consensus": 6.4, "delta": "+4.7%"}]},
