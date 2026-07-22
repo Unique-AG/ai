@@ -25,6 +25,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.config import WebSearchConfig
+from unique_web_search.invocation_stats import invocation_stats_scope
 from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
 from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.argument_screening import (
@@ -104,7 +105,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self._mode_strategy = get_mode_strategy(self.config.web_search_mode_config)
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
-
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
@@ -153,6 +153,31 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        with invocation_stats_scope() as invocation_stats:
+            try:
+                response = await self._run(tool_call)
+            except Exception as e:
+                # _run() already catches its own errors and returns a
+                # ToolCallResponse gracefully in the common case; this is a
+                # safety net for the rarer case where something raises while
+                # handling that failure (or otherwise escapes _run()
+                # uncaught). Without it, tokens already spent on screening/
+                # processing/relevancy before the failure would never reach
+                # analytics, since SafeTaskExecutor builds its own fresh,
+                # stats-less error response one level up.
+                # logger.exception() already attaches the active exception's
+                # type and traceback; don't stringify it into the message.
+                _LOGGER.exception("WebSearch tool run failed")
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    error_message=str(e),
+                    invocation_stats=invocation_stats,
+                )
+        response.invocation_stats.extend(invocation_stats)
+        return response
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         _LOGGER.info("Running the WebSearch tool")
         start_time = time()
         parameters = self.tool_parameter_calls.model_validate(

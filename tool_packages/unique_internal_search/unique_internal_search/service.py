@@ -37,6 +37,10 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.invocation_stats import (
+    invocation_stats_scope,
+    record_invocation_stats,
+)
 from unique_internal_search.services.message_log import (
     InternalSearchMessageLogger,
     InternalSearchMessageLoggerNoop,
@@ -311,6 +315,13 @@ class InternalSearchService:
                 chunks=found_chunks,
                 config=self.config.chunk_relevancy_sort_config,
             )
+            if isinstance(chunk_relevancy_sorter_result.relevancies, list):
+                record_invocation_stats(
+                    invocation
+                    for relevancy in chunk_relevancy_sorter_result.relevancies
+                    if relevancy.relevancy is not None
+                    for invocation in relevancy.relevancy.invocation_stats
+                )
             found_chunks = chunk_relevancy_sorter_result.content_chunks
         except ChunkRelevancySorterException as e:
             self.logger.warning(f"Error while sorting chunks: {e.error_message}")
@@ -474,6 +485,29 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     # TODO: find a solution for tracking
     # @track(name="internal_search_tool_run")
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        with invocation_stats_scope() as invocation_stats:
+            try:
+                response = await self._run(tool_call)
+            except Exception as e:
+                # _run() has no top-level try/except of its own, so any error
+                # after self.search() (which may already have spent relevancy-
+                # sorting tokens) would otherwise escape straight to
+                # SafeTaskExecutor, which builds a fresh, stats-less error
+                # response one level up -- silently dropping tokens already
+                # spent before the failure.
+                # logger.exception() already attaches the active exception's
+                # type and traceback; don't stringify it into the message.
+                self.logger.exception("InternalSearch tool run failed")
+                return ToolCallResponse(
+                    id=tool_call.id,  # type: ignore
+                    name=self.name,
+                    error_message=str(e),
+                    invocation_stats=invocation_stats,
+                )
+        response.invocation_stats.extend(invocation_stats)
+        return response
+
+    async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         """
         Perform a search in the Vector DB based on the user's message and generate a response.
         """

@@ -12,10 +12,12 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     _extract_tool_calls_from_stream_response,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelStreamResponse,
     LanguageModelStreamResponseMessage,
+    LanguageModelTokenUsage,
     ResponsesLanguageModelStreamResponse,
 )
 
@@ -467,6 +469,82 @@ class TestAddAnalytics:
         "InternalSearch": "Knowledge Base Search",
         "WebSearch": "Web Search",
     }
+
+    @pytest.mark.ai
+    def test_add_analytics__aggregates_tokens_by_model(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+            invocations=[
+                LanguageModelInvocationStats.from_usage(
+                    "model-b",
+                    LanguageModelTokenUsage(
+                        prompt_tokens=10,
+                        completion_tokens=2,
+                        total_tokens=12,
+                        cached_tokens=None,
+                    ),
+                    source="main_loop[1]",
+                ),
+                LanguageModelInvocationStats.from_usage(
+                    "model-a",
+                    LanguageModelTokenUsage(
+                        prompt_tokens=4,
+                        completion_tokens=1,
+                        total_tokens=5,
+                        cached_tokens=3,
+                        reasoning_tokens=1,
+                    ),
+                    source="planning",
+                ),
+                LanguageModelInvocationStats.from_usage(
+                    "model-b",
+                    LanguageModelTokenUsage(
+                        prompt_tokens=20,
+                        completion_tokens=3,
+                        total_tokens=23,
+                        cached_tokens=5,
+                    ),
+                    source="follow_up_questions",
+                ),
+            ],
+        )
+
+        assert debug_info_manager.get()["analytics"]["tokens"] == [
+            {
+                "model_name": "model-a",
+                "completion_tokens": 1,
+                "prompt_tokens": 4,
+                "total_tokens": 5,
+                "reasoning_tokens": 1,
+                "cached_tokens": 3,
+                "cache_write_tokens": None,
+            },
+            {
+                "model_name": "model-b",
+                "completion_tokens": 5,
+                "prompt_tokens": 30,
+                "total_tokens": 35,
+                "reasoning_tokens": None,
+                "cached_tokens": 5,
+                "cache_write_tokens": None,
+            },
+        ]
+
+    @pytest.mark.ai
+    def test_add_analytics__tokens_is_empty_without_invocations(
+        self, debug_info_manager: DebugInfoManager
+    ) -> None:
+        debug_info_manager.add_analytics(
+            [],
+            language_model=self.language_model,
+            tool_display_names=self.tool_display_names,
+        )
+
+        assert debug_info_manager.get()["analytics"]["tokens"] == []
 
     @pytest.mark.ai
     def test_add_analytics__copies_tools_and_skills__into_new_key(

@@ -9,6 +9,7 @@ from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 from unique_user_memory.config import UserMemoryConfig
@@ -49,6 +50,28 @@ class UserMemoryPostprocessor(Postprocessor):
         self._logger = logger
         self._new_memory: str | None = None
         self._chat_service: ChatService = chat_service
+        self._pending_load_invocation_stats = list(state.load_invocation_stats)
+        self._invocation_stats: list[LanguageModelInvocationStats] = []
+
+    @property
+    def invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        return list(self._invocation_stats)
+
+    def take_pending_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Pop load-time condense stats not yet reported.
+
+        `UniqueAI` calls this unconditionally at the start of every turn so a
+        turn that exits before `run()` (cancellation, empty response, a
+        control-taking tool) still reports the tokens spent condensing the
+        loaded profile. If `run()` does execute, it drains the same pending
+        list itself, so whichever of the two runs first "wins" and the other
+        sees an empty list -- the tokens are never double-counted or lost.
+        """
+        stats, self._pending_load_invocation_stats = (
+            self._pending_load_invocation_stats,
+            [],
+        )
+        return stats
 
     async def run(self, loop_response: LanguageModelStreamResponse) -> bool:
         """Consolidate and upload user memory for this turn.
@@ -56,6 +79,7 @@ class UserMemoryPostprocessor(Postprocessor):
         Returns True if the memory profile changed and was uploaded, False
         otherwise (no user/company, NOOP consolidation, or failed upload).
         """
+        self._invocation_stats = self.take_pending_invocation_stats()
         self._logger.info("[user-memory] running postprocessor")
         user_id = self._event.user_id
         company_id = self._event.company_id
@@ -99,6 +123,7 @@ class UserMemoryPostprocessor(Postprocessor):
             logger=self._logger,
             on_update_start=on_update_start,
             on_update_end=on_update_end,
+            invocation_stats=self._invocation_stats,
         )
 
         if self._new_memory == self._state.text:

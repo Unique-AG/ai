@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Any, Required, TypedDict
 
 from unique_toolkit.agentic.tools.openai_builtin import OpenAICodeInterpreterTool
@@ -7,8 +8,10 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool_manager import ToolManager
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
+    LanguageModelTokenUsage,
     ResponsesLanguageModelStreamResponse,
 )
 
@@ -40,6 +43,16 @@ class AnalyticsToolName(TypedDict):
     display_name: str
 
 
+class AnalyticsTokenUsage(TypedDict):
+    model_name: str
+    completion_tokens: int | None
+    prompt_tokens: int | None
+    total_tokens: int | None
+    reasoning_tokens: int | None
+    cached_tokens: int | None
+    cache_write_tokens: int | None
+
+
 class Analytics(TypedDict):
     answer_length: int
     artifacts_created_count: int | None
@@ -54,6 +67,7 @@ class Analytics(TypedDict):
     references_count: int
     skills_used: list[AnalyticsSkill]
     subagent_names_used: list[AnalyticsToolName]
+    tokens: list[AnalyticsTokenUsage]
     tool_call_count: int
     tools_used: list[AnalyticsTool]
     total_time_to_answer_ms: int | None
@@ -115,6 +129,7 @@ class DebugInfoManager:
         total_time_to_answer_ms: int | None = None,
         artifacts: ArtifactsDebugInfo | None = None,
         context_memory_updated: bool | None = None,
+        invocations: list[LanguageModelInvocationStats] | None = None,
     ) -> None:
         """Add a stable 'analytics' snapshot for downstream ROI/usage reporting.
 
@@ -152,6 +167,7 @@ class DebugInfoManager:
             loop_iteration_count=loop_iteration_count,
             subagent_names_used=_unique_tool_names(analytics_tools, "is_sub_agent"),
             mcp_tool_names_used=_unique_tool_names(analytics_tools, "is_mcp"),
+            tokens=_aggregate_tokens_by_model(invocations or []),
             total_time_to_answer_ms=total_time_to_answer_ms,
             artifacts_created_count=artifacts["count"] if artifacts else None,
             artifacts_created_filetype=artifacts["filetypes"] if artifacts else None,
@@ -161,6 +177,32 @@ class DebugInfoManager:
             context_memory_updated=context_memory_updated,
         )
         self.add("analytics", analytics)
+
+
+def _aggregate_tokens_by_model(
+    invocations: list[LanguageModelInvocationStats],
+) -> list[AnalyticsTokenUsage]:
+    usages_by_model: dict[str, list[LanguageModelTokenUsage]] = defaultdict(list)
+    for invocation in invocations:
+        usages_by_model[str(invocation.model_name)].append(invocation.token_usage)
+
+    totals: list[AnalyticsTokenUsage] = []
+    for model_name in sorted(usages_by_model):
+        usage = LanguageModelTokenUsage.sum_usages(usages_by_model[model_name])
+        if usage is None:
+            continue
+        totals.append(
+            AnalyticsTokenUsage(
+                model_name=model_name,
+                completion_tokens=usage.completion_tokens,
+                prompt_tokens=usage.prompt_tokens,
+                total_tokens=usage.total_tokens,
+                reasoning_tokens=usage.reasoning_tokens,
+                cached_tokens=usage.cached_tokens,
+                cache_write_tokens=usage.cache_write_tokens,
+            )
+        )
+    return totals
 
 
 def _unique_tool_names(

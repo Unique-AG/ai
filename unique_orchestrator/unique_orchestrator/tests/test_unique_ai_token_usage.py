@@ -1,6 +1,9 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
+    DebugInfoManager,
+)
 from unique_toolkit.agentic.loop_runner import SupportsInvocationStats
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
@@ -73,6 +76,10 @@ def _build_run_ua(loop_responses: list[MagicMock], max_iterations: int):
     mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
     mock_postprocessor_manager.get_execution_times.return_value = {}
     mock_postprocessor_manager.get_invocation_stats.return_value = []
+    # A fresh list per call: `.return_value = []` would hand back the *same*
+    # list object every time, so mutations from one `ua.run()` (e.g. the
+    # main-loop usage append) would leak into the next run's list.
+    mock_postprocessor_manager.take_pending_invocation_stats.side_effect = lambda: []
 
     mock_evaluation_manager = MagicMock()
     mock_evaluation_manager.run_evaluations = AsyncMock(return_value=[])
@@ -250,6 +257,203 @@ class TestRunTokenUsageIntegration:
         }
         assert "llm_invocations" in calls_by_key
         assert calls_by_key["llm_invocations"] == []
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__cancelled_before_postprocessing__keeps_invocations_incomplete(
+        self,
+    ):
+        """
+        Purpose: Verify cancellation after the model call leaves invocation usage partial.
+        Why this matters: Postprocessor and evaluation usage has not been aggregated yet.
+        Setup summary: Cancel after planning, then assert the completion flag remains false.
+        """
+        # Arrange
+        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
+        ua._chat_service.cancellation.check_cancellation_async = AsyncMock(
+            side_effect=[False, True]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__cancelled_before_postprocessing__still_reports_pending_stats(
+        self,
+    ):
+        """
+        Purpose: Verify pre-run usage (e.g. a user-memory load-time condense
+            call) is still reported when a turn exits before postprocessors run.
+        Why this matters: That usage previously lived inside a postprocessor
+            and was only surfaced when its `run()` executed; a turn that
+            cancels first silently dropped it from analytics.
+        Setup summary: Seed pending postprocessor stats, cancel before
+            postprocessing, and assert the stats still reach `llm_invocations`.
+        """
+        # Arrange
+        pending_stats = LanguageModelInvocationStats.from_usage(
+            MODEL_NAME,
+            LanguageModelTokenUsage(total_tokens=7),
+            source="user_memory_load_condense",
+        )
+        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
+        ua._postprocessor_manager.take_pending_invocation_stats.side_effect = None
+        ua._postprocessor_manager.take_pending_invocation_stats.return_value = [
+            pending_stats
+        ]
+        ua._chat_service.cancellation.check_cancellation_async = AsyncMock(
+            side_effect=[False, True]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations"] == [
+            pending_stats.model_dump(by_alias=True)
+        ]
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__tool_takes_control__keeps_invocations_incomplete(self):
+        """
+        Purpose: Verify a control-taking tool leaves invocation usage partial.
+        Why this matters: The agent exits before postprocessors and evaluations can add usage.
+        Setup summary: Execute a control-taking tool and assert completion remains false.
+        """
+        # Arrange
+        tool_call = MagicMock()
+        tool_call.name = "SubAgent"
+        loop_response = _make_loop_response(None)
+        loop_response.tool_calls = [tool_call]
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        ua._tool_manager.does_a_tool_take_control.return_value = True
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="SubAgent", invocation_stats=[])
+            ]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__deep_research_takes_control__marks_invocations_complete(self):
+        """
+        Purpose: Verify a Deep Research execution run signals complete usage despite
+            exiting before postprocessors and evaluations run.
+        Why this matters: Deep Research always takes control, so it never reaches
+            `_handle_no_tool_calls` and `_invocation_stats_finalized` never becomes
+            true; the completion signal for it must come from `message_execution_id`
+            alone, not be gated behind that flag.
+        Setup summary: Call Deep Research as a tool with an execution id set and
+            assert completion is still reported true.
+        """
+        # Arrange
+        tool_call = MagicMock()
+        tool_call.name = "DeepResearch"
+        loop_response = _make_loop_response(None)
+        loop_response.tool_calls = [tool_call]
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._event.payload.message_execution_id = "execution-1"
+        ua._tool_manager.does_a_tool_take_control.return_value = True
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="DeepResearch", invocation_stats=[])
+            ]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        debug_info = ua._chat_service.update_debug_info_async.call_args.kwargs[
+            "debug_info"
+        ]
+        assert debug_info["llm_invocations_complete"] is True
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__max_iterations_with_tool_calls__keeps_invocations_incomplete(
+        self,
+    ):
+        """
+        Purpose: Verify tool-only exhaustion leaves invocation usage partial.
+        Why this matters: Max-iteration exit skips postprocessor and evaluation aggregation.
+        Setup summary: Exhaust one tool-call iteration and assert completion remains false.
+        """
+        # Arrange
+        tool_call = MagicMock()
+        tool_call.name = "WebSearch"
+        loop_response = _make_loop_response(None)
+        loop_response.tool_calls = [tool_call]
+        ua = _build_run_ua([loop_response], max_iterations=1)
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[
+                ToolCallResponse(id="call_1", name="WebSearch", invocation_stats=[])
+            ]
+        )
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__empty_response__keeps_invocations_incomplete(self):
+        """
+        Purpose: Verify an empty model response leaves invocation usage partial.
+        Why this matters: Empty responses exit before downstream LLM usage is aggregated.
+        Setup summary: Return an empty response and assert completion remains false.
+        """
+        # Arrange
+        loop_response = _make_loop_response(None)
+        loop_response.is_empty.return_value = True
+        ua = _build_run_ua([loop_response], max_iterations=1)
+
+        # Act
+        await ua.run()
+
+        # Assert
+        calls_by_key = {
+            args[0][0]: args[0][1] for args in ua._debug_info_manager.add.call_args_list
+        }
+        assert calls_by_key["llm_invocations_complete"] is False
+        ua._postprocessor_manager.run_postprocessors.assert_not_awaited()
+        ua._evaluation_manager.run_evaluations.assert_not_awaited()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -460,6 +664,135 @@ class TestRunTokenUsageIntegration:
         assert len(payload) == 2
         assert payload[0]["tokenUsage"]["totalTokens"] == 3
         assert payload[1]["tokenUsage"]["totalTokens"] == 9
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__deep_research__merges_previous_turn_invocations(self):
+        """
+        Purpose: Verify Deep Research preserves invocation stats from its earlier turns.
+        Why this matters: Clarification and message-execution runs update the same debugInfo.
+        Setup summary: Seed one persisted invocation, run another turn, and assert both and their analytics remain.
+        """
+        # Arrange
+        current_response = _make_loop_response(
+            LanguageModelTokenUsage(
+                completion_tokens=10,
+                prompt_tokens=20,
+                total_tokens=30,
+            )
+        )
+        ua = _build_run_ua([current_response], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._debug_info_manager.debug_info["tools"] = [
+            {"name": "DeepResearch", "info": {}}
+        ]
+        ua._event.payload.message_execution_id = "execution-1"
+        previous_invocation = LanguageModelInvocationStats.from_usage(
+            MODEL_NAME,
+            LanguageModelTokenUsage(
+                completion_tokens=2,
+                prompt_tokens=3,
+                total_tokens=5,
+            ),
+            source="deep_research.clarification",
+        )
+        ua._chat_service.get_debug_info_async.return_value = {
+            "llm_invocations": [previous_invocation.model_dump(by_alias=True)],
+            "preserved": True,
+        }
+
+        # Act
+        await ua.run()
+
+        # Assert
+        debug_info = ua._chat_service.update_debug_info_async.call_args.kwargs[
+            "debug_info"
+        ]
+        assert debug_info["preserved"] is True
+        assert [
+            invocation["source"] for invocation in debug_info["llm_invocations"]
+        ] == ["deep_research.clarification", "main_loop[1]"]
+        assert debug_info["analytics"]["tokens"][0]["total_tokens"] == 35
+        assert debug_info["llm_invocations_complete"] is True
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__deep_research_partial_persist__does_not_duplicate_previous_invocations(
+        self,
+    ):
+        """
+        Purpose: Verify failed Deep Research persistence does not merge prior usage twice.
+        Why this matters: Duplicate invocations overstate token analytics for aborted runs.
+        Setup summary: Fail the full persist after merging stored usage, then inspect the partial retry.
+        """
+        # Arrange
+        current_response = _make_loop_response(
+            LanguageModelTokenUsage(
+                completion_tokens=10,
+                prompt_tokens=20,
+                total_tokens=30,
+            )
+        )
+        ua = _build_run_ua([current_response], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._debug_info_manager.debug_info["tools"] = [
+            {"name": "DeepResearch", "info": {}}
+        ]
+        ua._event.payload.message_execution_id = "execution-1"
+        previous_invocation = LanguageModelInvocationStats.from_usage(
+            MODEL_NAME,
+            LanguageModelTokenUsage(
+                completion_tokens=2,
+                prompt_tokens=3,
+                total_tokens=5,
+            ),
+            source="deep_research.clarification",
+        )
+        ua._chat_service.get_debug_info_async.return_value = {
+            "llm_invocations": [previous_invocation.model_dump(by_alias=True)],
+        }
+        ua._chat_service.update_debug_info_async.side_effect = [
+            RuntimeError("full persist failed"),
+            None,
+        ]
+
+        # Act
+        with pytest.raises(RuntimeError, match="full persist failed"):
+            await ua.run()
+
+        # Assert
+        partial_debug_info = ua._chat_service.update_debug_info_async.call_args_list[
+            1
+        ].kwargs["debug_info"]
+        assert [
+            invocation["source"] for invocation in partial_debug_info["llm_invocations"]
+        ] == ["deep_research.clarification", "main_loop[1]"]
+        assert partial_debug_info["llm_invocations_complete"] is False
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__deep_research_clarification__keeps_invocations_incomplete(self):
+        """
+        Purpose: Verify Deep Research does not signal complete usage before research execution.
+        Why this matters: Readers otherwise stop waiting after seeing only clarification calls.
+        Setup summary: Run a Deep Research turn without an execution ID and assert the flag is false.
+        """
+        # Arrange
+        ua = _build_run_ua([_make_loop_response(None)], max_iterations=1)
+        ua._debug_info_manager = DebugInfoManager()
+        ua._debug_info_manager.debug_info["tools"] = [
+            {"name": "DeepResearch", "info": {}}
+        ]
+        ua._event.payload.message_execution_id = None
+
+        # Act
+        await ua.run()
+
+        # Assert
+        debug_info = ua._chat_service.update_debug_info_async.call_args.kwargs[
+            "debug_info"
+        ]
+        assert debug_info["llm_invocations_complete"] is False
 
     @pytest.mark.ai
     @pytest.mark.asyncio

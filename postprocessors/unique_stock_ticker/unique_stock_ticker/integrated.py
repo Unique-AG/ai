@@ -1,4 +1,5 @@
 from unique_six.schema.common.instrument import InstrumentType
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.service import LanguageModelService
 
 from unique_stock_ticker.clients.six import get_six_api_client
@@ -15,6 +16,7 @@ async def retrieve_tickers_and_plot_history(
     stock_ticker_config: StockTickerConfig,
     assistant_message: str,
     user_message: str,
+    invocation_stats: list[LanguageModelInvocationStats] | None = None,
 ) -> str:
     if not stock_ticker_config.enabled:
         return ""
@@ -47,6 +49,7 @@ async def retrieve_tickers_and_plot_history(
     stock_ticker_service_result = await stock_ticker_service.get_stock_tickers(
         assistant_message=assistant_message,
         user_message=user_message,
+        invocation_stats=invocation_stats,
     )
     if (
         not stock_ticker_service_result.success

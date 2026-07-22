@@ -13,6 +13,7 @@ from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import LanguageModelService
 
+from unique_web_search.invocation_stats import record_vertex_response
 from unique_web_search.services.proxy.bridge import (
     search_proxy_client_enabled,
 )
@@ -113,6 +114,11 @@ class VertexAI(SearchEngine[VertexAIConfig]):
                 entreprise_search=self.config.enable_enterprise_search,
             ),
             contents=query,
+        )
+        record_vertex_response(
+            model_name=self.config.vertexai_model_name,
+            response=response,
+            source="web_search.grounding.vertexai",
         )
 
         answer_with_citations = add_citations(response)

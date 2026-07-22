@@ -41,6 +41,17 @@ class Postprocessor(ABC):
         """Override in subclasses whose `run()` makes its own LLM call(s)."""
         return []
 
+    def take_pending_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Pop usage incurred before this turn's `run()` was reached.
+
+        Called unconditionally at the start of every turn so usage from work
+        done ahead of postprocessing (e.g. a load-time LLM call) is still
+        reported on turns that exit before `run()` executes. Override in
+        subclasses that do such work; must clear the pending stats so `run()`
+        does not report them a second time.
+        """
+        return []
+
 
 class ResponsesApiPostprocessor(ABC):
     def __init__(self, name: str):
@@ -71,6 +82,13 @@ class ResponsesApiPostprocessor(ABC):
         """Per-LLM-call stats from any call(s) this postprocessor made in its last `run()`.
 
         Default empty — override in subclasses that make their own LLM calls.
+        """
+        return []
+
+    def take_pending_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Pop usage incurred before this turn's `run()` was reached.
+
+        See `Postprocessor.take_pending_invocation_stats` for why this exists.
         """
         return []
 
@@ -195,6 +213,19 @@ class PostprocessorManager:
     def get_invocation_stats(self) -> list[LanguageModelInvocationStats]:
         """Per-LLM-call stats from every postprocessor that made its own LLM call(s)."""
         return list(self._invocation_stats)
+
+    def take_pending_invocation_stats(self) -> list[LanguageModelInvocationStats]:
+        """Pop pre-`run()` usage (e.g. load-time calls) from every postprocessor.
+
+        Call this unconditionally at the start of a turn, before it's known
+        whether `run_postprocessors` will even be reached this turn, so that
+        usage is never silently dropped on turns that exit early.
+        """
+        return [
+            invocation
+            for postprocessor in self._get_all_postprocessors()
+            for invocation in postprocessor.take_pending_invocation_stats()
+        ]
 
     async def execute_postprocessors(
         self,

@@ -7,6 +7,7 @@ from unique_toolkit.language_model import (
     Prompt,
     convert_string_to_json,
 )
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
 )
@@ -43,6 +44,7 @@ class StockTickerService:
         self,
         assistant_message: str,
         user_message: str,
+        invocation_stats: list[LanguageModelInvocationStats] | None = None,
     ) -> getStockTickersResponse:
         """
         Get stock tickers from the user and assistant messages
@@ -57,6 +59,14 @@ class StockTickerService:
             temperature=0,
             other_options=self.config.additional_llm_options,
         )
+        if invocation_stats is not None and response.usage is not None:
+            invocation_stats.append(
+                LanguageModelInvocationStats.from_usage(
+                    self.config.language_model.name,
+                    response.usage,
+                    source="stock_ticker_detection",
+                )
+            )
 
         response_content = response.choices[0].message.content
 

@@ -7,6 +7,7 @@ from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
 )
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_stock_ticker.detection.config import StockTickerDetectionConfig
 from unique_stock_ticker.detection.memory import StockTickerMemoryManager
@@ -116,6 +117,44 @@ async def test_get_stock_tickers(
         assistant_message, user_message
     )
     assert stock_ticker_result.response == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_stock_tickers__usage_available__captures_invocation_stats(
+    stock_ticker_service,
+    mock_llm_service,
+):
+    """Purpose: Verify stock ticker detection records reported LLM token usage.
+    Why this matters: Postprocessor usage must be included in aggregate token accounting.
+    Setup summary: Return a valid ticker response with usage and assert one stat is appended.
+    """
+    usage = LanguageModelTokenUsage(
+        completion_tokens=10,
+        prompt_tokens=20,
+        total_tokens=30,
+    )
+    mock_llm_service.complete_async.return_value = MagicMock(
+        usage=usage,
+        choices=[
+            MagicMock(
+                message=MagicMock(
+                    content='{"tickers": []}',
+                )
+            )
+        ],
+    )
+    invocation_stats = []
+
+    await stock_ticker_service.get_stock_tickers(
+        assistant_message="assistant message",
+        user_message="user message",
+        invocation_stats=invocation_stats,
+    )
+
+    assert len(invocation_stats) == 1
+    assert invocation_stats[0].token_usage == usage
+    assert invocation_stats[0].source == "stock_ticker_detection"
 
 
 @pytest.mark.asyncio

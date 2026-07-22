@@ -6,6 +6,8 @@ from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
 from unique_toolkit.language_model.infos import LanguageModelInfo
+from unique_toolkit.language_model.invocation_stats import LanguageModelInvocationStats
+from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
 from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
@@ -1086,6 +1088,106 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     logger.info.assert_any_call(
         "[user-memory] memory updated and uploaded successfully"
     )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_user_memory_postprocessor_run_resets_invocation_stats(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Purpose: Verify each run reports only usage attributable to that run.
+    Why this matters: Reused postprocessors must not inflate token analytics.
+    Setup summary: Run twice with distinct usage and assert the second excludes the first.
+    """
+    load_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=2),
+        source="user_memory_load_condense",
+    )
+    first_run_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=3),
+        source="user_memory_consolidate_first",
+    )
+    second_run_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=5),
+        source="user_memory_consolidate_second",
+    )
+    run_stats = iter((first_run_stats, second_run_stats))
+
+    async def consolidate(*, invocation_stats, **kwargs) -> str:  # type: ignore[no-untyped-def]
+        invocation_stats.append(next(run_stats))
+        return "# User Memory\n\n## Identity\n- unchanged"
+
+    monkeypatch.setattr(
+        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
+        consolidate,
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    loop_response = MagicMock()
+    loop_response.message.text = "noted"
+    state = UserMemoryState(
+        scope_id="scope_1",
+        text="# User Memory\n\n## Identity\n- unchanged",
+        load_invocation_stats=(load_stats,),
+    )
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        state=state,
+        logger=MagicMock(),
+        chat_service=MagicMock(),
+    )
+
+    await postprocessor.run(loop_response)
+    first_reported_stats = postprocessor.invocation_stats
+    await postprocessor.run(loop_response)
+
+    assert first_reported_stats == [load_stats, first_run_stats]
+    assert postprocessor.invocation_stats == [second_run_stats]
+
+
+@pytest.mark.ai
+def test_user_memory_postprocessor_take_pending_invocation_stats_drains_once() -> None:
+    """Purpose: Verify load-time usage is reported exactly once, however it's read.
+    Why this matters: A turn that exits before `run()` (cancellation, empty
+    response, a control-taking tool) must still report the load-time condense
+    tokens, and a turn that does reach `run()` must not double-count them.
+    Setup summary: Take the pending stats directly, then run(), and assert
+    run() no longer reports the already-taken load stats.
+    """
+    load_stats = LanguageModelInvocationStats.from_usage(
+        _TEST_LANGUAGE_MODEL.name,
+        LanguageModelTokenUsage(total_tokens=2),
+        source="user_memory_load_condense",
+    )
+    event = MagicMock()
+    event.user_id = "user_1"
+    event.company_id = "company_1"
+    event.payload.user_message.text = "remember this"
+    state = UserMemoryState(
+        scope_id="scope_1",
+        text="# User Memory\n\n## Identity\n- unchanged",
+        load_invocation_stats=(load_stats,),
+    )
+    postprocessor = UserMemoryPostprocessor(
+        config=UserMemoryConfig(),
+        language_model=_TEST_LANGUAGE_MODEL,
+        event=event,
+        state=state,
+        logger=MagicMock(),
+        chat_service=MagicMock(),
+    )
+
+    taken = postprocessor.take_pending_invocation_stats()
+
+    assert taken == [load_stats]
+    assert postprocessor.take_pending_invocation_stats() == []
 
 
 @pytest.mark.asyncio

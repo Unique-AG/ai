@@ -12,6 +12,7 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
 
+from unique_web_search.invocation_stats import record_invocation_stats
 from unique_web_search.metrics import llm_duration, llm_errors
 from unique_web_search.schema import (
     StepDebugInfo,
@@ -159,6 +160,16 @@ class BaseWebSearchExecutor(ABC, Generic[T]):
                 input_text=objective,
                 chunks=content,
                 config=self.chunk_relevancy_sort_config,
+            )
+            # The relevancy sorter makes one LLM call per chunk and attaches the
+            # usage to each ChunkRelevancy.relevancy.invocation_stats; merge it
+            # into the active WebSearch stats scope so it isn't dropped from
+            # token analytics (Internal Search does the same after its sort).
+            record_invocation_stats(
+                invocation
+                for relevancy in sorted_chunks.relevancies
+                if relevancy.relevancy is not None
+                for invocation in relevancy.relevancy.invocation_stats
             )
             _LOGGER.info(f"Sorting chunks message: {sorted_chunks.user_message}")
             return sorted_chunks.content_chunks

@@ -5551,9 +5551,6 @@ requires-dist = [
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
 
-[package.metadata.requires-dev]
-dev = []
-
 [[package]]
 name = "unique-swot"
 version = "2026.30.0"
