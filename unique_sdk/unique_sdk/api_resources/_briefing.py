@@ -1,4 +1,4 @@
-"""Assistant briefing operations (``PUT /briefings/{assistantId}``).
+"""Assistant briefing operations on ``/briefings/{assistantId}``.
 
 Request and response shapes follow OpenAPI ``PublicUpsertBriefingRequestDto`` and
 ``PublicBriefingDto``. See :class:`Briefing.UpsertForAssistantParams`.
@@ -16,6 +16,7 @@ from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
 
 _MAX_TEXT_LEN = 4000
+_MAX_TITLE_LEN = 100
 _MAX_PROMPTS = 200
 _MAX_PROMPT_TITLE_LEN = 100
 _MAX_PROMPT_BODY_LEN = 4000
@@ -65,15 +66,16 @@ def _validate_prompts(raw: Any) -> list[dict[str, str]]:
 
 
 class _PublicUpsertBriefingWire(TypedDict):
-    """Exact JSON keys for ``PUT`` body (`PublicUpsertBriefingRequestDto`)."""
+    """Exact JSON keys for ``PUT`` body (``PublicUpsertBriefingRequestDto``)."""
 
     text: str
     generatedAt: str
     prompts: list[dict[str, str]]
+    title: NotRequired[str]
 
 
 class Briefing(APIResource["Briefing"]):
-    """Create or replace the briefing attached to an assistant."""
+    """Read, upsert, or detach the briefing attached to an assistant."""
 
     @classproperty
     def OBJECT_NAME(cls) -> Literal["briefing"]:
@@ -82,7 +84,7 @@ class Briefing(APIResource["Briefing"]):
     RESOURCE_URL = "/briefings"
 
     class BriefingPromptItem(TypedDict):
-        """One entry in ``prompts`` (``PublicPromptItemDto``)."""
+        """One entry in ``prompts`` (``PromptItemDto``)."""
 
         title: str
         body: str
@@ -93,8 +95,20 @@ class Briefing(APIResource["Briefing"]):
         text: NotRequired[str]
         generatedAt: NotRequired[str]
         prompts: list["Briefing.BriefingPromptItem"]
+        title: NotRequired[str]
         markdown: NotRequired[str]
         content: NotRequired[str]
+
+    class DeletedObject(TypedDict):
+        """Response from ``DELETE /briefings/{assistantId}`` (detach; record may remain)."""
+
+        id: str
+        object: str
+        deleted: bool
+
+    @classmethod
+    def _assistant_url(cls, assistant_id: str) -> str:
+        return "%s/%s" % (cls.RESOURCE_URL, quote_plus(assistant_id))
 
     @classmethod
     def _wire_json_from_upsert_params(
@@ -149,7 +163,26 @@ class Briefing(APIResource["Briefing"]):
         prompts_raw = kw.pop("prompts", None)
         prompts_list = _validate_prompts(prompts_raw)
 
-        return {"text": text, "generatedAt": ga, "prompts": prompts_list}
+        wire: _PublicUpsertBriefingWire = {
+            "text": text,
+            "generatedAt": ga,
+            "prompts": prompts_list,
+        }
+
+        title_raw = kw.pop("title", None)
+        if title_raw is not None:
+            if not isinstance(title_raw, str):
+                raise TypeError(
+                    f"Briefing title must be a string, got {type(title_raw)!r}"
+                )
+            if len(title_raw) > _MAX_TITLE_LEN:
+                raise ValueError(
+                    f"Briefing title must be at most {_MAX_TITLE_LEN} characters "
+                    f"(got {len(title_raw)})"
+                )
+            wire["title"] = title_raw
+
+        return wire
 
     id: str
     object: str
@@ -164,6 +197,39 @@ class Briefing(APIResource["Briefing"]):
     updatedAt: str | None
 
     @classmethod
+    def retrieve_for_assistant(
+        cls,
+        *,
+        user_id: str,
+        company_id: str,
+        assistant_id: str,
+    ) -> "Briefing":
+        """Return the briefing attached to ``assistant_id``.
+
+        Mirrors ``BriefingController_getForAssistant`` (``GET /briefings/{assistantId}``).
+        """
+        url = cls._assistant_url(assistant_id)
+        return cast(
+            "Briefing",
+            cls._static_request("get", url, user_id, company_id),
+        )
+
+    @classmethod
+    async def retrieve_for_assistant_async(
+        cls,
+        *,
+        user_id: str,
+        company_id: str,
+        assistant_id: str,
+    ) -> "Briefing":
+        """Async variant of :meth:`retrieve_for_assistant`."""
+        url = cls._assistant_url(assistant_id)
+        return cast(
+            "Briefing",
+            await cls._static_request_async("get", url, user_id, company_id),
+        )
+
+    @classmethod
     def upsert_for_assistant(
         cls,
         *,
@@ -174,10 +240,9 @@ class Briefing(APIResource["Briefing"]):
     ) -> "Briefing":
         """Upsert the briefing for ``assistant_id`` (external id = assistant id).
 
-        Mirrors ``PublicBriefingController_upsertForAssistant`` (
-        ``PUT /public/briefings/{assistantId}`` on the upstream OpenAPI surface).
+        Mirrors ``BriefingController_upsertForAssistant`` (``PUT /briefings/{assistantId}``).
         """
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(assistant_id))
+        url = cls._assistant_url(assistant_id)
         payload = cls._wire_json_from_upsert_params(params)
         return cast(
             "Briefing",
@@ -194,9 +259,43 @@ class Briefing(APIResource["Briefing"]):
         **params: Unpack["Briefing.UpsertForAssistantParams"],
     ) -> "Briefing":
         """Async variant of :meth:`upsert_for_assistant`."""
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(assistant_id))
+        url = cls._assistant_url(assistant_id)
         payload = cls._wire_json_from_upsert_params(params)
         return cast(
             "Briefing",
             await cls._static_request_async("put", url, user_id, company_id, payload),
+        )
+
+    @classmethod
+    def delete_for_assistant(
+        cls,
+        *,
+        user_id: str,
+        company_id: str,
+        assistant_id: str,
+    ) -> "Briefing.DeletedObject":
+        """Detach the briefing from ``assistant_id`` (underlying record may remain).
+
+        Mirrors ``BriefingController_detachForAssistant`` (
+        ``DELETE /briefings/{assistantId}``).
+        """
+        url = cls._assistant_url(assistant_id)
+        return cast(
+            "Briefing.DeletedObject",
+            cls._static_request("delete", url, user_id, company_id),
+        )
+
+    @classmethod
+    async def delete_for_assistant_async(
+        cls,
+        *,
+        user_id: str,
+        company_id: str,
+        assistant_id: str,
+    ) -> "Briefing.DeletedObject":
+        """Async variant of :meth:`delete_for_assistant`."""
+        url = cls._assistant_url(assistant_id)
+        return cast(
+            "Briefing.DeletedObject",
+            await cls._static_request_async("delete", url, user_id, company_id),
         )

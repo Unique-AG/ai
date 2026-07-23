@@ -60,7 +60,8 @@ extend-select = ["I"]
 
 [tool.basedpyright]
 typeCheckingMode = "recommended"
-include = ["unique_sdk"]
+include = ["unique_sdk", "examples"]
+extraPaths = ["examples/basics"]
 exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
 allowedUntypedLibraries = ["openai.types.responses", "openai.types.shared_params"]
 # Suppress rules that require full annotation coverage of legacy internals —
