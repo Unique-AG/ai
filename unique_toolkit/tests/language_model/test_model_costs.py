@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 
 from unique_toolkit.language_model import model_costs as model_costs_module
 from unique_toolkit.language_model.model_costs import (
@@ -49,10 +48,12 @@ models:
 
 
 @pytest.mark.ai
-def test_load_model_cost_catalog__rejects_unsupported_version(tmp_path: Path) -> None:
-    """Purpose: Verify unsupported cost schemas fail explicitly.
-    Why this matters: Silently interpreting a new schema could report incorrect spend.
-    Setup summary: Write a version-two catalog and assert loading raises ValueError.
+def test_load_model_cost_catalog__returns_none_for_unsupported_version(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify unsupported cost schemas are treated as unavailable.
+    Why this matters: Cost capture must not abort LLM flows over a schema bump.
+    Setup summary: Write a version-two catalog and assert loading returns None.
     """
     path = _write_catalog(
         tmp_path / "costs.yaml",
@@ -65,15 +66,16 @@ models:
 """,
     )
 
-    with pytest.raises(ValueError, match="Unsupported model cost schema version: 2"):
-        load_model_cost_catalog(path)
+    assert load_model_cost_catalog(path) is None
 
 
 @pytest.mark.ai
-def test_load_model_cost_catalog__rejects_malformed_model(tmp_path: Path) -> None:
-    """Purpose: Verify incomplete price rows are rejected.
-    Why this matters: A missing completion rate must not produce a partial estimate.
-    Setup summary: Omit completion pricing and assert Pydantic validation fails.
+def test_load_model_cost_catalog__returns_none_for_malformed_model(
+    tmp_path: Path,
+) -> None:
+    """Purpose: Verify incomplete price rows are treated as unavailable.
+    Why this matters: A missing completion rate must not abort cost capture.
+    Setup summary: Omit completion pricing and assert loading returns None.
     """
     path = _write_catalog(
         tmp_path / "costs.yaml",
@@ -85,8 +87,35 @@ models:
 """,
     )
 
-    with pytest.raises(ValidationError):
-        load_model_cost_catalog(path)
+    assert load_model_cost_catalog(path) is None
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__returns_none_for_missing_file(tmp_path: Path) -> None:
+    """Purpose: Verify a missing price sheet is treated as unavailable.
+    Why this matters: Remount gaps must not abort UniqueAI after a successful LLM call.
+    Setup summary: Point at a non-existent path and assert loading returns None.
+    """
+    assert load_model_cost_catalog(tmp_path / "missing-costs.yaml") is None
+
+
+@pytest.mark.ai
+def test_calculate_invocation_cost_usd__returns_none_when_catalog_load_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Purpose: Verify cost calculation soft-fails when the catalog cannot load.
+    Why this matters: from_usage runs after successful LLM calls and must never raise.
+    Setup summary: Point MODEL_COSTS_FILE at invalid YAML and assert cost is None.
+    """
+    path = _write_catalog(tmp_path / "costs.yaml", "not: valid: yaml: [")
+    monkeypatch.setenv(MODEL_COSTS_FILE_ENV, str(path))
+
+    cost = calculate_invocation_cost_usd(
+        "test-model",
+        LanguageModelTokenUsage(prompt_tokens=100, completion_tokens=20),
+    )
+
+    assert cost is None
 
 
 @pytest.mark.ai

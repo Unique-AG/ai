@@ -1,5 +1,6 @@
 """Load model prices and calculate the USD cost of LLM invocations."""
 
+import logging
 import os
 import time
 from pathlib import Path
@@ -9,6 +10,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 
+logger = logging.getLogger(f"toolkit.language_model.{__name__}")
+
 MODEL_COSTS_FILE_ENV = "MODEL_COSTS_FILE"
 _LITELLM_PREFIX = "litellm:"
 _TOKENS_PER_MILLION = 1_000_000
@@ -16,7 +19,7 @@ _TOKENS_PER_MILLION = 1_000_000
 # Safety-only bound on how long a process may keep a loaded catalog. Not the
 # primary refresh mechanism — just ensures a long-lived worker eventually
 # re-reads a remounted price sheet.
-_CACHE_MAX_AGE_SECONDS = 60 * 60
+_CACHE_MAX_AGE_SECONDS = 5 * 60
 
 
 class ModelCost(BaseModel):
@@ -65,12 +68,25 @@ def _load_model_cost_catalog(path: Path) -> ModelCostCatalog:
 
 
 def load_model_cost_catalog(path: str | Path | None = None) -> ModelCostCatalog | None:
-    """Load and cache the configured catalog, or return None when not configured."""
+    """Load and cache the configured catalog, or return None when unavailable.
+
+    Returns None when the catalog path is unset, or when the file cannot be
+    read/parsed. Cost capture must never abort a successful LLM call over a
+    missing or invalid price sheet.
+    """
 
     configured_path = path or os.getenv(MODEL_COSTS_FILE_ENV)
     if configured_path is None or not str(configured_path).strip():
         return None
-    return _load_model_cost_catalog(Path(configured_path))
+    try:
+        return _load_model_cost_catalog(Path(configured_path))
+    except Exception as exc:
+        logger.warning(
+            "Failed to load model cost catalog from %s: %s",
+            configured_path,
+            exc,
+        )
+        return None
 
 
 def calculate_invocation_cost_usd(
