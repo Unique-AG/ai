@@ -109,6 +109,15 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
                 )
                 assert oauth_call_args.kwargs["upstream_client_id"] == "test_client"
                 assert oauth_call_args.kwargs["upstream_client_secret"] == "test_secret"
+                assert oauth_call_args.kwargs["forward_resource"] is False
+                assert (
+                    "openid"
+                    in oauth_call_args.kwargs["extra_authorize_params"]["scope"]
+                )
+                assert (
+                    "mcp:tools"
+                    not in oauth_call_args.kwargs["extra_authorize_params"]["scope"]
+                )
 
 
 @pytest.mark.ai

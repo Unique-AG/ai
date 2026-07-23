@@ -27,9 +27,13 @@ UPDATE_ROW_DESCRIPTION = (
     "object of columns to change. Primary key columns cannot be updated."
 )
 
-DELETE_ROW_DESCRIPTION = "Delete a row identified by its primary key. Returns the deleted row."
+DELETE_ROW_DESCRIPTION = (
+    "Delete a row identified by its primary key. Asks the user to confirm via "
+    "MCP elicitation before deleting. Returns the deleted row, or a cancelled error."
+)
 
 RESET_FROM_EXCEL_DESCRIPTION = (
     "DESTRUCTIVE: delete the SQLite database and recreate all tables from the "
-    "Excel workbook. Use between demos to restore the seed data."
+    "Excel workbook. Asks the user to confirm via MCP elicitation first. "
+    "Use between demos to restore the seed data."
 )

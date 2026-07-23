@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from fastapi.responses import JSONResponse
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -89,6 +89,19 @@ def _dump(model: BaseModel) -> str:
 
 def _tool_error(exc: Exception) -> str:
     return _dump(ToolError(error=type(exc).__name__, message=str(exc)))
+
+
+async def _elicit_destructive_confirm(
+    ctx: Context,
+    *,
+    message: str,
+) -> bool:
+    """Ask the client to confirm a destructive action via MCP elicitation.
+
+    Returns True only when the user accepts and answers true/yes.
+    """
+    result = await ctx.elicit(message, response_type=bool)
+    return result.action == "accept" and bool(result.data)
 
 
 @mcp.tool(
@@ -219,9 +232,23 @@ async def update_row(
 async def delete_row(
     table: Annotated[str, Field(description="Table name from list_schema.")],
     row_id: Annotated[int | str, Field(description="Primary key value (id or row_id).")],
+    ctx: Context,
 ) -> str:
     try:
         repo.ensure_ready()
+        existing = repo.get_row(table, row_id)
+        preview = _dump(existing)
+        confirmed = await _elicit_destructive_confirm(
+            ctx,
+            message=(f"Delete row {row_id!r} from table `{table}`? This cannot be undone.\n\n{preview}"),
+        )
+        if not confirmed:
+            return _dump(
+                ToolError(
+                    error="DeleteCancelled",
+                    message=f"Deletion of {table!r} row {row_id!r} was cancelled.",
+                )
+            )
         return _dump(repo.delete_row(table, row_id))
     except Exception as exc:  # noqa: BLE001
         return _tool_error(exc)
@@ -236,8 +263,22 @@ async def delete_row(
         "unique.app/system-prompt": prompts.RESET_FROM_EXCEL_DESCRIPTION,
     },
 )
-async def reset_from_excel() -> str:
+async def reset_from_excel(ctx: Context) -> str:
     try:
+        confirmed = await _elicit_destructive_confirm(
+            ctx,
+            message=(
+                "Reset the SQLite database from the Excel workbook? "
+                "All current rows will be deleted and replaced with seed data."
+            ),
+        )
+        if not confirmed:
+            return _dump(
+                ToolError(
+                    error="ResetCancelled",
+                    message="Database reset was cancelled.",
+                )
+            )
         return _dump(repo.reset_from_excel())
     except Exception as exc:  # noqa: BLE001
         return _tool_error(exc)

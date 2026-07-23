@@ -65,8 +65,8 @@ KPI/legend tabs next to real data tables.
 | `get_row` | Fetch by PK |
 | `create_row` | Insert; `fields` is an object |
 | `update_row` | Patch by PK |
-| `delete_row` | Delete by PK |
-| `reset_from_excel` | Rebuild DB from the workbook (destructive) |
+| `delete_row` | Delete by PK (MCP elicitation confirm first) |
+| `reset_from_excel` | Rebuild DB from the workbook (elicitation confirm; destructive) |
 
 `filters` / `fields` accept a JSON **object** (preferred for Unique iframe `data-unique-source-args` / `callTool`) or a JSON object string.
 
