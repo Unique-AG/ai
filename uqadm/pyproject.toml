@@ -1,11 +1,11 @@
 [project]
 name = "uqadm"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 description = "Unique admin CLI (space list, export, upsert, migrate, delete): separate from unique-cli"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "unique-sdk>=2026.30.0",
+    "unique-sdk>=2026.32.0.dev6,<2026.32.0rc0",
     "typer>=0.12,<1",
     "python-dotenv>=1.0.0,<2",
     "pyyaml>=6.0.1,<7",
