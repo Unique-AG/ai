@@ -32,6 +32,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
+import chart_pack
 import note_pack
 import seed
 
@@ -306,6 +307,26 @@ def get_scenarios(ticker: _TICKER) -> str:
         return json.dumps({"ticker": t, "note": "no scenario analysis seeded for this name",
                            "available": sorted(seed.SCENARIOS)})
     return json.dumps({"ticker": t, **sc})
+
+
+@mcp.tool(name="get_financials", title="Multi-year financials & chart series",
+          description="Multi-year key financials (FY2023-28e) + dashboard chart series "
+                      "for a covered name: sales, organic growth, recurring EBIT margin, "
+                      "EPS, DPS, FCF — as a display-ready {header, rows} table plus chart "
+                      "series whose points carry value_label AND precomputed bar geometry "
+                      "(pct height, shared positive/negative scale, actual-vs-estimate "
+                      "kind) so script-free canvases can render Exane-style bar charts "
+                      "from attributes alone. Seeded for ALL 6 covered names. LVMH also "
+                      "carries Wines & Spirits and Selective Retailing series. SYNTHETIC "
+                      "demo data.")
+def get_financials(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    fin = chart_pack.get_financials(t)
+    if not fin:
+        return json.dumps({"ticker": t, "note": "no financials seeded for this name"})
+    return json.dumps(fin)
 
 
 @mcp.tool(name="get_note_pack", title="Note pack (house-format note data)",
