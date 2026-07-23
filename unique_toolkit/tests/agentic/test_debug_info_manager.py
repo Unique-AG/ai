@@ -471,7 +471,7 @@ class TestAddAnalytics:
     }
 
     @pytest.mark.ai
-    def test_add_analytics__aggregates_tokens_by_model(
+    def test_add_analytics__aggregates_consumption_by_llm(
         self, debug_info_manager: DebugInfoManager
     ) -> None:
         debug_info_manager.add_analytics(
@@ -513,7 +513,8 @@ class TestAddAnalytics:
             ],
         )
 
-        assert debug_info_manager.get()["analytics"]["tokens"] == [
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"] == [
             {
                 "model_name": "model-a",
                 "completion_tokens": 1,
@@ -535,6 +536,15 @@ class TestAddAnalytics:
                 "cost_usd": None,
             },
         ]
+        assert analytics["consumption"] == {
+            "completion_tokens": 6,
+            "prompt_tokens": 34,
+            "total_tokens": 40,
+            "reasoning_tokens": 1,
+            "cached_tokens": 8,
+            "cache_write_tokens": None,
+            "cost_usd": None,
+        }
 
     @pytest.mark.ai
     def test_add_analytics__aggregates_complete_model_costs(
@@ -570,9 +580,9 @@ class TestAddAnalytics:
             invocations=invocations,
         )
 
-        assert debug_info_manager.get()["analytics"]["tokens"][0]["cost_usd"] == (
-            pytest.approx(0.03)
-        )
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"][0]["cost_usd"] == pytest.approx(0.03)
+        assert analytics["consumption"]["cost_usd"] == pytest.approx(0.03)
 
     @pytest.mark.ai
     def test_add_analytics__keeps_partial_model_cost_unknown(
@@ -607,10 +617,12 @@ class TestAddAnalytics:
             invocations=invocations,
         )
 
-        assert debug_info_manager.get()["analytics"]["tokens"][0]["cost_usd"] is None
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"][0]["cost_usd"] is None
+        assert analytics["consumption"]["cost_usd"] is None
 
     @pytest.mark.ai
-    def test_add_analytics__tokens_is_empty_without_invocations(
+    def test_add_analytics__consumption_empty_without_invocations(
         self, debug_info_manager: DebugInfoManager
     ) -> None:
         debug_info_manager.add_analytics(
@@ -619,7 +631,9 @@ class TestAddAnalytics:
             tool_display_names=self.tool_display_names,
         )
 
-        assert debug_info_manager.get()["analytics"]["tokens"] == []
+        analytics = debug_info_manager.get()["analytics"]
+        assert analytics["consumption_by_llm"] == []
+        assert analytics["consumption"] is None
 
     @pytest.mark.ai
     def test_add_analytics__copies_tools_and_skills__into_new_key(

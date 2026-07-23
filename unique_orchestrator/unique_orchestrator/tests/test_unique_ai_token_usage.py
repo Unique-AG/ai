@@ -731,7 +731,8 @@ models:
         assert [
             invocation["source"] for invocation in debug_info["llm_invocations"]
         ] == ["deep_research.clarification", "main_loop[1]"]
-        assert debug_info["analytics"]["tokens"][0]["total_tokens"] == 35
+        assert debug_info["analytics"]["consumption_by_llm"][0]["total_tokens"] == 35
+        assert debug_info["analytics"]["consumption"]["total_tokens"] == 35
         assert debug_info["llm_invocations_complete"] is True
 
     @pytest.mark.ai
