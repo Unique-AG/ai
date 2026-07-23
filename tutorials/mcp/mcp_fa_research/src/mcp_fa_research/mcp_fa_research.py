@@ -34,6 +34,7 @@ from starlette.requests import Request
 
 import chart_pack
 import note_pack
+import scenario_engine
 import seed
 
 load_dotenv()
@@ -307,6 +308,35 @@ def get_scenarios(ticker: _TICKER) -> str:
         return json.dumps({"ticker": t, "note": "no scenario analysis seeded for this name",
                            "available": sorted(seed.SCENARIOS)})
     return json.dumps({"ticker": t, **sc})
+
+
+@mcp.tool(name="compute_scenario", title="Scenario engine (what-if, computed)",
+          description="COMPUTE a what-if scenario for a covered name — the analyst's "
+                      "hypotheses with machine arithmetic: give an FX move (e.g. "
+                      "fx_eur_move_pct=5 for a 5% EUR/CHF appreciation vs the revenue "
+                      "basket), a China recovery timing (none | q2_26 | q4_26 | fy27) "
+                      "and/or a cognac destocking end (h1_26 base | h2_26 | fy27, LVMH "
+                      "only), and the engine cascades it through per-name exposures "
+                      "(currency mix, EPS beta, hedge roll-off, China gearing) to revenue "
+                      "/ EBIT / EPS deltas per year, new EPS levels, a target-price "
+                      "bridge and a rating read — with the full assumption_trail so every "
+                      "number is explainable. Axes combine. Calibrated to reproduce the "
+                      "seeded get_scenarios hypothesis cases. Use for buy-side questions "
+                      "('what if the euro moves 5%?'), roadshow prep and scenario packs. "
+                      "SYNTHETIC demo engine.")
+def compute_scenario(
+    ticker: _TICKER,
+    fx_eur_move_pct: Annotated[float, Field(
+        description="Reporting-currency appreciation vs the revenue basket, in % "
+                    "(+5 = EUR/CHF 5% stronger; negative = weaker). Range ±15.",
+        ge=-15, le=15)] = 0.0,
+    china_recovery: Annotated[str, Field(
+        description="China demand recovery timing: none | q2_26 | q4_26 | fy27")] = "none",
+    destocking_end: Annotated[str, Field(
+        description="Cognac destocking end (LVMH only): h1_26 (base) | h2_26 | fy27")] = "h1_26",
+) -> str:
+    return json.dumps(scenario_engine.compute(ticker, fx_eur_move_pct,
+                                              china_recovery, destocking_end))
 
 
 @mcp.tool(name="get_financials", title="Multi-year financials & chart series",
