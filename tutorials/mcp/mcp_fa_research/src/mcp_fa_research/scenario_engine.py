@@ -222,6 +222,85 @@ def combined_matrix(ticker: str) -> dict:
             "rows": rows}
 
 
+# ---------------------------------------------------------------------------
+# Scenario board — display-ready presets + grids for the Scenario Lab canvas
+# (script-free: rows are DICTS with formatted fields, payloads server-prepared)
+# ---------------------------------------------------------------------------
+PRESETS: list[dict] = [
+    {"key": "base", "title": "Base case — trough and stabilise",
+     "args": {}, "tag": "BASE · 55%"},
+    {"key": "fx_up5", "title": "Currency shock — EUR +5%",
+     "args": {"fx_eur_move_pct": 5.0}, "tag": "FX"},
+    {"key": "fx_dn5", "title": "Currency tailwind — EUR −5%",
+     "args": {"fx_eur_move_pct": -5.0}, "tag": "FX"},
+    {"key": "china_q2", "title": "China recovery from Q2-26",
+     "args": {"china_recovery": "q2_26"}, "tag": "DEMAND"},
+    {"key": "china_q4", "title": "China recovery from Q4-26",
+     "args": {"china_recovery": "q4_26"}, "tag": "DEMAND"},
+    {"key": "destock_h2", "title": "Destocking slips to H2-26",
+     "args": {"destocking_end": "h2_26"}, "tag": "COGNAC"},
+    {"key": "destock_fy27", "title": "Destocking extends into FY27",
+     "args": {"destocking_end": "fy27"}, "tag": "COGNAC"},
+    {"key": "bull", "title": "Bull — EUR −2.5% + China Q2-26",
+     "args": {"fx_eur_move_pct": -2.5, "china_recovery": "q2_26"}, "tag": "COMBINED"},
+    {"key": "bear", "title": "Bear — EUR +5% + destocking FY27",
+     "args": {"fx_eur_move_pct": 5.0, "destocking_end": "fy27"}, "tag": "COMBINED"},
+]
+
+
+def board(ticker: str) -> dict:
+    tk = seed.resolve(ticker)
+    if not tk:
+        return {"error": f"unknown name {ticker!r}"}
+    row = next(c for c in seed.COVERAGE if c["ticker"] == tk)
+    presets = []
+    for p in PRESETS:
+        if "destocking_end" in p["args"] and tk != "MC FP":
+            continue
+        r = compute(tk, **p["args"])
+        eps = r["table"]["rows"][2]  # ["EPS", 26e, 27e, 28e]
+        tp_move = abs(float(r["tp"]["delta_label"].replace("%", "").replace("—", "0") or 0))
+        d = ("flat" if r["tp"]["delta_label"] == "—"
+             else ("up" if r["tp"]["delta_label"].startswith("+") else "dn"))
+        presets.append({
+            "key": p["key"], "title": p["title"], "tag": p["tag"],
+            "scenario_label": r["scenario_label"],
+            "eps26_label": eps[1], "eps27_label": eps[2], "eps28_label": eps[3],
+            "tp_arrow": f"{r['tp']['old_label']} → {r['tp']['new_label']}",
+            "tp_delta_label": r["tp"]["delta_label"],
+            "upside_label": r["tp"]["upside_label"],
+            "rating_note": r["rating_note"], "dir": d,
+            "big_move": tp_move >= 8.0,
+            "explain_payload": __import__("json").dumps({
+                "prompt": f"Run compute_scenario on {row['name']} ({tk}) with "
+                          f"{p['args'] or 'the base case (no shock)'} and walk me through "
+                          "the full cascade — revenue, EBIT and EPS by year, the "
+                          "target-price bridge and every assumption used."}),
+        })
+    fx = fx_grid(tk)
+    cn = china_grid(tk)
+    mx = combined_matrix(tk)
+    fx_rows = [{"move": r[0], "eps26": r[1], "eps27": r[2], "tp": r[3], "tpd": r[4],
+                "dir": "dn" if r[4].startswith("-") else "up"} for r in fx["rows"]]
+    cn_rows = [{"scenario": r[0], "eps26": r[1], "eps27": r[2], "tp": r[3], "tpd": r[4],
+                "dir": "flat" if r[4] == "—" else ("dn" if r[4].startswith("-") else "up")}
+               for r in cn["rows"]]
+    mx_rows = [{"scenario": r[0], "m1": r[1], "m2": r[2], "m3": r[3], "m4": r[4], "m5": r[5]}
+               for r in mx["rows"]]
+    exp = EXPOSURES[tk]
+    return {
+        "ticker": tk, "name": row["name"], "as_of": seed.AS_OF,
+        "base_tp_label": f"{ {'EUR': '€', 'CHF': 'CHF '}.get(row['ccy'], '') }{_base_tp(tk):,.0f}",
+        "presets": presets,
+        "fx_title": fx["title"], "fx_rows": fx_rows,
+        "china_rows": cn_rows,
+        "matrix_header": mx["header"], "matrix_rows": mx_rows,
+        "trail": compute(tk, fx_eur_move_pct=5.0)["assumption_trail"],
+        "exposure_note": exp["mix_note"],
+        "note": "SYNTHETIC demo — every figure computed by the scenario engine at call time.",
+    }
+
+
 if __name__ == "__main__":  # calibration self-check against the seeded hypotheses
     r = compute("MC FP", fx_eur_move_pct=5.0)
     assert r["table"]["rows"][2][1] == "-3.5%" and r["tp"]["new_label"] == "€595", r["summary"]

@@ -339,6 +339,20 @@ def compute_scenario(
                                               china_recovery, destocking_end))
 
 
+@mcp.tool(name="get_scenario_board", title="Scenario board (Lab presets, computed)",
+          description="The Scenario Lab feed: ~9 PREDEFINED scenario presets (FX ±5%, "
+                      "China recovery timings, cognac destocking cases, combined bull/"
+                      "bear) each COMPUTED at call time by the scenario engine and "
+                      "returned display-ready ({title, tag, eps26/27/28 labels, tp_arrow, "
+                      "tp_delta_label, rating_note, dir, explain_payload}), plus the "
+                      "anticipation grids as bindable rows (fx_rows, china_rows, "
+                      "matrix_rows) and the assumption trail. Built for the script-free "
+                      "Scenario Lab canvas; also useful to summarise the whole scenario "
+                      "space in one call. SYNTHETIC demo data.")
+def get_scenario_board(ticker: _TICKER) -> str:
+    return json.dumps(scenario_engine.board(ticker))
+
+
 @mcp.tool(name="get_financials", title="Multi-year financials & chart series",
           description="Multi-year key financials (FY2023-28e) + dashboard chart series "
                       "for a covered name: sales, organic growth, recurring EBIT margin, "
