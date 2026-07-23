@@ -384,7 +384,7 @@ class LoopTokenReducer:
                 full_history.root, remove_from_text
             )
 
-        limited_history_messages = self._limit_to_token_window(
+        limited_history_messages = self._fit_history_within_budget(
             full_history.root, self._max_history_tokens
         )
 
@@ -453,6 +453,36 @@ class LoopTokenReducer:
             token_count += turn_tokens
 
         return [msg for turn in selected_turns[::-1] for msg in turn]
+
+    def _fit_history_within_budget(
+        self,
+        messages: list[LanguageModelMessage],
+        token_limit: int,
+    ) -> list[LanguageModelMessage]:
+        """Fit the reconstructed DB history within *token_limit*.
+
+        Shrinks oversized tool-response content first (source dropping /
+        plain-text truncation) so every turn survives at reduced fidelity, and
+        only falls back to dropping whole turns via
+        :meth:`_limit_to_token_window` when that is not enough (UN-23154).
+        """
+        reduced: list[LanguageModelMessage] = list(messages)
+        token_count = self._count_message_tokens(LanguageModelMessages(root=reduced))
+
+        while token_count > token_limit and self._can_reduce_history(reduced):
+            overshoot_factor = token_count / token_limit if token_limit > 0 else 1.0
+            reduced = self._reduce_message_length_by_reducing_tool_responses_content(
+                reduced, overshoot_factor
+            )
+            new_count = self._count_message_tokens(LanguageModelMessages(root=reduced))
+            if new_count >= token_count:
+                break
+            token_count = new_count
+
+        if token_count <= token_limit:
+            return reduced
+
+        return self._limit_to_token_window(reduced, token_limit)
 
     async def _clean_messages(
         self,

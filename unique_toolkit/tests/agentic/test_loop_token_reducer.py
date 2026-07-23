@@ -1546,6 +1546,101 @@ async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enab
     assert reducer.max_db_source_number == 5
 
 
+# UN-23154 regression
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls_async"
+)
+async def test_get_history_from_db__preserves_oldest_turn__when_recent_tool_outputs_are_huge_AI(
+    mock_get_history: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """UN-23154: a tiny oldest turn must survive when recent turns carry huge
+    persisted tool outputs.
+
+    With tool-call persistence the DB history includes every prior turn's full
+    tool output. The only lever applied to that history today is dropping whole
+    turns (``_limit_to_token_window``), and the content-reduction levers
+    (source dropping / plain-text truncation) are applied only to the current
+    loop history. So a couple of huge recent tool turns exhaust the history
+    budget and the oldest — often tiny and semantically important — turn is
+    evicted wholesale instead of shrinking the large recent tool outputs. This
+    is the wholesale-clearing symptom in the ticket. The fix must shrink older
+    tool-response content before dropping whole turns so turn 1 survives.
+    """
+    # Arrange – turn 1 is tiny (the recall anchor); turns 2-4 carry huge
+    # chunk-less plain-text tool outputs.
+    tiny_turn: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="What EUR/USD rate did you report first?"),
+        LanguageModelAssistantMessage(content="EUR/USD was 1.1427."),
+    ]
+
+    def big_tool_turn(question: str, tool_call_id: str) -> list[LanguageModelMessage]:
+        return [
+            LanguageModelUserMessage(content=question),
+            LanguageModelAssistantMessage(
+                content=None,
+                tool_calls=[
+                    LanguageModelFunctionCall(
+                        id=tool_call_id,
+                        function=LanguageModelFunction(
+                            name="InternalSearch", arguments={}
+                        ),
+                    )
+                ],
+            ),
+            LanguageModelToolMessage(
+                tool_call_id=tool_call_id,
+                name="InternalSearch",
+                content="HUGE RESULT " * 4000,  # ~48k chars, chunk-less plain text
+            ),
+            LanguageModelAssistantMessage(content="Here is the answer."),
+        ]
+
+    turn2 = big_tool_turn("internal search 2", "tc2")
+    turn3 = big_tool_turn("internal search 3", "tc3")
+    turn4 = big_tool_turn("internal search 4", "tc4")
+    full = tiny_turn + turn2 + turn3 + turn4
+
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=1,  # overridden below once we can measure turns
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=True,
+    )
+
+    def turn_tokens(turn: list[LanguageModelMessage]) -> int:
+        return reducer._count_message_tokens(LanguageModelMessages(root=turn))
+
+    # Budget holds the two newest huge turns plus the tiny oldest turn, but not a
+    # third huge turn at full size. Greedy whole-turn dropping therefore keeps
+    # only turns 3 & 4 and evicts turns 1 & 2 — losing the anchor. If older tool
+    # outputs are shrunk instead, all four turns fit and turn 1 survives.
+    reducer._max_history_tokens = (
+        turn_tokens(tiny_turn) + turn_tokens(turn3) + turn_tokens(turn4) + 20
+    )
+
+    async def fake_history(**_kwargs: object):
+        return (LanguageModelMessages(root=list(full)), 0, {})
+
+    mock_get_history.side_effect = fake_history
+
+    # Act
+    result = await reducer.get_history_from_db()
+
+    # Assert – the oldest turn's user message must still be present.
+    result_text = " ".join(m.content for m in result if isinstance(m.content, str))
+    assert "What EUR/USD rate did you report first?" in result_text, (
+        "UN-23154: oldest turn was evicted wholesale instead of shrinking the "
+        "large recent tool outputs to make room."
+    )
+
+
 # ---------------------------------------------------------------------------
 # get_selected_uploaded_content_ids (shared utility)
 # ---------------------------------------------------------------------------
