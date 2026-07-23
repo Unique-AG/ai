@@ -9,6 +9,7 @@ import random
 import re
 import sys
 import time
+from collections.abc import Mapping
 from functools import wraps
 from typing import (
     Any,
@@ -58,7 +59,7 @@ def _payload_byte_size(value: Any) -> int:
     return len(str(value).encode("utf-8"))
 
 
-def _headers_for_log(headers: Any) -> Any:
+def _headers_for_log(headers: Mapping[str, str] | None) -> dict[str, str] | str | None:
     """Return headers for debug logs; Authorization is always redacted."""
     if not _insecure_log_payloads_enabled():
         return _REDACTED
@@ -97,7 +98,7 @@ def log_info(message, **params):
 def log_request_details(
     *,
     data: Any,
-    headers: Any,
+    headers: Mapping[str, str] | None,
     api_version: str | None,
     message: str = "Request details",
 ) -> None:
