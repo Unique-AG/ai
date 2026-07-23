@@ -290,6 +290,8 @@ def board(ticker: str) -> dict:
     exp = EXPOSURES[tk]
     return {
         "ticker": tk, "name": row["name"], "as_of": seed.AS_OF,
+        "status_rows": [{"label": f"engine live — {len(presets)} presets recomputed "
+                                  f"server-side on load"}],
         "base_tp_label": f"{ {'EUR': '€', 'CHF': 'CHF '}.get(row['ccy'], '') }{_base_tp(tk):,.0f}",
         "presets": presets,
         "fx_title": fx["title"], "fx_rows": fx_rows,
