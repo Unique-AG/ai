@@ -67,6 +67,25 @@ def _next_source_number(entries: list[dict[str, Any]]) -> int:
     return max(source_numbers, default=0) + 1
 
 
+def _fetch_error_message(content: Any, url: str) -> str | None:
+    """Extract the failure message when ``content`` is a crawl-error payload.
+
+    The web-search backend reports per-URL fetch failures in-band: proxy
+    crawlers return ``"URL: <url>\\n\\nError: <message>"``, Tavily/Jina a
+    bare ``"Error: <message>"``. Returns the message for error payloads and
+    ``None`` for real page content.
+    """
+    if not isinstance(content, str):
+        return None
+    stripped = content.strip()
+    url_prefix = f"URL: {url}"
+    if stripped.startswith(url_prefix):
+        stripped = stripped[len(url_prefix) :].lstrip()
+    if stripped.startswith("Error:"):
+        return stripped[len("Error:") :].strip() or "unknown crawl error"
+    return None
+
+
 def _annotate_web_results_for_citations(
     payload: dict[str, Any],
     *,
@@ -78,6 +97,14 @@ def _annotate_web_results_for_citations(
     ``sourceNumber`` across consecutive ``search`` / ``crawl`` calls in
     the same turn, so the crawled-content row carries the same citation
     marker the search-snippet row already advertised.
+
+    Crawl-error payloads (``_fetch_error_message``) are kept out of the
+    manifest's ``content`` field and recorded under ``error`` instead: the
+    platform grounds the hallucination judge on manifest ``content``, so an
+    in-band fetch error stored as content turns a correctly cited,
+    snippet-verifiable source into a false "high hallucination" verdict
+    (UN-23356). The on-screen result still shows the error text so the
+    agent can react to the failed fetch.
     """
     refs_log_path = refs_log_path or (Path.cwd() / _WEB_REFS_LOG_RELATIVE_PATH)
     with _locked_turn_refs_manifest(
@@ -109,13 +136,19 @@ def _annotate_web_results_for_citations(
 
             result["sourceNumber"] = source_number
             result["citation"] = f"websource{source_number}"
+            content = result.get("content")
+            error = result.get("error")
+            fetch_error = _fetch_error_message(content, url)
+            if fetch_error is not None:
+                content = None
+                error = error or fetch_error
             manifest_entry = {
                 "sourceNumber": source_number,
                 "url": url,
                 "title": result.get("title"),
                 "snippet": result.get("snippet"),
-                "content": result.get("content"),
-                "error": result.get("error"),
+                "content": content,
+                "error": error,
             }
             _append_turn_refs_manifest_entry(refs_log_path, manifest_entry)
             annotated_results.append(result)
