@@ -527,29 +527,6 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 "Timeout while waiting for response from sub agent. The user should consider increasing the max wait time.",
             ) from e
 
-def _parse_sub_agent_invocation_stats(
-    raw_invocations: list[dict[str, Any]],
-) -> list[LanguageModelInvocationStats]:
-    """Deserialize sub-agent invocation stats, ignoring malformed entries.
-
-    A single unparseable entry (e.g. a stale model name) must not fail the
-    whole tool call and drop an otherwise-successful sub-agent reply -- see
-    `_load_invocation_stats_from_debug_info` in unique_orchestrator, which
-    applies the same per-entry tolerance for the same reason.
-    """
-    invocations: list[LanguageModelInvocationStats] = []
-    for raw_invocation in raw_invocations:
-        try:
-            invocations.append(
-                LanguageModelInvocationStats.model_validate(raw_invocation)
-            )
-        except Exception:
-            logger.warning(
-                "Ignoring malformed sub-agent LLM invocation stats",
-                exc_info=True,
-            )
-    return invocations
-
 
 def _parse_sub_agent_invocation_stats(
     raw_invocations: list[dict[str, Any]],

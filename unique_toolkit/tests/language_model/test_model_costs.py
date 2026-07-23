@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from unique_toolkit.language_model import model_costs as model_costs_module
 from unique_toolkit.language_model.model_costs import (
     MODEL_COSTS_FILE_ENV,
     calculate_invocation_cost_usd,
@@ -14,6 +15,13 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 def _write_catalog(path: Path, body: str) -> Path:
     path.write_text(body, encoding="utf-8")
     return path
+
+
+@pytest.fixture(autouse=True)
+def _clear_catalog_cache() -> None:
+    model_costs_module._catalog_cache.clear()
+    yield
+    model_costs_module._catalog_cache.clear()
 
 
 @pytest.mark.ai
@@ -105,6 +113,77 @@ models:
 
     assert catalog is not None
     assert "test-model" in catalog.models
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__reuses_cache_within_safety_ttl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Purpose: Verify catalog loads are cached until the safety TTL expires.
+    Why this matters: Hot paths must not re-read YAML on every invocation.
+    Setup summary: Load twice under a frozen clock and assert one parse.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+    monkeypatch.setattr(model_costs_module.time, "monotonic", lambda: 100.0)
+    parse_calls = {"count": 0}
+    original_parse = model_costs_module._parse_model_cost_catalog
+
+    def counting_parse(catalog_path: Path):
+        parse_calls["count"] += 1
+        return original_parse(catalog_path)
+
+    monkeypatch.setattr(model_costs_module, "_parse_model_cost_catalog", counting_parse)
+
+    first = load_model_cost_catalog(path)
+    second = load_model_cost_catalog(path)
+
+    assert first is second
+    assert parse_calls["count"] == 1
+
+
+@pytest.mark.ai
+def test_load_model_cost_catalog__reloads_after_safety_ttl(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Purpose: Verify the safety TTL forces a catalog re-read.
+    Why this matters: Long-lived workers must eventually pick up remounted prices.
+    Setup summary: Advance monotonic time past the max age and assert a reload.
+    """
+    path = _write_catalog(
+        tmp_path / "costs.yaml",
+        """
+costSchemaVersion: 1
+models:
+  test-model:
+    input: 2
+    completion: 8
+""",
+    )
+    clock = {"now": 0.0}
+    monkeypatch.setattr(model_costs_module.time, "monotonic", lambda: clock["now"])
+    parse_calls = {"count": 0}
+    original_parse = model_costs_module._parse_model_cost_catalog
+
+    def counting_parse(catalog_path: Path):
+        parse_calls["count"] += 1
+        return original_parse(catalog_path)
+
+    monkeypatch.setattr(model_costs_module, "_parse_model_cost_catalog", counting_parse)
+
+    load_model_cost_catalog(path)
+    clock["now"] = model_costs_module._CACHE_MAX_AGE_SECONDS
+    load_model_cost_catalog(path)
+
+    assert parse_calls["count"] == 2
 
 
 @pytest.mark.ai

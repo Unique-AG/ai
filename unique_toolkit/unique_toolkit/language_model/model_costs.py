@@ -1,7 +1,7 @@
 """Load model prices and calculate the USD cost of LLM invocations."""
 
 import os
-from functools import lru_cache
+import time
 from pathlib import Path
 
 import yaml
@@ -12,6 +12,11 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenUsage
 MODEL_COSTS_FILE_ENV = "MODEL_COSTS_FILE"
 _LITELLM_PREFIX = "litellm:"
 _TOKENS_PER_MILLION = 1_000_000
+
+# Safety-only bound on how long a process may keep a loaded catalog. Not the
+# primary refresh mechanism — just ensures a long-lived worker eventually
+# re-reads a remounted price sheet.
+_CACHE_MAX_AGE_SECONDS = 60 * 60
 
 
 class ModelCost(BaseModel):
@@ -33,14 +38,29 @@ class ModelCostCatalog(BaseModel):
     models: dict[str, ModelCost] = Field(min_length=1)
 
 
-@lru_cache(maxsize=None)
-def _load_model_cost_catalog(path: Path) -> ModelCostCatalog:
+_catalog_cache: dict[Path, tuple[ModelCostCatalog, float]] = {}
+
+
+def _parse_model_cost_catalog(path: Path) -> ModelCostCatalog:
     payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     catalog = ModelCostCatalog.model_validate(payload)
     if catalog.cost_schema_version != 1:
         raise ValueError(
             f"Unsupported model cost schema version: {catalog.cost_schema_version}"
         )
+    return catalog
+
+
+def _load_model_cost_catalog(path: Path) -> ModelCostCatalog:
+    now = time.monotonic()
+    cached = _catalog_cache.get(path)
+    if cached is not None:
+        catalog, loaded_at = cached
+        if now - loaded_at < _CACHE_MAX_AGE_SECONDS:
+            return catalog
+
+    catalog = _parse_model_cost_catalog(path)
+    _catalog_cache[path] = (catalog, now)
     return catalog
 
 
