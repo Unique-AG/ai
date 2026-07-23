@@ -32,6 +32,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
+import note_pack
 import seed
 
 load_dotenv()
@@ -305,6 +306,26 @@ def get_scenarios(ticker: _TICKER) -> str:
         return json.dumps({"ticker": t, "note": "no scenario analysis seeded for this name",
                            "available": sorted(seed.SCENARIOS)})
     return json.dumps({"ticker": t, **sc})
+
+
+@mcp.tool(name="get_note_pack", title="Note pack (house-format note data)",
+          description="The full numeric backbone for a house-format research NOTE "
+                      "(initiation / revision / flash) on a covered name, DISPLAY-READY: "
+                      "cover header (rating, price, target price, upside), snapshot tables "
+                      "(financials by year, valuation metrics, performance), key financials "
+                      "+ segment details, BNPPE-vs-consensus grid, changes-to-forecasts, "
+                      "DCF model + WACC sensitivity, SOTP, peer group, company profile "
+                      "(management, ownership, calendar), financial-highlights grid and "
+                      "six-charts data. Tables come as {header, rows} — copy them VERBATIM "
+                      "into the note spec for build_exane_note.py; never re-type numbers. "
+                      "Full pack seeded for MC FP; other names return a partial cover-only "
+                      "pack (enough for a flash). SYNTHETIC demo data.")
+def get_note_pack(ticker: _TICKER) -> str:
+    t = seed.resolve(ticker)
+    if not t:
+        return _unknown(ticker)
+    row = next((c for c in seed.COVERAGE if c["ticker"] == t), None)
+    return json.dumps({"ticker": t, **note_pack.get_pack(t, row)})
 
 
 def _yahoo_quote(symbol: str) -> dict | None:
