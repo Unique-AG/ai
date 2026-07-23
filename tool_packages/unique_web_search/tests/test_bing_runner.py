@@ -5,6 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai import NotFoundError
+from openai.types.responses.response import Response
+from openai.types.responses.response_completed_event import ResponseCompletedEvent
+from openai.types.responses.response_output_message import ResponseOutputMessage
+from openai.types.responses.response_output_text import ResponseOutputText
+from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 from pydantic import ValidationError
 
 from unique_web_search.services.search_engine.schema import (
@@ -529,6 +534,7 @@ class TestCreateBingAgent:
         agent_name = await create_bing_agent(
             mock_agent_client,
             agent_name=expected_name,
+            model="gpt-5.1",
             fetch_size=5,
             instructions="Be helpful.\n## Output Format",
         )
@@ -655,15 +661,43 @@ _RUNNER_MODULE = "unique_web_search.services.search_engine.utils.grounding.bing.
 
 
 async def _fake_response_stream() -> AsyncIterator:
-    event = MagicMock()
-    event.type = "response.output_text.delta"
-    event.delta = "response text"
-    yield event
-    done = MagicMock()
-    done.type = "response.completed"
-    done.response = MagicMock()
-    done.response.output_text = "response text"
-    yield done
+    yield ResponseTextDeltaEvent.model_construct(
+        type="response.output_text.delta",
+        delta="response text",
+        content_index=0,
+        item_id="item-1",
+        output_index=0,
+        sequence_number=1,
+        logprobs=[],
+    )
+    text = ResponseOutputText.model_construct(
+        type="output_text",
+        text="response text",
+        annotations=[],
+        logprobs=[],
+    )
+    message = ResponseOutputMessage.model_construct(
+        type="message",
+        id="msg-1",
+        role="assistant",
+        status="completed",
+        content=[text],
+    )
+    response = Response.model_construct(
+        id="resp-1",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=[message],
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
+    )
+    yield ResponseCompletedEvent.model_construct(
+        type="response.completed",
+        sequence_number=2,
+        response=response,
+    )
 
 
 def _mock_openai_client() -> MagicMock:

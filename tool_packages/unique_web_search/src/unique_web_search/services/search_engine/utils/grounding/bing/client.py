@@ -19,14 +19,11 @@ def _get_workload_identity_credentials(
 ) -> WorkloadIdentityCredential:
     if with_request_transport:
         transport = AsyncioRequestsTransport(connection_verify=certifi.where())
-        credentials = WorkloadIdentityCredential(transport=transport)
-    else:
-        credentials = WorkloadIdentityCredential()
-
-    return credentials
+        return WorkloadIdentityCredential(transport=transport)
+    return WorkloadIdentityCredential()
 
 
-def get_credentials():
+def get_credentials() -> AsyncTokenCredential:
     match env_settings.azure_identity_credential_type:
         case "workload":
             return _get_workload_identity_credentials(
@@ -34,10 +31,8 @@ def get_credentials():
             )
         case "default":
             return DefaultAzureCredential()
-        case _:
-            raise ValueError(
-                f"Invalid Azure identity credential type: {env_settings.azure_identity_credential_type}"
-            )
+        case other:
+            raise ValueError(f"Invalid Azure identity credential type: {other}")
 
 
 async def credentials_are_valid(credentials: AsyncTokenCredential) -> bool:

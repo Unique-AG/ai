@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
-from typing import Any
 
 import openai
 from azure.ai.projects.aio import AIProjectClient
@@ -13,8 +12,18 @@ from azure.ai.projects.models import (
     BingGroundingTool,
     PromptAgentDefinition,
 )
+from openai.types.responses import ResponseStreamEvent
+from openai.types.responses.response_completed_event import ResponseCompletedEvent
+from openai.types.responses.response_output_item_done_event import (
+    ResponseOutputItemDoneEvent,
+)
+from openai.types.responses.response_output_message import ResponseOutputMessage
+from openai.types.responses.response_output_text import (
+    AnnotationURLCitation,
+    ResponseOutputText,
+)
+from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 
-from unique_web_search.invocation_stats import record_token_usage
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -31,7 +40,7 @@ from unique_web_search.services.search_engine.utils.grounding.bing.models import
 from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
-_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
+BING_AUTO_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
 _CONFIG_HASH_LENGTH = 12
 
 
@@ -49,7 +58,7 @@ def _config_hash(*, model: str, fetch_size: int, instructions: str) -> str:
 def _agent_name_for_config(*, model: str, fetch_size: int, instructions: str) -> str:
     """Build a Foundry-safe agent name unique to this config."""
     return (
-        f"{_AGENT_NAME_PREFIX}-"
+        f"{BING_AUTO_AGENT_NAME_PREFIX}-"
         f"{_config_hash(model=model, fetch_size=fetch_size, instructions=instructions)}"
     )
 
@@ -78,6 +87,7 @@ async def create_bing_agent(
     agent_client: AIProjectClient,
     *,
     agent_name: str,
+    model: str,
     fetch_size: int,
     instructions: str,
 ) -> str:
@@ -86,7 +96,7 @@ async def create_bing_agent(
     agent = await agent_client.agents.create_version(
         agent_name=agent_name,
         definition=PromptAgentDefinition(
-            model=env_settings.azure_ai_bing_agent_model,
+            model=model,
             instructions=instructions,
             tools=[get_bing_grounding_tool(fetch_size)],
             tool_choice="required",
@@ -231,15 +241,15 @@ async def _run_responses_agent(
     Instructions must already be baked into the agent version — Foundry returns
     ``invalid_payload`` if ``instructions`` is passed alongside ``agent_reference``.
     """
+    # Treat empty string like unset so auto-provisioning still works.
+    # Env assistant id is also preconfigured (same as resolve_bing_agent_name).
+    preconfigured = agent_name or env_settings.azure_ai_assistant_id or None
     resolved_name = resolve_bing_agent_name(
         model=model,
         fetch_size=fetch_size,
         instructions=instructions,
-        agent_name=agent_name,
+        agent_name=preconfigured,
     )
-    # Only auto-create when the name was hash-derived (no explicit / env name).
-    # Empty strings are treated as unset (same as resolve_bing_agent_name).
-    preconfigured = agent_name or env_settings.azure_ai_assistant_id or None
     allow_create = preconfigured is None
     openai_client = get_openai_client(agent_client)
 
@@ -262,6 +272,7 @@ async def _run_responses_agent(
         await create_bing_agent(
             agent_client,
             agent_name=resolved_name,
+            model=model,
             fetch_size=fetch_size,
             instructions=instructions,
         )
@@ -273,19 +284,20 @@ async def _run_responses_agent(
 
     answer_parts: list[str] = []
     citation_replacements: list[tuple[str, str]] = []
+    emitted_text = False
 
     async for event in stream:
-        event_type = getattr(event, "type", None)
-        if event_type == "response.output_text.delta":
-            delta = getattr(event, "delta", "") or ""
-            if delta:
-                answer_parts.append(delta)
-        elif event_type == "response.output_item.done":
+        if isinstance(event, ResponseTextDeltaEvent):
+            if event.delta:
+                emitted_text = True
+                answer_parts.append(event.delta)
+        elif isinstance(event, ResponseOutputItemDoneEvent):
             citation_replacements.extend(_extract_markdown_citations(event))
-        elif event_type == "response.completed":
-            response = getattr(event, "response", None)
-            output_text = getattr(response, "output_text", None) if response else None
-            if output_text and not answer_parts:
+        elif isinstance(event, ResponseCompletedEvent):
+            output_text = event.response.output_text
+            # Foundry sometimes delivers the full answer only on completion.
+            if output_text and not emitted_text:
+                emitted_text = True
                 answer_parts.append(output_text)
 
     answer = "".join(answer_parts)
@@ -299,7 +311,7 @@ async def _create_responses_stream(
     *,
     agent_name: str,
     query: str,
-) -> Any:
+) -> openai.AsyncStream[ResponseStreamEvent]:
     started = time.perf_counter()
     stream = await openai_client.responses.create(
         stream=True,
@@ -320,25 +332,23 @@ async def _create_responses_stream(
     return stream
 
 
-def _extract_markdown_citations(event: object) -> list[tuple[str, str]]:
+def _extract_markdown_citations(
+    event: ResponseOutputItemDoneEvent,
+) -> list[tuple[str, str]]:
     """Extract (placeholder, markdown-link) pairs from a message output item."""
-    item = getattr(event, "item", None)
-    if item is None or getattr(item, "type", None) != "message":
+    item = event.item
+    if not isinstance(item, ResponseOutputMessage) or not item.content:
         return []
-    content = getattr(item, "content", None) or []
-    if not content:
-        return []
-    text_content = content[-1]
-    if getattr(text_content, "type", None) != "output_text":
+    text_content = item.content[-1]
+    if not isinstance(text_content, ResponseOutputText):
         return []
 
     replacements: list[tuple[str, str]] = []
-    for annotation in getattr(text_content, "annotations", None) or []:
-        if getattr(annotation, "type", None) != "url_citation":
+    for annotation in text_content.annotations:
+        if not isinstance(annotation, AnnotationURLCitation):
             continue
-        url = getattr(annotation, "url", None)
-        title = getattr(annotation, "title", None) or url
-        text_marker = getattr(annotation, "text", None)
-        if url and text_marker:
-            replacements.append((text_marker, f"[{title}]({url})"))
+        marker = text_content.text[annotation.start_index : annotation.end_index]
+        title = annotation.title or annotation.url
+        if annotation.url and marker:
+            replacements.append((marker, f"[{title}]({annotation.url})"))
     return replacements
