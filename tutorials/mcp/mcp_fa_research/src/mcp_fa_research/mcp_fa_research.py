@@ -33,6 +33,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 import chart_pack
+import env_state
 import note_pack
 import scenario_engine
 import seed
@@ -84,7 +85,29 @@ def build_auth():
     )
 
 
+class EnvPathMiddleware:
+    """Environment rides on the URL PATH (à la the RM Agent MCPs): ``/<env>/mcp`` and
+    ``/<env>/admin`` select that env's demo state; bare ``/mcp`` & ``/admin`` = the
+    default env. The middleware records the env for this request (ContextVar + request
+    scope) and rewrites the path so FastMCP still routes ``/mcp`` / ``/admin``."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            segments = [s for s in scope.get("path", "").split("/") if s]
+            env = segments[0] if (segments and env_state.is_env_segment(segments[0])) else ""
+            env_state.set_url_env(env)
+            if env:
+                new_path = "/" + "/".join(segments[1:])
+                scope = dict(scope, path=new_path or "/",
+                             raw_path=(new_path or "/").encode(), fa_env=env)
+        await self.app(scope, receive, send)
+
+
 custom_middleware = [
+    Middleware(EnvPathMiddleware),
     Middleware(
         CORSMiddleware,
         allow_credentials=True,
@@ -96,22 +119,13 @@ custom_middleware = [
 
 mcp = FastMCP("FA Research", auth=build_auth())
 
-# Mutable demo state (the overnight run the analyst reviews in the morning). Built fresh
-# from the immutable seed at startup; Reset_Demo_Data restores it. In-memory + per-process
-# (single demo container) — a restart also yields a clean baseline.
-STATE = seed.baseline()
-seed.register_state(STATE)
+# Mutable demo state is PER ENVIRONMENT (env_state.STATES), selected by the URL path
+# segment and materialized lazily from seed.baseline(). Reset_Demo_Data / the console
+# reset restore the active env; a restart clears every env. In-memory by design.
+seed.register_state_resolver(env_state.state)
 
-
-def _get_state() -> dict:
-    return STATE
-
-
-def _reset_state() -> dict:
-    global STATE
-    STATE = seed.baseline()
-    seed.register_state(STATE)
-    return STATE
+_get_state = env_state.state
+_reset_state = env_state.reset
 
 _TICKER = Annotated[str, Field(description="Ticker, Bloomberg code or company name "
                                            "(e.g. MC.PA, MC FP, LVMH).")]
@@ -191,7 +205,7 @@ def get_dossier(ticker: _TICKER) -> str:
                       "is sent. SYNTHETIC demo data.")
 def get_morning_brief() -> str:
     items = []
-    for it in STATE["brief"]:
+    for it in env_state.state()["brief"]:
         d = json.loads(json.dumps(it))
         d["severity_label"] = {"alert": "ALERT", "positive": "UPSIDE",
                                "watch": "WATCH", "info": "NOTE"}[d["severity"]]
@@ -204,7 +218,7 @@ def get_morning_brief() -> str:
         d["action_payload"] = json.dumps({"prompt": f"{d['suggested_action']} for {d['name']} "
                                           f"({d['ticker']}) \u2014 use the {d['suggested_skill']} skill."})
         items.append(d)
-    return json.dumps({"generated_at": STATE["generated_at"], "count": len(items), "items": items})
+    return json.dumps({"generated_at": env_state.state()["generated_at"], "count": len(items), "items": items})
 
 
 @mcp.tool(name="acknowledge_alert", title="Acknowledge an overnight item",
@@ -215,12 +229,12 @@ def acknowledge_alert(ticker: _TICKER) -> str:
     key = "SECTOR" if (ticker or "").strip().upper() == "SECTOR" else seed.resolve(ticker)
     if not key:
         return _unknown(ticker)
-    for item in STATE["brief"]:
+    for item in env_state.state()["brief"]:
         if item["ticker"] == key:
             item["acknowledged"] = True
             return json.dumps({"acknowledged": True, "item": item})
     return json.dumps({"error": f"no overnight item for {key}",
-                       "in_brief": [i["ticker"] for i in STATE["brief"]]})
+                       "in_brief": [i["ticker"] for i in env_state.state()["brief"]]})
 
 
 @mcp.tool(name="get_action_inbox", title="Action inbox (drafts)",
@@ -229,7 +243,7 @@ def acknowledge_alert(ticker: _TICKER) -> str:
                       "Returns {count, drafts:[…]}. SYNTHETIC demo data.")
 def get_action_inbox() -> str:
     drafts = []
-    for d0 in STATE["inbox"]:
+    for d0 in env_state.state()["inbox"]:
         d = json.loads(json.dumps(d0))
         d["review_payload"] = json.dumps({"prompt": f"Open the draft reply to {d['from']} "
                                           f"({d['subject']}) for my review \u2014 do not send anything."})
@@ -256,8 +270,8 @@ def get_agenda() -> str:
                       "monitor) with status, plus the latest side-panel notification. "
                       "SYNTHETIC demo data.")
 def get_jobs() -> str:
-    jobs = json.loads(json.dumps(STATE["jobs"]["jobs"]))
-    notif = STATE["jobs"].get("notification") or ""
+    jobs = json.loads(json.dumps(env_state.state()["jobs"]["jobs"]))
+    notif = env_state.state()["jobs"].get("notification") or ""
     return json.dumps({"count": len(jobs), "jobs": jobs,
                        "notification": notif,
                        "notifications": ([{"text": notif}] if notif else [])})
@@ -319,10 +333,11 @@ def get_scenarios(ticker: _TICKER) -> str:
     t = seed.resolve(ticker)
     if not t:
         return _unknown(ticker)
-    sc = seed.SCENARIOS.get(t)
+    scen = env_state.state().get("scenarios") or seed.SCENARIOS
+    sc = scen.get(t)
     if not sc:
         return json.dumps({"ticker": t, "note": "no scenario analysis seeded for this name",
-                           "available": sorted(seed.SCENARIOS)})
+                           "available": sorted(scen)})
     return json.dumps({"ticker": t, **sc})
 
 
@@ -418,11 +433,12 @@ def get_note_pack(ticker: _TICKER) -> str:
                       "unread_only. SYNTHETIC demo data.")
 def get_emails(unread_only: Annotated[bool, Field(
         description="Return only unread emails")] = False) -> str:
-    emails = [e for e in STATE["emails"] if (not unread_only or not e.get("read"))]
+    st = env_state.state()
+    emails = [e for e in st["emails"] if (not unread_only or not e.get("read"))]
     emails = sorted(emails, key=lambda e: e["ts"], reverse=True)
-    return json.dumps({"count": len(emails), "unread": sum(1 for e in STATE["emails"]
+    return json.dumps({"count": len(emails), "unread": sum(1 for e in st["emails"]
                                                            if not e.get("read")),
-                       "story_today": STATE.get("today"), "emails": emails})
+                       "story_today": st.get("today"), "emails": emails})
 
 
 @mcp.tool(name="get_calendar", title="Calendar (synthetic)",
@@ -433,8 +449,9 @@ def get_emails(unread_only: Annotated[bool, Field(
                       "notes. Editable from the /admin demo-data console; "
                       "Reset_Demo_Data restores the snapshot. SYNTHETIC demo data.")
 def get_calendar() -> str:
-    events = sorted(STATE["calendar"], key=lambda ev: (ev["date"], ev["time"]))
-    return json.dumps({"count": len(events), "story_today": STATE.get("today"),
+    st = env_state.state()
+    events = sorted(st["calendar"], key=lambda ev: (ev["date"], ev["time"]))
+    return json.dumps({"count": len(events), "story_today": st.get("today"),
                        "events": events})
 
 
@@ -496,6 +513,7 @@ def reset_demo_data() -> str:
     st = _reset_state()
     return json.dumps({
         "reset": True,
+        "environment": env_state.current_env(),
         "snapshot": st["snapshot_label"],
         "brief_items": len(st["brief"]),
         "inbox_drafts": len(st["inbox"]),

@@ -1,0 +1,71 @@
+"""env_state.py — per-environment demo state (the FA analogue of the RM CRM env map).
+
+The FA Research MCP is ONE deployment shared across environments/tenants. Like the RM
+Agent MCPs, the env signal rides on the connector URL as a PATH segment — the only
+thing settable per environment in admin:
+
+    https://fa-research-mcp.azurewebsites.net/mcp            → env "qa" (default)
+    https://fa-research-mcp.azurewebsites.net/prod/mcp       → env "prod"
+    https://fa-research-mcp.azurewebsites.net/pascal/mcp     → env "pascal"
+
+Each env gets its OWN copy of the mutable demo state (coverage, brief, emails,
+calendar, scenarios), lazily materialized from ``seed.baseline()`` on first touch —
+so a sales person can run a personal sandbox at /<their-name>/mcp + /<their-name>/admin
+without touching anyone else's demo. In-memory by design: Reset (per env) and a
+container restart restore the baseline snapshot. ALL DATA IS SYNTHETIC.
+"""
+
+from __future__ import annotations
+
+import contextvars
+import re
+
+import seed
+
+DEFAULT_ENV = "qa"
+_SLUG = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")
+_RESERVED = {"mcp", "admin", "api", "health", "favicon.ico"}
+
+_url_env: contextvars.ContextVar[str] = contextvars.ContextVar("fa_url_env", default="")
+
+STATES: dict[str, dict] = {}
+
+
+def is_env_segment(s: str) -> bool:
+    return bool(_SLUG.match(s)) and s not in _RESERVED
+
+
+def set_url_env(env: str) -> None:
+    _url_env.set(env or "")
+
+
+def current_env() -> str:
+    env = _url_env.get() or ""
+    if not env:  # fallback: the request scope (survives task switches, à la RM CRM)
+        try:
+            from fastmcp.server.dependencies import get_http_request
+
+            req = get_http_request()
+            env = (req.scope.get("fa_env") or "") if req is not None else ""
+        except Exception:
+            env = ""
+    return env or DEFAULT_ENV
+
+
+def state() -> dict:
+    """The ACTIVE environment's mutable state, materialized on first touch."""
+    env = current_env()
+    st = STATES.get(env)
+    if st is None:
+        st = STATES[env] = seed.baseline()
+    return st
+
+
+def reset() -> dict:
+    env = current_env()
+    STATES[env] = seed.baseline()
+    return STATES[env]
+
+
+def envs() -> list[str]:
+    return sorted(set(STATES) | {DEFAULT_ENV})

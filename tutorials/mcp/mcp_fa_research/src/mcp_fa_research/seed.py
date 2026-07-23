@@ -497,18 +497,25 @@ def baseline() -> dict:
         "coverage": copy.deepcopy(COVERAGE),
         "emails": copy.deepcopy(EMAILS_SEED),
         "calendar": copy.deepcopy(CALENDAR_SEED),
+        "scenarios": copy.deepcopy(SCENARIOS),
     }
 
 
-# The server registers its live STATE here so read paths (tools, the scenario
-# engine) see console edits; falls back to the immutable seed when unregistered.
-_LIVE_STATE: dict | None = None
+# The server registers a STATE RESOLVER here (env-aware: returns the ACTIVE
+# environment's state) so read paths — tools, the scenario engine — see console
+# edits; falls back to the immutable seed when unregistered (build scripts).
+_STATE_RESOLVER = None
 
 
-def register_state(state: dict) -> None:
-    global _LIVE_STATE
-    _LIVE_STATE = state
+def register_state_resolver(resolver) -> None:
+    global _STATE_RESOLVER
+    _STATE_RESOLVER = resolver
+
+
+def current_state() -> dict | None:
+    return _STATE_RESOLVER() if _STATE_RESOLVER else None
 
 
 def current_coverage() -> list[dict]:
-    return (_LIVE_STATE or {}).get("coverage") or COVERAGE
+    st = current_state()
+    return (st or {}).get("coverage") or COVERAGE

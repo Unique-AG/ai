@@ -24,6 +24,7 @@ from datetime import date, timedelta
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.requests import Request
 
+import env_state
 import seed
 
 
@@ -41,6 +42,8 @@ _BRIEF_FIELDS = {"headline", "detail", "valuation_impact", "severity", "acknowle
                  "new_target_price", "suggested_action"}
 _EMAIL_FIELDS = {"ts", "from_name", "from_role", "subject", "body", "ticker", "read"}
 _EVENT_FIELDS = {"date", "time", "kind", "title", "ticker", "notes"}
+_SCENARIO_FIELDS = {"scenario", "assumption", "eps_impact", "tp_impact", "hypothesis",
+                    "probability"}
 _NUM = {"target_price", "price", "premarket_pct", "new_target_price"}
 
 
@@ -66,6 +69,8 @@ def register(mcp, get_state, reset_state) -> None:
     async def admin_state(request: Request):
         st = get_state()
         return JSONResponse({
+            "environment": env_state.current_env(),
+            "environments": env_state.envs(),
             "snapshot_label": st.get("snapshot_label", seed.SNAPSHOT_LABEL),
             "today": st.get("today", seed.STORY_TODAY),
             "baseline_today": seed.STORY_TODAY,
@@ -76,9 +81,9 @@ def register(mcp, get_state, reset_state) -> None:
             "calendar": sorted(st["calendar"], key=lambda ev: (ev["date"], ev["time"])),
             "agenda": seed.AGENDA,
             "jobs": st["jobs"],
+            "scenarios": st.get("scenarios", {}),
             "reference": {
                 "consensus": seed.CONSENSUS, "estimates": seed.OUR_ESTIMATES,
-                "scenarios": seed.SCENARIOS,
             },
         })
 
@@ -146,8 +151,9 @@ def register(mcp, get_state, reset_state) -> None:
         body = await request.json()
         n = 1 + max((int(e["id"].split("-")[1]) for e in st["emails"]
                      if e.get("id", "").startswith("M-")), default=0)
-        email = {"id": f"M-{n:03d}", "ts": "2026-07-23 08:00", "from_name": "",
-                 "from_role": "", "subject": "", "body": "", "ticker": "", "read": False}
+        email = {"id": f"M-{n:03d}", "ts": st.get("today", seed.STORY_TODAY) + " 08:00",
+                 "from_name": "", "from_role": "", "subject": "", "body": "",
+                 "ticker": "", "read": False}
         _apply(email, body, _EMAIL_FIELDS)
         st["emails"].append(email)
         return JSONResponse(email)
@@ -167,6 +173,34 @@ def register(mcp, get_state, reset_state) -> None:
             patch["read"] = patch["read"].lower() in ("true", "1", "yes")
         _apply(email, patch, _EMAIL_FIELDS)
         return JSONResponse(email)
+
+    @mcp.custom_route("/admin/api/scenario/{ticker}", methods=["POST"])
+    async def admin_scenario_add(request: Request):
+        st = get_state()
+        tk = request.path_params["ticker"]
+        sc = st.setdefault("scenarios", {}).setdefault(
+            tk, {"period": "FY2026E", "base_tp": "", "note": "", "rows": []})
+        row = {"scenario": "", "assumption": "", "eps_impact": "", "tp_impact": "",
+               "hypothesis": "", "probability": ""}
+        _apply(row, await request.json(), _SCENARIO_FIELDS)
+        sc["rows"].append(row)
+        return JSONResponse(row)
+
+    @mcp.custom_route("/admin/api/scenario/{ticker}/{idx}", methods=["PATCH", "DELETE"])
+    async def admin_scenario(request: Request):
+        st = get_state()
+        tk = request.path_params["ticker"]
+        sc = (st.get("scenarios") or {}).get(tk)
+        try:
+            idx = int(request.path_params["idx"])
+            row = sc["rows"][idx]
+        except (TypeError, KeyError, IndexError, ValueError):
+            return JSONResponse({"error": "unknown scenario row"}, status_code=404)
+        if request.method == "DELETE":
+            sc["rows"].pop(idx)
+            return JSONResponse({"deleted": idx})
+        _apply(row, await request.json(), _SCENARIO_FIELDS)
+        return JSONResponse(row)
 
     @mcp.custom_route("/admin/api/event", methods=["POST"])
     async def admin_event_add(request: Request):
@@ -265,6 +299,7 @@ textarea{min-height:90px;resize:vertical}
 <div class="banner"><b>PUBLIC DEMONSTRATION</b> &nbsp;·&nbsp; Synthetic research data — changes are temporary (in-memory) and revert to the snapshot</div>
 <header>
   <div class="logo">FA</div>
+  <select id="envsel" class="btn" style="min-width:90px" onchange="switchEnv(this.value)"></select>
   <div><h1>FA Research — Demo Data Console</h1>
   <div class="sub">Exane BNPP CIB sell-side demo · edits feed the cockpit, dashboards and the agent instantly</div></div>
   <div class="right"><span class="snap">Snapshot: <b id="snap"></b><br>Story day: <b id="today"></b></span>
@@ -285,12 +320,19 @@ textarea{min-height:90px;resize:vertical}
 <script>
 let S=null, TAB='coverage', CUR=null;
 const TABS=[["coverage","Coverage"],["brief","Morning brief"],["emails","Emails"],
-            ["calendar","Calendar"],["agenda","Agenda & jobs"],["reference","Reference (read-only)"]];
+            ["calendar","Calendar"],["scenarios","Scenarios"],["agenda","Agenda & jobs"],
+            ["reference","Reference (read-only)"]];
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 async function load(){S=await (await fetch('admin/api/state')).json();
+  const sel=document.getElementById('envsel');
+  sel.innerHTML=S.environments.map(e=>`<option ${e===S.environment?'selected':''}>${e}</option>`).join('')+
+    '<option value="__new__">+ new env…</option>';
   document.getElementById('snap').textContent=S.snapshot_label;
   document.getElementById('today').textContent=S.today+(S.today===S.baseline_today?' (baseline)':' (rebased)');
   render();}
+function switchEnv(v){if(v==='__new__'){const n=prompt('New environment slug (a-z, 0-9, -):');
+    if(!n||!/^[a-z0-9][a-z0-9_-]{0,23}$/.test(n)){load();return;}v=n;}
+  location.href='/'+v+'/admin';}
 function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 async function doRebase(){const t=localDate();
   if(!confirm('Shift all calendar dates and email timestamps so the story day ('+S.today+') becomes '+t+'? Deltas are preserved; Reset returns to the baseline.'))return;
@@ -305,7 +347,8 @@ function nav(){document.getElementById('tabs').innerHTML=TABS.map(([k,l])=>
   `<button class="${k===TAB?'active':''}" onclick="TAB='${k}';render()">${l}</button>`).join('');}
 function render(){nav();const c=document.getElementById('content'),add=document.getElementById('addbtn');
   add.style.display='none';
-  const T={coverage:rCov,brief:rBrief,emails:rMail,calendar:rCal,agenda:rAgenda,reference:rRef}[TAB];T(c,add);}
+  const T={coverage:rCov,brief:rBrief,emails:rMail,calendar:rCal,scenarios:rScen,
+           agenda:rAgenda,reference:rRef}[TAB];T(c,add);}
 function head(t,n){document.getElementById('title').textContent=t;
   document.getElementById('count').textContent=n;}
 function rCov(c){head('Coverage roster',S.coverage.length+' names — click a row to edit');
@@ -343,7 +386,30 @@ function rAgenda(c){head('Agenda & jobs','read-only — roadshows from the seed,
   S.agenda.map(a=>`<tr><td><b>${esc(a.title)}</b></td><td>${esc(a.role)}</td><td>${esc(a.when)}</td></tr>`).join('')+
   '</tbody></table><br><table><thead><tr><th>Job</th><th>Status</th></tr></thead><tbody>'+
   S.jobs.jobs.map(j=>`<tr><td>${esc(j.label)}</td><td>${esc(j.status)}</td></tr>`).join('')+'</tbody></table>';}
-function rRef(c){head('Reference data','read-only — consensus, our estimates, scenario hypotheses (edited in code / by the analyst)');
+function rScen(c,add){const tks=Object.keys(S.scenarios||{});
+  head('Scenario hypotheses',(tks.length?tks.join(', '):'none')+' — the cases behind get_scenarios, the Lab and the pack');
+  add.style.display='';add.textContent='+ New case (MC FP)';add.onclick=()=>openScen('MC FP',null);
+  c.innerHTML=tks.map(tk=>{const sc=S.scenarios[tk];
+    return `<h3 style="margin:6px 0 8px">${esc(tk)} <span class="mut" style="font-size:12px">· ${esc(sc.period)} · base ${esc(sc.base_tp)}</span></h3>
+    <table style="margin-bottom:16px"><thead><tr><th>Scenario</th><th>Assumption</th>
+    <th class="num">EPS</th><th class="num">Target price</th><th class="num">Prob.</th><th>Hypothesis</th></tr></thead><tbody>`+
+    sc.rows.map((r,i)=>`<tr onclick='openScen(${JSON.stringify(tk)},${i})'>
+    <td><b>${esc(r.scenario)}</b></td><td>${esc(r.assumption)}</td>
+    <td class="num">${esc(r.eps_impact)}</td><td class="num">${esc(r.tp_impact)}</td>
+    <td class="num">${esc(r.probability)}</td><td class="mut">${esc(r.hypothesis)}</td></tr>`).join('')+
+    '</tbody></table>';}).join('')||'<p class="mut">No scenario sets in this environment.</p>';}
+function openScen(tk,idx){const sc=S.scenarios[tk];
+  const r=idx==null?{scenario:'',assumption:'',eps_impact:'',tp_impact:'',hypothesis:'',probability:''}:sc.rows[idx];
+  openDrawer(idx==null?('New scenario case — '+tk):('Edit case — '+esc(r.scenario)),
+    field('scenario','Scenario',r.scenario)+field('assumption','Assumption',r.assumption,'textarea')+
+    field('eps_impact','EPS impact (e.g. −3.5%)',r.eps_impact)+
+    field('tp_impact','Target price (e.g. €595)',r.tp_impact)+
+    field('probability','Probability (e.g. 20%)',r.probability)+
+    field('hypothesis','Our hypothesis',r.hypothesis,'textarea'),
+    v=>idx==null?patch('admin/api/scenario/'+encodeURIComponent(tk),v,'POST')
+               :patch('admin/api/scenario/'+encodeURIComponent(tk)+'/'+idx,v),
+    idx==null?null:()=>patch('admin/api/scenario/'+encodeURIComponent(tk)+'/'+idx,{},'DELETE'));}
+function rRef(c){head('Reference data','read-only — consensus and our estimates (the analyst&#39;s numbers)');
   c.innerHTML='<pre style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;font-size:12px">'+
   esc(JSON.stringify(S.reference,null,1))+'</pre>';}
 /* drawer plumbing */
