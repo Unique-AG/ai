@@ -246,6 +246,100 @@ JOBS_SEED: list[dict] = [
 NOTIFICATION = "LVMH reaction pack ready — model, note, buy-side email drafted."
 
 # ---------------------------------------------------------------------------
+# Fake mailbox + calendar (the demo-data console lets sales edit these; the
+# agent reads them via get_emails / get_calendar). "Today" = 23 July 2026.
+# ---------------------------------------------------------------------------
+SNAPSHOT_LABEL = "Baseline — 23 Jul 2026, 07:00 CET (overnight run)"
+
+EMAILS_SEED: list[dict] = [
+    {"id": "M-001", "ts": "2026-07-23 06:41", "from_name": "Head of Sales",
+     "from_role": "Equities desk", "ticker": "MC FP", "read": False,
+     "subject": "Need your LVMH reaction for the desk",
+     "body": "Warning hit the tape pre-open — desk call is at 07:30, can you take the "
+             "mic with the first take? Sales need the one-liner: rating, new TP, and "
+             "what we tell clients at the open."},
+    {"id": "M-002", "ts": "2026-07-23 06:55", "from_name": "PM — Fund A",
+     "from_role": "Buy side · long-only", "ticker": "MC FP", "read": False,
+     "subject": "Your read on the cognac destocking?",
+     "body": "We are long 2.1m shares. Is this the kitchen-sink or is FY27 at risk too? "
+             "Would take 15 minutes today if you have them."},
+    {"id": "M-003", "ts": "2026-07-22 17:20", "from_name": "PM — Fund B",
+     "from_role": "Buy side · hedge fund", "ticker": "MC FP", "read": False,
+     "subject": "Ahead of your London roadshow — scenario analysis by tomorrow",
+     "body": "Before we meet Wednesday: send me your scenario analysis — your "
+             "hypotheses (e.g. currency change, China timing), EPS and TP per case "
+             "with probabilities. By tomorrow EOD please."},
+    {"id": "M-004", "ts": "2026-07-22 15:02", "from_name": "LVMH Investor Relations",
+     "from_role": "Corporate", "ticker": "MC FP", "read": True,
+     "subject": "NY corporate roadshow — dates & venue",
+     "body": "Confirming the New York corporate roadshow for next week: CEO, CFO and "
+             "Head of IR attending. Please send your proposed investor list and agenda "
+             "by Friday."},
+    {"id": "M-005", "ts": "2026-07-23 07:05", "from_name": "Research Compliance",
+     "from_role": "Control room", "ticker": "", "read": False,
+     "subject": "Reminder: pre-publication control on all LVMH material today",
+     "body": "Given the market-moving print, every LVMH note, email or deck goes "
+             "through pre-publication control before distribution today. No exceptions "
+             "— route drafts via the control workspace."},
+    {"id": "M-006", "ts": "2026-07-22 11:34", "from_name": "Swatch Group IR",
+     "from_role": "Corporate", "ticker": "UHR SW", "read": True,
+     "subject": "Q3 call transcript now available",
+     "body": "The transcript of our Q3 analyst call is now available on the IR site. "
+             "Happy to schedule a follow-up with management if useful."},
+    {"id": "M-007", "ts": "2026-07-21 16:48", "from_name": "Strategy team",
+     "from_role": "Internal", "ticker": "", "read": True,
+     "subject": "House macro update — China consumption measures",
+     "body": "We nudge our China consumption path up on the stimulus package. Sector "
+             "analysts: please reflect the new FX and GDP set in your next estimate "
+             "revision (memo attached in the KB)."},
+    {"id": "M-008", "ts": "2026-07-23 07:10", "from_name": "Sales — Geneva",
+     "from_role": "Equities desk", "ticker": "CFR SW", "read": False,
+     "subject": "Client asks: Richemont into H1 — add here?",
+     "body": "Two PBs asking whether to add Richemont ahead of H1 after the US "
+             "jewellery data. What is the desk line — and does your CHF180 review "
+             "change it?"},
+]
+
+CALENDAR_SEED: list[dict] = [
+    {"id": "E-001", "date": "2026-07-23", "time": "07:30", "kind": "meeting",
+     "title": "Morning meeting — take the mic on LVMH", "ticker": "MC FP",
+     "notes": "First take: rating held, TP EUR675 -> EUR615, trough thesis."},
+    {"id": "E-002", "date": "2026-07-23", "time": "10:00", "kind": "results",
+     "title": "LVMH FY25 results call (mgmt)", "ticker": "MC FP",
+     "notes": "Listen for cognac depletion/shipment gap + China exit rate."},
+    {"id": "E-003", "date": "2026-07-23", "time": "14:30", "kind": "call",
+     "title": "Fund A — LVMH reaction call", "ticker": "MC FP",
+     "notes": "Long 2.1m shares; walk through post-view + scenarios."},
+    {"id": "E-004", "date": "2026-07-24", "time": "09:00", "kind": "control",
+     "title": "Pre-publication control — LVMH post-view note", "ticker": "MC FP",
+     "notes": "Maker/checker before distribution."},
+    {"id": "E-005", "date": "2026-07-24", "time": "16:00", "kind": "call",
+     "title": "Fund B — scenario pack walkthrough", "ticker": "MC FP",
+     "notes": "Send pack by EOD today (see email M-003)."},
+    {"id": "E-006", "date": "2026-07-29", "time": "09:00", "kind": "roadshow",
+     "title": "Investor roadshow — London (day 1)", "ticker": "MC FP",
+     "notes": "You lead; marketing the LVMH case. 7 meetings incl. Fund B."},
+    {"id": "E-007", "date": "2026-07-30", "time": "09:00", "kind": "roadshow",
+     "title": "Investor roadshow — London (day 2)", "ticker": "MC FP",
+     "notes": "Focus: hedge funds; scenario grids are the anchor material."},
+    {"id": "E-008", "date": "2026-07-29", "time": "17:40", "kind": "results",
+     "title": "Kering — Q2/H1 sales", "ticker": "KER FP",
+     "notes": "We are 5% below street FY26e EPS; watch Gucci sell-out."},
+    {"id": "E-009", "date": "2026-08-05", "time": "07:00", "kind": "results",
+     "title": "Richemont — H1 results", "ticker": "CFR SW",
+     "notes": "Preview published; ours above street on jewellery mix."},
+    {"id": "E-010", "date": "2026-08-03", "time": "09:00", "kind": "roadshow",
+     "title": "Corporate roadshow — New York (LVMH mgmt)", "ticker": "MC FP",
+     "notes": "You organise: CEO/CFO/IR; investor list due Friday."},
+    {"id": "E-011", "date": "2026-07-27", "time": "08:00", "kind": "meeting",
+     "title": "Sector strategy sync — China consumption measures", "ticker": "",
+     "notes": "Apply the new house macro set to estimates."},
+    {"id": "E-012", "date": "2026-07-31", "time": "12:00", "kind": "meeting",
+     "title": "Lunch — Swatch IR follow-up", "ticker": "UHR SW",
+     "notes": "Probe the China entry-demand tone from the Q3 transcript."},
+]
+
+# ---------------------------------------------------------------------------
 # Mock market-data connectors: consensus / our-estimates / price
 # ---------------------------------------------------------------------------
 CONSENSUS: dict[str, dict] = {
@@ -389,11 +483,30 @@ def _brief_item(key: str) -> dict:
 
 
 def baseline() -> dict:
-    """A fresh copy of the MUTABLE demo state (what the analyst touches in the morning).
-    The server holds this and Reset_Demo_Data restores it to this baseline."""
+    """A fresh copy of the MUTABLE demo state — everything the analyst (or a sales
+    person via the /admin demo-data console) can touch. The server holds this and
+    Reset_Demo_Data / the console's Reset restore it to this labeled snapshot."""
     return {
         "generated_at": "07:00 CET",
+        "snapshot_label": SNAPSHOT_LABEL,
         "brief": [_brief_item(k) for k in OVERNIGHT_ORDER],
         "inbox": [{**copy.deepcopy(d), "reviewed": False} for d in ACTION_INBOX],
         "jobs": {"jobs": copy.deepcopy(JOBS_SEED), "notification": NOTIFICATION},
+        "coverage": copy.deepcopy(COVERAGE),
+        "emails": copy.deepcopy(EMAILS_SEED),
+        "calendar": copy.deepcopy(CALENDAR_SEED),
     }
+
+
+# The server registers its live STATE here so read paths (tools, the scenario
+# engine) see console edits; falls back to the immutable seed when unregistered.
+_LIVE_STATE: dict | None = None
+
+
+def register_state(state: dict) -> None:
+    global _LIVE_STATE
+    _LIVE_STATE = state
+
+
+def current_coverage() -> list[dict]:
+    return (_LIVE_STATE or {}).get("coverage") or COVERAGE

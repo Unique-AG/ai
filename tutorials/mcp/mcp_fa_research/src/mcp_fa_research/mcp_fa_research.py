@@ -100,6 +100,18 @@ mcp = FastMCP("FA Research", auth=build_auth())
 # from the immutable seed at startup; Reset_Demo_Data restores it. In-memory + per-process
 # (single demo container) — a restart also yields a clean baseline.
 STATE = seed.baseline()
+seed.register_state(STATE)
+
+
+def _get_state() -> dict:
+    return STATE
+
+
+def _reset_state() -> dict:
+    global STATE
+    STATE = seed.baseline()
+    seed.register_state(STATE)
+    return STATE
 
 _TICKER = Annotated[str, Field(description="Ticker, Bloomberg code or company name "
                                            "(e.g. MC.PA, MC FP, LVMH).")]
@@ -147,7 +159,7 @@ def _cockpit_row(c: dict) -> dict:
                       "impact + revised target price where it changed). Returns "
                       "{as_of, count, rows:[…]}. SYNTHETIC demo data.")
 def get_coverage() -> str:
-    rows = [_cockpit_row(c) for c in seed.COVERAGE]
+    rows = [_cockpit_row(c) for c in seed.current_coverage()]
     return json.dumps({"as_of": seed.AS_OF, "count": len(rows), "rows": rows})
 
 
@@ -160,7 +172,7 @@ def get_dossier(ticker: _TICKER) -> str:
     t = seed.resolve(ticker)
     if not t:
         return _unknown(ticker)
-    row = next(c for c in seed.COVERAGE if c["ticker"] == t)
+    row = next(c for c in seed.current_coverage() if c["ticker"] == t)
     d = seed.DOSSIERS[t]
     ov = seed.OVERNIGHT.get(t)
     return json.dumps({**row, **d,
@@ -289,7 +301,11 @@ def get_price(ticker: _TICKER) -> str:
     t = seed.resolve(ticker)
     if not t:
         return _unknown(ticker)
-    return json.dumps(seed.PRICES[t])
+    c = next(x for x in seed.current_coverage() if x["ticker"] == t)
+    return json.dumps({"ticker": t, "name": c["name"], "ccy": c["ccy"],
+                       "last_close": c["price"], "premarket_pct": c["premarket_pct"],
+                       "note": "SYNTHETIC indication — use the yahoo-finance connector "
+                               "for live quotes."})
 
 
 @mcp.tool(name="get_scenarios", title="Scenario analysis (what-if, mock)",
@@ -389,8 +405,36 @@ def get_note_pack(ticker: _TICKER) -> str:
     t = seed.resolve(ticker)
     if not t:
         return _unknown(ticker)
-    row = next((c for c in seed.COVERAGE if c["ticker"] == t), None)
+    row = next((c for c in seed.current_coverage() if c["ticker"] == t), None)
     return json.dumps({"ticker": t, **note_pack.get_pack(t, row)})
+
+
+@mcp.tool(name="get_emails", title="Mailbox (synthetic)",
+          description="The analyst's synthetic mailbox: desk, buy-side, corporate IR, "
+                      "compliance and internal emails around the demo storyline (LVMH "
+                      "warning day). Each email: id, ts, from_name, from_role, subject, "
+                      "body, ticker, read flag. Editable from the /admin demo-data "
+                      "console; Reset_Demo_Data restores the snapshot. Args: "
+                      "unread_only. SYNTHETIC demo data.")
+def get_emails(unread_only: Annotated[bool, Field(
+        description="Return only unread emails")] = False) -> str:
+    emails = [e for e in STATE["emails"] if (not unread_only or not e.get("read"))]
+    emails = sorted(emails, key=lambda e: e["ts"], reverse=True)
+    return json.dumps({"count": len(emails), "unread": sum(1 for e in STATE["emails"]
+                                                           if not e.get("read")),
+                       "emails": emails})
+
+
+@mcp.tool(name="get_calendar", title="Calendar (synthetic)",
+          description="The analyst's synthetic calendar: results dates, roadshows, "
+                      "buy-side calls, morning meetings and pre-publication control "
+                      "slots around the demo storyline. Each event: id, date, time, "
+                      "kind (results/roadshow/call/meeting/control), title, ticker, "
+                      "notes. Editable from the /admin demo-data console; "
+                      "Reset_Demo_Data restores the snapshot. SYNTHETIC demo data.")
+def get_calendar() -> str:
+    events = sorted(STATE["calendar"], key=lambda ev: (ev["date"], ev["time"]))
+    return json.dumps({"count": len(events), "events": events})
 
 
 def _yahoo_quote(symbol: str) -> dict | None:
@@ -422,7 +466,7 @@ def _yahoo_quote(symbol: str) -> dict | None:
                       "false) for any symbol Yahoo doesn't answer, so the ribbon never dies.")
 def get_live_quotes() -> str:
     rows = []
-    for c in seed.COVERAGE:
+    for c in seed.current_coverage():
         q = _yahoo_quote(c["yahoo"])
         if q:
             chg = (q["price"] / q["prev_close"] - 1.0) * 100.0
@@ -440,27 +484,35 @@ def get_live_quotes() -> str:
 
 
 @mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
-          description="Restore the FA research demo to its overnight baseline: re-generate "
-                      "the 07:00 morning brief (all items un-acknowledged), reset the action "
-                      "inbox drafts (un-reviewed) and jobs. Coverage / consensus / prices are "
+          description="Restore the FA research demo to its labeled baseline snapshot: "
+                      "morning brief (un-acknowledged), action inbox, jobs, coverage "
+                      "roster, mailbox and calendar — undoing any edits made in the "
+                      "/admin demo-data console. Consensus / estimates / scenarios are "
                       "static reference data. Use between demo runs for a clean morning. "
                       "SYNTHETIC demo data.",
           meta={"unique.app/icon": "rotate-ccw"})
 def reset_demo_data() -> str:
-    global STATE
-    STATE = seed.baseline()
+    st = _reset_state()
     return json.dumps({
         "reset": True,
-        "brief_items": len(STATE["brief"]),
-        "inbox_drafts": len(STATE["inbox"]),
-        "jobs": len(STATE["jobs"]["jobs"]),
-        "note": "Overnight run restored to baseline — all items un-acknowledged.",
+        "snapshot": st["snapshot_label"],
+        "brief_items": len(st["brief"]),
+        "inbox_drafts": len(st["inbox"]),
+        "emails": len(st["emails"]),
+        "calendar_events": len(st["calendar"]),
+        "note": "Demo state restored to the baseline snapshot — all console edits undone.",
     })
 
 
 @mcp.custom_route("/", methods=["GET"])
 async def get_status(request: Request):
-    return JSONResponse({"server": "running", "name": "FA Research"})
+    return JSONResponse({"server": "running", "name": "FA Research",
+                         "demo_data_console": "/admin"})
+
+
+import admin_ui  # noqa: E402
+
+admin_ui.register(mcp, _get_state, _reset_state)
 
 
 def main():

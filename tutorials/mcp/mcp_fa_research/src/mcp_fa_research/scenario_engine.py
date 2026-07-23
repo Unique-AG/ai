@@ -77,7 +77,7 @@ BASE_EPS: dict[str, list[float]] = {   # per-name base EPS path (= chart_pack)
 
 def _base_tp(tk: str) -> float:
     ov = seed.OVERNIGHT.get(tk) or {}
-    row = next(c for c in seed.COVERAGE if c["ticker"] == tk)
+    row = next(c for c in seed.current_coverage() if c["ticker"] == tk)
     return float(ov.get("new_target_price") or row["target_price"])
 
 
@@ -97,7 +97,7 @@ def compute(ticker: str, fx_eur_move_pct: float = 0.0,
     if abs(fx_eur_move_pct) > 15:
         return {"error": "fx_eur_move_pct outside the sane range (±15)"}
     exp = EXPOSURES[tk]
-    row = next(c for c in seed.COVERAGE if c["ticker"] == tk)
+    row = next(c for c in seed.current_coverage() if c["ticker"] == tk)
     ccy_sym = {"EUR": "€", "CHF": "CHF ", "USD": "$"}.get(row["ccy"], "")
     base_tp = _base_tp(tk)
     base_eps = BASE_EPS[tk]
@@ -252,7 +252,7 @@ def board(ticker: str) -> dict:
     tk = seed.resolve(ticker)
     if not tk:
         return {"error": f"unknown name {ticker!r}"}
-    row = next(c for c in seed.COVERAGE if c["ticker"] == tk)
+    row = next(c for c in seed.current_coverage() if c["ticker"] == tk)
     presets = []
     for p in PRESETS:
         if "destocking_end" in p["args"] and tk != "MC FP":
