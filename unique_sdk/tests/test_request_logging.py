@@ -125,7 +125,9 @@ def test_body_for_error_message_redacted_by_default(
 ) -> None:
     monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
 
-    result = _util.body_for_error_message(b'{"text":"client portfolio details"}')
+    result = _util.redacted_body_for_error_message(
+        b'{"text":"client portfolio details"}'
+    )
 
     assert "client portfolio details" not in str(result)
     assert str(result) == "<redacted 35 bytes>"
@@ -137,7 +139,7 @@ def test_body_for_error_message_passthrough_when_insecure_flag_set(
     monkeypatch.setenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", "true")
 
     body = b'{"text":"client portfolio details"}'
-    assert _util.body_for_error_message(body) is body
+    assert _util.redacted_body_for_error_message(body) is body
 
 
 def test_invalid_response_body_error_message_is_redacted(
@@ -166,8 +168,8 @@ def test_error_params_redacted_by_default(
 ) -> None:
     monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
 
-    assert _util.error_params_for_log({"text": "Dr. Client Name"}) == "<redacted>"
-    assert _util.error_params_for_log(None) is None
+    assert _util.redacted_error_params({"text": "Dr. Client Name"}) == "<redacted>"
+    assert _util.redacted_error_params(None) is None
 
 
 def test_error_params_passthrough_when_insecure_flag_set(
@@ -176,4 +178,4 @@ def test_error_params_passthrough_when_insecure_flag_set(
     monkeypatch.setenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", "true")
 
     params = {"text": "Dr. Client Name"}
-    assert _util.error_params_for_log(params) is params
+    assert _util.redacted_error_params(params) is params

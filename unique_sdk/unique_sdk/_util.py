@@ -129,7 +129,7 @@ def log_response_body(*, body: Any) -> None:
     )
 
 
-def body_for_error_message(body: Any) -> Any:
+def redacted_body_for_error_message(body: Any) -> Any:
     """Body representation safe to embed in exception *messages*.
 
     Exception messages surface at ERROR (retry logs, tracebacks) regardless
@@ -142,7 +142,7 @@ def body_for_error_message(body: Any) -> Any:
     return f"<redacted {_payload_byte_size(body)} bytes>"
 
 
-def error_params_for_log(params: Any) -> Any:
+def redacted_error_params(params: Any) -> Any:
     """Error ``params`` for the INFO-level 'Unique error received' log.
 
     API validation errors commonly echo submitted values in ``params``, so

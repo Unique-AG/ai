@@ -361,13 +361,10 @@ class APIRequestor(object):
                 rheaders,
             )
         except Exception as e:
-            # The raw body must not go into the exception *message*: messages
-            # surface at ERROR via retry logs and tracebacks regardless of
-            # LOG_LEVEL (UN-23307). It stays available on http_body.
             raise _error.APIError(
                 "Invalid response body from API: %s "
                 "(HTTP response code was %d)"
-                % (_util.body_for_error_message(rbody), rcode),
+                % (_util.redacted_body_for_error_message(rbody), rcode),
                 cast(bytes, rbody),
                 rcode,
                 rheaders,
@@ -402,9 +399,7 @@ class APIRequestor(object):
             error_code=status,
             error_type=error_data.get("type"),
             error_message=error_data.get("message"),
-            # Validation errors echo submitted values in params — redacted
-            # unless the insecure opt-in is set (UN-23307).
-            error_params=_util.error_params_for_log(error_data.get("params")),
+            error_params=_util.redacted_error_params(error_data.get("params")),
         )
 
         error = cause.get("error", {}) if cause else {}
