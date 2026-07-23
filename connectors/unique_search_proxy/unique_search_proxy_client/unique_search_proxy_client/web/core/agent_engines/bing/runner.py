@@ -4,7 +4,6 @@ import hashlib
 import logging
 import time
 from collections.abc import AsyncIterator
-from typing import Any
 
 import openai
 from azure.ai.projects.aio import AIProjectClient
@@ -14,12 +13,20 @@ from azure.ai.projects.models import (
     BingGroundingTool,
     PromptAgentDefinition,
 )
+from openai.types.responses import ResponseStreamEvent
+from openai.types.responses.response_completed_event import ResponseCompletedEvent
+from openai.types.responses.response_output_item_done_event import (
+    ResponseOutputItemDoneEvent,
+)
+from openai.types.responses.response_output_message import ResponseOutputMessage
+from openai.types.responses.response_output_text import (
+    AnnotationURLCitation,
+    ResponseOutputText,
+)
+from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client,
-)
-from unique_search_proxy_client.web.core.agent_engines.serialization import (
-    json_safe_sdk_object,
 )
 from unique_search_proxy_client.web.settings.providers import bing_agent as settings
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
@@ -140,7 +147,7 @@ async def stream_bing_grounding_agent(
     fetch_size: int,
     instructions: str,
     agent_name: str | None = None,
-) -> AsyncIterator[tuple[str, Any]]:
+) -> AsyncIterator[tuple[str, dict]]:
     """Stream Bing-grounded Responses events as ``(delta_text, raw_event)`` pairs.
 
     Optimistically calls Responses with a hashed (or preconfigured) agent name.
@@ -192,31 +199,27 @@ async def stream_bing_grounding_agent(
 
     emitted_text = False
     async for event in stream:
-        event_type = getattr(event, "type", None)
-        if event_type == "response.output_text.delta":
-            delta = getattr(event, "delta", "") or ""
-            if delta:
+        if isinstance(event, ResponseTextDeltaEvent):
+            if event.delta:
                 emitted_text = True
-                yield delta, _serialize_sdk_object(event)
-        elif event_type == "response.output_item.done":
+                yield event.delta, event.model_dump(mode="json", warnings="none")
+        elif isinstance(event, ResponseOutputItemDoneEvent):
             citations = _extract_url_citations(event)
             if citations:
                 yield (
                     "",
                     {
-                        "type": event_type,
+                        "type": event.type,
                         "citations": citations,
-                        "event": _serialize_sdk_object(event),
+                        "event": event.model_dump(mode="json", warnings="none"),
                     },
                 )
-        elif event_type == "response.completed":
-            response = getattr(event, "response", None)
-            output_text = getattr(response, "output_text", None) if response else None
+        elif isinstance(event, ResponseCompletedEvent):
+            response = event.response
+            output_text = response.output_text
             raw_completed = {
-                "type": event_type,
-                "response": _serialize_sdk_object(response)
-                if response is not None
-                else _serialize_sdk_object(event),
+                "type": event.type,
+                "response": response.model_dump(mode="json", warnings="none"),
             }
             # Foundry sometimes delivers the full answer only on completion.
             if output_text and not emitted_text:
@@ -231,7 +234,7 @@ async def _create_responses_stream(
     *,
     agent_name: str,
     query: str,
-) -> Any:
+) -> openai.AsyncStream[ResponseStreamEvent]:
     started = time.perf_counter()
     stream = await openai_client.responses.create(
         stream=True,
@@ -252,24 +255,15 @@ async def _create_responses_stream(
     return stream
 
 
-def _extract_url_citations(event: Any) -> list[str]:
-    item = getattr(event, "item", None)
-    if item is None or getattr(item, "type", None) != "message":
+def _extract_url_citations(event: ResponseOutputItemDoneEvent) -> list[str]:
+    item = event.item
+    if not isinstance(item, ResponseOutputMessage) or not item.content:
         return []
-    content = getattr(item, "content", None) or []
-    if not content:
+    text_content = item.content[-1]
+    if not isinstance(text_content, ResponseOutputText):
         return []
-    text_content = content[-1]
-    if getattr(text_content, "type", None) != "output_text":
-        return []
-    citations: list[str] = []
-    for annotation in getattr(text_content, "annotations", None) or []:
-        if getattr(annotation, "type", None) == "url_citation":
-            url = getattr(annotation, "url", None)
-            if url:
-                citations.append(url)
-    return citations
-
-
-def _serialize_sdk_object(value: Any) -> Any:
-    return json_safe_sdk_object(value)
+    return [
+        annotation.url
+        for annotation in text_content.annotations
+        if isinstance(annotation, AnnotationURLCitation) and annotation.url
+    ]

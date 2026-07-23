@@ -6,6 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai import NotFoundError
+from openai.types.responses.response import Response
+from openai.types.responses.response_completed_event import ResponseCompletedEvent
+from openai.types.responses.response_output_message import ResponseOutputMessage
+from openai.types.responses.response_output_text import ResponseOutputText
+from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 
@@ -54,22 +59,43 @@ async def _fake_stream(
 
 async def _fake_response_events(*, with_deltas: bool = True) -> AsyncIterator[Any]:
     if with_deltas:
-        event = MagicMock()
-        event.type = "response.output_text.delta"
-        event.delta = "agent answer text"
-        event.model_dump_json = MagicMock(
-            return_value='{"type":"response.output_text.delta"}'
+        yield ResponseTextDeltaEvent.model_construct(
+            type="response.output_text.delta",
+            delta="agent answer text",
+            content_index=0,
+            item_id="item-1",
+            output_index=0,
+            sequence_number=1,
+            logprobs=[],
         )
-        yield event
-    done = MagicMock()
-    done.type = "response.completed"
-    done.response = MagicMock()
-    done.response.output_text = "agent answer text"
-    done.response.model_dump_json = MagicMock(
-        return_value='{"output_text":"agent answer text"}'
+    text = ResponseOutputText.model_construct(
+        type="output_text",
+        text="agent answer text",
+        annotations=[],
+        logprobs=[],
     )
-    done.model_dump_json = MagicMock(return_value='{"type":"response.completed"}')
-    yield done
+    message = ResponseOutputMessage.model_construct(
+        type="message",
+        id="msg-1",
+        role="assistant",
+        status="completed",
+        content=[text],
+    )
+    response = Response.model_construct(
+        id="resp-1",
+        created_at=0,
+        model="gpt-5.1",
+        object="response",
+        output=[message],
+        parallel_tool_calls=True,
+        tool_choice="auto",
+        tools=[],
+    )
+    yield ResponseCompletedEvent.model_construct(
+        type="response.completed",
+        sequence_number=2,
+        response=response,
+    )
 
 
 @pytest.fixture
@@ -419,7 +445,9 @@ class TestPrivateEndpointHttpClientReuse:
         get_openai_client_from_client_module(project_client)
 
         first = project_client.get_openai_client.call_args_list[0].kwargs["http_client"]
-        second = project_client.get_openai_client.call_args_list[1].kwargs["http_client"]
+        second = project_client.get_openai_client.call_args_list[1].kwargs[
+            "http_client"
+        ]
         assert first is second
         await aclose_private_endpoint_http_client()
 
