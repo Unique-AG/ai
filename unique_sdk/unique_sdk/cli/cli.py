@@ -1373,7 +1373,8 @@ def elicit_ask(
 @click.option(
     "--mode",
     type=click.Choice(["FORM", "URL"], case_sensitive=False),
-    required=True,
+    default="FORM",
+    show_default=True,
     help="Elicitation display mode.",
 )
 @click.option(
