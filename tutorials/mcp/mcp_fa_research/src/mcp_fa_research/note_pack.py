@@ -311,6 +311,175 @@ _MC_FP: dict = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Company Highlights — the dense full-history data page (à la the machine-generated
+# p2/p34 of a real note): ~40 rows × 12 year-columns, GENERATED from base series so
+# every ratio reconciles. 2019-24 magnitudes are real-world-plausible history; 2025+
+# is the synthetic demo scenario (profit-warning trough, TP EUR615).
+# ---------------------------------------------------------------------------
+def _gen_highlights_mc() -> dict:
+    yrs = ["Dec. 19", "Dec. 20", "Dec. 21", "Dec. 22", "Dec. 23", "Dec. 24",
+           "Dec. 25", "Dec. 26e", "Dec. 27e", "Dec. 28e", "Dec. 29e", "Dec. 30e"]
+    n = len(yrs)
+    cur = 6  # index of Dec. 25 — the shaded "current" column
+    nosh = 497.0  # m shares, kept flat
+    price = [368.0, 400.0, 626.0, 640.0, 800.0, 662.0, 610.0,
+             585.0, 585.0, 585.0, 585.0, 585.0]          # yearly avg; estimates = spot
+    sales = [53670, 44651, 64215, 79184, 86153, 84683, 78900,
+             81290, 85760, 90590, 95480, 100160]
+    ebita = [11504, 8305, 17151, 21055, 22800, 19570, 16730,
+             17720, 19380, 21020, 22440, 23740]
+    ebitda = [15290, 13070, 22590, 27510, 29780, 28460, 26010,
+              27190, 29320, 31530, 33430, 35030]
+    eps = [15.3, 9.5, 24.2, 28.1, 30.3, 25.1, 20.4, 21.6, 23.9, 26.1, 27.9, 29.6]
+    dps = [6.80, 6.00, 10.00, 12.00, 13.00, 13.00, 12.75, 13.30, 14.70, 16.00, 17.10, 18.20]
+    bvps = [72.8, 76.5, 96.3, 112.4, 124.9, 133.6, 139.8, 148.1, 157.3, 167.4, 178.4, 189.8]
+    netdebt = [12140, 15690, 9600, 9200, 10980, 9240, 11410,
+               9680, 6540, 2910, -890, -4930]
+    capex = [3294, 2478, 3550, 4969, 5305, 5100, 4740, 4880, 5150, 5430, 5730, 6010]
+    fcf = [6100, 4900, 12000, 7300, 8100, 10430, 9020, 9880, 11340, 12790, 13270, 14190]
+    organic = [10.0, -16.0, 36.0, 17.0, 13.3, 1.0, -4.3, 2.6, 5.0, 5.2, 5.0, 4.5]
+    other_ev = 15200.0  # pensions + leases + minorities − associates, held ~flat
+
+    dep = [ebitda[i] - ebita[i] for i in range(n)]
+    netpro = [eps[i] * nosh for i in range(n)]
+    mcap = [price[i] * nosh for i in range(n)]
+    ev = [mcap[i] + netdebt[i] + other_ev for i in range(n)]
+    nopat = [ebita[i] * 0.74 for i in range(n)]
+    opfcf = [fcf[i] + 1450 for i in range(n)]
+    equity = [bvps[i] * nosh for i in range(n)]
+    tax = [-(ebita[i] - 780) * 0.26 for i in range(n)]
+    divpaid = [-(dps[i - 1] if i else 6.0) * nosh for i in range(n)]
+    capemp = [equity[i] + netdebt[i] + 6300 for i in range(n)]
+
+    def n0(v):  # thousands separators, parentheses for negatives
+        return f"({abs(v):,.0f})" if v < 0 else f"{v:,.0f}"
+
+    def x1(v):
+        return f"({abs(v):.1f})" if v < 0 else f"{v:.1f}"
+
+    def row(name, vals, fmt=n0):
+        return [name, *[fmt(v) for v in vals]]
+
+    def rowx(name, vals):
+        return row(name, vals, x1)
+
+    def blank_first(r):  # first-year change figures are meaningless — show "-"
+        r[1] = "-"
+        return r
+
+    sections = [
+        {"label": "PER SHARE DATA (EUR)", "rows": [
+            rowx("EPS restated", eps),
+            blank_first(rowx("% change", [0 if i == 0 else (eps[i] / eps[i - 1] - 1) * 100 for i in range(n)])),
+            rowx("Book value (BVPS)", bvps),
+            rowx("Net dividend", dps),
+        ]},
+        {"label": "STOCKMARKET RATIOS", "rows": [
+            rowx("P/E (P/EPS restated)", [price[i] / eps[i] for i in range(n)]),
+            rowx("P/CF (x)", [mcap[i] / (netpro[i] + dep[i]) for i in range(n)]),
+            rowx("FCF yield (%)", [fcf[i] / mcap[i] * 100 for i in range(n)]),
+            rowx("P/BVPS (x)", [price[i] / bvps[i] for i in range(n)]),
+            rowx("Net yield (%)", [dps[i] / price[i] * 100 for i in range(n)]),
+            rowx("Payout (%)", [dps[i] / eps[i] * 100 for i in range(n)]),
+        ]},
+        {"label": "ENTERPRISE VALUE (EURm)", "rows": [
+            row("Market cap", mcap),
+            row("+ Adjusted net debt", netdebt),
+            row("+ Other liabilities and commitments", [other_ev] * n),
+            row("= Enterprise value", ev),
+            rowx("EV / Sales (x)", [ev[i] / sales[i] for i in range(n)]),
+            rowx("EV / Restated EBITDA (x)", [ev[i] / ebitda[i] for i in range(n)]),
+            rowx("EV / Restated EBITA (x)", [ev[i] / ebita[i] for i in range(n)]),
+            rowx("EV / NOPAT (x)", [ev[i] / nopat[i] for i in range(n)]),
+            rowx("EV / OpFCF (x)", [ev[i] / opfcf[i] for i in range(n)]),
+        ]},
+        {"label": "P&L HIGHLIGHTS (EURm)", "rows": [
+            row("Sales", sales),
+            row("Restated EBITDA", ebitda),
+            row("Depreciation", [-d for d in dep]),
+            row("Restated EBITA", ebita),
+            row("Net financial income (charges)", [-780] * n),
+            row("Tax", tax),
+            row("Minorities", [-490] * n),
+            row("Net attributable profit restated", netpro),
+        ]},
+        {"label": "CASH FLOW HIGHLIGHTS (EURm)", "rows": [
+            row("EBITDA (reported)", ebitda),
+            row("Change in WCR", [-620] * n),
+            row("Operating cash flow", [ebitda[i] - 620 - abs(tax[i]) for i in range(n)]),
+            row("Capex", [-c for c in capex]),
+            row("Operating free cash flow (OpFCF)", opfcf),
+            row("Free cash flow", fcf),
+            row("Dividends paid", divpaid),
+            blank_first(row("Increase (decrease) in net financial debt",
+                [netdebt[i] - netdebt[i - 1] if i else 0 for i in range(n)])),
+        ]},
+        {"label": "BALANCE SHEET HIGHLIGHTS (EURm)", "rows": [
+            row("Restated capital employed, incl. gross goodwill", capemp),
+            row("Shareholders' funds, group share", equity),
+            row("Net financial debt (cash)", netdebt),
+        ]},
+        {"label": "FINANCIAL RATIOS (%)", "rows": [
+            blank_first(rowx("Sales (% change)", [0 if i == 0 else (sales[i] / sales[i - 1] - 1) * 100 for i in range(n)])),
+            rowx("Organic sales growth", organic),
+            blank_first(rowx("Restated EBITA (% change)", [0 if i == 0 else (ebita[i] / ebita[i - 1] - 1) * 100 for i in range(n)])),
+            rowx("Restated EBITDA margin", [ebitda[i] / sales[i] * 100 for i in range(n)]),
+            rowx("Restated EBITA margin", [ebita[i] / sales[i] * 100 for i in range(n)]),
+            rowx("Tax rate", [26.0] * n),
+            rowx("Net margin", [netpro[i] / sales[i] * 100 for i in range(n)]),
+            rowx("Capex / Sales", [capex[i] / sales[i] * 100 for i in range(n)]),
+            rowx("OpFCF / Sales", [opfcf[i] / sales[i] * 100 for i in range(n)]),
+            rowx("Gearing", [netdebt[i] / equity[i] * 100 for i in range(n)]),
+            rowx("ROE", [netpro[i] / equity[i] * 100 for i in range(n)]),
+            rowx("ROCE", [nopat[i] / capemp[i] * 100 for i in range(n)]),
+            rowx("WACC", [8.0] * n),
+        ]},
+    ]
+    # a smooth-ish synthetic monthly price path for the chart (deterministic wiggle)
+    import math
+    monthly, rel = [], []
+    for i in range(n - 5):  # chart history: 2019 → 2025 (+ spot)
+        p0, p1 = price[i], price[min(i + 1, n - 1)]
+        for m in range(12):
+            t = m / 12.0
+            base = p0 + (p1 - p0) * t
+            monthly.append(round(base * (1 + 0.06 * math.sin((i * 12 + m) * 0.9)), 1))
+            rel.append(round(base * 0.92 * (1 + 0.04 * math.cos((i * 12 + m) * 0.7)), 1))
+    monthly.append(585.0)
+    rel.append(538.0)
+    return {
+        "columns": yrs, "current_col": cur, "estimates_from": 7,
+        "sections": sections,
+        "price_row": ["Price (yearly avg from Dec. 19 to Dec. 25)", *[f"{p:,.1f}" for p in price]],
+        "header_block": {
+            "price_line": "Price at 22 Jul. 26 / 12m Target Price",
+            "price_values": "EUR585.0 / EUR615  +5%",
+            "listing": "Refinitiv / Bloomberg: LVMH.PA / MC FP",
+            "company_line": "LVMH (Outperform)",
+            "sector_line": "Luxury Goods | France",
+            "highlights": [["Enterprise value (EURm)", "302,100"],
+                           ["Market capitalisation (EURm)", "290,745"],
+                           ["Free float (EURm)", "150,200"],
+                           ["3m average volume (EURm)", "412.6"]],
+            "performance": {"header": ["Performance (%)", "1m", "3m", "12m"],
+                            "rows": [["Absolute", "(4)", "2", "(12)"],
+                                     ["Rel. Luxury Goods", "(2)", "(1)", "(8)"],
+                                     ["Rel. MSCI Europe", "(3)", "0", "(10)"]]},
+            "hilo": "12m Hi/Lo (EUR): 705.0 -17% / 549.0 +7%",
+            "cagr": "CAGR 2002/2025: EPS restated +9% · CFPS +8%",
+        },
+        "chart": {"monthly": monthly, "rel": rel, "target": 615.0, "spot": 585.0,
+                  "years": [y.replace("Dec. ", "") for y in yrs[:7]]},
+        "footnote": "(a) Restated for capital gains/losses, exceptional restructuring, "
+                    "capitalized R&D; EBITA adjusted for impairments and amortisation of "
+                    "intangibles from M&A. All figures SYNTHETIC — demo. "
+                    "Latest model update: 22 Jul. 26",
+    }
+
+
+_MC_FP["highlights_full"] = _gen_highlights_mc()
+
 NOTE_PACKS: dict[str, dict] = {"MC FP": _MC_FP}
 
 
