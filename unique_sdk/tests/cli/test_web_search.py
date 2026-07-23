@@ -329,6 +329,33 @@ class TestCitationManifest:
         assert entry["error"] == "HTTP 403 while fetching URL"
         assert entry["snippet"] == "Total revenue decreased 12% YoY to $22.5B"
 
+    def test_error_content_with_redirected_url_is_kept_out_of_manifest(
+        self, tmp_path: Path
+    ) -> None:
+        """The URL inside the error payload can differ from the result URL
+        (redirects, trailing-slash/query normalization) — detection must not
+        depend on an exact URL match."""
+        manifest = tmp_path / ".unique" / "web-refs.jsonl"
+        payload = _make_search_payload(
+            results=[
+                {
+                    "url": "https://example.com/report.pdf",
+                    "title": "R",
+                    "snippet": "s",
+                    "content": (
+                        "URL: https://example.com/report.pdf?utm=x\n\n"
+                        "Error: HTTP 403 while fetching URL"
+                    ),
+                }
+            ]
+        )
+
+        _annotate_web_results_for_citations(payload, refs_log_path=manifest)
+
+        entry = json.loads(manifest.read_text(encoding="utf-8").splitlines()[0])
+        assert entry["content"] is None
+        assert entry["error"] == "HTTP 403 while fetching URL"
+
     def test_bare_error_content_is_kept_out_of_manifest(self, tmp_path: Path) -> None:
         """Tavily/Jina-style failures are a bare ``"Error: <message>"``."""
         manifest = tmp_path / ".unique" / "web-refs.jsonl"

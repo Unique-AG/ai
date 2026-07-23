@@ -67,20 +67,24 @@ def _next_source_number(entries: list[dict[str, Any]]) -> int:
     return max(source_numbers, default=0) + 1
 
 
-def _fetch_error_message(content: Any, url: str) -> str | None:
+def _fetch_error_message(content: Any) -> str | None:
     """Extract the failure message when ``content`` is a crawl-error payload.
 
     The web-search backend reports per-URL fetch failures in-band: proxy
     crawlers return ``"URL: <url>\\n\\nError: <message>"``, Tavily/Jina a
     bare ``"Error: <message>"``. Returns the message for error payloads and
     ``None`` for real page content.
+
+    Any leading ``URL: …`` line is skipped without matching it against the
+    result's own URL — redirects or normalization can make the reported URL
+    differ from the requested one.
     """
     if not isinstance(content, str):
         return None
     stripped = content.strip()
-    url_prefix = f"URL: {url}"
-    if stripped.startswith(url_prefix):
-        stripped = stripped[len(url_prefix) :].lstrip()
+    first_line, _, rest = stripped.partition("\n")
+    if first_line.startswith("URL:"):
+        stripped = rest.lstrip()
     if stripped.startswith("Error:"):
         return stripped[len("Error:") :].strip() or "unknown crawl error"
     return None
@@ -138,7 +142,7 @@ def _annotate_web_results_for_citations(
             result["citation"] = f"websource{source_number}"
             content = result.get("content")
             error = result.get("error")
-            fetch_error = _fetch_error_message(content, url)
+            fetch_error = _fetch_error_message(content)
             if fetch_error is not None:
                 content = None
                 error = error or fetch_error
