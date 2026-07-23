@@ -198,7 +198,9 @@ The table below documents `elicit ask`'s flags. `elicit create` takes the
 same `--chat-id`, `--message-id`, `--tool-name`, `--schema`, `--metadata`,
 and `--assistant-id` flags, but uses `--expires-in <seconds>` instead of
 `--timeout`/`--poll-interval` (those two apply only to `elicit wait`, which
-you call separately in the polling pattern).
+you call separately in the polling pattern). `elicit create` also takes
+`--mode FORM|URL` (default: `FORM` — you only need to pass it for URL
+elicitations).
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|

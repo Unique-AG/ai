@@ -97,7 +97,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --placeholder-text <text>      Text on the placeholder thinking step
         --cleanup collapse|delete      How to tear down the placeholder
       elicit create <message> [opts] Fire-and-forget create
-        --mode FORM|URL                Display mode (required)
+        --mode FORM|URL                Display mode (default: FORM)
         --tool-name / -t <name>        Tool label (required)
         --schema <json>                JSON schema (FORM mode)
         --url <url>                    External URL (URL mode)
@@ -811,7 +811,7 @@ class UniqueShell(cmd.Cmd):
           --tool-name / -t <name>      Tool label shown in the UI
           --schema <json>              JSON schema for form fields
           --url <url>                  External URL (create with --mode URL)
-          --mode FORM|URL              Display mode (create only, required)
+          --mode FORM|URL              Display mode (create only, default: FORM)
           --chat-id / -c <id>          Associated chat ID
           --message-id / -m <id>       Associated message ID
           --expires-in <seconds>       Auto-expire the request (create only)
@@ -1033,18 +1033,15 @@ class UniqueShell(cmd.Cmd):
         message = opts["message"]
         if not message:
             self._print(
-                "Usage: elicit create <message> --mode FORM|URL --tool-name <name> [options]"
+                "Usage: elicit create <message> [--mode FORM|URL] --tool-name <name> [options]"
             )
-            return
-        if not opts["mode"]:
-            self._print("Error: --mode is required (FORM or URL).")
             return
         if not opts["tool_name"]:
             self._print("Error: --tool-name / -t is required.")
             return
 
         create_kwargs: dict[str, Any] = {
-            "mode": opts["mode"],
+            "mode": opts["mode"] or "FORM",
             "message": message,
             "tool_name": opts["tool_name"],
             "schema": opts["schema"],

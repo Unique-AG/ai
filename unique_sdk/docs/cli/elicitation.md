@@ -153,7 +153,7 @@ Create an elicitation without waiting for the response. Useful when you want to 
 **Synopsis:**
 
 ```
-elicit create <message> --mode FORM|URL --tool-name <name> [options]
+elicit create <message> [--mode FORM|URL] --tool-name <name> [options]
 ```
 
 **Arguments:**
@@ -166,7 +166,7 @@ elicit create <message> --mode FORM|URL --tool-name <name> [options]
 
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
-| `--mode` | | Yes | `FORM` (render a JSON Schema form) or `URL` (redirect to an external page) |
+| `--mode` | | No (default `FORM`) | `FORM` (render a JSON Schema form) or `URL` (redirect to an external page) |
 | `--tool-name` | `-t` | Yes | Short tool/intent label |
 | `--schema` | | FORM | JSON Schema for the form body (required when `--mode FORM`) |
 | `--url` | | URL | External URL (required when `--mode URL`) |

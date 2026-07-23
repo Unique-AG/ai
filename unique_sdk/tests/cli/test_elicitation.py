@@ -1188,9 +1188,12 @@ class TestShellElicit:
         out = _capture(_shell(), "elicit create")
         assert "Usage: elicit create" in out
 
-    def test_create_requires_mode(self) -> None:
+    @patch("unique_sdk.cli.shell.cmd_elicit_create")
+    def test_create_defaults_mode_to_form(self, mock: MagicMock) -> None:
+        mock.return_value = "CREATED"
         out = _capture(_shell(), 'elicit create "msg" --tool-name t')
-        assert "--mode is required" in out
+        assert "CREATED" in out
+        assert mock.call_args[1]["mode"] == "FORM"
 
     def test_create_requires_tool_name(self) -> None:
         out = _capture(_shell(), 'elicit create "msg" --mode FORM')
