@@ -67,7 +67,10 @@ def _get_private_endpoint_http_client() -> httpx.AsyncClient:
 async def aclose_private_endpoint_http_client() -> None:
     """Close the shared private-endpoint httpx client if it was created."""
     global _private_endpoint_http_client
-    if _private_endpoint_http_client is not None and not _private_endpoint_http_client.is_closed:
+    if (
+        _private_endpoint_http_client is not None
+        and not _private_endpoint_http_client.is_closed
+    ):
         await _private_endpoint_http_client.aclose()
     _private_endpoint_http_client = None
 

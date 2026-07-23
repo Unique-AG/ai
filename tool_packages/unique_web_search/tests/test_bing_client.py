@@ -227,7 +227,9 @@ class TestGetOpenaiClient:
         get_openai_client(project_client)
 
         first = project_client.get_openai_client.call_args_list[0].kwargs["http_client"]
-        second = project_client.get_openai_client.call_args_list[1].kwargs["http_client"]
+        second = project_client.get_openai_client.call_args_list[1].kwargs[
+            "http_client"
+        ]
         assert first is second
         assert not first.is_closed
         await aclose_private_endpoint_http_client()

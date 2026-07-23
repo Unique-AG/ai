@@ -95,11 +95,14 @@ class TestBingAgentSearchService:
         mock_client = MagicMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_credential = MagicMock()
+        mock_credential.__aenter__ = AsyncMock(return_value=mock_credential)
+        mock_credential.__aexit__ = AsyncMock(return_value=None)
 
         with (
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.service.get_credentials",
-                return_value=MagicMock(),
+                return_value=mock_credential,
             ),
             patch(
                 "unique_search_proxy_client.web.core.agent_engines.bing.service.get_project_client",
@@ -116,6 +119,10 @@ class TestBingAgentSearchService:
         assert result.answer == "agent answer text"
         assert result.engine == "bing"
         assert result.raw == {"messages": []}
+        mock_credential.__aenter__.assert_awaited()
+        mock_credential.__aexit__.assert_awaited()
+        mock_client.__aenter__.assert_awaited()
+        mock_client.__aexit__.assert_awaited()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
