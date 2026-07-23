@@ -25,7 +25,7 @@ from unique_search_proxy_client.web.settings.providers import bing_agent as sett
 from unique_search_proxy_client.web.settings.secret_str import NOT_PROVIDED, read_secret
 
 _LOGGER = logging.getLogger(__name__)
-_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
+BING_AUTO_AGENT_NAME_PREFIX = "unique-grounding-with-bing"
 _CONFIG_HASH_LENGTH = 12
 
 
@@ -38,7 +38,7 @@ def _config_hash(*, model: str, fetch_size: int, instructions: str) -> str:
 def _agent_name_for_config(*, model: str, fetch_size: int, instructions: str) -> str:
     """Build a Foundry-safe agent name unique to this config."""
     return (
-        f"{_AGENT_NAME_PREFIX}-"
+        f"{BING_AUTO_AGENT_NAME_PREFIX}-"
         f"{_config_hash(model=model, fetch_size=fetch_size, instructions=instructions)}"
     )
 

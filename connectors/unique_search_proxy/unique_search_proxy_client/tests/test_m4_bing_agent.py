@@ -9,6 +9,10 @@ from openai import NotFoundError
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
 from unique_search_proxy_core.errors import EngineNotConfiguredError
 
+from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
+    cleanup_auto_provisioned_bing_agents,
+    maybe_cleanup_auto_provisioned_bing_agents_on_start,
+)
 from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     aclose_private_endpoint_http_client,
 )
@@ -16,6 +20,7 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_openai_client as get_openai_client_from_client_module,
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
+    BING_AUTO_AGENT_NAME_PREFIX,
     _agent_name_for_config,
     _config_hash,
     _is_missing_agent_error,
@@ -417,3 +422,69 @@ class TestPrivateEndpointHttpClientReuse:
         second = project_client.get_openai_client.call_args_list[1].kwargs["http_client"]
         assert first is second
         await aclose_private_endpoint_http_client()
+
+
+class TestCleanupAutoProvisionedBingAgents:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_deletes_only_prefix_matching_agents(self) -> None:
+        keep = MagicMock(name="manual-agent")
+        keep.name = "manual-agent"
+        delete_me = MagicMock(name="hashed")
+        delete_me.name = f"{BING_AUTO_AGENT_NAME_PREFIX}-abc123def456"
+        also_keep = MagicMock(name="other-prefix")
+        also_keep.name = "unique-other-agent-xyz"
+
+        async def _agents() -> AsyncIterator[Any]:
+            for agent in (keep, delete_me, also_keep):
+                yield agent
+
+        project_client = MagicMock()
+        project_client.agents.list = MagicMock(return_value=_agents())
+        project_client.agents.delete = AsyncMock()
+
+        deleted = await cleanup_auto_provisioned_bing_agents(project_client)
+
+        assert deleted == 1
+        project_client.agents.delete.assert_awaited_once_with(delete_me.name)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_continues_when_one_delete_fails(self) -> None:
+        first = MagicMock()
+        first.name = f"{BING_AUTO_AGENT_NAME_PREFIX}-one"
+        second = MagicMock()
+        second.name = f"{BING_AUTO_AGENT_NAME_PREFIX}-two"
+
+        async def _agents() -> AsyncIterator[Any]:
+            yield first
+            yield second
+
+        project_client = MagicMock()
+        project_client.agents.list = MagicMock(return_value=_agents())
+        project_client.agents.delete = AsyncMock(
+            side_effect=[RuntimeError("boom"), None],
+        )
+
+        deleted = await cleanup_auto_provisioned_bing_agents(project_client)
+
+        assert deleted == 1
+        assert project_client.agents.delete.await_count == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_maybe_cleanup_skips_when_setting_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        creds = MagicMock()
+        creds.cleanup_on_start = False
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
+            creds,
+        )
+        with patch(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_project_client",
+        ) as get_client:
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start()
+            get_client.assert_not_called()
+            creds.check_credentials.assert_not_called()
