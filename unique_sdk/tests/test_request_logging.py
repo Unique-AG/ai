@@ -118,3 +118,62 @@ def test_payload_byte_size_handles_bytes_and_str() -> None:
     assert _util._payload_byte_size(b"abc") == 3
     assert _util._payload_byte_size("é") == 2
     assert _util._payload_byte_size({"a": 1}) > 0
+
+
+def test_body_for_error_message_redacted_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+
+    result = _util.body_for_error_message(b'{"text":"client portfolio details"}')
+
+    assert "client portfolio details" not in str(result)
+    assert str(result) == "<redacted 35 bytes>"
+
+
+def test_body_for_error_message_passthrough_when_insecure_flag_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", "true")
+
+    body = b'{"text":"client portfolio details"}'
+    assert _util.body_for_error_message(body) is body
+
+
+def test_invalid_response_body_error_message_is_redacted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+
+    from unique_sdk._api_requestor import APIRequestor
+    from unique_sdk._error import APIError
+
+    requestor = APIRequestor(
+        key="sk-test", app_id="app-test", user_id="user-1", company_id="company-1"
+    )
+    # Latin-1 bytes that cannot decode as UTF-8 → interpret_response raises.
+    bad_body = 'note for Dr. Client Name: "caf\xe9"'.encode("latin-1")
+
+    with pytest.raises(APIError) as exc_info:
+        requestor.interpret_response(bad_body, 200, {})
+
+    assert "Client Name" not in str(exc_info.value)
+    assert "<redacted" in str(exc_info.value)
+
+
+def test_error_params_redacted_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", raising=False)
+
+    assert _util.error_params_for_log({"text": "Dr. Client Name"}) == "<redacted>"
+    assert _util.error_params_for_log(None) is None
+
+
+def test_error_params_passthrough_when_insecure_flag_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("INSECURE_UNIQUE_SDK_LOG_PAYLOADS", "true")
+
+    params = {"text": "Dr. Client Name"}
+    assert _util.error_params_for_log(params) is params
