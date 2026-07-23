@@ -10,8 +10,10 @@ from openai.types.responses.response_completed_event import ResponseCompletedEve
 from openai.types.responses.response_output_message import ResponseOutputMessage
 from openai.types.responses.response_output_text import ResponseOutputText
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from openai.types.responses.response_usage import ResponseUsage
 from pydantic import ValidationError
 
+from unique_web_search.invocation_stats import invocation_stats_scope
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -660,7 +662,10 @@ class TestGetBingGroundingTool:
 _RUNNER_MODULE = "unique_web_search.services.search_engine.utils.grounding.bing.runner"
 
 
-async def _fake_response_stream() -> AsyncIterator:
+async def _fake_response_stream(
+    *,
+    usage: ResponseUsage | None = None,
+) -> AsyncIterator:
     yield ResponseTextDeltaEvent.model_construct(
         type="response.output_text.delta",
         delta="response text",
@@ -692,6 +697,7 @@ async def _fake_response_stream() -> AsyncIterator:
         parallel_tool_calls=True,
         tool_choice="auto",
         tools=[],
+        usage=usage,
     )
     yield ResponseCompletedEvent.model_construct(
         type="response.completed",
@@ -700,10 +706,13 @@ async def _fake_response_stream() -> AsyncIterator:
     )
 
 
-def _mock_openai_client() -> MagicMock:
+def _mock_openai_client(
+    *,
+    usage: ResponseUsage | None = None,
+) -> MagicMock:
     mock_openai = MagicMock()
     mock_openai.responses.create = AsyncMock(
-        side_effect=lambda *_a, **_k: _fake_response_stream(),
+        side_effect=lambda *_a, **_k: _fake_response_stream(usage=usage),
     )
     return mock_openai
 
@@ -752,6 +761,63 @@ class TestCreateAndProcessRun:
         assert results == expected_results
         mock_agent_client.agents.create_version.assert_not_called()
         mock_parser.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch(f"{_RUNNER_MODULE}.env_settings")
+    async def test_run__completed_response__records_token_usage(
+        self,
+        mock_env: MagicMock,
+    ) -> None:
+        """
+        Purpose: Verify Responses completion usage is recorded for billing/observability.
+        Why this matters: Replaces Threads ``thread.usage`` recording after the SDK migration.
+        Setup summary: Stream a completed response with ResponseUsage inside invocation_stats_scope.
+        """
+        mock_env.azure_ai_assistant_id = None
+        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
+        mock_env.azure_ai_bing_resource_connection_string = (
+            "/subscriptions/x/connections/bing"
+        )
+        mock_agent_client = MagicMock()
+        mock_agent_client.agents.create_version = AsyncMock()
+        mock_parser = AsyncMock(
+            return_value=[
+                WebSearchResult(
+                    url="https://a.com", title="A", snippet="s", content="c"
+                )
+            ]
+        )
+        usage = ResponseUsage.model_construct(
+            input_tokens=12,
+            output_tokens=34,
+            total_tokens=46,
+            input_tokens_details=None,
+            output_tokens_details=None,
+        )
+
+        with (
+            patch(
+                f"{_RUNNER_MODULE}.get_openai_client",
+                return_value=_mock_openai_client(usage=usage),
+            ),
+            invocation_stats_scope() as invocation_stats,
+        ):
+            await create_and_process_run(
+                agent_client=mock_agent_client,
+                agent_id="",
+                query="test query",
+                fetch_size=5,
+                response_parsers_strategies=[mock_parser],
+                generation_instructions="Test instructions",
+            )
+
+        assert len(invocation_stats) == 1
+        assert invocation_stats[0].model_name == "gpt-5.1"
+        assert invocation_stats[0].source == "web_search.grounding.bing"
+        assert invocation_stats[0].token_usage.prompt_tokens == 12
+        assert invocation_stats[0].token_usage.completion_tokens == 34
+        assert invocation_stats[0].token_usage.total_tokens == 46
 
     @pytest.mark.ai
     @pytest.mark.asyncio

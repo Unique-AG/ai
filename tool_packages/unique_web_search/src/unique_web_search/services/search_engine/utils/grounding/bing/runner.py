@@ -24,6 +24,7 @@ from openai.types.responses.response_output_text import (
 )
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 
+from unique_web_search.invocation_stats import record_token_usage
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -299,6 +300,11 @@ async def _run_responses_agent(
             if output_text and not emitted_text:
                 emitted_text = True
                 answer_parts.append(output_text)
+            record_token_usage(
+                model_name=model,
+                usage=event.response.usage,
+                source="web_search.grounding.bing",
+            )
 
     answer = "".join(answer_parts)
     for marker, markdown_link in citation_replacements:
