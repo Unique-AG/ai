@@ -250,6 +250,7 @@ NOTIFICATION = "LVMH reaction pack ready — model, note, buy-side email drafted
 # agent reads them via get_emails / get_calendar). "Today" = 23 July 2026.
 # ---------------------------------------------------------------------------
 SNAPSHOT_LABEL = "Baseline — 23 Jul 2026, 07:00 CET (overnight run)"
+STORY_TODAY = "2026-07-23"  # the storyline's "today" (warning day) in the baseline
 
 EMAILS_SEED: list[dict] = [
     {"id": "M-001", "ts": "2026-07-23 06:41", "from_name": "Head of Sales",
@@ -489,6 +490,7 @@ def baseline() -> dict:
     return {
         "generated_at": "07:00 CET",
         "snapshot_label": SNAPSHOT_LABEL,
+        "today": STORY_TODAY,
         "brief": [_brief_item(k) for k in OVERNIGHT_ORDER],
         "inbox": [{**copy.deepcopy(d), "reviewed": False} for d in ACTION_INBOX],
         "jobs": {"jobs": copy.deepcopy(JOBS_SEED), "notification": NOTIFICATION},

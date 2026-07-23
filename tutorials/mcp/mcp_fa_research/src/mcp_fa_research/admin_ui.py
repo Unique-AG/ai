@@ -19,11 +19,21 @@ REST surface (all JSON):
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 
 from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.requests import Request
 
 import seed
+
+
+def _shift_date(s: str, delta_days: int, fmt_len: int = 10) -> str:
+    """Shift the YYYY-MM-DD prefix of a date or 'YYYY-MM-DD HH:MM' string."""
+    try:
+        d = date.fromisoformat(s[:fmt_len])
+    except ValueError:
+        return s
+    return (d + timedelta(days=delta_days)).isoformat() + s[fmt_len:]
 
 _COVERAGE_FIELDS = {"rating", "target_price", "price", "premarket_pct", "status",
                     "next_catalyst"}
@@ -57,6 +67,8 @@ def register(mcp, get_state, reset_state) -> None:
         st = get_state()
         return JSONResponse({
             "snapshot_label": st.get("snapshot_label", seed.SNAPSHOT_LABEL),
+            "today": st.get("today", seed.STORY_TODAY),
+            "baseline_today": seed.STORY_TODAY,
             "generated_at": st.get("generated_at"),
             "coverage": st["coverage"],
             "brief": st["brief"],
@@ -73,7 +85,35 @@ def register(mcp, get_state, reset_state) -> None:
     @mcp.custom_route("/admin/api/reset", methods=["POST"])
     async def admin_reset(request: Request):
         st = reset_state()
-        return JSONResponse({"reset": True, "snapshot_label": st["snapshot_label"]})
+        return JSONResponse({"reset": True, "snapshot_label": st["snapshot_label"],
+                             "today": st["today"]})
+
+    @mcp.custom_route("/admin/api/rebase", methods=["POST"])
+    async def admin_rebase(request: Request):
+        """Shift every dated item so the storyline's 'today' becomes the given date
+        (default: the caller's date). Deltas are preserved — the warning day is
+        always day 0, the roadshow stays T+6/+7, yesterday's emails stay T-1.
+        Idempotent day over day: the shift is relative to the CURRENT anchor."""
+        st = get_state()
+        body = await request.json() if (request.headers.get("content-length") or "0") != "0" else {}
+        target_s = (body or {}).get("date") or date.today().isoformat()
+        try:
+            target = date.fromisoformat(target_s)
+        except ValueError:
+            return JSONResponse({"error": f"bad date {target_s!r} — use YYYY-MM-DD"},
+                                status_code=400)
+        anchor = date.fromisoformat(st.get("today", seed.STORY_TODAY))
+        delta = (target - anchor).days
+        if delta:
+            for ev in st["calendar"]:
+                ev["date"] = _shift_date(ev["date"], delta)
+            for em in st["emails"]:
+                em["ts"] = _shift_date(em["ts"], delta)
+            st["today"] = target.isoformat()
+        return JSONResponse({"rebased": True, "today": st["today"],
+                             "shifted_days": delta,
+                             "note": "calendar dates and email timestamps shifted; "
+                                     "deltas to the warning day preserved"})
 
     @mcp.custom_route("/admin/api/coverage/{ticker}", methods=["PATCH"])
     async def admin_coverage(request: Request):
@@ -227,7 +267,8 @@ textarea{min-height:90px;resize:vertical}
   <div class="logo">FA</div>
   <div><h1>FA Research — Demo Data Console</h1>
   <div class="sub">Exane BNPP CIB sell-side demo · edits feed the cockpit, dashboards and the agent instantly</div></div>
-  <div class="right"><span class="snap">Snapshot: <b id="snap"></b></span>
+  <div class="right"><span class="snap">Snapshot: <b id="snap"></b><br>Story day: <b id="today"></b></span>
+  <button class="btn" onclick="doRebase()" title="Shift all dates so the warning day becomes today — deltas preserved">⇥ Rebase to today</button>
   <button class="btn danger" onclick="doReset()">↺ Reset demo data</button></div>
 </header>
 <nav id="tabs"></nav>
@@ -247,7 +288,15 @@ const TABS=[["coverage","Coverage"],["brief","Morning brief"],["emails","Emails"
             ["calendar","Calendar"],["agenda","Agenda & jobs"],["reference","Reference (read-only)"]];
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 async function load(){S=await (await fetch('admin/api/state')).json();
-  document.getElementById('snap').textContent=S.snapshot_label;render();}
+  document.getElementById('snap').textContent=S.snapshot_label;
+  document.getElementById('today').textContent=S.today+(S.today===S.baseline_today?' (baseline)':' (rebased)');
+  render();}
+function localDate(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+async function doRebase(){const t=localDate();
+  if(!confirm('Shift all calendar dates and email timestamps so the story day ('+S.today+') becomes '+t+'? Deltas are preserved; Reset returns to the baseline.'))return;
+  const r=await(await fetch('admin/api/rebase',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({date:t})})).json();
+  toast(r.shifted_days?('Shifted by '+r.shifted_days+' day(s)'):'Already on '+t);load();}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;
   setTimeout(()=>t.style.opacity=0,1800);}
 async function doReset(){if(!confirm('Reset ALL demo data to the baseline snapshot?'))return;

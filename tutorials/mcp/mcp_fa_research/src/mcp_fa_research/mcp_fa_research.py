@@ -422,7 +422,7 @@ def get_emails(unread_only: Annotated[bool, Field(
     emails = sorted(emails, key=lambda e: e["ts"], reverse=True)
     return json.dumps({"count": len(emails), "unread": sum(1 for e in STATE["emails"]
                                                            if not e.get("read")),
-                       "emails": emails})
+                       "story_today": STATE.get("today"), "emails": emails})
 
 
 @mcp.tool(name="get_calendar", title="Calendar (synthetic)",
@@ -434,7 +434,8 @@ def get_emails(unread_only: Annotated[bool, Field(
                       "Reset_Demo_Data restores the snapshot. SYNTHETIC demo data.")
 def get_calendar() -> str:
     events = sorted(STATE["calendar"], key=lambda ev: (ev["date"], ev["time"]))
-    return json.dumps({"count": len(events), "events": events})
+    return json.dumps({"count": len(events), "story_today": STATE.get("today"),
+                       "events": events})
 
 
 def _yahoo_quote(symbol: str) -> dict | None:
