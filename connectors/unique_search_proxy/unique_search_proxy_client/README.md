@@ -160,7 +160,7 @@ Thin egress — proxy returns opaque agent text; callers own parsing and citatio
 
 Streaming (`/v1/agent-search/stream`) emits SSE `{ "type": "delta", "text": "..." }` chunks and a terminal `{ "type": "done", "response": { … } }`.
 
-**Bing auto-provisioned agents:** when `agent_id` / `BING_AGENT_AGENT_ID` is unset, the proxy creates Foundry agents named `unique-grounding-with-bing-<hash>` (hash of model, fetch size, and instructions) on first miss. Set `BING_AGENT_CLEANUP_ON_START=true` to delete those prefix-matched agents on process start (best-effort; does not block boot). Preconfigured agent names that do not use this prefix are not deleted.
+**Bing auto-provisioned agents:** when `agent_id` / `BING_AGENT_AGENT_ID` is unset, the proxy creates Foundry agents named `unique-grounding-with-bing-<hash>` (hash of model, fetch size, and instructions) on first miss. Set `BING_AGENT_CLEANUP_ON_START=true` to delete those prefix-matched agents on process start (best-effort; failures and multi-worker/replica races are logged and never block boot; create-on-miss recovers transient misses). Preconfigured agent names that do not use this prefix are not deleted.
 
 ### 5.4 Crawl (`POST /v1/crawl`)
 

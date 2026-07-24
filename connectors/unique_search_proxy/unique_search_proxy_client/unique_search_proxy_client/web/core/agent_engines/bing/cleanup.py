@@ -29,8 +29,9 @@ def _is_auto_provisioned_agent_name(name: str) -> bool:
 async def cleanup_auto_provisioned_bing_agents(project_client: AIProjectClient) -> int:
     """Delete Foundry agents whose names match the auto-provisioned hash prefix.
 
-    Continues on per-agent failures. Treats not-found as success (idempotent).
-    Returns the number of successfully deleted agents.
+    Best-effort and race-tolerant: continues on per-agent failures (including
+    concurrent deletes from other workers/replicas). Treats not-found as success
+    (idempotent). Returns the number of successfully deleted agents.
     """
     deleted = 0
     pager = project_client.agents.list(kind="prompt", limit=_LIST_PAGE_SIZE)
@@ -47,17 +48,22 @@ async def cleanup_auto_provisioned_bing_agents(project_client: AIProjectClient) 
                 "Auto-provisioned Bing agent %s already absent during cleanup",
                 name,
             )
-        except Exception as exc:
+        except Exception:
             _LOGGER.warning(
-                "Failed to delete auto-provisioned Bing agent %s: %s",
+                "Failed to delete auto-provisioned Bing agent %s",
                 name,
-                exc,
+                exc_info=True,
             )
     return deleted
 
 
 async def maybe_cleanup_auto_provisioned_bing_agents_on_start() -> None:
-    """Best-effort startup cleanup when ``BING_AGENT_CLEANUP_ON_START`` is enabled."""
+    """Best-effort startup cleanup when ``BING_AGENT_CLEANUP_ON_START`` is enabled.
+
+    Never raises: credential, client, list, or delete failures are logged and
+    swallowed so multi-worker/replica races cannot block process startup.
+    Transient Bing request failures during a race are recovered by create-on-miss.
+    """
     if not bing_agent_credentials.cleanup_on_start:
         return
 
@@ -81,5 +87,5 @@ async def maybe_cleanup_auto_provisioned_bing_agents_on_start() -> None:
             "Bing agent startup cleanup finished; deleted %s auto-provisioned agent(s)",
             deleted,
         )
-    except Exception as exc:
-        _LOGGER.warning("Bing agent startup cleanup failed: %s", exc)
+    except Exception:
+        _LOGGER.warning("Bing agent startup cleanup failed", exc_info=True)

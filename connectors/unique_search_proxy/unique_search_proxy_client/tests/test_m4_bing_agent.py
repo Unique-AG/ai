@@ -529,6 +529,36 @@ class TestCleanupAutoProvisionedBingAgents:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_maybe_cleanup_swallows_top_level_failures(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Verify startup cleanup never raises into FastAPI lifespan.
+        Why this matters: Multi-worker/replica races must not block process start.
+        Setup summary: Force credential check to pass, then fail client setup; assert no raise.
+        """
+        creds = MagicMock()
+        creds.cleanup_on_start = True
+        creds.endpoint = MagicMock()
+        creds.check_credentials = MagicMock()
+        monkeypatch.setattr(
+            "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.bing_agent_credentials",
+            creds,
+        )
+        with (
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.get_credentials",
+                side_effect=RuntimeError("credential boom"),
+            ),
+            patch(
+                "unique_search_proxy_client.web.core.agent_engines.bing.cleanup.read_secret",
+                return_value="https://example.azure.com",
+            ),
+        ):
+            await maybe_cleanup_auto_provisioned_bing_agents_on_start()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_maybe_cleanup_skips_when_setting_disabled(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
