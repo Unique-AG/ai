@@ -1,19 +1,16 @@
 ---
 // The "Needing attention" rail: live clients with status "Needs
 // Remediation" (Escalated ones are deliberately excluded — see
-// data-unique-source-args below), each with quick Compliant/Escalate
-// actions. Only ever rendered once per page, but broken out of
-// index.astro so the page shell reads as a list of named regions.
+// data-unique-source-args below). Only ever rendered once per page, but
+// broken out of index.astro so the page shell reads as a list of named regions.
 import DataList from "./DataList.astro";
-import { callToolAttrs } from "../lib/contract";
-
-const refresh = "attentionLive,statusKpis,clientsLive,clientPages";
+import Icon from "./Icon.astro";
 ---
 
 <section>
   <div class="seclabel">
     <h2>Needing attention</h2>
-    <span class="upd">🟢 Live · status "Needs Remediation" only (not Escalated)</span>
+    <span class="upd">Live · status "Needs Remediation" only (not Escalated)</span>
   </div>
   <DataList
     class="rail"
@@ -31,52 +28,32 @@ const refresh = "attentionLive,statusKpis,clientsLive,clientPages";
           data-unique-attr-data-risk="risk_level"
           data-unique-attr-data-status="status"
         >
-          <div class="acard-top">
-            <span class="acard-top-l">
-              <span class="risk"><span class="risk-ico" /><span data-unique-field="risk_level" /></span>
-              <span class="case-badge" data-unique-attr-data-rule="rule_code" />
-            </span>
-            <span class="acard-due" data-unique-field="due_date" />
-          </div>
           <div class="acard-title" data-unique-field="open_issue" />
           <div class="acard-body" data-unique-field="recommended_action" />
           <div class="acard-foot">
             <span class="who">
-              <span class="avatar avatar-from-name" data-unique-field="client_name" />
+              <span class="avatar"><Icon name="user" size={12} /></span>
               <span data-unique-field="client_name" />
             </span>
-            <span class="acard-go">Open →</span>
+            <span class="acard-indicators">
+              <span class="status-indicator" tabindex="0" data-unique-attr-data-tooltip="status">
+                <Icon name="alert-circle" class="status-icon status-icon-needs" size={16} />
+                <Icon name="circle-arrow-up" class="status-icon status-icon-escalated" size={16} />
+                <Icon name="check-circle" class="status-icon status-icon-compliant" size={16} />
+              </span>
+              <span class="risk-indicator" tabindex="0" data-unique-attr-data-tooltip="{risk_level} risk">
+                <Icon name="chevron-up" class="risk-icon risk-icon-high" size={16} />
+                <Icon name="minus" class="risk-icon risk-icon-medium" size={16} />
+                <Icon name="chevron-down" class="risk-icon risk-icon-low" size={16} />
+              </span>
+            </span>
           </div>
         </a>
-        <div class="acard-actions">
-          <button
-            type="button"
-            class="btn btn-ok"
-            {...callToolAttrs({
-              tool: "update_row",
-              argsTemplate: '{"table":"clients","row_id":{row_id},"fields":{"status":"Compliant","client_ref":"{client_ref}"}}',
-              refresh,
-            })}
-          >
-            ✅ Compliant
-          </button>
-          <button
-            type="button"
-            class="btn btn-danger"
-            {...callToolAttrs({
-              tool: "escalate_row",
-              argsTemplate: '{"table":"clients","row_id":{row_id},"fields":{"status":"Escalated","client_ref":"{client_ref}"}}',
-              refresh,
-            })}
-          >
-            🚨 Escalate
-          </button>
-        </div>
       </div>
     </template>
     <p data-unique-state="loading" class="small muted" style="padding: 10px 4px">Loading clients needing attention…</p>
     <p data-unique-state="empty" class="small muted" style="padding: 10px 4px">
-      🎉 Nothing needs attention — every open issue is escalated or cleared.
+      Nothing needs attention — every open issue is escalated or cleared.
     </p>
   </DataList>
 </section>

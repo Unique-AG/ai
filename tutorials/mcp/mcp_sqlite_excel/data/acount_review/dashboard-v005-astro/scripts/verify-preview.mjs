@@ -44,16 +44,25 @@ assert(kpis.length === 3, `${kpis.length} KPI tiles rendered`);
 
 const firstCard = cards[0];
 assert(!!firstCard.querySelector('[data-unique-field="client_name"]').textContent, "first card has a real client_name (not a literal placeholder)");
+const firstStatusTooltip = firstCard.querySelector(".status-indicator").getAttribute("data-tooltip");
+const firstRiskTooltip = firstCard.querySelector(".risk-indicator").getAttribute("data-tooltip");
+assert(firstStatusTooltip && !firstStatusTooltip.includes("{status}"), "status indicator tooltip is hydrated");
+assert(firstRiskTooltip && !firstRiskTooltip.includes("{risk_level}"), "risk indicator tooltip is hydrated");
 
-console.log("\ncallTool (escalate) mutates state and refreshes bound lists:");
+console.log("\ncallTool (portfolio status edit) mutates state and refreshes bound lists:");
 const before = window.document.querySelectorAll('[data-unique-list="attentionLive"] .acard').length;
-const firstWrap = window.document.querySelector('[data-unique-list="attentionLive"] .acard-wrap');
-const escalateBtn = firstWrap.querySelector('button[data-unique-source-tool="escalate_row"]');
-assert(!!escalateBtn, "escalate button present on first card");
-assert(!escalateBtn.getAttribute("data-unique-source-args").includes("{row_id}"), "escalate button args are fully interpolated (no leftover {row_id})");
-escalateBtn.dispatchEvent(new window.Event("click", { bubbles: true }));
+const firstAttentionHref = firstCard.getAttribute("href");
+const matchingPortfolioLink = window.document.querySelector(`[data-unique-list="clientsLive"] a[href="${firstAttentionHref}"]`);
+assert(!!matchingPortfolioLink, "first attention client also appears in the portfolio table");
+const matchingPortfolioRow = matchingPortfolioLink.closest("tr");
+const compliantBtn = Array.from(matchingPortfolioRow.querySelectorAll('button[data-unique-source-tool="update_row"]')).find((button) =>
+  button.getAttribute("data-unique-source-args").includes('"status":"Compliant"')
+);
+assert(!!compliantBtn, "portfolio Compliant button present for first attention client");
+assert(!compliantBtn.getAttribute("data-unique-source-args").includes("{row_id}"), "Compliant button args are fully interpolated (no leftover {row_id})");
+compliantBtn.dispatchEvent(new window.Event("click", { bubbles: true }));
 const after = window.document.querySelectorAll('[data-unique-list="attentionLive"] .acard').length;
-assert(after === before - 1, `attention rail shrank after escalate (${before} → ${after})`);
+assert(after === before - 1, `attention rail shrank after marking client compliant (${before} → ${after})`);
 
 console.log("\nsendPrompt shows a fully-interpolated prompt (regression check for the earlier {placeholder} bug):");
 const aiButton = window.document.querySelector('[data-unique-list="clientPages"] button[data-unique-action="sendPrompt"]');

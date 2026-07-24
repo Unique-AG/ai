@@ -3,6 +3,8 @@
 // section: chevron + title + optional meta in the summary, content in
 // `.sec-body`. `lib/cases.js`'s renderOpenSectionsCss force-opens a section
 // by matching its `data-key`, so that prop is required.
+import Icon from "./Icon.astro";
+
 export interface Props {
   dataKey: string;
   title: string;
@@ -14,7 +16,7 @@ const { dataKey, title, open = true } = Astro.props;
 
 <details class="card sec" data-key={dataKey} open={open}>
   <summary class="sec-sum">
-    <span class="sec-chev">›</span>
+    <span class="sec-chev"><Icon name="chevron-right" size={16} /></span>
     <h2>{title}</h2>
     <slot name="meta" />
   </summary>

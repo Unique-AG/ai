@@ -3,6 +3,7 @@
 // given rule_code. The emitted data-unique-* attributes are the platform's
 // live-binding contract, so the markup shape here is load-bearing.
 import { mcpServer, sendPromptAttrs } from "../lib/contract";
+import Icon from "./Icon.astro";
 
 export interface Props {
   ruleCode: string;
@@ -17,6 +18,10 @@ export interface Props {
 }
 
 const { ruleCode, useCase } = Astro.props;
+
+function stripLeadingIcon(label: string): string {
+  return label.replace(/^[^\w]+/u, "").trim();
+}
 
 function promptFor(instructions: string): string {
   // {field} stays literal here (JS template literals only interpolate
@@ -48,10 +53,10 @@ const dual = useCase.dual_action;
             class={i === 0 ? "btn btn-ai" : "btn btn-ai btn-ai-alt"}
             {...sendPromptAttrs(promptFor(action.instructions))}
           >
-            {action.label}
+            <Icon name={i === 0 ? "mail" : "siren"} size={16} /> {stripLeadingIcon(action.label)}
           </button>
           <span class="toast toast-agent" role="status">
-            {action.toast}
+            <Icon name="bot" size={14} /> {stripLeadingIcon(action.toast)}
           </span>
         </span>
       ))
@@ -62,10 +67,10 @@ const dual = useCase.dual_action;
           class="btn btn-ai"
           {...sendPromptAttrs(promptFor(useCase.instructions ?? ""))}
         >
-          ✨ <span data-unique-field="action_button" />
+          <Icon name="sparkles" size={16} /> <span data-unique-field="action_button" />
         </button>
         <span class="toast toast-agent" role="status">
-          ✨ Sent to me — analysing and drafting the next step
+          <Icon name="bot" size={14} /> Sent to me — analysing and drafting the next step
         </span>
       </span>
     )

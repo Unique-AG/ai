@@ -5,6 +5,7 @@
 // reads as a list of named regions.
 import DataList from "./DataList.astro";
 import EditableCell from "./EditableCell.astro";
+import Icon from "./Icon.astro";
 import { callToolAttrs } from "../lib/contract";
 
 // Both cell editors below refresh the same four lists, and the status
@@ -14,7 +15,7 @@ const refresh = "clientsLive,attentionLive,clientPages,statusKpis";
 ---
 
 <details class="panel portfolio" open>
-  <summary><span class="chev">▾</span> Your portfolio</summary>
+  <summary><span class="chev"><Icon name="chevron-down" size={16} /></span> Your portfolio</summary>
   <DataList class="kpis" listName="statusKpis" tool="count_by" args={{ table: "clients", column: "status" }}>
     <template data-unique-item>
       <div class="kpi" data-unique-key="bucket" data-unique-attr-data-bucket="bucket">
@@ -48,20 +49,19 @@ const refresh = "clientsLive,attentionLive,clientPages,statusKpis";
             <EditableCell
               field="status"
               tdDataAttr="data-status"
-              iconClass="dot"
               statClass="stat"
               menuLabel="Set status"
               refresh={refresh}
               options={[
                 { value: "Compliant", label: "Compliant", cssClass: "mi-ok" },
-                { value: "Needs Remediation", label: "Needs Remediation", cssClass: "mi-warn" },
-                { value: "Escalated", label: "Escalated", cssClass: "mi-danger", tool: "escalate_row" },
+                { value: "Needs Remediation", label: "Needs Remediation", cssClass: "mi-danger" },
+                { value: "Escalated", label: "Escalated", cssClass: "mi-warn", tool: "escalate_row" },
               ]}
             />
             <EditableCell
               field="risk_level"
               tdDataAttr="data-risk"
-              iconClass="risk-ico"
+              iconClass="risk-indicator"
               statClass="risk"
               menuLabel="Set risk"
               refresh={refresh}

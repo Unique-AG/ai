@@ -8,6 +8,7 @@ import CaseActionBar from "./CaseActionBar.astro";
 import CaseFigure from "./CaseFigure.astro";
 import FieldGrid from "./FieldGrid.astro";
 import FigureRows from "./FigureRows.astro";
+import Icon from "./Icon.astro";
 import Section from "./Section.astro";
 
 interface UseCase {
@@ -176,7 +177,7 @@ const { pairs } = Astro.props;
 
   <div class="detail-bar">
     <a class="btn btn-back" href="#top">
-      ← Back to console
+      <Icon name="chevron-left" size={16} /> Back to console
     </a>
   </div>
 </main>

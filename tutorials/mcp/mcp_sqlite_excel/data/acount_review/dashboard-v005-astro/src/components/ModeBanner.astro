@@ -12,14 +12,14 @@ const { mode, mcpLiveConfig } = Astro.props;
 <div class:list={["mode-banner", mode]}>
   {
     mode === "preview" ? (
-      "🧪 PREVIEW build — local mock data, no MCP connector (see mock-host.js). This file is for local review only, never deploy it."
+      "PREVIEW build — local mock data, no MCP connector (see mock-host.js). This file is for local review only, never deploy it."
     ) : mode === "live-local" ? (
       <>
-        🔌 LIVE-LOCAL build — real Streamable HTTP to <code>{mcpLiveConfig?.baseUrl}</code> (see mcp-live-host.js). Requires{" "}
+        LIVE-LOCAL build — real Streamable HTTP to <code>{mcpLiveConfig?.baseUrl}</code> (see mcp-live-host.js). Requires{" "}
         <code>AUTH_DISABLED=true uv run mcp-sqlite-excel</code> running locally. Never deploy this file.
       </>
     ) : (
-      "🟢 LIVE build — data-unique-* bindings only, zero JS. This is the platform artifact."
+      "LIVE build — data-unique-* bindings only, zero JS. This is the platform artifact."
     )
   }
 </div>
