@@ -13,14 +13,18 @@ _UPDATING_HEADER = "Updating your memory"
 _CONTEXT_MEMORY_PILL = "Context memory"
 _REVIEW_MEMORY_PILL = "Review your context memory"
 
+# Opens the chat Settings → Context Memory tab (handled by the frontend).
+SETTINGS_CONTEXT_MEMORY_URL = "unique://settings/context-memory"
+CONTEXT_MEMORY_REFERENCE_SOURCE = "context-memory"
 
-def _memory_reference(*, name: str, content_id: str) -> ContentReference:
+
+def _memory_settings_reference(*, name: str) -> ContentReference:
     return ContentReference(
         name=name,
         sequence_number=0,
-        source="internal",
-        source_id=content_id,
-        url=f"unique://content/{content_id}",
+        source=CONTEXT_MEMORY_REFERENCE_SOURCE,
+        source_id=CONTEXT_MEMORY_REFERENCE_SOURCE,
+        url=SETTINGS_CONTEXT_MEMORY_URL,
     )
 
 
@@ -47,14 +51,12 @@ class UserMemoryMessageLogger:
             action="start loading step",
         )
 
-    async def log_loading_complete(self, *, content_id: str | None) -> None:
+    async def log_loading_complete(self, *, with_pill: bool = True) -> None:
         # Attach the pill on the loading step itself (same pattern as update).
         # A separate MessageLog with empty text is dropped / invisible in the
         # chat Steps UI, so the link must ride on this COMPLETED entry.
         references = (
-            [_memory_reference(name=_CONTEXT_MEMORY_PILL, content_id=content_id)]
-            if content_id
-            else []
+            [_memory_settings_reference(name=_CONTEXT_MEMORY_PILL)] if with_pill else []
         )
         await self._safe_create_or_update(
             active_attr="_loading_log",
@@ -64,31 +66,21 @@ class UserMemoryMessageLogger:
             action="complete loading step",
         )
 
-    async def log_updating_start(self, *, content_id: str | None) -> None:
-        references = (
-            [_memory_reference(name=_REVIEW_MEMORY_PILL, content_id=content_id)]
-            if content_id
-            else []
-        )
+    async def log_updating_start(self) -> None:
         await self._safe_create_or_update(
             active_attr="_updating_log",
             header=_UPDATING_HEADER,
             status=MessageLogStatus.RUNNING,
-            references=references,
+            references=[_memory_settings_reference(name=_REVIEW_MEMORY_PILL)],
             action="start updating step",
         )
 
-    async def log_updating_complete(self, *, content_id: str | None) -> None:
-        references = (
-            [_memory_reference(name=_REVIEW_MEMORY_PILL, content_id=content_id)]
-            if content_id
-            else []
-        )
+    async def log_updating_complete(self) -> None:
         await self._safe_create_or_update(
             active_attr="_updating_log",
             header=_UPDATING_HEADER,
             status=MessageLogStatus.COMPLETED,
-            references=references,
+            references=[_memory_settings_reference(name=_REVIEW_MEMORY_PILL)],
             action="complete updating step",
         )
 

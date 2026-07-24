@@ -407,9 +407,7 @@ async def _build_common(
             logger=logger,
         )
         if user_memory_state is not None:
-            await memory_message_logger.log_loading_complete(
-                content_id=user_memory_state.content_id,
-            )
+            await memory_message_logger.log_loading_complete(with_pill=True)
             user_memory_text = user_memory_state.text
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
@@ -423,7 +421,7 @@ async def _build_common(
                 )
             )
         else:
-            await memory_message_logger.log_loading_complete(content_id=None)
+            await memory_message_logger.log_loading_complete(with_pill=False)
 
     return _CommonComponents(
         chat_service=chat_service,

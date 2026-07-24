@@ -96,13 +96,11 @@ class UserMemoryPostprocessor(Postprocessor):
         if not user_id or not company_id:
             return False
 
-        content_id = self._state.content_id
-
         async def _on_update_start() -> None:
-            await self._message_logger.log_updating_start(content_id=content_id)
+            await self._message_logger.log_updating_start()
 
         async def _on_update_end() -> None:
-            await self._message_logger.log_updating_complete(content_id=content_id)
+            await self._message_logger.log_updating_complete()
 
         on_update_start: Callable[[], Awaitable[None]] = _on_update_start
         on_update_end: Callable[[], Awaitable[None]] = _on_update_end
@@ -125,21 +123,17 @@ class UserMemoryPostprocessor(Postprocessor):
             self._logger.debug("[user-memory] consolidation NOOP - skipping upload")
             return False
 
-        uploaded_content_id = await upload_user_memory(
+        uploaded = await upload_user_memory(
             scope_id=self._state.scope_id,
             content=self._new_memory,
             user_id=user_id,
             company_id=company_id,
             logger=self._logger,
         )
-        if not uploaded_content_id:
+        if not uploaded:
             self._logger.warning("[user-memory] memory update was not uploaded")
             return False
 
-        # Prefer the freshly uploaded id so the review pill works on first write.
-        await self._message_logger.log_updating_complete(
-            content_id=uploaded_content_id or content_id
-        )
         self._logger.info("[user-memory] memory updated and uploaded successfully")
         return True
 

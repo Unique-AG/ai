@@ -122,7 +122,6 @@ def _patch_build_common_user_memory(
         memory_state = UserMemoryState(
             scope_id="scope_1",
             text="remembered",
-            content_id="content_1",
         )
     load_user_memory = AsyncMock(return_value=memory_state)
     monkeypatch.setattr(
@@ -178,9 +177,7 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
 
     load_user_memory.assert_awaited_once()
     memory_message_logger.log_loading_start.assert_awaited_once()
-    memory_message_logger.log_loading_complete.assert_awaited_once_with(
-        content_id="content_1"
-    )
+    memory_message_logger.log_loading_complete.assert_awaited_once_with(with_pill=True)
     assert common_components.user_memory_text == "remembered"
     postprocessor_names = [
         postprocessor.name
@@ -192,12 +189,12 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
 
 
 @pytest.mark.asyncio
-async def test_build_common_load_steps_skip_pill_when_memory_file_missing(
+async def test_build_common_load_steps_skip_pill_when_memory_load_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     event, load_user_memory, memory_message_logger = _patch_build_common_user_memory(
         monkeypatch,
-        memory_state=UserMemoryState(scope_id="scope_1", text="", content_id=None),
+        memory_state=None,
     )
 
     config = UniqueAIConfig(space={"allowUserMemory": True})
@@ -209,7 +206,7 @@ async def test_build_common_load_steps_skip_pill_when_memory_file_missing(
 
     load_user_memory.assert_awaited_once()
     memory_message_logger.log_loading_start.assert_awaited_once()
-    memory_message_logger.log_loading_complete.assert_awaited_once_with(content_id=None)
+    memory_message_logger.log_loading_complete.assert_awaited_once_with(with_pill=False)
 
 
 class TestSerializeUploadedFileForHistory:

@@ -680,15 +680,13 @@ async def test_consolidate_user_memory_invokes_update_end_when_start_cancelled(
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_load_emits_pill_when_content_id_present() -> (
-    None
-):
+async def test_user_memory_message_logger_load_emits_settings_pill() -> None:
     step_logger = MagicMock()
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
 
     await message_logger.log_loading_start()
-    await message_logger.log_loading_complete(content_id="content_1")
+    await message_logger.log_loading_complete(with_pill=True)
 
     assert step_logger.create_or_update_message_log_async.await_count == 2
     start_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
@@ -701,16 +699,17 @@ async def test_user_memory_message_logger_load_emits_pill_when_content_id_presen
     ].kwargs
     assert complete_kwargs["status"] == MessageLogStatus.COMPLETED
     assert complete_kwargs["references"][0].name == "Context memory"
-    assert complete_kwargs["references"][0].url == "unique://content/content_1"
+    assert complete_kwargs["references"][0].source == "context-memory"
+    assert complete_kwargs["references"][0].url == "unique://settings/context-memory"
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_load_skips_pill_without_content_id() -> None:
+async def test_user_memory_message_logger_load_skips_pill_when_disabled() -> None:
     step_logger = MagicMock()
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
 
-    await message_logger.log_loading_complete(content_id=None)
+    await message_logger.log_loading_complete(with_pill=False)
 
     complete_kwargs = step_logger.create_or_update_message_log_async.await_args.kwargs
     assert complete_kwargs["references"] == []
@@ -722,8 +721,8 @@ async def test_user_memory_message_logger_update_attaches_review_pill() -> None:
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
 
-    await message_logger.log_updating_start(content_id="content_1")
-    await message_logger.log_updating_complete(content_id="content_1")
+    await message_logger.log_updating_start()
+    await message_logger.log_updating_complete()
 
     assert step_logger.create_or_update_message_log_async.await_count == 2
     start_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
@@ -731,7 +730,8 @@ async def test_user_memory_message_logger_update_attaches_review_pill() -> None:
     ].kwargs
     assert start_kwargs["header"] == "Updating your memory"
     assert start_kwargs["references"][0].name == "Review your context memory"
-    assert start_kwargs["references"][0].url == "unique://content/content_1"
+    assert start_kwargs["references"][0].source == "context-memory"
+    assert start_kwargs["references"][0].url == "unique://settings/context-memory"
 
 
 @pytest.mark.asyncio
@@ -751,7 +751,7 @@ async def test_user_memory_postprocessor_emits_updating_message_logs(
     )
     monkeypatch.setattr(
         "unique_user_memory.user_memory_postprocessor.upload_user_memory",
-        AsyncMock(return_value="content_uploaded"),
+        AsyncMock(return_value=True),
     )
     chat_service = MagicMock()
     chat_service.modify_assistant_message_async = AsyncMock()
@@ -771,7 +771,6 @@ async def test_user_memory_postprocessor_emits_updating_message_logs(
         state=UserMemoryState(
             scope_id="scope_1",
             text=empty_profile("user_1"),
-            content_id="content_1",
         ),
         logger=MagicMock(),
         chat_service=chat_service,
@@ -781,13 +780,8 @@ async def test_user_memory_postprocessor_emits_updating_message_logs(
     await postprocessor.run(loop_response)
 
     chat_service.modify_assistant_message_async.assert_not_awaited()
-    message_logger.log_updating_start.assert_awaited_once_with(content_id="content_1")
-    # complete is called from consolidate finally and again after upload with new id
-    assert message_logger.log_updating_complete.await_count == 2
-    assert (
-        message_logger.log_updating_complete.await_args_list[-1].kwargs["content_id"]
-        == "content_uploaded"
-    )
+    message_logger.log_updating_start.assert_awaited_once_with()
+    message_logger.log_updating_complete.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
@@ -807,7 +801,7 @@ async def test_user_memory_postprocessor_does_not_mutate_assistant_message_text(
     )
     monkeypatch.setattr(
         "unique_user_memory.user_memory_postprocessor.upload_user_memory",
-        AsyncMock(return_value="content_uploaded"),
+        AsyncMock(return_value=True),
     )
     chat_service = MagicMock()
     chat_service.modify_assistant_message_async = AsyncMock()
@@ -845,7 +839,7 @@ async def test_download_user_memory_returns_empty_when_file_missing(
         search_contents,
     )
 
-    text, content_id = await download_user_memory(
+    text = await download_user_memory(
         scope_id="scope_1",
         user_id="user_1",
         company_id="company_1",
@@ -853,7 +847,6 @@ async def test_download_user_memory_returns_empty_when_file_missing(
     )
 
     assert text == ""
-    assert content_id is None
     search_contents.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
@@ -880,7 +873,7 @@ async def test_download_user_memory_downloads_existing_file_to_memory(
         download_content,
     )
 
-    text, content_id = await download_user_memory(
+    text = await download_user_memory(
         scope_id="scope_1",
         user_id="user_1",
         company_id="company_1",
@@ -888,7 +881,6 @@ async def test_download_user_memory_downloads_existing_file_to_memory(
     )
 
     assert text == "# User Memory\n\n## Identity\n- Test"
-    assert content_id == "content_1"
     search_contents.assert_awaited_once_with(
         user_id="user_1",
         company_id="company_1",
@@ -1090,7 +1082,7 @@ async def test_upload_user_memory_writes_hidden_skip_ingestion_file(
         logger=MagicMock(),
     )
 
-    assert result == "content_uploaded"
+    assert result is True
     upload_content.assert_awaited_once()
     assert upload_content.call_args.kwargs["content"] == (
         b"# User Memory\n\n## Identity\n- Test"
@@ -1110,7 +1102,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
 ) -> None:
     updated_memory = "# User Memory\n\n## Identity\n- Updated"
     consolidate = AsyncMock(return_value=updated_memory)
-    upload = AsyncMock(return_value="content_uploaded")
+    upload = AsyncMock(return_value=True)
     monkeypatch.setattr(
         "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
         consolidate,
@@ -1266,7 +1258,7 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     )
     monkeypatch.setattr(
         "unique_user_memory.user_memory_postprocessor.upload_user_memory",
-        AsyncMock(return_value=None),
+        AsyncMock(return_value=False),
     )
     event = MagicMock()
     event.user_id = "user_1"
