@@ -212,9 +212,7 @@ async def stream_bing_grounding_agent(
                         {
                             "type": event.type,
                             "citations": citations,
-                            "event": event.model_dump(
-                                mode="json", warnings="none"
-                            ),
+                            "event": event.model_dump(mode="json", warnings="none"),
                         },
                     )
             elif isinstance(event, ResponseCompletedEvent):
