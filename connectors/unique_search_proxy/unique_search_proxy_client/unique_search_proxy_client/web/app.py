@@ -10,6 +10,12 @@ from unique_search_proxy_core.logging import suppress_httpx_request_logs
 
 # Application entrypoint only. HTTP SDK lives in unique_search_proxy_sdk.
 from unique_search_proxy_client.web.api import health_router, v1_router
+from unique_search_proxy_client.web.core.agent_engines.bing.cleanup import (
+    maybe_cleanup_auto_provisioned_bing_agents_on_start,
+)
+from unique_search_proxy_client.web.core.agent_engines.bing.client import (
+    aclose_private_endpoint_http_client,
+)
 from unique_search_proxy_client.web.core.client.service import create_http_client_pool
 from unique_search_proxy_client.web.core.providers import register_builtin_providers
 from unique_search_proxy_client.web.error_handlers import register_exception_handlers
@@ -51,11 +57,13 @@ logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 async def lifespan(app: FastAPI):
     _LOGGER.info("Starting Unique Search Proxy...")
     log_startup_settings_report(_LOGGER)
+    await maybe_cleanup_auto_provisioned_bing_agents_on_start()
     pool = await create_http_client_pool()
     app.state.http_client_pool = pool
     try:
         yield
     finally:
+        await aclose_private_endpoint_http_client()
         await pool.aclose()
         _LOGGER.info("Shutting down Unique Search Proxy...")
 

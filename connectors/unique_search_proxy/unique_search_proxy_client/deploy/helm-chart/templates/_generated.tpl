@@ -57,6 +57,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .Values.bingAgent.connection.azureIdentityValidateTokenUrl | quote }}
 - name: BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT
   value: {{ .Values.bingAgent.connection.usePrivateEndpointTransport | quote }}
+- name: BING_AGENT_CLEANUP_ON_START
+  value: {{ .Values.bingAgent.connection.cleanupOnStart | quote }}
 {{- end }}
 {{- if and .Values.vertexaiAgent .Values.vertexaiAgent.enabled }}
 - name: VERTEXAI_AGENT_CREDENTIAL_TYPE
@@ -201,6 +203,8 @@ library extension hooks (base.externalService.*.ext).
   value: {{ .ctx.Values.bingAgent.connection.azureIdentityValidateTokenUrl | quote }}
 - name: BING_AGENT_USE_PRIVATE_ENDPOINT_TRANSPORT
   value: {{ .ctx.Values.bingAgent.connection.usePrivateEndpointTransport | quote }}
+- name: BING_AGENT_CLEANUP_ON_START
+  value: {{ .ctx.Values.bingAgent.connection.cleanupOnStart | quote }}
 {{- end }}
 {{- if and .ctx.Values.vertexaiAgent .ctx.Values.vertexaiAgent.enabled }}
 - name: VERTEXAI_AGENT_CREDENTIAL_TYPE

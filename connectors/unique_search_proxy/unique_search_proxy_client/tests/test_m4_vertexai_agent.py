@@ -27,7 +27,7 @@ class _Chunk:
     def __init__(self, text: str) -> None:
         self.text = text
 
-    def model_dump(self) -> dict[str, str]:
+    def model_dump(self, **_kwargs: Any) -> dict[str, str]:
         return {"text": self.text}
 
 
@@ -58,18 +58,14 @@ class TestVertexAIAgentSearchService:
 
 class TestVertexSerialization:
     @pytest.mark.ai
-    def test_agent_search_response_serializes_raw_with_bytes(self) -> None:
+    def test_agent_search_response_accepts_model_dump_raw(self) -> None:
+        from pydantic import BaseModel
         from unique_search_proxy_core.schema import AgentSearchResponse
 
-        from unique_search_proxy_client.web.core.agent_engines.serialization import (
-            json_safe_sdk_object,
-        )
+        class _SdkModel(BaseModel):
+            text: str
 
-        class _SdkModel:
-            def model_dump(self) -> dict[str, object]:
-                return {"text": "ok", "blob": b"\x8f\xff"}
-
-        raw = json_safe_sdk_object(_SdkModel())
+        raw = _SdkModel(text="ok").model_dump(mode="json")
         payload = AgentSearchResponse(
             engine="vertexai",
             query="q",
@@ -77,4 +73,4 @@ class TestVertexSerialization:
             raw=raw,
         ).model_dump(mode="json")
 
-        assert payload["raw"]["blob"]["__bytes_base64__"] == "j/8="
+        assert payload["raw"] == {"text": "ok"}

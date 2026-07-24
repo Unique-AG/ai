@@ -17,6 +17,7 @@ Dedicated Helm chart for the Unique search proxy connector
 | autoscaling.enabled | bool | `false` |  |
 | bingAgent.connection.azureIdentityCredentialType | string | `"default"` |  |
 | bingAgent.connection.azureIdentityValidateTokenUrl | string | `"https://management.azure.com/.default"` |  |
+| bingAgent.connection.cleanupOnStart | bool | `false` |  |
 | bingAgent.connection.usePrivateEndpointTransport | bool | `false` |  |
 | bingAgent.enabled | bool | `false` |  |
 | braveSearch.connection.apiEndpoint | string | `"https://api.search.brave.com/res/v1/web/search"` |  |

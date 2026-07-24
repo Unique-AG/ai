@@ -100,13 +100,14 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         del params
         agent_client = get_project_client(self.credentials, self.config.endpoint)
 
-        search_results = await create_and_process_run(
-            agent_client,
-            agent_id=self.config.agent_id,
-            query=query,
-            fetch_size=self.config.fetch_size,
-            response_parsers_strategies=self.response_parsers,
-            generation_instructions=self.config.generation_instructions,
-        )
+        async with agent_client:
+            search_results = await create_and_process_run(
+                agent_client,
+                agent_id=self.config.agent_id,
+                query=query,
+                fetch_size=self.config.fetch_size,
+                response_parsers_strategies=self.response_parsers,
+                generation_instructions=self.config.generation_instructions,
+            )
 
         return search_results

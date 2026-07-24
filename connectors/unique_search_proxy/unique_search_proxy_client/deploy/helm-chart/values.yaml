@@ -120,6 +120,7 @@ bingAgent:
     azureIdentityCredentialType: default
     azureIdentityValidateTokenUrl: "https://management.azure.com/.default"
     usePrivateEndpointTransport: false
+    cleanupOnStart: false
     # endpoint: <fromSecret or fromSecretProvider>
     # bingResourceConnectionString: <fromSecret or fromSecretProvider>
     # bingAgentModel: <fromSecret or fromSecretProvider>

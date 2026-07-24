@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator
-from typing import Any
 
 from unique_search_proxy_core.agent_engines.base import AgentEngineType
 from unique_search_proxy_core.agent_engines.bing.schema import BingAgentSearchRequest
@@ -22,10 +21,13 @@ from unique_search_proxy_client.web.core.agent_engines.bing.client import (
     get_project_client,
 )
 from unique_search_proxy_client.web.core.agent_engines.bing.runner import (
-    run_bing_grounding_agent,
+    stream_bing_grounding_agent,
 )
 from unique_search_proxy_client.web.core.agent_engines.service_base import (
     AgentSearchEngineService,
+)
+from unique_search_proxy_client.web.core.agent_engines.structured_output import (
+    build_agent_instructions,
 )
 from unique_search_proxy_client.web.core.provider_response import transport_error_raw
 from unique_search_proxy_client.web.settings.providers.bing_agent import (
@@ -55,44 +57,46 @@ class BingAgentSearchService(AgentSearchEngineService[BingAgentSearchRequest]):
     ) -> AsyncIterator[AgentSearchStreamEvent]:
         bing_agent_credentials.check_credentials()
         creds = bing_agent_credentials
-        resolved_agent_id = request.agent_id or creds.agent_id
+        resolved_agent_name = request.agent_id or creds.agent_id or None
+
+        answer_parts: list[str] = []
+        raw_chunks: list[dict] = []
 
         try:
-            agent_client = get_project_client(
-                get_credentials(),
-                endpoint=read_secret(creds.endpoint),
-            )
             output_schema = resolve_output_schema_for_engine(request.engine)
-            async with agent_client:
-                answer, raw = await run_bing_grounding_agent(
-                    agent_client,
-                    agent_id=resolved_agent_id,
-                    query=request.query,
-                    fetch_size=request.fetch_size,
-                    generation_instructions=request.generation_instructions,
-                    output_schema=output_schema,
-                )
+            instructions = build_agent_instructions(
+                generation_instructions=request.generation_instructions,
+                output_schema=output_schema,
+            )
+            async with get_credentials() as credential:
+                async with get_project_client(
+                    credential,
+                    endpoint=read_secret(creds.endpoint),
+                ) as project_client:
+                    async for delta, raw_event in stream_bing_grounding_agent(
+                        project_client,
+                        query=request.query,
+                        model=read_secret(creds.bing_agent_model),
+                        fetch_size=request.fetch_size,
+                        instructions=instructions,
+                        agent_name=resolved_agent_name,
+                    ):
+                        if delta:
+                            answer_parts.append(delta)
+                            yield AgentSearchDelta(text=delta)
+                        if raw_event:
+                            raw_chunks.append(raw_event)
         except Exception as exc:
             raise UpstreamError(
                 f"Bing agent search failed: {exc}",
                 upstream_raw=transport_error_raw(exc),
             ) from exc
 
-        response = _build_response(request, answer=answer, raw=raw)
-        if answer:
-            yield AgentSearchDelta(text=answer)
+        answer = "".join(answer_parts)
+        response = AgentSearchResponse(
+            engine=AgentEngineType.BING.value,
+            query=request.query,
+            answer=answer,
+            raw=raw_chunks if len(raw_chunks) != 1 else raw_chunks[0],
+        )
         yield AgentSearchDone(response=response)
-
-
-def _build_response(
-    request: BingAgentSearchRequest,  # type: ignore[valid-type]
-    *,
-    answer: str,
-    raw: Any,
-) -> AgentSearchResponse:
-    return AgentSearchResponse(
-        engine=AgentEngineType.BING.value,
-        query=request.query,
-        answer=answer,
-        raw=raw,
-    )
