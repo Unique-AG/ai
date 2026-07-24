@@ -1,0 +1,25 @@
+---
+import type { DashboardMode, McpLiveConfig } from "../lib/mode";
+
+export interface Props {
+  mode: DashboardMode;
+  mockData: Record<string, unknown[]>;
+  mcpLiveConfig: McpLiveConfig | null;
+}
+
+const { mode, mockData, mcpLiveConfig } = Astro.props;
+---
+
+{(mode === "preview" || mode === "live-local") && <pre id="mock-prompt-preview" hidden></pre>}
+{mode === "preview" && (
+  <script is:inline define:vars={{ mockData }}>
+    window.__MOCK_DATA__ = mockData;
+  </script>
+)}
+{mode === "preview" && <script is:inline src="/mock-host.js"></script>}
+{mode === "live-local" && (
+  <script is:inline define:vars={{ mcpLiveConfig }}>
+    window.__MCP_LIVE_CONFIG__ = mcpLiveConfig;
+  </script>
+)}
+{mode === "live-local" && <script is:inline src="/mcp-live-host.js"></script>}

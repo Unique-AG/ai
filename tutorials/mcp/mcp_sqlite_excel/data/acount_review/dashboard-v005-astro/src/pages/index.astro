@@ -1,0 +1,140 @@
+---
+// Single page, one of three artifacts depending on DASHBOARD_MODE (see
+// astro.config.mjs + package.json's build:* scripts). The data-unique-*
+// markup below is identical across all three — the ONLY difference is
+// which <script> (if any) gets appended at the bottom of <body>:
+//   - `live`:       nothing appended — the zero-JS contract that ships to
+//                    the platform.
+//   - `preview`:    a JSON snapshot of the real dataset (src/data/mock.json,
+//                    produced by scripts/dump_mock_data.py) + public/mock-host.js,
+//                    so the page is fully interactive and openable in a plain
+//                    browser with no MCP connector at all.
+//   - `live-local`: public/mcp-live-host.js, which speaks real Streamable
+//                    HTTP to a locally running, no-auth mcp_sqlite_excel
+//                    server (config.mcp_local_url) — for exercising the
+//                    actual backend from a browser, no platform in between.
+import fs from "node:fs";
+import path from "node:path";
+import AttentionRail from "../components/AttentionRail.astro";
+import ClientDetailPage from "../components/ClientDetailPage.astro";
+import DataList from "../components/DataList.astro";
+import HostScripts from "../components/HostScripts.astro";
+import ModeBanner from "../components/ModeBanner.astro";
+import PortfolioPanel from "../components/PortfolioPanel.astro";
+import casesFile from "../data/cases.json";
+import config from "../data/config.json";
+import { rulePairs, renderCaseCss, renderOpenSectionsCss } from "../lib/cases.js";
+import { getMcpLiveConfig, getMode, loadMockData } from "../lib/mode";
+
+const MODE = getMode();
+const cases = casesFile.cases;
+const pairs = rulePairs(cases) as [string, any][];
+const { visibility, badges, bars } = renderCaseCss(cases);
+const openSectionsCss = renderOpenSectionsCss(cases);
+const mockData = loadMockData(MODE);
+const mcpLiveConfig = getMcpLiveConfig(MODE, config.mcp_local_url);
+
+// Own copy of the design system (originally authored for the retired
+// Python/build.py implementation — see ../archive/dashboard-v005/ — and
+// carried forward verbatim since this Astro version became the primary
+// implementation). Only the generated case CSS below is produced
+// differently (JS template literals vs. the old build.py's f-strings),
+// not in shape.
+//
+// NB: resolved against process.cwd(), not import.meta.url — Astro/Vite
+// relocates frontmatter into bundled chunks at build time, which silently
+// breaks import.meta.url-relative fs paths in production builds (works in
+// `astro dev`, breaks in `astro build`). process.cwd() is stable because
+// every script in package.json is run from this folder.
+const baseCssPath = path.resolve(process.cwd(), "src/styles.css");
+let baseCss = fs.readFileSync(baseCssPath, "utf-8");
+baseCss = baseCss
+  .replace("/* __CASE_VISIBILITY_CSS__ */", visibility)
+  .replace("/* __CASE_BADGE_CSS__ */", badges)
+  .replace("/* __CASE_BARS_CSS__ */", bars)
+  .replace("/* __CASE_OPEN_SECTIONS_CSS__ */", openSectionsCss);
+
+const spikeCss = `
+.mode-banner { position: sticky; top: 0; z-index: 100; padding: 8px 16px; font: 600 13px/1.4 system-ui, sans-serif; text-align: center; }
+.mode-banner.live { background: #12603a; color: #eafff2; }
+.mode-banner.preview { background: #7a3b12; color: #ffedd8; }
+.mode-banner.live-local { background: #1d3a7a; color: #e3ecff; }
+.acard-actions { display: flex; gap: 6px; padding: 0 4px 10px; }
+.acard-actions .btn { font-size: 12px; padding: 4px 10px; }
+#mock-prompt-preview { position: fixed; right: 16px; bottom: 16px; max-width: 420px; max-height: 60vh; overflow: auto; background: #101827; color: #e5e9f5; border: 1px solid #2c3856; border-radius: 10px; padding: 14px 16px; font: 12px/1.5 ui-monospace, monospace; white-space: pre-wrap; box-shadow: 0 8px 30px rgba(0,0,0,.4); z-index: 200; }
+`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{config.page_title}</title>
+    <style is:global set:html={baseCss + spikeCss}></style>
+  </head>
+  <body>
+    <ModeBanner mode={MODE} mcpLiveConfig={mcpLiveConfig} />
+
+    <main class="page view-main" id="top">
+      <header class="greet">
+        <div>
+          <h1>Good morning, {config.rm_name}</h1>
+          <p class="sub">
+            Account-review console spike · Astro components, same <code>data-unique-*</code> contract ·
+            <code>{config.mcp_server}</code>
+          </p>
+        </div>
+      </header>
+
+      <!-- ===== NEEDING ATTENTION (LIVE) ===== -->
+      <AttentionRail />
+
+      <!-- ===== PORTFOLIO KPIs ===== -->
+      <PortfolioPanel />
+
+      <footer>
+        <div class="connbar">
+          <span class="conns">
+            <span class="dots">
+              <span class="cdot" /><span class="cdot" /><span class="cdot" />
+            </span>
+            {config.connectors_online} connectors online
+          </span>
+          <span class="conn-live">
+            <span class="live-dot" /> Live over the <code>{config.mcp_server}</code> MCP
+          </span>
+        </div>
+        <p class="conn-note">
+          Reads &amp; writes go through the <code>{config.mcp_server}</code> MCP over the chat host bridge — same contract
+          this spike's Astro components emit, hydrated here by mock-host.js instead in preview mode.
+        </p>
+      </footer>
+    </main>
+
+    <!-- ===== CLIENT PAGES (one template → N clients from DB) =====
+         Deliberately a SIBLING of <main class="page view-main">, not
+         nested inside it: .client-pages uses `display: contents` (see
+         styles.css) so its rendered <main class="detail view-client">
+         children act as direct children of whatever contains this div for
+         layout — but `body:has(.view-client:target) .view-main { display:
+         none }` only hides .view-main itself. Nesting .client-pages inside
+         .view-main (an early version of this file did) meant that rule
+         hid the *target* client page too, since a display:none ancestor
+         always wins over a descendant's own display — the client page
+         rendered in the DOM but was invisible. Keep this at the body level. -->
+    <DataList
+      class="client-pages"
+      listName="clientPages"
+      tool="list_rows"
+      args={{ table: "clients", limit: 200 }}
+    >
+      <template data-unique-item>
+        <ClientDetailPage pairs={pairs} />
+      </template>
+      <p data-unique-state="loading" class="small muted" hidden>Loading client pages…</p>
+    </DataList>
+
+    <HostScripts mode={MODE} mockData={mockData} mcpLiveConfig={mcpLiveConfig} />
+  </body>
+</html>

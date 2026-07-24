@@ -1,0 +1,182 @@
+---
+// The `:target`-routed client detail page: header, case action bar, the 8
+// always-visible profile sections, and any case-specific figures. One
+// `<template data-unique-item>` in index.astro's clientPages DataList
+// renders one of these per client row (see that file's big comment on why
+// clientPages is a sibling of, not nested in, .view-main).
+import CaseActionBar from "./CaseActionBar.astro";
+import CaseFigure from "./CaseFigure.astro";
+import FieldGrid from "./FieldGrid.astro";
+import FigureRows from "./FigureRows.astro";
+import Section from "./Section.astro";
+
+interface UseCase {
+  icon: string;
+  tag: string;
+  instructions?: string;
+  dual_action?: { actions: { label: string; toast: string; instructions: string }[] };
+  figure_title?: string;
+  figure2_title?: string;
+}
+
+export interface Props {
+  /** (rule_code, case) pairs from lib/cases.js's rulePairs — one entry per rule_code a case covers. */
+  pairs: [string, UseCase][];
+}
+
+const { pairs } = Astro.props;
+---
+
+<main class="detail view-client" data-unique-attr-id="client-{row_id}" data-unique-attr-data-rule="rule_code" data-unique-key="row_id">
+  <header class="detail-head" data-unique-attr-data-criticality="criticality">
+    <div class="dh-id">
+      <span class="avatar avatar-lg avatar-from-name" data-unique-field="client_name" />
+      <div>
+        <h1 data-unique-field="client_name" />
+        <p class="small muted">
+          <code data-unique-field="client_ref" /> · <span class="case-badge" data-unique-attr-data-rule="rule_code" />
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <section class="card actionbar" data-unique-attr-data-status="status" data-unique-attr-data-rule="rule_code">
+    <div class="actionbar-copy">
+      <h2 data-unique-field="action_title" />
+      <p class="small muted" data-unique-field="action_explanation" />
+    </div>
+    <div class="actionbar-btns">
+      {pairs.map(([ruleCode, c]) => <CaseActionBar ruleCode={ruleCode} useCase={c} />)}
+    </div>
+  </section>
+
+  <Section dataKey="exec-summary" title="Executive summary">
+    <span slot="meta" class="sec-meta case-badge" data-unique-attr-data-rule="rule_code" />
+    <div class="tags">
+      <span class="tag" data-unique-field="segment" />
+      <span class="tag"><span data-unique-field="risk_profile" /> profile</span>
+      <span class="tag" data-unique-field="rule_code" />
+    </div>
+    <p class="summary">
+      <span data-unique-field="open_issue" />. Recommended action:
+      <span data-unique-field="recommended_action" />
+    </p>
+    <FieldGrid
+      fields={[
+        { label: "Rule code", field: "rule_code", code: true },
+        { label: "Due", field: "due_date", na: true },
+      ]}
+    />
+  </Section>
+
+  <Section dataKey="identity" title="Client identity">
+    <span slot="meta" class="sec-meta">Identity &amp; contact</span>
+    <FieldGrid
+      fields={[
+        { label: "Full name", field: "client_name" },
+        { label: "Client type", field: "type" },
+        { label: "Date of birth", field: "date_of_birth", na: true },
+        { label: "Occupation", field: "occupation", na: true },
+        { label: "Marital status", field: "marital_status", na: true },
+        { label: "Nationality", field: "nationality" },
+        { label: "Country of residence", field: "residence" },
+        { label: "Domicile / tax residence", field: "domicile" },
+        { label: "Incorporation", field: "incorporation", na: true },
+        { label: "Residential address", field: "residential_address", na: true },
+        { label: "Email", field: "email", na: true },
+        { label: "Phone", field: "phone", na: true },
+        { label: "Client reference", field: "crd_number", code: true },
+        { label: "Onboarded", field: "onboarded" },
+      ]}
+    />
+  </Section>
+
+  <Section dataKey="history" title="History">
+    <span slot="meta" class="sec-meta">Next <span data-unique-field="next_review_due" /></span>
+    <FieldGrid
+      fields={[
+        { label: "Last reviewed", field: "last_reviewed" },
+        { label: "Next review due", field: "next_review_due" },
+        { label: "KYC refresh due", field: "kyc_refresh_due" },
+      ]}
+    />
+  </Section>
+
+  <Section dataKey="docs-kyc" title="Documents and KYC">
+    <span slot="meta" class="sec-meta">AML / KYC · client record</span>
+    <FieldGrid
+      fields={[
+        { label: "PEP status", field: "pep" },
+        { label: "Adverse media", field: "adverse_media" },
+        { label: "Sanctions", field: "sanctions" },
+        { label: "US Person (FATCA)", field: "fatca_us_person" },
+        { label: "Verification source", field: "verification_source" },
+      ]}
+    />
+    <div class="docrow">
+      <span class="doc" data-unique-field="documents_on_file" />
+    </div>
+  </Section>
+
+  <!--
+    The four sections below are generic client-profile data — unlike
+    the case-specific figures further down, they show real values
+    for every client regardless of which (if any) remediation case
+    is open on this row. lib/cases.js's renderOpenSectionsCss still
+    force-opens the one relevant to a case (see src/data/cases.json),
+    but for now every section also ships with `open` so all of them
+    render expanded.
+  -->
+  <Section dataKey="portfolio-mandate" title="Portfolio and Mandate">
+    <span slot="meta" class="sec-meta" data-unique-field="mandate_type" />
+    <FigureRows prefix="mand" class="mandate-figure" />
+  </Section>
+
+  <Section dataKey="portfolio-performance" title="Portfolio Performance and Benchmark">
+    <FigureRows prefix="perf" />
+  </Section>
+
+  <Section dataKey="holdings-categorization" title="Holdings and Categorization">
+    <FieldGrid
+      fields={[
+        { label: "Client categorization", field: "client_categorization" },
+        { label: "Category required", field: "category_required", na: true },
+        { label: "Category review status", field: "category_review_status" },
+      ]}
+    />
+    <FigureRows prefix="hold" class="holdings-figure" style="margin-top: 14px" />
+  </Section>
+
+  <Section dataKey="suitability-profile" title="Suitability Profile">
+    <span slot="meta" class="sec-meta" data-unique-field="risk_tolerance" />
+    <FieldGrid
+      fields={[
+        { label: "Risk tolerance", field: "risk_tolerance" },
+        { label: "Investment horizon", field: "investment_horizon" },
+        { label: "Knowledge & experience", field: "knowledge_experience" },
+        { label: "Last suitability test", field: "last_suitability_test" },
+        { label: "Outcome", field: "suitability_outcome" },
+      ]}
+    />
+  </Section>
+
+  <!--
+    Case figure(s): only doc-expiry, adverse-media and sow-refresh
+    still use this — the other three cases' figures were promoted
+    to the always-visible generic sections above.
+  -->
+  {
+    pairs.map(([ruleCode, c]) => (
+      <>
+        {c.figure_title && <CaseFigure ruleCode={ruleCode} title={c.figure_title} figureClass="case-figure" figPrefix="fig" />}
+        {c.figure2_title && <CaseFigure ruleCode={ruleCode} title={c.figure2_title} figureClass="case-figure2" figPrefix="perf" />}
+      </>
+    ))
+  }
+
+  <div class="detail-bar">
+    <a class="btn btn-back" href="#top">
+      ← Back to console
+    </a>
+  </div>
+</main>

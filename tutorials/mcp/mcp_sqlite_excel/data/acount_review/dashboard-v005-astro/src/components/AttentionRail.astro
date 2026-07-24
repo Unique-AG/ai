@@ -1,0 +1,82 @@
+---
+// The "Needing attention" rail: live clients with status "Needs
+// Remediation" (Escalated ones are deliberately excluded — see
+// data-unique-source-args below), each with quick Compliant/Escalate
+// actions. Only ever rendered once per page, but broken out of
+// index.astro so the page shell reads as a list of named regions.
+import DataList from "./DataList.astro";
+import { callToolAttrs } from "../lib/contract";
+
+const refresh = "attentionLive,statusKpis,clientsLive,clientPages";
+---
+
+<section>
+  <div class="seclabel">
+    <h2>Needing attention</h2>
+    <span class="upd">🟢 Live · status "Needs Remediation" only (not Escalated)</span>
+  </div>
+  <DataList
+    class="rail"
+    listName="attentionLive"
+    tool="list_rows"
+    args={{ table: "clients", filters: { status: "Needs Remediation" }, limit: 200 }}
+  >
+    <template data-unique-item>
+      <div class="acard-wrap">
+        <a
+          class="acard"
+          data-unique-key="row_id"
+          data-unique-attr-href="#client-{row_id}"
+          data-unique-attr-data-crit="criticality"
+          data-unique-attr-data-risk="risk_level"
+          data-unique-attr-data-status="status"
+        >
+          <div class="acard-top">
+            <span class="acard-top-l">
+              <span class="risk"><span class="risk-ico" /><span data-unique-field="risk_level" /></span>
+              <span class="case-badge" data-unique-attr-data-rule="rule_code" />
+            </span>
+            <span class="acard-due" data-unique-field="due_date" />
+          </div>
+          <div class="acard-title" data-unique-field="open_issue" />
+          <div class="acard-body" data-unique-field="recommended_action" />
+          <div class="acard-foot">
+            <span class="who">
+              <span class="avatar avatar-from-name" data-unique-field="client_name" />
+              <span data-unique-field="client_name" />
+            </span>
+            <span class="acard-go">Open →</span>
+          </div>
+        </a>
+        <div class="acard-actions">
+          <button
+            type="button"
+            class="btn btn-ok"
+            {...callToolAttrs({
+              tool: "update_row",
+              argsTemplate: '{"table":"clients","row_id":{row_id},"fields":{"status":"Compliant","client_ref":"{client_ref}"}}',
+              refresh,
+            })}
+          >
+            ✅ Compliant
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            {...callToolAttrs({
+              tool: "escalate_row",
+              argsTemplate: '{"table":"clients","row_id":{row_id},"fields":{"status":"Escalated","client_ref":"{client_ref}"}}',
+              refresh,
+            })}
+          >
+            🚨 Escalate
+          </button>
+        </div>
+      </div>
+    </template>
+    <p data-unique-state="loading" class="small muted" style="padding: 10px 4px">Loading clients needing attention…</p>
+    <p data-unique-state="empty" class="small muted" style="padding: 10px 4px">
+      🎉 Nothing needs attention — every open issue is escalated or cleared.
+    </p>
+  </DataList>
+</section>

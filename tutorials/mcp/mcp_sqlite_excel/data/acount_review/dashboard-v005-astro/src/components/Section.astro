@@ -1,0 +1,24 @@
+---
+// Wraps the `<details class="card sec">` chrome shared by every client-page
+// section: chevron + title + optional meta in the summary, content in
+// `.sec-body`. `lib/cases.js`'s renderOpenSectionsCss force-opens a section
+// by matching its `data-key`, so that prop is required.
+export interface Props {
+  dataKey: string;
+  title: string;
+  open?: boolean;
+}
+
+const { dataKey, title, open = true } = Astro.props;
+---
+
+<details class="card sec" data-key={dataKey} open={open}>
+  <summary class="sec-sum">
+    <span class="sec-chev">›</span>
+    <h2>{title}</h2>
+    <slot name="meta" />
+  </summary>
+  <div class="sec-body">
+    <slot />
+  </div>
+</details>

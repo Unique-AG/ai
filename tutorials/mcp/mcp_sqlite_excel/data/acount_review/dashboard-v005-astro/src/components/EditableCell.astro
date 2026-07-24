@@ -1,0 +1,66 @@
+---
+// One `<td class="editcell">` with a `<details class="cellmenu">` dropdown
+// of `callTool` buttons — the portfolio table's inline status/risk editors.
+// Both columns share this exact shape and differ only in field name, icon,
+// menu heading and option list, so they're expressed as data here instead
+// of two near-duplicate markup blocks.
+import { callToolAttrs } from "../lib/contract";
+
+export interface Option {
+  /** Value written to `field` when this option is picked. */
+  value: string;
+  label: string;
+  /** e.g. "mi-ok" / "mi-warn" / "mi-danger" / "mi-muted". */
+  cssClass: string;
+  /** Defaults to "update_row" — use "escalate_row" for options that must go through escalation. */
+  tool?: "update_row" | "escalate_row";
+}
+
+export interface Props {
+  /** Row field this cell edits, e.g. "status" or "risk_level". */
+  field: string;
+  /** Suffix of the `<td>`'s `data-unique-attr-data-*` binding, e.g. "data-status" or "data-risk". */
+  tdDataAttr: string;
+  /** Class on the icon span inside the summary, e.g. "dot" or "risk-ico". */
+  iconClass: string;
+  /** Class on the wrapping span in the summary, e.g. "stat" or "risk". */
+  statClass: string;
+  menuLabel: string;
+  options: Option[];
+  /** Comma-separated `data-unique-source-refresh` list. */
+  refresh: string;
+}
+
+const { field, tdDataAttr, iconClass, statClass, menuLabel, options, refresh } = Astro.props;
+const tdAttrs = { [`data-unique-attr-${tdDataAttr}`]: field };
+
+function sourceArgs(value: string): string {
+  return `{"table":"clients","row_id":{row_id},"fields":{"${field}":"${value}","client_ref":"{client_ref}"}}`;
+}
+---
+
+<td class="editcell" {...tdAttrs}>
+  <details class="cellmenu">
+    <summary class="cellsum">
+      <span class={statClass}>
+        <span class={iconClass} />
+        <span class="cellval" data-unique-field={field} />
+      </span>
+      <span class="caret">▾</span>
+    </summary>
+    <div class="menu">
+      <div class="menu-h">{menuLabel}</div>
+      {
+        options.map((opt) => (
+          <button
+            type="button"
+            class={`menuitem ${opt.cssClass}`}
+            {...callToolAttrs({ tool: opt.tool ?? "update_row", argsTemplate: sourceArgs(opt.value), refresh })}
+          >
+            {opt.label}
+          </button>
+        ))
+      }
+    </div>
+  </details>
+</td>

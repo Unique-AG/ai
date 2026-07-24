@@ -1,0 +1,28 @@
+---
+// Wraps a `[data-unique-list]` container — the platform's live-binding
+// contract for "run this tool, render one <template data-unique-item> per
+// row". Every list in index.astro (attentionLive, statusKpis, clientsLive,
+// clientPages) sets the same five data-unique-source-* attributes; this
+// component keeps them in one place so a typo in a tool/arg name can't
+// silently drift between lists.
+import { dataListAttrs } from "../lib/contract";
+
+export interface Props {
+  listName: string;
+  tool: string;
+  args: Record<string, unknown>;
+  /** Defaults to "rows" — the JSON path into the tool's response holding the array. */
+  path?: string;
+  class?: string;
+}
+
+const { listName, tool, args, path = "rows", class: className } = Astro.props;
+const attrs = dataListAttrs({ listName, tool, args, path });
+---
+
+<div
+  class={className}
+  {...attrs}
+>
+  <slot />
+</div>

@@ -1,0 +1,27 @@
+{
+  "name": "dashboard-v005-astro",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Account-review dashboard, same data-unique-* contract, authored as Astro components and rendered to static HTML. Three builds from one source: --mode=live (platform artifact, zero JS), --mode=preview (local mock-data host, no network), and --mode=live-local (real Streamable HTTP to a local no-auth mcp_sqlite_excel server).",
+  "type": "module",
+  "scripts": {
+    "mock:data": "cd ../../.. && uv run python data/acount_review/dashboard-v005-astro/scripts/dump_mock_data.py",
+    "dev": "DASHBOARD_MODE=preview astro dev",
+    "dev:live-local": "DASHBOARD_MODE=live-local astro dev",
+    "build:live": "DASHBOARD_MODE=live astro build --outDir dist/live",
+    "build:preview": "npm run mock:data && DASHBOARD_MODE=preview astro build --outDir dist/preview",
+    "build:live-local": "DASHBOARD_MODE=live-local astro build --outDir dist/live-local",
+    "build": "npm run build:live && npm run build:preview",
+    "verify": "node scripts/verify-preview.mjs",
+    "verify:live-local": "node scripts/verify-live-local.mjs",
+    "screenshot": "node scripts/screenshot.mjs"
+  },
+  "dependencies": {
+    "astro": "^4.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.61.1"
+  }
+}

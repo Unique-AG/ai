@@ -1,0 +1,73 @@
+---
+// Renders the case-specific action bar (button label/prompt/target) for a
+// given rule_code. The emitted data-unique-* attributes are the platform's
+// live-binding contract, so the markup shape here is load-bearing.
+import { mcpServer, sendPromptAttrs } from "../lib/contract";
+
+export interface Props {
+  ruleCode: string;
+  useCase: {
+    icon: string;
+    tag: string;
+    instructions?: string;
+    dual_action?: {
+      actions: { label: string; toast: string; instructions: string }[];
+    };
+  };
+}
+
+const { ruleCode, useCase } = Astro.props;
+
+function promptFor(instructions: string): string {
+  // {field} stays literal here (JS template literals only interpolate
+  // ${...}) — these are the row-level placeholders the mock host / real
+  // platform host fill in at render time via data-unique-attr-*.
+  const prompt =
+    `Analyse **{client_name}** (\`{client_ref}\`, row {row_id})\n\n` +
+    `**Case:** ${useCase.icon} ${useCase.tag} (\`{rule_code}\`)\n` +
+    `**Action:** {action_title}\n` +
+    `**Criticality:** {criticality}\n\n` +
+    `{action_explanation}\n\n` +
+    `Please cover:\n1. What this means and why it matters\n2. Likely root causes or context\n` +
+    `3. Severity and urgency\n4. Your recommendation\n\n` +
+    `${instructions}\n\n` +
+    `MCP server: \`${mcpServer}\``;
+  return prompt;
+}
+
+const dual = useCase.dual_action;
+---
+
+<div class="actionbar-case" data-rule={ruleCode}>
+  {
+    dual ? (
+      dual.actions.map((action, i) => (
+        <span class="act">
+          <button
+            type="button"
+            class={i === 0 ? "btn btn-ai" : "btn btn-ai btn-ai-alt"}
+            {...sendPromptAttrs(promptFor(action.instructions))}
+          >
+            {action.label}
+          </button>
+          <span class="toast toast-agent" role="status">
+            {action.toast}
+          </span>
+        </span>
+      ))
+    ) : (
+      <span class="act">
+        <button
+          type="button"
+          class="btn btn-ai"
+          {...sendPromptAttrs(promptFor(useCase.instructions ?? ""))}
+        >
+          ✨ <span data-unique-field="action_button" />
+        </button>
+        <span class="toast toast-agent" role="status">
+          ✨ Sent to me — analysing and drafting the next step
+        </span>
+      </span>
+    )
+  }
+</div>
