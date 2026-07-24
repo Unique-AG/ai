@@ -461,6 +461,66 @@ def get_control_queue() -> str:
     return json.dumps({"count": len(items), "pending": pending, "items": items})
 
 
+_CONTROL_CHECKLISTS = {
+    "note": [
+        "Every figure recomputed vs source",
+        "Single target price + upside % (house style)",
+        "Rating consistency with the published view",
+        "MNPI screen — no non-public information",
+        "Disclosures block present + synthetic marker",
+    ],
+    "pack": [
+        "Engine numbers reproduce the published cases",
+        "Probabilities sum to 100%",
+        "Assumption trail included",
+        "Client-suitability wording (professional investors)",
+    ],
+    "deck": [
+        "Figures match the underlying note/model",
+        "Single target price + upside % (house style)",
+        "Disclosures / synthetic marker on closing slide",
+    ],
+    "email": [
+        "Content matches released research only",
+        "No selective disclosure (same facts as published)",
+        "Recipient suitability (professional investors)",
+    ],
+}
+
+
+@mcp.tool(name="submit_for_control", title="Submit a product for control (maker)",
+          description="The ANALYST (maker) submits a research product to the "
+                      "pre-publication control queue: title, ticker, kind (note | pack "
+                      "| deck | email — selects the standard checklist), priority and "
+                      "optional notes. Returns the created queue item; the checker "
+                      "decides with record_control_verdict. Use after drafting a note/"
+                      "pack/deck the user wants to publish or send. Reset_Demo_Data "
+                      "restores the baseline queue. SYNTHETIC demo data.")
+def submit_for_control(
+    title: Annotated[str, Field(description="Product title, e.g. 'LVMH — results flash'")],
+    ticker: _TICKER = "",
+    kind: Annotated[str, Field(description="note | pack | deck | email")] = "note",
+    priority: Annotated[str, Field(description="e.g. 'URGENT — publish ASAP' or 'Standard'")] = "Standard",
+    notes: Annotated[str, Field(description="Optional maker notes for the checker")] = "",
+) -> str:
+    k = kind.strip().lower()
+    if k not in _CONTROL_CHECKLISTS:
+        return json.dumps({"error": f"kind must be one of {sorted(_CONTROL_CHECKLISTS)}"})
+    st = env_state.state()
+    tk = seed.resolve(ticker) or "" if ticker else ""
+    n = 1 + max((int(i["id"].split("-")[1]) for i in st["control_queue"]
+                 if i.get("id", "").startswith("C-")), default=0)
+    item = {"id": f"C-{n:03d}", "title": title, "ticker": tk, "kind": k,
+            "submitted_by": "Analyst (maker)",
+            "submitted_at": st.get("today", seed.STORY_TODAY) + " (via agent)",
+            "priority": priority, "status": "pending", "verdict": "",
+            "verdict_notes": notes,
+            "checklist": [{"check": c, "state": "open"} for c in _CONTROL_CHECKLISTS[k]]}
+    st["control_queue"].append(item)
+    return json.dumps({"submitted": True, "item": item,
+                       "note": "In the control queue — the checker records the verdict."})
+
+
 @mcp.tool(name="record_control_verdict", title="Record a control verdict",
           description="The CHECKER's decision on a control-queue item: verdict RELEASE "
                       "or DO_NOT_RELEASE (+ optional notes, e.g. which check failed). "
