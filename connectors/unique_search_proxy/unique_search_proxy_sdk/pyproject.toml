@@ -1,6 +1,6 @@
 [project]
 name = "unique-search-proxy-sdk"
-version = "2026.30.0"
+version = "2026.32.0"
 description = "Async HTTP client for the Unique Search Proxy API"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"

@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.30.0...unique-toolkit-v2026.32.0) (2026-07-24)
+
+
+### Features
+
+* Pricing analytics ([#2146](https://github.com/Unique-AG/ai/issues/2146)) ([57cb3fc](https://github.com/Unique-AG/ai/commit/57cb3fc9ac5e0e09fe30ccf0e03fd694cde4122c))
+* **search-proxy:** per-URL crawl outcome metrics with HTTP status ([#2132](https://github.com/Unique-AG/ai/issues/2132)) ([0665906](https://github.com/Unique-AG/ai/commit/066590624739ffa19e26579c6e542634073166d5))
+* Token count analytics ([#2112](https://github.com/Unique-AG/ai/issues/2112)) ([f475dc4](https://github.com/Unique-AG/ai/commit/f475dc4606dd723e0fecfcdd09ace2f9c329e960))
+* **unique_mcp:** async per-request identity resolver, OIDC scope advertisement ([#2123](https://github.com/Unique-AG/ai/issues/2123)) ([6434827](https://github.com/Unique-AG/ai/commit/643482760aacdffb270082b8a1d0b091985731d6))
+
+
+### Bug Fixes
+
+* **security:** bump mcp and starlette via constraint-dependencies ([#2126](https://github.com/Unique-AG/ai/issues/2126)) ([aef8e10](https://github.com/Unique-AG/ai/commit/aef8e107a221d3df1579cad1fb9a78655ce16590))
+* **toolkit:** allow MessageLogEvent type "Todo" with status field ([#2119](https://github.com/Unique-AG/ai/issues/2119)) ([2aa14f6](https://github.com/Unique-AG/ai/commit/2aa14f65c25b87c6a217632596d87e90288b54cf))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
 ## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.28.0...unique-toolkit-v2026.30.0) (2026-07-17)
 
 

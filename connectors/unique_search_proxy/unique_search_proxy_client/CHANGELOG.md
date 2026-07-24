@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.30.0...unique-search-proxy-v2026.32.0) (2026-07-24)
+
+
+### Features
+
+* **bing:** migrate grounding to Agents v2 + Responses API [UN-23345] ([#2141](https://github.com/Unique-AG/ai/issues/2141)) ([46c2b76](https://github.com/Unique-AG/ai/commit/46c2b76548b19ffeeb40d52b31cfcee970f61f65))
+* **search-proxy:** per-URL crawl outcome metrics with HTTP status ([#2132](https://github.com/Unique-AG/ai/issues/2132)) ([0665906](https://github.com/Unique-AG/ai/commit/066590624739ffa19e26579c6e542634073166d5))
+* **search-proxy:** provision Grafana dashboard via chart ([#2129](https://github.com/Unique-AG/ai/issues/2129)) ([57806ed](https://github.com/Unique-AG/ai/commit/57806ed83f911eb514f27be6022629024006a547))
+
+
+### Bug Fixes
+
+* **security:** bump mcp and starlette via constraint-dependencies ([#2126](https://github.com/Unique-AG/ai/issues/2126)) ([aef8e10](https://github.com/Unique-AG/ai/commit/aef8e107a221d3df1579cad1fb9a78655ce16590))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
 ## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-v2026.28.0...unique-search-proxy-v2026.30.0) (2026-07-17)
 
 

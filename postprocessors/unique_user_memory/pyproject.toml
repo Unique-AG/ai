@@ -1,6 +1,6 @@
 [project]
 name = "unique_user_memory"
-version = "2026.30.0"
+version = "2026.32.0"
 description = ""
 authors = [
     { name = "Fabian Schläpfer", email = "fabian@unique.ch" },
