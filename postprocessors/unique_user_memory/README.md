@@ -19,8 +19,8 @@ The memory file is intentionally small and structured. It is rewritten as a full
 
 1. The orchestrator enables memory when `space.allow_user_memory` is true.
 2. The orchestrator emits a **Loading context memory** Step, then `load_user_memory(...)` resolves the pre-provisioned root folder, ensures a private child folder for the current user, and downloads `/user-memory/<user_id>/memory.md` if it exists.
-3. When load succeeds, that Step is completed with a **Context memory** pill (`unique://settings/context-memory`) that opens Settings → Context Memory.
-4. The loaded memory text is passed into the agent context for the current turn.
+3. When load returns a `UserMemoryState`, that Step is completed with a **Context memory** pill (`unique://settings/context-memory`) that opens Settings → Context Memory. A successful `None` return (soft skip) completes the Step without a pill; a raised exception marks the Step failed.
+4. If memory was loaded, its text is passed into the agent context for the current turn.
 5. `UserMemoryPostprocessor` runs after the assistant response.
 6. The package asks the configured language model to either return `NOOP` or a complete rewritten profile.
 7. If a rewrite runs, an **Updating your memory** Step is shown while consolidating (no pill yet).
