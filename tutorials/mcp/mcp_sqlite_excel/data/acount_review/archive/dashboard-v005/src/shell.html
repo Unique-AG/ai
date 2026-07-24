@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!--
+      MCP connector id for this canvas. The sandboxed bridge cannot read a JS
+      variable — keep this meta value in sync with every
+      data-unique-source-server / prompt mention below.
+
+      Developer note: edit src/config.json (or pass --mcp-server), then
+      re-run build.py. Client/portfolio data is live from MCP. Do not
+      hand-edit the generated dashboard-v005.html.
+    -->
+    <meta name="unique-mcp-server" content="__MCP_SERVER__" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>__PAGE_TITLE__</title>
+    <style>
+__STYLES__
+    </style>
+  </head>
+  <body>
+__PAGES__
+  </body>
+</html>

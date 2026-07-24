@@ -1,0 +1,32 @@
+---
+// Shared by CaseFigure.astro and the always-visible client-page sections in
+// index.astro (portfolio/mandate, performance, holdings) — same
+// fig{N}_label/value/pct/status field-naming convention, just a different
+// prefix per figure.
+export interface Props {
+  /** Field-name prefix, e.g. "fig", "perf", "mand", "hold". */
+  prefix: string;
+  /** Number of rows to render (fields are prefix+1.. prefix+count). */
+  count?: number;
+  /** Extra class on the wrapping .figrows div (e.g. "mandate-figure"). */
+  class?: string;
+  style?: string;
+}
+
+const { prefix, count = 3, class: className, style } = Astro.props;
+const rowIndexes = Array.from({ length: count }, (_, i) => i + 1);
+---
+
+<div class:list={["figrows", className]} style={style}>
+  {
+    rowIndexes.map((n) => (
+      <div class="figrow" data-unique-attr-data-status={`${prefix}${n}_status`}>
+        <span class="figrow-l" data-unique-field={`${prefix}${n}_label`} />
+        <span class="figrow-v" data-unique-field={`${prefix}${n}_value`} />
+        <span class="figbar">
+          <span class="figbar-fill" data-unique-attr-style={`width:{${prefix}${n}_pct}%`} />
+        </span>
+      </div>
+    ))
+  }
+</div>

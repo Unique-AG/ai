@@ -1,0 +1,7 @@
+{
+  "description": "Body fragments combined in order into dashboard-v005.html. All client content is live from MCP — no baked snapshots.",
+  "order": [
+    "clients.html",
+    "main.html"
+  ]
+}

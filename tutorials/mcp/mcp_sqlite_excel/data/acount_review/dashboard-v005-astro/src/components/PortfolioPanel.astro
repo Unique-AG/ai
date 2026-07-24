@@ -1,0 +1,100 @@
+---
+// The "Your portfolio" panel: status KPIs, the full client table with
+// inline status/risk editors, and the reset-demo-data toolbar. Only ever
+// rendered once per page, but broken out of index.astro so the page shell
+// reads as a list of named regions.
+import DataList from "./DataList.astro";
+import EditableCell from "./EditableCell.astro";
+import Icon from "./Icon.astro";
+import { callToolAttrs } from "../lib/contract";
+
+// Both cell editors below refresh the same four lists, and the status
+// column's "Escalated" option must go through escalate_row (not
+// update_row) — see EditableCell.astro.
+const refresh = "clientsLive,attentionLive,clientPages,statusKpis";
+---
+
+<details class="panel portfolio" open>
+  <summary><span class="chev"><Icon name="chevron-down" size={16} /></span> Your portfolio</summary>
+  <DataList class="kpis" listName="statusKpis" tool="count_by" args={{ table: "clients", column: "status" }}>
+    <template data-unique-item>
+      <div class="kpi" data-unique-key="bucket" data-unique-attr-data-bucket="bucket">
+        <div class="k-l" data-unique-field="label" />
+        <div class="k-v" data-unique-field="count" />
+      </div>
+    </template>
+    <p data-unique-state="loading" class="small muted">Loading KPIs…</p>
+  </DataList>
+
+  <DataList class="table-wrap" listName="clientsLive" tool="list_rows" args={{ table: "clients", limit: 200 }}>
+    <table>
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Status</th>
+          <th>Risk</th>
+          <th>Due date</th>
+          <th>Trigger</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template data-unique-item>
+          <tr data-unique-key="row_id">
+            <td class="c-name">
+              <a class="c-nm" data-unique-attr-href="#client-{row_id}" data-unique-field="client_name" />
+              <div class="c-ref">
+                <code data-unique-field="client_ref" />
+              </div>
+            </td>
+            <EditableCell
+              field="status"
+              tdDataAttr="data-status"
+              statClass="stat"
+              menuLabel="Set status"
+              refresh={refresh}
+              options={[
+                { value: "Compliant", label: "Compliant", cssClass: "mi-ok" },
+                { value: "Needs Remediation", label: "Needs Remediation", cssClass: "mi-danger" },
+                { value: "Escalated", label: "Escalated", cssClass: "mi-warn", tool: "escalate_row" },
+              ]}
+            />
+            <EditableCell
+              field="risk_level"
+              tdDataAttr="data-risk"
+              iconClass="risk-indicator"
+              statClass="risk"
+              menuLabel="Set risk"
+              refresh={refresh}
+              options={[
+                { value: "High", label: "High", cssClass: "mi-danger" },
+                { value: "Medium", label: "Medium", cssClass: "mi-warn" },
+                { value: "Low", label: "Low", cssClass: "mi-muted" },
+              ]}
+            />
+            <td class="c-due" data-unique-field="due_date" />
+            <td class="c-trig" data-unique-field="open_issue" />
+          </tr>
+        </template>
+      </tbody>
+    </table>
+    <p data-unique-state="loading" class="small muted" style="padding: 14px 4px">Loading clients from the database…</p>
+    <p data-unique-state="empty" class="small muted" style="padding: 14px 4px">No clients found.</p>
+  </DataList>
+
+  <div class="toolbar" style="margin-top: 16px">
+    <a class="btn btn-danger" href="#reset-db">Reset demo data…</a>
+    <span class="confirm" id="reset-db">
+      <span class="act">
+        <button
+          type="button"
+          class="btn btn-danger"
+          {...callToolAttrs({ tool: "reset_from_excel", args: {}, refresh })}
+        >
+          Confirm reset
+        </button>
+        <span class="toast toast-danger" role="status">↺ Reset sent — lists will refresh shortly</span>
+      </span>
+      <a class="btn btn-ghost" href="#top">Cancel</a>
+    </span>
+  </div>
+</details>

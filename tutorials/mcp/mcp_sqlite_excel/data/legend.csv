@@ -1,0 +1,21 @@
+Category,Code,Description
+Compliance Status,ok,Compliant — no open action
+Compliance Status,rem,Needs Remediation — open smart action
+Compliance Status,esc,Escalated — with Compliance
+Criticality,red,Overdue / critical — act now
+Criticality,amber,Due soon (approx. 14–30 days ahead of expiry)
+Criticality,green,Lower priority / compliance-routed
+Criticality,none,No open action
+Rule Codes,R-DOC-EXPIRY,Identity document expiring — request renewal before expiry
+Rule Codes,R-SCR-ADVMEDIA,Adverse-media screening hit (WorldCheck overnight screen)
+Rule Codes,R-SCR-PEP,PEP status — enhanced due diligence refresh
+Rule Codes,R-SUIT-ALLOC,Asset allocation breaches the client risk profile
+Rule Codes,R-REG-NONDOM,Regulatory change — res non-dom client newly in scope
+Rule Codes,R-SUIT-REVIEW,Annual suitability review overdue
+Rule Codes,R-SOW-REFRESH,Source-of-wealth re-assessment triggered by new wealth event
+Verification Sources,WorldCheck,LSEG WorldCheck — sanctions / PEP / adverse media (overnight)
+Verification Sources,Client DB,Internal client compliance database
+Verification Sources,CRM,Client relationship management system
+Verification Sources,Knowledge Base,Compliance-uploaded regulations (no live regulatory feed)
+Verification Sources,Dun & Bradstreet,"D&B corporate data — ownership, financials, identity"
+Verification Sources,UK Companies House,Official UK registry (UK entities only)

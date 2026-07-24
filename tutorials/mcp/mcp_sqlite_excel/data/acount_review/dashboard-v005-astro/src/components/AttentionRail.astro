@@ -1,0 +1,59 @@
+---
+// The "Needing attention" rail: live clients with status "Needs
+// Remediation" (Escalated ones are deliberately excluded — see
+// data-unique-source-args below). Only ever rendered once per page, but
+// broken out of index.astro so the page shell reads as a list of named regions.
+import DataList from "./DataList.astro";
+import Icon from "./Icon.astro";
+---
+
+<section>
+  <div class="seclabel">
+    <h2>Needing attention</h2>
+    <span class="upd">Live · status "Needs Remediation" only (not Escalated)</span>
+  </div>
+  <DataList
+    class="rail"
+    listName="attentionLive"
+    tool="list_rows"
+    args={{ table: "clients", filters: { status: "Needs Remediation" }, limit: 200 }}
+  >
+    <template data-unique-item>
+      <div class="acard-wrap">
+        <a
+          class="acard"
+          data-unique-key="row_id"
+          data-unique-attr-href="#client-{row_id}"
+          data-unique-attr-data-crit="criticality"
+          data-unique-attr-data-risk="risk_level"
+          data-unique-attr-data-status="status"
+        >
+          <div class="acard-title" data-unique-field="open_issue" />
+          <div class="acard-body" data-unique-field="recommended_action" />
+          <div class="acard-foot">
+            <span class="who">
+              <span class="avatar"><Icon name="user" size={12} /></span>
+              <span data-unique-field="client_name" />
+            </span>
+            <span class="acard-indicators">
+              <span class="status-indicator" tabindex="0" data-unique-attr-data-tooltip="status">
+                <Icon name="alert-circle" class="status-icon status-icon-needs" size={16} />
+                <Icon name="circle-arrow-up" class="status-icon status-icon-escalated" size={16} />
+                <Icon name="check-circle" class="status-icon status-icon-compliant" size={16} />
+              </span>
+              <span class="risk-indicator" tabindex="0" data-unique-attr-data-tooltip="{risk_level} risk">
+                <Icon name="chevron-up" class="risk-icon risk-icon-high" size={16} />
+                <Icon name="minus" class="risk-icon risk-icon-medium" size={16} />
+                <Icon name="chevron-down" class="risk-icon risk-icon-low" size={16} />
+              </span>
+            </span>
+          </div>
+        </a>
+      </div>
+    </template>
+    <p data-unique-state="loading" class="small muted" style="padding: 10px 4px">Loading clients needing attention…</p>
+    <p data-unique-state="empty" class="small muted" style="padding: 10px 4px">
+      Nothing needs attention — every open issue is escalated or cleared.
+    </p>
+  </DataList>
+</section>

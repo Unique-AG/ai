@@ -1,0 +1,319 @@
+    <main class="page view-main" id="top">
+      <header class="greet">
+        <div>
+          <h1>Good morning, __RM_NAME__</h1>
+          <p class="sub">
+            Account Review console · live over the
+            <code>__MCP_SERVER__</code> MCP
+          </p>
+        </div>
+      </header>
+
+      <!-- ===== NEEDING ATTENTION (LIVE) ===== -->
+      <section>
+        <div class="seclabel">
+          <h2>Needing attention</h2>
+          <span class="upd"
+            >🟢 Live · status “Needs Remediation” only (not Escalated)</span
+          >
+        </div>
+        <div
+          class="rail"
+          data-unique-list="attentionLive"
+          data-unique-source-server="__MCP_SERVER__"
+          data-unique-source-tool="list_rows"
+          data-unique-source-args='{"table":"clients","filters":{"status":"Needs Remediation"},"limit":200}'
+          data-unique-source-path="rows"
+          data-unique-source-poll="__POLL_MS__"
+        >
+          <template data-unique-item>
+            <a
+              class="acard"
+              data-unique-key="row_id"
+              data-unique-attr-href="#client-{row_id}"
+              data-unique-attr-data-crit="criticality"
+              data-unique-attr-data-risk="risk_level"
+              data-unique-attr-data-status="status"
+            >
+              <div class="acard-top">
+                <span class="acard-top-l">
+                  <span class="risk"
+                    ><span class="risk-ico"></span
+                    ><span data-unique-field="risk_level"></span
+                  ></span>
+                  <span
+                    class="case-badge"
+                    data-unique-attr-data-rule="rule_code"
+                  ></span>
+                </span>
+                <span class="acard-due" data-unique-field="due_date"></span>
+              </div>
+              <div class="acard-title" data-unique-field="open_issue"></div>
+              <div
+                class="acard-body"
+                data-unique-field="recommended_action"
+              ></div>
+              <div class="acard-foot">
+                <span class="who"
+                  ><span
+                    class="avatar avatar-from-name"
+                    data-unique-field="client_name"
+                  ></span
+                  ><span data-unique-field="client_name"></span
+                ></span>
+                <span class="acard-go">Open →</span>
+              </div>
+            </a>
+          </template>
+          <p
+            data-unique-state="loading"
+            class="small muted"
+            style="padding: 10px 4px"
+          >
+            Loading clients needing attention…
+          </p>
+          <p
+            data-unique-state="empty"
+            class="small muted"
+            style="padding: 10px 4px"
+          >
+            🎉 Nothing needs attention — every open issue is escalated or
+            cleared.
+          </p>
+          <p
+            data-unique-state="error"
+            class="small muted"
+            style="padding: 10px 4px"
+          >
+            Couldn’t load the attention list.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===== YOUR PORTFOLIO ===== -->
+      <details class="panel portfolio" open>
+        <summary><span class="chev">▾</span> Your portfolio</summary>
+
+        <div
+          class="kpis"
+          data-unique-list="statusKpis"
+          data-unique-source-server="__MCP_SERVER__"
+          data-unique-source-tool="count_by"
+          data-unique-source-args='{"table":"clients","column":"status"}'
+          data-unique-source-path="rows"
+          data-unique-source-poll="__POLL_MS__"
+        >
+          <template data-unique-item>
+            <div
+              class="kpi"
+              data-unique-key="bucket"
+              data-unique-attr-data-bucket="bucket"
+            >
+              <div class="k-l" data-unique-field="label"></div>
+              <div class="k-v" data-unique-field="count"></div>
+            </div>
+          </template>
+          <p data-unique-state="loading" class="small muted">Loading KPIs…</p>
+          <p data-unique-state="error" class="small muted">
+            Couldn’t load status counts.
+          </p>
+        </div>
+
+        <div
+          class="table-wrap"
+          data-unique-list="clientsLive"
+          data-unique-source-server="__MCP_SERVER__"
+          data-unique-source-tool="list_rows"
+          data-unique-source-args='{"table": "clients", "limit": 200}'
+          data-unique-source-path="rows"
+          data-unique-source-poll="__POLL_MS__"
+        >
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Status</th>
+                <th>Risk</th>
+                <th>Due date</th>
+                <th>Trigger</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template data-unique-item
+                ><tr data-unique-key="row_id">
+                  <td class="c-name">
+                    <a
+                      class="c-nm"
+                      data-unique-attr-href="#client-{row_id}"
+                      data-unique-field="client_name"
+                    ></a>
+                    <div class="c-ref">
+                      <code data-unique-field="client_ref"></code>
+                    </div>
+                  </td>
+                  <td class="editcell" data-unique-attr-data-status="status">
+                    <details class="cellmenu">
+                      <summary class="cellsum">
+                        <span class="stat"
+                          ><span class="dot"></span
+                          ><span
+                            class="cellval"
+                            data-unique-field="status"
+                          ></span></span
+                        ><span class="caret">▾</span>
+                      </summary>
+                      <div class="menu">
+                        <div class="menu-h">Set status</div>
+                        <button
+                          type="button"
+                          class="menuitem mi-ok"
+                          data-unique-action="callTool"
+                          data-unique-source-server="__MCP_SERVER__"
+                          data-unique-source-tool="update_row"
+                          data-unique-attr-data-unique-source-args='{"table":"clients","row_id":{row_id},"fields":{"status":"Compliant","client_ref":"{client_ref}"}}'
+                          data-unique-source-refresh="clientsLive,attentionLive,clientPages,statusKpis"
+                        >
+                          Compliant</button
+                        ><button
+                          type="button"
+                          class="menuitem mi-warn"
+                          data-unique-action="callTool"
+                          data-unique-source-server="__MCP_SERVER__"
+                          data-unique-source-tool="update_row"
+                          data-unique-attr-data-unique-source-args='{"table":"clients","row_id":{row_id},"fields":{"status":"Needs Remediation","client_ref":"{client_ref}"}}'
+                          data-unique-source-refresh="clientsLive,attentionLive,clientPages,statusKpis"
+                        >
+                          Needs Remediation</button
+                        ><button
+                          type="button"
+                          class="menuitem mi-danger"
+                          data-unique-action="callTool"
+                          data-unique-source-server="__MCP_SERVER__"
+                          data-unique-source-tool="escalate_row"
+                          data-unique-attr-data-unique-source-args='{"table":"clients","row_id":{row_id},"fields":{"status":"Escalated","client_ref":"{client_ref}"}}'
+                          data-unique-source-refresh="clientsLive,attentionLive,clientPages,statusKpis"
+                        >
+                          Escalated
+                        </button>
+                      </div>
+                    </details>
+                  </td>
+                  <td class="editcell" data-unique-attr-data-risk="risk_level">
+                    <details class="cellmenu">
+                      <summary class="cellsum">
+                        <span class="risk"
+                          ><span class="risk-ico"></span
+                          ><span
+                            class="cellval"
+                            data-unique-field="risk_level"
+                          ></span></span
+                        ><span class="caret">▾</span>
+                      </summary>
+                      <div class="menu">
+                        <div class="menu-h">Set risk</div>
+                        <button
+                          type="button"
+                          class="menuitem mi-danger"
+                          data-unique-action="callTool"
+                          data-unique-source-server="__MCP_SERVER__"
+                          data-unique-source-tool="update_row"
+                          data-unique-attr-data-unique-source-args='{"table":"clients","row_id":{row_id},"fields":{"risk_level":"High","client_ref":"{client_ref}"}}'
+                          data-unique-source-refresh="clientsLive,attentionLive,clientPages,statusKpis"
+                        >
+                          High</button
+                        ><button
+                          type="button"
+                          class="menuitem mi-warn"
+                          data-unique-action="callTool"
+                          data-unique-source-server="__MCP_SERVER__"
+                          data-unique-source-tool="update_row"
+                          data-unique-attr-data-unique-source-args='{"table":"clients","row_id":{row_id},"fields":{"risk_level":"Medium","client_ref":"{client_ref}"}}'
+                          data-unique-source-refresh="clientsLive,attentionLive,clientPages,statusKpis"
+                        >
+                          Medium</button
+                        ><button
+                          type="button"
+                          class="menuitem mi-muted"
+                          data-unique-action="callTool"
+                          data-unique-source-server="__MCP_SERVER__"
+                          data-unique-source-tool="update_row"
+                          data-unique-attr-data-unique-source-args='{"table":"clients","row_id":{row_id},"fields":{"risk_level":"Low","client_ref":"{client_ref}"}}'
+                          data-unique-source-refresh="clientsLive,attentionLive,clientPages,statusKpis"
+                        >
+                          Low
+                        </button>
+                      </div>
+                    </details>
+                  </td>
+                  <td class="c-due" data-unique-field="due_date"></td>
+                  <td class="c-trig" data-unique-field="open_issue"></td></tr
+              ></template>
+            </tbody>
+          </table>
+          <p
+            data-unique-state="loading"
+            class="small muted"
+            style="padding: 14px 4px"
+          >
+            Loading clients from the database…
+          </p>
+          <p
+            data-unique-state="empty"
+            class="small muted"
+            style="padding: 14px 4px"
+          >
+            No clients found.
+          </p>
+          <p
+            data-unique-state="error"
+            class="small muted"
+            style="padding: 14px 4px"
+          >
+            Couldn’t load clients.
+          </p>
+        </div>
+
+        <div class="toolbar" style="margin-top: 16px">
+          <a class="btn btn-danger" href="#reset-db">Reset demo data…</a>
+          <span class="confirm" id="reset-db">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-danger"
+                data-unique-action="callTool"
+                data-unique-source-server="__MCP_SERVER__"
+                data-unique-source-tool="reset_from_excel"
+                data-unique-source-args="{}"
+                data-unique-source-refresh="clientsLive,attentionLive,clientPages,statusKpis"
+              >
+                Confirm reset</button
+              ><span class="toast toast-danger" role="status"
+                >↺ Reset sent — lists will refresh shortly</span
+              ></span
+            >
+            <a class="btn btn-ghost" href="#top">Cancel</a>
+          </span>
+        </div>
+      </details>
+
+      <footer>
+        <div class="connbar">
+          <span class="conns"
+            ><span class="dots"
+              ><span class="cdot"></span><span class="cdot"></span
+              ><span class="cdot"></span></span
+            >__CONNECTORS_ONLINE__ connectors online</span
+          >
+          <span class="conn-live"
+            ><span class="live-dot"></span> Live over the
+            <code>__MCP_SERVER__</code> MCP</span
+          >
+        </div>
+        <p class="conn-note">
+          Reads &amp; writes go through the <code>__MCP_SERVER__</code> MCP
+          over the chat host bridge. Attention rail, KPIs, portfolio table and
+          client pages all re-fetch on write and poll every
+          __POLL_MS__ ms — no HTML rebuild required.
+        </p>
+      </footer>
+    </main>

@@ -4,7 +4,10 @@ from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
+from unique_mcp.auth.zitadel.scopes import (
+    ZITADEL_DEFAULT_MCP_SCOPES,
+    ZITADEL_UPSTREAM_AUTHORIZE_SCOPES,
+)
 from unique_mcp.util.find_env_file import find_env_file
 
 if TYPE_CHECKING:
@@ -73,6 +76,12 @@ def create_zitadel_oauth_proxy(
     )
 
     valid_scopes = kwargs.pop("valid_scopes", ZITADEL_DEFAULT_MCP_SCOPES)
+    kwargs.setdefault("forward_resource", False)
+    extra_authorize_params = kwargs.pop("extra_authorize_params", None)
+    if extra_authorize_params is None:
+        extra_authorize_params = {
+            "scope": " ".join(ZITADEL_UPSTREAM_AUTHORIZE_SCOPES),
+        }
 
     return OAuthProxy(
         upstream_authorization_endpoint=settings.authorize_endpoint,
@@ -89,7 +98,7 @@ def create_zitadel_oauth_proxy(
         valid_scopes=valid_scopes,
         forward_pkce=True,
         token_endpoint_auth_method="client_secret_post",
-        extra_authorize_params=None,
+        extra_authorize_params=extra_authorize_params,
         extra_token_params=None,
         client_storage=client_storage,
         **kwargs,

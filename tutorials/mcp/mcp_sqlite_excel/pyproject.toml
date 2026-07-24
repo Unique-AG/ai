@@ -1,0 +1,61 @@
+[project]
+name = "mcp-sqlite-excel"
+version = "0.1.0"
+description = "MCP server that exposes schema-driven CRUD over SQLite tables seeded from Excel."
+readme = "README.md"
+authors = [{ name = "Cedric Klinkert", email = "cedric@unique.ch" }]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.120.2",
+    "fastmcp>=3.2.0,<4",
+    "openpyxl>=3.1.5",
+    "pydantic>=2.12.3",
+    "pydantic-settings>=2.6.0",
+    "unique-mcp>=2026.30.0",
+]
+
+[tool.uv.sources]
+unique-mcp = { path = "../../../unique_mcp", editable = true }
+unique-toolkit = { path = "../../../unique_toolkit", editable = true }
+unique-sdk = { path = "../../../unique_sdk", editable = true }
+
+[project.scripts]
+mcp-sqlite-excel = "mcp_sqlite_excel.mcp_sqlite_excel:main"
+generate-sample-excel = "mcp_sqlite_excel.scripts.generate_sample_excel:main"
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+exclude-newer = "2 weeks"
+constraint-dependencies = [
+    "authlib>=1.6.11",
+    "cryptography>=46.0.7",
+    "fastmcp>=3.2.0",
+    "pyjwt>=2.12.0",
+    "python-multipart>=0.0.27",
+]
+
+[tool.uv.exclude-newer-package]
+"unique-mcp" = false
+"unique-toolkit" = false
+"unique-sdk" = false
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.8",
+    "deptry>=0.24.0",
+    "pytest>=8.0.0",
+    "python-dep-tree>=0.19.9",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E"]
+
+[tool.deptry]
+known_first_party = ["mcp_sqlite_excel"]
+ignore = ["DEP003"]

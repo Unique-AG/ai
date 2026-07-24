@@ -1,0 +1,8 @@
+{
+  "mcp_server": "mcp_your_connector_id",
+  "rm_name": "Elena",
+  "page_title": "Account Review — MCP Data Console",
+  "poll_ms": 15000,
+  "connectors_online": 3,
+  "output": "../dashboard-my-demo.html"
+}

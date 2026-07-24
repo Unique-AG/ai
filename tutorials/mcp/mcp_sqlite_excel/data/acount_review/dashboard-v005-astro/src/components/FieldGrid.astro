@@ -1,0 +1,41 @@
+---
+// Renders a `.fldgrid` of `.fld` label/value pairs — the read-only
+// key/value rows used across every client-page section (identity, history,
+// docs & KYC, holdings, suitability, ...). Replaces hand-repeated
+// `<div class="fld">…</div>` blocks with a data-driven list, so adding or
+// reordering a field is a one-line change instead of a markup edit.
+export interface Field {
+  label: string;
+  /** data-unique-field name. */
+  field: string;
+  /** Wrap the value in <code> (e.g. reference numbers). */
+  code?: boolean;
+  /** Add the `na-field` class (renders as em dash when unset — see README Known gaps). */
+  na?: boolean;
+}
+
+export interface Props {
+  fields: Field[];
+  cols?: number;
+  class?: string;
+}
+
+const { fields, cols = 3, class: className } = Astro.props;
+---
+
+<div class:list={[`fldgrid cols-${cols}`, className]}>
+  {
+    fields.map(({ label, field, code, na }) => (
+      <div class="fld">
+        <span class="fld-l">{label}</span>
+        {code ? (
+          <span class:list={["fld-v", { "na-field": na }]}>
+            <code data-unique-field={field} />
+          </span>
+        ) : (
+          <span class:list={["fld-v", { "na-field": na }]} data-unique-field={field} />
+        )}
+      </div>
+    ))
+  }
+</div>
