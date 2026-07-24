@@ -1,6 +1,6 @@
 [project]
 name = "unique_skill_tool"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -12,7 +12,7 @@ dependencies = [
     "jinja2>=3.1.0,<4",
     "pydantic>=2.8.2,<3",
     "python-frontmatter>=1.1.0,<2",
-    "unique-toolkit>=2026.30.0",
+    "unique-toolkit>=2026.32.0.dev4,<2026.32.0rc0",
 ]
 
 [build-system]
