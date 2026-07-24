@@ -9,6 +9,7 @@ from typing import (
 )
 
 from attrs import define as _attrs_define
+from attrs import field as _attrs_field
 
 from ..models.jina_crawl_request_engine import JinaCrawlRequestEngine
 from ..models.jina_crawl_request_retain_images_type_0 import (
@@ -25,7 +26,7 @@ class JinaCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        crawler (Literal['Jina'] | Unset):  Default: 'Jina'.
+        crawler (Literal['Jina'] | Unset): Provider discriminator; must be `Jina` for this config. Default: 'Jina'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         return_format (JinaCrawlRequestReturnFormat | Unset): Jina Reader output format: `markdown`, `html`, `text`,
             `screenshot`, or `pageshot`. Default: JinaCrawlRequestReturnFormat.MARKDOWN.
@@ -72,6 +73,7 @@ class JinaCrawlRequest:
     referer: None | str | Unset = UNSET
     proxy_url: None | str | Unset = UNSET
     do_not_track: bool | Unset = True
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         urls = self.urls
@@ -162,7 +164,7 @@ class JinaCrawlRequest:
         do_not_track = self.do_not_track
 
         field_dict: dict[str, Any] = {}
-
+        field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "urls": urls,
@@ -377,4 +379,21 @@ class JinaCrawlRequest:
             do_not_track=do_not_track,
         )
 
+        jina_crawl_request.additional_properties = d
         return jina_crawl_request
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties

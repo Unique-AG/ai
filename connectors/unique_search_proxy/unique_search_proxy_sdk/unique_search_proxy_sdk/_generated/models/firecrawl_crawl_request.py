@@ -10,6 +10,7 @@ from typing import (
 )
 
 from attrs import define as _attrs_define
+from attrs import field as _attrs_field
 
 from ..models.firecrawl_crawl_request_proxy_mode import FirecrawlCrawlRequestProxyMode
 from ..types import UNSET, Unset
@@ -28,7 +29,8 @@ class FirecrawlCrawlRequest:
     """
     Attributes:
         urls (list[str]): URLs to crawl
-        crawler (Literal['Firecrawl'] | Unset):  Default: 'Firecrawl'.
+        crawler (Literal['Firecrawl'] | Unset): Provider discriminator; must be `Firecrawl` for this config. Default:
+            'Firecrawl'.
         timeout (int | Unset): Request timeout in seconds Default: 30.
         only_main_content (bool | Unset): Exclude headers, navs, footers before markdown generation. Default: True.
         only_clean_content (bool | Unset): LLM pass to remove residual boilerplate from markdown. Default: False.
@@ -63,6 +65,7 @@ class FirecrawlCrawlRequest:
     exclude_tags: list[str] | None | Unset = UNSET
     scrape_headers: FirecrawlCrawlRequestScrapeHeadersType0 | None | Unset = UNSET
     max_age: int | None | Unset = UNSET
+    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.firecrawl_crawl_request_scrape_headers_type_0 import (
@@ -132,7 +135,7 @@ class FirecrawlCrawlRequest:
             max_age = self.max_age
 
         field_dict: dict[str, Any] = {}
-
+        field_dict.update(self.additional_properties)
         field_dict.update(
             {
                 "urls": urls,
@@ -299,4 +302,21 @@ class FirecrawlCrawlRequest:
             max_age=max_age,
         )
 
+        firecrawl_crawl_request.additional_properties = d
         return firecrawl_crawl_request
+
+    @property
+    def additional_keys(self) -> list[str]:
+        return list(self.additional_properties.keys())
+
+    def __getitem__(self, key: str) -> Any:
+        return self.additional_properties[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self.additional_properties[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self.additional_properties[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.additional_properties
