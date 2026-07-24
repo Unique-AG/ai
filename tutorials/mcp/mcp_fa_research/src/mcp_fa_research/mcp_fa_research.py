@@ -531,6 +531,17 @@ async def get_status(request: Request):
                          "demo_data_console": "/admin"})
 
 
+@mcp.custom_route("/favicon.ico", methods=["GET"])
+async def favicon(request: Request):
+    """The shared demo-MCP icon — the admin UI uses the server's favicon as the
+    connector icon (same file as the RM Agent / trade-reconciliation MCPs)."""
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    return FileResponse(Path(__file__).parent / "favicon.ico")
+
+
 import admin_ui  # noqa: E402
 
 admin_ui.register(mcp, _get_state, _reset_state)
