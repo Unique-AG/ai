@@ -12,7 +12,7 @@ conflicts = [[
 ]]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-07-10T07:55:56.797587388Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5116,7 +5116,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5158,7 +5158,7 @@ dev = []
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 source = { editable = "postprocessors/unique_follow_up_questions" }
 dependencies = [
     { name = "jinja2" },
@@ -5175,7 +5175,7 @@ requires-dist = [
 
 [[package]]
 name = "unique-internal-search"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
@@ -5195,7 +5195,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5225,7 +5225,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5267,7 +5267,7 @@ dev = []
 
 [[package]]
 name = "unique-quartr"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 source = { editable = "connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -5293,7 +5293,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "2026.30.0"
+version = "2026.32.0.dev8"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -5330,7 +5330,7 @@ dev = []
 
 [[package]]
 name = "unique-search-proxy"
-version = "2026.30.0"
+version = "2026.32.0.dev4"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_client" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -5395,7 +5395,7 @@ dev = [
 
 [[package]]
 name = "unique-search-proxy-core"
-version = "2026.30.0"
+version = "2026.32.0.dev2"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_core" }
 dependencies = [
     { name = "httpx" },
@@ -5432,7 +5432,7 @@ dev = [
 
 [[package]]
 name = "unique-search-proxy-sdk"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 source = { editable = "connectors/unique_search_proxy/unique_search_proxy_sdk" }
 dependencies = [
     { name = "attrs" },
@@ -5469,7 +5469,7 @@ dev = [
 
 [[package]]
 name = "unique-six"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 source = { editable = "connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -5502,7 +5502,7 @@ dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
 name = "unique-skill-tool"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 source = { editable = "tool_packages/unique_skill_tool" }
 dependencies = [
     { name = "jinja2" },
@@ -5524,7 +5524,7 @@ dev = []
 
 [[package]]
 name = "unique-stock-ticker"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 source = { editable = "postprocessors/unique_stock_ticker" }
 dependencies = [
     { name = "numerize" },
@@ -5553,7 +5553,7 @@ requires-dist = [
 
 [[package]]
 name = "unique-swot"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 source = { editable = "tool_packages/unique_swot" }
 dependencies = [
     { name = "jinja2" },
@@ -5579,7 +5579,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "2026.30.0"
+version = "2026.32.0.dev4"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -5679,7 +5679,7 @@ dev = [{ name = "types-cachetools", specifier = ">=5.0,<6" }]
 
 [[package]]
 name = "unique-user-memory"
-version = "2026.30.0"
+version = "2026.32.0.dev2"
 source = { editable = "postprocessors/unique_user_memory" }
 dependencies = [
     { name = "jinja2" },
@@ -5701,7 +5701,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "2026.30.0"
+version = "2026.32.0.dev1"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -5760,7 +5760,7 @@ dev = []
 
 [[package]]
 name = "uqadm"
-version = "2026.30.0"
+version = "2026.32.0.dev0"
 source = { editable = "uqadm" }
 dependencies = [
     { name = "python-dotenv" },
