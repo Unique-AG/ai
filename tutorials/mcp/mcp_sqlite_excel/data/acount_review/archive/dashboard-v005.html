@@ -593,6 +593,61 @@
         color: #3452a4;
       }
 
+      /*
+        Case badge — one reusable component, six live looks. The label text comes
+        from CSS ::before content keyed on [data-rule], generated from
+        src/cases.json by build.py (see the badge-CSS marker below).
+        Unknown / absent rule_code (e.g. Compliant clients) renders nothing.
+      */
+      .case-badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 99px;
+        background: #eef2fb;
+        color: #3452a4;
+        white-space: nowrap;
+      }
+      .case-badge::before {
+        content: attr(data-rule);
+      }
+      .case-badge:not([data-rule]),
+      .case-badge[data-rule=""] {
+        display: none;
+      }
+      .acard-top-l {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .case-badge[data-rule="R-DOC-EXPIRY"]::before {
+        content: "📄 Document / KYC refresh";
+      }
+      .case-badge[data-rule="R-SCR-ADVMEDIA"]::before {
+        content: "🔎 Adverse-media / PEP hit";
+      }
+      .case-badge[data-rule="R-SCR-PEP"]::before {
+        content: "🔎 Adverse-media / PEP hit";
+      }
+      .case-badge[data-rule="R-SUIT-ALLOC"]::before {
+        content: "⚖️ Portfolio breaches risk profile";
+      }
+      .case-badge[data-rule="R-SUIT-REVIEW"]::before {
+        content: "📝 Suitability review due";
+      }
+      .case-badge[data-rule="R-REG-NONDOM"]::before {
+        content: "📜 Regulatory change — in scope";
+      }
+      .case-badge[data-rule="R-REG-CHANGE"]::before {
+        content: "📜 Regulatory change — in scope";
+      }
+      .case-badge[data-rule="R-SOW-REFRESH"]::before {
+        content: "💰 Source of Wealth re-assessment";
+      }
+
       /* in-cell edit menu */
       td.editcell {
         vertical-align: middle;
@@ -946,6 +1001,208 @@
         gap: 10px;
         flex-wrap: wrap;
       }
+      /* No RM action once a client is escalated or already compliant. */
+      .actionbar[data-status="Escalated"],
+      .actionbar[data-status="Compliant"] {
+        display: none;
+      }
+      /*
+        One <div class="actionbar-case" data-rule="…"> per rule_code lives inside
+        every client page (see the case-actionbars marker in clients.html); only
+        the one matching this row's live rule_code is shown — same reusable
+        action bar, a different case opens depending on the data.
+      */
+      .actionbar-case {
+        display: none;
+      }
+      .actionbar[data-rule="R-DOC-EXPIRY"] .actionbar-case[data-rule="R-DOC-EXPIRY"] {
+        display: flex;
+      }
+      .detail[data-rule="R-DOC-EXPIRY"] .case-figure[data-rule="R-DOC-EXPIRY"] {
+        display: block;
+      }
+      .actionbar[data-rule="R-SCR-ADVMEDIA"] .actionbar-case[data-rule="R-SCR-ADVMEDIA"] {
+        display: flex;
+      }
+      .detail[data-rule="R-SCR-ADVMEDIA"] .case-figure[data-rule="R-SCR-ADVMEDIA"] {
+        display: block;
+      }
+      .actionbar[data-rule="R-SCR-PEP"] .actionbar-case[data-rule="R-SCR-PEP"] {
+        display: flex;
+      }
+      .detail[data-rule="R-SCR-PEP"] .case-figure[data-rule="R-SCR-PEP"] {
+        display: block;
+      }
+      .actionbar[data-rule="R-SUIT-ALLOC"] .actionbar-case[data-rule="R-SUIT-ALLOC"] {
+        display: flex;
+      }
+      .detail[data-rule="R-SUIT-ALLOC"] .case-figure[data-rule="R-SUIT-ALLOC"] {
+        display: block;
+      }
+      .actionbar[data-rule="R-SUIT-REVIEW"] .actionbar-case[data-rule="R-SUIT-REVIEW"] {
+        display: flex;
+      }
+      .detail[data-rule="R-SUIT-REVIEW"] .case-figure[data-rule="R-SUIT-REVIEW"] {
+        display: block;
+      }
+      .actionbar[data-rule="R-REG-NONDOM"] .actionbar-case[data-rule="R-REG-NONDOM"] {
+        display: flex;
+      }
+      .detail[data-rule="R-REG-NONDOM"] .case-figure[data-rule="R-REG-NONDOM"] {
+        display: block;
+      }
+      .actionbar[data-rule="R-REG-CHANGE"] .actionbar-case[data-rule="R-REG-CHANGE"] {
+        display: flex;
+      }
+      .detail[data-rule="R-REG-CHANGE"] .case-figure[data-rule="R-REG-CHANGE"] {
+        display: block;
+      }
+      .actionbar[data-rule="R-SOW-REFRESH"] .actionbar-case[data-rule="R-SOW-REFRESH"] {
+        display: flex;
+      }
+      .detail[data-rule="R-SOW-REFRESH"] .case-figure[data-rule="R-SOW-REFRESH"] {
+        display: block;
+      }
+
+      /*
+        Case figure(s) — reuse the same .sec accordion shell as the generic detail
+        sections; a different structured view (screening match, allocation bars,
+        rule impact, ...) shows depending on this row's live rule_code, and one
+        case (portfolio breach) shows a second figure (.case-figure2) alongside the
+        first — "Portfolio and Mandate" + "Portfolio Performance vs Benchmark".
+        Both default to hidden; build.py's case-visibility CSS (below) reveals
+        only the variant(s) matching this row's rule_code.
+      */
+      .case-figure,
+      .case-figure2 {
+        display: none;
+      }
+      .figrows {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .figrow {
+        display: grid;
+        grid-template-columns: minmax(140px, 0.9fr) 1.3fr minmax(0, 1fr);
+        align-items: center;
+        gap: 12px;
+        font-size: 0.86rem;
+      }
+      .figrow-l {
+        color: var(--muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .figrow-v {
+        font-weight: 600;
+      }
+      .figrow[data-status="ok"] .figrow-v {
+        color: var(--green);
+      }
+      .figrow[data-status="warn"] .figrow-v {
+        color: var(--amber);
+      }
+      .figrow[data-status="danger"] .figrow-v {
+        color: var(--red);
+      }
+      /*
+        .mandate-figure / .holdings-figure are the always-visible generic
+        sections (Portfolio and Mandate, Holdings and Categorization) — unlike
+        .case-figure[data-rule=...], which only turns bars on for the one
+        matching rule_code, these always show weight bars since they're not
+        case-gated.
+      */
+      .mandate-figure .figbar,
+      .holdings-figure .figbar {
+        display: block;
+      }
+      .figbar {
+        display: none;
+        height: 8px;
+        border-radius: 99px;
+        background: var(--line-2);
+        overflow: hidden;
+      }
+      .figbar-fill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--blue);
+      }
+      .figrow[data-status="warn"] .figbar-fill {
+        background: var(--amber);
+      }
+      .figrow[data-status="danger"] .figbar-fill {
+        background: var(--red);
+      }
+
+
+      /*
+        Generic sections (History, Documents and KYC, ...) start collapsed by
+        default; a case can force one open on load via cases.json's
+        "open_sections" — the section stays a normal, user-collapsible <details>
+        otherwise (see src/cases.json + build.py's render_open_sections_css).
+      */
+      .detail[data-rule="R-DOC-EXPIRY"] .sec[data-key="docs-kyc"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-DOC-EXPIRY"] .sec[data-key="docs-kyc"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+      .detail[data-rule="R-SCR-ADVMEDIA"] .sec[data-key="history"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-SCR-ADVMEDIA"] .sec[data-key="history"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+      .detail[data-rule="R-SCR-PEP"] .sec[data-key="history"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-SCR-PEP"] .sec[data-key="history"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+      .detail[data-rule="R-SUIT-ALLOC"] .sec[data-key="portfolio-mandate"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-SUIT-ALLOC"] .sec[data-key="portfolio-mandate"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+      .detail[data-rule="R-SUIT-ALLOC"] .sec[data-key="portfolio-performance"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-SUIT-ALLOC"] .sec[data-key="portfolio-performance"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+      .detail[data-rule="R-SUIT-REVIEW"] .sec[data-key="suitability-profile"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-SUIT-REVIEW"] .sec[data-key="suitability-profile"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+      .detail[data-rule="R-REG-NONDOM"] .sec[data-key="holdings-categorization"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-REG-NONDOM"] .sec[data-key="holdings-categorization"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+      .detail[data-rule="R-REG-CHANGE"] .sec[data-key="holdings-categorization"] > .sec-body {
+        display: block;
+      }
+      .detail[data-rule="R-REG-CHANGE"] .sec[data-key="holdings-categorization"] > .sec-sum .sec-chev {
+        transform: rotate(90deg);
+      }
+
+      .btn-ai-alt {
+        background: #fff;
+        border: 1px solid var(--blue);
+        color: var(--blue-d);
+      }
+      .btn-ai-alt:hover {
+        background: #eef4ff;
+      }
+
       .fldgrid {
         display: grid;
         gap: 14px 22px;
@@ -1105,6 +1362,7 @@
         <main
           class="detail view-client"
           data-unique-attr-id="client-{row_id}"
+          data-unique-attr-data-rule="rule_code"
           data-unique-key="row_id"
         >
           <div
@@ -1113,7 +1371,11 @@
           >
             <span class="cb-l"
               ><strong>Attention</strong> ·
-              <span class="cb-issue" data-unique-field="open_issue"></span
+              <span
+                class="case-badge"
+                data-unique-attr-data-rule="rule_code"
+              ></span>
+              · <span class="cb-issue" data-unique-field="open_issue"></span
             ></span>
             <a
               class="cb-src"
@@ -1123,29 +1385,157 @@
             <a class="cb-x" href="#top" title="Close">✕</a>
           </div>
 
-          <!-- Action bar first so Analyse is visible when an attention card opens. -->
-          <section class="card actionbar">
+          <!--
+            Action bar first so the smart action is visible when an attention
+            card opens. One case-driven variant per rule_code (see
+            src/cases.json) shares this shell; CSS shows only the variant
+            whose data-rule matches this row's live rule_code — the same
+            reusable component just opens on a different case.
+          -->
+          <section
+            class="card actionbar"
+            data-unique-attr-data-status="status"
+            data-unique-attr-data-rule="rule_code"
+          >
             <div class="actionbar-copy">
-              <h2>Review this issue</h2>
-              <p class="small muted">
-                Run <strong>Analyse with AI</strong> for an assessment and
-                recommendation in the chat; the analysis then concludes by
-                escalating this client to Compliance.
-              </p>
+              <h2 data-unique-field="action_title"></h2>
+              <p class="small muted" data-unique-field="action_explanation"></p>
             </div>
             <div class="actionbar-btns">
-              <span class="act"
-                ><button
-                  class="btn btn-ai"
-                  data-unique-action="sendPrompt"
-                  data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Open issue:** {open_issue}\n**Rule:** {rule_code}\n**Criticality:** {criticality}\n\nPlease cover:\n1. What the open issue means\n2. Likely root causes\n3. Severity\n4. Clear recommendation on whether to escalate to Compliance, and why\n\nThen call `escalate_row` on table `clients` with `row_id` {row_id} — do **not** use `update_row`. `escalate_row` will ask for confirmation (recipient email + note) and notify Compliance.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
-                >
-                  ✨ Analyse with AI</button
-                ><span class="toast toast-agent" role="status"
-                  >✨ Sent to me — analysing the issue, then escalating to
-                  Compliance</span
-                ></span
+                        <div class="actionbar-case" data-rule="R-DOC-EXPIRY">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 📄 Document / KYC refresh (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen draft the email you would send to the client requesting a certified copy of the renewed document, written ready for the RM to paste into Outlook. Do not call any tool for this step — it stays a draft for the RM to review and send.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
               >
+                ✨ <span data-unique-field="action_button"></span></button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — analysing and drafting the next step</span
+              ></span
+            >
+          </div>
+          <div class="actionbar-case" data-rule="R-SCR-ADVMEDIA">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 🔎 Adverse-media / PEP hit (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen call `escalate_row` on table `clients` with `row_id` {row_id} — do not use `update_row`. `escalate_row` will ask for confirmation (recipient email and note) and notify Compliance.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                ✨ <span data-unique-field="action_button"></span></button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — analysing and drafting the next step</span
+              ></span
+            >
+          </div>
+          <div class="actionbar-case" data-rule="R-SCR-PEP">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 🔎 Adverse-media / PEP hit (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen call `escalate_row` on table `clients` with `row_id` {row_id} — do not use `update_row`. `escalate_row` will ask for confirmation (recipient email and note) and notify Compliance.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                ✨ <span data-unique-field="action_button"></span></button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — analysing and drafting the next step</span
+              ></span
+            >
+          </div>
+          <div class="actionbar-case" data-rule="R-SUIT-ALLOC">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** ⚖️ Portfolio breaches risk profile (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen sketch a rebalancing proposal — what to trim, what to redeploy into, and the rough cost and tax impact — that would bring the allocation back within the agreed risk-profile tolerance.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                ✨ <span data-unique-field="action_button"></span></button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — analysing and drafting the next step</span
+              ></span
+            >
+          </div>
+          <div class="actionbar-case" data-rule="R-SUIT-REVIEW">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 📝 Suitability review due (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen run a short suitability-review questionnaire with me here in chat using what you know about the client, and summarise the answers ready for the file.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                ✨ <span data-unique-field="action_button"></span></button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — analysing and drafting the next step</span
+              ></span
+            >
+          </div>
+          <div class="actionbar-case" data-rule="R-REG-NONDOM">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 📜 Regulatory change — in scope (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen draft the email you would send this client requesting the evidence or acknowledgement needed to re-categorise them, written ready for the RM to paste into Outlook. Do not call any tool for this step — it stays a draft for the RM to review and send.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                📨 Email client</button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — drafting the client email</span
+              ></span
+            ><span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai btn-ai-alt"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 📜 Regulatory change — in scope (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen call `escalate_row` on table `clients` with `row_id` {row_id} — do not use `update_row`. `escalate_row` will ask for confirmation (recipient email and note) and notify Compliance.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                🚨 Escalate to compliance</button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — escalating to Compliance</span
+              ></span
+            >
+          </div>
+          <div class="actionbar-case" data-rule="R-REG-CHANGE">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 📜 Regulatory change — in scope (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen draft the email you would send this client requesting the evidence or acknowledgement needed to re-categorise them, written ready for the RM to paste into Outlook. Do not call any tool for this step — it stays a draft for the RM to review and send.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                📨 Email client</button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — drafting the client email</span
+              ></span
+            ><span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai btn-ai-alt"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 📜 Regulatory change — in scope (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen call `escalate_row` on table `clients` with `row_id` {row_id} — do not use `update_row`. `escalate_row` will ask for confirmation (recipient email and note) and notify Compliance.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                🚨 Escalate to compliance</button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — escalating to Compliance</span
+              ></span
+            >
+          </div>
+          <div class="actionbar-case" data-rule="R-SOW-REFRESH">
+            <span class="act"
+              ><button
+                type="button"
+                class="btn btn-ai"
+                data-unique-action="sendPrompt"
+                data-unique-attr-data-unique-payload='{"prompt":"Analyse **{client_name}** (`{client_ref}`, row {row_id})\n\n**Case:** 💰 Source of Wealth re-assessment (`{rule_code}`)\n**Action:** {action_title}\n**Criticality:** {criticality}\n\n{action_explanation}\n\nPlease cover:\n1. What this means and why it matters\n2. Likely root causes or context\n3. Severity and urgency\n4. Your recommendation\n\nThen draft a Source-of-Wealth corroboration plan for this event, including which supporting documents to request from the client.\n\nMCP server: `mcp_thvxcf56tka96a8lmv2ilwfd`"}'
+              >
+                ✨ <span data-unique-field="action_button"></span></button
+              ><span class="toast toast-agent" role="status"
+                >✨ Sent to me — analysing and drafting the next step</span
+              ></span
+            >
+          </div>
             </div>
           </section>
 
@@ -1187,11 +1577,14 @@
             </div>
           </header>
 
-          <details class="card sec" open>
+          <details class="card sec" data-key="exec-summary" open>
             <summary class="sec-sum">
               <span class="sec-chev">›</span>
               <h2>Executive summary</h2>
-              <span class="sec-meta" data-unique-field="rule_code"></span>
+              <span
+                class="sec-meta case-badge"
+                data-unique-attr-data-rule="rule_code"
+              ></span>
             </summary>
             <div class="sec-body">
               <div class="tags">
@@ -1206,10 +1599,25 @@
                 action:
                 <span data-unique-field="recommended_action"></span>
               </p>
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Rule code</span
+                  ><span class="fld-v"
+                    ><code data-unique-field="rule_code"></code
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Due</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="due_date"
+                  ></span>
+                </div>
+              </div>
             </div>
           </details>
 
-          <details class="card sec" open>
+          <details class="card sec" data-key="identity" open>
             <summary class="sec-sum">
               <span class="sec-chev">›</span>
               <h2>Client identity</h2>
@@ -1294,50 +1702,37 @@
             </div>
           </details>
 
-          <details class="card sec" open>
+          <details class="card sec" data-key="history" open>
             <summary class="sec-sum">
               <span class="sec-chev">›</span>
-              <h2>Open issue &amp; remediation</h2>
-              <span class="sec-meta" data-unique-field="rule_code"></span>
+              <h2>History</h2>
+              <span class="sec-meta"
+                >Next <span data-unique-field="next_review_due"></span
+              ></span>
             </summary>
             <div class="sec-body">
               <div class="fldgrid cols-3">
                 <div class="fld">
-                  <span class="fld-l">Open issue</span
-                  ><span
-                    class="fld-v na-field"
-                    data-unique-field="open_issue"
-                  ></span>
+                  <span class="fld-l">Last reviewed</span
+                  ><span class="fld-v" data-unique-field="last_reviewed"></span>
                 </div>
                 <div class="fld">
-                  <span class="fld-l">Rule code</span
-                  ><span class="fld-v"
-                    ><code data-unique-field="rule_code"></code
-                  ></span>
+                  <span class="fld-l">Next review due</span
+                  ><span class="fld-v" data-unique-field="next_review_due"></span>
                 </div>
                 <div class="fld">
-                  <span class="fld-l">Recommended action</span
-                  ><span
-                    class="fld-v na-field"
-                    data-unique-field="recommended_action"
-                  ></span>
-                </div>
-                <div class="fld">
-                  <span class="fld-l">Due</span
-                  ><span
-                    class="fld-v na-field"
-                    data-unique-field="due_date"
-                  ></span>
+                  <span class="fld-l">KYC refresh due</span
+                  ><span class="fld-v" data-unique-field="kyc_refresh_due"></span>
                 </div>
               </div>
             </div>
           </details>
 
-          <details class="card sec">
+          <details class="card sec" data-key="docs-kyc" open>
             <summary class="sec-sum">
               <span class="sec-chev">›</span>
-              <h2>Screening</h2>
-              <span class="sec-meta">AML / KYC</span>
+              <h2>Documents and KYC</h2>
+              <span class="sec-meta">AML / KYC · client record</span>
             </summary>
             <div class="sec-body">
               <div class="fldgrid cols-3">
@@ -1368,44 +1763,512 @@
                   ></span>
                 </div>
               </div>
+              <div class="docrow">
+                <span class="doc" data-unique-field="documents_on_file"></span>
+              </div>
             </div>
           </details>
 
-          <details class="card sec">
+          <!--
+            The four sections below are generic client-profile data — unlike
+            the case-specific figures further down, they show real values for
+            every client regardless of which (if any) remediation case is
+            open on this row. build.py's open_sections CSS still force-opens
+            the one relevant to a case (see src/cases.json), but for now
+            every section also ships with the `open` attribute so all of
+            them render expanded.
+          -->
+          <details class="card sec" data-key="portfolio-mandate" open>
             <summary class="sec-sum">
               <span class="sec-chev">›</span>
-              <h2>Review schedule</h2>
-              <span class="sec-meta"
-                >Next <span data-unique-field="next_review_due"></span
-              ></span>
+              <h2>Portfolio and Mandate</h2>
+              <span class="sec-meta" data-unique-field="mandate_type"></span>
             </summary>
             <div class="sec-body">
-              <div class="fldgrid cols-3">
-                <div class="fld">
-                  <span class="fld-l">Last reviewed</span
-                  ><span class="fld-v" data-unique-field="last_reviewed"></span>
+              <div class="figrows mandate-figure">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="mand1_status"
+                >
+                  <span class="figrow-l" data-unique-field="mand1_label"></span>
+                  <span class="figrow-v" data-unique-field="mand1_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{mand1_pct}%"
+                    ></span
+                  ></span>
                 </div>
-                <div class="fld">
-                  <span class="fld-l">Next review due</span
-                  ><span class="fld-v" data-unique-field="next_review_due"></span>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="mand2_status"
+                >
+                  <span class="figrow-l" data-unique-field="mand2_label"></span>
+                  <span class="figrow-v" data-unique-field="mand2_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{mand2_pct}%"
+                    ></span
+                  ></span>
                 </div>
-                <div class="fld">
-                  <span class="fld-l">KYC refresh due</span
-                  ><span class="fld-v" data-unique-field="kyc_refresh_due"></span>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="mand3_status"
+                >
+                  <span class="figrow-l" data-unique-field="mand3_label"></span>
+                  <span class="figrow-v" data-unique-field="mand3_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{mand3_pct}%"
+                    ></span
+                  ></span>
                 </div>
               </div>
             </div>
           </details>
 
-          <details class="card sec">
+          <details class="card sec" data-key="portfolio-performance" open>
             <summary class="sec-sum">
               <span class="sec-chev">›</span>
-              <h2>Documents on file</h2>
-              <span class="sec-meta">From client record</span>
+              <h2>Portfolio Performance and Benchmark</h2>
             </summary>
             <div class="sec-body">
-              <div class="docrow">
-                <span class="doc" data-unique-field="documents_on_file"></span>
+              <div class="figrows">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="perf1_status"
+                >
+                  <span class="figrow-l" data-unique-field="perf1_label"></span>
+                  <span class="figrow-v" data-unique-field="perf1_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{perf1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="perf2_status"
+                >
+                  <span class="figrow-l" data-unique-field="perf2_label"></span>
+                  <span class="figrow-v" data-unique-field="perf2_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{perf2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="perf3_status"
+                >
+                  <span class="figrow-l" data-unique-field="perf3_label"></span>
+                  <span class="figrow-v" data-unique-field="perf3_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{perf3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="holdings-categorization" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Holdings and Categorization</h2>
+            </summary>
+            <div class="sec-body">
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Client categorization</span
+                  ><span class="fld-v" data-unique-field="client_categorization"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Category required</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="category_required"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Category review status</span
+                  ><span class="fld-v" data-unique-field="category_review_status"></span>
+                </div>
+              </div>
+              <div class="figrows holdings-figure" style="margin-top: 14px">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="hold1_status"
+                >
+                  <span class="figrow-l" data-unique-field="hold1_label"></span>
+                  <span class="figrow-v" data-unique-field="hold1_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{hold1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="hold2_status"
+                >
+                  <span class="figrow-l" data-unique-field="hold2_label"></span>
+                  <span class="figrow-v" data-unique-field="hold2_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{hold2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="hold3_status"
+                >
+                  <span class="figrow-l" data-unique-field="hold3_label"></span>
+                  <span class="figrow-v" data-unique-field="hold3_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{hold3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="suitability-profile" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Suitability Profile</h2>
+              <span class="sec-meta" data-unique-field="risk_tolerance"></span>
+            </summary>
+            <div class="sec-body">
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Risk tolerance</span
+                  ><span class="fld-v" data-unique-field="risk_tolerance"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Investment horizon</span
+                  ><span class="fld-v" data-unique-field="investment_horizon"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Knowledge &amp; experience</span
+                  ><span class="fld-v" data-unique-field="knowledge_experience"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Last suitability test</span
+                  ><span class="fld-v" data-unique-field="last_suitability_test"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Outcome</span
+                  ><span class="fld-v" data-unique-field="suitability_outcome"></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!--
+            Case figure(s): same idea as the action bar — one reusable
+            accordion section, a different structured view opens depending
+            on this row's live rule_code (see src/cases.json → figure_title).
+            Only doc-expiry, adverse-media and sow-refresh still use this —
+            the other three cases' figures were promoted to always-visible
+            generic sections above (Portfolio and Mandate, Portfolio
+            Performance and Benchmark, Holdings and Categorization,
+            Suitability Profile).
+          -->
+                    <details
+            class="card sec case-figure"
+            data-rule="R-DOC-EXPIRY"
+            open
+          >
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Documents & KYC</h2>
+            </summary>
+            <div class="sec-body">
+              <div class="figrows">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig1_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig1_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig1_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig2_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig2_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig2_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig3_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig3_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig3_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+          <details
+            class="card sec case-figure"
+            data-rule="R-SCR-ADVMEDIA"
+            open
+          >
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Screening match</h2>
+            </summary>
+            <div class="sec-body">
+              <div class="figrows">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig1_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig1_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig1_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig2_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig2_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig2_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig3_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig3_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig3_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+          <details
+            class="card sec case-figure"
+            data-rule="R-SCR-PEP"
+            open
+          >
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Screening match</h2>
+            </summary>
+            <div class="sec-body">
+              <div class="figrows">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig1_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig1_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig1_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig2_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig2_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig2_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig3_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig3_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig3_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+          <details
+            class="card sec case-figure"
+            data-rule="R-SOW-REFRESH"
+            open
+          >
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Wealth event</h2>
+            </summary>
+            <div class="sec-body">
+              <div class="figrows">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig1_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig1_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig1_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig2_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig2_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig2_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="fig3_status"
+                >
+                  <span
+                    class="figrow-l"
+                    data-unique-field="fig3_label"
+                  ></span>
+                  <span
+                    class="figrow-v"
+                    data-unique-field="fig3_value"
+                  ></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{fig3_pct}%"
+                    ></span
+                  ></span>
+                </div>
               </div>
             </div>
           </details>
@@ -1463,10 +2326,16 @@
               data-unique-attr-data-status="status"
             >
               <div class="acard-top">
-                <span class="risk"
-                  ><span class="risk-ico"></span
-                  ><span data-unique-field="risk_level"></span
-                ></span>
+                <span class="acard-top-l">
+                  <span class="risk"
+                    ><span class="risk-ico"></span
+                    ><span data-unique-field="risk_level"></span
+                  ></span>
+                  <span
+                    class="case-badge"
+                    data-unique-attr-data-rule="rule_code"
+                  ></span>
+                </span>
                 <span class="acard-due" data-unique-field="due_date"></span>
               </div>
               <div class="acard-title" data-unique-field="open_issue"></div>
@@ -1586,6 +2455,7 @@
                       <div class="menu">
                         <div class="menu-h">Set status</div>
                         <button
+                          type="button"
                           class="menuitem mi-ok"
                           data-unique-action="callTool"
                           data-unique-source-server="mcp_thvxcf56tka96a8lmv2ilwfd"
@@ -1595,6 +2465,7 @@
                         >
                           Compliant</button
                         ><button
+                          type="button"
                           class="menuitem mi-warn"
                           data-unique-action="callTool"
                           data-unique-source-server="mcp_thvxcf56tka96a8lmv2ilwfd"
@@ -1604,6 +2475,7 @@
                         >
                           Needs Remediation</button
                         ><button
+                          type="button"
                           class="menuitem mi-danger"
                           data-unique-action="callTool"
                           data-unique-source-server="mcp_thvxcf56tka96a8lmv2ilwfd"
@@ -1630,6 +2502,7 @@
                       <div class="menu">
                         <div class="menu-h">Set risk</div>
                         <button
+                          type="button"
                           class="menuitem mi-danger"
                           data-unique-action="callTool"
                           data-unique-source-server="mcp_thvxcf56tka96a8lmv2ilwfd"
@@ -1639,6 +2512,7 @@
                         >
                           High</button
                         ><button
+                          type="button"
                           class="menuitem mi-warn"
                           data-unique-action="callTool"
                           data-unique-source-server="mcp_thvxcf56tka96a8lmv2ilwfd"
@@ -1648,6 +2522,7 @@
                         >
                           Medium</button
                         ><button
+                          type="button"
                           class="menuitem mi-muted"
                           data-unique-action="callTool"
                           data-unique-source-server="mcp_thvxcf56tka96a8lmv2ilwfd"
@@ -1693,6 +2568,7 @@
           <span class="confirm" id="reset-db">
             <span class="act"
               ><button
+                type="button"
                 class="btn btn-danger"
                 data-unique-action="callTool"
                 data-unique-source-server="mcp_thvxcf56tka96a8lmv2ilwfd"

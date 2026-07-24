@@ -576,6 +576,38 @@ a.c-nm:hover {
   color: #3452a4;
 }
 
+/*
+  Case badge — one reusable component, six live looks. The label text comes
+  from CSS ::before content keyed on [data-rule], generated from
+  src/cases.json by build.py (see the badge-CSS marker below).
+  Unknown / absent rule_code (e.g. Compliant clients) renders nothing.
+*/
+.case-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: #eef2fb;
+  color: #3452a4;
+  white-space: nowrap;
+}
+.case-badge::before {
+  content: attr(data-rule);
+}
+.case-badge:not([data-rule]),
+.case-badge[data-rule=""] {
+  display: none;
+}
+.acard-top-l {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* __CASE_BADGE_CSS__ */
+
 /* in-cell edit menu */
 td.editcell {
   vertical-align: middle;
@@ -929,6 +961,114 @@ details.sec[open] > .sec-sum .sec-chev {
   gap: 10px;
   flex-wrap: wrap;
 }
+/* No RM action once a client is escalated or already compliant. */
+.actionbar[data-status="Escalated"],
+.actionbar[data-status="Compliant"] {
+  display: none;
+}
+/*
+  One <div class="actionbar-case" data-rule="…"> per rule_code lives inside
+  every client page (see the case-actionbars marker in clients.html); only
+  the one matching this row's live rule_code is shown — same reusable
+  action bar, a different case opens depending on the data.
+*/
+.actionbar-case {
+  display: none;
+}
+/* __CASE_VISIBILITY_CSS__ */
+
+/*
+  Case figure(s) — reuse the same .sec accordion shell as the generic detail
+  sections; a different structured view (screening match, allocation bars,
+  rule impact, ...) shows depending on this row's live rule_code, and one
+  case (portfolio breach) shows a second figure (.case-figure2) alongside the
+  first — "Portfolio and Mandate" + "Portfolio Performance vs Benchmark".
+  Both default to hidden; build.py's case-visibility CSS (below) reveals
+  only the variant(s) matching this row's rule_code.
+*/
+.case-figure,
+.case-figure2 {
+  display: none;
+}
+.figrows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.figrow {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.9fr) 1.3fr minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  font-size: 0.86rem;
+}
+.figrow-l {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.figrow-v {
+  font-weight: 600;
+}
+.figrow[data-status="ok"] .figrow-v {
+  color: var(--green);
+}
+.figrow[data-status="warn"] .figrow-v {
+  color: var(--amber);
+}
+.figrow[data-status="danger"] .figrow-v {
+  color: var(--red);
+}
+/*
+  .mandate-figure / .holdings-figure are the always-visible generic
+  sections (Portfolio and Mandate, Holdings and Categorization) — unlike
+  .case-figure[data-rule=...], which only turns bars on for the one
+  matching rule_code, these always show weight bars since they're not
+  case-gated.
+*/
+.mandate-figure .figbar,
+.holdings-figure .figbar {
+  display: block;
+}
+.figbar {
+  display: none;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.figbar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+}
+.figrow[data-status="warn"] .figbar-fill {
+  background: var(--amber);
+}
+.figrow[data-status="danger"] .figbar-fill {
+  background: var(--red);
+}
+/* __CASE_BARS_CSS__ */
+
+/*
+  Generic sections (History, Documents and KYC, ...) start collapsed by
+  default; a case can force one open on load via cases.json's
+  "open_sections" — the section stays a normal, user-collapsible <details>
+  otherwise (see src/cases.json + build.py's render_open_sections_css).
+*/
+/* __CASE_OPEN_SECTIONS_CSS__ */
+
+.btn-ai-alt {
+  background: #fff;
+  border: 1px solid var(--blue);
+  color: var(--blue-d);
+}
+.btn-ai-alt:hover {
+  background: #eef4ff;
+}
+
 .fldgrid {
   display: grid;
   gap: 14px 22px;

@@ -89,6 +89,28 @@ Example Account Review `list_rows`:
 `marital_status`, `crd_number`), a `risk_level` column (`High` / `Medium` / `Low`,
 alongside `criticality` RED/AMBER/—), and `smart_actions.button_target` deep links.
 
+`clients` also carries `action_owner` / `action_title` / `action_explanation` /
+`action_button` / `action_button_target` — the matching `smart_actions` row for
+that client's `rule_code`, denormalized onto `clients` by
+`data/merge_smart_actions.py` so dashboards can bind one live list (no join)
+per the 6 RM use cases (see `data/acount_review/dashboard-v005-astro/src/data/cases.json`).
+Re-run that script (then rebuild `data/portfolio.db` from the workbook) after
+editing `Smart Actions` in the Excel source.
+
+`clients` also carries `fig1_label` / `fig1_value` / `fig1_status` / `fig1_pct`
+(and `fig2_*`, `fig3_*`) — a generic 3-row "figure" shape authored per client
+by `data/add_case_figures.py`, so each RM use case can render its own
+structured view (allocation bars, documents checklist, rule-impact panel, …)
+from one reusable component. `fig{n}_status` is `ok` / `warn` / `danger` / `-`;
+`fig{n}_pct` (0-100) only matters for the allocation-bar case.
+
+The portfolio-breach case additionally carries a second, independent figure —
+`perf1_label` / `perf1_value` / `perf1_status` / `perf1_pct` (and `perf2_*`,
+`perf3_*`) — authored by `data/add_portfolio_performance.py`, rendered as
+"Portfolio Performance vs Benchmark" alongside the allocation figure
+("Portfolio and Mandate"). Same shape/semantics as `fig{n}_*`, just a
+different prefix so both figures can live on one row.
+
 Example `create_row` args:
 
 ```json

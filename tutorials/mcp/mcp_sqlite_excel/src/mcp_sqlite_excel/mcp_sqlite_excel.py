@@ -47,6 +47,15 @@ custom_middleware = [
         allow_origins=["*"],
         allow_methods=["*"],
         allow_headers=["*"],
+        # Streamable HTTP returns the session id as a response header
+        # (mcp-session-id), which the client must echo back on every later
+        # request. Response headers are invisible to browser JS unless
+        # explicitly exposed — without this, a direct browser client (no
+        # platform/SDK in between, e.g. a local dashboard preview) can
+        # complete `initialize` but every following call 400s with "Missing
+        # session ID" because `response.headers.get(...)` silently returns
+        # null cross-origin.
+        expose_headers=["mcp-session-id"],
     )
 ]
 

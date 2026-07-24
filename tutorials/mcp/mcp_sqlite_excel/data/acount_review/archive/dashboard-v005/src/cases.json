@@ -1,0 +1,75 @@
+{
+  "description": "Registry of the 6 RM Account-Remediation use cases (Product doc: RM Account-Remediation Dashboard — Use Cases). build.py expands this into one action-bar variant and one figure variant per rule_code, so the client detail page always opens with only the smart action and the figure relevant to that row's rule_code — everything else stays reusable across cases.",
+  "cases": [
+    {
+      "case_id": "doc-expiry",
+      "use_case": 1,
+      "rule_codes": ["R-DOC-EXPIRY"],
+      "tag": "Document / KYC refresh",
+      "icon": "\ud83d\udcc4",
+      "figure_title": "Documents & KYC",
+      "open_sections": ["docs-kyc"],
+      "instructions": "Then draft the email you would send to the client requesting a certified copy of the renewed document, written ready for the RM to paste into Outlook. Do not call any tool for this step \u2014 it stays a draft for the RM to review and send."
+    },
+    {
+      "case_id": "adverse-media",
+      "use_case": 2,
+      "rule_codes": ["R-SCR-ADVMEDIA", "R-SCR-PEP"],
+      "tag": "Adverse-media / PEP hit",
+      "icon": "\ud83d\udd0e",
+      "figure_title": "Screening match",
+      "open_sections": ["history"],
+      "instructions": "Then call `escalate_row` on table `clients` with `row_id` {row_id} \u2014 do not use `update_row`. `escalate_row` will ask for confirmation (recipient email and note) and notify Compliance."
+    },
+    {
+      "case_id": "suit-alloc",
+      "use_case": 3,
+      "rule_codes": ["R-SUIT-ALLOC"],
+      "tag": "Portfolio breaches risk profile",
+      "icon": "\u2696\ufe0f",
+      "open_sections": ["portfolio-mandate", "portfolio-performance"],
+      "instructions": "Then sketch a rebalancing proposal \u2014 what to trim, what to redeploy into, and the rough cost and tax impact \u2014 that would bring the allocation back within the agreed risk-profile tolerance."
+    },
+    {
+      "case_id": "suit-review",
+      "use_case": 4,
+      "rule_codes": ["R-SUIT-REVIEW"],
+      "tag": "Suitability review due",
+      "icon": "\ud83d\udcdd",
+      "open_sections": ["suitability-profile"],
+      "instructions": "Then run a short suitability-review questionnaire with me here in chat using what you know about the client, and summarise the answers ready for the file."
+    },
+    {
+      "case_id": "reg-change",
+      "use_case": 5,
+      "rule_codes": ["R-REG-NONDOM", "R-REG-CHANGE"],
+      "tag": "Regulatory change \u2014 in scope",
+      "icon": "\ud83d\udcdc",
+      "open_sections": ["holdings-categorization"],
+      "dual_action": {
+        "actions": [
+          {
+            "label": "\ud83d\udce8 Email client",
+            "toast": "\u2728 Sent to me \u2014 drafting the client email",
+            "instructions": "Then draft the email you would send this client requesting the evidence or acknowledgement needed to re-categorise them, written ready for the RM to paste into Outlook. Do not call any tool for this step \u2014 it stays a draft for the RM to review and send."
+          },
+          {
+            "label": "\ud83d\udea8 Escalate to compliance",
+            "toast": "\u2728 Sent to me \u2014 escalating to Compliance",
+            "instructions": "Then call `escalate_row` on table `clients` with `row_id` {row_id} \u2014 do not use `update_row`. `escalate_row` will ask for confirmation (recipient email and note) and notify Compliance."
+          }
+        ]
+      },
+      "instructions": "Then draft the reassessment: what changed, why this client is now in scope, and the concrete remediation options \u2014 re-categorise, re-paper, ask the client for evidence, or divest."
+    },
+    {
+      "case_id": "sow-refresh",
+      "use_case": 6,
+      "rule_codes": ["R-SOW-REFRESH"],
+      "tag": "Source of Wealth re-assessment",
+      "icon": "\ud83d\udcb0",
+      "figure_title": "Wealth event",
+      "instructions": "Then draft a Source-of-Wealth corroboration plan for this event, including which supporting documents to request from the client."
+    }
+  ]
+}

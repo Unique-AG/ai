@@ -1,0 +1,529 @@
+    <!--
+      One template → N client detail pages from list_rows.
+      All fields are live via data-unique-field; {placeholders} are filled per row.
+    -->
+    <div
+      class="client-pages"
+      data-unique-list="clientPages"
+      data-unique-source-server="__MCP_SERVER__"
+      data-unique-source-tool="list_rows"
+      data-unique-source-args='{"table":"clients","limit":200}'
+      data-unique-source-path="rows"
+      data-unique-source-poll="__POLL_MS__"
+    >
+      <template data-unique-item>
+        <!--
+          Host only interpolates {placeholders} via data-unique-attr-*.
+          A plain id attribute would stay literal and every card would
+          target the same first page.
+        -->
+        <main
+          class="detail view-client"
+          data-unique-attr-id="client-{row_id}"
+          data-unique-attr-data-rule="rule_code"
+          data-unique-key="row_id"
+        >
+          <div
+            class="crit-banner"
+            data-unique-attr-data-criticality="criticality"
+          >
+            <span class="cb-l"
+              ><strong>Attention</strong> ·
+              <span
+                class="case-badge"
+                data-unique-attr-data-rule="rule_code"
+              ></span>
+              · <span class="cb-issue" data-unique-field="open_issue"></span
+            ></span>
+            <a
+              class="cb-src"
+              data-unique-attr-href="#client-{row_id}"
+              >View source</a
+            >
+            <a class="cb-x" href="#top" title="Close">✕</a>
+          </div>
+
+          <!--
+            Action bar first so the smart action is visible when an attention
+            card opens. One case-driven variant per rule_code (see
+            src/cases.json) shares this shell; CSS shows only the variant
+            whose data-rule matches this row's live rule_code — the same
+            reusable component just opens on a different case.
+          -->
+          <section
+            class="card actionbar"
+            data-unique-attr-data-status="status"
+            data-unique-attr-data-rule="rule_code"
+          >
+            <div class="actionbar-copy">
+              <h2 data-unique-field="action_title"></h2>
+              <p class="small muted" data-unique-field="action_explanation"></p>
+            </div>
+            <div class="actionbar-btns">
+              <!-- __CASE_ACTIONBARS__ -->
+            </div>
+          </section>
+
+          <header
+            class="detail-head"
+            data-unique-attr-data-criticality="criticality"
+          >
+            <div class="dh-id">
+              <span
+                class="avatar avatar-lg avatar-from-name"
+                data-unique-field="client_name"
+              ></span>
+              <div>
+                <h1 data-unique-field="client_name"></h1>
+                <p class="dh-sub">
+                  Client ID <code data-unique-field="crd_number"></code> ·
+                  <span data-unique-field="client_ref"></span> ·
+                  <span data-unique-field="segment"></span>
+                </p>
+              </div>
+            </div>
+            <div class="dh-meta">
+              <span
+                class="badge"
+                data-unique-attr-data-status="status"
+                data-unique-field="status"
+              ></span>
+              <span class="badge" data-unique-attr-data-risk="risk_level"
+                ><span class="risk-ico"></span>&nbsp;<span
+                  data-unique-field="risk_level"
+                ></span>
+                risk</span
+              >
+              <span class="dh-value"
+                ><span data-unique-field="currency"></span>&nbsp;<span
+                  data-unique-field="portfolio_value"
+                ></span
+              ></span>
+            </div>
+          </header>
+
+          <details class="card sec" data-key="exec-summary" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Executive summary</h2>
+              <span
+                class="sec-meta case-badge"
+                data-unique-attr-data-rule="rule_code"
+              ></span>
+            </summary>
+            <div class="sec-body">
+              <div class="tags">
+                <span class="tag" data-unique-field="segment"></span>
+                <span class="tag"
+                  ><span data-unique-field="risk_profile"></span> profile</span
+                >
+                <span class="tag" data-unique-field="rule_code"></span>
+              </div>
+              <p class="summary">
+                <span data-unique-field="open_issue"></span>. Recommended
+                action:
+                <span data-unique-field="recommended_action"></span>
+              </p>
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Rule code</span
+                  ><span class="fld-v"
+                    ><code data-unique-field="rule_code"></code
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Due</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="due_date"
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="identity" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Client identity</h2>
+              <span class="sec-meta">Identity &amp; contact</span>
+            </summary>
+            <div class="sec-body">
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Full name</span
+                  ><span class="fld-v" data-unique-field="client_name"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Client type</span
+                  ><span class="fld-v" data-unique-field="type"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Date of birth</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="date_of_birth"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Occupation</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="occupation"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Marital status</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="marital_status"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Nationality</span
+                  ><span class="fld-v" data-unique-field="nationality"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Country of residence</span
+                  ><span class="fld-v" data-unique-field="residence"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Domicile / tax residence</span
+                  ><span class="fld-v" data-unique-field="domicile"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Incorporation</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="incorporation"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Residential address</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="residential_address"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Email</span
+                  ><span class="fld-v na-field" data-unique-field="email"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Phone</span
+                  ><span class="fld-v na-field" data-unique-field="phone"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Client reference</span
+                  ><span class="fld-v"
+                    ><code data-unique-field="crd_number"></code
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Onboarded</span
+                  ><span class="fld-v" data-unique-field="onboarded"></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="history" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>History</h2>
+              <span class="sec-meta"
+                >Next <span data-unique-field="next_review_due"></span
+              ></span>
+            </summary>
+            <div class="sec-body">
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Last reviewed</span
+                  ><span class="fld-v" data-unique-field="last_reviewed"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Next review due</span
+                  ><span class="fld-v" data-unique-field="next_review_due"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">KYC refresh due</span
+                  ><span class="fld-v" data-unique-field="kyc_refresh_due"></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="docs-kyc" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Documents and KYC</h2>
+              <span class="sec-meta">AML / KYC · client record</span>
+            </summary>
+            <div class="sec-body">
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">PEP status</span
+                  ><span class="fld-v" data-unique-field="pep"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Adverse media</span
+                  ><span class="fld-v" data-unique-field="adverse_media"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Sanctions</span
+                  ><span class="fld-v" data-unique-field="sanctions"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">US Person (FATCA)</span
+                  ><span
+                    class="fld-v"
+                    data-unique-field="fatca_us_person"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Verification source</span
+                  ><span
+                    class="fld-v"
+                    data-unique-field="verification_source"
+                  ></span>
+                </div>
+              </div>
+              <div class="docrow">
+                <span class="doc" data-unique-field="documents_on_file"></span>
+              </div>
+            </div>
+          </details>
+
+          <!--
+            The four sections below are generic client-profile data — unlike
+            the case-specific figures further down, they show real values for
+            every client regardless of which (if any) remediation case is
+            open on this row. build.py's open_sections CSS still force-opens
+            the one relevant to a case (see src/cases.json), but for now
+            every section also ships with the `open` attribute so all of
+            them render expanded.
+          -->
+          <details class="card sec" data-key="portfolio-mandate" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Portfolio and Mandate</h2>
+              <span class="sec-meta" data-unique-field="mandate_type"></span>
+            </summary>
+            <div class="sec-body">
+              <div class="figrows mandate-figure">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="mand1_status"
+                >
+                  <span class="figrow-l" data-unique-field="mand1_label"></span>
+                  <span class="figrow-v" data-unique-field="mand1_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{mand1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="mand2_status"
+                >
+                  <span class="figrow-l" data-unique-field="mand2_label"></span>
+                  <span class="figrow-v" data-unique-field="mand2_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{mand2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="mand3_status"
+                >
+                  <span class="figrow-l" data-unique-field="mand3_label"></span>
+                  <span class="figrow-v" data-unique-field="mand3_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{mand3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="portfolio-performance" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Portfolio Performance and Benchmark</h2>
+            </summary>
+            <div class="sec-body">
+              <div class="figrows">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="perf1_status"
+                >
+                  <span class="figrow-l" data-unique-field="perf1_label"></span>
+                  <span class="figrow-v" data-unique-field="perf1_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{perf1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="perf2_status"
+                >
+                  <span class="figrow-l" data-unique-field="perf2_label"></span>
+                  <span class="figrow-v" data-unique-field="perf2_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{perf2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="perf3_status"
+                >
+                  <span class="figrow-l" data-unique-field="perf3_label"></span>
+                  <span class="figrow-v" data-unique-field="perf3_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{perf3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="holdings-categorization" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Holdings and Categorization</h2>
+            </summary>
+            <div class="sec-body">
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Client categorization</span
+                  ><span class="fld-v" data-unique-field="client_categorization"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Category required</span
+                  ><span
+                    class="fld-v na-field"
+                    data-unique-field="category_required"
+                  ></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Category review status</span
+                  ><span class="fld-v" data-unique-field="category_review_status"></span>
+                </div>
+              </div>
+              <div class="figrows holdings-figure" style="margin-top: 14px">
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="hold1_status"
+                >
+                  <span class="figrow-l" data-unique-field="hold1_label"></span>
+                  <span class="figrow-v" data-unique-field="hold1_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{hold1_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="hold2_status"
+                >
+                  <span class="figrow-l" data-unique-field="hold2_label"></span>
+                  <span class="figrow-v" data-unique-field="hold2_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{hold2_pct}%"
+                    ></span
+                  ></span>
+                </div>
+                <div
+                  class="figrow"
+                  data-unique-attr-data-status="hold3_status"
+                >
+                  <span class="figrow-l" data-unique-field="hold3_label"></span>
+                  <span class="figrow-v" data-unique-field="hold3_value"></span>
+                  <span class="figbar"
+                    ><span
+                      class="figbar-fill"
+                      data-unique-attr-style="width:{hold3_pct}%"
+                    ></span
+                  ></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details class="card sec" data-key="suitability-profile" open>
+            <summary class="sec-sum">
+              <span class="sec-chev">›</span>
+              <h2>Suitability Profile</h2>
+              <span class="sec-meta" data-unique-field="risk_tolerance"></span>
+            </summary>
+            <div class="sec-body">
+              <div class="fldgrid cols-3">
+                <div class="fld">
+                  <span class="fld-l">Risk tolerance</span
+                  ><span class="fld-v" data-unique-field="risk_tolerance"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Investment horizon</span
+                  ><span class="fld-v" data-unique-field="investment_horizon"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Knowledge &amp; experience</span
+                  ><span class="fld-v" data-unique-field="knowledge_experience"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Last suitability test</span
+                  ><span class="fld-v" data-unique-field="last_suitability_test"></span>
+                </div>
+                <div class="fld">
+                  <span class="fld-l">Outcome</span
+                  ><span class="fld-v" data-unique-field="suitability_outcome"></span>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <!--
+            Case figure(s): same idea as the action bar — one reusable
+            accordion section, a different structured view opens depending
+            on this row's live rule_code (see src/cases.json → figure_title).
+            Only doc-expiry, adverse-media and sow-refresh still use this —
+            the other three cases' figures were promoted to always-visible
+            generic sections above (Portfolio and Mandate, Portfolio
+            Performance and Benchmark, Holdings and Categorization,
+            Suitability Profile).
+          -->
+          <!-- __CASE_FIGURES__ -->
+
+          <div class="detail-bar">
+            <a class="btn btn-back" href="#top">← Back to console</a>
+          </div>
+        </main>
+      </template>
+      <p data-unique-state="loading" class="small muted" hidden>
+        Loading client pages…
+      </p>
+      <p data-unique-state="error" class="small muted">
+        Couldn’t load client pages from the database.
+      </p>
+    </div>

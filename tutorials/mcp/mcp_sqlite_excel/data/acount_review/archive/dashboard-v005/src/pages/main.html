@@ -36,10 +36,16 @@
               data-unique-attr-data-status="status"
             >
               <div class="acard-top">
-                <span class="risk"
-                  ><span class="risk-ico"></span
-                  ><span data-unique-field="risk_level"></span
-                ></span>
+                <span class="acard-top-l">
+                  <span class="risk"
+                    ><span class="risk-ico"></span
+                    ><span data-unique-field="risk_level"></span
+                  ></span>
+                  <span
+                    class="case-badge"
+                    data-unique-attr-data-rule="rule_code"
+                  ></span>
+                </span>
                 <span class="acard-due" data-unique-field="due_date"></span>
               </div>
               <div class="acard-title" data-unique-field="open_issue"></div>
@@ -159,6 +165,7 @@
                       <div class="menu">
                         <div class="menu-h">Set status</div>
                         <button
+                          type="button"
                           class="menuitem mi-ok"
                           data-unique-action="callTool"
                           data-unique-source-server="__MCP_SERVER__"
@@ -168,6 +175,7 @@
                         >
                           Compliant</button
                         ><button
+                          type="button"
                           class="menuitem mi-warn"
                           data-unique-action="callTool"
                           data-unique-source-server="__MCP_SERVER__"
@@ -177,6 +185,7 @@
                         >
                           Needs Remediation</button
                         ><button
+                          type="button"
                           class="menuitem mi-danger"
                           data-unique-action="callTool"
                           data-unique-source-server="__MCP_SERVER__"
@@ -203,6 +212,7 @@
                       <div class="menu">
                         <div class="menu-h">Set risk</div>
                         <button
+                          type="button"
                           class="menuitem mi-danger"
                           data-unique-action="callTool"
                           data-unique-source-server="__MCP_SERVER__"
@@ -212,6 +222,7 @@
                         >
                           High</button
                         ><button
+                          type="button"
                           class="menuitem mi-warn"
                           data-unique-action="callTool"
                           data-unique-source-server="__MCP_SERVER__"
@@ -221,6 +232,7 @@
                         >
                           Medium</button
                         ><button
+                          type="button"
                           class="menuitem mi-muted"
                           data-unique-action="callTool"
                           data-unique-source-server="__MCP_SERVER__"
@@ -266,6 +278,7 @@
           <span class="confirm" id="reset-db">
             <span class="act"
               ><button
+                type="button"
                 class="btn btn-danger"
                 data-unique-action="callTool"
                 data-unique-source-server="__MCP_SERVER__"
