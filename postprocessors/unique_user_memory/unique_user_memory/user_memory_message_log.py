@@ -71,16 +71,22 @@ class UserMemoryMessageLogger:
             active_attr="_updating_log",
             header=_UPDATING_HEADER,
             status=MessageLogStatus.RUNNING,
-            references=[_memory_settings_reference(name=_REVIEW_MEMORY_PILL)],
+            references=[],
             action="start updating step",
         )
 
-    async def log_updating_complete(self) -> None:
+    async def log_updating_complete(self, *, with_pill: bool = False) -> None:
+        # Review pill only after memory was actually written (caller sets
+        # with_pill=True post-upload). While consolidating / on failed upload
+        # the step completes without a pill.
+        references = (
+            [_memory_settings_reference(name=_REVIEW_MEMORY_PILL)] if with_pill else []
+        )
         await self._safe_create_or_update(
             active_attr="_updating_log",
             header=_UPDATING_HEADER,
             status=MessageLogStatus.COMPLETED,
-            references=[_memory_settings_reference(name=_REVIEW_MEMORY_PILL)],
+            references=references,
             action="complete updating step",
         )
 

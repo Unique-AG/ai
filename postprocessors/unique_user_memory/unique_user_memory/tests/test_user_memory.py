@@ -716,22 +716,33 @@ async def test_user_memory_message_logger_load_skips_pill_when_disabled() -> Non
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_update_attaches_review_pill() -> None:
+async def test_user_memory_message_logger_update_attaches_review_pill_only_when_requested() -> (
+    None
+):
     step_logger = MagicMock()
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
 
     await message_logger.log_updating_start()
-    await message_logger.log_updating_complete()
+    await message_logger.log_updating_complete(with_pill=False)
+    await message_logger.log_updating_complete(with_pill=True)
 
-    assert step_logger.create_or_update_message_log_async.await_count == 2
+    assert step_logger.create_or_update_message_log_async.await_count == 3
     start_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
         0
     ].kwargs
     assert start_kwargs["header"] == "Updating your memory"
-    assert start_kwargs["references"][0].name == "Review your context memory"
-    assert start_kwargs["references"][0].source == "context-memory"
-    assert start_kwargs["references"][0].url == "unique://settings/context-memory"
+    assert start_kwargs["references"] == []
+    complete_without_pill = step_logger.create_or_update_message_log_async.await_args_list[
+        1
+    ].kwargs
+    assert complete_without_pill["references"] == []
+    complete_with_pill = step_logger.create_or_update_message_log_async.await_args_list[
+        2
+    ].kwargs
+    assert complete_with_pill["references"][0].name == "Review your context memory"
+    assert complete_with_pill["references"][0].source == "context-memory"
+    assert complete_with_pill["references"][0].url == "unique://settings/context-memory"
 
 
 @pytest.mark.asyncio
@@ -781,7 +792,9 @@ async def test_user_memory_postprocessor_emits_updating_message_logs(
 
     chat_service.modify_assistant_message_async.assert_not_awaited()
     message_logger.log_updating_start.assert_awaited_once_with()
-    message_logger.log_updating_complete.assert_awaited_once_with()
+    assert [
+        call.kwargs for call in message_logger.log_updating_complete.await_args_list
+    ] == [{"with_pill": False}, {"with_pill": True}]
 
 
 @pytest.mark.asyncio

@@ -100,7 +100,8 @@ class UserMemoryPostprocessor(Postprocessor):
             await self._message_logger.log_updating_start()
 
         async def _on_update_end() -> None:
-            await self._message_logger.log_updating_complete()
+            # Complete without the review pill; attach it only after upload.
+            await self._message_logger.log_updating_complete(with_pill=False)
 
         on_update_start: Callable[[], Awaitable[None]] = _on_update_start
         on_update_end: Callable[[], Awaitable[None]] = _on_update_end
@@ -134,6 +135,7 @@ class UserMemoryPostprocessor(Postprocessor):
             self._logger.warning("[user-memory] memory update was not uploaded")
             return False
 
+        await self._message_logger.log_updating_complete(with_pill=True)
         self._logger.info("[user-memory] memory updated and uploaded successfully")
         return True
 
