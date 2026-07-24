@@ -7,10 +7,10 @@ from typing import ClassVar
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt
 
+from unique_toolkit._common.async_ttl_cache import AsyncTTLCache
 from unique_toolkit.app.unique_settings import AuthContextProtocol, UniqueSettings
 
 from ._graphql_client import evaluate_flag
-from ._ttl_cache import AsyncTTLCache
 from .schemas import FlagEvaluation
 from .settings import FeatureFlagSettings
 

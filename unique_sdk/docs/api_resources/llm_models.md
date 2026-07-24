@@ -92,4 +92,5 @@ Get the list of AI models available for chat completions and other operations.
 
 - [ChatCompletion API](chat_completion.md) - Use models for completions
 - [Token Management](../utilities/token.md) - Manage token usage
+- [Tenant-scoped dynamic language models](https://unique-ag.github.io/ai/unique-toolkit/latest/modules/language_models/dynamic_language_models/) - Toolkit pattern for narrowing `LanguageModelName` to a tenant's active models (UN-19234)
 

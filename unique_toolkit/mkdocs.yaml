@@ -116,6 +116,9 @@ nav:
     - Core Services:
       - Chat Module: modules/chat.md
       - Knowledge Base Module: modules/knowledge_base.md
+      - Language Models:
+          - Overview: modules/language_models/language_model_overview.md
+          - Tenant-scoped models: modules/language_models/dynamic_language_models.md
       - Short Term Memory Module: modules/short_term_memory.md
       - App Module: modules/app.md
       - Smart Rules: modules/content_smart_rules.md
