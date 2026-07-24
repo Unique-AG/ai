@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,14 +12,18 @@ from mcp_sqlite_excel.db.excel_loader import bootstrap_from_excel
 from mcp_sqlite_excel.models import (
     BootstrapSummary,
     ColumnInfo,
+    CountByResult,
     DatabaseSchemaDescription,
     DeleteRowResult,
     FieldMap,
     ListRowsResult,
     RowResult,
+    SortSpec,
     TableSchema,
 )
 from mcp_sqlite_excel.settings import AppSettings, get_settings
+
+_log = logging.getLogger(__name__)
 
 
 class SqliteCrudRepository:
@@ -34,6 +39,11 @@ class SqliteCrudRepository:
         self.settings = settings or get_settings()
         self.db_path = Path(db_path or self.settings.sqlite_path)
         self.excel_path = Path(excel_path or self.settings.excel_path)
+        _log.debug(
+            "SqliteCrudRepository init: excel_path=%s db_path=%s",
+            self.excel_path.resolve(),
+            self.db_path.resolve(),
+        )
 
     @contextmanager
     def _connect(self, *, readonly: bool = False) -> Iterator[sqlite3.Connection]:
@@ -56,13 +66,24 @@ class SqliteCrudRepository:
 
     def ensure_ready(self) -> None:
         """Bootstrap from Excel when the database file is missing."""
-        if not self.db_path.is_file():
-            bootstrap_from_excel(
-                self.excel_path,
-                self.db_path,
-                replace=True,
-                settings=self.settings,
+        if self.db_path.is_file():
+            _log.info(
+                "Reusing existing SQLite DB %s (skip Excel bootstrap from %s)",
+                self.db_path.resolve(),
+                self.excel_path.resolve(),
             )
+            return
+        _log.info(
+            "No SQLite DB at %s — bootstrapping from Excel %s",
+            self.db_path.resolve(),
+            self.excel_path.resolve(),
+        )
+        bootstrap_from_excel(
+            self.excel_path,
+            self.db_path,
+            replace=True,
+            settings=self.settings,
+        )
 
     def reset_from_excel(self) -> BootstrapSummary:
         """Drop the SQLite file and recreate it from the Excel workbook."""
@@ -118,6 +139,9 @@ class SqliteCrudRepository:
         table: str,
         *,
         filters: dict[str, Any] | FieldMap | None = None,
+        search: str | None = None,
+        search_fields: list[str] | None = None,
+        sort: list[SortSpec] | None = None,
         limit: int = 100,
         offset: int = 0,
     ) -> ListRowsResult:
@@ -134,8 +158,19 @@ class SqliteCrudRepository:
                 clauses.append(f"{key} = ?")
                 filter_params.append(value)
 
+        applied_search = (search or "").strip() or None
+        applied_search_fields: list[str] = []
+        if applied_search is not None:
+            applied_search_fields = self._resolve_search_fields(schema, search_fields)
+            like = f"%{self._escape_like(applied_search)}%"
+            search_clause = " OR ".join(f"CAST({col} AS TEXT) LIKE ? ESCAPE '\\'" for col in applied_search_fields)
+            clauses.append(f"({search_clause})")
+            filter_params.extend([like] * len(applied_search_fields))
+
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-        sql = f"SELECT * FROM {schema.name} {where} ORDER BY {schema.pk_column.name} ASC LIMIT ? OFFSET ?"
+        applied_sort = list(sort or [])
+        order_by = self._build_order_by(schema, applied_sort)
+        sql = f"SELECT * FROM {schema.name} {where} ORDER BY {order_by} LIMIT ? OFFSET ?"
 
         with self._connect(readonly=True) as conn:
             rows = conn.execute(sql, [*filter_params, limit, offset]).fetchall()
@@ -148,8 +183,29 @@ class SqliteCrudRepository:
             total_matching=total,
             limit=limit,
             offset=offset,
+            search=applied_search,
+            search_fields=applied_search_fields,
+            sort=applied_sort,
             rows=[dict(r) for r in rows],
         )
+
+    def count_by(self, table: str, column: str = "status") -> CountByResult:
+        """Return COUNT(*) grouped by a column (for KPI tiles)."""
+        schema = self.get_table_schema(table)
+        resolved = self._normalize_field_keys(schema, {column: None})
+        col_name = next(iter(resolved))
+        sql = (
+            f"SELECT CAST({col_name} AS TEXT) AS bucket, COUNT(*) AS n "
+            f"FROM {schema.name} GROUP BY {col_name} ORDER BY n DESC, bucket ASC"
+        )
+        with self._connect(readonly=True) as conn:
+            rows = conn.execute(sql).fetchall()
+            total = conn.execute(f"SELECT COUNT(*) AS n FROM {schema.name}").fetchone()["n"]
+        counts: dict[str, int] = {}
+        for row in rows:
+            key = "(null)" if row["bucket"] is None else str(row["bucket"])
+            counts[key] = int(row["n"])
+        return CountByResult(table=schema.name, column=col_name, total=total, counts=counts)
 
     def get_row(self, table: str, row_id: int | str) -> RowResult:
         schema = self.get_table_schema(table)
@@ -245,6 +301,43 @@ class SqliteCrudRepository:
                 )
             normalized[resolved] = value
         return normalized
+
+    @staticmethod
+    def _escape_like(value: str) -> str:
+        """Escape LIKE wildcards so search is substring-literal."""
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    def _resolve_search_fields(self, schema: TableSchema, search_fields: list[str] | None) -> list[str]:
+        """Resolve columns for substring search (default: client_name + client_ref)."""
+        if search_fields:
+            return list(self._normalize_field_keys(schema, {name: None for name in search_fields}))
+
+        defaults = ["client_name", "client_ref"]
+        by_lower = {c.name.lower(): c.name for c in schema.columns}
+        resolved = [by_lower[name] for name in defaults if name in by_lower]
+        if resolved:
+            return resolved
+
+        # Generic fallback: all non-autoincrement columns.
+        fallback = [c.name for c in schema.columns if not c.autoincrement]
+        if not fallback:
+            raise ValueError(f"No searchable columns on table {schema.name!r}")
+        return fallback
+
+    def _build_order_by(self, schema: TableSchema, sort: list[SortSpec]) -> str:
+        """Build a safe ORDER BY clause from validated column names."""
+        if not sort:
+            return f"{schema.pk_column.name} ASC"
+        parts: list[str] = []
+        for spec in sort:
+            resolved = self._normalize_field_keys(schema, {spec.field: None})
+            col = next(iter(resolved))
+            direction = "DESC" if spec.dir.lower() == "desc" else "ASC"
+            parts.append(f"{col} {direction}")
+        pk = schema.pk_column.name
+        if not any(p.startswith(f"{pk} ") for p in parts):
+            parts.append(f"{pk} ASC")
+        return ", ".join(parts)
 
     def _validate_write_fields(
         self,

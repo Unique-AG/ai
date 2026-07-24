@@ -243,6 +243,11 @@ def test_AI_bootstrap_account_review_dataset_if_present() -> None:
     client_cols = {c.name for c in tables["clients"].columns}
     assert "client_ref" in client_cols
     assert "portfolio_value" in client_cols
+    assert "risk_level" in client_cols
+    assert "crd_number" in client_cols
+    assert "email" in client_cols
+    action_cols = {c.name for c in tables["smart_actions"].columns}
+    assert "button_target" in action_cols
     assert tables["clients"].row_count == 12
     assert tables["smart_actions"].row_count == 8
     # KPI / Legend are key-value sheets — skipped by min header width

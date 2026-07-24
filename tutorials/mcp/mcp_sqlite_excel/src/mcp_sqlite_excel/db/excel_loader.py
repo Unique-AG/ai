@@ -333,6 +333,12 @@ def bootstrap_from_excel(
     excel_path = Path(excel_path or cfg.excel_path)
     db_path = Path(db_path or cfg.sqlite_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    _log.info(
+        "Bootstrapping SQLite from Excel: excel_path=%s -> db_path=%s replace=%s",
+        excel_path.resolve(),
+        db_path.resolve(),
+        replace,
+    )
 
     sheets = read_excel_workbook(
         excel_path,

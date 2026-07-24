@@ -5,16 +5,19 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     RootModel,
     ValidationError,
     computed_field,
 )
+
+from mcp_sqlite_excel import prompts
 
 _IDENTIFIER_RE = re.compile(r"[^0-9a-zA-Z_]+")
 
@@ -104,6 +107,25 @@ class DatabaseSchemaDescription(BaseModel):
     tables: list[TableSchema]
 
 
+def _normalize_sort_dir(value: Any) -> Any:
+    """Lowercase sort direction so agents may send ASC/DESC."""
+    if isinstance(value, str):
+        return value.strip().lower()
+    return value
+
+
+class SortSpec(BaseModel):
+    """One ORDER BY clause for list_rows."""
+
+    field: str = Field(description="Column name from list_schema.")
+    # Use an enum (not a Python ``(?i)`` regex): Unique's JS bridge compiles
+    # JSON Schema patterns and rejects inline ``(?i)`` flags.
+    dir: Annotated[Literal["asc", "desc"], BeforeValidator(_normalize_sort_dir)] = Field(
+        default="asc",
+        description='Sort direction: "asc" or "desc".',
+    )
+
+
 class ListRowsResult(BaseModel):
     """Paginated row listing for a table."""
 
@@ -112,7 +134,28 @@ class ListRowsResult(BaseModel):
     total_matching: int = Field(ge=0)
     limit: int = Field(ge=1)
     offset: int = Field(ge=0)
+    search: str | None = None
+    search_fields: list[str] = Field(default_factory=list)
+    sort: list[SortSpec] = Field(default_factory=list)
     rows: list[dict[str, Any]]
+
+
+class CountByResult(BaseModel):
+    """Grouped COUNT(*) for a column (e.g. status KPI tiles)."""
+
+    table: str
+    column: str
+    total: int = Field(ge=0)
+    counts: dict[str, int] = Field(default_factory=dict)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def rows(self) -> list[dict[str, Any]]:
+        """Canvas-friendly rows for ``data-unique-source-path="rows"`` KPI tiles."""
+        out: list[dict[str, Any]] = [{"bucket": "__total__", "label": "Total clients", "count": self.total}]
+        for key, n in self.counts.items():
+            out.append({"bucket": key, "label": key, "count": n})
+        return out
 
 
 class RowResult(BaseModel):
@@ -134,6 +177,38 @@ class ToolError(BaseModel):
 
     error: str
     message: str
+
+
+class EscalateForm(BaseModel):
+    """Elicitation form shown when escalating a row (status/state → Escalated)."""
+
+    recipient_email: str = Field(
+        default=prompts.DEFAULT_ESCALATE_RECIPIENT_EMAIL,
+        description="Email address of the person who should be notified about this escalation.",
+        min_length=3,
+        pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+    )
+    note: str = Field(
+        default=prompts.DEFAULT_ESCALATE_NOTE,
+        description="Note to include in the escalation email.",
+    )
+
+
+class EscalationEmailNotice(BaseModel):
+    """Record of the escalation notification that was (demo-)sent."""
+
+    to: str
+    note: str = ""
+    subject: str
+    sent: bool = True
+
+
+class EscalateUpdateResult(BaseModel):
+    """update_row response when an escalation was confirmed and notified."""
+
+    table: str
+    row: dict[str, Any]
+    escalation_email: EscalationEmailNotice
 
 
 class ServerStatus(BaseModel):
@@ -173,3 +248,46 @@ class FieldMap(RootModel[dict[str, Any]]):
             except ValidationError as exc:
                 raise ValueError(f"{field_name} must be a JSON object: {exc}") from exc
         raise TypeError(f"{field_name} must be a dict or JSON object string")
+
+
+def parse_sort_arg(value: list[Any] | str | None, *, field_name: str = "sort") -> list[SortSpec]:
+    """Parse list_rows sort from a list or JSON array string."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{field_name} must be a JSON array: {exc}") from exc
+        value = parsed
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list of {{field, dir}} objects")
+    try:
+        return [SortSpec.model_validate(item) for item in value]
+    except ValidationError as exc:
+        raise ValueError(f"{field_name} must be a list of {{field, dir}} objects: {exc}") from exc
+
+
+def parse_search_fields_arg(
+    value: list[Any] | str | None,
+    *,
+    field_name: str = "search_fields",
+) -> list[str] | None:
+    """Parse optional search_fields list; None means use table defaults."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{field_name} must be a JSON array of column names: {exc}") from exc
+        value = parsed
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ValueError(f"{field_name} must be a list of column name strings")
+    return [str(item) for item in value]

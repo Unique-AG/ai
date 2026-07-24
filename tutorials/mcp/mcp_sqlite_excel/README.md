@@ -7,7 +7,7 @@ Schema-driven MCP server that loads an Excel workbook into SQLite and exposes fu
 1. Reads `data/sample_portfolio.xlsx` (or `EXCEL_PATH`)
 2. Creates one SQLite table per sheet (headers → columns, values → type inference)
 3. Adds `row_id INTEGER PRIMARY KEY AUTOINCREMENT` when the sheet has no `id` column
-4. Exposes MCP tools: `list_schema`, `list_rows`, `get_row`, `create_row`, `update_row`, `delete_row`, `reset_from_excel`
+4. Exposes MCP tools: `list_schema`, `list_rows`, `count_by`, `get_row`, `create_row`, `update_row`, `escalate_row`, `delete_row`, `reset_from_excel`
 
 ```mermaid
 flowchart LR
@@ -61,14 +61,33 @@ KPI/legend tabs next to real data tables.
 | Tool | Purpose |
 |------|---------|
 | `list_schema` | Tables, columns, types, PKs |
-| `list_rows` | Filter with object `{"ticker":"MSFT"}`, paginate; rows at path `rows` |
+| `list_rows` | Exact `filters`, substring `search`, `sort`, paginate; rows at path `rows` |
+| `count_by` | `COUNT(*)` grouped by a column (default `status`) for KPI tiles |
 | `get_row` | Fetch by PK |
 | `create_row` | Insert; `fields` is an object |
-| `update_row` | Patch by PK |
+| `update_row` | Patch by PK (no elicitation — use for status menus / silent edits) |
+| `escalate_row` | Escalate with form elicitation + demo notify email |
 | `delete_row` | Delete by PK (MCP elicitation confirm first) |
 | `reset_from_excel` | Rebuild DB from the workbook (elicitation confirm; destructive) |
 
-`filters` / `fields` accept a JSON **object** (preferred for Unique iframe `data-unique-source-args` / `callTool`) or a JSON object string.
+`filters` / `fields` accept a JSON **object** (preferred for Unique iframe `data-unique-source-args` / `callTool`) or a JSON object string. `sort` is a JSON array of `{ "field", "dir" }` objects.
+
+Example Account Review `list_rows`:
+
+```json
+{
+  "table": "clients",
+  "filters": { "status": "Needs Remediation" },
+  "search": "vol",
+  "sort": [{ "field": "due_date", "dir": "asc" }],
+  "limit": 50
+}
+```
+
+`data/account_review_dataset.xlsx` includes client identity columns (`date_of_birth`,
+`occupation`, `residential_address`, `email`, `phone`, `fatca_us_person`,
+`marital_status`, `crd_number`), a `risk_level` column (`High` / `Medium` / `Low`,
+alongside `criticality` RED/AMBER/—), and `smart_actions.button_target` deep links.
 
 Example `create_row` args:
 

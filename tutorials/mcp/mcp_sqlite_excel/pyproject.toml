@@ -47,6 +47,7 @@ dev = [
     "ruff>=0.14.8",
     "deptry>=0.24.0",
     "pytest>=8.0.0",
+    "python-dep-tree>=0.19.9",
 ]
 
 [tool.ruff]
