@@ -62,7 +62,9 @@ def _make_event(tool_choices):
 
 def _patch_build_common_user_memory(
     monkeypatch: pytest.MonkeyPatch,
-) -> tuple[MagicMock, AsyncMock]:
+    *,
+    memory_state: UserMemoryState | None = None,
+) -> tuple[MagicMock, AsyncMock, MagicMock]:
     event = _make_event(tool_choices=[])
     event.payload.additional_parameters = None
     event.payload.mcp_servers = []
@@ -109,21 +111,35 @@ def _patch_build_common_user_memory(
         "unique_orchestrator.unique_ai_builder.MessageStepLogger",
         MagicMock(return_value=MagicMock()),
     )
-    memory_state = UserMemoryState(scope_id="scope_1", text="remembered")
+    memory_message_logger = MagicMock()
+    memory_message_logger.log_loading_start = AsyncMock()
+    memory_message_logger.log_loading_complete = AsyncMock()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UserMemoryMessageLogger",
+        MagicMock(return_value=memory_message_logger),
+    )
+    if memory_state is None:
+        memory_state = UserMemoryState(
+            scope_id="scope_1",
+            text="remembered",
+            content_id="content_1",
+        )
     load_user_memory = AsyncMock(return_value=memory_state)
     monkeypatch.setattr(
         "unique_orchestrator.unique_ai_builder.load_user_memory",
         load_user_memory,
     )
 
-    return event, load_user_memory
+    return event, load_user_memory, memory_message_logger
 
 
 @pytest.mark.asyncio
 async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+    event, load_user_memory, memory_message_logger = _patch_build_common_user_memory(
+        monkeypatch
+    )
 
     config = UniqueAIConfig()
 
@@ -134,6 +150,7 @@ async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     )
 
     load_user_memory.assert_not_awaited()
+    memory_message_logger.log_loading_start.assert_not_awaited()
     assert common_components.user_memory_text == ""
     postprocessor_names = [
         postprocessor.name
@@ -148,7 +165,9 @@ async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
 async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory = _patch_build_common_user_memory(monkeypatch)
+    event, load_user_memory, memory_message_logger = _patch_build_common_user_memory(
+        monkeypatch
+    )
 
     config = UniqueAIConfig(space={"allowUserMemory": True})
     common_components = await _build_common(
@@ -158,6 +177,10 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     )
 
     load_user_memory.assert_awaited_once()
+    memory_message_logger.log_loading_start.assert_awaited_once()
+    memory_message_logger.log_loading_complete.assert_awaited_once_with(
+        content_id="content_1"
+    )
     assert common_components.user_memory_text == "remembered"
     postprocessor_names = [
         postprocessor.name
@@ -166,6 +189,27 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
         )
     ]
     assert "UserMemoryPostprocessor" in postprocessor_names
+
+
+@pytest.mark.asyncio
+async def test_build_common_load_steps_skip_pill_when_memory_file_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event, load_user_memory, memory_message_logger = _patch_build_common_user_memory(
+        monkeypatch,
+        memory_state=UserMemoryState(scope_id="scope_1", text="", content_id=None),
+    )
+
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+    await _build_common(
+        event=event,
+        logger=MagicMock(),
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    memory_message_logger.log_loading_start.assert_awaited_once()
+    memory_message_logger.log_loading_complete.assert_awaited_once_with(content_id=None)
 
 
 class TestSerializeUploadedFileForHistory:

@@ -100,6 +100,7 @@ def _restore_frontmatter(original: str, body: str) -> str:
 class UserMemoryState:
     scope_id: str
     text: str
+    content_id: str | None = None
     load_invocation_stats: tuple[LanguageModelInvocationStats, ...] = ()
 
 
@@ -371,7 +372,7 @@ async def load_user_memory(
         logger.info("[user-memory] folder ensure failed - running without memory")
         return None
 
-    text = await download_user_memory(
+    text, content_id = await download_user_memory(
         scope_id=scope_id,
         user_id=user_id,
         company_id=company_id,
@@ -389,6 +390,7 @@ async def load_user_memory(
             invocation_stats=invocation_stats,
             invocation_source="user_memory_load_condense",
         ),
+        content_id=content_id,
         load_invocation_stats=tuple(invocation_stats),
     )
 
@@ -527,7 +529,7 @@ async def download_user_memory(
     user_id: str,
     company_id: str,
     logger: Logger,
-) -> str:
+) -> tuple[str, str | None]:
     try:
         contents = await search_contents_async(
             user_id=user_id,
@@ -542,7 +544,7 @@ async def download_user_memory(
             type(exc).__name__,
             exc,
         )
-        return ""
+        return "", None
 
     memory_content = next(
         (content for content in contents if (content.key or "") == MEMORY_FILENAME),
@@ -554,7 +556,7 @@ async def download_user_memory(
             MEMORY_FILENAME,
             scope_id,
         )
-        return ""
+        return "", None
 
     try:
         content_bytes = await download_content_to_bytes_async(
@@ -570,7 +572,7 @@ async def download_user_memory(
             len(content_bytes),
             scope_id,
         )
-        return text
+        return text, memory_content.id
     except Exception as exc:
         logger.warning(
             "[user-memory] failed to download %s from scope %s: [%s] %s",
@@ -579,7 +581,7 @@ async def download_user_memory(
             type(exc).__name__,
             exc,
         )
-        return ""
+        return "", memory_content.id
 
 
 async def upload_user_memory(
@@ -589,16 +591,16 @@ async def upload_user_memory(
     user_id: str,
     company_id: str,
     logger: Logger,
-) -> bool:
+) -> str | None:
     if not content.strip():
         logger.warning(
             "[user-memory] refusing to upload empty memory file to scope %s",
             scope_id,
         )
-        return False
+        return None
 
     try:
-        await upload_content_from_bytes_async(
+        uploaded = await upload_content_from_bytes_async(
             user_id=user_id,
             company_id=company_id,
             content=content.encode("utf-8"),
@@ -616,7 +618,7 @@ async def upload_user_memory(
             len(content.encode("utf-8")),
             scope_id,
         )
-        return True
+        return uploaded.id
     except Exception as exc:
         logger.error(
             "[user-memory] upload failed for scope %s: [%s] %s",
@@ -625,7 +627,7 @@ async def upload_user_memory(
             exc,
             exc_info=True,
         )
-        return False
+        return None
 
 
 async def should_consolidate_memory(
