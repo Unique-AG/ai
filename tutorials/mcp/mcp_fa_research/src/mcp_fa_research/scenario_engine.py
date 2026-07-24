@@ -226,26 +226,11 @@ def combined_matrix(ticker: str) -> dict:
 # Scenario board — display-ready presets + grids for the Scenario Lab canvas
 # (script-free: rows are DICTS with formatted fields, payloads server-prepared)
 # ---------------------------------------------------------------------------
-PRESETS: list[dict] = [
-    {"key": "base", "title": "Base case — trough and stabilise",
-     "args": {}, "tag": "BASE · 55%"},
-    {"key": "fx_up5", "title": "Currency shock — EUR +5%",
-     "args": {"fx_eur_move_pct": 5.0}, "tag": "FX"},
-    {"key": "fx_dn5", "title": "Currency tailwind — EUR −5%",
-     "args": {"fx_eur_move_pct": -5.0}, "tag": "FX"},
-    {"key": "china_q2", "title": "China recovery from Q2-26",
-     "args": {"china_recovery": "q2_26"}, "tag": "DEMAND"},
-    {"key": "china_q4", "title": "China recovery from Q4-26",
-     "args": {"china_recovery": "q4_26"}, "tag": "DEMAND"},
-    {"key": "destock_h2", "title": "Destocking slips to H2-26",
-     "args": {"destocking_end": "h2_26"}, "tag": "COGNAC"},
-    {"key": "destock_fy27", "title": "Destocking extends into FY27",
-     "args": {"destocking_end": "fy27"}, "tag": "COGNAC"},
-    {"key": "bull", "title": "Bull — EUR −2.5% + China Q2-26",
-     "args": {"fx_eur_move_pct": -2.5, "china_recovery": "q2_26"}, "tag": "COMBINED"},
-    {"key": "bear", "title": "Bear — EUR +5% + destocking FY27",
-     "args": {"fx_eur_move_pct": 5.0, "destocking_end": "fy27"}, "tag": "COMBINED"},
-]
+
+
+def _active_presets() -> list[dict]:
+    st = seed.current_state()
+    return (st or {}).get("lab_presets") or seed.LAB_PRESETS
 
 
 def board(ticker: str) -> dict:
@@ -254,10 +239,12 @@ def board(ticker: str) -> dict:
         return {"error": f"unknown name {ticker!r}"}
     row = next(c for c in seed.current_coverage() if c["ticker"] == tk)
     presets = []
-    for p in PRESETS:
+    for p in _active_presets():
         if "destocking_end" in p["args"] and tk != "MC FP":
             continue
-        r = compute(tk, **p["args"])
+        r = compute(tk, **(p.get("args") or {}))
+        if "error" in r:
+            continue  # a console-edited preset with bad args must not kill the board
         eps = r["table"]["rows"][2]  # ["EPS", 26e, 27e, 28e]
         tp_move = abs(float(r["tp"]["delta_label"].replace("%", "").replace("—", "0") or 0))
         d = ("flat" if r["tp"]["delta_label"] == "—"

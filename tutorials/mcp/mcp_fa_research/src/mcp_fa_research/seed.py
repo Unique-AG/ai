@@ -469,6 +469,30 @@ SCENARIOS: dict[str, dict] = {
 }
 
 
+# Scenario Lab preset definitions (which predefined shocks the Lab computes).
+# Editable per environment in the demo console; the engine's board() reads the
+# active env's copy and falls back to this seed.
+LAB_PRESETS: list[dict] = [
+    {"key": "base", "title": "Base case — trough and stabilise", "args": {}, "tag": "BASE · 55%"},
+    {"key": "fx_up5", "title": "Currency shock — EUR +5%",
+     "args": {"fx_eur_move_pct": 5.0}, "tag": "FX"},
+    {"key": "fx_dn5", "title": "Currency tailwind — EUR −5%",
+     "args": {"fx_eur_move_pct": -5.0}, "tag": "FX"},
+    {"key": "china_q2", "title": "China recovery from Q2-26",
+     "args": {"china_recovery": "q2_26"}, "tag": "DEMAND"},
+    {"key": "china_q4", "title": "China recovery from Q4-26",
+     "args": {"china_recovery": "q4_26"}, "tag": "DEMAND"},
+    {"key": "destock_h2", "title": "Destocking slips to H2-26",
+     "args": {"destocking_end": "h2_26"}, "tag": "COGNAC"},
+    {"key": "destock_fy27", "title": "Destocking extends into FY27",
+     "args": {"destocking_end": "fy27"}, "tag": "COGNAC"},
+    {"key": "bull", "title": "Bull — EUR −2.5% + China Q2-26",
+     "args": {"fx_eur_move_pct": -2.5, "china_recovery": "q2_26"}, "tag": "COMBINED"},
+    {"key": "bear", "title": "Bear — EUR +5% + destocking FY27",
+     "args": {"fx_eur_move_pct": 5.0, "destocking_end": "fy27"}, "tag": "COMBINED"},
+]
+
+
 def resolve(ticker_or_name: str) -> str | None:
     raw = (ticker_or_name or "").strip().lower()
     if not raw:
@@ -519,6 +543,7 @@ def baseline() -> dict:
         "emails": copy.deepcopy(EMAILS_SEED),
         "calendar": copy.deepcopy(CALENDAR_SEED),
         "scenarios": copy.deepcopy(SCENARIOS),
+        "lab_presets": copy.deepcopy(LAB_PRESETS),
     }
 
 

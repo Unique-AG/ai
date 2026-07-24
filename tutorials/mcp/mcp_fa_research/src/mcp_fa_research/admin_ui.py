@@ -47,6 +47,46 @@ _SCENARIO_FIELDS = {"scenario", "assumption", "eps_impact", "tp_impact", "hypoth
 _NUM = {"target_price", "price", "premarket_pct", "new_target_price"}
 
 
+_CHINA_OPTS = {"none", "q2_26", "q4_26", "fy27"}
+_DESTOCK_OPTS = {"h1_26", "h2_26", "fy27"}
+
+
+def _apply_preset(preset: dict, body: dict) -> str | None:
+    """Apply a Lab-preset edit; returns an error string on invalid args."""
+    for k in ("title", "tag"):
+        if k in body:
+            preset[k] = str(body[k])
+    args = dict(preset.get("args") or {})
+    if "fx_eur_move_pct" in body:
+        v = body["fx_eur_move_pct"]
+        if v in (None, "", "0", 0):
+            args.pop("fx_eur_move_pct", None)
+        else:
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                return f"bad fx_eur_move_pct {v!r}"
+            if abs(f) > 15:
+                return "fx_eur_move_pct outside ±15"
+            args["fx_eur_move_pct"] = f
+    if "china_recovery" in body:
+        v = (body["china_recovery"] or "none").strip()
+        if v not in _CHINA_OPTS:
+            return f"china_recovery must be one of {sorted(_CHINA_OPTS)}"
+        args.pop("china_recovery", None)
+        if v != "none":
+            args["china_recovery"] = v
+    if "destocking_end" in body:
+        v = (body["destocking_end"] or "h1_26").strip()
+        if v not in _DESTOCK_OPTS:
+            return f"destocking_end must be one of {sorted(_DESTOCK_OPTS)}"
+        args.pop("destocking_end", None)
+        if v != "h1_26":
+            args["destocking_end"] = v
+    preset["args"] = args
+    return None
+
+
 def _apply(row: dict, patch: dict, allowed: set[str]) -> dict:
     for k, v in patch.items():
         if k not in allowed:
@@ -82,6 +122,7 @@ def register(mcp, get_state, reset_state) -> None:
             "agenda": seed.AGENDA,
             "jobs": st["jobs"],
             "scenarios": st.get("scenarios", {}),
+            "lab_presets": st.get("lab_presets", []),
             "reference": {
                 "consensus": seed.CONSENSUS, "estimates": seed.OUR_ESTIMATES,
             },
@@ -202,6 +243,34 @@ def register(mcp, get_state, reset_state) -> None:
         _apply(row, await request.json(), _SCENARIO_FIELDS)
         return JSONResponse(row)
 
+    @mcp.custom_route("/admin/api/labpreset", methods=["POST"])
+    async def admin_labpreset_add(request: Request):
+        st = get_state()
+        body = await request.json()
+        preset = {"key": f"custom_{len(st.setdefault('lab_presets', [])) + 1}",
+                  "title": "", "tag": "CUSTOM", "args": {}}
+        err = _apply_preset(preset, body)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        st["lab_presets"].append(preset)
+        return JSONResponse(preset)
+
+    @mcp.custom_route("/admin/api/labpreset/{idx}", methods=["PATCH", "DELETE"])
+    async def admin_labpreset(request: Request):
+        st = get_state()
+        try:
+            idx = int(request.path_params["idx"])
+            preset = st["lab_presets"][idx]
+        except (KeyError, IndexError, ValueError):
+            return JSONResponse({"error": "unknown preset"}, status_code=404)
+        if request.method == "DELETE":
+            st["lab_presets"].pop(idx)
+            return JSONResponse({"deleted": idx})
+        err = _apply_preset(preset, await request.json())
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
+        return JSONResponse(preset)
+
     @mcp.custom_route("/admin/api/event", methods=["POST"])
     async def admin_event_add(request: Request):
         st = get_state()
@@ -289,6 +358,7 @@ tbody tr:hover{background:var(--mint-wash)}
 #drawer .foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px}
 label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
       color:var(--mut);margin:12px 0 4px}
+#envsel{width:auto;max-width:150px}
 input,textarea,select{width:100%;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);
       border-radius:8px;background:#fff;color:var(--ink)}
 textarea{min-height:90px;resize:vertical}
@@ -387,6 +457,9 @@ function rAgenda(c){head('Agenda & jobs','read-only — roadshows from the seed,
   S.agenda.map(a=>`<tr><td><b>${esc(a.title)}</b></td><td>${esc(a.role)}</td><td>${esc(a.when)}</td></tr>`).join('')+
   '</tbody></table><br><table><thead><tr><th>Job</th><th>Status</th></tr></thead><tbody>'+
   S.jobs.jobs.map(j=>`<tr><td>${esc(j.label)}</td><td>${esc(j.status)}</td></tr>`).join('')+'</tbody></table>';}
+function argsLabel(a){const p=[];if(a.fx_eur_move_pct)p.push('FX '+(a.fx_eur_move_pct>0?'+':'')+a.fx_eur_move_pct+'%');
+  if(a.china_recovery)p.push('China '+a.china_recovery);if(a.destocking_end)p.push('destock '+a.destocking_end);
+  return p.join(' + ')||'base (no shock)';}
 function rScen(c,add){const tks=Object.keys(S.scenarios||{});
   head('Scenario hypotheses',(tks.length?tks.join(', '):'none')+' — the cases behind get_scenarios, the Lab and the pack');
   add.style.display='';add.textContent='+ New case (MC FP)';add.onclick=()=>openScen('MC FP',null);
@@ -398,7 +471,22 @@ function rScen(c,add){const tks=Object.keys(S.scenarios||{});
     <td><b>${esc(r.scenario)}</b></td><td>${esc(r.assumption)}</td>
     <td class="num">${esc(r.eps_impact)}</td><td class="num">${esc(r.tp_impact)}</td>
     <td class="num">${esc(r.probability)}</td><td class="mut">${esc(r.hypothesis)}</td></tr>`).join('')+
-    '</tbody></table>';}).join('')||'<p class="mut">No scenario sets in this environment.</p>';}
+    '</tbody></table>';}).join('')||'<p class="mut">No scenario sets in this environment.</p>';
+  c.innerHTML+=`<h3 style="margin:18px 0 4px">Scenario Lab presets <span class="mut" style="font-size:12px">· the predefined shocks the Lab computes (get_scenario_board)</span></h3>
+  <div style="margin-bottom:8px"><button class="btn" onclick="openPreset(null)">+ New preset</button></div>
+  <table><thead><tr><th>Tag</th><th>Title</th><th>Shock (engine args)</th></tr></thead><tbody>`+
+  (S.lab_presets||[]).map((p,i)=>`<tr onclick='openPreset(${i})'>
+  <td><span class="pill info">${esc(p.tag)}</span></td><td><b>${esc(p.title)}</b></td>
+  <td class="mut">${esc(argsLabel(p.args||{}))}</td></tr>`).join('')+'</tbody></table>';}
+function openPreset(idx){const p=idx==null?{title:'',tag:'CUSTOM',args:{}}:S.lab_presets[idx];
+  const a=p.args||{};
+  openDrawer(idx==null?'New Lab preset':'Edit Lab preset — '+p.title,
+    field('title','Title',p.title)+field('tag','Tag (group label)',p.tag)+
+    field('fx_eur_move_pct','FX move % (blank/0 = none, ±15)',a.fx_eur_move_pct??'')+
+    field('china_recovery','China recovery',a.china_recovery||'none',{sel:['none','q2_26','q4_26','fy27']})+
+    field('destocking_end','Destocking end (LVMH axis)',a.destocking_end||'h1_26',{sel:['h1_26','h2_26','fy27']}),
+    v=>idx==null?patch('admin/api/labpreset',v,'POST'):patch('admin/api/labpreset/'+idx,v),
+    idx==null?null:()=>patch('admin/api/labpreset/'+idx,{},'DELETE'));}
 function openScen(tk,idx){const sc=S.scenarios[tk];
   const r=idx==null?{scenario:'',assumption:'',eps_impact:'',tp_impact:'',hypothesis:'',probability:''}:sc.rows[idx];
   openDrawer(idx==null?('New scenario case — '+tk):('Edit case — '+esc(r.scenario)),
