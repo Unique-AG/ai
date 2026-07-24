@@ -114,6 +114,7 @@ def _patch_build_common_user_memory(
     memory_message_logger = MagicMock()
     memory_message_logger.log_loading_start = AsyncMock()
     memory_message_logger.log_loading_complete = AsyncMock()
+    memory_message_logger.log_loading_failed = AsyncMock()
     monkeypatch.setattr(
         "unique_orchestrator.unique_ai_builder.UserMemoryMessageLogger",
         MagicMock(return_value=memory_message_logger),
@@ -207,6 +208,51 @@ async def test_build_common_load_steps_skip_pill_when_memory_load_fails(
     load_user_memory.assert_awaited_once()
     memory_message_logger.log_loading_start.assert_awaited_once()
     memory_message_logger.log_loading_complete.assert_awaited_once_with(with_pill=False)
+    memory_message_logger.log_loading_failed.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_build_common_closes_loading_step_when_memory_load_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """
+    Purpose: When load_user_memory raises after log_loading_start, the loading
+    Step is marked FAILED and the turn continues without memory.
+    Why this matters: Otherwise the chat Steps UI leaves "Loading context
+    memory" stuck in RUNNING for that turn.
+    Setup summary: Patch load to raise; assert failed is awaited, complete is
+    not, and UserMemoryPostprocessor is not registered.
+    """
+    event, load_user_memory, memory_message_logger = _patch_build_common_user_memory(
+        monkeypatch
+    )
+    load_user_memory.side_effect = RuntimeError("memory store unavailable")
+    logger = MagicMock()
+
+    config = UniqueAIConfig(space={"allowUserMemory": True})
+    common_components = await _build_common(
+        event=event,
+        logger=logger,
+        config=config,
+    )
+
+    load_user_memory.assert_awaited_once()
+    memory_message_logger.log_loading_start.assert_awaited_once()
+    memory_message_logger.log_loading_failed.assert_awaited_once()
+    memory_message_logger.log_loading_complete.assert_not_awaited()
+    assert common_components.user_memory_text == ""
+    postprocessor_names = [
+        postprocessor.name
+        for postprocessor in common_components.postprocessor_manager.get_postprocessors(
+            "ignored"
+        )
+    ]
+    assert "UserMemoryPostprocessor" not in postprocessor_names
+    logger.warning.assert_any_call(
+        "[user-memory] load raised - running without memory: [%s] %s",
+        "RuntimeError",
+        load_user_memory.side_effect,
+    )
 
 
 class TestSerializeUploadedFileForHistory:

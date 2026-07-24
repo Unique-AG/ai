@@ -716,6 +716,29 @@ async def test_user_memory_message_logger_load_skips_pill_when_disabled() -> Non
 
 
 @pytest.mark.asyncio
+async def test_user_memory_message_logger_load_failed_marks_failed_status() -> None:
+    """
+    Purpose: log_loading_failed updates the loading Step to FAILED with no pill.
+    Why this matters: Callers must close a RUNNING loading Step when load
+    raises so the chat UI does not stay stuck.
+    Setup summary: Start then fail the loading step; assert FAILED status.
+    """
+    step_logger = MagicMock()
+    step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
+    message_logger = UserMemoryMessageLogger(step_logger)
+
+    await message_logger.log_loading_start()
+    await message_logger.log_loading_failed()
+
+    failed_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
+        -1
+    ].kwargs
+    assert failed_kwargs["header"] == "Loading context memory"
+    assert failed_kwargs["status"] == MessageLogStatus.FAILED
+    assert failed_kwargs["references"] == []
+
+
+@pytest.mark.asyncio
 async def test_user_memory_message_logger_update_attaches_review_pill_only_when_requested() -> (
     None
 ):
@@ -733,9 +756,9 @@ async def test_user_memory_message_logger_update_attaches_review_pill_only_when_
     ].kwargs
     assert start_kwargs["header"] == "Updating your memory"
     assert start_kwargs["references"] == []
-    complete_without_pill = step_logger.create_or_update_message_log_async.await_args_list[
-        1
-    ].kwargs
+    complete_without_pill = (
+        step_logger.create_or_update_message_log_async.await_args_list[1].kwargs
+    )
     assert complete_without_pill["references"] == []
     complete_with_pill = step_logger.create_or_update_message_log_async.await_args_list[
         2
@@ -1132,6 +1155,10 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     loop_response.message.text = "noted"
     logger = MagicMock()
     chat_service = MagicMock()
+    message_logger = MagicMock(
+        log_updating_start=AsyncMock(),
+        log_updating_complete=AsyncMock(),
+    )
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
@@ -1139,10 +1166,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
         chat_service=chat_service,
-        message_logger=MagicMock(
-            log_updating_start=AsyncMock(),
-            log_updating_complete=AsyncMock(),
-        ),
+        message_logger=message_logger,
     )
 
     updated = await postprocessor.run(loop_response)
@@ -1155,6 +1179,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         company_id="company_1",
         logger=logger,
     )
+    message_logger.log_updating_complete.assert_awaited_once_with(with_pill=True)
     logger.info.assert_any_call(
         "[user-memory] memory updated and uploaded successfully"
     )

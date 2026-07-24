@@ -66,6 +66,17 @@ class UserMemoryMessageLogger:
             action="complete loading step",
         )
 
+    async def log_loading_failed(self) -> None:
+        # Always close the RUNNING step when load raises; otherwise the chat
+        # Steps UI leaves "Loading context memory" stuck for that turn.
+        await self._safe_create_or_update(
+            active_attr="_loading_log",
+            header=_LOADING_HEADER,
+            status=MessageLogStatus.FAILED,
+            references=[],
+            action="fail loading step",
+        )
+
     async def log_updating_start(self) -> None:
         await self._safe_create_or_update(
             active_attr="_updating_log",

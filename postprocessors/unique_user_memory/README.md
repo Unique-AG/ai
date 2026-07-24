@@ -23,8 +23,8 @@ The memory file is intentionally small and structured. It is rewritten as a full
 4. The loaded memory text is passed into the agent context for the current turn.
 5. `UserMemoryPostprocessor` runs after the assistant response.
 6. The package asks the configured language model to either return `NOOP` or a complete rewritten profile.
-7. If a rewrite runs, an **Updating your memory** Step is shown with a **Review your context memory** pill (same settings link).
-8. If the profile changed, `memory.md` is uploaded back to the user's folder with ingestion skipped and the content hidden from chat.
+7. If a rewrite runs, an **Updating your memory** Step is shown while consolidating (no pill yet).
+8. If the profile changed and `memory.md` uploads successfully (ingestion skipped, content hidden from chat), that Step is completed with a **Review your context memory** pill (same settings link). On NOOP or failed upload the Step completes without a pill.
 
 ## Storage Model
 
@@ -119,14 +119,29 @@ memory_message_logger = UserMemoryMessageLogger(
     logger=logger,
 )
 await memory_message_logger.log_loading_start()
-user_memory_state = await load_user_memory(
-    event=event,
-    config=user_memory_config,
-    language_model=memory_language_model,
-    logger=logger,
-)
+user_memory_state = None
+load_succeeded = False
+try:
+    user_memory_state = await load_user_memory(
+        event=event,
+        config=user_memory_config,
+        language_model=memory_language_model,
+        logger=logger,
+    )
+    load_succeeded = True
+except Exception as exc:
+    logger.warning(
+        "[user-memory] load raised - running without memory: [%s] %s",
+        type(exc).__name__,
+        exc,
+    )
+finally:
+    # Always close the RUNNING step — otherwise the chat Steps UI stays stuck
+    # on "Loading context memory" for that turn when load raises.
+    if not load_succeeded:
+        await memory_message_logger.log_loading_failed()
 
-if user_memory_state is not None:
+if load_succeeded and user_memory_state is not None:
     await memory_message_logger.log_loading_complete(with_pill=True)
     user_memory_text = user_memory_state.text
     postprocessor_manager.add_postprocessor(
@@ -140,7 +155,7 @@ if user_memory_state is not None:
             message_logger=memory_message_logger,
         )
     )
-else:
+elif load_succeeded:
     await memory_message_logger.log_loading_complete(with_pill=False)
 ```
 

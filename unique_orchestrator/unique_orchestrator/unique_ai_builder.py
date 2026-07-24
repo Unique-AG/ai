@@ -400,13 +400,29 @@ async def _build_common(
             logger=logger,
         )
         await memory_message_logger.log_loading_start()
-        user_memory_state = await load_user_memory(
-            event=event,
-            config=user_memory_config,
-            language_model=memory_language_model,
-            logger=logger,
-        )
-        if user_memory_state is not None:
+        user_memory_state = None
+        load_succeeded = False
+        try:
+            user_memory_state = await load_user_memory(
+                event=event,
+                config=user_memory_config,
+                language_model=memory_language_model,
+                logger=logger,
+            )
+            load_succeeded = True
+        except Exception as exc:
+            # Soft-fail like a None return: keep the turn running without
+            # memory, but always close the RUNNING loading Step first.
+            logger.warning(
+                "[user-memory] load raised - running without memory: [%s] %s",
+                type(exc).__name__,
+                exc,
+            )
+        finally:
+            if not load_succeeded:
+                await memory_message_logger.log_loading_failed()
+
+        if load_succeeded and user_memory_state is not None:
             await memory_message_logger.log_loading_complete(with_pill=True)
             user_memory_text = user_memory_state.text
             postprocessor_manager.add_postprocessor(
@@ -420,7 +436,7 @@ async def _build_common(
                     message_logger=memory_message_logger,
                 )
             )
-        else:
+        elif load_succeeded:
             await memory_message_logger.log_loading_complete(with_pill=False)
 
     return _CommonComponents(
