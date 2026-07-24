@@ -47,7 +47,6 @@ class UserMemoryPostprocessor(Postprocessor):
         self._state = state
         self._logger = logger
         self._new_memory: str | None = None
-        self._chat_service: ChatService = chat_service
         self._pending_load_invocation_stats = list(state.load_invocation_stats)
         self._invocation_stats: list[LanguageModelInvocationStats] = []
         if message_logger is not None:
