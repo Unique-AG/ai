@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.30.0...unique-search-proxy-core-v2026.32.0) (2026-07-24)
+
+
+### Features
+
+* **bing:** migrate grounding to Agents v2 + Responses API [UN-23345] ([#2141](https://github.com/Unique-AG/ai/issues/2141)) ([46c2b76](https://github.com/Unique-AG/ai/commit/46c2b76548b19ffeeb40d52b31cfcee970f61f65))
+* **search-proxy:** per-URL crawl outcome metrics with HTTP status ([#2132](https://github.com/Unique-AG/ai/issues/2132)) ([0665906](https://github.com/Unique-AG/ai/commit/066590624739ffa19e26579c6e542634073166d5))
+
+
+### Bug Fixes
+
+* Url Safety blocks individual urls instead of batch ([#2137](https://github.com/Unique-AG/ai/issues/2137)) ([3855ab0](https://github.com/Unique-AG/ai/commit/3855ab02dfd8d7c193339614cff854ebe8611042))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
 ## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-search-proxy-core-v2026.28.0...unique-search-proxy-core-v2026.30.0) (2026-07-17)
 
 

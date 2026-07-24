@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.32.0](https://github.com/Unique-AG/ai/compare/unique-stock-ticker-v2026.30.0...unique-stock-ticker-v2026.32.0) (2026-07-24)
+
+
+### Features
+
+* Token count analytics ([#2112](https://github.com/Unique-AG/ai/issues/2112)) ([f475dc4](https://github.com/Unique-AG/ai/commit/f475dc4606dd723e0fecfcdd09ace2f9c329e960))
+
+
+### Miscellaneous
+
+* arm release 2026.32.0 ([6084f04](https://github.com/Unique-AG/ai/commit/6084f0413c8611f1493a00288e4b69797198c3cd))
+
 ## [2026.30.0](https://github.com/Unique-AG/ai/compare/unique-stock-ticker-v2026.28.0...unique-stock-ticker-v2026.30.0) (2026-07-17)
 
 
