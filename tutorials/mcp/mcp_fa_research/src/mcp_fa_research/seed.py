@@ -469,6 +469,44 @@ SCENARIOS: dict[str, dict] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Pre-publication control queue — the maker/checker beat. The analyst (maker)
+# submits research products; the checker verifies every figure against source
+# and records RELEASE / DO NOT RELEASE. Mutable per environment; Reset restores.
+# ---------------------------------------------------------------------------
+CONTROL_QUEUE_SEED: list[dict] = [
+    {"id": "C-001", "title": "LVMH — Post-release review (post-view note)",
+     "ticker": "MC FP", "kind": "note", "submitted_by": "Analyst (maker)",
+     "submitted_at": "2026-07-23 09:40", "priority": "URGENT — publish ASAP",
+     "status": "pending", "verdict": "", "verdict_notes": "",
+     "checklist": [
+         {"check": "Every figure recomputed vs source (Ours/Consensus/Company)", "state": "ok"},
+         {"check": "Single target price + upside % (house style)", "state": "ok"},
+         {"check": "Rating change consistency (Outperform held)", "state": "ok"},
+         {"check": "MNPI screen — no non-public information", "state": "open"},
+         {"check": "Disclosures block present + synthetic marker", "state": "ok"},
+     ]},
+    {"id": "C-002", "title": "LVMH — Buy-side scenario pack (Fund B)",
+     "ticker": "MC FP", "kind": "pack", "submitted_by": "Analyst (maker)",
+     "submitted_at": "2026-07-23 11:05", "priority": "Send-by tomorrow EOD",
+     "status": "pending", "verdict": "", "verdict_notes": "",
+     "checklist": [
+         {"check": "Engine numbers reproduce the published cases", "state": "ok"},
+         {"check": "Probabilities sum to 100%", "state": "ok"},
+         {"check": "Assumption trail included", "state": "ok"},
+         {"check": "Client-suitability wording (professional investors)", "state": "open"},
+     ]},
+    {"id": "C-003", "title": "Swatch Group — desknote (tone × guidance flag)",
+     "ticker": "UHR SW", "kind": "note", "submitted_by": "Analyst (maker)",
+     "submitted_at": "2026-07-22 17:55", "priority": "Standard",
+     "status": "pending", "verdict": "", "verdict_notes": "",
+     "checklist": [
+         {"check": "Transcript quotes verified against source", "state": "ok"},
+         {"check": "Early-warning language is opinion, not fact", "state": "open"},
+         {"check": "No guidance figures attributed to management beyond the call", "state": "open"},
+     ]},
+]
+
 # Scenario Lab preset definitions (which predefined shocks the Lab computes).
 # Editable per environment in the demo console; the engine's board() reads the
 # active env's copy and falls back to this seed.
@@ -544,6 +582,7 @@ def baseline() -> dict:
         "calendar": copy.deepcopy(CALENDAR_SEED),
         "scenarios": copy.deepcopy(SCENARIOS),
         "lab_presets": copy.deepcopy(LAB_PRESETS),
+        "control_queue": copy.deepcopy(CONTROL_QUEUE_SEED),
     }
 
 

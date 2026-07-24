@@ -426,6 +426,67 @@ def get_note_pack(ticker: _TICKER) -> str:
     return json.dumps({"ticker": t, **note_pack.get_pack(t, row)})
 
 
+@mcp.tool(name="get_control_queue", title="Pre-publication control queue",
+          description="The maker/checker queue: research products submitted by the "
+                      "analyst (maker) awaiting pre-publication control. Each item: id, "
+                      "title, ticker, kind, submitted_by/at, priority, checklist "
+                      "([{check, state: ok|open|fail}]), status (pending/released/"
+                      "blocked), verdict + verdict_notes once decided. Display-ready "
+                      "fields for the Control Room canvas (checklist_text, status/dir, "
+                      "release_args/block_args). The checker records the decision with "
+                      "record_control_verdict; Reset_Demo_Data restores the queue. "
+                      "SYNTHETIC demo data.")
+def get_control_queue() -> str:
+    items = []
+    for it0 in env_state.state()["control_queue"]:
+        it = json.loads(json.dumps(it0))
+        open_n = sum(1 for c in it["checklist"] if c["state"] != "ok")
+        it["checklist_text"] = "\n".join(
+            f"{'✓' if c['state'] == 'ok' else '◯'}  {c['check']}" for c in it["checklist"])
+        it["open_checks"] = open_n
+        it["open_label"] = ("all checks green" if open_n == 0
+                            else f"{open_n} check(s) still open")
+        it["status_label"] = {"pending": "PENDING CONTROL", "released": "RELEASED",
+                              "blocked": "DO NOT RELEASE"}[it["status"]]
+        it["dir"] = {"pending": "flat", "released": "up", "blocked": "dn"}[it["status"]]
+        it["release_args"] = json.dumps({"item_id": it["id"], "verdict": "RELEASE"})
+        it["block_args"] = json.dumps({"item_id": it["id"], "verdict": "DO_NOT_RELEASE"})
+        it["control_payload"] = json.dumps({"prompt": f"Run pre-publication control on "
+                                            f"'{it['title']}' ({it['id']}) — use the "
+                                            f"pre-publication-control skill: verify every "
+                                            f"checklist point, then record the verdict "
+                                            f"with record_control_verdict."})
+        items.append(it)
+    pending = sum(1 for i in items if i["status"] == "pending")
+    return json.dumps({"count": len(items), "pending": pending, "items": items})
+
+
+@mcp.tool(name="record_control_verdict", title="Record a control verdict",
+          description="The CHECKER's decision on a control-queue item: verdict RELEASE "
+                      "or DO_NOT_RELEASE (+ optional notes, e.g. which check failed). "
+                      "Mutates the queue item's status; fully auditable in the queue; "
+                      "Reset_Demo_Data restores the baseline. Only record a verdict when "
+                      "the user (checker) explicitly decides — never on your own "
+                      "initiative. SYNTHETIC demo data.")
+def record_control_verdict(
+    item_id: Annotated[str, Field(description="Queue item id, e.g. C-001")],
+    verdict: Annotated[str, Field(description="RELEASE or DO_NOT_RELEASE")],
+    notes: Annotated[str, Field(description="Optional checker notes")] = "",
+) -> str:
+    v = verdict.strip().upper().replace(" ", "_")
+    if v not in ("RELEASE", "DO_NOT_RELEASE"):
+        return json.dumps({"error": "verdict must be RELEASE or DO_NOT_RELEASE"})
+    for it in env_state.state()["control_queue"]:
+        if it["id"] == item_id:
+            it["status"] = "released" if v == "RELEASE" else "blocked"
+            it["verdict"] = v
+            it["verdict_notes"] = notes
+            return json.dumps({"recorded": True, "item": it,
+                               "note": "Verdict recorded — auditable in the control queue."})
+    return json.dumps({"error": f"unknown item {item_id}",
+                       "items": [i["id"] for i in env_state.state()["control_queue"]]})
+
+
 @mcp.tool(name="get_emails", title="Mailbox (synthetic)",
           description="The analyst's synthetic mailbox: desk, buy-side, corporate IR, "
                       "compliance and internal emails around the demo storyline (LVMH "
