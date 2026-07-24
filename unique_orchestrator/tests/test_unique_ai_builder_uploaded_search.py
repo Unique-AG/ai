@@ -25,6 +25,8 @@ from unique_orchestrator.unique_ai_builder import (
     _configure_uploaded_search_tool,
 )
 
+_DEFAULT_MEMORY_STATE = object()
+
 
 def _make_common_components(uploaded_documents):
     tool_manager_config = ToolManagerConfig(tools=[])
@@ -63,7 +65,7 @@ def _make_event(tool_choices):
 def _patch_build_common_user_memory(
     monkeypatch: pytest.MonkeyPatch,
     *,
-    memory_state: UserMemoryState | None = None,
+    memory_state: UserMemoryState | None | object = _DEFAULT_MEMORY_STATE,
 ) -> tuple[MagicMock, AsyncMock, MagicMock]:
     event = _make_event(tool_choices=[])
     event.payload.additional_parameters = None
@@ -119,7 +121,7 @@ def _patch_build_common_user_memory(
         "unique_orchestrator.unique_ai_builder.UserMemoryMessageLogger",
         MagicMock(return_value=memory_message_logger),
     )
-    if memory_state is None:
+    if memory_state is _DEFAULT_MEMORY_STATE:
         memory_state = UserMemoryState(
             scope_id="scope_1",
             text="remembered",
@@ -193,6 +195,14 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
 async def test_build_common_load_steps_skip_pill_when_memory_load_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """
+    Purpose: When load_user_memory returns None, complete the loading Step
+    without the context-memory pill.
+    Why this matters: A soft-failed / missing memory load should not surface a
+    Settings pill as if memory were available.
+    Setup summary: Patch load to return None; assert complete(with_pill=False)
+    and that failed is not used.
+    """
     event, load_user_memory, memory_message_logger = _patch_build_common_user_memory(
         monkeypatch,
         memory_state=None,
