@@ -100,10 +100,27 @@ def _apply(row: dict, patch: dict, allowed: set[str]) -> dict:
     return row
 
 
+ENV_CLASS: dict[str, tuple[str, str]] = {
+    "qa":    ("QA",         "#0E7C7B"),
+    "uat":   ("UAT",        "#C4620A"),
+    "bnpp":  ("PRODUCTION", "#B42318"),
+    "sales": ("PRODUCTION", "#B42318"),
+    "local": ("LOCAL",      "#3F4A55"),
+}
+_SANDBOX_CLASS = ("SANDBOX", "#5B4B8A")
+
+
 def register(mcp, get_state, reset_state) -> None:
     @mcp.custom_route("/admin", methods=["GET"])
     async def admin_page(request: Request):
-        return HTMLResponse(ADMIN_HTML)
+        env = env_state.current_env()
+        label, color = ENV_CLASS.get(env, _SANDBOX_CLASS)
+        badge = env.upper() if label == env.upper() else f"{env.upper()} · {label}"
+        html = (ADMIN_HTML
+                .replace("__ENV_COLOR__", color)
+                .replace("__ENV_BADGE__", badge)
+                .replace("__ENV_PATH__", f"/{env}/admin"))
+        return HTMLResponse(html)
 
     @mcp.custom_route("/admin/api/state", methods=["GET"])
     async def admin_state(request: Request):
@@ -306,9 +323,14 @@ ADMIN_HTML = r"""<!doctype html>
 *{box-sizing:border-box;margin:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
      background:#F7F9F8;color:var(--ink);font-size:14px;line-height:1.45}
-.banner{background:#101820;color:#F2C94C;text-align:center;font-size:11px;font-weight:700;
-        letter-spacing:.08em;text-transform:uppercase;padding:6px}
-.banner b{color:#fff}
+.banner{background:__ENV_COLOR__;color:#fff;font-size:11px;font-weight:700;
+        letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;
+        display:flex;align-items:center;gap:14px}
+.banner .envb{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.45);
+        border-radius:999px;padding:2px 12px;font-size:12px;white-space:nowrap}
+.banner .mid{flex:1;text-align:center;color:rgba(255,255,255,.92)}
+.banner .mid b{color:#F2C94C}
+.banner .path{font-size:10.5px;color:rgba(255,255,255,.75);text-transform:none;white-space:nowrap}
 header{display:flex;align-items:center;gap:14px;padding:14px 26px;background:var(--paper);
        border-bottom:1px solid var(--line)}
 .logo{width:34px;height:34px;border-radius:8px;background:#101820;color:#9FD5C9;display:flex;
@@ -366,7 +388,9 @@ textarea{min-height:90px;resize:vertical}
        font-size:12.5px;padding:9px 18px;border-radius:999px;opacity:0;transition:opacity .25s}
 .mut{color:var(--mut))}
 </style></head><body>
-<div class="banner"><b>PUBLIC DEMONSTRATION</b> &nbsp;·&nbsp; Synthetic research data — changes are temporary (in-memory) and revert to the snapshot</div>
+<div class="banner"><span class="envb">● __ENV_BADGE__</span>
+<span class="mid"><b>PUBLIC DEMONSTRATION</b> &nbsp;·&nbsp; Synthetic research data — changes are temporary (in-memory) and revert to the snapshot</span>
+<span class="path">__ENV_PATH__</span></div>
 <header>
   <div class="logo">FA</div>
   <select id="envsel" class="btn" style="min-width:90px" onchange="switchEnv(this.value)"></select>
