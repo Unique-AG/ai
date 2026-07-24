@@ -43,14 +43,18 @@ class AnalyticsToolName(TypedDict):
     display_name: str
 
 
-class AnalyticsTokenUsage(TypedDict):
-    model_name: str
+class AnalyticsConsumption(TypedDict):
     completion_tokens: int | None
     prompt_tokens: int | None
     total_tokens: int | None
     reasoning_tokens: int | None
     cached_tokens: int | None
     cache_write_tokens: int | None
+    cost_usd: float | None
+
+
+class AnalyticsConsumptionByLlm(AnalyticsConsumption):
+    model_name: str
 
 
 class Analytics(TypedDict):
@@ -58,6 +62,10 @@ class Analytics(TypedDict):
     artifacts_created_count: int | None
     artifacts_created_filetype: list[str] | None
     context_memory_updated: bool | None
+    # Sum of all model usages this turn. None when no invocations reported usage.
+    consumption: AnalyticsConsumption | None
+    # Per-model usage totals, sorted by model_name.
+    consumption_by_llm: list[AnalyticsConsumptionByLlm]
     language_model: AnalyticsLanguageModel
     loop_iteration_count: int
     mcp_tool_names_used: list[AnalyticsToolName]
@@ -67,7 +75,6 @@ class Analytics(TypedDict):
     references_count: int
     skills_used: list[AnalyticsSkill]
     subagent_names_used: list[AnalyticsToolName]
-    tokens: list[AnalyticsTokenUsage]
     tool_call_count: int
     tools_used: list[AnalyticsTool]
     total_time_to_answer_ms: int | None
@@ -149,6 +156,7 @@ class DebugInfoManager:
         # DisplayCodeInterpreterFilesPostProcessor) into debug_info["artifacts"].
         # Absent when no Code Interpreter ran this turn → artifact fields stay
         # None, preserving the always-present, null-when-unknown contract.
+        consumption_by_llm = _aggregate_consumption_by_llm(invocations or [])
         analytics = Analytics(
             tools_used=analytics_tools,
             tool_call_count=len(analytics_tools),
@@ -167,7 +175,8 @@ class DebugInfoManager:
             loop_iteration_count=loop_iteration_count,
             subagent_names_used=_unique_tool_names(analytics_tools, "is_sub_agent"),
             mcp_tool_names_used=_unique_tool_names(analytics_tools, "is_mcp"),
-            tokens=_aggregate_tokens_by_model(invocations or []),
+            consumption_by_llm=consumption_by_llm,
+            consumption=_aggregate_consumption(invocations or []),
             total_time_to_answer_ms=total_time_to_answer_ms,
             artifacts_created_count=artifacts["count"] if artifacts else None,
             artifacts_created_filetype=artifacts["filetypes"] if artifacts else None,
@@ -179,27 +188,66 @@ class DebugInfoManager:
         self.add("analytics", analytics)
 
 
-def _aggregate_tokens_by_model(
+def _sum_invocation_costs(
     invocations: list[LanguageModelInvocationStats],
-) -> list[AnalyticsTokenUsage]:
-    usages_by_model: dict[str, list[LanguageModelTokenUsage]] = defaultdict(list)
-    for invocation in invocations:
-        usages_by_model[str(invocation.model_name)].append(invocation.token_usage)
+) -> float | None:
+    """Sum costs only when every invocation has a known cost; else None."""
+    costs = [invocation.cost_usd for invocation in invocations]
+    if not costs or any(cost is None for cost in costs):
+        return None
+    return sum(cost for cost in costs if cost is not None)
 
-    totals: list[AnalyticsTokenUsage] = []
-    for model_name in sorted(usages_by_model):
-        usage = LanguageModelTokenUsage.sum_usages(usages_by_model[model_name])
+
+def _to_analytics_consumption(
+    usage: LanguageModelTokenUsage,
+    cost_usd: float | None,
+) -> AnalyticsConsumption:
+    return AnalyticsConsumption(
+        completion_tokens=usage.completion_tokens,
+        prompt_tokens=usage.prompt_tokens,
+        total_tokens=usage.total_tokens,
+        reasoning_tokens=usage.reasoning_tokens,
+        cached_tokens=usage.cached_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
+        cost_usd=cost_usd,
+    )
+
+
+def _aggregate_consumption(
+    invocations: list[LanguageModelInvocationStats],
+) -> AnalyticsConsumption | None:
+    """Aggregate token usage and cost across all models for this turn."""
+    usage = LanguageModelTokenUsage.sum_usages(
+        invocation.token_usage for invocation in invocations
+    )
+    if usage is None:
+        return None
+    return _to_analytics_consumption(usage, _sum_invocation_costs(invocations))
+
+
+def _aggregate_consumption_by_llm(
+    invocations: list[LanguageModelInvocationStats],
+) -> list[AnalyticsConsumptionByLlm]:
+    invocations_by_model: dict[str, list[LanguageModelInvocationStats]] = defaultdict(
+        list
+    )
+    for invocation in invocations:
+        invocations_by_model[str(invocation.model_name)].append(invocation)
+
+    totals: list[AnalyticsConsumptionByLlm] = []
+    for model_name in sorted(invocations_by_model):
+        model_invocations = invocations_by_model[model_name]
+        usage = LanguageModelTokenUsage.sum_usages(
+            invocation.token_usage for invocation in model_invocations
+        )
         if usage is None:
             continue
         totals.append(
-            AnalyticsTokenUsage(
+            AnalyticsConsumptionByLlm(
                 model_name=model_name,
-                completion_tokens=usage.completion_tokens,
-                prompt_tokens=usage.prompt_tokens,
-                total_tokens=usage.total_tokens,
-                reasoning_tokens=usage.reasoning_tokens,
-                cached_tokens=usage.cached_tokens,
-                cache_write_tokens=usage.cache_write_tokens,
+                **_to_analytics_consumption(
+                    usage, _sum_invocation_costs(model_invocations)
+                ),
             )
         )
     return totals
