@@ -93,6 +93,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
     ANTHROPIC_CLAUDE_OPUS_4_7 = "litellm:anthropic-claude-opus-4-7"
     ANTHROPIC_CLAUDE_OPUS_4_8 = "litellm:anthropic-claude-opus-4-8"
+    ANTHROPIC_CLAUDE_OPUS_5 = "litellm:anthropic-claude-opus-5"
     ANTHROPIC_CLAUDE_FABLE_5 = "litellm:anthropic-claude-fable-5"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
@@ -144,6 +145,7 @@ class LanguageModelName(StrEnum):
     VERTEX_CLAUDE_OPUS_4_6 = "litellm:vertex-claude-opus-4-6"
     VERTEX_CLAUDE_OPUS_4_7 = "litellm:vertex-claude-opus-4-7"
     VERTEX_CLAUDE_OPUS_4_8 = "litellm:vertex-claude-opus-4-8"
+    VERTEX_CLAUDE_OPUS_5 = "litellm:vertex-claude-opus-5"
     VERTEX_CLAUDE_FABLE_5 = "litellm:vertex-claude-fable-5"
 
 
@@ -1810,6 +1812,30 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 5, 28),
+                    supported_reasoning_efforts=[],
+                )
+            case (
+                LanguageModelName.ANTHROPIC_CLAUDE_OPUS_5
+                | LanguageModelName.VERTEX_CLAUDE_OPUS_5
+            ):
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    family=ModelFamily.ANTHROPIC,
+                    version="claude-opus-5",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_000_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2026, 5, 1),
+                    published_at=date(2026, 7, 24),
                     supported_reasoning_efforts=[],
                 )
             case (
