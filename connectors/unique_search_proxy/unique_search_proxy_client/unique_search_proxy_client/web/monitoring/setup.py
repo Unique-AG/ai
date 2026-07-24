@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
 
 import unique_search_proxy_client.web.settings.monitoring as monitoring_settings
+from unique_search_proxy_client.web.monitoring.metrics import HTTP_LATENCY_BUCKETS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,7 +37,11 @@ def setup_prometheus(app: FastAPI) -> bool:
         )
         return False
 
-    app.add_middleware(MetricsMiddleware, excluded_paths=set(_METRICS_EXCLUDED_PATHS))
+    app.add_middleware(
+        MetricsMiddleware,
+        excluded_paths=set(_METRICS_EXCLUDED_PATHS),
+        duration_buckets=HTTP_LATENCY_BUCKETS,
+    )
 
     @app.get("/metrics", include_in_schema=False)
     async def metrics_endpoint() -> PlainTextResponse:

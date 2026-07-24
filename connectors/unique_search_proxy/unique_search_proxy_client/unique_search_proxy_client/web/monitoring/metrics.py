@@ -21,9 +21,28 @@ def _linear_buckets(ceiling: float, steps: int) -> tuple[float, ...]:
     return tuple(round(step * i, 3) for i in range(1, steps + 1))
 
 
+def _exponential_buckets(start: float, ceiling: float, count: int) -> tuple[float, ...]:
+    """Geometric-progression latency buckets (seconds) from ``start`` to ``ceiling``.
+
+    Yields ``count`` upper bounds ``start, start*factor, ..., ceiling`` where the
+    factor is derived so the last bucket lands exactly on ``ceiling``. Relative
+    resolution is constant across the range, which suits latencies spanning several
+    orders of magnitude: fine sub-second buckets at the low end without spending
+    dozens of buckets to reach the ceiling. Like ``_linear_buckets``, observations
+    above ``ceiling`` land in the implicit +Inf bucket and histogram_quantile
+    cannot resolve past the largest finite bucket.
+    """
+    factor = (ceiling / start) ** (1 / (count - 1))
+    return tuple(round(start * factor**i, 3) for i in range(count))
+
+
 _SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=5.0, steps=20)
 _CRAWL_LATENCY_BUCKETS = _linear_buckets(ceiling=60.0, steps=20)
 _AGENT_SEARCH_LATENCY_BUCKETS = _linear_buckets(ceiling=120.0, steps=20)
+
+# One histogram covers every endpoint, from sub-second /v1/search to /v1/agent-search
+# runs approaching 120s — exponential buckets keep resolution useful at both ends.
+HTTP_LATENCY_BUCKETS = _exponential_buckets(start=0.05, ceiling=120.0, count=20)
 
 search_duration_seconds = m.histogram(
     "search_duration_seconds",
