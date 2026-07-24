@@ -877,7 +877,7 @@
               }
             ],
             "title": "Agent Id",
-            "description": "Azure AI agent id. Resolved from deployment env when not set. When empty, the service auto-provisions or looks up a grounding agent."
+            "description": "Foundry agent name/id. Resolved from deployment env when not set. When empty, the service auto-provisions or looks up a grounding agent."
           }
         },
         "type": "object",
@@ -1899,6 +1899,18 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "statusCode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Code",
+            "description": "Upstream HTTP status code for this URL when the failure was an HTTP error (e.g. 403, 404, 500 from the Basic crawler); null when no HTTP response was received (timeouts, transport, processing, blocked targets)"
           }
         },
         "type": "object",
@@ -2273,6 +2285,13 @@
           "type": {
             "type": "string",
             "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
         "type": "object",

@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class BraveSearchRequestResultFilterResultFilterItem(str, Enum):
+class BraveSearchRequestResultFilterType0Item(str, Enum):
     DISCUSSIONS = "discussions"
     FAQ = "faq"
     INFOBOX = "infobox"

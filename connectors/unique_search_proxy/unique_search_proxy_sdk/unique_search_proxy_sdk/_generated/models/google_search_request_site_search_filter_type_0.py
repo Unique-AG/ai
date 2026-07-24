@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class GoogleSearchRequestSiteSearchFilter(str, Enum):
+class GoogleSearchRequestSiteSearchFilterType0(str, Enum):
     E = "e"
     I = "i"
 

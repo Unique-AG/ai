@@ -33,7 +33,7 @@ class BingAgentSearchRequest:
             information, it MUST appear in your output. When in doubt, include it.\n'.
         timeout (int | Unset): Request timeout in seconds (agent runs can be slow). Default: 120.
         fetch_size (int | Unset): Maximum number of Bing grounding results per query Default: 5.
-        agent_id (None | str | Unset): Azure AI agent id. Resolved from deployment env when not set. When empty, the
+        agent_id (None | str | Unset): Foundry agent name/id. Resolved from deployment env when not set. When empty, the
             service auto-provisions or looks up a grounding agent.
     """
 
