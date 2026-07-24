@@ -32,6 +32,7 @@ class OpenapiTransport:
         suppress_httpx_request_logs()
         self._base_url = base_url.rstrip("/")
         self._owns_client = http_client is None
+        self._context = context
         self._openapi = OpenAPIClient(
             base_url=self._base_url,
             timeout=httpx.Timeout(timeout),
@@ -48,6 +49,26 @@ class OpenapiTransport:
     @property
     def openapi(self) -> OpenAPIClient:
         return self._openapi
+
+    @property
+    def context(self) -> RequestContext:
+        return self._context
+
+    def context_header_kwargs(self) -> dict[str, str]:
+        """Per-request context kwargs for the generated ``/v1`` route helpers.
+
+        The generated helpers default ``x_unique_company_id`` / ``x_unique_user_id``
+        / ``x_unique_chat_id`` to ``"local"`` and always attach them as request
+        headers. In httpx, request headers win over the client-level default
+        headers, so relying on the client-level context alone silently resets a
+        non-local context to ``"local"`` on every call. Forwarding these keeps the
+        transport's context authoritative.
+        """
+        return {
+            "x_unique_company_id": self._context.company_id,
+            "x_unique_user_id": self._context.user_id,
+            "x_unique_chat_id": self._context.chat_id,
+        }
 
     async def aclose(self) -> None:
         if self._owns_client:

@@ -46,7 +46,11 @@ def async_post_endpoint(
             constructed.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
         sdk_body = to_sdk(validated)
-        response = await post(client=transport.openapi, body=sdk_body)
+        response = await post(
+            client=transport.openapi,
+            body=sdk_body,
+            **transport.context_header_kwargs(),
+        )
         return cast(ResponseType, unwrap_response(response))
 
     return call
