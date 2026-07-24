@@ -9,7 +9,7 @@ Persistent per-user memory for Unique AI agents.
 The package provides:
 
 - `UserMemoryConfig` - Pydantic configuration for the consolidation model, profile token budget, and memory folder.
-- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget. The `language_model` argument is used to tokenize `memory.md` when capping it, so it must be the same effective model the postprocessor uses for consolidation (see Integration below). Returns a `UserMemoryState` that includes the profile text and, when present, the `memory.md` content id.
+- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget. The `language_model` argument is used to tokenize `memory.md` when capping it, so it must be the same effective model the postprocessor uses for consolidation (see Integration below). Returns a `UserMemoryState` with the profile text and scope id.
 - `UserMemoryMessageLogger` - emits chat Steps (MessageLogs) for load and update, including clickable pills that open Settings → Context Memory via `unique://settings/context-memory`.
 - `UserMemoryPostprocessor` - runs after the assistant response, consolidates the latest turn into the profile, and uploads the updated `memory.md`.
 
