@@ -408,6 +408,27 @@ try:
 except Exception:
     pass
 
+# Content ids are ENV-SPECIFIC (same doc = different cont_… per environment's KB) —
+# the RM Agent CRM pattern. Per-env maps, seeded for qa; other envs override at deploy
+# time via FA_REVIEW_IDS_BY_ENV_JSON ({"<env>": {"<ticker>": "cont_…"}}). Envs without
+# a mapping fall back to the env-agnostic KB filePath (resolved by the canvas bridge).
+REVIEW_IDS_BY_ENV: dict[str, dict[str, str]] = {"qa": REVIEW_IDS}
+try:
+    for _env, _m in (_json.loads(_os.getenv("FA_REVIEW_IDS_BY_ENV_JSON", "") or "{}")).items():
+        REVIEW_IDS_BY_ENV.setdefault(_env, {}).update(_m)
+except Exception:
+    pass
+
+
+def review_open_payload(env: str, ticker: str) -> str:
+    """openDocument payload for a name's review in THIS env: contentId when mapped,
+    else the env-agnostic filePath (bridge resolves it against the env's KB)."""
+    cid = (REVIEW_IDS_BY_ENV.get(env) or {}).get(ticker, "")
+    if cid:
+        return _json.dumps({"contentId": cid})
+    return _json.dumps({"filePath": f"/Fundamental Analyst/names/{ticker}/review.html"})
+
+
 COCKPIT_ID: str = _os.getenv("FA_COCKPIT_ID", "")  # set after the cockpit is uploaded
 
 

@@ -123,6 +123,7 @@ mcp = FastMCP("FA Research", auth=build_auth())
 # segment and materialized lazily from seed.baseline(). Reset_Demo_Data / the console
 # reset restore the active env; a restart clears every env. In-memory by design.
 seed.register_state_resolver(env_state.state)
+env_state.materialize_known()
 
 _get_state = env_state.state
 _reset_state = env_state.reset
@@ -156,9 +157,10 @@ def _cockpit_row(c: dict) -> dict:
     row["premarket_label"] = f"{c['premarket_pct']:+.1f}%"
     row["premarket_dir"] = "dn" if c["premarket_pct"] < -0.05 else ("up" if c["premarket_pct"] > 0.05 else "flat")
     row["pills_text"] = "  ".join(pl["label"] for pl in c.get("pills", []))
-    cid = seed.REVIEW_IDS.get(c["ticker"], "")
+    env = env_state.current_env()
+    cid = (seed.REVIEW_IDS_BY_ENV.get(env) or {}).get(c["ticker"], "")
     row["review_content_id"] = cid
-    row["open_review_payload"] = json.dumps({"contentId": cid}) if cid else ""
+    row["open_review_payload"] = seed.review_open_payload(env, c["ticker"])
     if ov:
         row["overnight"] = {"severity": ov["severity"], "headline": ov["headline"],
                             "valuation_impact": ov["valuation_impact"],

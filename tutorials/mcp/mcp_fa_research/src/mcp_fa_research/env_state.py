@@ -23,6 +23,14 @@ import re
 import seed
 
 DEFAULT_ENV = "qa"
+# One connector per environment, discriminated in the PATH — same convention as the
+# RM Agent MCPs (qa / uat / bnpp / sales / local). These are pre-materialized at
+# startup so the console lists them immediately; extra ad-hoc slugs (e.g. /pascal/…)
+# still materialize lazily as personal sandboxes. Extend via FA_EXTRA_ENVS=csv.
+KNOWN_ENVS: tuple[str, ...] = tuple(
+    e.strip() for e in
+    ("qa,uat,bnpp,sales,local," + (__import__("os").getenv("FA_EXTRA_ENVS") or "")).split(",")
+    if e.strip())
 _SLUG = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")
 _RESERVED = {"mcp", "admin", "api", "health", "favicon.ico"}
 
@@ -67,5 +75,11 @@ def reset() -> dict:
     return STATES[env]
 
 
+def materialize_known() -> None:
+    """Pre-create the known environments' states (startup)."""
+    for e in KNOWN_ENVS:
+        STATES.setdefault(e, seed.baseline())
+
+
 def envs() -> list[str]:
-    return sorted(set(STATES) | {DEFAULT_ENV})
+    return sorted(set(STATES) | set(KNOWN_ENVS) | {DEFAULT_ENV})
