@@ -287,24 +287,25 @@ async def _run_responses_agent(
     citation_replacements: list[tuple[str, str]] = []
     emitted_text = False
 
-    async for event in stream:
-        if isinstance(event, ResponseTextDeltaEvent):
-            if event.delta:
-                emitted_text = True
-                answer_parts.append(event.delta)
-        elif isinstance(event, ResponseOutputItemDoneEvent):
-            citation_replacements.extend(_extract_markdown_citations(event))
-        elif isinstance(event, ResponseCompletedEvent):
-            output_text = event.response.output_text
-            # Foundry sometimes delivers the full answer only on completion.
-            if output_text and not emitted_text:
-                emitted_text = True
-                answer_parts.append(output_text)
-            record_token_usage(
-                model_name=model,
-                usage=event.response.usage,
-                source="web_search.grounding.bing",
-            )
+    async with stream:
+        async for event in stream:
+            if isinstance(event, ResponseTextDeltaEvent):
+                if event.delta:
+                    emitted_text = True
+                    answer_parts.append(event.delta)
+            elif isinstance(event, ResponseOutputItemDoneEvent):
+                citation_replacements.extend(_extract_markdown_citations(event))
+            elif isinstance(event, ResponseCompletedEvent):
+                output_text = event.response.output_text
+                # Foundry sometimes delivers the full answer only on completion.
+                if output_text and not emitted_text:
+                    emitted_text = True
+                    answer_parts.append(output_text)
+                record_token_usage(
+                    model_name=model,
+                    usage=event.response.usage,
+                    source="web_search.grounding.bing",
+                )
 
     answer = "".join(answer_parts)
     for marker, markdown_link in citation_replacements:

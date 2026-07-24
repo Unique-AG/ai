@@ -198,35 +198,38 @@ async def stream_bing_grounding_agent(
         )
 
     emitted_text = False
-    async for event in stream:
-        if isinstance(event, ResponseTextDeltaEvent):
-            if event.delta:
-                emitted_text = True
-                yield event.delta, event.model_dump(mode="json", warnings="none")
-        elif isinstance(event, ResponseOutputItemDoneEvent):
-            citations = _extract_url_citations(event)
-            if citations:
-                yield (
-                    "",
-                    {
-                        "type": event.type,
-                        "citations": citations,
-                        "event": event.model_dump(mode="json", warnings="none"),
-                    },
-                )
-        elif isinstance(event, ResponseCompletedEvent):
-            response = event.response
-            output_text = response.output_text
-            raw_completed = {
-                "type": event.type,
-                "response": response.model_dump(mode="json", warnings="none"),
-            }
-            # Foundry sometimes delivers the full answer only on completion.
-            if output_text and not emitted_text:
-                emitted_text = True
-                yield output_text, raw_completed
-            else:
-                yield "", raw_completed
+    async with stream:
+        async for event in stream:
+            if isinstance(event, ResponseTextDeltaEvent):
+                if event.delta:
+                    emitted_text = True
+                    yield event.delta, event.model_dump(mode="json", warnings="none")
+            elif isinstance(event, ResponseOutputItemDoneEvent):
+                citations = _extract_url_citations(event)
+                if citations:
+                    yield (
+                        "",
+                        {
+                            "type": event.type,
+                            "citations": citations,
+                            "event": event.model_dump(
+                                mode="json", warnings="none"
+                            ),
+                        },
+                    )
+            elif isinstance(event, ResponseCompletedEvent):
+                response = event.response
+                output_text = response.output_text
+                raw_completed = {
+                    "type": event.type,
+                    "response": response.model_dump(mode="json", warnings="none"),
+                }
+                # Foundry sometimes delivers the full answer only on completion.
+                if output_text and not emitted_text:
+                    emitted_text = True
+                    yield output_text, raw_completed
+                else:
+                    yield "", raw_completed
 
 
 async def _create_responses_stream(

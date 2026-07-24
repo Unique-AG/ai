@@ -1,5 +1,7 @@
 """Tests for Bing grounding agent runner, models, and response parsing strategies."""
 
+from __future__ import annotations
+
 from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -662,7 +664,27 @@ class TestGetBingGroundingTool:
 _RUNNER_MODULE = "unique_web_search.services.search_engine.utils.grounding.bing.runner"
 
 
-async def _fake_response_stream(
+class _CloseableAsyncStream:
+    """Stand-in for ``openai.AsyncStream`` (async iteration + context manager)."""
+
+    def __init__(self, agen: AsyncIterator) -> None:
+        self._agen = agen
+        self.closed = False
+
+    async def __aenter__(self) -> _CloseableAsyncStream:
+        return self
+
+    async def __aexit__(self, *_args: object) -> None:
+        self.closed = True
+        aclose = getattr(self._agen, "aclose", None)
+        if aclose is not None:
+            await aclose()
+
+    def __aiter__(self) -> AsyncIterator:
+        return self._agen
+
+
+async def _fake_response_events(
     *,
     usage: ResponseUsage | None = None,
 ) -> AsyncIterator:
@@ -704,6 +726,13 @@ async def _fake_response_stream(
         sequence_number=2,
         response=response,
     )
+
+
+def _fake_response_stream(
+    *,
+    usage: ResponseUsage | None = None,
+) -> _CloseableAsyncStream:
+    return _CloseableAsyncStream(_fake_response_events(usage=usage))
 
 
 def _mock_openai_client(
@@ -761,6 +790,51 @@ class TestCreateAndProcessRun:
         assert results == expected_results
         mock_agent_client.agents.create_version.assert_not_called()
         mock_parser.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch(f"{_RUNNER_MODULE}.env_settings")
+    async def test_run__closes_responses_stream(
+        self,
+        mock_env: MagicMock,
+    ) -> None:
+        """
+        Purpose: Verify the Responses AsyncStream is closed after iteration.
+        Why this matters: Mid-stream errors or normal completion must release the HTTP connection.
+        Setup summary: Capture the mock stream and assert ``closed`` after a successful run.
+        """
+        mock_env.azure_ai_assistant_id = None
+        mock_env.azure_ai_bing_agent_model = "gpt-5.1"
+        mock_env.azure_ai_bing_resource_connection_string = (
+            "/subscriptions/x/connections/bing"
+        )
+        mock_agent_client = MagicMock()
+        mock_agent_client.agents.create_version = AsyncMock()
+        mock_parser = AsyncMock(
+            return_value=[
+                WebSearchResult(
+                    url="https://a.com", title="A", snippet="s", content="c"
+                )
+            ]
+        )
+        stream = _fake_response_stream()
+        mock_openai = MagicMock()
+        mock_openai.responses.create = AsyncMock(return_value=stream)
+
+        with patch(
+            f"{_RUNNER_MODULE}.get_openai_client",
+            return_value=mock_openai,
+        ):
+            await create_and_process_run(
+                agent_client=mock_agent_client,
+                agent_id="",
+                query="test query",
+                fetch_size=5,
+                response_parsers_strategies=[mock_parser],
+                generation_instructions="Test instructions",
+            )
+
+        assert stream.closed is True
 
     @pytest.mark.ai
     @pytest.mark.asyncio

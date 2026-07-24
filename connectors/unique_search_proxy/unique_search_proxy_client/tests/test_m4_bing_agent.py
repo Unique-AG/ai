@@ -57,6 +57,26 @@ async def _fake_stream(
     yield "agent answer text", {"messages": []}
 
 
+class _CloseableAsyncStream:
+    """Stand-in for ``openai.AsyncStream`` (async iteration + context manager)."""
+
+    def __init__(self, agen: AsyncIterator[Any]) -> None:
+        self._agen = agen
+        self.closed = False
+
+    async def __aenter__(self) -> _CloseableAsyncStream:
+        return self
+
+    async def __aexit__(self, *_args: object) -> None:
+        self.closed = True
+        aclose = getattr(self._agen, "aclose", None)
+        if aclose is not None:
+            await aclose()
+
+    def __aiter__(self) -> AsyncIterator[Any]:
+        return self._agen
+
+
 async def _fake_response_events(*, with_deltas: bool = True) -> AsyncIterator[Any]:
     if with_deltas:
         yield ResponseTextDeltaEvent.model_construct(
@@ -96,6 +116,10 @@ async def _fake_response_events(*, with_deltas: bool = True) -> AsyncIterator[An
         sequence_number=2,
         response=response,
     )
+
+
+def _fake_response_stream(*, with_deltas: bool = True) -> _CloseableAsyncStream:
+    return _CloseableAsyncStream(_fake_response_events(with_deltas=with_deltas))
 
 
 @pytest.fixture
@@ -288,8 +312,9 @@ class TestCreateAndStreamOptimistic:
             body=None,
         )
         mock_openai = MagicMock()
+        stream = _fake_response_stream()
         mock_openai.responses.create = AsyncMock(
-            side_effect=[missing, _fake_response_events()],
+            side_effect=[missing, stream],
         )
         created = MagicMock()
         created.name = expected_name
@@ -315,6 +340,7 @@ class TestCreateAndStreamOptimistic:
         assert chunks[0][0] == "agent answer text"
         mock_client.agents.create_version.assert_awaited_once()
         assert mock_openai.responses.create.await_count == 2
+        assert stream.closed is True
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -364,7 +390,7 @@ class TestCreateAndStreamOptimistic:
         )
         mock_openai = MagicMock()
         mock_openai.responses.create = AsyncMock(
-            side_effect=[missing, _fake_response_events()],
+            side_effect=[missing, _fake_response_stream()],
         )
         created = MagicMock()
         created.name = expected_name
@@ -397,9 +423,10 @@ class TestCreateAndStreamOptimistic:
     async def test_stream_falls_back_to_completed_output_text(
         self, bing_env: None
     ) -> None:
+        stream = _fake_response_stream(with_deltas=False)
         mock_openai = MagicMock()
         mock_openai.responses.create = AsyncMock(
-            return_value=_fake_response_events(with_deltas=False),
+            return_value=stream,
         )
         mock_client = MagicMock()
 
@@ -422,6 +449,7 @@ class TestCreateAndStreamOptimistic:
         assert len(chunks) == 1
         assert chunks[0][0] == "agent answer text"
         assert chunks[0][1]["type"] == "response.completed"
+        assert stream.closed is True
 
 
 class TestPrivateEndpointHttpClientReuse:
