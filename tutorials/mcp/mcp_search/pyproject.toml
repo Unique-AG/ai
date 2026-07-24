@@ -13,12 +13,12 @@ dependencies = [
     # #2123. The wheel containing it is the first dev build cd-publish-dev
     # publishes once that PR merges to main. Bump to the next stable once
     # released.
-    "unique-mcp>=2026.32.0.dev1",
+    "unique-mcp>=2026.32.0",
     # Match unique-mcp's published floor (unique-toolkit>=2026.32.0.dev2).
-    "unique-toolkit>=2026.32.0.dev2",
+    "unique-toolkit>=2026.32.0",
     # Transitive of unique-toolkit; explicit .devN pin so uv's
     # if-necessary-or-explicit prerelease mode picks it up in ACR builds.
-    "unique-sdk>=2026.32.0.dev2",
+    "unique-sdk>=2026.32.0",
 ]
 
 [tool.uv.sources]
