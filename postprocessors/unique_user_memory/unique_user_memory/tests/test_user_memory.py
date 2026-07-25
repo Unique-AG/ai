@@ -680,45 +680,49 @@ async def test_consolidate_user_memory_invokes_update_end_when_start_cancelled(
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_load_emits_settings_pill() -> None:
+async def test_user_memory_message_logger_load_emits_settings_detail_entry() -> None:
     step_logger = MagicMock()
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
 
     await message_logger.log_loading_start()
-    await message_logger.log_loading_complete(with_pill=True)
+    await message_logger.log_loading_complete(with_settings_entry=True)
 
     assert step_logger.create_or_update_message_log_async.await_count == 2
     start_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
         0
     ].kwargs
     assert start_kwargs["header"] == "Loading context memory"
+    assert start_kwargs["details"] is None
     assert start_kwargs["references"] == []
     complete_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
         1
     ].kwargs
     assert complete_kwargs["status"] == MessageLogStatus.COMPLETED
-    assert complete_kwargs["references"][0].name == "Context memory"
-    assert complete_kwargs["references"][0].source == "context-memory"
-    assert complete_kwargs["references"][0].url == "unique://settings/context-memory"
+    assert complete_kwargs["references"] == []
+    entry = complete_kwargs["details"].data[0]
+    assert entry.type == "UserMemory"
+    assert entry.text == "Context memory"
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_load_skips_pill_when_disabled() -> None:
+async def test_user_memory_message_logger_load_skips_entry_when_disabled() -> None:
     step_logger = MagicMock()
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
 
-    await message_logger.log_loading_complete(with_pill=False)
+    await message_logger.log_loading_complete(with_settings_entry=False)
 
     complete_kwargs = step_logger.create_or_update_message_log_async.await_args.kwargs
+    assert complete_kwargs["details"] is None
     assert complete_kwargs["references"] == []
 
 
 @pytest.mark.asyncio
 async def test_user_memory_message_logger_load_failed_marks_failed_status() -> None:
     """
-    Purpose: log_loading_failed updates the loading Step to FAILED with no pill.
+    Purpose: log_loading_failed updates the loading Step to FAILED with no
+    settings entry.
     Why this matters: Callers must close a RUNNING loading Step when load
     raises so the chat UI does not stay stuck.
     Setup summary: Start then fail the loading step; assert FAILED status.
@@ -735,11 +739,12 @@ async def test_user_memory_message_logger_load_failed_marks_failed_status() -> N
     ].kwargs
     assert failed_kwargs["header"] == "Loading context memory"
     assert failed_kwargs["status"] == MessageLogStatus.FAILED
+    assert failed_kwargs["details"] is None
     assert failed_kwargs["references"] == []
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_update_attaches_review_pill_only_when_requested() -> (
+async def test_user_memory_message_logger_update_attaches_review_entry_only_when_requested() -> (
     None
 ):
     step_logger = MagicMock()
@@ -747,25 +752,26 @@ async def test_user_memory_message_logger_update_attaches_review_pill_only_when_
     message_logger = UserMemoryMessageLogger(step_logger)
 
     await message_logger.log_updating_start()
-    await message_logger.log_updating_complete(with_pill=False)
-    await message_logger.log_updating_complete(with_pill=True)
+    await message_logger.log_updating_complete(with_settings_entry=False)
+    await message_logger.log_updating_complete(with_settings_entry=True)
 
     assert step_logger.create_or_update_message_log_async.await_count == 3
     start_kwargs = step_logger.create_or_update_message_log_async.await_args_list[
         0
     ].kwargs
     assert start_kwargs["header"] == "Updating your memory"
-    assert start_kwargs["references"] == []
-    complete_without_pill = (
+    assert start_kwargs["details"] is None
+    complete_without_entry = (
         step_logger.create_or_update_message_log_async.await_args_list[1].kwargs
     )
-    assert complete_without_pill["references"] == []
-    complete_with_pill = step_logger.create_or_update_message_log_async.await_args_list[
-        2
-    ].kwargs
-    assert complete_with_pill["references"][0].name == "Review your context memory"
-    assert complete_with_pill["references"][0].source == "context-memory"
-    assert complete_with_pill["references"][0].url == "unique://settings/context-memory"
+    assert complete_without_entry["details"] is None
+    complete_with_entry = (
+        step_logger.create_or_update_message_log_async.await_args_list[2].kwargs
+    )
+    assert complete_with_entry["references"] == []
+    entry = complete_with_entry["details"].data[0]
+    assert entry.type == "UserMemory"
+    assert entry.text == "Review your context memory"
 
 
 @pytest.mark.asyncio
@@ -817,7 +823,7 @@ async def test_user_memory_postprocessor_emits_updating_message_logs(
     message_logger.log_updating_start.assert_awaited_once_with()
     assert [
         call.kwargs for call in message_logger.log_updating_complete.await_args_list
-    ] == [{"with_pill": False}, {"with_pill": True}]
+    ] == [{"with_settings_entry": False}, {"with_settings_entry": True}]
 
 
 @pytest.mark.asyncio
@@ -1179,7 +1185,9 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         company_id="company_1",
         logger=logger,
     )
-    message_logger.log_updating_complete.assert_awaited_once_with(with_pill=True)
+    message_logger.log_updating_complete.assert_awaited_once_with(
+        with_settings_entry=True
+    )
     logger.info.assert_any_call(
         "[user-memory] memory updated and uploaded successfully"
     )

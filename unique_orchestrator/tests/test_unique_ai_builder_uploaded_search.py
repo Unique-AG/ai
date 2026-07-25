@@ -180,7 +180,9 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
 
     load_user_memory.assert_awaited_once()
     memory_message_logger.log_loading_start.assert_awaited_once()
-    memory_message_logger.log_loading_complete.assert_awaited_once_with(with_pill=True)
+    memory_message_logger.log_loading_complete.assert_awaited_once_with(
+        with_settings_entry=True
+    )
     assert common_components.user_memory_text == "remembered"
     postprocessor_names = [
         postprocessor.name
@@ -192,15 +194,15 @@ async def test_build_common_registers_user_memory_when_space_allow_user_memory(
 
 
 @pytest.mark.asyncio
-async def test_build_common_load_steps_skip_pill_when_memory_load_fails(
+async def test_build_common_load_steps_skip_settings_entry_when_memory_load_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """
     Purpose: When load_user_memory returns None, complete the loading Step
-    without the context-memory pill.
+    without the context-memory settings entry.
     Why this matters: A soft-failed / missing memory load should not surface a
-    Settings pill as if memory were available.
-    Setup summary: Patch load to return None; assert complete(with_pill=False)
+    Settings entry as if memory were available.
+    Setup summary: Patch load to return None; assert complete(with_settings_entry=False)
     and that failed is not used.
     """
     event, load_user_memory, memory_message_logger = _patch_build_common_user_memory(
@@ -217,7 +219,9 @@ async def test_build_common_load_steps_skip_pill_when_memory_load_fails(
 
     load_user_memory.assert_awaited_once()
     memory_message_logger.log_loading_start.assert_awaited_once()
-    memory_message_logger.log_loading_complete.assert_awaited_once_with(with_pill=False)
+    memory_message_logger.log_loading_complete.assert_awaited_once_with(
+        with_settings_entry=False
+    )
     memory_message_logger.log_loading_failed.assert_not_awaited()
 
 

@@ -217,7 +217,13 @@ class MessageLogUncitedReferences(BaseModel):
 class MessageLogEvent(BaseModel):
     model_config = model_config
     type: Literal[
-        "WebSearch", "InternalSearch", "Elicitation", "Thinking", "ToolCall", "Todo"
+        "WebSearch",
+        "InternalSearch",
+        "Elicitation",
+        "Thinking",
+        "ToolCall",
+        "Todo",
+        "UserMemory",
     ]
     text: str
     step_type: str | None = None

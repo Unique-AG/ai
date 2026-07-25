@@ -1,30 +1,33 @@
 """MessageLog Steps for user-memory load and update."""
 
 from logging import Logger, getLogger
+from typing import Literal
 
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
-from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
-from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.chat.schemas import (
+    MessageLog,
+    MessageLogDetails,
+    MessageLogEvent,
+    MessageLogStatus,
+)
 
 _LOGGER = getLogger(__name__)
 
 _LOADING_HEADER = "Loading context memory"
 _UPDATING_HEADER = "Updating your memory"
-_CONTEXT_MEMORY_PILL = "Context memory"
-_REVIEW_MEMORY_PILL = "Review your context memory"
+_CONTEXT_MEMORY_ENTRY_TEXT = "Context memory"
+_REVIEW_MEMORY_ENTRY_TEXT = "Review your context memory"
 
-# Opens the chat Settings → Context Memory tab (handled by the frontend).
-SETTINGS_CONTEXT_MEMORY_URL = "unique://settings/context-memory"
-CONTEXT_MEMORY_REFERENCE_SOURCE = "context-memory"
+# Typed MessageLog detail entry recognised by the chat frontend, which renders
+# it as a badge that opens Settings → Context Memory. Frontends that don't know
+# the type parse it as "Unknown" and render nothing, so emitting it is always
+# safe regardless of deploy order.
+USER_MEMORY_EVENT_TYPE: Literal["UserMemory"] = "UserMemory"
 
 
-def _memory_settings_reference(*, name: str) -> ContentReference:
-    return ContentReference(
-        name=name,
-        sequence_number=0,
-        source=CONTEXT_MEMORY_REFERENCE_SOURCE,
-        source_id=CONTEXT_MEMORY_REFERENCE_SOURCE,
-        url=SETTINGS_CONTEXT_MEMORY_URL,
+def _memory_settings_details(*, text: str) -> MessageLogDetails:
+    return MessageLogDetails(
+        data=[MessageLogEvent(type=USER_MEMORY_EVENT_TYPE, text=text)]
     )
 
 
@@ -47,22 +50,24 @@ class UserMemoryMessageLogger:
             active_attr="_loading_log",
             header=_LOADING_HEADER,
             status=MessageLogStatus.RUNNING,
-            references=[],
+            details=None,
             action="start loading step",
         )
 
-    async def log_loading_complete(self, *, with_pill: bool = True) -> None:
-        # Attach the pill on the loading step itself (same pattern as update).
-        # A separate MessageLog with empty text is dropped / invisible in the
-        # chat Steps UI, so the link must ride on this COMPLETED entry.
-        references = (
-            [_memory_settings_reference(name=_CONTEXT_MEMORY_PILL)] if with_pill else []
+    async def log_loading_complete(self, *, with_settings_entry: bool = True) -> None:
+        # Attach the settings entry on the loading step itself (same pattern
+        # as update) — a separate MessageLog with empty text is dropped /
+        # invisible in the chat Steps UI.
+        details = (
+            _memory_settings_details(text=_CONTEXT_MEMORY_ENTRY_TEXT)
+            if with_settings_entry
+            else None
         )
         await self._safe_create_or_update(
             active_attr="_loading_log",
             header=_LOADING_HEADER,
             status=MessageLogStatus.COMPLETED,
-            references=references,
+            details=details,
             action="complete loading step",
         )
 
@@ -73,7 +78,7 @@ class UserMemoryMessageLogger:
             active_attr="_loading_log",
             header=_LOADING_HEADER,
             status=MessageLogStatus.FAILED,
-            references=[],
+            details=None,
             action="fail loading step",
         )
 
@@ -82,22 +87,24 @@ class UserMemoryMessageLogger:
             active_attr="_updating_log",
             header=_UPDATING_HEADER,
             status=MessageLogStatus.RUNNING,
-            references=[],
+            details=None,
             action="start updating step",
         )
 
-    async def log_updating_complete(self, *, with_pill: bool = False) -> None:
-        # Review pill only after memory was actually written (caller sets
-        # with_pill=True post-upload). While consolidating / on failed upload
-        # the step completes without a pill.
-        references = (
-            [_memory_settings_reference(name=_REVIEW_MEMORY_PILL)] if with_pill else []
+    async def log_updating_complete(self, *, with_settings_entry: bool = False) -> None:
+        # Review entry only after memory was actually written (caller sets
+        # with_settings_entry=True post-upload). While consolidating / on
+        # failed upload the step completes without it.
+        details = (
+            _memory_settings_details(text=_REVIEW_MEMORY_ENTRY_TEXT)
+            if with_settings_entry
+            else None
         )
         await self._safe_create_or_update(
             active_attr="_updating_log",
             header=_UPDATING_HEADER,
             status=MessageLogStatus.COMPLETED,
-            references=references,
+            details=details,
             action="complete updating step",
         )
 
@@ -107,7 +114,7 @@ class UserMemoryMessageLogger:
         active_attr: str,
         header: str,
         status: MessageLogStatus,
-        references: list[ContentReference],
+        details: MessageLogDetails | None,
         action: str,
     ) -> None:
         try:
@@ -117,7 +124,8 @@ class UserMemoryMessageLogger:
                     active_message_log=active,
                     header=header,
                     status=status,
-                    references=references,
+                    details=details,
+                    references=[],
                 )
             )
             if updated is not None:
