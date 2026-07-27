@@ -139,8 +139,8 @@ def _patch_build_common_user_memory(
 async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory, memory_message_step_logger = _patch_build_common_user_memory(
-        monkeypatch
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
     )
 
     config = UniqueAIConfig()
@@ -167,8 +167,8 @@ async def test_build_common_skips_user_memory_when_space_disallows_user_memory(
 async def test_build_common_registers_user_memory_when_space_allow_user_memory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    event, load_user_memory, memory_message_step_logger = _patch_build_common_user_memory(
-        monkeypatch
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
     )
 
     config = UniqueAIConfig(space={"allowUserMemory": True})
@@ -205,9 +205,11 @@ async def test_build_common_load_steps_skip_settings_entry_when_memory_load_fail
     Setup summary: Patch load to return None; assert complete(with_settings_entry=False)
     and that failed is not used.
     """
-    event, load_user_memory, memory_message_step_logger = _patch_build_common_user_memory(
-        monkeypatch,
-        memory_state=None,
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(
+            monkeypatch,
+            memory_state=None,
+        )
     )
 
     config = UniqueAIConfig(space={"allowUserMemory": True})
@@ -237,8 +239,8 @@ async def test_build_common_closes_loading_step_when_memory_load_raises(
     Setup summary: Patch load to raise; assert failed is awaited, complete is
     not, and UserMemoryPostprocessor is not registered.
     """
-    event, load_user_memory, memory_message_step_logger = _patch_build_common_user_memory(
-        monkeypatch
+    event, load_user_memory, memory_message_step_logger = (
+        _patch_build_common_user_memory(monkeypatch)
     )
     load_user_memory.side_effect = RuntimeError("memory store unavailable")
     logger = MagicMock()
