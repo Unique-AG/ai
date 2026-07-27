@@ -3,8 +3,6 @@ from logging import Logger
 
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
@@ -16,13 +14,9 @@ from unique_user_memory.config import UserMemoryConfig
 from unique_user_memory.user_memory import (
     UserMemoryState,
     consolidate_user_memory,
-    noop_update_callback,
     upload_user_memory,
 )
-
-# Transient marker appended to the assistant message while the (slow) memory
-# rewrite runs; removed again once consolidation finishes.
-_UPDATING_NOTICE = "\n\n---\n\n🧠 _Updating context memory…_"
+from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 
 
 class UserMemoryPostprocessor(Postprocessor):
@@ -36,7 +30,7 @@ class UserMemoryPostprocessor(Postprocessor):
         event: ChatEvent,
         state: UserMemoryState,
         logger: Logger,
-        chat_service: ChatService,
+        message_step_logger: UserMemoryMessageLogger,
     ) -> None:
         super().__init__(name="UserMemoryPostprocessor")
         self._config = config
@@ -49,9 +43,9 @@ class UserMemoryPostprocessor(Postprocessor):
         self._state = state
         self._logger = logger
         self._new_memory: str | None = None
-        self._chat_service: ChatService = chat_service
         self._pending_load_invocation_stats = list(state.load_invocation_stats)
         self._invocation_stats: list[LanguageModelInvocationStats] = []
+        self._message_step_logger = message_step_logger
 
     @property
     def invocation_stats(self) -> list[LanguageModelInvocationStats]:
@@ -86,31 +80,17 @@ class UserMemoryPostprocessor(Postprocessor):
         if not user_id or not company_id:
             return False
 
-        on_update_start: Callable[[], Awaitable[None]] = noop_update_callback
-        on_update_end: Callable[[], Awaitable[None]] = noop_update_callback
-        if self._config.updating_notice_enabled:
-            original_text = loop_response.message.text or ""
-            message_id = loop_response.message.id
-            references = loop_response.message.references
+        async def _on_update_start() -> None:
+            await self._message_step_logger.log_updating_start()
 
-            async def _on_update_start() -> None:
-                await self._set_message_content(
-                    content=original_text + _UPDATING_NOTICE,
-                    message_id=message_id,
-                    references=references,
-                    action="show updating notice",
-                )
+        async def _on_update_end() -> None:
+            # Complete without the review entry; attach it only after upload.
+            await self._message_step_logger.log_updating_complete(
+                with_settings_entry=False
+            )
 
-            async def _on_update_end() -> None:
-                await self._set_message_content(
-                    content=original_text,
-                    message_id=message_id,
-                    references=references,
-                    action="remove updating notice",
-                )
-
-            on_update_start = _on_update_start
-            on_update_end = _on_update_end
+        on_update_start: Callable[[], Awaitable[None]] = _on_update_start
+        on_update_end: Callable[[], Awaitable[None]] = _on_update_end
 
         self._new_memory = await consolidate_user_memory(
             current_memory=self._state.text,
@@ -141,30 +121,9 @@ class UserMemoryPostprocessor(Postprocessor):
             self._logger.warning("[user-memory] memory update was not uploaded")
             return False
 
+        await self._message_step_logger.log_updating_complete(with_settings_entry=True)
         self._logger.info("[user-memory] memory updated and uploaded successfully")
         return True
-
-    async def _set_message_content(
-        self,
-        *,
-        content: str,
-        message_id: str | None,
-        references: list[ContentReference] | None,
-        action: str,
-    ) -> None:
-        try:
-            await self._chat_service.modify_assistant_message_async(
-                content=content,
-                message_id=message_id,
-                references=references,
-            )
-        except Exception as exc:
-            self._logger.warning(
-                "[user-memory] failed to %s: [%s] %s",
-                action,
-                type(exc).__name__,
-                exc,
-            )
 
     def apply_postprocessing_to_response(
         self, loop_response: LanguageModelStreamResponse

@@ -9,7 +9,8 @@ Persistent per-user memory for Unique AI agents.
 The package provides:
 
 - `UserMemoryConfig` - Pydantic configuration for the consolidation model, profile token budget, and memory folder.
-- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget. The `language_model` argument is used to tokenize `memory.md` when capping it, so it must be the same effective model the postprocessor uses for consolidation (see Integration below).
+- `load_user_memory(...)` - resolves the user's private memory folder, downloads `memory.md`, and enforces the configured token budget. The `language_model` argument is used to tokenize `memory.md` when capping it, so it must be the same effective model the postprocessor uses for consolidation (see Integration below). Returns a `UserMemoryState` with the profile text and scope id.
+- `UserMemoryMessageLogger` - emits chat Steps (MessageLogs) for load and update, including typed `UserMemory` detail entries the chat frontend renders as a badge that opens Settings → Context Memory. Frontends that do not know the entry type render nothing, so the entries are safe to emit in any deploy order.
 - `UserMemoryPostprocessor` - runs after the assistant response, consolidates the latest turn into the profile, and uploads the updated `memory.md`.
 
 The memory file is intentionally small and structured. It is rewritten as a full Markdown profile rather than appended to as an event log.
@@ -17,11 +18,13 @@ The memory file is intentionally small and structured. It is rewritten as a full
 ## Lifecycle
 
 1. The orchestrator enables memory when `space.allow_user_memory` is true.
-2. `load_user_memory(...)` resolves the pre-provisioned root folder, ensures a private child folder for the current user, and downloads `/user-memory/<user_id>/memory.md` if it exists.
-3. The loaded memory text is passed into the agent context for the current turn.
-4. `UserMemoryPostprocessor` runs after the assistant response.
-5. The package asks the configured language model to either return `NOOP` or a complete rewritten profile.
-6. If the profile changed, `memory.md` is uploaded back to the user's folder with ingestion skipped and the content hidden from chat.
+2. The orchestrator emits a **Loading context memory** Step, then `load_user_memory(...)` resolves the pre-provisioned root folder, ensures a private child folder for the current user, and downloads `/user-memory/<user_id>/memory.md` if it exists.
+3. When load returns a `UserMemoryState`, that Step is completed with a **Context memory** detail entry (`type: UserMemory`) that the chat frontend renders as a badge opening Settings → Context Memory. A successful `None` return (soft skip) completes the Step without the entry; a raised exception marks the Step failed.
+4. If memory was loaded, its text is passed into the agent context for the current turn.
+5. `UserMemoryPostprocessor` runs after the assistant response.
+6. The package asks the configured language model to either return `NOOP` or a complete rewritten profile.
+7. If a rewrite runs, an **Updating your memory** Step is shown while consolidating (no settings entry yet).
+8. If the profile changed and `memory.md` uploads successfully (ingestion skipped, content hidden from chat), that Step is completed with a **Review your context memory** detail entry (same settings badge). On NOOP or failed upload the Step completes without the entry.
 
 ## Storage Model
 
@@ -95,7 +98,9 @@ Typical orchestration code loads memory before the agent loop and registers the 
 `load_user_memory` and `UserMemoryPostprocessor` must be given the **same** effective language model: the postprocessor consolidates memory with either the orchestrator model or the configured one depending on `use_orchestrator_language_model`, and load-time token capping must use that same model so the loaded baseline is tokenized the way consolidation expects. Resolve the effective model once and pass it to both:
 
 ```python
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_user_memory.user_memory import load_user_memory
+from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 user_memory_config = config.agent.services.user_memory_config
@@ -108,14 +113,36 @@ memory_language_model = (
     else user_memory_config.language_model
 )
 
-user_memory_state = await load_user_memory(
-    event=event,
-    config=user_memory_config,
-    language_model=memory_language_model,
+message_step_logger = MessageStepLogger(chat_service)
+memory_message_step_logger = UserMemoryMessageLogger(
+    message_step_logger,
     logger=logger,
 )
+await memory_message_step_logger.log_loading_start()
+user_memory_state = None
+load_succeeded = False
+try:
+    user_memory_state = await load_user_memory(
+        event=event,
+        config=user_memory_config,
+        language_model=memory_language_model,
+        logger=logger,
+    )
+    load_succeeded = True
+except Exception as exc:
+    logger.warning(
+        "[user-memory] load raised - running without memory: [%s] %s",
+        type(exc).__name__,
+        exc,
+    )
+finally:
+    # Always close the RUNNING step — otherwise the chat Steps UI stays stuck
+    # on "Loading context memory" for that turn when load raises.
+    if not load_succeeded:
+        await memory_message_step_logger.log_loading_failed()
 
-if user_memory_state is not None:
+if load_succeeded and user_memory_state is not None:
+    await memory_message_step_logger.log_loading_complete(with_settings_entry=True)
     user_memory_text = user_memory_state.text
     postprocessor_manager.add_postprocessor(
         UserMemoryPostprocessor(
@@ -124,8 +151,11 @@ if user_memory_state is not None:
             event=event,
             state=user_memory_state,
             logger=logger,
+            message_step_logger=memory_message_step_logger,
         )
     )
+elif load_succeeded:
+    await memory_message_step_logger.log_loading_complete(with_settings_entry=False)
 ```
 
 Note that `UserMemoryPostprocessor` re-derives the effective model internally from `use_orchestrator_language_model`, so passing `memory_language_model` (rather than the raw orchestrator model) keeps its behavior identical while ensuring `load_user_memory` caps with the matching tokenizer.

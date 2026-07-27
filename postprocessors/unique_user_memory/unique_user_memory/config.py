@@ -42,14 +42,6 @@ class UserMemoryConfig(BaseModel):
             "runs."
         ),
     )
-    updating_notice_enabled: bool = Field(
-        default=True,
-        description=(
-            "When true, a transient 'updating context memory' notice is appended to the "
-            "assistant message while the memory rewrite runs, and removed "
-            "again once it completes."
-        ),
-    )
     root_folder: Annotated[str, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default="user-memory",
         min_length=1,

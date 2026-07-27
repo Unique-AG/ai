@@ -70,6 +70,7 @@ from unique_toolkit.experimental.integrations.openai.streaming.event_routing imp
 from unique_toolkit.language_model.infos import LanguageModelInfo, ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 from unique_user_memory.user_memory import load_user_memory
+from unique_user_memory.user_memory_message_log import UserMemoryMessageLogger
 from unique_user_memory.user_memory_postprocessor import UserMemoryPostprocessor
 
 from unique_orchestrator._builders import (
@@ -298,6 +299,7 @@ async def _build_common(
     config: UniqueAIConfig,
 ) -> _CommonComponents:
     chat_service = ChatService(event)
+    message_step_logger = MessageStepLogger(chat_service)
 
     llm_service = LanguageModelService.from_event(event)
 
@@ -393,13 +395,37 @@ async def _build_common(
             if user_memory_config.use_orchestrator_language_model
             else user_memory_config.language_model
         )
-        user_memory_state = await load_user_memory(
-            event=event,
-            config=user_memory_config,
-            language_model=memory_language_model,
+        memory_message_step_logger = UserMemoryMessageLogger(
+            message_step_logger,
             logger=logger,
         )
-        if user_memory_state is not None:
+        await memory_message_step_logger.log_loading_start()
+        user_memory_state = None
+        load_succeeded = False
+        try:
+            user_memory_state = await load_user_memory(
+                event=event,
+                config=user_memory_config,
+                language_model=memory_language_model,
+                logger=logger,
+            )
+            load_succeeded = True
+        except Exception as exc:
+            # Soft-fail like a None return: keep the turn running without
+            # memory, but always close the RUNNING loading Step first.
+            logger.warning(
+                "[user-memory] load raised - running without memory: [%s] %s",
+                type(exc).__name__,
+                exc,
+            )
+        finally:
+            if not load_succeeded:
+                await memory_message_step_logger.log_loading_failed()
+
+        if load_succeeded and user_memory_state is not None:
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=True
+            )
             user_memory_text = user_memory_state.text
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
@@ -408,8 +434,12 @@ async def _build_common(
                     event=event,
                     state=user_memory_state,
                     logger=logger,
-                    chat_service=chat_service,
+                    message_step_logger=memory_message_step_logger,
                 )
+            )
+        elif load_succeeded:
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=False
             )
 
     return _CommonComponents(
@@ -429,7 +459,7 @@ async def _build_common(
         user_memory_text=user_memory_text,
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
-        message_step_logger=MessageStepLogger(chat_service),
+        message_step_logger=message_step_logger,
     )
 
 
