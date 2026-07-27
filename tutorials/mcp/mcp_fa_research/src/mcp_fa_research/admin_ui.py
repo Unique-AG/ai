@@ -532,6 +532,7 @@ function rCal(c,add){head('Calendar',S.calendar.length+' events — click to edi
 function jobRun(j){const lr=j.last_run;if(!lr)return '—';
   if(j.status==='running')return lr.kind==='sdk_regen'?('⏳ '+(lr.done||0)+'/'+(lr.total||'…')+' docs'):'⏳ running…';
   if(lr.ok===false)return '✗ '+esc(lr.error||'failed');
+  if(lr.kind==='control_sweep')return '✓ '+esc(lr.summary_short||'swept')+' · '+(lr.finished||'').slice(11,16);
   if(lr.kind==='sdk_regen')return '✓ '+(lr.files||[]).length+' docs · '+(lr.finished||'').slice(11,16);
   return '✓ simulated · '+(lr.finished||'').slice(11,16);}
 function rAgenda(c){head('Agenda & jobs','agenda read-only — click a JOB to edit its schedule or run it now');
@@ -540,7 +541,7 @@ function rAgenda(c){head('Agenda & jobs','agenda read-only — click a JOB to ed
   '</tbody></table><br><table><thead><tr><th>Job</th><th>Runs at</th><th>Recurrence</th><th>Executor</th><th>Status</th><th>Last run</th></tr></thead><tbody>'+
   S.jobs.jobs.map((j,i)=>`<tr onclick='openJob(${i})'><td><b>${esc(j.label)}</b></td>
   <td class="mut">${esc(j.run_at||'—')}</td><td>${esc(j.recurrence||'once')}</td>
-  <td>${j.executor==='sdk_regen'?'<span class="pill positive">Unique SDK</span>':'<span class="pill info">simulated</span>'}</td>
+  <td>${j.executor==='sdk_regen'?'<span class="pill positive">Unique SDK</span>':j.executor==='control_sweep'?'<span class="pill watch">queue sweep</span>':'<span class="pill info">simulated</span>'}</td>
   <td>${esc(j.status)}</td><td class="mut">${jobRun(j)}</td></tr>`).join('')+'</tbody></table>'+
   '<p class="mut" style="font-size:12px;margin-top:10px">Due jobs execute automatically (checked every 10 s, Zurich time). '+
   '<b>Unique SDK</b> jobs really regenerate the 6 coverage reviews + cards and upload them to this environment\'s '+
@@ -549,10 +550,11 @@ function rAgenda(c){head('Agenda & jobs','agenda read-only — click a JOB to ed
   if(S.jobs.jobs.some(j=>j.status==='running')&&!CUR)setTimeout(()=>{if(TAB==='agenda'&&!CUR)load();},3000);}
 function openJob(i){const j=S.jobs.jobs[i];const lr=j.last_run;
   let extra='<div style="margin:10px 0"><button class="btn primary" onclick="runJob('+i+')">▶ Run now</button> '+
-    '<span class="mut" style="font-size:12px">'+(j.executor==='sdk_regen'?'real — regenerates + uploads via the Unique SDK':'simulated — status transitions only')+'</span></div>';
+    '<span class="mut" style="font-size:12px">'+(j.executor==='sdk_regen'?'real — regenerates + uploads via the Unique SDK':j.executor==='control_sweep'?'real — flags overdue maker/checker items (SLA: urgent 2h · send-by 24h · standard 48h) + cockpit notification':'simulated — status transitions only')+'</span></div>';
   if(lr&&(lr.files||[]).length)extra+='<label>Documents generated (Unique SDK · '+esc((lr.finished||lr.started||'').slice(0,16))+')</label>'+
     '<div style="max-height:180px;overflow:auto;border:1px solid #2a3742;border-radius:8px;padding:8px;font-size:11.5px;line-height:1.7">'+
     lr.files.map(f=>`<div>📄 ${esc(f.path)}</div>`).join('')+'</div>';
+  if(lr&&lr.kind==='control_sweep'&&lr.summary)extra+='<p class="mut" style="font-size:12px">Last sweep: '+esc(lr.summary)+'</p>';
   else if(lr&&lr.error)extra+='<p class="mut" style="color:#e07b7b;font-size:12px">Last run: '+esc(lr.error)+'</p>';
   openDrawer('Edit job — '+j.label,
     field('run_at','Runs at (YYYY-MM-DD HH:MM, Zurich)',j.run_at||'')+

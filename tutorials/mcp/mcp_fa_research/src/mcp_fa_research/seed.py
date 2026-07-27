@@ -280,7 +280,7 @@ JOBS_BY_ENV: dict[str, list[dict]] = {
         {"label": "tone drift monitor", "status": "scheduled",
          "run_at": "2026-07-23 18:00", "recurrence": "daily"},
         {"label": "control-queue sweep — pre-publication", "status": "scheduled",
-         "run_at": "2026-07-24 07:30", "recurrence": "once"},
+         "run_at": "2026-07-24 07:30", "recurrence": "once", "executor": "control_sweep"},
     ],
 }
 JOBS_BY_ENV["bnpp"] = JOBS_BY_ENV["sales"]
@@ -632,6 +632,9 @@ def rebase_state(st: dict, target=None) -> int:
         for jb in st["jobs"]["jobs"]:
             if jb.get("run_at"):
                 jb["run_at"] = _shift(jb["run_at"])
+        for it in st.get("control_queue", []):
+            if it.get("submitted_at"):
+                it["submitted_at"] = _shift(it["submitted_at"])
         st["today"] = target.isoformat()
     return delta
 

@@ -7,6 +7,11 @@ environment and, when a scheduled job's run_at comes due, executes it. Editing a
 job's schedule in the console is therefore LIVE: set run_at a minute ahead and watch.
 
 Executor kinds:
+  control_sweep  REAL (in-memory) — SLA watchdog over the maker/checker queue:
+              flags pending control items past their priority's SLA (URGENT 2h,
+              send-by 24h, standard 48h) by prefixing "⚠ OVERDUE" onto the
+              priority the Control Room canvas displays, and posts the cockpit
+              notification ("N awaiting control, M overdue"). No tokens.
   sdk_regen   REAL — rebuild the six coverage reviews + coverage cards and upload
               them to that env's Knowledge Base via the Unique SDK (same engine as
               the 00:00 nightly). Per-document progress + content ids are written
@@ -57,14 +62,56 @@ def _advance(job: dict) -> None:
         job["status"] = "done"
 
 
+_SLA_HOURS = (("URGENT", 2), ("Send-by", 24))   # priority keyword → hours; else 48
+_OVERDUE = "⚠ OVERDUE · "
+
+
+def _control_sweep(env: str, lr: dict) -> None:
+    st = env_state.STATES[env]
+    now = datetime.now(nightly.ZURICH)
+    pending, overdue = 0, []
+    for it in st.get("control_queue", []):
+        if it.get("status") != "pending":
+            continue
+        pending += 1
+        try:
+            sub = datetime.strptime(it["submitted_at"].replace(_OVERDUE, ""),
+                                    "%Y-%m-%d %H:%M").replace(tzinfo=nightly.ZURICH)
+        except (KeyError, ValueError):
+            continue
+        base_prio = it["priority"].replace(_OVERDUE, "").split(" — pending ")[0]
+        sla = next((h for kw, h in _SLA_HOURS if kw.lower() in base_prio.lower()), 48)
+        age_h = (now - sub).total_seconds() / 3600
+        if age_h > sla:
+            overdue.append(it["id"])
+            it["priority"] = f"{_OVERDUE}{base_prio} — pending {age_h:.0f}h (SLA {sla}h)"
+        else:
+            it["priority"] = base_prio
+    lr["pending"], lr["overdue"] = pending, overdue
+    lr["summary"] = (f"{pending} product(s) awaiting control, {len(overdue)} overdue "
+                     f"({', '.join(overdue) or '—'})")
+    lr["summary_short"] = f"{pending} pending · {len(overdue)} overdue"
+    if pending:
+        st["jobs"]["notification"] = (
+            f"Control sweep: {pending} product(s) awaiting pre-publication control"
+            + (f" — {len(overdue)} OVERDUE, checker action required." if overdue else "."))
+    lr["ok"] = True
+
+
 def _run(env: str, job: dict) -> None:
+    executor = job.get("executor")
+    kind = executor if executor in ("sdk_regen", "control_sweep") else "simulated"
     lr = job["last_run"] = {
         "started": datetime.now(nightly.ZURICH).isoformat(timespec="seconds"),
-        "kind": "sdk_regen" if job.get("executor") == "sdk_regen" else "simulated",
+        "kind": kind,
         "done": 0, "total": 0, "files": [], "ok": None,
     }
     try:
-        if lr["kind"] == "sdk_regen":
+        if lr["kind"] == "control_sweep":
+            _control_sweep(env, lr)
+            lr["finished"] = datetime.now(nightly.ZURICH).isoformat(timespec="seconds")
+            _advance(job)
+        elif lr["kind"] == "sdk_regen":
             if env not in nightly.SDK_CREDS:
                 lr["ok"] = False
                 lr["error"] = (f"no Unique SDK credentials for env {env!r} — "
@@ -102,8 +149,9 @@ def launch(env: str, job: dict) -> dict:
     job["status"] = "running"
     threading.Thread(target=_run, args=(env, job),
                      name=f"fa-job-{env}", daemon=True).start()
+    ex = job.get("executor")
     return {"started": True,
-            "kind": "sdk_regen" if job.get("executor") == "sdk_regen" else "simulated"}
+            "kind": ex if ex in ("sdk_regen", "control_sweep") else "simulated"}
 
 
 def _tick() -> None:

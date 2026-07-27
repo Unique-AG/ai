@@ -289,7 +289,8 @@ def get_jobs() -> str:
             jb["when_label"] = f"started {run_at} · {prog}" if run_at else prog
         else:
             verb = "ran" if jb.get("status") == "done" else "runs"
-            docs = f" · {len(lr['files'])} docs" if lr.get("files") else ""
+            docs = (f" · {len(lr['files'])} docs" if lr.get("files")
+                    else f" · {lr['summary_short']}" if lr.get("summary_short") else "")
             jb["when_label"] = f"{verb} {run_at}{docs} · {rec}" if run_at else rec
     notif = env_state.state()["jobs"].get("notification") or ""
     return json.dumps({"count": len(jobs), "jobs": jobs,
