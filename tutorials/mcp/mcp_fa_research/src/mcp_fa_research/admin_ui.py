@@ -220,17 +220,7 @@ def register(mcp, get_state, reset_state) -> None:
         except ValueError:
             return JSONResponse({"error": f"bad date {target_s!r} — use YYYY-MM-DD"},
                                 status_code=400)
-        anchor = date.fromisoformat(st.get("today", seed.STORY_TODAY))
-        delta = (target - anchor).days
-        if delta:
-            for ev in st["calendar"]:
-                ev["date"] = _shift_date(ev["date"], delta)
-            for em in st["emails"]:
-                em["ts"] = _shift_date(em["ts"], delta)
-            for jb in st["jobs"]["jobs"]:
-                if jb.get("run_at"):
-                    jb["run_at"] = _shift_date(jb["run_at"], delta)
-            st["today"] = target.isoformat()
+        delta = seed.rebase_state(st, target)
         return JSONResponse({"rebased": True, "today": st["today"],
                              "shifted_days": delta,
                              "note": "calendar dates, email timestamps and job run_at shifted; "
@@ -562,7 +552,7 @@ function openJob(i){const j=S.jobs.jobs[i];const lr=j.last_run;
     '<span class="mut" style="font-size:12px">'+(j.executor==='sdk_regen'?'real — regenerates + uploads via the Unique SDK':'simulated — status transitions only')+'</span></div>';
   if(lr&&(lr.files||[]).length)extra+='<label>Documents generated (Unique SDK · '+esc((lr.finished||lr.started||'').slice(0,16))+')</label>'+
     '<div style="max-height:180px;overflow:auto;border:1px solid #2a3742;border-radius:8px;padding:8px;font-size:11.5px;line-height:1.7">'+
-    lr.files.map(f=>`<div>📄 ${esc(f.path)} <span class="mut">${esc(f.content_id)}</span></div>`).join('')+'</div>';
+    lr.files.map(f=>`<div>📄 ${esc(f.path)}</div>`).join('')+'</div>';
   else if(lr&&lr.error)extra+='<p class="mut" style="color:#e07b7b;font-size:12px">Last run: '+esc(lr.error)+'</p>';
   openDrawer('Edit job — '+j.label,
     field('run_at','Runs at (YYYY-MM-DD HH:MM, Zurich)',j.run_at||'')+

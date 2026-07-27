@@ -20,6 +20,8 @@ from __future__ import annotations
 import contextvars
 import re
 
+import os
+
 import seed
 
 DEFAULT_ENV = "qa"
@@ -60,25 +62,35 @@ def current_env() -> str:
     return env or DEFAULT_ENV
 
 
+def _fresh(env: str) -> dict:
+    """A new baseline state, auto-rebased to today (Zurich) unless FA_AUTO_REBASE=0 —
+    a restart or reset then never leaves past-dated scheduled jobs / stale story
+    dates behind (the ticker would fire them all at boot otherwise)."""
+    st = seed.baseline(env)
+    if (os.getenv("FA_AUTO_REBASE") or "1").strip() != "0":
+        seed.rebase_state(st)
+    return st
+
+
 def state() -> dict:
     """The ACTIVE environment's mutable state, materialized on first touch."""
     env = current_env()
     st = STATES.get(env)
     if st is None:
-        st = STATES[env] = seed.baseline()
+        st = STATES[env] = _fresh(env)
     return st
 
 
 def reset() -> dict:
     env = current_env()
-    STATES[env] = seed.baseline()
+    STATES[env] = _fresh(env)
     return STATES[env]
 
 
 def materialize_known() -> None:
     """Pre-create the known environments' states (startup)."""
     for e in KNOWN_ENVS:
-        STATES.setdefault(e, seed.baseline())
+        STATES.setdefault(e, _fresh(e))
 
 
 def envs() -> list[str]:

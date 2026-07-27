@@ -255,6 +255,36 @@ JOBS_SEED: list[dict] = [
 ]
 NOTIFICATION = "LVMH reaction pack ready — model, note, buy-side email drafted."
 
+# Per-environment job sets — each env tells its own overnight story. The desk-brief
+# job (executor sdk_regen) is the REAL one everywhere; the rest are storyline
+# (simulated) and differ per env: QA = build/test set, UAT = rehearsal set,
+# sales/bnpp (PROD) = the richer client-facing set. Envs not listed use JOBS_SEED.
+JOBS_BY_ENV: dict[str, list[dict]] = {
+    "uat": [
+        {"label": "overnight desk brief (6 names)", "status": "done",
+         "run_at": "2026-07-23 07:00", "recurrence": "daily", "executor": "sdk_regen"},
+        {"label": "first-take run — LVMH", "status": "running",
+         "run_at": "2026-07-23 08:12", "recurrence": "once"},
+        {"label": "pre-release review refresh — Kering + Richemont", "status": "scheduled",
+         "run_at": "2026-07-23 17:30", "recurrence": "once"},
+        {"label": "roadshow pack build — London investor day", "status": "scheduled",
+         "run_at": "2026-07-24 06:30", "recurrence": "once"},
+    ],
+    "sales": [
+        {"label": "overnight desk brief (6 names)", "status": "done",
+         "run_at": "2026-07-23 07:00", "recurrence": "daily", "executor": "sdk_regen"},
+        {"label": "first-take run — LVMH", "status": "running",
+         "run_at": "2026-07-23 08:12", "recurrence": "once"},
+        {"label": "buy-side scenario pack — Fund B", "status": "scheduled",
+         "run_at": "2026-07-23 16:00", "recurrence": "once"},
+        {"label": "tone drift monitor", "status": "scheduled",
+         "run_at": "2026-07-23 18:00", "recurrence": "daily"},
+        {"label": "control-queue sweep — pre-publication", "status": "scheduled",
+         "run_at": "2026-07-24 07:30", "recurrence": "once"},
+    ],
+}
+JOBS_BY_ENV["bnpp"] = JOBS_BY_ENV["sales"]
+
 # ---------------------------------------------------------------------------
 # Fake mailbox + calendar (the demo-data console lets sales edit these; the
 # agent reads them via get_emails / get_calendar). "Today" = 23 July 2026.
@@ -576,17 +606,49 @@ def _brief_item(key: str) -> dict:
     return ov
 
 
-def baseline() -> dict:
+def rebase_state(st: dict, target=None) -> int:
+    """Shift every dated field so the storyline's "today" becomes ``target``
+    (default: today in Europe/Zurich). Deltas are preserved. Single source for
+    the console rebase, the nightly, and state materialization (auto-rebase on
+    boot/reset so past-dated SCHEDULED jobs don't mass-fire after a restart)."""
+    from datetime import date as _date, datetime as _dt, timedelta as _td
+    from zoneinfo import ZoneInfo as _zi
+
+    if target is None:
+        target = _dt.now(_zi("Europe/Zurich")).date()
+    anchor = _date.fromisoformat(st.get("today", STORY_TODAY))
+    delta = (target - anchor).days
+    if delta:
+        def _shift(v: str) -> str:
+            try:
+                d = _date.fromisoformat(v[:10])
+            except ValueError:
+                return v
+            return (d + _td(days=delta)).isoformat() + v[10:]
+        for ev in st["calendar"]:
+            ev["date"] = _shift(ev["date"])
+        for em in st["emails"]:
+            em["ts"] = _shift(em["ts"])
+        for jb in st["jobs"]["jobs"]:
+            if jb.get("run_at"):
+                jb["run_at"] = _shift(jb["run_at"])
+        st["today"] = target.isoformat()
+    return delta
+
+
+def baseline(env: str = "") -> dict:
     """A fresh copy of the MUTABLE demo state — everything the analyst (or a sales
     person via the /admin demo-data console) can touch. The server holds this and
-    Reset_Demo_Data / the console's Reset restore it to this labeled snapshot."""
+    Reset_Demo_Data / the console's Reset restore it to this labeled snapshot.
+    ``env`` selects env-specific pieces (currently the job set, JOBS_BY_ENV)."""
     return {
         "generated_at": "07:00 CET",
         "snapshot_label": SNAPSHOT_LABEL,
         "today": STORY_TODAY,
         "brief": [_brief_item(k) for k in OVERNIGHT_ORDER],
         "inbox": [{**copy.deepcopy(d), "reviewed": False} for d in ACTION_INBOX],
-        "jobs": {"jobs": copy.deepcopy(JOBS_SEED), "notification": NOTIFICATION},
+        "jobs": {"jobs": copy.deepcopy(JOBS_BY_ENV.get(env, JOBS_SEED)),
+                 "notification": NOTIFICATION},
         "coverage": copy.deepcopy(COVERAGE),
         "emails": copy.deepcopy(EMAILS_SEED),
         "calendar": copy.deepcopy(CALENDAR_SEED),

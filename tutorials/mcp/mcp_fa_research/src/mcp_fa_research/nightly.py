@@ -81,28 +81,11 @@ def _scope_for(env: str, folder_path: str) -> str:
 
 
 def _rebase_env_state(env: str) -> int:
-    """Shift the env's live state so story-today = today (same logic as the console)."""
+    """Shift the env's live state so story-today = today (shared seed helper)."""
     import env_state
 
-    st = env_state.STATES.setdefault(env, seed.baseline())
-    anchor = date.fromisoformat(st.get("today", seed.STORY_TODAY))
-    delta = (date.today() - anchor).days
-    if delta:
-        def shift(s: str) -> str:
-            try:
-                d = date.fromisoformat(s[:10])
-            except ValueError:
-                return s
-            return (d + timedelta(days=delta)).isoformat() + s[10:]
-        for ev in st["calendar"]:
-            ev["date"] = shift(ev["date"])
-        for em in st["emails"]:
-            em["ts"] = shift(em["ts"])
-        for jb in st["jobs"]["jobs"]:
-            if jb.get("run_at"):
-                jb["run_at"] = shift(jb["run_at"])
-        st["today"] = date.today().isoformat()
-    return delta
+    st = env_state.STATES.setdefault(env, seed.baseline(env))
+    return seed.rebase_state(st)
 
 
 def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
