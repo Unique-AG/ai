@@ -396,7 +396,7 @@ textarea{min-height:90px;resize:vertical}
   <select id="envsel" class="btn" style="min-width:90px" onchange="switchEnv(this.value)"></select>
   <div><h1>FA Research — Demo Data Console</h1>
   <div class="sub">Exane BNPP CIB sell-side demo · edits feed the cockpit, dashboards and the agent instantly</div></div>
-  <div class="right"><span class="snap">Snapshot: <b id="snap"></b><br>Story day: <b id="today"></b><br>Connector: <b id="mcpurl"></b></span>
+  <div class="right"><span class="snap">Snapshot: <b id="snap"></b><br>Story day: <b id="today"></b><br>Connector: <b id="mcpurl"></b><br>Nightly: <b id="nightly"></b></span>
   <button class="btn" onclick="doRebase()" title="Shift all dates so the warning day becomes today — deltas preserved">⇥ Rebase to today</button>
   <button class="btn danger" onclick="doReset()">↺ Reset demo data</button></div>
 </header>
@@ -424,6 +424,11 @@ async function load(){S=await (await fetch('admin/api/state')).json();
   document.getElementById('snap').textContent=S.snapshot_label;
   document.getElementById('today').textContent=S.today+(S.today===S.baseline_today?' (baseline)':' (rebased)');
   document.getElementById('mcpurl').textContent=location.origin+'/'+S.environment+'/mcp';
+  fetch('admin/api/nightly').then(r=>r.json()).then(n=>{
+    const rg=(n.regen||{})[S.environment],vf=(n.verify||{})[S.environment];
+    const f=x=>x?((x.ok?'✓ ':'✗ ')+(x.finished||'').slice(5,16)):'—';
+    document.getElementById('nightly').textContent='regen '+f(rg)+' · check '+f(vf);
+    document.getElementById('nightly').title=n.scheduler+' · next: '+(n.next||'');}).catch(()=>{});
   render();}
 function switchEnv(v){if(v==='__new__'){const n=prompt('New environment slug (a-z, 0-9, -):');
     if(!n||!/^[a-z0-9][a-z0-9_-]{0,23}$/.test(n)){load();return;}v=n;}

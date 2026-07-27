@@ -664,8 +664,31 @@ async def favicon(request: Request):
 
 
 import admin_ui  # noqa: E402
+import nightly  # noqa: E402
 
 admin_ui.register(mcp, _get_state, _reset_state)
+
+
+@mcp.custom_route("/admin/api/nightly", methods=["GET"])
+async def nightly_status(request: Request):
+    return JSONResponse(nightly.NIGHTLY_STATUS)
+
+
+@mcp.custom_route("/admin/api/nightly/run", methods=["POST"])
+async def nightly_run(request: Request):
+    body = await request.json()
+    env = body.get("env") or env_state.current_env()
+    job = body.get("job", "regen")
+    if env not in nightly.SDK_CREDS:
+        return JSONResponse({"error": f"no SDK creds for env {env!r}"}, status_code=400)
+    import anyio
+
+    fn = nightly.run_regen if job == "regen" else nightly.run_verify
+    result = await anyio.to_thread.run_sync(fn, env)
+    return JSONResponse(result)
+
+
+nightly.start()
 
 
 def main():
