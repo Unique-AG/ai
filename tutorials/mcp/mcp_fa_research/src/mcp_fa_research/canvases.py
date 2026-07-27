@@ -82,6 +82,8 @@ CSS = """
   .quote .state{color:var(--mut);font-size:12.5px;}
   .blkt{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);
         font-weight:700;margin:2px 2px 6px;}
+  .qwrap{padding:12px 16px 10px;margin-bottom:14px;}
+  .qwrap .quote{border:none;padding:8px 0 0;margin-bottom:0;background:none;}
   .qc{color:var(--ok);font-weight:600;} .qc[data-chg^="-"],.qc[data-chg^="−"]{color:var(--red);}
   .qsrc{color:var(--mut);font-size:10.5px;margin-left:auto;text-align:right;}
   .prow{display:flex;align-items:center;gap:10px;margin:6px 0;}
@@ -221,7 +223,7 @@ def _fundamentals(tk: str) -> str:
              f'<table class="est fin"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
              f'<p class="mut" style="margin:10px 0 0;font-size:11px;font-style:italic">{e(kf["source"])}</p></div>')
     figs = "".join(_chart_fig(i + 1, s) for i, s in enumerate(fin["charts"]))
-    return table + f'<div class="blkt">Exane figures · FY2023-28e · actuals vs estimates (synthetic)</div><div class="figgrid">{figs}</div>'
+    return table + f'<div class="card"><h2>Exane figures <span class="mut">· FY2023-28e · actuals 'f'vs estimates (synthetic)</span></h2><div class="figgrid">{figs}</div></div>'
 
 
 _PRODUCTS = [  # (key in NOTE_IDS, icon, label)
@@ -366,7 +368,8 @@ def build_review(tk: str, names: list[tuple]) -> str:
     # (server-side Yahoo fetch, display-ready, timestamped "as of HH:MM Zurich")
     qargs = _json.dumps({"ticker": tk})
     quote = (
-        '<div class="blkt">Live quote · Yahoo Finance via FA Research MCP · auto-refresh 5 min</div>'
+        '<div class="card qwrap"><h2>Live quote <span class="mut">· Yahoo Finance '
+        'via FA Research MCP · 5-min refresh</span></h2>'
         '<div class="quote" data-unique-list="q" '
         'data-unique-source-server="Demo - Fundamental Analyst" '
         'data-unique-source-tool="get_live_quotes" '
@@ -382,7 +385,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
         '<span class="state" data-unique-state="loading"><span class="spin"></span> live quote…</span>'
         '<span class="state" data-unique-state="error">live quote unavailable — check the '
         'Demo - Fundamental Analyst connector</span>'
-        '</div>'
+        '</div></div>'
     )
 
     # estimates table
@@ -480,7 +483,6 @@ def build_review(tk: str, names: list[tuple]) -> str:
      overnight run (FA Research MCP). SYNTHETIC — DEMO USE ONLY. -->
 <style>{CSS}</style>
 <div class="rv">
-  <div class="blkt">Navigation · coverage universe</div>
   {_switch(tk, names)}
   <div class="hdr">
     <div><h1>{e(c['name'])} <span class="mut">· {tk}</span><span class="live-tag">Live</span></h1>
@@ -488,7 +490,6 @@ def build_review(tk: str, names: list[tuple]) -> str:
     <span class="rate {e(c['rating'])}">{e(c['rating'])}</span>
   </div>
   {quote}
-  <div class="blkt">Snapshot · house view vs market</div>
   <div class="tiles">{tiles}</div>
   {ov_html}
   <div class="card"><h2>Investment thesis</h2><p style="margin:0;color:var(--ink2)">{e(d['thesis'])}</p></div>
