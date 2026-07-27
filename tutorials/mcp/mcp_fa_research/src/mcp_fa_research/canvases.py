@@ -80,6 +80,16 @@ CSS = """
          border-radius:12px;padding:11px 16px;margin-bottom:14px;font-variant-numeric:tabular-nums;}
   .quote .qt{font-weight:700;} .quote .qp{font-weight:700;} .quote .up{color:var(--ok);} .quote .dn{color:var(--red);}
   .quote .state{color:var(--mut);font-size:12.5px;}
+  .blkt{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);
+        font-weight:700;margin:2px 2px 6px;}
+  .qc{color:var(--ok);font-weight:600;} .qc[data-chg^="-"],.qc[data-chg^="−"]{color:var(--red);}
+  .qsrc{color:var(--mut);font-size:10.5px;margin-left:auto;text-align:right;}
+  .prow{display:flex;align-items:center;gap:10px;margin:6px 0;}
+  .prow .pcb{width:15px;height:15px;accent-color:#0E7C7B;flex-shrink:0;}
+  .ai-input{flex:1;min-width:220px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+            font:inherit;font-size:12px;color:var(--ink);background:var(--paper);}
+  .statbtn{border:none;background:none;color:inherit;font:inherit;text-decoration:underline dotted;
+           cursor:pointer;padding:0;}
   .spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--mint);border-radius:50%;
         display:inline-block;animation:rvspin .8s linear infinite;vertical-align:middle;}
   @keyframes rvspin{to{transform:rotate(360deg);}}
@@ -211,7 +221,7 @@ def _fundamentals(tk: str) -> str:
              f'<table class="est fin"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
              f'<p class="mut" style="margin:10px 0 0;font-size:11px;font-style:italic">{e(kf["source"])}</p></div>')
     figs = "".join(_chart_fig(i + 1, s) for i, s in enumerate(fin["charts"]))
-    return table + f'<div class="figgrid">{figs}</div>'
+    return table + f'<div class="blkt">Exane figures · FY2023-28e · actuals vs estimates (synthetic)</div><div class="figgrid">{figs}</div>'
 
 
 _PRODUCTS = [  # (key in NOTE_IDS, icon, label)
@@ -220,38 +230,93 @@ _PRODUCTS = [  # (key in NOTE_IDS, icon, label)
     ("postview", "📄", "Post-release review (PDF)"),
     ("scenarios", "📄", "Scenario analysis (PDF)"),
     ("deck", "📊", "Company deck (PPTX)"),
+    ("model", "📈", "Sell-side model (XLSX)"),
 ]
+
+# Inline script: rewrites the action buttons' data-unique-payload from the ticked
+# checkboxes + the free-text instruction on EVERY change. The bridge reads the
+# attribute at click time (verified in the monorepo bridge implementation), and
+# canvas <script> runs inside the sandboxed iframe — no bridge changes needed.
+_PRODUCTS_SCRIPT = """
+<script>
+(function(){
+  var card = document.getElementById('prodcard');
+  if (!card) return;
+  var NAME = card.getAttribute('data-name'), TK = card.getAttribute('data-tk');
+  function sel(){
+    var docs = [];
+    card.querySelectorAll('.pcb:checked').forEach(function(cb){ docs.push(cb.getAttribute('data-doc')); });
+    return docs;
+  }
+  function set(id, prompt){
+    var el = document.getElementById(id);
+    if (el) el.setAttribute('data-unique-payload', JSON.stringify({prompt: prompt}));
+  }
+  function sync(){
+    var docs = sel(), n = docs.length, list = docs.join('; ');
+    var extraEl = card.querySelector('.ai-input');
+    var instr = extraEl ? extraEl.value.trim() : '';
+    var extra = instr ? ' Additional instructions: "' + instr + '".' : '';
+    var scope = n ? 'these ' + n + ' selected research product(s): ' + list
+                  : 'ALL research products (none ticked - treat as all)';
+    set('regen-sel', 'Regenerate ' + scope + ' for ' + NAME + ' (' + TK + '). Rebuild note '
+      + 'products with the exane-desknote skill, decks with the exane-roadshow-deck skill, '
+      + 'and the Excel model with the exane-financial-model skill.' + extra);
+    set('submit-sel', 'Submit ' + scope + ' for ' + NAME + ' (' + TK + ') for pre-publication '
+      + 'control: one submit_for_control call per product (kind: note for PDFs and the model, '
+      + 'pack for the scenario analysis, deck for PPTX). Ask me for the priority first '
+      + '(one question), then confirm the queue item ids.' + extra);
+    set('ai-sel', instr
+      ? 'Apply this instruction to ' + scope + ' for ' + NAME + ' (' + TK + '): "' + instr
+        + '". Use the matching skills (exane-desknote / exane-roadshow-deck / '
+        + 'exane-financial-model) and show me exactly what changed.'
+      : 'I want to edit the ' + NAME + ' (' + TK + ') research products with AI but have not '
+        + 'typed an instruction yet - ask me what to change on: ' + (list || 'the product set') + '.');
+  }
+  card.addEventListener('change', sync);
+  card.addEventListener('input', sync);
+  sync();
+})();
+</script>"""
 
 
 def _products(tk: str, name: str) -> str:
-    """'Ready to review' card — the nightly pre-generated research products, opened
-    in-panel via openDocument (baked contentIds from note_content_ids.qa.json)."""
+    """'Ready to review' card — pre-generated products with per-document CHECKBOX
+    selection: regenerate / submit-for-control act on the ticked set, and a free-text
+    'Edit with AI' instruction is woven into the prompts (payloads rewritten live by
+    _PRODUCTS_SCRIPT)."""
     ids = NOTE_IDS.get(tk, {})
-    btns = []
+    rows = []
     for key, icon, label in _PRODUCTS:
         cid = ids.get(key)
-        if cid:
-            btns.append(f'<button class="btn" data-unique-action="openDocument" '
-                        f"data-unique-payload='{{\"contentId\":\"{e(cid)}\"}}'>"
-                        f'{icon} {e(label)}</button>')
-    if not btns:
+        if not cid:
+            continue
+        payload = _json.dumps({"contentId": cid})
+        rows.append(
+            '<div class="prow">'
+            f'<input type="checkbox" class="pcb" data-doc="{e(label)}" checked>'
+            '<button class="btn" data-unique-action="openDocument" '
+            "data-unique-payload='" + payload + "'>"
+            f'{icon} {e(label)}</button></div>')
+    if not rows:
         return ""
-    regen = (f'<button class="btn" data-unique-action="sendPrompt" '
-             f"data-unique-payload='{{\"prompt\":\"Regenerate the research products for "
-             f"{e(name)} ({e(tk)}): rebuild the note products with the exane-desknote skill "
-             f"and the investor deck with the exane-roadshow-deck skill.\"}}'>"
-             f'↻ Regenerate via agent</button>')
-    submit = (f'<button class="btn" data-unique-action="sendPrompt" '
-              f"data-unique-payload='{{\"prompt\":\"Submit the latest {e(name)} ({e(tk)}) "
-              f"research product for pre-publication control: ask me which product and "
-              f"priority (one question), then call submit_for_control and confirm the "
-              f"queue item id.\"}}'>⇪ Submit for control</button>")
-    return (f'<div class="card"><h2>Research products <span class="mut">· pre-generated '
-            f'overnight · ready to review</span></h2>'
-            f'<div class="acts">{"".join(btns)}{regen}{submit}</div>'
-            f'<p class="mut" style="margin:10px 0 0;font-size:11px">Exane house format · '
-            f'SYNTHETIC data · drafts for the analyst — route through pre-publication '
-            f'control before any distribution.</p></div>')
+    controls = (
+        '<div class="prow" style="margin-top:10px;flex-wrap:wrap;gap:8px">'
+        '<input type="text" class="ai-input" placeholder="Edit with AI — e.g. refresh with '
+        'the post-warning numbers, exec summary in French">'
+        '<button class="btn primary" id="ai-sel" data-unique-action="sendPrompt" '
+        'data-unique-payload="{}">✨ Edit with AI</button>'
+        '<button class="btn" id="regen-sel" data-unique-action="sendPrompt" '
+        'data-unique-payload="{}">↻ Regenerate selected</button>'
+        '<button class="btn" id="submit-sel" data-unique-action="sendPrompt" '
+        'data-unique-payload="{}">⇪ Submit selected for control</button></div>')
+    return (f'<div class="card" id="prodcard" data-tk="{e(tk)}" data-name="{e(name)}">'
+            '<h2>Research products <span class="mut">· pre-generated overnight · tick the '
+            'documents, then regenerate, submit for control or edit with AI</span></h2>'
+            + "".join(rows) + controls +
+            '<p class="mut" style="margin:10px 0 0;font-size:11px">Exane house format · '
+            'SYNTHETIC data · drafts for the analyst — route through pre-publication '
+            'control before any distribution.</p></div>' + _PRODUCTS_SCRIPT)
 
 
 def build_review(tk: str, names: list[tuple]) -> str:
@@ -272,6 +337,17 @@ def build_review(tk: str, names: list[tuple]) -> str:
         _tile("Next catalyst", e(c["next_catalyst"])),
     ])
 
+
+    # clickable status — coherence affordance: the pill shows its backing items
+    status_prompt = ('What is behind the status "' + c["status"] + '" for ' + c["name"] +
+                     ' (' + tk + ')? Show the backing items — note drafts, control-queue '
+                     'entries, open reviews — from get_dossier and get_control_queue, '
+                     'with what is still pending.')
+    status_btn = ('<button class="statbtn" title="Show the items behind this status" '
+                  "data-unique-action=\"sendPrompt\" data-unique-payload='" +
+                  _json.dumps({"prompt": status_prompt}).replace("'", "&#39;") +
+                  "'>" + e(c["status"]) + '</button>')
+
     # overnight banner
     ov_html = ""
     if ov:
@@ -286,18 +362,26 @@ def build_review(tk: str, names: list[tuple]) -> str:
                    f'<div class="h">{e(ov["headline"])}</div>'
                    f'<div class="imp">{e(ov["valuation_impact"])}</div>{act}</div>')
 
-    # live quote (yahoo-finance)
+    # live quote — SINGLE source everywhere: the FA MCP's get_live_quotes
+    # (server-side Yahoo fetch, display-ready, timestamped "as of HH:MM Zurich")
+    qargs = _json.dumps({"ticker": tk})
     quote = (
-        f'<div class="quote" data-unique-list="q" data-unique-source-server="yahoo-finance" '
-        f'data-unique-source-tool="get_quote" data-unique-source-args=\'{{"symbols":["{e(c["yahoo"])}"]}}\'>'
-        '<span class="mut" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Live</span>'
+        '<div class="blkt">Live quote · Yahoo Finance via FA Research MCP · auto-refresh 5 min</div>'
+        '<div class="quote" data-unique-list="q" '
+        'data-unique-source-server="Demo - Fundamental Analyst" '
+        'data-unique-source-tool="get_live_quotes" '
+        "data-unique-source-args='" + qargs + "' "
+        'data-unique-source-path="rows" data-unique-source-poll="300000">'
         '<template data-unique-item>'
-        '<span class="qt" data-unique-field="shortName"></span>'
-        '<span class="qp" data-unique-field="regularMarketPrice"></span>'
-        '<span data-unique-field="regularMarketChangePercent"></span><span>%</span>'
+        '<span class="qt" data-unique-field="name"></span>'
+        '<span class="qp" data-unique-field="price_label"></span>'
+        '<span class="qc" data-unique-attr-data-chg="chg_label" data-unique-field="chg_label"></span>'
+        '<span class="qc" data-unique-attr-data-chg="chg_label">%</span>'
+        '<span class="qsrc" data-unique-field="source"></span>'
         '</template>'
         '<span class="state" data-unique-state="loading"><span class="spin"></span> live quote…</span>'
-        '<span class="state" data-unique-state="error">live quote unavailable — check the yahoo-finance connector</span>'
+        '<span class="state" data-unique-state="error">live quote unavailable — check the '
+        'Demo - Fundamental Analyst connector</span>'
         '</div>'
     )
 
@@ -396,13 +480,15 @@ def build_review(tk: str, names: list[tuple]) -> str:
      overnight run (FA Research MCP). SYNTHETIC — DEMO USE ONLY. -->
 <style>{CSS}</style>
 <div class="rv">
+  <div class="blkt">Navigation · coverage universe</div>
   {_switch(tk, names)}
   <div class="hdr">
     <div><h1>{e(c['name'])} <span class="mut">· {tk}</span><span class="live-tag">Live</span></h1>
-      <div class="sub">{e(c['sector'])} · {e(c['status'])}</div></div>
+      <div class="sub">{e(c['sector'])} · {status_btn}</div></div>
     <span class="rate {e(c['rating'])}">{e(c['rating'])}</span>
   </div>
   {quote}
+  <div class="blkt">Snapshot · house view vs market</div>
   <div class="tiles">{tiles}</div>
   {ov_html}
   <div class="card"><h2>Investment thesis</h2><p style="margin:0;color:var(--ink2)">{e(d['thesis'])}</p></div>
@@ -415,7 +501,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
   <div class="card"><h2>Note history</h2><ul class="log">{notes}</ul></div>
   <div class="card"><h2>Actions <span class="mut">· drafts for your review, nothing sent</span></h2>
     <div class="acts">{actions}</div></div>
-  <div class="foot">SYNTHETIC — DEMO USE ONLY · coverage as of the 07:00 overnight run · live quote via yahoo-finance</div>
+  <div class="foot">SYNTHETIC — DEMO USE ONLY · coverage as of the 07:00 overnight run · live quotes via FA Research MCP (Yahoo Finance, timestamped)</div>
 </div>
 """
 

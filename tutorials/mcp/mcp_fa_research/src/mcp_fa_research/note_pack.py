@@ -165,11 +165,11 @@ _MC_FP: dict = {
                      ["Capex", "(4,880)", "(5,150)", "(5,430)", "(5,730)", "(6,010)", "(6,270)", "(6,530)", ""],
                      ["Change in WCR", "(690)", "(740)", "(790)", "(830)", "(860)", "(880)", "(900)", ""],
                      ["Free Cash Flow", "10,050", "11,180", "12,290", "13,270", "14,190", "15,000", "15,720", "293,610"],
-                     ["Present Value FCF", "9,660", "9,950", "10,120", "10,110", "10,010", "9,790", "9,500", "164,730"]],
+                     ["Present Value FCF", "9,660", "9,950", "10,120", "10,110", "10,010", "9,790", "9,500", "204,730"]],
         },
-        "summary_rows": [["Phase I (2026-32e)", "69,140", "29%"],
-                         ["Terminal value", "164,730", "71%"],
-                         ["Enterprise value", "233,870", ""],
+        "summary_rows": [["Phase I (2026-32e)", "129,140", "39%"],
+                         ["Terminal value", "204,730", "61%"],
+                         ["Enterprise value", "333,870", ""],
                          ["-/- Net financial debt (YE25)", "(11,410)", ""],
                          ["-/- Net pension & lease liability", "(15,890)", ""],
                          ["-/- Minority interests", "(1,540)", ""],
@@ -243,7 +243,7 @@ _MC_FP: dict = {
         "sales_by_geo": [["Asia ex-Japan", "30%"], ["United States", "25%"], ["Europe ex-France", "16%"],
                          ["France", "8%"], ["Japan", "7%"], ["Other", "14%"]],
         "calendar": [["14 Oct. 26", "LVMH: Q3 2026 Revenue (17:45 CET)"],
-                     ["28 Jan. 27", "LVMH: FY 2026 Results (17:45 CET)"],
+                     ["28 Jan. 27", "LVMH: H1 FY26 results (17:45 CET)"],
                      ["15 Apr. 27", "LVMH: Q1 2027 Revenue (17:45 CET)"],
                      ["16 Apr. 27", "AGM"]],
     },
@@ -274,7 +274,7 @@ _MC_FP: dict = {
                       ["Net Debt/EBITDA, adj. (x)", "0.4", "0.4", "0.3", "0.5", "0.4", "0.2", "0.1"],
                       ["ROCE (%)", "17.9", "18.4", "15.6", "14.2", "14.8", "15.9", "17.0"]]},
         ],
-        "source": "Source: Company data, BNP Paribas Exane (synthetic estimates). Latest model update: 22 Jul. 26",
+        "source": "Source: Company data, BNP Paribas Exane (synthetic estimates). Latest model update: 23 Jul. 26",
     },
     # -- "our investment thesis in six charts" — data for optional chart render
     "six_charts": [
@@ -474,7 +474,7 @@ def _gen_highlights_mc() -> dict:
         "footnote": "(a) Restated for capital gains/losses, exceptional restructuring, "
                     "capitalized R&D; EBITA adjusted for impairments and amortisation of "
                     "intangibles from M&A. All figures SYNTHETIC — demo. "
-                    "Latest model update: 22 Jul. 26",
+                    "Latest model update: 23 Jul. 26",
     }
 
 

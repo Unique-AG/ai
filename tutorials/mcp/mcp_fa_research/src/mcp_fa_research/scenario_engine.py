@@ -299,3 +299,33 @@ if __name__ == "__main__":  # calibration self-check against the seeded hypothes
     assert r["table"]["rows"][2][1] == "-5.0%" and r["tp"]["new_label"] == "€580", r["summary"]
     print("calibration OK — engine reproduces the three seeded hypothesis cases")
     print(compute("UHR SW", china_recovery="q2_26")["summary"])
+
+
+def _selfcheck_all_seeded_cases() -> list:
+    """Every seed.SCENARIOS row carrying engine args must reproduce from the engine
+    (single source of truth — same rule as the RM demo's generated SQL)."""
+    import re as _re
+    bad = []
+    for _tk, _sc in seed.SCENARIOS.items():
+        for _row in _sc["rows"]:
+            _args = _row.get("args")
+            if not _args:
+                continue
+            _r = compute(_tk, **_args)
+            _norm = lambda x: x.replace(" ", "").replace(",", "")
+            if _norm(_r["tp"]["new_label"]) not in _norm(_row["tp_impact"]):
+                bad.append((_tk, _row["scenario"], "tp", _r["tp"]["new_label"], _row["tp_impact"]))
+            _m = _re.search(r"EPS ([+\-−][\d.]+)%", _r["summary"])
+            try:
+                _want = abs(float(_row["eps_impact"].replace("−", "-").strip("%+- ")))
+                if _m and abs(_want - abs(float(_m.group(1).replace("−", "-")))) > 0.15:
+                    bad.append((_tk, _row["scenario"], "eps", _m.group(1), _row["eps_impact"]))
+            except ValueError:
+                pass
+    return bad
+
+
+if __name__ == "__main__":
+    _bad = _selfcheck_all_seeded_cases()
+    assert not _bad, f"seed.SCENARIOS drifted from the engine: {_bad}"
+    print(f"all-names calibration: every seeded args-case reproduces ✓")

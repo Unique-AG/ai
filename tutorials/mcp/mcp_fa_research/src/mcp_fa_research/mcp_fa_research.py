@@ -157,6 +157,10 @@ def _cockpit_row(c: dict) -> dict:
     row["premarket_label"] = f"{c['premarket_pct']:+.1f}%"
     row["premarket_dir"] = "dn" if c["premarket_pct"] < -0.05 else ("up" if c["premarket_pct"] > 0.05 else "flat")
     row["pills_text"] = "  ".join(pl["label"] for pl in c.get("pills", []))
+    row["status_payload"] = json.dumps({"prompt": (
+        f"What is behind the status \"{c['status']}\" for {c['name']} ({c['ticker']})? "
+        f"Show the backing items — note drafts, control-queue entries, open reviews — "
+        f"from get_dossier and get_control_queue, with dates and what is still pending.")})
     env = env_state.current_env()
     cid = (seed.REVIEW_IDS_BY_ENV.get(env) or {}).get(c["ticker"], "")
     row["review_content_id"] = cid
@@ -619,27 +623,47 @@ def _yahoo_quote(symbol: str) -> dict | None:
 @mcp.tool(name="get_live_quotes", title="Live quotes (Yahoo Finance, formatted)",
           description="LIVE market quotes for the coverage universe, fetched from Yahoo "
                       "Finance server-side and returned DISPLAY-READY (price and change% "
-                      "formatted to 2 decimals) — built for the cockpit price ribbon. "
-                      "Returns {count, rows:[{ticker, name, symbol, price_label, chg_label, "
-                      "chg_dir, live}]}. Falls back to the synthetic seed indication (live: "
-                      "false) for any symbol Yahoo doesn't answer, so the ribbon never dies.")
-def get_live_quotes() -> str:
+                      "formatted to 2 decimals) — the ONE quote source for every canvas "
+                      "(cockpit ribbon + review quote strips). Optional ticker arg filters "
+                      "to one name. Returns {count, as_of, meta:[{label}], rows:[{ticker, "
+                      "name, symbol, price_label, chg_label, chg_dir, as_of, source, "
+                      "live}]}. as_of = fetch time (Europe/Zurich HH:MM). Falls back to "
+                      "the synthetic seed indication (live: false, source labelled "
+                      "accordingly) for any symbol Yahoo doesn't answer, so displays "
+                      "never die.")
+def get_live_quotes(
+    ticker: Annotated[str, Field(default="", description="Optional — restrict to one "
+                                 "covered name (Bloomberg code, e.g. 'RMS FP').")] = "",
+) -> str:
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    as_of = datetime.now(ZoneInfo("Europe/Zurich")).strftime("%H:%M")
+    names = seed.current_coverage()
+    if ticker:
+        names = [c for c in names if c["ticker"].lower() == ticker.strip().lower()] or names
     rows = []
-    for c in seed.current_coverage():
+    for c in names:
         q = _yahoo_quote(c["yahoo"])
         if q:
             chg = (q["price"] / q["prev_close"] - 1.0) * 100.0
             rows.append({"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
                          "price_label": f"{q['price']:,.2f}", "chg_label": f"{chg:+.2f}",
                          "chg_dir": "dn" if chg < -0.005 else ("up" if chg > 0.005 else "flat"),
+                         "as_of": as_of, "source": f"Yahoo Finance · {as_of}",
                          "live": True})
         else:
             rows.append({"ticker": c["ticker"], "name": c["name"], "symbol": c["yahoo"],
                          "price_label": f"{c['price']:,.2f}",
                          "chg_label": f"{c['premarket_pct']:+.2f}",
                          "chg_dir": "dn" if c["premarket_pct"] < 0 else "up",
+                         "as_of": as_of, "source": f"synthetic indication · {as_of}",
                          "live": False})
-    return json.dumps({"count": len(rows), "rows": rows})
+    live_n = sum(1 for r in rows if r["live"])
+    label = (f"LIVE · YAHOO FINANCE · as of {as_of} Zurich" if live_n
+             else f"SYNTHETIC INDICATION · as of {as_of} Zurich")
+    return json.dumps({"count": len(rows), "as_of": as_of,
+                       "meta": [{"label": label}], "rows": rows})
 
 
 @mcp.tool(name="Reset_Demo_Data", title="Reset demo data",
