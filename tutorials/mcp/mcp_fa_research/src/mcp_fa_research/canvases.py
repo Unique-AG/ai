@@ -238,7 +238,8 @@ def _products(tk: str, name: str) -> str:
         return ""
     regen = (f'<button class="btn" data-unique-action="sendPrompt" '
              f"data-unique-payload='{{\"prompt\":\"Regenerate the research products for "
-             f"{e(name)} ({e(tk)}) — use the exane-desknote and company-deck skills.\"}}'>"
+             f"{e(name)} ({e(tk)}): rebuild the note products with the exane-desknote skill "
+             f"and the investor deck with the exane-roadshow-deck skill.\"}}'>"
              f'↻ Regenerate via agent</button>')
     submit = (f'<button class="btn" data-unique-action="sendPrompt" '
               f"data-unique-payload='{{\"prompt\":\"Submit the latest {e(name)} ({e(tk)}) "
