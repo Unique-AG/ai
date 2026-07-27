@@ -269,18 +269,28 @@ def get_agenda() -> str:
 
 @mcp.tool(name="get_jobs", title="Jobs & notifications",
           description="Background jobs with their schedule: run_at (when the job runs, "
-                      "story time) and recurrence ('once' — the default, a single run — "
-                      "or 'daily'), plus status (done/running/scheduled) and display-ready "
-                      "when_label. Both run_at and recurrence are editable in the demo "
-                      "console. Also returns notifications. SYNTHETIC demo data.")
+                      "Zurich time) and recurrence ('once' — the default, a single run — "
+                      "or 'daily'), plus status and display-ready when_label. Due jobs "
+                      "EXECUTE: the desk-brief job (executor sdk_regen) really rebuilds "
+                      "and uploads the coverage dashboards via the Unique SDK — last_run "
+                      "carries per-document progress and the generated files with their "
+                      "content ids; other jobs simulate. Schedules are editable in the "
+                      "demo console. Also returns notifications. SYNTHETIC demo data.")
 def get_jobs() -> str:
     jobs = json.loads(json.dumps(env_state.state()["jobs"]["jobs"]))
     for jb in jobs:
         rec = jb.get("recurrence") or "once"
         jb["recurrence"] = rec
-        verb = {"done": "ran", "running": "started"}.get(jb.get("status"), "runs")
+        lr = jb.get("last_run") or {}
         run_at = jb.get("run_at") or ""
-        jb["when_label"] = f"{verb} {run_at} · {rec}" if run_at else rec
+        if jb.get("status") == "running":
+            prog = (f"{lr.get('done', 0)}/{lr['total']} docs"
+                    if lr.get("kind") == "sdk_regen" and lr.get("total") else "running…")
+            jb["when_label"] = f"started {run_at} · {prog}" if run_at else prog
+        else:
+            verb = "ran" if jb.get("status") == "done" else "runs"
+            docs = f" · {len(lr['files'])} docs" if lr.get("files") else ""
+            jb["when_label"] = f"{verb} {run_at}{docs} · {rec}" if run_at else rec
     notif = env_state.state()["jobs"].get("notification") or ""
     return json.dumps({"count": len(jobs), "jobs": jobs,
                        "notifications": [{"text": notif}] if notif else []})
@@ -671,6 +681,7 @@ async def favicon(request: Request):
 
 
 import admin_ui  # noqa: E402
+import jobs_engine  # noqa: E402
 import nightly  # noqa: E402
 
 admin_ui.register(mcp, _get_state, _reset_state)
@@ -696,6 +707,7 @@ async def nightly_run(request: Request):
 
 
 nightly.start()
+jobs_engine.start()
 
 
 def main():

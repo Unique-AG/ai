@@ -25,6 +25,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.requests import Request
 
 import env_state
+import jobs_engine
 import seed
 
 
@@ -185,6 +186,19 @@ def register(mcp, get_state, reset_state) -> None:
                                     status_code=400)
             job["status"] = v
         return JSONResponse(job)
+
+    @mcp.custom_route("/admin/api/job/{idx}/run", methods=["POST"])
+    async def admin_job_run(request: Request):
+        """Run a job immediately. sdk_regen jobs really regenerate + upload the
+        dashboards via the Unique SDK; others simulate. Progress lands in last_run."""
+        st = get_state()
+        jobs = st["jobs"]["jobs"]
+        try:
+            job = jobs[int(request.path_params["idx"])]
+        except (ValueError, IndexError):
+            return JSONResponse({"error": "unknown job index"}, status_code=404)
+        res = jobs_engine.launch(env_state.current_env(), job)
+        return JSONResponse(res, status_code=200 if res.get("started") else 409)
 
     @mcp.custom_route("/admin/api/reset", methods=["POST"])
     async def admin_reset(request: Request):
@@ -525,19 +539,38 @@ function rCal(c,add){head('Calendar',S.calendar.length+' events — click to edi
   S.calendar.map(ev=>`<tr onclick='openCal(${JSON.stringify(ev.id)})'><td>${esc(ev.date)}</td>
   <td>${esc(ev.time)}</td><td><span class="pill k-${esc(ev.kind)}">${esc(ev.kind)}</span></td>
   <td><b>${esc(ev.title)}</b></td><td>${esc(ev.ticker)}</td><td class="mut">${esc(ev.notes)}</td></tr>`).join('')+'</tbody></table>';}
-function rAgenda(c){head('Agenda & jobs','agenda read-only — click a JOB row to edit when it runs');
+function jobRun(j){const lr=j.last_run;if(!lr)return '—';
+  if(j.status==='running')return lr.kind==='sdk_regen'?('⏳ '+(lr.done||0)+'/'+(lr.total||'…')+' docs'):'⏳ running…';
+  if(lr.ok===false)return '✗ '+esc(lr.error||'failed');
+  if(lr.kind==='sdk_regen')return '✓ '+(lr.files||[]).length+' docs · '+(lr.finished||'').slice(11,16);
+  return '✓ simulated · '+(lr.finished||'').slice(11,16);}
+function rAgenda(c){head('Agenda & jobs','agenda read-only — click a JOB to edit its schedule or run it now');
   c.innerHTML='<table><thead><tr><th>Agenda</th><th>Role</th><th>When</th></tr></thead><tbody>'+
   S.agenda.map(a=>`<tr><td><b>${esc(a.title)}</b></td><td>${esc(a.role)}</td><td>${esc(a.when)}</td></tr>`).join('')+
-  '</tbody></table><br><table><thead><tr><th>Job</th><th>Runs at</th><th>Recurrence</th><th>Status</th></tr></thead><tbody>'+
+  '</tbody></table><br><table><thead><tr><th>Job</th><th>Runs at</th><th>Recurrence</th><th>Executor</th><th>Status</th><th>Last run</th></tr></thead><tbody>'+
   S.jobs.jobs.map((j,i)=>`<tr onclick='openJob(${i})'><td><b>${esc(j.label)}</b></td>
   <td class="mut">${esc(j.run_at||'—')}</td><td>${esc(j.recurrence||'once')}</td>
-  <td>${esc(j.status)}</td></tr>`).join('')+'</tbody></table>';}
-function openJob(i){const j=S.jobs.jobs[i];
+  <td>${j.executor==='sdk_regen'?'<span class="pill positive">Unique SDK</span>':'<span class="pill info">simulated</span>'}</td>
+  <td>${esc(j.status)}</td><td class="mut">${jobRun(j)}</td></tr>`).join('')+'</tbody></table>'+
+  '<p class="mut" style="font-size:12px;margin-top:10px">Due jobs execute automatically (checked every 10 s, Zurich time). '+
+  '<b>Unique SDK</b> jobs really regenerate the 6 coverage reviews + cards and upload them to this environment\'s '+
+  'Knowledge Base — the run shows per-document progress and the generated files below. '+
+  '<b>once</b> runs a single time (default — no standing token cost); <b>daily</b> re-arms for the same time next day.</p>';
+  if(S.jobs.jobs.some(j=>j.status==='running')&&!CUR)setTimeout(()=>{if(TAB==='agenda'&&!CUR)load();},3000);}
+function openJob(i){const j=S.jobs.jobs[i];const lr=j.last_run;
+  let extra='<div style="margin:10px 0"><button class="btn primary" onclick="runJob('+i+')">▶ Run now</button> '+
+    '<span class="mut" style="font-size:12px">'+(j.executor==='sdk_regen'?'real — regenerates + uploads via the Unique SDK':'simulated — status transitions only')+'</span></div>';
+  if(lr&&(lr.files||[]).length)extra+='<label>Documents generated (Unique SDK · '+esc((lr.finished||lr.started||'').slice(0,16))+')</label>'+
+    '<div style="max-height:180px;overflow:auto;border:1px solid #2a3742;border-radius:8px;padding:8px;font-size:11.5px;line-height:1.7">'+
+    lr.files.map(f=>`<div>📄 ${esc(f.path)} <span class="mut">${esc(f.content_id)}</span></div>`).join('')+'</div>';
+  else if(lr&&lr.error)extra+='<p class="mut" style="color:#e07b7b;font-size:12px">Last run: '+esc(lr.error)+'</p>';
   openDrawer('Edit job — '+j.label,
-    field('run_at','Runs at (YYYY-MM-DD HH:MM)',j.run_at||'')+
+    field('run_at','Runs at (YYYY-MM-DD HH:MM, Zurich)',j.run_at||'')+
     field('recurrence','Recurrence — once (default: single run, no standing token cost) or daily',j.recurrence||'once',{sel:['once','daily']})+
-    field('status','Status',j.status,{sel:['scheduled','running','done']}),
+    field('status','Status',j.status,{sel:['scheduled','running','done']})+extra,
     v=>patch('admin/api/job/'+i,v));}
+function runJob(i){fetch('admin/api/job/'+i+'/run',{method:'POST'}).then(r=>r.json())
+  .then(r=>{closeDrawer();toast(r.started?('Job started — '+r.kind):(r.error||'error'));load();});}
 function argsLabel(a){const p=[];if(a.fx_eur_move_pct)p.push('FX '+(a.fx_eur_move_pct>0?'+':'')+a.fx_eur_move_pct+'%');
   if(a.china_recovery)p.push('China '+a.china_recovery);if(a.destocking_end)p.push('destock '+a.destocking_end);
   return p.join(' + ')||'base (no shock)';}

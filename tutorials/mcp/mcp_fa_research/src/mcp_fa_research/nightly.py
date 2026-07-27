@@ -105,14 +105,16 @@ def _rebase_env_state(env: str) -> int:
     return delta
 
 
-def run_regen(env: str) -> dict:
+def regen_env(env: str, progress=None, rebase: bool | None = None) -> dict:
+    """Regenerate + upload one env's reviews/cards; progress(done, total, relpath, cid)
+    fires after each SDK upload. Used by the 00:00 nightly AND the cockpit's real job."""
     import canvases
 
     started = datetime.now(ZURICH).isoformat(timespec="seconds")
     result = {"started": started, "ok": False, "files": 0, "id_drift": [],
               "rebased_days": 0}
     try:
-        if _REBASE:
+        if _REBASE if rebase is None else rebase:
             result["rebased_days"] = _rebase_env_state(env)
         review_ids = dict(seed.REVIEW_IDS_BY_ENV.get(env) or {})
         note_ids = NOTE_IDS_BY_ENV.get(env) or {}
@@ -133,11 +135,18 @@ def run_regen(env: str) -> dict:
                 if name == "review.html" and expected and cid and cid != expected:
                     result["id_drift"].append(f"{tk}: {expected} -> {cid}")
                 result["files"] += 1
+                if progress:
+                    progress(result["files"], len(files), relpath, cid)
         result["ok"] = not result["id_drift"]
     except Exception as ex:
         result["error"] = f"{type(ex).__name__}: {ex}"
         traceback.print_exc()
     result["finished"] = datetime.now(ZURICH).isoformat(timespec="seconds")
+    return result
+
+
+def run_regen(env: str) -> dict:
+    result = regen_env(env)
     NIGHTLY_STATUS["regen"][env] = result
     return result
 

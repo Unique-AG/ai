@@ -240,10 +240,12 @@ AGENDA: list[dict] = [
 # Each job carries WHEN it runs (run_at "YYYY-MM-DD HH:MM", story time) and its
 # recurrence: "once" (the default — a job runs a single time unless someone opts in;
 # recurring runs consume tokens) or "daily". Both are editable in the demo console;
-# rebase-to-today shifts run_at like every other dated field.
+# rebase-to-today shifts run_at like every other dated field. jobs_engine.py runs due
+# jobs: executor "sdk_regen" = REAL (rebuild + upload the reviews/cards via the Unique
+# SDK, per-document progress recorded in last_run); no executor = simulated transitions.
 JOBS_SEED: list[dict] = [
     {"label": "overnight desk brief (6 names)", "status": "done",
-     "run_at": "2026-07-23 07:00", "recurrence": "daily"},
+     "run_at": "2026-07-23 07:00", "recurrence": "daily", "executor": "sdk_regen"},
     {"label": "first-take run — LVMH", "status": "running",
      "run_at": "2026-07-23 08:12", "recurrence": "once"},
     {"label": "tone drift monitor", "status": "scheduled",
