@@ -28,37 +28,43 @@ COVERAGE: list[dict] = [
      "target_price": 675.0, "price": 585.0, "upside_pct": 15.4,
      "status": "profit warning · post-view in control",
      "pills": [{"kind": "warn", "label": "⚠ warning"}, {"kind": "control", "label": "◯ control"}],
-     "premarket_pct": -6.2, "next_catalyst": "Q3 2026 revenue — 14 Oct"},
+     "premarket_pct": -6.2, "next_catalyst": "Q3 2026 revenue — 14 Oct",
+     "reporting": "quarterly revenue · H1/FY results"},
     {"ticker": "KER FP", "yahoo": "KER.PA", "bbg": "KER FP", "name": "Kering",
      "sector": "Luxury Goods", "ccy": "EUR", "rating": "Underperform",
      "target_price": 210.0, "price": 230.0, "upside_pct": -8.7,
      "status": "estimate review due",
      "pills": [{"kind": "ctrl", "label": "◯ review"}],
-     "premarket_pct": 0.4, "next_catalyst": "Q sales update"},
+     "premarket_pct": 0.4, "next_catalyst": "Q2/H1 sales — 29 Jul",
+     "reporting": "quarterly revenue · H1/FY results"},
     {"ticker": "RMS FP", "yahoo": "RMS.PA", "bbg": "RMS FP", "name": "Hermès",
      "sector": "Luxury Goods", "ccy": "EUR", "rating": "Neutral",
      "target_price": 2250.0, "price": 2300.0, "upside_pct": -2.2,
      "status": "up to date",
      "pills": [{"kind": "ok", "label": "✓"}],
-     "premarket_pct": 0.3, "next_catalyst": "Q sales update"},
+     "premarket_pct": 0.3, "next_catalyst": "H1 results — 30 Jul",
+     "reporting": "quarterly revenue · H1/FY results"},
     {"ticker": "CFR SW", "yahoo": "CFR.SW", "bbg": "CFR SW", "name": "Richemont",
      "sector": "Luxury Goods", "ccy": "CHF", "rating": "Outperform",
      "target_price": 170.0, "price": 155.0, "upside_pct": 9.7,
      "status": "note in draft · estimates under review (upside)",
      "pills": [{"kind": "init", "label": "✎ draft"}, {"kind": "up", "label": "▲ upside"}],
-     "premarket_pct": 1.9, "next_catalyst": "H1 results"},
+     "premarket_pct": 1.9, "next_catalyst": "H1 FY27 results — Nov",
+     "reporting": "FYE 31 March · Q1/Q3 updates · H1 Nov / FY May"},
     {"ticker": "MONC IM", "yahoo": "MONC.MI", "bbg": "MONC IM", "name": "Moncler",
      "sector": "Luxury Goods", "ccy": "EUR", "rating": "Neutral",
      "target_price": 55.0, "price": 52.0, "upside_pct": 5.8,
      "status": "up to date",
      "pills": [{"kind": "ok", "label": "✓"}],
-     "premarket_pct": -0.4, "next_catalyst": "Q sales update"},
+     "premarket_pct": -0.4, "next_catalyst": "H1 results — 29 Jul",
+     "reporting": "quarterly revenue · H1/FY results"},
     {"ticker": "UHR SW", "yahoo": "UHR.SW", "bbg": "UHR SW", "name": "Swatch Group",
      "sector": "Luxury Goods", "ccy": "CHF", "rating": "Underperform",
      "target_price": 160.0, "price": 165.0, "upside_pct": -3.0,
      "status": "in pre-publication control · tone flag",
      "pills": [{"kind": "ctrl", "label": "◯ control"}, {"kind": "warn", "label": "⚠ tone"}],
-     "premarket_pct": -0.8, "next_catalyst": "FY26 results (Jan)"},
+     "premarket_pct": -0.8, "next_catalyst": "FY results — mid-Jan",
+     "reporting": "SEMI-ANNUAL only — H1 Jul / FY Jan, no Q updates"},
 ]
 
 ALIASES: dict[str, str] = {
@@ -112,9 +118,10 @@ OVERNIGHT: dict[str, dict] = {
     },
     "UHR SW": {
         "ticker": "UHR SW", "name": "Swatch Group", "severity": "watch", "category": "transcript",
-        "headline": "Tone × guidance run complete — softer China entry tone (Q3 transcript)",
+        "headline": "Tone × guidance run complete — softer China entry tone (H1 call)",
         "detail": "Management language on the China entry consumer turned more cautious vs "
-                  "the H1 call — the kind of qualitative tone drift that precedes a reset.",
+                  "the FY call — Swatch reports SEMI-ANNUALLY, so the H1 call (mid-Jul) is "
+                  "the only fresh data point until January.",
         "valuation_impact": "Early-warning flag: downside risk to FY26 organic +2%; watch "
                             "for a guidance reset. No estimate change yet; the desknote flagging the "
                             "drift is in pre-publication control.",
@@ -202,7 +209,7 @@ DOSSIERS: dict[str, dict] = {
     "CFR SW": {"thesis": "Jewellery structural winner (Cartier, VCA); balance-sheet optionality.",
                "estimates": "FY26E organic +6%; jewellery mix supports margin — upside risk overnight.",
                "interaction_log": ["FY25 call", "IR follow-up (China)"],
-               "note_history": ["H1 preview (published, 21 Jul)",
+               "note_history": ["Q1 FY27 trading-update note (published, 21 Jul)",
                                 "Note in draft — valuation section pending"]},
     "MONC IM": {"thesis": "Single-brand story; brand heat solid, watch wholesale normalisation.",
                 "estimates": "FY26E organic +6%; margin resilient.",
@@ -211,7 +218,7 @@ DOSSIERS: dict[str, dict] = {
     "UHR SW": {"thesis": "Most geared to a Chinese entry-consumer recovery; a high-beta call "
                "on the timing of the China turn, not a quality holding.",
                "estimates": "FY26E organic +2%; earnings sensitive to China entry demand.",
-               "interaction_log": ["H1 call", "Q3 transcript (new, indexed)"],
+               "interaction_log": ["FY25 call (Jan)", "H1-26 call transcript (new, indexed)"],
                "note_history": ["Note in pre-publication control"]},
 }
 
@@ -329,8 +336,8 @@ EMAILS_SEED: list[dict] = [
              "— route drafts via the control workspace."},
     {"id": "M-006", "ts": "2026-07-22 11:34", "from_name": "Swatch Group IR",
      "from_role": "Corporate", "ticker": "UHR SW", "read": True,
-     "subject": "Q3 call transcript now available",
-     "body": "The transcript of our Q3 analyst call is now available on the IR site. "
+     "subject": "H1 call transcript now available",
+     "body": "The transcript of our H1 analyst call is now available on the IR site. "
              "Happy to schedule a follow-up with management if useful."},
     {"id": "M-007", "ts": "2026-07-21 16:48", "from_name": "Strategy team",
      "from_role": "Internal", "ticker": "", "read": True,
@@ -372,9 +379,15 @@ CALENDAR_SEED: list[dict] = [
     {"id": "E-008", "date": "2026-07-29", "time": "17:40", "kind": "results",
      "title": "Kering — Q2/H1 sales", "ticker": "KER FP",
      "notes": "We are 5% below street FY26e EPS; watch Gucci sell-out."},
-    {"id": "E-009", "date": "2026-08-05", "time": "07:00", "kind": "results",
-     "title": "Richemont — H1 results", "ticker": "CFR SW",
-     "notes": "Preview published; ours above street on jewellery mix."},
+    {"id": "E-009", "date": "2026-11-06", "time": "07:00", "kind": "results",
+     "title": "Richemont — H1 FY27 results (FYE March)", "ticker": "CFR SW",
+     "notes": "Q1 update note published; ours above street on jewellery mix."},
+    {"id": "E-013", "date": "2026-07-29", "time": "07:30", "kind": "results",
+     "title": "Moncler — H1 2026 results", "ticker": "MONC IM",
+     "notes": "DTC momentum vs wholesale normalisation; FX headwind quantified."},
+    {"id": "E-014", "date": "2026-07-30", "time": "08:00", "kind": "results",
+     "title": "Hermès — H1 2026 results", "ticker": "RMS FP",
+     "notes": "Consensus +9% organic; watch the leather capacity comment."},
     {"id": "E-010", "date": "2026-08-03", "time": "09:00", "kind": "roadshow",
      "title": "Corporate roadshow — New York (LVMH mgmt)", "ticker": "MC FP",
      "notes": "You organise: CEO/CFO/IR; investor list due Friday."},
@@ -383,7 +396,7 @@ CALENDAR_SEED: list[dict] = [
      "notes": "Apply the new house macro set to estimates."},
     {"id": "E-012", "date": "2026-07-31", "time": "12:00", "kind": "meeting",
      "title": "Lunch — Swatch IR follow-up", "ticker": "UHR SW",
-     "notes": "Probe the China entry-demand tone from the Q3 transcript."},
+     "notes": "Probe the China entry-demand tone from the H1 call transcript."},
 ]
 
 # ---------------------------------------------------------------------------
@@ -659,10 +672,11 @@ SCENARIOS: dict[str, dict] = {
                 "gearing 2.5× — every scenario is violent; the tone flag is the thesis.",
         "rows": [
             {"scenario": "Base case — no China recovery",
-             "assumption": "Entry demand stays soft; tone drift confirmed by the numbers",
+             "assumption": "Entry demand stays soft; no fresh print before FY (mid-Jan)",
              "args": {},
              "eps_impact": "—", "tp_impact": "CHF 160 (base)",
-             "hypothesis": "The Q3 transcript tone flag IS the thesis — Underperform.",
+             "hypothesis": "The H1-call tone flag IS the thesis — Underperform; next data point "
+                           "only in January (semi-annual reporter).",
              "probability": "45%"},
             {"scenario": "Franc shock — CHF +5%",
              "assumption": "Safe-haven bid; only 15% hedged, 90% of sales non-CHF",

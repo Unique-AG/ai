@@ -311,7 +311,17 @@ def _products(tk: str, name: str) -> str:
         '<button class="btn" id="regen-sel" data-unique-action="sendPrompt" '
         'data-unique-payload="{}">↻ Regenerate selected</button>'
         '<button class="btn" id="submit-sel" data-unique-action="sendPrompt" '
-        'data-unique-payload="{}">⇪ Submit selected for control</button></div>')
+        'data-unique-payload="{}">⇪ Submit selected for control</button>'
+        '<button class="btn" data-unique-action="sendPrompt" '
+        "data-unique-payload='" + _json.dumps({"prompt": (
+            f"Update the {name} ({tk}) sell-side Excel model with the LATEST data — "
+            "use the exane-financial-model skill in UPDATE mode: pull fresh figures "
+            "(get_financials, get_coverage, get_note_pack for LVMH), overwrite the "
+            "changed inputs/actuals in the existing workbook (keep every formula "
+            "live), save it back to Fundamental Analyst/names/" + tk + "/notes/ under "
+            "the SAME filename, and report the delta: EPS by year and target price "
+            "vs the prior version.")}) + "'>"
+        '📈 Update model with latest data</button></div>')
     return (f'<div class="card" id="prodcard" data-tk="{e(tk)}" data-name="{e(name)}">'
             '<h2>Research products <span class="mut">· pre-generated overnight · tick the '
             'documents, then regenerate, submit for control or edit with AI</span></h2>'
@@ -336,7 +346,7 @@ def build_review(tk: str, names: list[tuple]) -> str:
         _tile("Rating", f'<span class="rate {e(c["rating"])}">{e(c["rating"])}</span>'),
         _tile("Target price", _fmt_ccy(tp, c["ccy"]), f'upside {up:+.1f}% · {tp_note}'),
         _tile("Last price", _fmt_ccy(c["price"], c["ccy"]), f'pre-mkt {c["premarket_pct"]:+.1f}%'),
-        _tile("Next catalyst", e(c["next_catalyst"])),
+        _tile("Next catalyst", e(c["next_catalyst"]), e(c.get("reporting", ""))),
     ])
 
 
