@@ -1,10 +1,8 @@
 from collections.abc import Awaitable, Callable
 from logging import Logger
 
-from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import Postprocessor
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.service import ChatService
 from unique_toolkit.language_model.default_language_model import (
     DEFAULT_LANGUAGE_MODEL,
 )
@@ -32,9 +30,7 @@ class UserMemoryPostprocessor(Postprocessor):
         event: ChatEvent,
         state: UserMemoryState,
         logger: Logger,
-        chat_service: ChatService,
-        message_step_logger: MessageStepLogger | None = None,
-        message_logger: UserMemoryMessageLogger | None = None,
+        message_step_logger: UserMemoryMessageLogger,
     ) -> None:
         super().__init__(name="UserMemoryPostprocessor")
         self._config = config
@@ -49,18 +45,7 @@ class UserMemoryPostprocessor(Postprocessor):
         self._new_memory: str | None = None
         self._pending_load_invocation_stats = list(state.load_invocation_stats)
         self._invocation_stats: list[LanguageModelInvocationStats] = []
-        if message_logger is not None:
-            self._message_logger = message_logger
-        elif message_step_logger is not None:
-            self._message_logger = UserMemoryMessageLogger(
-                message_step_logger,
-                logger=logger,
-            )
-        else:
-            self._message_logger = UserMemoryMessageLogger(
-                MessageStepLogger(chat_service),
-                logger=logger,
-            )
+        self._message_step_logger = message_step_logger
 
     @property
     def invocation_stats(self) -> list[LanguageModelInvocationStats]:
@@ -96,11 +81,13 @@ class UserMemoryPostprocessor(Postprocessor):
             return False
 
         async def _on_update_start() -> None:
-            await self._message_logger.log_updating_start()
+            await self._message_step_logger.log_updating_start()
 
         async def _on_update_end() -> None:
             # Complete without the review entry; attach it only after upload.
-            await self._message_logger.log_updating_complete(with_settings_entry=False)
+            await self._message_step_logger.log_updating_complete(
+                with_settings_entry=False
+            )
 
         on_update_start: Callable[[], Awaitable[None]] = _on_update_start
         on_update_end: Callable[[], Awaitable[None]] = _on_update_end
@@ -134,7 +121,7 @@ class UserMemoryPostprocessor(Postprocessor):
             self._logger.warning("[user-memory] memory update was not uploaded")
             return False
 
-        await self._message_logger.log_updating_complete(with_settings_entry=True)
+        await self._message_step_logger.log_updating_complete(with_settings_entry=True)
         self._logger.info("[user-memory] memory updated and uploaded successfully")
         return True
 

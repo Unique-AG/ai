@@ -395,11 +395,11 @@ async def _build_common(
             if user_memory_config.use_orchestrator_language_model
             else user_memory_config.language_model
         )
-        memory_message_logger = UserMemoryMessageLogger(
+        memory_message_step_logger = UserMemoryMessageLogger(
             message_step_logger,
             logger=logger,
         )
-        await memory_message_logger.log_loading_start()
+        await memory_message_step_logger.log_loading_start()
         user_memory_state = None
         load_succeeded = False
         try:
@@ -420,10 +420,12 @@ async def _build_common(
             )
         finally:
             if not load_succeeded:
-                await memory_message_logger.log_loading_failed()
+                await memory_message_step_logger.log_loading_failed()
 
         if load_succeeded and user_memory_state is not None:
-            await memory_message_logger.log_loading_complete(with_settings_entry=True)
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=True
+            )
             user_memory_text = user_memory_state.text
             postprocessor_manager.add_postprocessor(
                 UserMemoryPostprocessor(
@@ -432,12 +434,13 @@ async def _build_common(
                     event=event,
                     state=user_memory_state,
                     logger=logger,
-                    chat_service=chat_service,
-                    message_logger=memory_message_logger,
+                    message_step_logger=memory_message_step_logger,
                 )
             )
         elif load_succeeded:
-            await memory_message_logger.log_loading_complete(with_settings_entry=False)
+            await memory_message_step_logger.log_loading_complete(
+                with_settings_entry=False
+            )
 
     return _CommonComponents(
         chat_service=chat_service,

@@ -680,7 +680,9 @@ async def test_consolidate_user_memory_invokes_update_end_when_start_cancelled(
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_load_emits_settings_detail_entry() -> None:
+async def test_user_memory_message_step_logger_load_emits_settings_detail_entry() -> (
+    None
+):
     step_logger = MagicMock()
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
@@ -706,7 +708,7 @@ async def test_user_memory_message_logger_load_emits_settings_detail_entry() -> 
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_load_skips_entry_when_disabled() -> None:
+async def test_user_memory_message_step_logger_load_skips_entry_when_disabled() -> None:
     step_logger = MagicMock()
     step_logger.create_or_update_message_log_async = AsyncMock(return_value=MagicMock())
     message_logger = UserMemoryMessageLogger(step_logger)
@@ -719,7 +721,9 @@ async def test_user_memory_message_logger_load_skips_entry_when_disabled() -> No
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_load_failed_marks_failed_status() -> None:
+async def test_user_memory_message_step_logger_load_failed_marks_failed_status() -> (
+    None
+):
     """
     Purpose: log_loading_failed updates the loading Step to FAILED with no
     settings entry.
@@ -744,7 +748,7 @@ async def test_user_memory_message_logger_load_failed_marks_failed_status() -> N
 
 
 @pytest.mark.asyncio
-async def test_user_memory_message_logger_update_attaches_review_entry_only_when_requested() -> (
+async def test_user_memory_message_step_logger_update_attaches_review_entry_only_when_requested() -> (
     None
 ):
     step_logger = MagicMock()
@@ -793,11 +797,9 @@ async def test_user_memory_postprocessor_emits_updating_message_logs(
         "unique_user_memory.user_memory_postprocessor.upload_user_memory",
         AsyncMock(return_value=True),
     )
-    chat_service = MagicMock()
-    chat_service.modify_assistant_message_async = AsyncMock()
-    message_logger = MagicMock()
-    message_logger.log_updating_start = AsyncMock()
-    message_logger.log_updating_complete = AsyncMock()
+    message_step_logger = MagicMock()
+    message_step_logger.log_updating_start = AsyncMock()
+    message_step_logger.log_updating_complete = AsyncMock()
     event = MagicMock()
     event.user_id = "user_1"
     event.company_id = "company_1"
@@ -813,62 +815,16 @@ async def test_user_memory_postprocessor_emits_updating_message_logs(
             text=empty_profile("user_1"),
         ),
         logger=MagicMock(),
-        chat_service=chat_service,
-        message_logger=message_logger,
+        message_step_logger=message_step_logger,
     )
 
     await postprocessor.run(loop_response)
 
-    chat_service.modify_assistant_message_async.assert_not_awaited()
-    message_logger.log_updating_start.assert_awaited_once_with()
+    message_step_logger.log_updating_start.assert_awaited_once_with()
     assert [
-        call.kwargs for call in message_logger.log_updating_complete.await_args_list
+        call.kwargs
+        for call in message_step_logger.log_updating_complete.await_args_list
     ] == [{"with_settings_entry": False}, {"with_settings_entry": True}]
-
-
-@pytest.mark.asyncio
-async def test_user_memory_postprocessor_does_not_mutate_assistant_message_text(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    updated_memory = "# User Memory\n\n## Identity\n- Updated"
-
-    async def fake_consolidate(*, on_update_start, on_update_end, **kwargs) -> str:  # type: ignore[no-untyped-def]
-        await on_update_start()
-        await on_update_end()
-        return updated_memory
-
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory_postprocessor.consolidate_user_memory",
-        fake_consolidate,
-    )
-    monkeypatch.setattr(
-        "unique_user_memory.user_memory_postprocessor.upload_user_memory",
-        AsyncMock(return_value=True),
-    )
-    chat_service = MagicMock()
-    chat_service.modify_assistant_message_async = AsyncMock()
-    event = MagicMock()
-    event.user_id = "user_1"
-    event.company_id = "company_1"
-    event.payload.user_message.text = "remember this"
-    loop_response = MagicMock()
-    loop_response.message.text = "answer"
-    postprocessor = UserMemoryPostprocessor(
-        config=UserMemoryConfig(),
-        language_model=_TEST_LANGUAGE_MODEL,
-        event=event,
-        state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
-        logger=MagicMock(),
-        chat_service=chat_service,
-        message_logger=MagicMock(
-            log_updating_start=AsyncMock(),
-            log_updating_complete=AsyncMock(),
-        ),
-    )
-
-    await postprocessor.run(loop_response)
-
-    chat_service.modify_assistant_message_async.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -1160,8 +1116,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
-    chat_service = MagicMock()
-    message_logger = MagicMock(
+    message_step_logger = MagicMock(
         log_updating_start=AsyncMock(),
         log_updating_complete=AsyncMock(),
     )
@@ -1171,8 +1126,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
-        chat_service=chat_service,
-        message_logger=message_logger,
+        message_step_logger=message_step_logger,
     )
 
     updated = await postprocessor.run(loop_response)
@@ -1185,7 +1139,7 @@ async def test_user_memory_postprocessor_logs_success_when_upload_succeeds(
         company_id="company_1",
         logger=logger,
     )
-    message_logger.log_updating_complete.assert_awaited_once_with(
+    message_step_logger.log_updating_complete.assert_awaited_once_with(
         with_settings_entry=True
     )
     logger.info.assert_any_call(
@@ -1244,7 +1198,10 @@ async def test_user_memory_postprocessor_run_resets_invocation_stats(
         event=event,
         state=state,
         logger=MagicMock(),
-        chat_service=MagicMock(),
+        message_step_logger=MagicMock(
+            log_updating_start=AsyncMock(),
+            log_updating_complete=AsyncMock(),
+        ),
     )
 
     await postprocessor.run(loop_response)
@@ -1284,7 +1241,7 @@ def test_user_memory_postprocessor_take_pending_invocation_stats_drains_once() -
         event=event,
         state=state,
         logger=MagicMock(),
-        chat_service=MagicMock(),
+        message_step_logger=MagicMock(),
     )
 
     taken = postprocessor.take_pending_invocation_stats()
@@ -1313,15 +1270,13 @@ async def test_user_memory_postprocessor_does_not_log_success_when_upload_fails(
     loop_response = MagicMock()
     loop_response.message.text = "noted"
     logger = MagicMock()
-    chat_service = MagicMock()
     postprocessor = UserMemoryPostprocessor(
         config=UserMemoryConfig(),
         language_model=_TEST_LANGUAGE_MODEL,
         event=event,
         state=UserMemoryState(scope_id="scope_1", text=empty_profile("user_1")),
         logger=logger,
-        chat_service=chat_service,
-        message_logger=MagicMock(
+        message_step_logger=MagicMock(
             log_updating_start=AsyncMock(),
             log_updating_complete=AsyncMock(),
         ),

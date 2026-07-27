@@ -114,11 +114,11 @@ memory_language_model = (
 )
 
 message_step_logger = MessageStepLogger(chat_service)
-memory_message_logger = UserMemoryMessageLogger(
+memory_message_step_logger = UserMemoryMessageLogger(
     message_step_logger,
     logger=logger,
 )
-await memory_message_logger.log_loading_start()
+await memory_message_step_logger.log_loading_start()
 user_memory_state = None
 load_succeeded = False
 try:
@@ -139,10 +139,10 @@ finally:
     # Always close the RUNNING step — otherwise the chat Steps UI stays stuck
     # on "Loading context memory" for that turn when load raises.
     if not load_succeeded:
-        await memory_message_logger.log_loading_failed()
+        await memory_message_step_logger.log_loading_failed()
 
 if load_succeeded and user_memory_state is not None:
-    await memory_message_logger.log_loading_complete(with_settings_entry=True)
+    await memory_message_step_logger.log_loading_complete(with_settings_entry=True)
     user_memory_text = user_memory_state.text
     postprocessor_manager.add_postprocessor(
         UserMemoryPostprocessor(
@@ -151,12 +151,11 @@ if load_succeeded and user_memory_state is not None:
             event=event,
             state=user_memory_state,
             logger=logger,
-            chat_service=chat_service,
-            message_logger=memory_message_logger,
+            message_step_logger=memory_message_step_logger,
         )
     )
 elif load_succeeded:
-    await memory_message_logger.log_loading_complete(with_settings_entry=False)
+    await memory_message_step_logger.log_loading_complete(with_settings_entry=False)
 ```
 
 Note that `UserMemoryPostprocessor` re-derives the effective model internally from `use_orchestrator_language_model`, so passing `memory_language_model` (rather than the raw orchestrator model) keeps its behavior identical while ensuring `load_user_memory` caps with the matching tokenizer.
